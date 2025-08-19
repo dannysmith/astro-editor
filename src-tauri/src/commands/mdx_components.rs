@@ -38,12 +38,14 @@ pub async fn scan_mdx_components(
 ) -> Result<Vec<MdxComponent>, String> {
     let project_root = Path::new(&project_path);
     let mdx_dir_path = mdx_directory.unwrap_or_else(|| "src/components/mdx".to_string());
-    let mdx_dir = project_root.join(mdx_dir_path);
+    let mdx_dir = project_root.join(&mdx_dir_path);
 
     // Validate the MDX directory is within project bounds
     if mdx_dir.exists() {
         let _validated_mdx_dir = validate_project_path(&mdx_dir, project_root)?;
     } else {
+        // Keep this one log for production debugging
+        eprintln!("[MDX] Directory not found: {}", mdx_dir.display());
         return Ok(vec![]);
     }
 
@@ -70,7 +72,7 @@ pub async fn scan_mdx_components(
         match validate_project_path(path, project_root) {
             Ok(_) => match parse_astro_component(path, &project_path) {
                 Ok(component) => components.push(component),
-                Err(e) => eprintln!("Error parsing {}: {e}", path.display()),
+                Err(e) => eprintln!("Error parsing MDX component {}: {e}", path.display()),
             },
             Err(e) => {
                 eprintln!(
@@ -81,6 +83,13 @@ pub async fn scan_mdx_components(
             }
         }
     }
+
+    // Keep this summary log for production debugging
+    eprintln!(
+        "[MDX] Found {} components in {}",
+        components.len(),
+        mdx_dir.display()
+    );
 
     Ok(components)
 }

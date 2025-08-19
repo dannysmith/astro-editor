@@ -64,10 +64,20 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_log::Builder::new()
-            .targets([tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout)])
+            .targets([
+                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),
+                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview)
+            ])
             .build())
         .manage(commands::watcher::init_watcher_state())
         .setup(|app| {
+            // Log app startup information
+            let package_info = app.package_info();
+            log::info!("Astro Editor v{} starting up", package_info.version);
+            log::info!("Platform: {}", std::env::consts::OS);
+            log::info!("Architecture: {}", std::env::consts::ARCH);
+
             // Fix PATH environment variable for production builds
             // This ensures shell commands can find executables like 'code', 'cursor', etc.
             // if let Err(e) = fix_path_env::fix() {
@@ -346,6 +356,9 @@ pub fn run() {
             write_file_content,
             create_directory,
             open_path_in_ide,
+            get_app_version,
+            get_platform_info,
+            get_app_info,
             get_available_ides
         ])
         .run(tauri::generate_context!())

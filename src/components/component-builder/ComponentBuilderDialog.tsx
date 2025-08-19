@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
+import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 /**
@@ -22,6 +23,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
  */
 export function ComponentBuilderDialog() {
   const { projectPath } = useProjectStore()
+  const { pathOverrides } = useEffectiveSettings()
   const {
     isOpen,
     step,
@@ -36,9 +38,11 @@ export function ComponentBuilderDialog() {
     setPropSearchQuery,
   } = useComponentBuilderStore()
 
-  // Fetch MDX components using TanStack Query
-  const { data: components = [], isLoading } =
-    useMdxComponentsQuery(projectPath)
+  // Fetch MDX components using TanStack Query with effective settings
+  const { data: components = [], isLoading } = useMdxComponentsQuery(
+    projectPath,
+    pathOverrides.mdxComponentsDirectory
+  )
 
   // Custom filter function that only searches component names and descriptions
   const customFilter = React.useCallback((value: string, search: string) => {

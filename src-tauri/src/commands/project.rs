@@ -1,6 +1,6 @@
 use crate::models::{Collection, FileEntry};
 use crate::parser::parse_astro_config;
-use log::warn;
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
@@ -113,6 +113,7 @@ pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<Strin
 
 #[tauri::command]
 pub async fn scan_project(project_path: String) -> Result<Vec<Collection>, String> {
+    info!("Astro Editor [PROJECT_SCAN] Scanning project at path: {project_path}");
     scan_project_with_content_dir(project_path, None).await
 }
 
@@ -121,13 +122,30 @@ pub async fn scan_project_with_content_dir(
     project_path: String,
     content_directory: Option<String>,
 ) -> Result<Vec<Collection>, String> {
+    info!("Astro Editor [PROJECT_SCAN] Scanning project at path: {project_path}");
+    info!(
+        "Astro Editor [PROJECT_SCAN] Content directory: {:?}",
+        content_directory.as_deref().unwrap_or("src/content")
+    );
+
     let path = PathBuf::from(&project_path);
 
     // Try to parse Astro config first
+    debug!("Astro Editor [PROJECT_SCAN] Attempting to parse Astro config");
     match parse_astro_config(&path) {
-        Ok(collections) if !collections.is_empty() => Ok(collections),
-        Ok(_) | Err(_) => {
-            // Fallback: scan directory structure if config parsing fails or returns empty
+        Ok(collections) if !collections.is_empty() => {
+            info!(
+                "Astro Editor [PROJECT_SCAN] Found {} collections from Astro config",
+                collections.len()
+            );
+            Ok(collections)
+        }
+        Ok(_) => {
+            debug!("Astro Editor [PROJECT_SCAN] Astro config returned empty collections, falling back to directory scan");
+            scan_content_directories_with_override(path.as_path(), content_directory)
+        }
+        Err(err) => {
+            debug!("Astro Editor [PROJECT_SCAN] Astro config parsing failed: {err}, falling back to directory scan");
             scan_content_directories_with_override(path.as_path(), content_directory)
         }
     }
@@ -140,26 +158,50 @@ fn scan_content_directories_with_override(
     let mut collections = Vec::new();
 
     // Use override if provided, otherwise default to src/content
-    let content_dir = if let Some(override_path) = content_directory_override {
+    let content_dir = if let Some(override_path) = &content_directory_override {
+        debug!("Astro Editor [PROJECT_SCAN] Using content directory override: {override_path}");
         project_path.join(override_path)
     } else {
+        debug!("Astro Editor [PROJECT_SCAN] Using default content directory: src/content");
         project_path.join("src").join("content")
     };
 
     if content_dir.exists() {
+        info!(
+            "Astro Editor [PROJECT_SCAN] Content directory found: {}",
+            content_dir.display()
+        );
+
         // Look for common collection directories
-        for entry in std::fs::read_dir(&content_dir)
-            .map_err(|e| format!("Failed to read content directory: {e}"))?
-        {
-            let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+        for entry in std::fs::read_dir(&content_dir).map_err(|e| {
+            let err_msg = format!("Failed to read content directory: {e}");
+            error!("Astro Editor [PROJECT_SCAN] {err_msg}");
+            err_msg
+        })? {
+            let entry = entry.map_err(|e| {
+                let err_msg = format!("Failed to read directory entry: {e}");
+                error!("Astro Editor [PROJECT_SCAN] {err_msg}");
+                err_msg
+            })?;
             let path = entry.path();
 
             if path.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    debug!("Astro Editor [PROJECT_SCAN] Found collection directory: {name}");
                     collections.push(Collection::new(name.to_string(), path));
                 }
             }
         }
+
+        info!(
+            "Astro Editor [PROJECT_SCAN] Found {} collections via directory scan",
+            collections.len()
+        );
+    } else {
+        error!(
+            "Astro Editor [PROJECT_SCAN] Content directory does not exist: {}",
+            content_dir.display()
+        );
     }
 
     Ok(collections)

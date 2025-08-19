@@ -4,6 +4,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { ProjectMetadata } from './types'
+import { safeLog } from '../diagnostics'
 
 /**
  * Simple hash function for generating project IDs
@@ -51,6 +52,10 @@ export async function discoverProject(
   try {
     // Try to read package.json
     const packageJsonPath = `${projectPath}/package.json`
+    await safeLog.debug(
+      `Astro Editor [PROJECT_DISCOVERY] Reading package.json: ${packageJsonPath}`
+    )
+
     const packageJsonContent = await invoke<string>('read_file_content', {
       filePath: packageJsonPath,
       projectRoot: projectPath,
@@ -60,7 +65,13 @@ export async function discoverProject(
     const name =
       packageJson.name || projectPath.split('/').pop() || 'unknown-project'
 
+    await safeLog.info(
+      `Astro Editor [PROJECT_DISCOVERY] Project name found: ${name}`
+    )
     const projectId = generateProjectId(name, projectPath, existingIds)
+    await safeLog.debug(
+      `Astro Editor [PROJECT_DISCOVERY] Generated project ID: ${projectId}`
+    )
 
     return {
       id: projectId,
@@ -69,10 +80,20 @@ export async function discoverProject(
       lastOpened: new Date().toISOString(),
       created: new Date().toISOString(),
     }
-  } catch {
+  } catch (error) {
     // Fallback if package.json doesn't exist or is invalid
+    await safeLog.error(
+      `Astro Editor [PROJECT_DISCOVERY] Package.json read failed for ${projectPath}: ${String(error)}`
+    )
+    await safeLog.info(
+      `Astro Editor [PROJECT_DISCOVERY] Using fallback discovery for: ${projectPath}`
+    )
+
     const name = projectPath.split('/').pop() || 'unknown-project'
     const projectId = generateProjectId(name, projectPath, existingIds)
+    await safeLog.debug(
+      `Astro Editor [PROJECT_DISCOVERY] Fallback project ID: ${projectId}`
+    )
 
     return {
       id: projectId,

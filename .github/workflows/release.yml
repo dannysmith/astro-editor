@@ -18,6 +18,7 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+      actions: write
     strategy:
       fail-fast: false
       matrix:

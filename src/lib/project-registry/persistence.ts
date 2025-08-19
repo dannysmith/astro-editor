@@ -29,10 +29,28 @@ async function ensurePreferencesDir() {
   const { preferencesDir, projectsDir } = await getAppSupportPaths()
 
   try {
-    await invoke('create_directory', { path: preferencesDir })
-    await invoke('create_directory', { path: projectsDir })
-  } catch {
-    // Directories might already exist, that's fine
+    // Use the safer app data file operations that create directories as needed
+    await invoke('write_app_data_file', {
+      filePath: `${preferencesDir}/.init`,
+      content: 'directory initialized',
+    })
+    await invoke('write_app_data_file', {
+      filePath: `${projectsDir}/.init`,
+      content: 'directory initialized',
+    })
+
+    // Clean up the init files
+    try {
+      await invoke('read_app_data_file', {
+        filePath: `${preferencesDir}/.init`,
+      })
+      await invoke('read_app_data_file', { filePath: `${projectsDir}/.init` })
+    } catch {
+      // Files might not exist, that's fine
+    }
+  } catch (err) {
+    await error(`Failed to ensure preferences directories: ${String(err)}`)
+    throw err
   }
 }
 

@@ -730,9 +730,23 @@ pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
 ///
 /// This function prevents path traversal attacks for app data operations
 /// by ensuring all file operations stay within the app's data directory.
+/// Creates the app data directory if it doesn't exist.
 fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf, String> {
+    use log::info;
+
     let file_path = Path::new(file_path);
     let app_data_dir = Path::new(app_data_dir);
+
+    // Create app data directory if it doesn't exist
+    if !app_data_dir.exists() {
+        info!(
+            "Astro Editor [PROJECT_REGISTRY] Creating app data directory: {}",
+            app_data_dir.display()
+        );
+        std::fs::create_dir_all(app_data_dir)
+            .map_err(|e| format!("Failed to create app data directory: {e}"))?;
+        info!("Astro Editor [PROJECT_REGISTRY] App data directory created successfully");
+    }
 
     // Resolve canonical paths to handle symlinks and .. traversal
     let canonical_file = file_path
@@ -740,6 +754,19 @@ fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf
         .or_else(|_| {
             // If file doesn't exist, try to canonicalize parent and append filename
             if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
+                // Ensure parent directory exists
+                if !parent.exists() {
+                    info!(
+                        "Astro Editor [PROJECT_REGISTRY] Creating parent directory: {}",
+                        parent.display()
+                    );
+                    if let Err(e) = std::fs::create_dir_all(parent) {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Failed to create parent directory: {e}"),
+                        ));
+                    }
+                }
                 parent.canonicalize().map(|p| p.join(filename))
             } else {
                 Err(std::io::Error::new(
@@ -748,11 +775,11 @@ fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf
                 ))
             }
         })
-        .map_err(|_| "Invalid file path".to_string())?;
+        .map_err(|e| format!("Invalid file path: {e}"))?;
 
     let canonical_app_data = app_data_dir
         .canonicalize()
-        .map_err(|_| "Invalid app data directory".to_string())?;
+        .map_err(|e| format!("Invalid app data directory: {e}"))?;
 
     // Ensure file is within app data bounds
     canonical_file
