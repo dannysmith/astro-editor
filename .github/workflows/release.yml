@@ -98,12 +98,12 @@ jobs:
         run: |
           # Find the generated DMG file
           DMG_FILE=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
-          
+
           if [ -n "$DMG_FILE" ]; then
             echo "Found DMG: $DMG_FILE"
             # Copy to website folder with static name
-            cp "$DMG_FILE" website/astro-editor-latest.dmg
-            echo "Copied DMG to website/astro-editor-latest.dmg"
+            cp "$DMG_FILE" website/public/astro-editor-latest.dmg
+            echo "Copied DMG to website/public/astro-editor-latest.dmg"
           else
             echo "No DMG file found!"
             exit 1
@@ -114,7 +114,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add website/astro-editor-latest.dmg
+          git add website/public/astro-editor-latest.dmg
           git commit -m "chore: update latest DMG for ${{ github.ref_name || inputs.version }}" || echo "No changes to commit"
           git push origin HEAD:main || echo "Failed to push, continuing..."
 
