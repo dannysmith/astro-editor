@@ -1,0 +1,34 @@
+---
+title: The Editor
+sidebar:
+  order: 2
+---
+
+import { Kbd } from 'starlight-kbd/components'
+
+The editor window shows the entire contents of your markdown or MDX files with the exception of the YAML frontmatter and any JSX `import` lines immediately following the frontmatter. It's designed to provide an extremely clean writing interface, especially when both sidebars are closed. It provides markdown syntax highlighting.
+
+## Auto-Save
+
+Astro Editor automatically saves your work while you're editing (configurable in preferences, default is 2 seconds). You'll see a brief "Saved" notification in the status bar when auto-save occurs. You can also manually save at any time using <Kbd mac="Command+S" />.
+
+## Editor Keyboard Shortcuts
+
+Astro Editor includes the following keyboard shortcuts.
+
+| Shortcut                        | Action            | Description                                |
+| ------------------------------- | ----------------- | ------------------------------------------ |
+| <Kbd mac="Command+B" />         | Bold              | Toggle bold formatting for selected text   |
+| <Kbd mac="Command+I" />         | Italic            | Toggle italic formatting for selected text |
+| <Kbd mac="Command+K" />         | Link              | Create or edit a link for selected text    |
+| <Kbd mac="Command+]" />         | Indent Right      | Indent current line right                  |
+| <Kbd mac="Command+[" />         | Indent Left       | Indent current line left                   |
+| <Kbd mac="Command+Z" />         | Undo              | Undo the last edit action                  |
+| <Kbd mac="Command+Y" />         | Redo              | Redo the last undo action                  |
+| <Kbd mac="Control+Command+F" /> | Toggle Focus Mode | Enable/disable focus writing mode          |
+| <Kbd mac="Opt+Click" />         | Open URL          | Open URL under mouse cursor in browser     |
+| <Kbd mac="Opt+Command+1" />     | Heading 1         | Convert current line to H1                 |
+| <Kbd mac="Opt+Command+2" />     | Heading 2         | Convert current line to H2                 |
+| <Kbd mac="Opt+Command+3" />     | Heading 3         | Convert current line to H3                 |
+| <Kbd mac="Opt+Command+4" />     | Heading 4         | Convert current line to H4                 |
+| <Kbd mac="Opt+Command+0" />     | Plain Text        | Convert current line to plain paragraph    |
