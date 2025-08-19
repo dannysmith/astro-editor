@@ -15,11 +15,7 @@
 - Keyboard shortcuts for inline markdown formatting, toggling headings, etc. Pasting URLs over selected text inserts a link tag. Holding option makes URLs clickable. Multiple cursors à la VSCode.
 - Autosave & crash recovery.
 
-
-
 https://github.com/user-attachments/assets/89b87f98-88c0-4845-a020-284201464b86
-
-
 
 ## Supported Astro Projects
 
@@ -49,9 +45,9 @@ The paths to the _Assets_, _Content_, and _MDX Components_ directories (relative
 
 Download the [latest Release](https://github.com/dannysmith/astro-editor/releases)
 
-## User Guide
+## Documentation
 
-See [User Guide](docs/user-guide.md)
+[Read the documentation](https://astroeditor.danny.is/guides/overview/)
 
 ## Disclaimer ⚠️
 
