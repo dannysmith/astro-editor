@@ -11,6 +11,8 @@ import starlightChangelogs, {
   makeChangelogsSidebarLinks,
 } from 'starlight-changelogs'
 
+import catppuccin from '@catppuccin/starlight'
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://astroeditor.danny.is',
@@ -28,6 +30,7 @@ export default defineConfig({
         },
       ],
       customCss: ['./src/styles/custom.css'],
+      lastUpdated: true,
       sidebar: [
         {
           label: 'Guides',
@@ -60,7 +63,9 @@ export default defineConfig({
           globalPicker: false,
         }),
         starlightChangelogs(),
+        catppuccin(),
       ],
+      credits: true,
     }),
   ],
 })
