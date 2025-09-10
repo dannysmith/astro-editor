@@ -131,7 +131,7 @@
     "terser": "^5.43.1",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.39.1",
-    "vite": "^6.3.5",
+    "vite": "^6.3.6",
     "vitest": "^3.2.4"
   }
 }
