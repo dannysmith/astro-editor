@@ -42,7 +42,9 @@
       "WebFetch(domain:bundlephobia.com)",
       "Bash(gh run list:*)",
       "Bash(npm outdated)",
-      "Bash(cargo:*)"
+      "Bash(cargo:*)",
+      "Bash(pnpm:*)",
+      "WebSearch"
     ],
     "deny": []
   }
