@@ -3,13 +3,16 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { parseSchemaJson } from '../../lib/schema'
+import { parseJsonSchema } from '../../lib/parseJsonSchema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
+import type { SchemaField } from '../../lib/schema'
 
 interface Collection {
   name: string
   path: string
   schema?: string
+  json_schema?: string
 }
 
 export const FrontmatterPanel: React.FC = () => {
@@ -27,9 +30,60 @@ export const FrontmatterPanel: React.FC = () => {
     ? collections.find(c => c.name === currentFile.collection) || null
     : null
 
-  const schema = currentCollection?.schema
-    ? parseSchemaJson(currentCollection.schema)
-    : null
+  // Try JSON schema first, fall back to Zod schema
+  const schema = React.useMemo(() => {
+    if (!currentCollection) return null
+
+    // Primary: Try Astro-generated JSON schema
+    if (currentCollection.json_schema) {
+      const parsed = parseJsonSchema(currentCollection.json_schema)
+      if (parsed) {
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Schema] Using JSON schema for collection: ${currentCollection.name}`
+          )
+        }
+        return parsed
+      }
+      // Log fallback in dev mode
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[Schema] JSON schema parsing failed for ${currentCollection.name}, falling back to Zod`
+        )
+      }
+    }
+
+    // Fallback: Use Zod schema
+    if (currentCollection.schema) {
+      const parsed = parseSchemaJson(currentCollection.schema)
+      if (parsed) {
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Schema] Using Zod schema (fallback) for collection: ${currentCollection.name}`
+          )
+        }
+        // Convert Zod fields to SchemaField format for compatibility
+        return {
+          fields: parsed.fields.map(
+            field =>
+              ({
+                name: field.name,
+                label: camelCaseToTitleCase(field.name),
+                type: field.type.toLowerCase(),
+                required: !field.optional,
+                ...(field.options && { enumValues: field.options }),
+                ...(field.default && { default: field.default }),
+              }) as SchemaField
+          ),
+        }
+      }
+    }
+
+    return null
+  }, [currentCollection])
 
   // Listen for schema field order requests from editorStore
   React.useEffect(() => {

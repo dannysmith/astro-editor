@@ -332,6 +332,23 @@ listen('menu-format-bold', () => {
 })
 ```
 
+### 5. Schema Parsing Architecture
+
+**Two-tier fallback system**: Primary JSON schema parser (`parseJsonSchema.ts`) with Zod regex parser fallback (`parseSchemaJson` in `schema.ts`).
+
+**Primary: JSON Schema** (`.astro/collections/*.schema.json`)
+- Reads Astro-generated schemas (requires `astro sync`)
+- Flattens nested objects with dot notation (`seo.title`, `seo.description`)
+- Extracts constraints, descriptions, defaults from JSON Schema metadata
+- More reliable than regex parsing
+
+**Fallback: Zod Schema** (`src/content/config.ts`)
+- Regex-based parsing of Zod definitions
+- Limited: can't parse imports, transforms, or complex nested schemas
+- Used when JSON schemas unavailable
+
+**Field Type System**: `SchemaField` interface with `FieldType` enum for standardized type handling. Components accept both `ZodField | SchemaField` for backward compatibility. Use type guard: `'required' in field` to distinguish.
+
 ## Keyboard Shortcuts
 
 The app uses `react-hotkeys-hook` for standardized, cross-platform keyboard shortcuts. This replaces manual event handling and provides consistent behavior across operating systems.

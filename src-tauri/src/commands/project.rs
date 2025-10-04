@@ -133,22 +133,84 @@ pub async fn scan_project_with_content_dir(
     // Try to parse Astro config first
     debug!("Astro Editor [PROJECT_SCAN] Attempting to parse Astro config");
     match parse_astro_config(&path) {
-        Ok(collections) if !collections.is_empty() => {
+        Ok(mut collections) if !collections.is_empty() => {
             info!(
                 "Astro Editor [PROJECT_SCAN] Found {} collections from Astro config",
                 collections.len()
             );
+
+            // Try to load JSON schemas for each collection
+            for collection in &mut collections {
+                if let Ok(json_schema) =
+                    load_json_schema_for_collection(&project_path, &collection.name)
+                {
+                    debug!(
+                        "Astro Editor [PROJECT_SCAN] Loaded JSON schema for collection: {}",
+                        collection.name
+                    );
+                    collection.json_schema = Some(json_schema);
+                }
+            }
+
             Ok(collections)
         }
         Ok(_) => {
             debug!("Astro Editor [PROJECT_SCAN] Astro config returned empty collections, falling back to directory scan");
-            scan_content_directories_with_override(path.as_path(), content_directory)
+            let mut collections =
+                scan_content_directories_with_override(path.as_path(), content_directory)?;
+
+            // Try to load JSON schemas for directory-scanned collections
+            for collection in &mut collections {
+                if let Ok(json_schema) =
+                    load_json_schema_for_collection(&project_path, &collection.name)
+                {
+                    debug!(
+                        "Astro Editor [PROJECT_SCAN] Loaded JSON schema for collection: {}",
+                        collection.name
+                    );
+                    collection.json_schema = Some(json_schema);
+                }
+            }
+
+            Ok(collections)
         }
         Err(err) => {
             debug!("Astro Editor [PROJECT_SCAN] Astro config parsing failed: {err}, falling back to directory scan");
-            scan_content_directories_with_override(path.as_path(), content_directory)
+            let mut collections =
+                scan_content_directories_with_override(path.as_path(), content_directory)?;
+
+            // Try to load JSON schemas for directory-scanned collections
+            for collection in &mut collections {
+                if let Ok(json_schema) =
+                    load_json_schema_for_collection(&project_path, &collection.name)
+                {
+                    debug!(
+                        "Astro Editor [PROJECT_SCAN] Loaded JSON schema for collection: {}",
+                        collection.name
+                    );
+                    collection.json_schema = Some(json_schema);
+                }
+            }
+
+            Ok(collections)
         }
     }
+}
+
+fn load_json_schema_for_collection(
+    project_path: &str,
+    collection_name: &str,
+) -> Result<String, String> {
+    let schema_path = PathBuf::from(project_path)
+        .join(".astro")
+        .join("collections")
+        .join(format!("{collection_name}.schema.json"));
+
+    if !schema_path.exists() {
+        return Err(format!("JSON schema not found: {}", schema_path.display()));
+    }
+
+    std::fs::read_to_string(&schema_path).map_err(|e| format!("Failed to read JSON schema: {e}"))
 }
 
 fn scan_content_directories_with_override(
@@ -247,4 +309,32 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
     }
 
     Ok(files)
+}
+
+#[tauri::command]
+pub async fn read_json_schema(
+    project_path: String,
+    collection_name: String,
+) -> Result<String, String> {
+    let schema_path = PathBuf::from(&project_path)
+        .join(".astro")
+        .join("collections")
+        .join(format!("{collection_name}.schema.json"));
+
+    debug!(
+        "Astro Editor [JSON_SCHEMA] Reading JSON schema at: {}",
+        schema_path.display()
+    );
+
+    if !schema_path.exists() {
+        let err_msg = format!("JSON schema file not found: {}", schema_path.display());
+        debug!("Astro Editor [JSON_SCHEMA] {err_msg}");
+        return Err(err_msg);
+    }
+
+    std::fs::read_to_string(&schema_path).map_err(|e| {
+        let err_msg = format!("Failed to read JSON schema file: {e}");
+        error!("Astro Editor [JSON_SCHEMA] {err_msg}");
+        err_msg
+    })
 }

@@ -7,10 +7,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../ui/select'
+import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
+import type { ZodField, SchemaField } from '../../../lib/schema'
 
 interface EnumFieldProps extends FieldProps {
   options: string[]
+  field?: ZodField | SchemaField
 }
 
 export const EnumField: React.FC<EnumFieldProps> = ({
@@ -18,17 +21,21 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   label,
   options,
   required,
+  field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && (
-          <span className="text-[var(--color-required)] ml-1">*</span>
-        )}
-      </label>
+    <FieldWrapper
+      label={label}
+      required={required}
+      description={
+        field && 'description' in field ? field.description : undefined
+      }
+      defaultValue={field?.default}
+      constraints={field?.constraints}
+      currentValue={frontmatter[name]}
+    >
       <Select
         value={
           frontmatter[name] && typeof frontmatter[name] === 'string'
@@ -55,6 +62,6 @@ export const EnumField: React.FC<EnumFieldProps> = ({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </FieldWrapper>
   )
 }

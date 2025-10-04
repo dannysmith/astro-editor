@@ -1,0 +1,43 @@
+---
+import { getCollection, render } from 'astro:content';
+
+const articles = await getCollection('articles');
+const notes = await getCollection('notes');
+
+const latestArticle = articles.sort((a, b) =>
+  b.data.pubDate.getTime() - a.data.pubDate.getTime()
+)[0];
+
+const { Content } = await render(latestArticle);
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Astro</title>
+	</head>
+	<body>
+		<h1>Articles & Notes</h1>
+
+		<h2>All Articles</h2>
+		<ul>
+			{articles.map(article => (
+				<li>{article.data.title} - {article.data.pubDate.toDateString()}</li>
+			))}
+		</ul>
+
+		<h2>All Notes</h2>
+		<ul>
+			{notes.map(note => (
+				<li>{note.data.title} - {note.data.pubDate.toDateString()}</li>
+			))}
+		</ul>
+
+		<h2>Latest Article</h2>
+		<h3>{latestArticle.data.title}</h3>
+		<Content />
+	</body>
+</html>

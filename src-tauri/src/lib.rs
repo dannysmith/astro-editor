@@ -331,6 +331,7 @@ pub fn run() {
             scan_project,
             scan_project_with_content_dir,
             scan_collection_files,
+            read_json_schema,
             read_file,
             write_file,
             create_file,

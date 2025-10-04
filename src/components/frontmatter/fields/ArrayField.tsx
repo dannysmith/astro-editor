@@ -2,9 +2,20 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { TagInput, type Tag } from '../../ui/tag-input'
 import { tagsToStringArray } from '../utils'
+import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
+import type { ZodField, SchemaField } from '../../../lib/schema'
 
-export const ArrayField: React.FC<FieldProps> = ({ name, label, required }) => {
+interface ArrayFieldProps extends FieldProps {
+  field?: ZodField | SchemaField
+}
+
+export const ArrayField: React.FC<ArrayFieldProps> = ({
+  name,
+  label,
+  required,
+  field,
+}) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
   // Convert frontmatter array to tags
@@ -19,13 +30,16 @@ export const ArrayField: React.FC<FieldProps> = ({ name, label, required }) => {
       : []
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && (
-          <span className="text-[var(--color-required)] ml-1">*</span>
-        )}
-      </label>
+    <FieldWrapper
+      label={label}
+      required={required}
+      description={
+        field && 'description' in field ? field.description : undefined
+      }
+      defaultValue={field?.default}
+      constraints={field?.constraints}
+      currentValue={frontmatter[name]}
+    >
       <TagInput
         placeholder={`Enter ${label.toLowerCase()}...`}
         tags={tags}
@@ -37,6 +51,6 @@ export const ArrayField: React.FC<FieldProps> = ({ name, label, required }) => {
           )
         }}
       />
-    </div>
+    </FieldWrapper>
   )
 }
