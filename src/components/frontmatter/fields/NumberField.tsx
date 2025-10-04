@@ -2,10 +2,13 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
+import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
+import type { ZodField, SchemaField } from '../../../lib/schema'
 
 interface NumberFieldProps extends FieldProps {
   placeholder?: string
+  field?: ZodField | SchemaField
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({
@@ -13,17 +16,21 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   label,
   placeholder,
   required,
+  field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && (
-          <span className="text-[var(--color-required)] ml-1">*</span>
-        )}
-      </label>
+    <FieldWrapper
+      label={label}
+      required={required}
+      description={
+        field && 'description' in field ? field.description : undefined
+      }
+      defaultValue={field?.default}
+      constraints={field?.constraints}
+      currentValue={frontmatter[name]}
+    >
       <Input
         type="number"
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
@@ -33,6 +40,6 @@ export const NumberField: React.FC<NumberFieldProps> = ({
           updateFrontmatterField(name, numValue)
         }}
       />
-    </div>
+    </FieldWrapper>
   )
 }

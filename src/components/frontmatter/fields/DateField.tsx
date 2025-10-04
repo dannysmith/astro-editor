@@ -1,19 +1,33 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { DatePicker } from '../../ui/date-picker'
+import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
+import type { ZodField, SchemaField } from '../../../lib/schema'
 
-export const DateField: React.FC<FieldProps> = ({ name, label, required }) => {
+interface DateFieldProps extends FieldProps {
+  field?: ZodField | SchemaField
+}
+
+export const DateField: React.FC<DateFieldProps> = ({
+  name,
+  label,
+  required,
+  field,
+}) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && (
-          <span className="text-[var(--color-required)] ml-1">*</span>
-        )}
-      </label>
+    <FieldWrapper
+      label={label}
+      required={required}
+      description={
+        field && 'description' in field ? field.description : undefined
+      }
+      defaultValue={field?.default}
+      constraints={field?.constraints}
+      currentValue={frontmatter[name]}
+    >
       <DatePicker
         value={
           frontmatter[name] && typeof frontmatter[name] === 'string'
@@ -29,6 +43,6 @@ export const DateField: React.FC<FieldProps> = ({ name, label, required }) => {
         }}
         placeholder="Select date..."
       />
-    </div>
+    </FieldWrapper>
   )
 }

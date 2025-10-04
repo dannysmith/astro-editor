@@ -76,7 +76,14 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     fieldType === 'number' ||
     fieldType === 'integer'
   ) {
-    return <NumberField name={name} label={label} required={required} />
+    return (
+      <NumberField
+        name={name}
+        label={label}
+        required={required}
+        field={field}
+      />
+    )
   }
 
   // Handle date fields
@@ -85,7 +92,9 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     fieldType === 'Date' ||
     fieldType === 'date'
   ) {
-    return <DateField name={name} label={label} required={required} />
+    return (
+      <DateField name={name} label={label} required={required} field={field} />
+    )
   }
 
   // Handle enum fields
@@ -101,26 +110,41 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
         label={label}
         options={enumValues}
         required={required}
+        field={field}
       />
     )
   }
 
   // Handle array fields
   if (shouldUseArrayField) {
-    return <ArrayField name={name} label={label} required={required} />
+    return (
+      <ArrayField name={name} label={label} required={required} field={field} />
+    )
   }
 
   // Handle email fields
   if (fieldType === (FieldType.Email as string) || fieldType === 'email') {
     return (
-      <StringField name={name} label={label} required={required} type="email" />
+      <StringField
+        name={name}
+        label={label}
+        required={required}
+        type="email"
+        field={field}
+      />
     )
   }
 
   // Handle URL fields
   if (fieldType === (FieldType.URL as string) || fieldType === 'url') {
     return (
-      <StringField name={name} label={label} required={required} type="url" />
+      <StringField
+        name={name}
+        label={label}
+        required={required}
+        type="url"
+        field={field}
+      />
     )
   }
 
@@ -129,7 +153,14 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     fieldType === (FieldType.Reference as string) ||
     fieldType === 'reference'
   ) {
-    return <StringField name={name} label={label} required={required} />
+    return (
+      <StringField
+        name={name}
+        label={label}
+        required={required}
+        field={field}
+      />
+    )
   }
 
   // Check if this field should get special treatment based on effective settings
@@ -142,6 +173,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
         minRows={1}
         maxRows={3}
         required={required}
+        field={field}
       />
     )
   }
@@ -154,10 +186,13 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
         minRows={3}
         maxRows={16}
         required={required}
+        field={field}
       />
     )
   }
 
   // Default to string field
-  return <StringField name={name} label={label} required={required} />
+  return (
+    <StringField name={name} label={label} required={required} field={field} />
+  )
 }

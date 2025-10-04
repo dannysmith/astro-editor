@@ -1,6 +1,7 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { Switch } from '../../ui/switch'
+import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { ZodField, SchemaField } from '../../../lib/schema'
 
@@ -46,15 +47,20 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
     : false
 
   return (
-    <div className="flex items-center justify-between">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {isRequired && <span className="text-destructive ml-1">*</span>}
-      </label>
+    <FieldWrapper
+      label={label}
+      required={isRequired}
+      description={
+        field && 'description' in field ? field.description : undefined
+      }
+      defaultValue={field?.default}
+      currentValue={frontmatter[name]}
+      layout="horizontal"
+    >
       <Switch
         checked={getBooleanValue(frontmatter[name])}
         onCheckedChange={checked => updateFrontmatterField(name, checked)}
       />
-    </div>
+    </FieldWrapper>
   )
 }
