@@ -1,7 +1,7 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { useEffectiveSettings } from '../../../lib/project-registry/effective-settings'
-import { getInputTypeForZodField, type ZodField } from '../../../lib/schema'
+import { FieldType, type ZodField, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
 import { NumberField } from './NumberField'
@@ -13,7 +13,12 @@ import { ArrayField } from './ArrayField'
 interface FrontmatterFieldProps {
   name: string
   label: string
-  field?: ZodField
+  field?: ZodField | SchemaField
+}
+
+function isSchemaField(field: ZodField | SchemaField): field is SchemaField {
+  // SchemaField has 'required' property, ZodField has 'optional'
+  return 'required' in field
 }
 
 export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
@@ -23,41 +28,108 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
 }) => {
   const { frontmatter } = useEditorStore()
   const { frontmatterMappings } = useEffectiveSettings()
-  const inputType = field ? getInputTypeForZodField(field.type) : 'text'
-  const required = field ? !field.optional : false
+
+  // Determine field properties based on field type
+  let fieldType: string
+  let required: boolean
+  let enumValues: string[] | undefined
+
+  if (field) {
+    if (isSchemaField(field)) {
+      // New SchemaField format
+      fieldType = field.type
+      required = field.required
+      enumValues = field.enumValues
+    } else {
+      // Legacy ZodField format
+      fieldType = field.type
+      required = !field.optional
+      enumValues = field.options
+    }
+  } else {
+    fieldType = 'string'
+    required = false
+  }
 
   // Check if this field should be treated as an array based on schema or frontmatter value
   const shouldUseArrayField =
-    field?.type === 'Array' ||
+    fieldType === (FieldType.Array as string) ||
+    fieldType === 'Array' ||
     (!field &&
       Array.isArray(frontmatter[name]) &&
       frontmatter[name].every((item: unknown) => typeof item === 'string'))
 
-  if (inputType === 'checkbox' || field?.type === 'Boolean') {
+  // Handle boolean fields
+  if (
+    fieldType === (FieldType.Boolean as string) ||
+    fieldType === 'Boolean' ||
+    fieldType === 'checkbox'
+  ) {
     return <BooleanField name={name} label={label} field={field} />
   }
 
-  if (inputType === 'number' || field?.type === 'Number') {
+  // Handle number/integer fields
+  if (
+    fieldType === (FieldType.Number as string) ||
+    fieldType === (FieldType.Integer as string) ||
+    fieldType === 'Number' ||
+    fieldType === 'number' ||
+    fieldType === 'integer'
+  ) {
     return <NumberField name={name} label={label} required={required} />
   }
 
-  if (inputType === 'date' || field?.type === 'Date') {
+  // Handle date fields
+  if (
+    fieldType === (FieldType.Date as string) ||
+    fieldType === 'Date' ||
+    fieldType === 'date'
+  ) {
     return <DateField name={name} label={label} required={required} />
   }
 
-  if (field?.type === 'Enum' && field?.options) {
+  // Handle enum fields
+  if (
+    (fieldType === (FieldType.Enum as string) ||
+      fieldType === 'Enum' ||
+      fieldType === 'enum') &&
+    enumValues
+  ) {
     return (
       <EnumField
         name={name}
         label={label}
-        options={field.options}
+        options={enumValues}
         required={required}
       />
     )
   }
 
+  // Handle array fields
   if (shouldUseArrayField) {
     return <ArrayField name={name} label={label} required={required} />
+  }
+
+  // Handle email fields
+  if (fieldType === (FieldType.Email as string) || fieldType === 'email') {
+    return (
+      <StringField name={name} label={label} required={required} type="email" />
+    )
+  }
+
+  // Handle URL fields
+  if (fieldType === (FieldType.URL as string) || fieldType === 'url') {
+    return (
+      <StringField name={name} label={label} required={required} type="url" />
+    )
+  }
+
+  // Handle reference fields (as string for V1)
+  if (
+    fieldType === (FieldType.Reference as string) ||
+    fieldType === 'reference'
+  ) {
+    return <StringField name={name} label={label} required={required} />
   }
 
   // Check if this field should get special treatment based on effective settings

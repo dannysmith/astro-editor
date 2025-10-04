@@ -6,6 +6,7 @@ import type { FieldProps } from '../../../types/common'
 
 interface StringFieldProps extends FieldProps {
   placeholder?: string
+  type?: 'text' | 'email' | 'url'
 }
 
 export const StringField: React.FC<StringFieldProps> = ({
@@ -14,6 +15,7 @@ export const StringField: React.FC<StringFieldProps> = ({
   placeholder,
   className,
   required,
+  type = 'text',
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
@@ -26,7 +28,7 @@ export const StringField: React.FC<StringFieldProps> = ({
         )}
       </label>
       <Input
-        type="text"
+        type={type}
         name={name}
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
         className={className}

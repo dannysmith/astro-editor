@@ -2,10 +2,10 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { Switch } from '../../ui/switch'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField } from '../../../lib/schema'
+import type { ZodField, SchemaField } from '../../../lib/schema'
 
 interface BooleanFieldProps extends FieldProps {
-  field?: ZodField
+  field?: ZodField | SchemaField
 }
 
 export const BooleanField: React.FC<BooleanFieldProps> = ({
@@ -38,13 +38,18 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
     return false
   }
 
+  // Check if field is required (handle both ZodField and SchemaField)
+  const isRequired = field
+    ? 'required' in field
+      ? field.required
+      : !field.optional
+    : false
+
   return (
     <div className="flex items-center justify-between">
       <label className="text-sm font-medium text-foreground">
         {label}
-        {field && !field.optional && (
-          <span className="text-destructive ml-1">*</span>
-        )}
+        {isRequired && <span className="text-destructive ml-1">*</span>}
       </label>
       <Switch
         checked={getBooleanValue(frontmatter[name])}

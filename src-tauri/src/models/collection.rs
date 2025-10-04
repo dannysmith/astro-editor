@@ -5,7 +5,8 @@ use std::path::PathBuf;
 pub struct Collection {
     pub name: String,
     pub path: PathBuf,
-    pub schema: Option<String>, // Zod schema as JSON string for now
+    pub schema: Option<String>, // Zod schema as JSON string (fallback)
+    pub json_schema: Option<String>, // Astro-generated JSON schema (primary)
 }
 
 impl Collection {
@@ -14,6 +15,7 @@ impl Collection {
             name,
             path,
             schema: None,
+            json_schema: None,
         }
     }
 
@@ -23,7 +25,14 @@ impl Collection {
             name,
             path,
             schema: Some(schema),
+            json_schema: None,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_json_schema(mut self, json_schema: String) -> Self {
+        self.json_schema = Some(json_schema);
+        self
     }
 }
 

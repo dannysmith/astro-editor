@@ -1,3 +1,4 @@
+// Legacy Zod-based interfaces (for fallback)
 export interface ZodField {
   name: string
   type: ZodFieldType
@@ -54,6 +55,52 @@ export type ZodFieldType =
   | 'Literal'
   | 'Object'
   | 'Unknown'
+
+// New JSON Schema-based interfaces
+export interface SchemaField {
+  // Identity
+  name: string // Field name (or flattened: "seo.title")
+  label: string // Human-readable label
+
+  // Type
+  type: FieldType
+  subType?: FieldType // For arrays
+
+  // Validation
+  required: boolean
+  constraints?: FieldConstraints
+
+  // UI Metadata
+  description?: string // From .describe()
+  default?: unknown // Default value from schema
+
+  // Type-specific
+  enumValues?: string[] // For enum fields
+  referenceCollection?: string // For reference fields (future)
+}
+
+export interface FieldConstraints {
+  min?: number
+  max?: number
+  minLength?: number
+  maxLength?: number
+  pattern?: string
+  format?: 'email' | 'uri' | 'date-time' | 'date'
+}
+
+export enum FieldType {
+  String = 'string',
+  Number = 'number',
+  Integer = 'integer',
+  Boolean = 'boolean',
+  Date = 'date',
+  Email = 'email',
+  URL = 'url',
+  Array = 'array',
+  Enum = 'enum',
+  Reference = 'reference',
+  Unknown = 'unknown',
+}
 
 export interface ParsedSchema {
   type: 'zod'
