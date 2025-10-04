@@ -5,7 +5,7 @@ const articles = defineCollection({
   loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/articles' }),
   schema: ({ image }) =>
     z.object({
-      title: z.string(),
+      title: z.string().describe('This is the title of the article'),
       slug: z.string().optional(),
       draft: z.boolean().default(false),
       description: z.string().optional(),

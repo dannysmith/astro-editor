@@ -5,7 +5,9 @@
       "type": "object",
       "properties": {
         "title": {
-          "type": "string"
+          "type": "string",
+          "description": "This is the title of the article",
+          "markdownDescription": "This is the title of the article"
         },
         "slug": {
           "type": "string"
