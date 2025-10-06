@@ -45,7 +45,8 @@
       "Bash(cargo:*)",
       "Bash(pnpm:*)",
       "WebSearch",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(yes)"
     ],
     "deny": []
   }

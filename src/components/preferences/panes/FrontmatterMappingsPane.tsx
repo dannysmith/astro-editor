@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react'
-import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
   Select,
@@ -8,24 +7,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+  FieldContent,
+} from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
 import { parseSchemaJson } from '../../../lib/schema'
 import type { ZodField } from '../../../lib/schema'
-
-const SettingsField: React.FC<{
-  label: string
-  children: React.ReactNode
-  description?: string
-}> = ({ label, children, description }) => (
-  <div className="space-y-2">
-    <Label className="text-sm font-medium text-foreground">{label}</Label>
-    {children}
-    {description && (
-      <p className="text-sm text-muted-foreground">{description}</p>
-    )}
-  </div>
-)
 
 const SettingsSection: React.FC<{
   title: string
@@ -36,7 +28,7 @@ const SettingsSection: React.FC<{
       <h3 className="text-lg font-medium text-foreground">{title}</h3>
       <Separator className="mt-2" />
     </div>
-    <div className="space-y-4">{children}</div>
+    <FieldGroup>{children}</FieldGroup>
   </div>
 )
 
@@ -135,59 +127,74 @@ export const FrontmatterMappingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <SettingsSection title="Frontmatter Field Mappings">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground -mt-3 mb-2">
           Map special frontmatter fields used by the app to your{' '}
           <span className="font-medium">{projectName}</span> schema field names.
           Only fields that exist in your collection schemas are shown.
         </p>
 
-        <SettingsField
-          label="Published Date Field"
-          description="Field used for ordering files in the list (default: date, pubDate, or publishedDate)"
-        >
-          {renderFieldSelect(
-            currentProjectSettings?.frontmatterMappings?.publishedDate,
-            value => handleMappingChange('publishedDate', value),
-            dateFields,
-            'Select date field'
-          )}
-        </SettingsField>
+        <Field>
+          <FieldLabel>Published Date Field</FieldLabel>
+          <FieldContent>
+            {renderFieldSelect(
+              currentProjectSettings?.frontmatterMappings?.publishedDate,
+              value => handleMappingChange('publishedDate', value),
+              dateFields,
+              'Select date field'
+            )}
+            <FieldDescription>
+              Field used for ordering files in the list (default: date, pubDate,
+              or publishedDate)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
-        <SettingsField
-          label="Title Field"
-          description="Field that gets special treatment in the frontmatter panel (default: title)"
-        >
-          {renderFieldSelect(
-            currentProjectSettings?.frontmatterMappings?.title,
-            value => handleMappingChange('title', value),
-            textFields,
-            'Select text field'
-          )}
-        </SettingsField>
+        <Field>
+          <FieldLabel>Title Field</FieldLabel>
+          <FieldContent>
+            {renderFieldSelect(
+              currentProjectSettings?.frontmatterMappings?.title,
+              value => handleMappingChange('title', value),
+              textFields,
+              'Select text field'
+            )}
+            <FieldDescription>
+              Field that gets special treatment in the frontmatter panel
+              (default: title)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
-        <SettingsField
-          label="Description Field"
-          description="Field that gets special treatment in the frontmatter panel (default: description)"
-        >
-          {renderFieldSelect(
-            currentProjectSettings?.frontmatterMappings?.description,
-            value => handleMappingChange('description', value),
-            textFields,
-            'Select text field'
-          )}
-        </SettingsField>
+        <Field>
+          <FieldLabel>Description Field</FieldLabel>
+          <FieldContent>
+            {renderFieldSelect(
+              currentProjectSettings?.frontmatterMappings?.description,
+              value => handleMappingChange('description', value),
+              textFields,
+              'Select text field'
+            )}
+            <FieldDescription>
+              Field that gets special treatment in the frontmatter panel
+              (default: description)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
-        <SettingsField
-          label="Draft Field"
-          description="Field that shows a draft marker in the file list (default: draft)"
-        >
-          {renderFieldSelect(
-            currentProjectSettings?.frontmatterMappings?.draft,
-            value => handleMappingChange('draft', value),
-            booleanFields,
-            'Select boolean field'
-          )}
-        </SettingsField>
+        <Field>
+          <FieldLabel>Draft Field</FieldLabel>
+          <FieldContent>
+            {renderFieldSelect(
+              currentProjectSettings?.frontmatterMappings?.draft,
+              value => handleMappingChange('draft', value),
+              booleanFields,
+              'Select boolean field'
+            )}
+            <FieldDescription>
+              Field that shows a draft marker in the file list (default: draft)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
         {collections.length === 0 && (
           <div className="text-sm text-muted-foreground p-4 border rounded-lg">
