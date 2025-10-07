@@ -5,7 +5,7 @@ import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import { useCreateFileMutation } from './mutations/useCreateFileMutation'
-import { parseSchemaJson, getDefaultValueForField } from '../lib/schema'
+import { parseSchemaJson, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 
 // Helper function to singularize collection name
@@ -22,6 +22,27 @@ const singularize = (word: string): string => {
     }
   }
   return word
+}
+
+// Helper function to get default value based on field type
+const getDefaultValueForFieldType = (type: FieldType): unknown => {
+  switch (type) {
+    case FieldType.String:
+    case FieldType.Email:
+    case FieldType.URL:
+      return ''
+    case FieldType.Number:
+    case FieldType.Integer:
+      return 0
+    case FieldType.Boolean:
+      return false
+    case FieldType.Date:
+      return new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    case FieldType.Array:
+      return []
+    default:
+      return ''
+  }
 }
 
 export const useCreateFile = () => {
@@ -109,7 +130,7 @@ export const useCreateFile = () => {
           }
           // Check for date fields (pubDate, date, publishedDate)
           else if (
-            field.type === 'Date' &&
+            field.type === FieldType.Date &&
             (field.name.toLowerCase() === 'pubdate' ||
               field.name.toLowerCase() === 'date' ||
               field.name.toLowerCase() === 'publisheddate')
@@ -118,8 +139,12 @@ export const useCreateFile = () => {
             defaultFrontmatter[field.name] = today
           }
           // Include other required fields
-          else if (!field.optional) {
-            defaultFrontmatter[field.name] = getDefaultValueForField(field)
+          else if (field.required) {
+            // Use field default if available, otherwise use type-based defaults
+            defaultFrontmatter[field.name] =
+              field.default !== undefined
+                ? field.default
+                : getDefaultValueForFieldType(field.type)
           }
         }
       }

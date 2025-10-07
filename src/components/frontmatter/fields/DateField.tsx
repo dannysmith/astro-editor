@@ -3,10 +3,10 @@ import { useEditorStore } from '../../../store/editorStore'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface DateFieldProps extends FieldProps {
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const DateField: React.FC<DateFieldProps> = ({

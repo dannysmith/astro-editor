@@ -6,7 +6,6 @@ import { parseSchemaJson } from '../../lib/schema'
 import { parseJsonSchema } from '../../lib/parseJsonSchema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
-import type { SchemaField } from '../../lib/schema'
 
 interface Collection {
   name: string
@@ -65,20 +64,8 @@ export const FrontmatterPanel: React.FC = () => {
             `[Schema] Using Zod schema (fallback) for collection: ${currentCollection.name}`
           )
         }
-        // Convert Zod fields to SchemaField format for compatibility
-        return {
-          fields: parsed.fields.map(
-            field =>
-              ({
-                name: field.name,
-                label: camelCaseToTitleCase(field.name),
-                type: field.type.toLowerCase(),
-                required: !field.optional,
-                ...(field.options && { enumValues: field.options }),
-                ...(field.default && { default: field.default }),
-              }) as SchemaField
-          ),
-        }
+        // parseSchemaJson now returns SchemaField[] directly
+        return parsed
       }
     }
 

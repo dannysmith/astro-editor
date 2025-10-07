@@ -4,12 +4,12 @@ import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface StringFieldProps extends FieldProps {
   placeholder?: string
   type?: 'text' | 'email' | 'url'
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const StringField: React.FC<StringFieldProps> = ({

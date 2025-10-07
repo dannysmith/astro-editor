@@ -3,7 +3,7 @@ import { screen, fireEvent } from '@testing-library/react'
 import { BooleanField } from './BooleanField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
-import type { ZodField } from '../../../lib/schema'
+import { FieldType, type SchemaField } from '../../../lib/schema'
 
 describe('BooleanField Component', () => {
   beforeEach(() => {
@@ -110,10 +110,11 @@ describe('BooleanField Component', () => {
 
   describe('Schema Default Value Handling', () => {
     it('should use schema default when value is undefined', () => {
-      const fieldWithDefault: ZodField = {
+      const fieldWithDefault: SchemaField = {
         name: 'published',
-        type: 'Boolean',
-        optional: true,
+        label: 'Published',
+        type: FieldType.Boolean,
+        required: false,
         default: 'true',
       }
 
@@ -134,10 +135,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should use schema default when value is empty string', () => {
-      const fieldWithDefault: ZodField = {
+      const fieldWithDefault: SchemaField = {
         name: 'featured',
-        type: 'Boolean',
-        optional: true,
+        label: 'Featured',
+        type: FieldType.Boolean,
+        required: false,
         default: 'true',
       }
 
@@ -158,10 +160,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should handle schema default "false" string', () => {
-      const fieldWithFalseDefault: ZodField = {
+      const fieldWithFalseDefault: SchemaField = {
         name: 'private',
-        type: 'Boolean',
-        optional: true,
+        label: 'Private',
+        type: FieldType.Boolean,
+        required: false,
         default: 'false',
       }
 
@@ -182,10 +185,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should handle schema default boolean true', () => {
-      const fieldWithBooleanDefault: ZodField = {
+      const fieldWithBooleanDefault: SchemaField = {
         name: 'visible',
-        type: 'Boolean',
-        optional: true,
+        label: 'Visible',
+        type: FieldType.Boolean,
+        required: false,
         default: 'true', // String default for consistent testing
       }
 
@@ -206,10 +210,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should handle schema default boolean false', () => {
-      const fieldWithBooleanDefault: ZodField = {
+      const fieldWithBooleanDefault: SchemaField = {
         name: 'archived',
-        type: 'Boolean',
-        optional: true,
+        label: 'Archived',
+        type: FieldType.Boolean,
+        required: false,
         default: 'false', // String default for consistent testing
       }
 
@@ -230,10 +235,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should handle non-boolean schema default values', () => {
-      const fieldWithStringDefault: ZodField = {
+      const fieldWithStringDefault: SchemaField = {
         name: 'status',
-        type: 'Boolean',
-        optional: true,
+        label: 'Status',
+        type: FieldType.Boolean,
+        required: false,
         default: 'active', // Non-boolean default
       }
 
@@ -254,10 +260,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should handle empty string schema default', () => {
-      const fieldWithEmptyDefault: ZodField = {
+      const fieldWithEmptyDefault: SchemaField = {
         name: 'flag',
-        type: 'Boolean',
-        optional: true,
+        label: 'Flag',
+        type: FieldType.Boolean,
+        required: false,
         default: '', // Empty string default
       }
 
@@ -274,10 +281,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should prioritize actual value over schema default', () => {
-      const fieldWithDefault: ZodField = {
+      const fieldWithDefault: SchemaField = {
         name: 'enabled',
-        type: 'Boolean',
-        optional: true,
+        label: 'Enabled',
+        type: FieldType.Boolean,
+        required: false,
         default: 'true', // Schema says default true
       }
 
@@ -346,10 +354,11 @@ describe('BooleanField Component', () => {
 
   describe('Required Field Indicator', () => {
     it('should show required indicator for non-optional field', () => {
-      const requiredField: ZodField = {
+      const requiredField: SchemaField = {
         name: 'required',
-        type: 'Boolean',
-        optional: false,
+        label: 'Required',
+        type: FieldType.Boolean,
+        required: true,
       }
 
       renderWithProviders(
@@ -360,10 +369,11 @@ describe('BooleanField Component', () => {
     })
 
     it('should not show required indicator for optional field', () => {
-      const optionalField: ZodField = {
+      const optionalField: SchemaField = {
         name: 'optional',
-        type: 'Boolean',
-        optional: true,
+        label: 'Optional',
+        type: FieldType.Boolean,
+        required: false,
       }
 
       renderWithProviders(

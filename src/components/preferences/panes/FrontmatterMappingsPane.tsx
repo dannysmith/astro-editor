@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
-import { parseSchemaJson } from '../../../lib/schema'
-import type { ZodField } from '../../../lib/schema'
+import { parseSchemaJson, FieldType } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 const SettingsSection: React.FC<{
   title: string
@@ -44,7 +44,7 @@ export const FrontmatterMappingsPane: React.FC = () => {
 
   // Get all schema fields from all collections
   const allFields = useMemo(() => {
-    const fieldMap = new Map<string, ZodField>()
+    const fieldMap = new Map<string, SchemaField>()
 
     collections.forEach(collection => {
       if (collection.schema) {
@@ -67,19 +67,26 @@ export const FrontmatterMappingsPane: React.FC = () => {
 
   // Filter fields by type
   const dateFields = useMemo(
-    () => Array.from(allFields.values()).filter(field => field.type === 'Date'),
+    () =>
+      Array.from(allFields.values()).filter(
+        field => field.type === FieldType.Date
+      ),
     [allFields]
   )
 
   const textFields = useMemo(
     () =>
-      Array.from(allFields.values()).filter(field => field.type === 'String'),
+      Array.from(allFields.values()).filter(
+        field => field.type === FieldType.String
+      ),
     [allFields]
   )
 
   const booleanFields = useMemo(
     () =>
-      Array.from(allFields.values()).filter(field => field.type === 'Boolean'),
+      Array.from(allFields.values()).filter(
+        field => field.type === FieldType.Boolean
+      ),
     [allFields]
   )
 
@@ -98,7 +105,7 @@ export const FrontmatterMappingsPane: React.FC = () => {
   const renderFieldSelect = (
     value: string | undefined,
     onChange: (value: string) => void,
-    fields: ZodField[],
+    fields: SchemaField[],
     placeholder: string
   ) => (
     <Select
@@ -115,7 +122,7 @@ export const FrontmatterMappingsPane: React.FC = () => {
         {fields.map(field => (
           <SelectItem key={field.name} value={field.name}>
             {field.name}
-            {field.optional && (
+            {!field.required && (
               <span className="text-muted-foreground ml-1">(optional)</span>
             )}
           </SelectItem>

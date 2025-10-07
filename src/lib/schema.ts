@@ -1,5 +1,8 @@
-// Legacy Zod-based interfaces (for fallback)
-export interface ZodField {
+import { camelCaseToTitleCase } from './utils'
+
+// Legacy Zod-based interfaces (for fallback parsing only)
+// These are internal types used during Zod schema parsing
+interface ZodField {
   name: string
   type: ZodFieldType
   optional: boolean
@@ -11,7 +14,7 @@ export interface ZodField {
   literalValue?: string // For literal fields
 }
 
-export interface ZodFieldConstraints {
+interface ZodFieldConstraints {
   // Numeric constraints
   min?: number
   max?: number
@@ -44,7 +47,7 @@ export interface ZodFieldConstraints {
   literal?: string
 }
 
-export type ZodFieldType =
+type ZodFieldType =
   | 'String'
   | 'Number'
   | 'Boolean'
@@ -102,11 +105,7 @@ export enum FieldType {
   Unknown = 'unknown',
 }
 
-export interface ParsedSchema {
-  type: 'zod'
-  fields: ZodField[]
-}
-
+// Internal type for parsing Zod schema JSON
 interface ParsedSchemaJson {
   type: 'zod'
   fields: Array<{
@@ -123,9 +122,84 @@ interface ParsedSchemaJson {
 }
 
 /**
- * Parse the schema JSON string from the backend into typed schema information
+ * Convert ZodFieldType to FieldType
  */
-export function parseSchemaJson(schemaJson: string): ParsedSchema | null {
+function zodFieldTypeToFieldType(zodType: ZodFieldType): FieldType {
+  const typeMap: Record<ZodFieldType, FieldType> = {
+    String: FieldType.String,
+    Number: FieldType.Number,
+    Boolean: FieldType.Boolean,
+    Date: FieldType.Date,
+    Array: FieldType.Array,
+    Enum: FieldType.Enum,
+    Union: FieldType.String, // Fallback for V1
+    Literal: FieldType.String, // Render as readonly string
+    Object: FieldType.Unknown,
+    Unknown: FieldType.Unknown,
+  }
+  return typeMap[zodType] || FieldType.Unknown
+}
+
+/**
+ * Convert ZodFieldConstraints to FieldConstraints
+ */
+function convertZodConstraints(
+  zodConstraints: ZodFieldConstraints
+): FieldConstraints | undefined {
+  const constraints: FieldConstraints = {}
+
+  // Numeric constraints
+  if (zodConstraints.min !== undefined) constraints.min = zodConstraints.min
+  if (zodConstraints.max !== undefined) constraints.max = zodConstraints.max
+
+  // Length constraints
+  if (zodConstraints.length !== undefined) {
+    constraints.minLength = zodConstraints.length
+    constraints.maxLength = zodConstraints.length
+  }
+  if (zodConstraints.minLength !== undefined)
+    constraints.minLength = zodConstraints.minLength
+  if (zodConstraints.maxLength !== undefined)
+    constraints.maxLength = zodConstraints.maxLength
+
+  // Pattern (regex)
+  if (zodConstraints.regex !== undefined)
+    constraints.pattern = zodConstraints.regex
+
+  // Format constraints
+  if (zodConstraints.email) constraints.format = 'email'
+  if (zodConstraints.url) constraints.format = 'uri'
+
+  return Object.keys(constraints).length > 0 ? constraints : undefined
+}
+
+/**
+ * Convert ZodField to SchemaField
+ */
+function zodFieldToSchemaField(zodField: ZodField): SchemaField {
+  return {
+    name: zodField.name,
+    label: camelCaseToTitleCase(zodField.name),
+    type: zodFieldTypeToFieldType(zodField.type),
+    required: !zodField.optional,
+    ...(zodField.constraints && {
+      constraints: convertZodConstraints(zodField.constraints),
+    }),
+    ...(zodField.options && { enumValues: zodField.options }),
+    ...(zodField.default && { default: zodField.default }),
+    ...(zodField.arrayType && {
+      subType: zodFieldTypeToFieldType(zodField.arrayType),
+    }),
+  }
+}
+
+/**
+ * Parse the schema JSON string from the backend into typed schema information.
+ * Now returns SchemaField[] for consistency with JSON schema parser.
+ */
+export function parseSchemaJson(
+  schemaJson: string
+): { fields: SchemaField[] } | null {
   try {
     const parsed: unknown = JSON.parse(schemaJson)
 
@@ -134,7 +208,8 @@ export function parseSchemaJson(schemaJson: string): ParsedSchema | null {
       return null
     }
 
-    const fields: ZodField[] = parsed.fields.map(field => ({
+    // Parse into intermediate ZodField format
+    const zodFields: ZodField[] = parsed.fields.map(field => ({
       name: field.name,
       type: field.type as ZodFieldType,
       optional: field.optional || false,
@@ -156,9 +231,11 @@ export function parseSchemaJson(schemaJson: string): ParsedSchema | null {
       }),
     }))
 
+    // Convert to SchemaField format
+    const schemaFields = zodFields.map(zodFieldToSchemaField)
+
     return {
-      type: 'zod',
-      fields,
+      fields: schemaFields,
     }
   } catch (error) {
     if (import.meta.env.DEV) {
@@ -189,114 +266,4 @@ function isValidParsedSchema(obj: unknown): obj is ParsedSchemaJson {
         typeof field.optional === 'boolean'
     )
   )
-}
-
-/**
- * Get the appropriate input type for a form field based on Zod type
- */
-export function getInputTypeForZodField(fieldType: ZodFieldType): string {
-  switch (fieldType) {
-    case 'String':
-      return 'text'
-    case 'Number':
-      return 'number'
-    case 'Boolean':
-      return 'checkbox'
-    case 'Date':
-      return 'date'
-    case 'Array':
-      return 'text' // Will handle as comma-separated values
-    case 'Enum':
-      return 'select'
-    case 'Union':
-      return 'text' // Handle unions as text input for now
-    case 'Literal':
-      return 'text' // Literals can be displayed as readonly text
-    case 'Object':
-      return 'text' // Objects as JSON text for now
-    default:
-      return 'text'
-  }
-}
-
-/**
- * Create a default value for a field based on its type and schema
- */
-export function getDefaultValueForField(
-  field: ZodField
-): string | number | boolean | string[] {
-  if (field.default !== undefined) {
-    return field.default
-  }
-
-  switch (field.type) {
-    case 'String':
-      return ''
-    case 'Number':
-      return 0
-    case 'Boolean':
-      return false
-    case 'Date':
-      return new Date().toISOString().split('T')[0] || '' // YYYY-MM-DD format
-    case 'Array':
-      return []
-    case 'Literal':
-      return field.literalValue || ''
-    case 'Union':
-      // For unions, return the default for the first non-literal type
-      if (field.unionTypes && field.unionTypes.length > 0) {
-        const firstType = field.unionTypes[0]
-        if (typeof firstType === 'string') {
-          return getDefaultValueForField({ ...field, type: firstType })
-        }
-      }
-      return ''
-    default:
-      return ''
-  }
-}
-
-/**
- * Validate a field value against its schema
- */
-export function validateFieldValue(
-  field: ZodField,
-  value: unknown
-): string | null {
-  // If field is optional and value is empty, it's valid
-  if (
-    field.optional &&
-    (value === '' || value === null || value === undefined)
-  ) {
-    return null
-  }
-
-  // Required field validation
-  if (
-    !field.optional &&
-    (value === '' || value === null || value === undefined)
-  ) {
-    return `${field.name} is required`
-  }
-
-  // Type-specific validation
-  switch (field.type) {
-    case 'Number':
-      if (isNaN(Number(value))) {
-        return `${field.name} must be a number`
-      }
-      break
-    case 'Boolean':
-      if (typeof value !== 'boolean') {
-        return `${field.name} must be a boolean`
-      }
-      break
-    case 'Date':
-      if (value && typeof value === 'string' && isNaN(Date.parse(value))) {
-        return `${field.name} must be a valid date`
-      }
-      break
-  }
-
-  return null
 }

@@ -4,13 +4,13 @@ import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface TextareaFieldProps extends FieldProps {
   placeholder?: string
   minRows?: number
   maxRows?: number
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const TextareaField: React.FC<TextareaFieldProps> = ({

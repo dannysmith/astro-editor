@@ -4,11 +4,11 @@ import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface NumberFieldProps extends FieldProps {
   placeholder?: string
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({

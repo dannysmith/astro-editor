@@ -9,11 +9,11 @@ import {
 } from '../../ui/select'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface EnumFieldProps extends FieldProps {
   options: string[]
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const EnumField: React.FC<EnumFieldProps> = ({
