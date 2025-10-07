@@ -34,7 +34,8 @@ export const YamlField: React.FC<YamlFieldProps> = ({
       // Format as indented JSON (close enough to YAML for arrays)
       return JSON.stringify(value, null, 2)
     } catch {
-      return String(value)
+      // Fallback for non-serializable values - always use JSON.stringify
+      return JSON.stringify(value)
     }
   }, [value])
 
@@ -48,7 +49,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
 
     try {
       // Try to parse as JSON
-      const parsed = JSON.parse(newValue)
+      const parsed = JSON.parse(newValue) as unknown
       setError(null)
       updateFrontmatterField(name, parsed)
     } catch (err) {
@@ -80,9 +81,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
           maxRows={20}
         />
         {error && (
-          <p className="text-sm text-destructive">
-            Invalid JSON: {error}
-          </p>
+          <p className="text-sm text-destructive">Invalid JSON: {error}</p>
         )}
       </div>
     </FieldWrapper>

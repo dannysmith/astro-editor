@@ -40,7 +40,9 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
     }
 
     // For string arrays
-    return currentValue.every((item): item is string => typeof item === 'string')
+    return currentValue.every(
+      (item): item is string => typeof item === 'string'
+    )
       ? currentValue.map((str, index) => ({
           id: `${name}-${str}-${index}`,
           text: str,

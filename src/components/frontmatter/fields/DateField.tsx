@@ -30,11 +30,7 @@ export const DateField: React.FC<DateFieldProps> = ({
       currentValue={value}
     >
       <DatePicker
-        value={
-          value && typeof value === 'string'
-            ? new Date(value)
-            : undefined
-        }
+        value={value && typeof value === 'string' ? new Date(value) : undefined}
         onChange={(date: Date | undefined) => {
           const dateValue =
             date instanceof Date && !isNaN(date.getTime())

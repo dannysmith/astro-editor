@@ -38,11 +38,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
       currentValue={value}
     >
       <Select
-        value={
-          value && typeof value === 'string'
-            ? value
-            : '__NONE__'
-        }
+        value={value && typeof value === 'string' ? value : '__NONE__'}
         onValueChange={value => {
           // Special sentinel value means clear the field
           const finalValue = value === '__NONE__' ? undefined : value

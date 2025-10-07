@@ -55,24 +55,6 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     c => c.name === referencedCollection
   )
 
-  // Debug: Log reference field info
-  React.useEffect(() => {
-    if (referencedCollection) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `ReferenceField "${name}": Looking for collection "${referencedCollection}"`,
-        { field, currentCollection: currentCollection?.name }
-      )
-    }
-    if (referencedCollection && !currentCollection && collections.length > 0) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `ReferenceField "${name}": Collection "${referencedCollection}" not found. Available collections:`,
-        collections.map(c => c.name)
-      )
-    }
-  }, [name, referencedCollection, currentCollection, collections, field])
-
   // Fetch files from the referenced collection
   const { data: files, isLoading } = useCollectionFilesQuery(
     projectPath,
