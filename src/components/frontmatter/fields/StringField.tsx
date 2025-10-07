@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
@@ -22,6 +22,7 @@ export const StringField: React.FC<StringFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -32,14 +33,14 @@ export const StringField: React.FC<StringFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Input
         type={type}
         name={name}
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
         className={className}
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
       />
     </FieldWrapper>

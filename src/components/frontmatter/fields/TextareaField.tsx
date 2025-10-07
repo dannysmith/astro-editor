@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
@@ -24,6 +24,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -34,7 +35,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <AutoExpandingTextarea
         id={name === 'title' ? 'frontmatter-title-field' : undefined}
@@ -42,7 +43,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
         className={className}
         minRows={minRows}
         maxRows={maxRows}
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
       />
     </FieldWrapper>

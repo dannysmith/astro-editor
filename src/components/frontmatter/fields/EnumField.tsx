@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import {
   Select,
   SelectContent,
@@ -24,6 +24,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -34,12 +35,12 @@ export const EnumField: React.FC<EnumFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Select
         value={
-          frontmatter[name] && typeof frontmatter[name] === 'string'
-            ? frontmatter[name]
+          value && typeof value === 'string'
+            ? value
             : '__NONE__'
         }
         onValueChange={value => {

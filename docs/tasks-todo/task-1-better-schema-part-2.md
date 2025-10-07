@@ -1,12 +1,19 @@
 # Task: Schema Support Enhancement - Part 2
 
-**Status:** In Progress
+**Status:** In Progress - Phase 1 Complete ✅, Phase 2 Complete ✅, Testing Phase Started
 **Prerequisites:** `docs/tasks-done/task-1-better-schema-parser.md` (Completed)
+
+## Progress Summary
+
+- ✅ **Phase 1: Type System Unification** - Complete (all checks passing)
+- ✅ **Phase 2: Enhanced Field Support** - Complete (all stages implemented)
+- 🔄 **Phase 3: Real-World Validation** - Started (reference field issue discovered)
+- ⏳ **Phase 4: UI Polish** - Pending
 
 ## Overview
 
 Following the initial JSON schema parser implementation, this task focuses on:
-1. **Type System Unification** - Eliminate dual ZodField/SchemaField types
+1. **Type System Unification** - Eliminate dual ZodField/SchemaField types ✅
 2. **Enhanced Field Support** - Properly handle references, unions, literals, nested objects
 3. **Real-World Validation** - Manual testing with complex production schemas
 4. **UI Polish** - Production-ready field rendering and metadata display
@@ -209,215 +216,235 @@ export function parseSchemaJson(schemaJson: string): { fields: SchemaField[] } |
 
 ### Phase 1 Verification Checklist
 
-- [ ] TypeScript compiles without errors (`pnpm run check:types`)
-- [ ] All tests pass (`pnpm run test:run`)
-- [ ] Both JSON schema and Zod fallback work in dev
-- [ ] Constraints preserved through entire pipeline
-- [ ] No `ZodField` references remain in codebase
-- [ ] Field components render correctly with `SchemaField`
+- ✅ TypeScript compiles without errors (`pnpm run check:types`)
+- ✅ All tests pass (`pnpm run test:run`)
+- ✅ Both JSON schema and Zod fallback work in dev
+- ✅ Constraints preserved through entire pipeline
+- ✅ No `ZodField` references remain in codebase
+- ✅ Field components render correctly with `SchemaField`
+- ✅ Manual testing confirmed working in compiled app
+
+**Result:** Phase 1 complete. Type system unified, all 425 tests passing, all checks green.
 
 ---
 
-## Phase 2: Enhanced Field Type Support
+## Phase 2: Enhanced Field Type Support (REFINED)
 
-**Goal:** Handle advanced schema patterns (references, unions, literals, complex arrays).
+**Goal:** Handle nested objects, references, and complex arrays with pragmatic UI/UX.
 
-### 2.1 Reference Field Enhancement
+### Design Decisions
 
-**Current State:** References detected but render as generic `StringField`.
+**Arrays Strategy:**
+- ✅ Strings: TagInput (current implementation)
+- 🔄 Numbers: TagInput with number validation
+- 🔄 References: Multi-select combobox (shadcn Command)
+- 🔄 Complex types (dates, objects): YAML textarea fallback
 
-**Target UX:**
+**Nested Objects:**
+- Visual grouping with section header + left border + indentation
+- Dot notation in field names (`author.name`)
+- Nested YAML structure in storage
+
+**References:**
+- Single: Searchable combobox (shadcn Combobox)
+- Array: Multi-select with tag display (shadcn Command)
+- Display: Show title from referenced item, store slug
+
+### Stage 2.1: Nested Object Support (~1.5 hrs)
+
+**Goal:** Visual grouping of nested object fields with proper YAML structure preservation.
+
+**Schema Example:**
+```typescript
+author: z.object({
+  name: z.string(),
+  email: z.string().email()
+})
 ```
-┌─────────────────────────────────────┐
-│ Author *                            │
-│ ┌─────────────────────────────────┐ │
-│ │ john-doe                        │ │
-│ └─────────────────────────────────┘ │
-│ 📚 References: authors              │
-└─────────────────────────────────────┘
+
+**Target UI:**
+```
+Title *
+[input field]
+
+Author
+┃ Name *
+┃ [input field]
+┃
+┃ Email *
+┃ [input field]
+
+Description
+[textarea]
 ```
 
 **Implementation:**
 
-**File:** `src/components/frontmatter/fields/StringField.tsx`
-
-```typescript
-// Add reference indicator
-{field?.referenceCollection && (
-  <p className="text-xs text-muted-foreground mt-1">
-    📚 References: {field.referenceCollection}
-  </p>
-)}
-```
-
-**File:** `src/lib/parseJsonSchema.ts`
-
-```typescript
-// Extract collection name from reference pattern
-function isReferenceField(anyOfArray: JsonSchemaProperty[]): {
-  isRef: boolean
-  collection?: string
-} {
-  const refObject = anyOfArray.find(
-    s => s.type === 'object' && s.properties?.collection
-  )
-
-  if (!refObject) return { isRef: false }
-
-  // Try to extract collection name from const
-  const collectionProp = refObject.properties?.collection
-  if (collectionProp?.const) {
-    return { isRef: true, collection: collectionProp.const as string }
-  }
-
-  return { isRef: true }
-}
-```
-
-**Action Items:**
-- [ ] Update `isReferenceField` to extract collection name
-- [ ] Add collection name to `SchemaField.referenceCollection`
-- [ ] Update `StringField` to show reference indicator
-- [ ] Test with `z.reference('authors')` and `z.array(reference('blog'))`
-
-### 2.2 Literal/Const Field Handling
-
-**Pattern:** `z.literal('project')` → `{ "type": "string", "const": "project" }`
-
-**Implementation:**
-
-**File:** `src/lib/parseJsonSchema.ts`
-
-```typescript
-// Handle const (literal) - treat as readonly string
-if (fieldSchema.const !== undefined) {
-  return {
-    type: FieldType.String,
-    literalValue: fieldSchema.const as string
-  }
-}
-```
-
-**File:** `src/lib/schema.ts` (add to SchemaField)
-
+1. **Update SchemaField interface** (`src/lib/schema.ts`)
 ```typescript
 export interface SchemaField {
-  // ... existing fields
-  literalValue?: string | number | boolean // For const/literal fields
+  // ... existing
+  nestedFields?: SchemaField[]  // Child fields for object types
+  isNested?: boolean            // Is this field nested under a parent?
+  parentPath?: string           // e.g., "author" for "author.name"
 }
 ```
 
-**File:** `src/components/frontmatter/fields/StringField.tsx`
+2. **Parse nested objects** (`src/lib/parseJsonSchema.ts`)
+   - Detect object types in schema
+   - Flatten to array with dot notation paths
+   - Preserve parent-child relationships
 
-```typescript
-// If literal value, render as readonly
-const isLiteral = field && 'literalValue' in field && field.literalValue !== undefined
+3. **Render nested groups** (`src/components/frontmatter/FrontmatterPanel.tsx`)
+   - Group fields by parent path
+   - Add section headers (using shadcn Separator)
+   - Apply visual indentation + left border
 
-<Input
-  type={type}
-  readOnly={isLiteral}
-  disabled={isLiteral}
-  value={isLiteral ? String(field.literalValue) : valueToString(frontmatter[name])}
-  className={cn(className, isLiteral && "bg-muted cursor-not-allowed")}
-  // ...
-/>
-```
+4. **Store handling** (`src/store/editorStore.ts`)
+   - Parse dot notation → nested object structure
+   - `author.name` → `{ author: { name: value } }`
 
 **Action Items:**
-- [ ] Add `literalValue` to `SchemaField` interface
-- [ ] Update `determineFieldType` to extract literal values
-- [ ] Update `StringField` to render readonly for literals
-- [ ] Test with `z.literal('fixed-value')`
+- [ ] Add nested field properties to SchemaField
+- [ ] Update parseJsonSchema to flatten nested objects
+- [ ] Create NestedFieldGroup component
+- [ ] Update store to handle dot notation paths
+- [ ] Test with real nested schema
 
-### 2.3 Union Type Handling (Simple)
+### Stage 2.2: Single Reference Fields (~1 hr)
 
-**Pattern:** `z.union([z.string(), z.boolean()])` → `StringField` with type hint
+**Goal:** Searchable combobox for single collection references.
+
+**Schema Example:**
+```typescript
+author: reference('authors')
+```
+
+**Target UI:**
+```
+Author *
+[Search authors... ▼]
+
+When opened:
+┌─────────────────────┐
+│ Search...           │
+├─────────────────────┤
+│ John Doe            │
+│ Jane Smith          │
+│ Bob Johnson         │
+└─────────────────────┘
+```
 
 **Implementation:**
 
-**File:** `src/lib/schema.ts` (add to SchemaField)
-
+1. **Add Reference field type** (`src/lib/schema.ts`)
 ```typescript
-export interface SchemaField {
-  // ... existing fields
-  unionTypes?: FieldType[] // For simple unions
+enum FieldType {
+  // ... existing
+  Reference = 'reference',
+}
+
+interface SchemaField {
+  // ... existing
+  reference?: string  // Referenced collection name
 }
 ```
 
-**File:** `src/lib/parseJsonSchema.ts`
+2. **Detect references in parser** (`src/lib/parseJsonSchema.ts`)
+   - Extract collection name from reference pattern
+   - Set `type: FieldType.Reference` and `reference: 'collectionName'`
 
-```typescript
-// Handle anyOf (dates, references, unions)
-if (fieldSchema.anyOf) {
-  // ... existing date/reference checks
+3. **Create ReferenceField component** (`src/components/frontmatter/fields/ReferenceField.tsx`)
+   - Use shadcn Combobox
+   - Load referenced collection files
+   - Display title, store slug
+   - Clear button if optional
 
-  // Other unions - extract types and treat as string for V1
-  const types = fieldSchema.anyOf
-    .map(s => determineFieldType(s).type)
-    .filter(t => t !== FieldType.Unknown)
-
-  return {
-    type: FieldType.String,
-    unionTypes: types.length > 0 ? types : undefined
-  }
-}
-```
-
-**File:** `src/components/frontmatter/fields/FieldWrapper.tsx`
-
-```typescript
-// Show union type indicator
-{field?.unionTypes && (
-  <p className="text-xs text-muted-foreground mt-1">
-    Accepts: {field.unionTypes.join(' | ')}
-  </p>
-)}
-```
+4. **Update field router** (`src/components/frontmatter/fields/FrontmatterField.tsx`)
+   - Route FieldType.Reference → ReferenceField
 
 **Action Items:**
-- [ ] Add `unionTypes` to `SchemaField`
-- [ ] Extract union types in parser
-- [ ] Add union indicator to FieldWrapper
-- [ ] Test with `z.union([z.string(), z.boolean()])`
+- [ ] Add FieldType.Reference enum value
+- [ ] Update parseJsonSchema reference detection
+- [ ] Create ReferenceField component with Combobox
+- [ ] Add to FrontmatterField router
+- [ ] Test with single reference schema
 
-### 2.4 Array of Objects (Edge Case)
+### Stage 2.3: Array Reference Fields (~1 hr)
 
-**Pattern:** `z.array(z.object({ url: z.string(), title: z.string() }))`
+**Goal:** Multi-select interface for array of references.
 
-**Current Behavior:** `ArrayField` only handles `string[]` (see line 24-25 check).
-
-**V1 Solution:** Render as `TextareaField` with JSON validation.
-
-**File:** `src/components/frontmatter/fields/FrontmatterField.tsx`
-
+**Schema Example:**
 ```typescript
-// Check if array contains objects (not just strings)
-const isArrayOfObjects =
-  fieldType === FieldType.Array &&
-  field &&
-  'subType' in field &&
-  field.subType === FieldType.Unknown // Objects show as Unknown
+relatedPosts: z.array(reference('posts'))
+```
 
-// Handle array of objects with JSON textarea
-if (isArrayOfObjects) {
-  return (
-    <TextareaField
-      name={name}
-      label={label}
-      required={required}
-      field={field}
-      placeholder="[{ ... }, { ... }]"
-      // Could add JSON validation in future
-    />
-  )
+**Target UI:**
+```
+Related Posts
+[+ Add post ▼]
+
+[Understanding React] [×]
+[TypeScript Guide] [×]
+```
+
+**Implementation:**
+
+1. **Extend SchemaField** (`src/lib/schema.ts`)
+```typescript
+interface SchemaField {
+  // ... existing
+  subReference?: string  // For array of references
 }
 ```
 
+2. **Detect array references** (`src/lib/parseJsonSchema.ts`)
+   - Check if array items are references
+   - Set `type: FieldType.Array`, `subType: FieldType.Reference`, `subReference: 'collectionName'`
+
+3. **Extend ReferenceField for multi-select**
+   - Add `multiple` prop
+   - Use shadcn Command for search
+   - Render selected as removable tags
+   - Store as array of slugs
+
+4. **Update field router**
+   - Detect array + reference combination
+   - Pass to ReferenceField with `multiple={true}`
+
 **Action Items:**
-- [ ] Add array-of-objects detection in `FrontmatterField`
-- [ ] Route to `TextareaField` with JSON hint
-- [ ] Add validation hint in FieldWrapper
-- [ ] Test with complex array schema
+- [ ] Add subReference to SchemaField
+- [ ] Update parser for array references
+- [ ] Add multi-select mode to ReferenceField
+- [ ] Update FrontmatterField router logic
+- [ ] Test with array reference schema
+
+### Stage 2.4: Enhanced Array Support (~30 min)
+
+**Goal:** Proper handling of number arrays and complex array fallback.
+
+**Implementation:**
+
+1. **Number array validation** (`src/components/frontmatter/fields/ArrayField.tsx`)
+   - Add number parsing/validation
+   - Show validation errors for non-numbers
+
+2. **YAML fallback component** (`src/components/frontmatter/fields/YamlField.tsx`)
+   - Textarea for complex types
+   - "Advanced" label hint
+   - Syntax highlighting (optional)
+
+3. **Router logic** (`src/components/frontmatter/fields/FrontmatterField.tsx`)
+   - String array → ArrayField
+   - Number array → ArrayField with number mode
+   - Reference array → ReferenceField multi-select
+   - Complex (objects, dates, etc.) → YamlField
+
+**Action Items:**
+- [ ] Add number validation to ArrayField
+- [ ] Create YamlField component
+- [ ] Update FrontmatterField routing logic
+- [ ] Test with various array types
 
 ### 2.5 Record/Map Type Handling
 
@@ -880,5 +907,119 @@ export function parseJsonSchema(schemaJson: string): { fields: SchemaField[] } |
 
 ---
 
+---
+
+## Phase 2 Implementation Status (2025-10-07)
+
+### ✅ Completed
+
+**Stage 2.1: Nested Object Support**
+- Added `isNested`, `parentPath`, `nestedFields` to SchemaField interface
+- Updated `parseJsonSchema.ts` to flatten nested objects with dot notation
+- Implemented visual grouping in FrontmatterPanel (section header + left border + indent)
+- Created helper functions in editorStore: `setNestedValue`, `getNestedValue`, `deleteNestedValue`
+- Updated all 7 field components to use `getNestedValue`
+
+**Stage 2.2: Single Reference Fields**
+- Added `reference` property to SchemaField
+- Updated parseJsonSchema to detect and extract collection names from reference patterns
+- Created ReferenceField.tsx using shadcn Combobox (Command + Popover)
+- Loads referenced collection files via TanStack Query
+- Displays titles from frontmatter, stores slugs
+- Updated FrontmatterField router
+
+**Stage 2.3: Array Reference Fields**
+- Added `subReference` property to SchemaField for array items
+- Updated parser to detect `array(reference('collection'))`
+- Enhanced ReferenceField with multi-select mode (badge display, keep-open behavior)
+- Updated FrontmatterField router with proper detection
+
+**Stage 2.4: Enhanced Array Support**
+- Updated ArrayField to handle number arrays (auto-conversion between numbers and strings)
+- Created YamlField.tsx for complex array types (JSON textarea with validation)
+- Updated FrontmatterField routing: array references → complex arrays → string/number arrays
+
+**TypeScript Compilation:** ✅ All code compiles successfully
+
+---
+
+## 🐛 Issue Discovered During Testing (2025-10-07)
+
+### Problem: Reference Fields Not Loading Options
+
+**Symptoms:**
+- Reference field shows empty dropdown
+- No items found when clicking field
+- Collection name is correct in schema: `primaryAuthor: reference('authors')`
+- Authors collection exists and has files
+- No console errors logged
+
+**Schema Structure (Astro JSON Schema):**
+```json
+"primaryAuthor": {
+  "anyOf": [
+    {
+      "type": "string"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "collection": { "type": "string" }
+      },
+      "required": ["id", "collection"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "collection": { "type": "string" }
+      },
+      "required": ["slug", "collection"],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+
+**Root Cause Analysis Needed:**
+
+The `collection` property in the JSON schema is `{ "type": "string" }` without a `const` value. This means:
+- Astro's JSON schema generation doesn't preserve `reference('authors')` collection name
+- Our parser's `extractReferenceInfo()` function looks for `collection.const` but finds nothing
+- Result: `referencedCollection = undefined`
+
+**Questions for Next Session:**
+
+1. **Check full schema definition:**
+   - Is there a `const` value for collection ANYWHERE in the `primaryAuthor` field definition?
+   - Paste the complete `definitions.blog` object to see if collection name is preserved elsewhere
+
+2. **Alternative schema sources:**
+   - Does the Zod schema preserve the collection name in a parseable way?
+   - Could we add a fallback to parse the raw `src/content/config.ts` file?
+
+3. **Potential solutions:**
+   - Parse collection name from Zod schema as fallback (`/reference\('([^']+)'\)/`)
+   - Store collection mappings in generated schema metadata
+   - Add field descriptions that include collection name
+   - Different schema generation approach that preserves references
+
+**Debugging Added:**
+- Added console logging to ReferenceField showing:
+  - What collection name it's looking for
+  - What collections are available
+  - Whether collection was found
+- Added better empty state messaging in dropdown
+
+**Next Steps:**
+1. User to check browser console for debug logs
+2. User to paste full schema definition for `primaryAuthor` field
+3. Investigate if Zod schema has the collection name
+4. Implement fix based on findings
+
+---
+
 **Last Updated:** 2025-10-07
-**Document Version:** 1.0
+**Document Version:** 1.1 (Added Phase 2 completion + reference field issue)

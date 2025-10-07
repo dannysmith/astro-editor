@@ -170,8 +170,15 @@ function parseField(
     ...(description && { description }),
     ...(defaultValue !== undefined && { default: defaultValue }),
     ...(fieldType.enumValues && { enumValues: fieldType.enumValues }),
+    ...(fieldType.reference && { reference: fieldType.reference }),
+    ...(fieldType.subReference && { subReference: fieldType.subReference }),
     ...(fieldType.referenceCollection && {
       referenceCollection: fieldType.referenceCollection,
+    }),
+    // Nested object metadata
+    ...(parentPath && {
+      isNested: true,
+      parentPath: parentPath,
     }),
   }
 
@@ -186,14 +193,22 @@ function determineFieldType(fieldSchema: JsonSchemaProperty): {
   subType?: FieldType
   enumValues?: string[]
   referenceCollection?: string
+  reference?: string
+  subReference?: string
 } {
   // Handle anyOf (dates, references, unions)
   if (fieldSchema.anyOf) {
     if (isDateField(fieldSchema.anyOf)) {
       return { type: FieldType.Date }
     }
-    if (isReferenceField(fieldSchema.anyOf)) {
-      return { type: FieldType.Reference }
+    const refInfo = extractReferenceInfo(fieldSchema.anyOf)
+    if (refInfo.isReference) {
+      return {
+        type: FieldType.Reference,
+        reference: refInfo.collectionName,
+        // Keep referenceCollection for backwards compatibility
+        referenceCollection: refInfo.collectionName,
+      }
     }
     // Other unions - treat as string for V1
     return { type: FieldType.String }
@@ -221,6 +236,16 @@ function determineFieldType(fieldSchema: JsonSchemaProperty): {
     }
     if (itemsSchema) {
       const itemType = determineFieldType(itemsSchema)
+
+      // If array items are references, capture the collection name in subReference
+      if (itemType.type === FieldType.Reference && itemType.reference) {
+        return {
+          type: FieldType.Array,
+          subType: itemType.type,
+          subReference: itemType.reference,
+        }
+      }
+
       return { type: FieldType.Array, subType: itemType.type }
     }
     return { type: FieldType.Array, subType: FieldType.String }
@@ -272,17 +297,29 @@ function isDateField(anyOfArray: JsonSchemaProperty[]): boolean {
 }
 
 /**
- * Check if anyOf represents a reference field
+ * Check if anyOf represents a reference field and extract collection name
  */
-function isReferenceField(anyOfArray: JsonSchemaProperty[]): boolean {
-  return anyOfArray.some(s => {
+function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
+  isReference: boolean
+  collectionName?: string
+} {
+  for (const s of anyOfArray) {
     const props = s.properties
-    return (
+    if (
       s.type === 'object' &&
       props?.collection !== undefined &&
       (props?.id !== undefined || props?.slug !== undefined)
-    )
-  })
+    ) {
+      // Extract collection name from const
+      const collectionName =
+        typeof props.collection === 'object' && 'const' in props.collection
+          ? (props.collection.const as string)
+          : undefined
+
+      return { isReference: true, collectionName }
+    }
+  }
+  return { isReference: false }
 }
 
 /**

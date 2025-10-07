@@ -79,7 +79,16 @@ export interface SchemaField {
 
   // Type-specific
   enumValues?: string[] // For enum fields
-  referenceCollection?: string // For reference fields (future)
+
+  // References
+  reference?: string // Referenced collection name (for single reference)
+  subReference?: string // Referenced collection name (for array of references)
+  referenceCollection?: string // Legacy - kept for backwards compatibility
+
+  // Nested Objects
+  nestedFields?: SchemaField[] // Child fields for object types
+  isNested?: boolean // Is this field nested under a parent?
+  parentPath?: string // Parent path, e.g. "author" for "author.name"
 }
 
 export interface FieldConstraints {
@@ -102,6 +111,7 @@ export enum FieldType {
   Array = 'array',
   Enum = 'enum',
   Reference = 'reference',
+  Object = 'object', // For nested objects (rendered as grouped fields)
   Unknown = 'unknown',
 }
 

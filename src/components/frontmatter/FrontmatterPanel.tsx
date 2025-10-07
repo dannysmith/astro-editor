@@ -141,13 +141,29 @@ export const FrontmatterPanel: React.FC = () => {
     }
   }, [frontmatter, schema])
 
+  // Group fields by parent path for nested object rendering
+  const groupedFields = React.useMemo(() => {
+    const groups: Map<string | null, typeof allFields> = new Map()
+
+    for (const field of allFields) {
+      const parentPath = field.schemaField?.parentPath ?? null
+      if (!groups.has(parentPath)) {
+        groups.set(parentPath, [])
+      }
+      groups.get(parentPath)!.push(field)
+    }
+
+    return groups
+  }, [allFields])
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 p-4 overflow-y-auto">
         {currentFile ? (
           allFields.length > 0 ? (
             <div className="space-y-6">
-              {allFields.map(({ fieldName, schemaField }) => (
+              {/* Render top-level fields */}
+              {groupedFields.get(null)?.map(({ fieldName, schemaField }) => (
                 <FrontmatterField
                   key={fieldName}
                   name={fieldName}
@@ -155,6 +171,37 @@ export const FrontmatterPanel: React.FC = () => {
                   field={schemaField}
                 />
               ))}
+
+              {/* Render nested field groups */}
+              {Array.from(groupedFields.entries())
+                .filter(([parentPath]) => parentPath !== null)
+                .map(([parentPath, fields]) => (
+                  <div key={parentPath} className="space-y-4">
+                    {/* Parent section header */}
+                    <h3 className="text-sm font-medium text-foreground pt-2">
+                      {camelCaseToTitleCase(
+                        parentPath!.split('.').pop() || parentPath!
+                      )}
+                    </h3>
+
+                    {/* Nested fields with indentation */}
+                    <div className="pl-4 border-l-2 border-border space-y-4">
+                      {fields.map(({ fieldName, schemaField }) => (
+                        <FrontmatterField
+                          key={fieldName}
+                          name={fieldName}
+                          label={
+                            schemaField?.label ||
+                            camelCaseToTitleCase(
+                              fieldName.split('.').pop() || fieldName
+                            )
+                          }
+                          field={schemaField}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
             </div>
           ) : (
             <div className="text-center py-8">

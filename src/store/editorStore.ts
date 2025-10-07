@@ -7,6 +7,119 @@ import { toast } from '../lib/toast'
 import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
 
+/**
+ * Set a nested value in an object using dot notation
+ * Example: setNestedValue(obj, 'author.name', 'John') → { author: { name: 'John' } }
+ */
+function setNestedValue(
+  obj: Record<string, unknown>,
+  path: string,
+  value: unknown
+): Record<string, unknown> {
+  const keys = path.split('.')
+  if (keys.length === 1) {
+    // Simple key, no nesting
+    return { ...obj, [path]: value }
+  }
+
+  // Create nested structure
+  const result = { ...obj }
+  let current: Record<string, unknown> = result
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]!
+    if (typeof current[key] !== 'object' || current[key] === null) {
+      current[key] = {}
+    } else {
+      // Clone existing nested object
+      current[key] = { ...(current[key] as Record<string, unknown>) }
+    }
+    current = current[key] as Record<string, unknown>
+  }
+
+  // Set the final value
+  const lastKey = keys[keys.length - 1]!
+  current[lastKey] = value
+
+  return result
+}
+
+/**
+ * Get a nested value from an object using dot notation
+ * Example: getNestedValue(obj, 'author.name') → 'John'
+ */
+export function getNestedValue(
+  obj: Record<string, unknown>,
+  path: string
+): unknown {
+  const keys = path.split('.')
+  let current: unknown = obj
+
+  for (const key of keys) {
+    if (current === null || current === undefined) {
+      return undefined
+    }
+    if (typeof current !== 'object') {
+      return undefined
+    }
+    current = (current as Record<string, unknown>)[key]
+  }
+
+  return current
+}
+
+/**
+ * Delete a nested value in an object using dot notation
+ * Also cleans up empty parent objects
+ */
+function deleteNestedValue(
+  obj: Record<string, unknown>,
+  path: string
+): Record<string, unknown> {
+  const keys = path.split('.')
+  if (keys.length === 1) {
+    // Simple key
+    const result = { ...obj }
+    delete result[path]
+    return result
+  }
+
+  // Navigate to parent and delete
+  const result = { ...obj }
+  let current: Record<string, unknown> = result
+  const parents: Array<{ obj: Record<string, unknown>; key: string }> = []
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]!
+    if (typeof current[key] !== 'object' || current[key] === null) {
+      // Path doesn't exist, nothing to delete
+      return result
+    }
+    // Clone nested object
+    current[key] = { ...(current[key] as Record<string, unknown>) }
+    parents.push({ obj: current, key })
+    current = current[key] as Record<string, unknown>
+  }
+
+  // Delete the final key
+  const lastKey = keys[keys.length - 1]!
+  delete current[lastKey]
+
+  // Clean up empty parent objects (bottom-up)
+  for (let i = parents.length - 1; i >= 0; i--) {
+    const parent = parents[i]!
+    const { obj, key } = parent
+    const nested = obj[key] as Record<string, unknown>
+    if (Object.keys(nested).length === 0) {
+      delete obj[key]
+    } else {
+      break // Stop cleaning if parent is not empty
+    }
+  }
+
+  return result
+}
+
 export interface FileEntry {
   id: string
   path: string
@@ -268,20 +381,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   updateFrontmatterField: (key: string, value: unknown) => {
     const { frontmatter } = get()
-    const newFrontmatter = { ...frontmatter }
 
-    // Remove field if value is empty
+    // Check if value is empty
     const isEmpty =
       value === null ||
       value === undefined ||
       value === '' ||
       (Array.isArray(value) && value.length === 0)
 
-    if (isEmpty) {
-      delete newFrontmatter[key]
-    } else {
-      newFrontmatter[key] = value
-    }
+    // Handle nested paths (dot notation) for nested objects
+    const newFrontmatter = isEmpty
+      ? deleteNestedValue(frontmatter, key)
+      : setNestedValue(frontmatter, key, value)
 
     set({
       frontmatter: newFrontmatter,

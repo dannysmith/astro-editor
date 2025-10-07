@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { Switch } from '../../ui/switch'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
@@ -15,6 +15,7 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   // Helper function to get boolean value considering schema defaults
   const getBooleanValue = (value: unknown) => {
@@ -50,11 +51,11 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
         field && 'description' in field ? field.description : undefined
       }
       defaultValue={field?.default}
-      currentValue={frontmatter[name]}
+      currentValue={value}
       layout="horizontal"
     >
       <Switch
-        checked={getBooleanValue(frontmatter[name])}
+        checked={getBooleanValue(value)}
         onCheckedChange={checked => updateFrontmatterField(name, checked)}
       />
     </FieldWrapper>
