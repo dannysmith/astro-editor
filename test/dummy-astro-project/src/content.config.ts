@@ -1,5 +1,16 @@
-import { defineCollection, z } from 'astro:content';
-import { glob } from 'astro/loaders';
+import { defineCollection, z, reference } from 'astro:content';
+import { glob, file } from 'astro/loaders';
+
+// Authors collection - file-based JSON collection for reference testing
+const authors = defineCollection({
+  loader: file('./src/content/authors.json'),
+  schema: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string().email(),
+    bio: z.string().optional(),
+  }),
+});
 
 const articles = defineCollection({
   loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/articles' }),
@@ -15,6 +26,9 @@ const articles = defineCollection({
       coverAlt: z.string().optional(),
       tags: z.array(z.string()).optional(),
       platform: z.enum(['medium', 'external']).optional(),
+      // Reference fields for testing
+      author: reference('authors').optional(),
+      relatedArticles: z.array(reference('articles')).max(3).optional(),
     }),
 });
 
@@ -31,4 +45,4 @@ const notes = defineCollection({
   }),
 });
 
-export const collections = { articles, notes };
+export const collections = { authors, articles, notes };
