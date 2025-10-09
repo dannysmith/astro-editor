@@ -116,6 +116,509 @@ All of this MUST happen in Rust backend, not scattered across layers.
 
 ---
 
+---
+
+## Critical Context for Implementation
+
+### Existing Rust Parser Infrastructure (parser.rs)
+
+**IMPORTANT:** The Rust backend already has reference parsing infrastructure:
+
+```rust
+// Line 53: ZodFieldType::Reference stores collection name
+pub enum ZodFieldType {
+    String,
+    Number,
+    Boolean,
+    Date,
+    Array(Box<ZodFieldType>),
+    Enum(Vec<String>),
+    Union(Vec<ZodFieldType>),
+    Literal(String),
+    Object(Vec<ZodField>),
+    Reference(String), // ✅ Already stores collection name!
+    Unknown,
+}
+
+// Line 697: Function to extract collection name from Zod schema
+fn extract_reference_collection(field_definition: &str) -> String {
+    // Extract from reference('collectionName') or reference("collectionName")
+    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+
+    if let Some(cap) = reference_re.captures(field_definition) {
+        cap.get(1).unwrap().as_str().to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+// Line 486: JSON serialization includes reference collection names
+ZodFieldType::Reference(collection_name) => {
+    field_json["referencedCollection"] = serde_json::json!(collection_name);
+}
+
+// Line 497: Array references also tracked
+if let ZodFieldType::Reference(collection_name) = &**inner_type {
+    field_json["arrayReferenceCollection"] = serde_json::json!(collection_name);
+}
+```
+
+**Key Insight:** You can leverage the existing `extract_reference_collection()` function when implementing `extract_zod_references()` in the new schema merger module.
+
+### TypeScript JSON Schema Parser Implementation (parseJsonSchema.ts)
+
+The TypeScript parser shows the patterns we need to replicate in Rust:
+
+**1. File-based vs Standard Collections:**
+```typescript
+// Lines 63-70: Check for file-based collections
+if (collectionDef.additionalProperties &&
+    typeof collectionDef.additionalProperties === 'object') {
+  // File-based collection - use additionalProperties as entry schema
+  const entrySchema = collectionDef.additionalProperties
+  return parseEntrySchema(entrySchema as JsonSchemaDefinition)
+}
+```
+
+**2. Reference Detection:**
+```typescript
+// Lines 306-321: Detects references via anyOf pattern
+function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
+  isReference: boolean
+} {
+  for (const s of anyOfArray) {
+    const props = s.properties
+    if (s.type === 'object' &&
+        props?.collection !== undefined &&
+        (props?.id !== undefined || props?.slug !== undefined)) {
+      // Collection name NOT in JSON schema - must come from Zod
+      return { isReference: true }
+    }
+  }
+  return { isReference: false }
+}
+```
+
+**3. Nested Object Flattening:**
+```typescript
+// Lines 128-150: Flattens with dot notation
+if (fieldType.type === FieldType.Unknown &&
+    fieldSchema.type === 'object' &&
+    fieldSchema.properties) {
+  const nestedFields: SchemaField[] = []
+  const nestedRequired = new Set(fieldSchema.required || [])
+
+  for (const [nestedName, nestedSchema] of Object.entries(fieldSchema.properties)) {
+    const nestedParsed = parseField(
+      nestedName,
+      nestedSchema,
+      nestedRequired.has(nestedName),
+      fullPath  // Passes parent path for dot notation
+    )
+    nestedFields.push(...nestedParsed)
+  }
+
+  return nestedFields
+}
+```
+
+### Serde Field Naming (CRITICAL)
+
+Rust uses `snake_case`, TypeScript expects `camelCase`. Use serde attributes:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]  // ✅ Add this!
+pub struct SchemaField {
+    pub name: String,
+    pub label: String,
+
+    // Will serialize as "fieldType" not "field_type"
+    pub field_type: String,
+    pub sub_type: Option<String>,  // Serializes as "subType"
+
+    pub required: bool,
+    pub constraints: Option<FieldConstraints>,
+    pub description: Option<String>,
+    pub default: Option<serde_json::Value>,
+
+    // Will serialize as "enumValues", "referenceCollection", etc.
+    pub enum_values: Option<Vec<String>>,
+    pub reference_collection: Option<String>,
+    pub array_reference_collection: Option<String>,
+
+    pub is_nested: Option<bool>,  // Serializes as "isNested"
+    pub parent_path: Option<String>,  // Serializes as "parentPath"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]  // ✅ Add this!
+pub struct FieldConstraints {
+    pub min: Option<f64>,
+    pub max: Option<f64>,
+    pub min_length: Option<usize>,  // Serializes as "minLength"
+    pub max_length: Option<usize>,  // Serializes as "maxLength"
+    pub pattern: Option<String>,
+    pub format: Option<String>,
+}
+```
+
+### Error Handling Strategy
+
+When Rust parsing fails, log detailed errors but gracefully fallback:
+
+```rust
+match parse_json_schema(collection_name, json) {
+    Ok(schema) => schema,
+    Err(e) => {
+        warn!(
+            "JSON schema parsing failed for {}: {}. Falling back to Zod-only parsing.",
+            collection_name, e
+        );
+        // Log the schema snippet that failed for debugging
+        if import.meta.env.DEV {
+            warn!("Failed schema snippet: {:?}", &json[..json.len().min(200)]);
+        }
+        // Return Zod-only fallback
+        return parse_zod_schema(collection_name, zod_schema);
+    }
+}
+```
+
+**Never crash the app** - always have a fallback path.
+
+### Astro JSON Schema Patterns to Handle
+
+From `docs/developer/astro-generated-conentcollection-schemas.md`, the Rust parser must handle:
+
+**1. Date Fields (anyOf with 3 formats):**
+```json
+{
+  "anyOf": [
+    { "type": "string", "format": "date-time" },
+    { "type": "string", "format": "date" },
+    { "type": "integer", "format": "unix-time" }
+  ]
+}
+```
+
+**2. Reference Fields (anyOf with 3 possible structures):**
+```json
+{
+  "anyOf": [
+    { "type": "string" },  // Simple ID string
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "collection": { "type": "string" }
+      },
+      "required": ["id", "collection"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "collection": { "type": "string" }
+      },
+      "required": ["slug", "collection"]
+    }
+  ]
+}
+```
+
+**3. Enum Fields:**
+```json
+{
+  "type": "string",
+  "enum": ["draft", "published", "archived"]
+}
+```
+
+**4. Literal Fields:**
+```json
+{
+  "type": "string",
+  "const": "blog"
+}
+```
+
+**5. Arrays:**
+```json
+{
+  "type": "array",
+  "items": { "type": "string" },
+  "minItems": 1,
+  "maxItems": 5
+}
+```
+
+**6. Nested Objects:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "description": { "type": "string" }
+  },
+  "required": ["title"]
+}
+```
+
+**7. Discriminated Unions:**
+```json
+{
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string", "const": "vercel" },
+        "projectId": { "type": "string" }
+      },
+      "required": ["platform", "projectId"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string", "const": "netlify" },
+        "siteId": { "type": "string" }
+      },
+      "required": ["platform", "siteId"]
+    }
+  ]
+}
+```
+
+### Porting TypeScript JSON Parser to Rust
+
+The `parseJsonSchema.ts` implementation provides the blueprint. Here's how to port it:
+
+**Key Data Structures in Rust:**
+
+```rust
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Deserialize)]
+struct AstroJsonSchema {
+    #[serde(rename = "$ref")]
+    ref_: String,
+    definitions: HashMap<String, JsonSchemaDefinition>,
+    #[serde(rename = "$schema")]
+    schema: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JsonSchemaDefinition {
+    #[serde(rename = "type")]
+    type_: String,
+    properties: Option<HashMap<String, JsonSchemaProperty>>,
+    required: Option<Vec<String>>,
+    additional_properties: Option<AdditionalProperties>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum AdditionalProperties {
+    Boolean(bool),
+    Schema(Box<JsonSchemaDefinition>),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JsonSchemaProperty {
+    #[serde(rename = "type")]
+    type_: Option<StringOrArray>,
+    format: Option<String>,
+    any_of: Option<Vec<JsonSchemaProperty>>,
+    #[serde(rename = "enum")]
+    enum_: Option<Vec<String>>,
+    #[serde(rename = "const")]
+    const_: Option<String>,
+    items: Option<Box<ItemsType>>,
+    properties: Option<HashMap<String, JsonSchemaProperty>>,
+    additional_properties: Option<AdditionalProperties>,
+    required: Option<Vec<String>>,
+    description: Option<String>,
+    markdown_description: Option<String>,
+    default: Option<serde_json::Value>,
+    minimum: Option<f64>,
+    maximum: Option<f64>,
+    exclusive_minimum: Option<f64>,
+    exclusive_maximum: Option<f64>,
+    min_length: Option<usize>,
+    max_length: Option<usize>,
+    min_items: Option<usize>,
+    max_items: Option<usize>,
+    pattern: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum StringOrArray {
+    String(String),
+    Array(Vec<String>),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ItemsType {
+    Single(JsonSchemaProperty),
+    Tuple(Vec<JsonSchemaProperty>),
+}
+```
+
+**Implementation Strategy:**
+
+1. **Start Simple:** Implement primitives first (string, number, boolean)
+2. **Add Constraints:** Then add constraint extraction
+3. **Add Complex Types:** Arrays, enums, dates
+4. **Add References:** anyOf pattern detection
+5. **Add Nesting:** Recursive object flattening
+6. **Add Edge Cases:** File-based collections, tuples, unions
+
+**Incremental Approach:**
+
+```rust
+// Phase 1: Parse basic structure
+fn parse_json_schema(
+    collection_name: &str,
+    json_schema: &str,
+) -> Result<SchemaDefinition, String> {
+    let schema: AstroJsonSchema = serde_json::from_str(json_schema)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    // Extract collection definition
+    let collection_name_from_ref = schema.ref_.replace("#/definitions/", "");
+    let collection_def = schema
+        .definitions
+        .get(&collection_name_from_ref)
+        .ok_or_else(|| format!("Collection definition not found: {}", collection_name))?;
+
+    // Check for file-based collection
+    if let Some(AdditionalProperties::Schema(entry_schema)) = &collection_def.additional_properties {
+        return parse_entry_schema(collection_name, entry_schema);
+    }
+
+    // Standard collection
+    parse_entry_schema(collection_name, collection_def)
+}
+
+fn parse_entry_schema(
+    collection_name: &str,
+    entry_schema: &JsonSchemaDefinition,
+) -> Result<SchemaDefinition, String> {
+    let properties = entry_schema.properties
+        .as_ref()
+        .ok_or("No properties found")?;
+
+    let required_set: HashSet<String> = entry_schema
+        .required
+        .as_ref()
+        .map(|r| r.iter().cloned().collect())
+        .unwrap_or_default();
+
+    let mut fields = Vec::new();
+
+    for (field_name, field_schema) in properties {
+        // Skip $schema metadata
+        if field_name == "$schema" {
+            continue;
+        }
+
+        let is_required = required_set.contains(field_name);
+        let parsed_fields = parse_field(field_name, field_schema, is_required, "")?;
+        fields.extend(parsed_fields);
+    }
+
+    Ok(SchemaDefinition {
+        collection_name: collection_name.to_string(),
+        fields,
+    })
+}
+
+fn parse_field(
+    field_name: &str,
+    field_schema: &JsonSchemaProperty,
+    is_required: bool,
+    parent_path: &str,
+) -> Result<Vec<SchemaField>, String> {
+    let full_path = if parent_path.is_empty() {
+        field_name.to_string()
+    } else {
+        format!("{}.{}", parent_path, field_name)
+    };
+
+    let label = camel_case_to_title_case(field_name);
+
+    // Determine field type
+    let field_type_info = determine_field_type(field_schema)?;
+
+    // Handle nested objects - recursively flatten
+    if field_type_info.field_type == "unknown" &&
+       field_schema.type_.as_ref().map(|t| matches!(t, StringOrArray::String(s) if s == "object")).unwrap_or(false) &&
+       field_schema.properties.is_some() {
+        // Flatten nested object
+        let mut nested_fields = Vec::new();
+        let nested_required: HashSet<String> = field_schema
+            .required
+            .as_ref()
+            .map(|r| r.iter().cloned().collect())
+            .unwrap_or_default();
+
+        for (nested_name, nested_schema) in field_schema.properties.as_ref().unwrap() {
+            let is_nested_required = nested_required.contains(nested_name);
+            let parsed = parse_field(nested_name, nested_schema, is_nested_required, &full_path)?;
+            nested_fields.extend(parsed);
+        }
+
+        return Ok(nested_fields);
+    }
+
+    // Extract constraints
+    let constraints = extract_constraints(field_schema, &field_type_info.field_type);
+
+    // Build field
+    let field = SchemaField {
+        name: full_path.clone(),
+        label: if !parent_path.is_empty() {
+            let parent_label = camel_case_to_title_case(parent_path.split('.').last().unwrap_or(""));
+            format!("{} {}", parent_label, label)
+        } else {
+            label
+        },
+        field_type: field_type_info.field_type,
+        sub_type: field_type_info.sub_type,
+        required: is_required && field_schema.default.is_none(),
+        constraints,
+        description: field_schema.description.clone()
+            .or_else(|| field_schema.markdown_description.clone()),
+        default: field_schema.default.clone(),
+        enum_values: field_type_info.enum_values,
+        reference_collection: field_type_info.reference_collection,
+        array_reference_collection: field_type_info.array_reference_collection,
+        is_nested: if !parent_path.is_empty() { Some(true) } else { None },
+        parent_path: if !parent_path.is_empty() { Some(parent_path.to_string()) } else { None },
+    };
+
+    Ok(vec![field])
+}
+```
+
+**TypeScript Reference Points for Porting:**
+
+- Line 44-81 in parseJsonSchema.ts: Top-level parsing logic
+- Line 86-111: Entry schema parsing
+- Line 116-186: Field parsing with recursion
+- Line 191-285: Type determination logic
+- Line 290-321: Date and reference detection
+- Line 326-380: Constraint extraction
+
+Use these as the blueprint for your Rust implementation.
+
+---
+
 ## Implementation Plan
 
 ### Phase 1: Rust Backend - Complete Schema Generation
@@ -488,35 +991,98 @@ Once Rust implementation complete, remove fallback.
 
 #### Step 3.2: Test Cases
 
-**Unit Tests (Rust):**
-- [ ] `parse_json_schema()` handles all field types correctly
-- [ ] `extract_zod_references()` parses reference fields
-- [ ] `enhance_with_zod_references()` merges correctly
+**Rust Unit Tests (src-tauri/src/schema_merger.rs):**
+
+Create comprehensive test files:
+- `tests/test_json_schema_primitives.rs`
+- `tests/test_json_schema_complex_types.rs`
+- `tests/test_json_schema_references.rs`
+- `tests/test_schema_merging.rs`
+
+Test coverage MUST include ALL patterns from Astro schema doc:
+
+**Primitives & Constraints:**
+- [ ] String with minLength/maxLength
+- [ ] String with format: email, uri
+- [ ] Number with min/max, exclusiveMinimum/exclusiveMaximum
+- [ ] Integer detection
+- [ ] Boolean
+- [ ] Date (anyOf with date-time, date, unix-time)
+
+**Complex Types:**
+- [ ] Enum (type: string, enum: [...])
+- [ ] Literal (type: string, const: "value")
+- [ ] Arrays (simple, with items schema, with minItems/maxItems)
+- [ ] Tuples (array with items as array)
+- [ ] Nested objects (flatten with dot notation)
+- [ ] Records (additionalProperties)
+- [ ] Unions (anyOf array - non-reference, non-date)
+
+**References:**
+- [ ] Single reference detection (anyOf pattern)
+- [ ] Array of references detection
+- [ ] Self-references (articles → articles)
+
+**Zod Reference Extraction:**
+- [ ] Extract from `reference('collectionName')`
+- [ ] Extract from `z.array(reference('collectionName'))`
+- [ ] Handle single and double quotes
+- [ ] Build correct map of field_name → collection_name
+
+**Schema Merging:**
+- [ ] JSON schema alone (no references)
+- [ ] JSON + Zod merge (references populated)
 - [ ] Single references get `reference_collection`
 - [ ] Array references get `array_reference_collection`
-- [ ] Fallback to Zod-only works when JSON schema missing
+- [ ] Fallback to Zod-only when JSON schema missing/malformed
 
-**Unit Tests (TypeScript):**
+**File-based Collections:**
+- [ ] Detect additionalProperties structure
+- [ ] Use additionalProperties as entry schema
+- [ ] Parse correctly (authors.json example)
+
+**TypeScript Unit Tests:**
 - [ ] `deserializeCompleteSchema()` correctly maps all fields
 - [ ] Field type enum mapping works
+- [ ] snake_case to camelCase conversion works
 - [ ] Handles missing optional fields gracefully
+- [ ] Preserves all metadata (constraints, description, default, etc.)
 
 **Integration Tests:**
 - [ ] Load dummy-astro-project
 - [ ] Verify `articles` collection has complete schema
-- [ ] Verify `author` field has `reference: "authors"`
-- [ ] Verify `relatedArticles` has `subReference: "articles"`
-- [ ] Verify all field types render correctly
-- [ ] Verify reference dropdowns populate with correct data
+- [ ] Verify `author` field has:
+  - `type: FieldType.Reference`
+  - `reference: "authors"` or `referenceCollection: "authors"`
+  - `required: false`
+- [ ] Verify `relatedArticles` field has:
+  - `type: FieldType.Array`
+  - `subType: FieldType.Reference`
+  - `subReference: "articles"`
+  - `constraints.maxLength: 3`
+- [ ] Verify all field types render correctly in FrontmatterPanel
+- [ ] Verify reference dropdowns populate with correct collection data
 
 **Manual Testing:**
-- [ ] Open dummy-astro-project
-- [ ] Check console for "Loaded complete schema" message
-- [ ] Author dropdown shows Danny Smith, Jane Doe, John Developer
+- [ ] Open dummy-astro-project in editor
+- [ ] Check console for "Loaded complete schema for: articles" message
+- [ ] Author dropdown shows:
+  - Danny Smith
+  - Jane Doe
+  - John Developer
 - [ ] Related Articles dropdown shows article titles
-- [ ] Multi-select works for array references
-- [ ] Saving values works correctly
+- [ ] Multi-select works for array references (show badges)
+- [ ] Selecting values updates frontmatter correctly
+- [ ] Saving values persists to file correctly
 - [ ] No errors in console
+- [ ] No React warnings about immutability
+
+**Error Handling Tests:**
+- [ ] Malformed JSON schema → fallback to Zod
+- [ ] Missing JSON schema → fallback to Zod
+- [ ] Invalid Zod schema → graceful error
+- [ ] Both schemas missing → no crash, render fields as StringField
+- [ ] Log warnings in DEV mode, silent in production
 
 ### Phase 4: Cleanup & Documentation
 
@@ -708,5 +1274,14 @@ This is WHY we need the Zod schema - it has: `"referencedCollection": "authors"`
 ---
 
 **Last Updated:** 2025-10-09
-**Status:** Ready to implement
+**Status:** ✅ Ready to implement - Comprehensive context added
 **Supersedes:** task-1-better-schema-part-2.md (Phase 3)
+
+**Context Additions:**
+- Existing Rust parser infrastructure (parser.rs reference extraction)
+- TypeScript JSON schema parser implementation details
+- Serde field naming strategy (snake_case → camelCase)
+- Error handling guidelines
+- Comprehensive Astro JSON schema patterns
+- Complete porting guide from TypeScript to Rust
+- Exhaustive test coverage requirements
