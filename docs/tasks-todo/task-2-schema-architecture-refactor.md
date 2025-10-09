@@ -1274,7 +1274,7 @@ This is WHY we need the Zod schema - it has: `"referencedCollection": "authors"`
 ---
 
 **Last Updated:** 2025-10-09
-**Status:** ✅ Ready to implement - Comprehensive context added
+**Status:** ⏳ Phase 3 Complete - Awaiting Manual Verification
 **Supersedes:** task-1-better-schema-part-2.md (Phase 3)
 
 **Context Additions:**
@@ -1285,3 +1285,646 @@ This is WHY we need the Zod schema - it has: `"referencedCollection": "authors"`
 - Comprehensive Astro JSON schema patterns
 - Complete porting guide from TypeScript to Rust
 - Exhaustive test coverage requirements
+
+---
+
+## PHASE 4 CLEANUP CHECKLIST - EXECUTE AFTER MANUAL VERIFICATION
+
+> ⚠️ **IMPORTANT**: Only execute Phase 4 cleanup AFTER you have:
+> 1. Run the dev server and tested with dummy-astro-project
+> 2. Verified reference dropdowns work correctly
+> 3. Verified schema parsing works for all collections
+> 4. Verified no console errors
+> 5. Tested in production-like environment
+
+### What We Kept for Backward Compatibility (Phase 3)
+
+During Phase 3 implementation, we intentionally kept the following code for backward compatibility:
+
+**TypeScript Files:**
+- ✅ `src/lib/parseJsonSchema.ts` - OLD JSON schema parser (kept for fallback)
+- ✅ `src/lib/parseZodReferences.ts` - OLD Zod reference parser (kept for fallback)
+- ✅ `src/lib/schema.ts` - Contains old Zod parsing functions (kept for fallback)
+- ✅ `src/components/frontmatter/FrontmatterPanel.tsx` - Contains hybrid parsing fallback logic
+
+**Rust Fields:**
+- ✅ `Collection.schema` field - OLD Zod schema JSON (kept for fallback)
+- ✅ `Collection.json_schema` field - OLD Astro JSON schema (kept for fallback)
+
+**These MUST be removed in Phase 4 to complete the refactor.**
+
+---
+
+### Step-by-Step Phase 4 Removal Instructions
+
+#### Pre-Removal Verification
+
+Before removing ANY code, verify complete_schema is working:
+
+```bash
+# 1. Start dev server
+pnpm run dev
+
+# 2. Open dummy-astro-project
+# 3. Check browser console for this message:
+#    "[Schema] Loaded complete schema for: articles"
+#
+# 4. If you see "[Schema] Using fallback hybrid parsing for: articles"
+#    DO NOT PROCEED WITH CLEANUP - The new system is not working yet!
+
+# 5. Test all reference fields work:
+#    - Author dropdown shows 3 authors
+#    - Related Articles multi-select works
+#    - Saving and loading works correctly
+
+# 6. Only proceed if you see ONLY complete_schema being used
+```
+
+#### 1. Remove TypeScript Files
+
+**Delete entire files:**
+
+```bash
+# Navigate to project root
+cd /Users/danny/dev/astro-editor
+
+# Remove old parser files
+rm -f src/lib/parseJsonSchema.ts
+rm -f src/lib/parseJsonSchema.test.ts
+rm -f src/lib/parseZodReferences.ts
+
+# Verify deletion
+git status
+```
+
+**Expected git status:**
+```
+deleted:    src/lib/parseJsonSchema.ts
+deleted:    src/lib/parseJsonSchema.test.ts
+deleted:    src/lib/parseZodReferences.ts
+```
+
+#### 2. Clean Up schema.ts
+
+**File:** `src/lib/schema.ts`
+
+**Remove these sections:**
+
+**A. Remove Zod-related type definitions (lines ~3-63):**
+```typescript
+// DELETE THIS ENTIRE BLOCK:
+// Legacy Zod-based interfaces (for fallback parsing only)
+interface ZodField {
+  name: string
+  type: ZodFieldType
+  optional: boolean
+  // ... rest of interface
+}
+
+interface ZodFieldConstraints {
+  // ... entire interface
+}
+
+type ZodFieldType =
+  | 'String'
+  | 'Number'
+  // ... rest of type
+```
+
+**B. Remove conversion helper functions:**
+```typescript
+// DELETE THESE FUNCTIONS:
+function zodFieldTypeToFieldType(zodType: ZodFieldType): FieldType { ... }
+function convertZodConstraints(zodConstraints: ZodFieldConstraints): FieldConstraints | undefined { ... }
+function zodFieldToSchemaField(zodField: ZodField): SchemaField { ... }
+```
+
+**C. Remove parseSchemaJson function:**
+```typescript
+// DELETE THIS ENTIRE FUNCTION (lines ~230-283):
+export function parseSchemaJson(
+  schemaJson: string
+): { fields: SchemaField[] } | null {
+  // ... entire function body
+}
+
+// DELETE THIS HELPER FUNCTION TOO:
+function isValidParsedSchema(obj: unknown): obj is ParsedSchemaJson { ... }
+```
+
+**D. Remove ParsedSchemaJson interface:**
+```typescript
+// DELETE THIS INTERFACE:
+interface ParsedSchemaJson {
+  type: 'zod'
+  fields: Array<{ ... }>
+}
+```
+
+**What to KEEP in schema.ts:**
+- `SchemaField` interface ✅
+- `FieldConstraints` interface ✅
+- `FieldType` enum ✅
+- `CompleteSchema` interface ✅
+- `deserializeCompleteSchema()` function ✅
+- `fieldTypeFromString()` helper ✅
+
+**After cleanup, schema.ts should be ~150 lines (down from ~384 lines)**
+
+#### 3. Simplify FrontmatterPanel.tsx
+
+**File:** `src/components/frontmatter/FrontmatterPanel.tsx`
+
+**A. Remove old imports:**
+```typescript
+// DELETE THESE IMPORTS:
+import { parseSchemaJson } from '../../lib/schema'  // DELETE
+import { parseJsonSchema } from '../../lib/parseJsonSchema'  // DELETE
+```
+
+**B. Replace entire schema useMemo (lines ~34-112):**
+
+**DELETE THIS:**
+```typescript
+const schema = React.useMemo(() => {
+  if (!currentCollection) return null
+
+  // NEW: Try complete schema from Rust backend
+  if (currentCollection.complete_schema) {
+    const parsed = deserializeCompleteSchema(
+      currentCollection.complete_schema
+    )
+
+    if (parsed) {
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Schema] Loaded complete schema for: ${parsed.collectionName}`
+        )
+      }
+      return parsed
+    }
+  }
+
+  // FALLBACK: Use old hybrid parsing for backwards compatibility
+  // This will be removed once all projects regenerate schemas
+  if (currentCollection.json_schema) {
+    const parsed = parseJsonSchema(currentCollection.json_schema)
+
+    if (parsed) {
+      // Enhance with Zod reference metadata if available
+      if (currentCollection.schema) {
+        const zodSchema = parseSchemaJson(currentCollection.schema)
+
+        if (zodSchema) {
+          parsed.fields = parsed.fields.map(field => {
+            const zodField = zodSchema.fields.find(z => z.name === field.name)
+
+            if (zodField) {
+              return {
+                ...field,
+                ...(zodField.reference && {
+                  reference: zodField.reference,
+                  referenceCollection: zodField.reference,
+                }),
+                ...(zodField.subReference && {
+                  subReference: zodField.subReference,
+                }),
+              }
+            }
+
+            return field
+          })
+        }
+      }
+
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Schema] Using fallback hybrid parsing for: ${currentCollection.name}`
+        )
+      }
+
+      return parsed
+    }
+  }
+
+  // Last resort: Zod-only parsing
+  if (currentCollection.schema) {
+    const parsed = parseSchemaJson(currentCollection.schema)
+    if (parsed) {
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Schema] Using Zod schema (fallback) for: ${currentCollection.name}`
+        )
+      }
+      return parsed
+    }
+  }
+
+  return null
+}, [currentCollection])
+```
+
+**REPLACE WITH THIS SIMPLE VERSION:**
+```typescript
+const schema = React.useMemo(() => {
+  if (!currentCollection?.complete_schema) return null
+
+  const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
+
+  if (import.meta.env.DEV && parsed) {
+    console.log(`[Schema] Loaded complete schema for: ${parsed.collectionName}`)
+  }
+
+  return parsed
+}, [currentCollection])
+```
+
+**Result:** Schema loading logic goes from ~79 lines to ~11 lines ✅
+
+**C. Update event listener to use complete_schema:**
+
+Find the `handleSchemaFieldOrderRequest` function and simplify it:
+
+**REPLACE THIS:**
+```typescript
+const requestedSchema = requestedCollection?.schema
+  ? parseSchemaJson(requestedCollection.schema)
+  : null
+```
+
+**WITH THIS:**
+```typescript
+const requestedSchema = requestedCollection?.complete_schema
+  ? deserializeCompleteSchema(requestedCollection.complete_schema)
+  : null
+```
+
+#### 4. Remove Rust Collection Fields
+
+**File:** `src-tauri/src/models/collection.rs`
+
+**A. Remove deprecated fields:**
+
+**DELETE THESE LINES:**
+```rust
+// DEPRECATED - Remove after migration
+#[serde(skip_serializing_if = "Option::is_none")]
+pub schema: Option<String>,
+#[serde(skip_serializing_if = "Option::is_none")]
+pub json_schema: Option<String>,
+```
+
+**B. Update Collection struct to:**
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Collection {
+    pub name: String,
+    pub path: PathBuf,
+
+    /// Complete merged schema (single source of truth)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complete_schema: Option<String>, // Serialized SchemaDefinition
+}
+```
+
+**C. Remove old constructor methods:**
+```rust
+// DELETE THIS METHOD:
+#[allow(dead_code)]
+pub fn with_schema(name: String, path: PathBuf, schema: String) -> Self {
+    Self {
+        name,
+        path,
+        schema: Some(schema),
+        json_schema: None,
+        complete_schema: None,
+    }
+}
+
+// DELETE THIS METHOD:
+#[allow(dead_code)]
+pub fn with_json_schema(mut self, json_schema: String) -> Self {
+    self.json_schema = Some(json_schema);
+    self
+}
+```
+
+**D. Update `new()` method:**
+```rust
+pub fn new(name: String, path: PathBuf) -> Self {
+    Self {
+        name,
+        path,
+        complete_schema: None,
+    }
+}
+```
+
+**E. Keep only this method:**
+```rust
+#[allow(dead_code)]
+pub fn with_complete_schema(mut self, complete_schema: String) -> Self {
+    self.complete_schema = Some(complete_schema);
+    self
+}
+```
+
+#### 5. Update Rust Project Scanning
+
+**File:** `src-tauri/src/commands/project.rs`
+
+**Remove references to old schema fields:**
+
+**Find and DELETE these sections in `scan_project_with_content_dir()`:**
+
+**DELETE: JSON schema loading block (lines ~143-154 and similar blocks):**
+```rust
+// DELETE THIS:
+// Try to load JSON schemas for each collection
+for collection in &mut collections {
+    if let Ok(json_schema) =
+        load_json_schema_for_collection(&project_path, &collection.name)
+    {
+        debug!(
+            "Astro Editor [PROJECT_SCAN] Loaded JSON schema for collection: {}",
+            collection.name
+        );
+        collection.json_schema = Some(json_schema);
+    }
+}
+```
+
+**REPLACE WITH: Direct complete schema generation:**
+```rust
+// Generate complete schema for each collection
+for collection in &mut collections {
+    generate_complete_schema(collection);
+}
+```
+
+**Simplify `generate_complete_schema()` to not use old fields:**
+
+Currently it accesses `collection.json_schema` and `collection.schema`. After removing those fields, update it to load directly:
+
+```rust
+fn generate_complete_schema(collection: &mut Collection, project_path: &str) {
+    // Load JSON schema if exists
+    let json_schema = load_json_schema_for_collection(project_path, &collection.name).ok();
+
+    // For Zod schema, we'd need to parse content.config.ts here
+    // For now, this will be None until we refactor Zod loading
+    let zod_schema = None; // TODO: Load from content.config.ts parsing
+
+    match schema_merger::create_complete_schema(
+        &collection.name,
+        json_schema.as_deref(),
+        zod_schema,
+    ) {
+        Ok(complete_schema) => match serde_json::to_string(&complete_schema) {
+            Ok(serialized) => {
+                debug!(
+                    "Astro Editor [SCHEMA_MERGER] Generated complete schema for collection: {}",
+                    collection.name
+                );
+                collection.complete_schema = Some(serialized);
+            }
+            Err(e) => {
+                warn!(
+                    "Astro Editor [SCHEMA_MERGER] Failed to serialize complete schema for {}: {}",
+                    collection.name, e
+                );
+            }
+        },
+        Err(e) => {
+            warn!(
+                "Astro Editor [SCHEMA_MERGER] Failed to create complete schema for {}: {}",
+                collection.name, e
+            );
+        }
+    }
+}
+```
+
+**NOTE:** The Zod schema loading will need to be refactored separately to load from `parse_astro_config()` results.
+
+#### 6. Update Collection Tests
+
+**File:** `src-tauri/src/models/collection.rs`
+
+**Update test in `#[cfg(test)]` block:**
+
+**DELETE THIS TEST:**
+```rust
+#[test]
+fn test_collection_with_schema() {
+    let schema = r#"
+    z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        pubDate: z.coerce.date(),
+        draft: z.boolean().default(false),
+    })
+    "#;
+
+    let path = PathBuf::from("/project/src/content/blog");
+    let collection =
+        Collection::with_schema("blog".to_string(), path.clone(), schema.to_string());
+
+    assert_eq!(collection.name, "blog");
+    assert_eq!(collection.path, path);
+    assert!(collection.schema.is_some());
+    assert!(collection.schema.unwrap().contains("title"));
+}
+```
+
+**REPLACE WITH:**
+```rust
+#[test]
+fn test_collection_with_complete_schema() {
+    let complete_schema = r#"{"collectionName":"blog","fields":[{"name":"title","label":"Title","fieldType":"string","required":true}]}"#;
+
+    let path = PathBuf::from("/project/src/content/blog");
+    let collection = Collection::new("blog".to_string(), path.clone())
+        .with_complete_schema(complete_schema.to_string());
+
+    assert_eq!(collection.name, "blog");
+    assert_eq!(collection.path, path);
+    assert!(collection.complete_schema.is_some());
+    assert!(collection.complete_schema.unwrap().contains("Title"));
+}
+```
+
+#### 7. Run All Checks After Cleanup
+
+After making all removals, verify everything still works:
+
+```bash
+# Run all quality checks
+pnpm run check:all
+
+# Expected: ALL checks should pass
+# - TypeScript typecheck: ✓
+# - ESLint: ✓
+# - Prettier: ✓
+# - Rust fmt: ✓
+# - Clippy: ✓
+# - Tests (TypeScript): ✓
+# - Tests (Rust): ✓
+```
+
+**If ANY check fails:**
+1. Do NOT commit
+2. Review the error
+3. Fix the issue
+4. Re-run checks
+
+#### 8. Test Manually After Cleanup
+
+```bash
+# Start dev server
+pnpm run dev
+
+# Test with dummy-astro-project:
+# 1. Open project
+# 2. Verify console shows: "[Schema] Loaded complete schema for: articles"
+# 3. Verify NO fallback messages appear
+# 4. Test reference dropdowns work
+# 5. Test saving/loading works
+# 6. Verify no console errors
+```
+
+#### 9. Update Documentation
+
+**A. Update CLAUDE.md:**
+
+**Remove these sections:**
+- References to "hybrid parsing"
+- References to `parseJsonSchema.ts`
+- References to `parseZodReferences.ts`
+
+**Add new section:**
+```markdown
+### Schema Architecture
+
+**Single Source of Truth:** All schema parsing happens in Rust backend via `schema_merger.rs`
+
+**Data Flow:**
+1. Rust loads Astro JSON schema (`.astro/collections/*.schema.json`)
+2. Rust parses Zod schema (`content.config.ts`) for reference information
+3. Rust merges both into `complete_schema` field
+4. Frontend deserializes and renders
+
+**Frontend Responsibilities:**
+- Deserialize `complete_schema` JSON
+- Render fields based on type
+- No parsing, no merging, no business logic
+```
+
+**B. Update Architecture Guide:**
+
+Add to `docs/developer/architecture-guide.md`:
+
+```markdown
+## Schema Processing Architecture
+
+### Overview
+
+Schema processing is entirely handled in the Rust backend through the `schema_merger` module.
+
+### Components
+
+**Rust Backend (`src-tauri/src/schema_merger.rs`):**
+- Parses Astro JSON schemas
+- Parses Zod schemas
+- Merges schema information
+- Serializes to `complete_schema`
+
+**TypeScript Frontend (`src/lib/schema.ts`):**
+- Deserializes `complete_schema`
+- Maps Rust types to TypeScript enums
+- No parsing logic
+
+**React Components:**
+- Receive parsed schema
+- Render fields by type
+- No business logic
+
+### Benefits
+
+- **Single Responsibility:** Each layer does one thing
+- **Type Safety:** Rust parsing ensures correctness
+- **Maintainability:** All parsing logic in one place
+- **Performance:** Parse once in Rust, deserialize in TypeScript
+```
+
+#### 10. Commit Changes
+
+**Only after ALL checks pass and manual testing succeeds:**
+
+```bash
+# Stage all changes
+git add -A
+
+# Create commit
+git commit -m "refactor: complete Phase 4 schema architecture cleanup
+
+- Remove deprecated TypeScript parsers (parseJsonSchema, parseZodReferences)
+- Remove old Zod parsing code from schema.ts
+- Simplify FrontmatterPanel to use only complete_schema
+- Remove deprecated Collection fields (schema, json_schema)
+- Update Collection model and tests
+- Clean up project scanning code
+- Update documentation
+
+All schema parsing now happens in Rust backend via schema_merger.rs.
+Frontend only deserializes and renders.
+
+Breaking change: Projects must regenerate .astro/collections/*.json
+to use the new complete_schema format.
+
+Closes #[issue-number] (if applicable)"
+```
+
+#### 11. Verification Checklist
+
+Before considering Phase 4 complete, verify:
+
+- [ ] All TypeScript parser files deleted
+- [ ] All Zod parsing code removed from schema.ts
+- [ ] FrontmatterPanel simplified to <20 lines for schema logic
+- [ ] Collection model has only `complete_schema` field
+- [ ] No references to old `schema` or `json_schema` fields
+- [ ] All tests passing (TypeScript and Rust)
+- [ ] No linting errors
+- [ ] Dev server runs without errors
+- [ ] Reference fields work correctly in UI
+- [ ] Console shows only "Loaded complete schema" messages
+- [ ] No fallback parsing messages in console
+- [ ] Documentation updated
+- [ ] Committed with descriptive message
+
+---
+
+### What You'll Have After Phase 4
+
+**Deleted:**
+- ❌ `src/lib/parseJsonSchema.ts` (~10KB)
+- ❌ `src/lib/parseJsonSchema.test.ts` (~22KB)
+- ❌ `src/lib/parseZodReferences.ts` (~2.5KB)
+- ❌ ~200 lines from `src/lib/schema.ts`
+- ❌ ~68 lines from `FrontmatterPanel.tsx`
+- ❌ 2 fields from Collection struct
+
+**Result:**
+- ✅ Single source of truth: `complete_schema`
+- ✅ All parsing in Rust backend
+- ✅ Simple deserialization in TypeScript
+- ✅ Clean React components with no business logic
+- ✅ ~500 lines of code removed
+- ✅ Better architecture
+- ✅ Easier maintenance
+- ✅ Type-safe schema processing
+
+---
+
+**REMEMBER:** DO NOT proceed with Phase 4 until you've verified the new system works perfectly in manual testing!
