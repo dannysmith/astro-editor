@@ -46,7 +46,8 @@
       "Bash(pnpm:*)",
       "WebSearch",
       "Bash(git log:*)",
-      "Bash(yes)"
+      "Bash(yes)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
