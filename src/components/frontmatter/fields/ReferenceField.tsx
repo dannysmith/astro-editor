@@ -120,7 +120,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   // Handle removing a selected item in multi-select
   const handleRemoveItem = (
     optionValue: string,
-    e: React.MouseEvent<HTMLButtonElement>
+    e: React.MouseEvent | React.KeyboardEvent
   ) => {
     e.stopPropagation()
     const newValues = selectedValues.filter(v => v !== optionValue)
@@ -159,14 +159,22 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                       className="gap-1 pr-1"
                     >
                       {opt.label}
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={e => handleRemoveItem(opt.value, e)}
-                        className="rounded-full outline-hidden ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleRemoveItem(opt.value, e)
+                          }
+                        }}
+                        className="rounded-full outline-hidden ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                        aria-label="Remove"
                       >
                         <X className="h-3 w-3" />
                         <span className="sr-only">Remove</span>
-                      </button>
+                      </span>
                     </Badge>
                   ))
                 ) : (

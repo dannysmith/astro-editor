@@ -153,7 +153,7 @@ export const FrontmatterPanel: React.FC = () => {
     if (schema) {
       // Get title field name from settings or default to 'title'
       const titleFieldName =
-        currentProjectSettings?.titleField?.fieldName || 'title'
+        currentProjectSettings?.frontmatterMappings?.title || 'title'
 
       // Start with all schema fields
       const schemaFields = schema.fields.map(field => ({
