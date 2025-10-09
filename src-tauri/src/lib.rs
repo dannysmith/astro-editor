@@ -1,6 +1,7 @@
 mod commands;
 mod models;
 mod parser;
+mod schema_merger;
 
 use commands::*;
 use std::collections::HashMap;

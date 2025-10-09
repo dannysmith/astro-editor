@@ -62,6 +62,12 @@ type ZodFieldType =
   | 'Reference'
   | 'Unknown'
 
+// Complete schema from Rust backend
+export interface CompleteSchema {
+  collectionName: string
+  fields: SchemaField[]
+}
+
 // New JSON Schema-based interfaces
 export interface SchemaField {
   // Identity
@@ -296,4 +302,82 @@ function isValidParsedSchema(obj: unknown): obj is ParsedSchemaJson {
         typeof field.optional === 'boolean'
     )
   )
+}
+
+// Type for raw schema from Rust backend
+interface RawCompleteSchema {
+  collectionName: string
+  fields: Array<{
+    name: string
+    label: string
+    fieldType: string
+    subType?: string
+    required: boolean
+    constraints?: FieldConstraints
+    description?: string
+    default?: unknown
+    enumValues?: string[]
+    referenceCollection?: string
+    arrayReferenceCollection?: string
+    isNested?: boolean
+    parentPath?: string
+  }>
+}
+
+/**
+ * Deserialize complete schema from Rust backend
+ */
+export function deserializeCompleteSchema(
+  schemaJson: string
+): CompleteSchema | null {
+  try {
+    const parsed = JSON.parse(schemaJson) as RawCompleteSchema
+
+    // Map Rust field types to FieldType enum
+    const fields = parsed.fields.map(field => ({
+      name: field.name,
+      label: field.label,
+      type: fieldTypeFromString(field.fieldType),
+      subType: field.subType ? fieldTypeFromString(field.subType) : undefined,
+      required: field.required,
+      constraints: field.constraints,
+      description: field.description,
+      default: field.default,
+      enumValues: field.enumValues,
+      reference: field.referenceCollection,
+      subReference: field.arrayReferenceCollection,
+      referenceCollection: field.referenceCollection, // Backwards compat
+      isNested: field.isNested,
+      parentPath: field.parentPath,
+    }))
+
+    return {
+      collectionName: parsed.collectionName,
+      fields,
+    }
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to deserialize complete schema:', error)
+    }
+    return null
+  }
+}
+
+function fieldTypeFromString(typeStr: string): FieldType {
+  const typeMap: Record<string, FieldType> = {
+    string: FieldType.String,
+    number: FieldType.Number,
+    integer: FieldType.Integer,
+    boolean: FieldType.Boolean,
+    date: FieldType.Date,
+    email: FieldType.Email,
+    url: FieldType.URL,
+    array: FieldType.Array,
+    enum: FieldType.Enum,
+    reference: FieldType.Reference,
+    object: FieldType.Object,
+    unknown: FieldType.Unknown,
+  }
+  return typeMap[typeStr] || FieldType.Unknown
 }

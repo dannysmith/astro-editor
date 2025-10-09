@@ -1,5 +1,6 @@
 use crate::models::{Collection, FileEntry};
 use crate::parser::parse_astro_config;
+use crate::schema_merger;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -152,6 +153,11 @@ pub async fn scan_project_with_content_dir(
                 }
             }
 
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
+            }
+
             Ok(collections)
         }
         Ok(_) => {
@@ -170,6 +176,11 @@ pub async fn scan_project_with_content_dir(
                     );
                     collection.json_schema = Some(json_schema);
                 }
+            }
+
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
             }
 
             Ok(collections)
@@ -192,6 +203,11 @@ pub async fn scan_project_with_content_dir(
                 }
             }
 
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
+            }
+
             Ok(collections)
         }
     }
@@ -211,6 +227,37 @@ fn load_json_schema_for_collection(
     }
 
     std::fs::read_to_string(&schema_path).map_err(|e| format!("Failed to read JSON schema: {e}"))
+}
+
+/// Generate complete schema by merging JSON schema and Zod schema
+fn generate_complete_schema(collection: &mut Collection) {
+    match schema_merger::create_complete_schema(
+        &collection.name,
+        collection.json_schema.as_deref(),
+        collection.schema.as_deref(),
+    ) {
+        Ok(complete_schema) => match serde_json::to_string(&complete_schema) {
+            Ok(serialized) => {
+                debug!(
+                    "Astro Editor [SCHEMA_MERGER] Generated complete schema for collection: {}",
+                    collection.name
+                );
+                collection.complete_schema = Some(serialized);
+            }
+            Err(e) => {
+                warn!(
+                    "Astro Editor [SCHEMA_MERGER] Failed to serialize complete schema for {}: {}",
+                    collection.name, e
+                );
+            }
+        },
+        Err(e) => {
+            warn!(
+                "Astro Editor [SCHEMA_MERGER] Failed to create complete schema for {}: {}",
+                collection.name, e
+            );
+        }
+    }
 }
 
 fn scan_content_directories_with_override(

@@ -2,7 +2,7 @@ import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { parseSchemaJson } from '../../lib/schema'
+import { parseSchemaJson, deserializeCompleteSchema } from '../../lib/schema'
 import { parseJsonSchema } from '../../lib/parseJsonSchema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
@@ -12,6 +12,7 @@ interface Collection {
   path: string
   schema?: string
   json_schema?: string
+  complete_schema?: string
 }
 
 export const FrontmatterPanel: React.FC = () => {
@@ -29,75 +30,42 @@ export const FrontmatterPanel: React.FC = () => {
     ? collections.find(c => c.name === currentFile.collection) || null
     : null
 
-  // Try JSON schema first, fall back to Zod schema
+  // Get schema - try complete_schema first, fall back to hybrid parsing
   const schema = React.useMemo(() => {
     if (!currentCollection) return null
 
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.log(
-        '[DEBUG] currentCollection has json_schema:',
-        !!currentCollection.json_schema
+    // NEW: Try complete schema from Rust backend
+    if (currentCollection.complete_schema) {
+      const parsed = deserializeCompleteSchema(
+        currentCollection.complete_schema
       )
-      // eslint-disable-next-line no-console
-      console.log(
-        '[DEBUG] currentCollection has schema:',
-        !!currentCollection.schema
-      )
-    }
 
-    // Primary: Try Astro-generated JSON schema
-    if (currentCollection.json_schema) {
-      const parsed = parseJsonSchema(currentCollection.json_schema)
-
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.log('[DEBUG] parseJsonSchema returned:', parsed)
-        if (parsed) {
+      if (parsed) {
+        if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.log(
-            '[DEBUG] author field from JSON parser:',
-            parsed.fields.find(f => f.name === 'author')
+            `[Schema] Loaded complete schema for: ${parsed.collectionName}`
           )
         }
+        return parsed
       }
+    }
+
+    // FALLBACK: Use old hybrid parsing for backwards compatibility
+    // This will be removed once all projects regenerate schemas
+    if (currentCollection.json_schema) {
+      const parsed = parseJsonSchema(currentCollection.json_schema)
 
       if (parsed) {
         // Enhance with Zod reference metadata if available
         if (currentCollection.schema) {
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] Zod schema string:', currentCollection.schema)
-          }
-
           const zodSchema = parseSchemaJson(currentCollection.schema)
 
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] Parsed Zod schema:', zodSchema)
-            const zodAuthor = zodSchema?.fields.find(f => f.name === 'author')
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] Zod schema author field:', zodAuthor)
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] Zod author has reference?', zodAuthor?.reference)
-            // eslint-disable-next-line no-console
-            console.log(
-              '[DEBUG] Fields before enhancement:',
-              parsed.fields.map(f => ({
-                name: f.name,
-                type: f.type,
-                reference: f.reference,
-              }))
-            )
-          }
-
-          // Merge reference info from Zod schema into JSON schema fields
           if (zodSchema) {
             parsed.fields = parsed.fields.map(field => {
               const zodField = zodSchema.fields.find(z => z.name === field.name)
 
               if (zodField) {
-                // Create new field with reference information merged in
                 return {
                   ...field,
                   ...(zodField.reference && {
@@ -113,40 +81,20 @@ export const FrontmatterPanel: React.FC = () => {
               return field
             })
           }
-
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.log(
-              '[DEBUG] Fields after enhancement:',
-              parsed.fields.map(f => ({
-                name: f.name,
-                type: f.type,
-                reference: f.reference,
-              }))
-            )
-          }
         }
 
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.log(
-            `[Schema] Using JSON schema with Zod enhancements for: ${currentCollection.name}`
+            `[Schema] Using fallback hybrid parsing for: ${currentCollection.name}`
           )
         }
 
         return parsed
       }
-
-      // JSON parsing failed, log warning
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[Schema] JSON schema parsing failed for ${currentCollection.name}, falling back to Zod`
-        )
-      }
     }
 
-    // Fallback: Use Zod schema
+    // Last resort: Zod-only parsing
     if (currentCollection.schema) {
       const parsed = parseSchemaJson(currentCollection.schema)
       if (parsed) {

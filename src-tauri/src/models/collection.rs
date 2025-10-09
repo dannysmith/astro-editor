@@ -5,8 +5,16 @@ use std::path::PathBuf;
 pub struct Collection {
     pub name: String,
     pub path: PathBuf,
+
+    // Legacy fields - kept for backwards compatibility during migration
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>, // Zod schema as JSON string (fallback)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub json_schema: Option<String>, // Astro-generated JSON schema (primary)
+
+    // NEW - Single source of truth for schema
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complete_schema: Option<String>, // Serialized SchemaDefinition
 }
 
 impl Collection {
@@ -16,6 +24,7 @@ impl Collection {
             path,
             schema: None,
             json_schema: None,
+            complete_schema: None,
         }
     }
 
@@ -26,12 +35,19 @@ impl Collection {
             path,
             schema: Some(schema),
             json_schema: None,
+            complete_schema: None,
         }
     }
 
     #[allow(dead_code)]
     pub fn with_json_schema(mut self, json_schema: String) -> Self {
         self.json_schema = Some(json_schema);
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_complete_schema(mut self, complete_schema: String) -> Self {
+        self.complete_schema = Some(complete_schema);
         self
     }
 }
