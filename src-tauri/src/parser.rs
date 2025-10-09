@@ -235,6 +235,17 @@ fn extract_collections_block(content: &str) -> Option<String> {
     None
 }
 
+/// Detect if a collection uses a file-based loader (should be excluded from main collections list)
+fn is_file_based_collection(full_content: &str, collection_name: &str) -> bool {
+    // Look for: loader: file(...)
+    let file_loader_pattern = format!(r"{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\(");
+    if let Ok(file_loader_re) = Regex::new(&file_loader_pattern) {
+        file_loader_re.is_match(full_content)
+    } else {
+        false
+    }
+}
+
 fn parse_collection_definitions(
     collections_block: &str,
     content_dir: &Path,
@@ -256,14 +267,18 @@ fn parse_collection_definitions(
             for name in names_str.split(',') {
                 let collection_name = name.trim();
 
+                // Skip file-based collections - they should only be used for references
+                if is_file_based_collection(full_content, collection_name) {
+                    continue;
+                }
+
+                // Only include directory-based collections
                 let collection_path = content_dir.join(collection_name);
 
-                // Only include collections that have actual directories
                 if collection_path.exists() && collection_path.is_dir() {
                     let mut collection =
                         Collection::new(collection_name.to_string(), collection_path);
 
-                    // For new format, we need to look in the full content for the schema
                     if let Some(schema) = extract_basic_schema(full_content, collection_name) {
                         collection.schema = Some(schema);
                     }
@@ -278,13 +293,18 @@ fn parse_collection_definitions(
 
         for cap in collection_re.captures_iter(collections_block) {
             let collection_name = cap.get(1).unwrap().as_str();
+
+            // Skip file-based collections - they should only be used for references
+            if is_file_based_collection(full_content, collection_name) {
+                continue;
+            }
+
+            // Only include directory-based collections
             let collection_path = content_dir.join(collection_name);
 
-            // Only include collections that have actual directories
             if collection_path.exists() && collection_path.is_dir() {
                 let mut collection = Collection::new(collection_name.to_string(), collection_path);
 
-                // Try to extract schema information (simplified)
                 if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
                     collection.schema = Some(schema);
                 }

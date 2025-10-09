@@ -359,6 +359,100 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
 }
 
 #[tauri::command]
+pub async fn load_file_based_collection(
+    project_path: String,
+    collection_name: String,
+) -> Result<Vec<FileEntry>, String> {
+    use regex::Regex;
+
+    debug!(
+        "Astro Editor [FILE_COLLECTION] Loading file-based collection: {}",
+        collection_name
+    );
+
+    // Read content.config.ts to find the file path
+    let project = PathBuf::from(&project_path);
+    let config_paths = [
+        project.join("src").join("content.config.ts"),
+        project.join("src").join("content").join("config.ts"),
+    ];
+
+    let mut file_path: Option<PathBuf> = None;
+
+    for config_path in &config_paths {
+        if config_path.exists() {
+            let content = std::fs::read_to_string(config_path)
+                .map_err(|e| format!("Failed to read config: {e}"))?;
+
+            // Look for: collectionName = defineCollection({ loader: file('./path/to/file.json')
+            let pattern = format!(
+                r#"{}\s*[=:]\s*defineCollection\s*\(\s*{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#,
+                collection_name
+            );
+            if let Ok(re) = Regex::new(&pattern) {
+                if let Some(cap) = re.captures(&content) {
+                    let path_str = cap.get(1).unwrap().as_str();
+                    let cleaned_path = path_str.trim_start_matches("./");
+                    file_path = Some(project.join(cleaned_path));
+                    break;
+                }
+            }
+        }
+    }
+
+    let file_path = file_path.ok_or_else(|| {
+        format!("File-based collection '{}' not found in content.config", collection_name)
+    })?;
+
+    debug!(
+        "Astro Editor [FILE_COLLECTION] Found file path: {}",
+        file_path.display()
+    );
+
+    // Read and parse the JSON file
+    let json_content = std::fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read collection file: {e}"))?;
+
+    let json_data: serde_json::Value = serde_json::from_str(&json_content)
+        .map_err(|e| format!("Failed to parse JSON: {e}"))?;
+
+    // Convert JSON array to FileEntry objects
+    let mut files = Vec::new();
+
+    if let Some(array) = json_data.as_array() {
+        for item in array {
+            if let Some(obj) = item.as_object() {
+                // Extract id field (required)
+                let _id = obj.get("id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| "Missing 'id' field in collection item".to_string())?
+                    .to_string();
+
+                // Convert JSON object to HashMap for FileEntry frontmatter
+                let frontmatter: std::collections::HashMap<String, serde_json::Value> =
+                    obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+
+                // Create FileEntry with the JSON data as frontmatter
+                let file_entry = FileEntry::new(file_path.clone(), collection_name.clone())
+                    .with_frontmatter(frontmatter);
+
+                files.push(file_entry);
+            }
+        }
+    } else {
+        return Err("Collection file must contain a JSON array".to_string());
+    }
+
+    debug!(
+        "Astro Editor [FILE_COLLECTION] Loaded {} items from {}",
+        files.len(),
+        collection_name
+    );
+
+    Ok(files)
+}
+
+#[tauri::command]
 pub async fn read_json_schema(
     project_path: String,
     collection_name: String,
