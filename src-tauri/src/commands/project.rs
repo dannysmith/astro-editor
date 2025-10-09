@@ -381,17 +381,31 @@ pub async fn load_file_based_collection(
             let content = std::fs::read_to_string(config_path)
                 .map_err(|e| format!("Failed to read config: {e}"))?;
 
-            // Look for: collectionName = defineCollection({ loader: file('./path/to/file.json')
+            // Look for: const/let/var collectionName = defineCollection({ loader: file('./path/to/file.json')
+            // or: collectionName: defineCollection({ loader: file('./path/to/file.json')
+            // Handles exported variables too: export const collectionName = defineCollection...
             let pattern = format!(
-                r#"{collection_name}\s*[=:]\s*defineCollection\s*\(\s*{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#
+                r#"(?:(?:const|let|var)\s+)?{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#
             );
+
+            debug!("Astro Editor [FILE_COLLECTION] Regex pattern: {pattern}");
+            debug!(
+                "Astro Editor [FILE_COLLECTION] Config content (first 500 chars): {}",
+                &content.chars().take(500).collect::<String>()
+            );
+
             if let Ok(re) = Regex::new(&pattern) {
                 if let Some(cap) = re.captures(&content) {
                     let path_str = cap.get(1).unwrap().as_str();
                     let cleaned_path = path_str.trim_start_matches("./");
                     file_path = Some(project.join(cleaned_path));
+                    debug!("Astro Editor [FILE_COLLECTION] Matched! File path: {cleaned_path}");
                     break;
+                } else {
+                    debug!("Astro Editor [FILE_COLLECTION] Regex did not match in content");
                 }
+            } else {
+                debug!("Astro Editor [FILE_COLLECTION] Failed to compile regex pattern");
             }
         }
     }
@@ -418,11 +432,14 @@ pub async fn load_file_based_collection(
     if let Some(array) = json_data.as_array() {
         for item in array {
             if let Some(obj) = item.as_object() {
-                // Extract id field (required)
-                let _id = obj
+                // Extract unique identifier - try 'id' first, then 'slug'
+                let item_id = obj
                     .get("id")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| "Missing 'id' field in collection item".to_string())?
+                    .or_else(|| obj.get("slug").and_then(|v| v.as_str()))
+                    .ok_or_else(|| {
+                        "Missing unique identifier: collection items must have either 'id' or 'slug' field".to_string()
+                    })?
                     .to_string();
 
                 // Convert JSON object to HashMap for FileEntry frontmatter
@@ -430,8 +447,13 @@ pub async fn load_file_based_collection(
                     obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
                 // Create FileEntry with the JSON data as frontmatter
-                let file_entry = FileEntry::new(file_path.clone(), collection_name.clone())
+                // For file-based collections, we need to manually set the id to use the item's id
+                // instead of deriving it from the file path
+                let mut file_entry = FileEntry::new(file_path.clone(), collection_name.clone())
                     .with_frontmatter(frontmatter);
+
+                // Override the auto-generated id with the item's unique identifier from JSON
+                file_entry.id = format!("{collection_name}/{item_id}");
 
                 files.push(file_entry);
             }
