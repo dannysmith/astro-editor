@@ -151,12 +151,25 @@ export const FrontmatterPanel: React.FC = () => {
   // Get all fields to display
   const allFields = React.useMemo(() => {
     if (schema) {
+      // Get title field name from settings or default to 'title'
+      const titleFieldName =
+        currentProjectSettings?.titleField?.fieldName || 'title'
+
       // Start with all schema fields
       const schemaFields = schema.fields.map(field => ({
         fieldName: field.name,
         schemaField: field,
         value: frontmatter[field.name], // Don't auto-assign defaults that will get saved
       }))
+
+      // Reorder: title field first, then other schema fields in order
+      const titleField = schemaFields.find(f => f.fieldName === titleFieldName)
+      const otherSchemaFields = schemaFields.filter(
+        f => f.fieldName !== titleFieldName
+      )
+      const orderedSchemaFields = titleField
+        ? [titleField, ...otherSchemaFields]
+        : schemaFields
 
       // Add any extra frontmatter fields that aren't in the schema
       const schemaFieldNames = new Set(schema.fields.map(f => f.name))
@@ -169,7 +182,7 @@ export const FrontmatterPanel: React.FC = () => {
           value: frontmatter[fieldName],
         }))
 
-      return [...schemaFields, ...extraFields]
+      return [...orderedSchemaFields, ...extraFields]
     } else {
       // No schema available, just show existing frontmatter fields
       return Object.keys(frontmatter).map(fieldName => ({
@@ -178,7 +191,7 @@ export const FrontmatterPanel: React.FC = () => {
         value: frontmatter[fieldName],
       }))
     }
-  }, [frontmatter, schema])
+  }, [frontmatter, schema, currentProjectSettings])
 
   // Group fields by parent path for nested object rendering
   const groupedFields = React.useMemo(() => {

@@ -1,6 +1,7 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Complete schema definition sent to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,7 +73,7 @@ pub struct FieldConstraints {
 struct AstroJsonSchema {
     #[serde(rename = "$ref")]
     ref_: String,
-    definitions: HashMap<String, JsonSchemaDefinition>,
+    definitions: IndexMap<String, JsonSchemaDefinition>,
 }
 
 /// JSON Schema definition
@@ -83,7 +84,7 @@ struct JsonSchemaDefinition {
     #[allow(dead_code)]
     type_: String,
     #[serde(default)]
-    properties: Option<HashMap<String, JsonSchemaProperty>>,
+    properties: Option<IndexMap<String, JsonSchemaProperty>>,
     #[serde(default)]
     required: Option<Vec<String>>,
     #[serde(default)]
@@ -116,7 +117,7 @@ struct JsonSchemaProperty {
     #[serde(default)]
     items: Option<Box<ItemsType>>,
     #[serde(default)]
-    properties: Option<HashMap<String, JsonSchemaProperty>>,
+    properties: Option<IndexMap<String, JsonSchemaProperty>>,
     #[serde(default)]
     additional_properties: Option<AdditionalProperties>,
     #[serde(default)]
@@ -679,7 +680,7 @@ fn enhance_with_zod_references(
 }
 
 /// Extract reference field mappings from Zod schema JSON
-fn extract_zod_references(zod_schema: &str) -> Result<HashMap<String, String>, String> {
+fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, String> {
     #[derive(Deserialize)]
     struct ZodSchema {
         fields: Vec<ZodField>,
@@ -701,7 +702,7 @@ fn extract_zod_references(zod_schema: &str) -> Result<HashMap<String, String>, S
     let schema: ZodSchema =
         serde_json::from_str(zod_schema).map_err(|e| format!("Failed to parse Zod JSON: {e}"))?;
 
-    let mut reference_map = HashMap::new();
+    let mut reference_map = IndexMap::new();
 
     for field in schema.fields {
         // Single reference

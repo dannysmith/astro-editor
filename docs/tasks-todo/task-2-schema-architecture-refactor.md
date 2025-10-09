@@ -1,10 +1,112 @@
 # Task: Schema Architecture Refactor - Consolidate Parsing in Rust
 
-**Status:** ⏳ Not Started
+**Status:** ⏳ Phase 3 Complete + Field Ordering Fix Applied - Awaiting Manual Testing
 
 **Prerequisites:**
 - `docs/tasks-done/task-1-better-schema-parser.md` (Completed)
 - `docs/tasks-todo/task-1-better-schema-part-2.md` (Superseded by this task)
+
+---
+
+## CURRENT STATE & RECENT WORK
+
+### ✅ Phase 3 Completed (Schema Architecture Refactor)
+
+**All implementation complete, all tests passing (425 TypeScript + 58 Rust tests), all checks passing.**
+
+**What was implemented:**
+1. ✅ Created `src-tauri/src/schema_merger.rs` (939 lines) - Complete schema parsing and merging in Rust
+2. ✅ Added `complete_schema` field to Collection model (backward compatible with old fields)
+3. ✅ Added `deserializeCompleteSchema()` function in TypeScript
+4. ✅ Simplified FrontmatterPanel to use `complete_schema` with fallback to old parsing
+5. ✅ All schema parsing now happens in Rust backend, frontend just deserializes
+
+**Backward compatibility maintained:**
+- Old `schema` and `json_schema` fields still present on Collection
+- Old TypeScript parsers (`parseJsonSchema.ts`, `parseZodReferences.ts`, `parseSchemaJson()`) still exist
+- FrontmatterPanel has fallback logic to old hybrid parsing
+- **These will be removed in Phase 4 after manual verification**
+
+### 🐛 Field Ordering Issue Discovered & Fixed
+
+**Problem:** Fields were displaying in random order instead of schema order, breaking previous behavior.
+
+**Root Cause:** Used `HashMap` in Rust which doesn't preserve insertion order from JSON schema.
+
+**Fix Applied:**
+1. ✅ Added `indexmap = { version = "2", features = ["serde"] }` to `Cargo.toml`
+2. ✅ Replaced all `HashMap` with `IndexMap` in `schema_merger.rs`:
+   - `AstroJsonSchema.definitions`
+   - `JsonSchemaDefinition.properties`
+   - `JsonSchemaProperty.properties`
+   - `extract_zod_references()` return type
+3. ✅ Updated FrontmatterPanel to put title field first:
+   - Checks `currentProjectSettings?.titleField?.fieldName` or defaults to `'title'`
+   - Reorders schema fields: title first, then rest in schema order
+   - Non-schema frontmatter fields appear at bottom (alphabetically sorted)
+
+**Expected Behavior After Fix:**
+- Fields appear in the order defined in the Zod schema
+- Title field (from settings or default) appears first
+- Extra frontmatter fields (not in schema) appear at bottom, sorted alphabetically
+- This matches the original UI behavior before the refactor
+
+### 📝 Uncommitted Changes
+
+**Modified files:**
+- `src-tauri/Cargo.toml` - Added indexmap dependency
+- `src-tauri/src/schema_merger.rs` - Changed HashMap to IndexMap
+- `src-tauri/src/lib.rs` - Added schema_merger module
+- `src-tauri/src/models/collection.rs` - Added complete_schema field
+- `src-tauri/src/commands/project.rs` - Added generate_complete_schema()
+- `src/lib/schema.ts` - Added deserializeCompleteSchema()
+- `src/components/frontmatter/FrontmatterPanel.tsx` - Added complete_schema support + title field ordering
+
+**New files:**
+- `src-tauri/src/schema_merger.rs` - 939 lines of schema parsing/merging logic
+
+### ⚠️ NEXT STEPS - MANUAL TESTING REQUIRED
+
+Before proceeding with Phase 4 cleanup, you MUST:
+
+1. **Run dev server and test with dummy-astro-project:**
+   ```bash
+   pnpm run dev
+   # Open dummy-astro-project
+   # Check console for: "[Schema] Loaded complete schema for: articles"
+   # Verify fields appear in correct order (schema order, title first)
+   # Test reference dropdowns work
+   # Test saving/loading works
+   ```
+
+2. **Verify field ordering is correct:**
+   - Title field should appear first
+   - Other fields should appear in schema definition order
+   - Non-schema frontmatter fields should appear at bottom
+
+3. **Check for these warning signs:**
+   - If console shows "Using fallback hybrid parsing" → complete_schema not working
+   - If fields still appear in random order → IndexMap fix didn't work
+   - If reference dropdowns don't populate → schema merging broken
+   - Any console errors → something is broken
+
+4. **Only proceed to Phase 4 cleanup if:**
+   - ✅ Console shows "Loaded complete schema" (NOT fallback)
+   - ✅ Fields appear in correct order
+   - ✅ Reference fields work correctly
+   - ✅ No console errors
+   - ✅ Saving and loading works
+
+### 📊 Quality Checks Status
+
+All checks passing as of last run:
+- ✅ TypeScript typecheck
+- ✅ ESLint (0 errors, 0 warnings)
+- ✅ Prettier
+- ✅ Rust fmt
+- ✅ Clippy (0 warnings with `-D warnings`)
+- ✅ Vitest (425 tests)
+- ✅ Cargo test (58 tests)
 
 ---
 
