@@ -3,6 +3,7 @@ import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
 import { useCollectionFilesQuery } from '../../../hooks/queries/useCollectionFilesQuery'
+import { useFileBasedCollectionQuery } from '../../../hooks/queries/useFileBasedCollectionQuery'
 import { Button } from '../../ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover'
 import {
@@ -55,12 +56,24 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     c => c.name === referencedCollection
   )
 
-  // Fetch files from the referenced collection
-  const { data: files, isLoading } = useCollectionFilesQuery(
-    projectPath,
-    referencedCollection || '',
-    currentCollection?.path || null
-  )
+  // Fetch files from the referenced collection (for regular glob-based collections)
+  const { data: regularFiles, isLoading: isLoadingRegular } =
+    useCollectionFilesQuery(
+      projectPath,
+      referencedCollection || '',
+      currentCollection?.path || null
+    )
+
+  // Try file-based collection if not found in regular collections
+  const { data: fileBasedFiles, isLoading: isLoadingFileBased } =
+    useFileBasedCollectionQuery(
+      projectPath,
+      !currentCollection ? referencedCollection || null : null
+    )
+
+  // Use whichever query returned data
+  const files = regularFiles || fileBasedFiles
+  const isLoading = isLoadingRegular || isLoadingFileBased
 
   // Build options from collection files
   const options: ReferenceOption[] = React.useMemo(() => {
@@ -200,7 +213,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
               <CommandEmpty>
                 {isLoading
                   ? 'Loading...'
-                  : !currentCollection
+                  : !currentCollection && !fileBasedFiles
                     ? `Collection "${referencedCollection}" not found`
                     : 'No items found.'}
               </CommandEmpty>

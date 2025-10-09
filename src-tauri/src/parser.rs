@@ -238,7 +238,8 @@ fn extract_collections_block(content: &str) -> Option<String> {
 /// Detect if a collection uses a file-based loader (should be excluded from main collections list)
 fn is_file_based_collection(full_content: &str, collection_name: &str) -> bool {
     // Look for: loader: file(...)
-    let file_loader_pattern = format!(r"{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\(");
+    let file_loader_pattern =
+        format!(r"{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\(");
     if let Ok(file_loader_re) = Regex::new(&file_loader_pattern) {
         file_loader_re.is_match(full_content)
     } else {

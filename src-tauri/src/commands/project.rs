@@ -365,10 +365,7 @@ pub async fn load_file_based_collection(
 ) -> Result<Vec<FileEntry>, String> {
     use regex::Regex;
 
-    debug!(
-        "Astro Editor [FILE_COLLECTION] Loading file-based collection: {}",
-        collection_name
-    );
+    debug!("Astro Editor [FILE_COLLECTION] Loading file-based collection: {collection_name}");
 
     // Read content.config.ts to find the file path
     let project = PathBuf::from(&project_path);
@@ -386,8 +383,7 @@ pub async fn load_file_based_collection(
 
             // Look for: collectionName = defineCollection({ loader: file('./path/to/file.json')
             let pattern = format!(
-                r#"{}\s*[=:]\s*defineCollection\s*\(\s*{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#,
-                collection_name
+                r#"{collection_name}\s*[=:]\s*defineCollection\s*\(\s*{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#
             );
             if let Ok(re) = Regex::new(&pattern) {
                 if let Some(cap) = re.captures(&content) {
@@ -401,7 +397,7 @@ pub async fn load_file_based_collection(
     }
 
     let file_path = file_path.ok_or_else(|| {
-        format!("File-based collection '{}' not found in content.config", collection_name)
+        format!("File-based collection '{collection_name}' not found in content.config")
     })?;
 
     debug!(
@@ -413,8 +409,8 @@ pub async fn load_file_based_collection(
     let json_content = std::fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read collection file: {e}"))?;
 
-    let json_data: serde_json::Value = serde_json::from_str(&json_content)
-        .map_err(|e| format!("Failed to parse JSON: {e}"))?;
+    let json_data: serde_json::Value =
+        serde_json::from_str(&json_content).map_err(|e| format!("Failed to parse JSON: {e}"))?;
 
     // Convert JSON array to FileEntry objects
     let mut files = Vec::new();
@@ -423,7 +419,8 @@ pub async fn load_file_based_collection(
         for item in array {
             if let Some(obj) = item.as_object() {
                 // Extract id field (required)
-                let _id = obj.get("id")
+                let _id = obj
+                    .get("id")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| "Missing 'id' field in collection item".to_string())?
                     .to_string();
