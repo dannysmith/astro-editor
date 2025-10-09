@@ -1,656 +1,213 @@
 # Task: Schema Support Enhancement - Part 2
 
-**Status:** In Progress - Phase 1 Complete ✅, Phase 2 Complete ✅, Testing Phase Started
+**Status:** 🚫 SUPERSEDED by task-2-schema-architecture-refactor.md
+
+**Note:** Phase 3 implementation revealed architectural issues that require a more fundamental refactor. See task-2-schema-architecture-refactor.md for the correct approach.
+
 **Prerequisites:** `docs/tasks-done/task-1-better-schema-parser.md` (Completed)
 
-## Progress Summary
-
-- ✅ **Phase 1: Type System Unification** - Complete (all checks passing)
-- ✅ **Phase 2: Enhanced Field Support** - Complete (all stages implemented)
-- 🔄 **Phase 3: Real-World Validation** - Started (reference field issue discovered)
-- ⏳ **Phase 4: UI Polish** - Pending
+---
 
 ## Overview
 
-Following the initial JSON schema parser implementation, this task focuses on:
-1. **Type System Unification** - Eliminate dual ZodField/SchemaField types ✅
-2. **Enhanced Field Support** - Properly handle references, unions, literals, nested objects
-3. **Real-World Validation** - Manual testing with complex production schemas
-4. **UI Polish** - Production-ready field rendering and metadata display
+Following the initial JSON schema parser implementation, this task enhances field support with a focus on **references, nested objects, and complex arrays**.
+
+### Progress Summary
+
+- ✅ **Phase 1: Type System Unification** - Single `SchemaField` type, all tests passing
+- ✅ **Phase 2: Enhanced Field Support** - Nested objects, references (basic), arrays
+- 🔄 **Phase 3: Reference Field Fix** - Resolving collection name extraction
+- ⏳ **Phase 4: UI Polish** - Production-ready constraints, labels, docs
 
 ---
 
-## Phase 1: Type System Unification (CRITICAL)
+## Current Challenge: Reference Fields
 
-**Goal:** Single source of truth for field definitions - only `SchemaField` exists.
+### The Problem
 
-### 1.1 Pre-Migration Audit
+**Astro's JSON schemas don't preserve collection names from `reference('authors')`:**
 
-**Action Items:**
-- [ ] List all files using `ZodField` or `SchemaField` (already identified: 19 files, 188 occurrences)
-- [ ] Document conversion gaps between `ZodField` → `SchemaField`
-- [ ] Identify any Zod-specific constraints not in `FieldConstraints`
+```json
+// Generated JSON schema
+"author": {
+  "anyOf": [
+    { "type": "string" },
+    {
+      "properties": {
+        "collection": { "type": "string" }  // ← No const value!
+      }
+    }
+  ]
+}
+```
 
-**Critical Finding:** The Zod → SchemaField conversion in `FrontmatterPanel.tsx:68-82` **loses constraint metadata**. This must be fixed.
-
-### 1.2 Update Zod Parser Output
-
-**File:** `src/lib/schema.ts`
-
-**Changes:**
 ```typescript
-// Change parseSchemaJson return type
-export function parseSchemaJson(schemaJson: string): { fields: SchemaField[] } | null
+// Original Zod schema
+author: reference('authors').optional()  // ← Collection name is HERE
+```
 
-// Convert ZodField to SchemaField internally
-function zodFieldToSchemaField(zodField: ZodField): SchemaField {
-  return {
-    name: zodField.name,
-    label: camelCaseToTitleCase(zodField.name),
-    type: zodFieldTypeToFieldType(zodField.type),
-    required: !zodField.optional,
-    ...(zodField.constraints && {
-      constraints: convertZodConstraints(zodField.constraints)
-    }),
-    ...(zodField.options && { enumValues: zodField.options }),
-    ...(zodField.default && { default: zodField.default }),
-    ...(zodField.arrayType && {
-      subType: zodFieldTypeToFieldType(zodField.arrayType)
-    }),
+**Our current parser** (`parseJsonSchema.ts`) looks for `collection.const` but it doesn't exist. Result: `referencedCollection = undefined`.
+
+---
+
+## Solution: Hybrid Schema Parsing
+
+### Strategy
+
+Use **both** JSON and Zod schemas:
+
+1. **JSON Schema**: Detects that a field IS a reference (via anyOf pattern)
+2. **Zod Schema**: Extracts WHICH collection is referenced
+
+### Implementation Plan
+
+#### 1. Add Zod Schema Parsing for References
+
+Create `parseZodSchemaReferences(zodSchema: string)` function:
+
+```typescript
+/**
+ * Parse Zod schema string to extract reference field mappings
+ * Returns: Map<fieldName, collectionName>
+ */
+function parseZodSchemaReferences(zodSchema: string): Map<string, string> {
+  const referenceMap = new Map<string, string>()
+
+  // Match patterns like: fieldName: reference('collectionName')
+  const singleRefRegex = /(\w+):\s*reference\(['"]([^'"]+)['"]\)/g
+
+  // Match patterns like: fieldName: z.array(reference('collectionName'))
+  const arrayRefRegex = /(\w+):\s*z\.array\(reference\(['"]([^'"]+)['"]\)\)/g
+
+  let match
+  while ((match = singleRefRegex.exec(zodSchema)) !== null) {
+    referenceMap.set(match[1], match[2])
   }
-}
 
-// Map ZodFieldType to FieldType
-function zodFieldTypeToFieldType(zodType: ZodFieldType): FieldType {
-  const typeMap: Record<ZodFieldType, FieldType> = {
-    String: FieldType.String,
-    Number: FieldType.Number,
-    Boolean: FieldType.Boolean,
-    Date: FieldType.Date,
-    Array: FieldType.Array,
-    Enum: FieldType.Enum,
-    Union: FieldType.String, // Fallback for V1
-    Literal: FieldType.String, // Render as readonly string
-    Object: FieldType.Unknown,
-    Unknown: FieldType.Unknown,
+  while ((match = arrayRefRegex.exec(zodSchema)) !== null) {
+    referenceMap.set(match[1], match[2])
   }
-  return typeMap[zodType] || FieldType.Unknown
-}
 
-// Convert ZodFieldConstraints to FieldConstraints
-function convertZodConstraints(
-  zodConstraints: ZodFieldConstraints
-): FieldConstraints {
-  const constraints: FieldConstraints = {}
-
-  if (zodConstraints.min !== undefined) constraints.min = zodConstraints.min
-  if (zodConstraints.max !== undefined) constraints.max = zodConstraints.max
-  if (zodConstraints.minLength !== undefined)
-    constraints.minLength = zodConstraints.minLength
-  if (zodConstraints.maxLength !== undefined)
-    constraints.maxLength = zodConstraints.maxLength
-  if (zodConstraints.regex !== undefined)
-    constraints.pattern = zodConstraints.regex
-
-  // Handle format constraints
-  if (zodConstraints.email) constraints.format = 'email'
-  if (zodConstraints.url) constraints.format = 'uri'
-
-  return constraints
+  return referenceMap
 }
 ```
 
-**Action Items:**
-- [ ] Implement `zodFieldToSchemaField` converter
-- [ ] Implement `zodFieldTypeToFieldType` mapper
-- [ ] Implement `convertZodConstraints` converter
-- [ ] Update `parseSchemaJson` to return `{ fields: SchemaField[] }`
-- [ ] Write tests for conversion logic
+#### 2. Update FrontmatterPanel Schema Parsing
 
-### 1.3 Remove ZodField from Component Props
-
-**Files to Update (8 field components):**
-- `src/components/frontmatter/fields/StringField.tsx`
-- `src/components/frontmatter/fields/TextareaField.tsx`
-- `src/components/frontmatter/fields/NumberField.tsx`
-- `src/components/frontmatter/fields/BooleanField.tsx`
-- `src/components/frontmatter/fields/DateField.tsx`
-- `src/components/frontmatter/fields/EnumField.tsx`
-- `src/components/frontmatter/fields/ArrayField.tsx`
-- `src/components/frontmatter/fields/FrontmatterField.tsx`
-
-**Changes per component:**
 ```typescript
-// Before
-import type { ZodField, SchemaField } from '../../../lib/schema'
-interface StringFieldProps extends FieldProps {
-  field?: ZodField | SchemaField
-}
-
-// After
-import type { SchemaField } from '../../../lib/schema'
-interface StringFieldProps extends FieldProps {
-  field?: SchemaField
-}
-```
-
-**Action Items:**
-- [ ] Update imports in all 8 field components
-- [ ] Update prop types from `ZodField | SchemaField` → `SchemaField`
-- [ ] Remove type guards (`'required' in field`)
-- [ ] Update field access (use `field.required` instead of `!field.optional`)
-
-### 1.4 Simplify FrontmatterPanel
-
-**File:** `src/components/frontmatter/FrontmatterPanel.tsx`
-
-**Remove lines 68-82** (manual conversion logic - now handled by parser):
-```typescript
-// DELETE THIS BLOCK - conversion happens in parseSchemaJson now
-return {
-  fields: parsed.fields.map(
-    field =>
-      ({
-        name: field.name,
-        label: camelCaseToTitleCase(field.name),
-        type: field.type.toLowerCase(),
-        required: !field.optional,
-        ...(field.options && { enumValues: field.options }),
-        ...(field.default && { default: field.default }),
-      }) as SchemaField
-  ),
-}
-```
-
-**Action Items:**
-- [ ] Remove manual ZodField → SchemaField conversion
-- [ ] Simplify schema parsing logic
-- [ ] Test that both JSON schema and Zod fallback work
-
-### 1.5 Clean Up Legacy Types and Functions
-
-**File:** `src/lib/schema.ts`
-
-**Remove (after Phase 1.4 complete):**
-```typescript
-// Remove these legacy types
-export interface ZodField { /* ... */ }
-export interface ZodFieldConstraints { /* ... */ }
-export type ZodFieldType = /* ... */
-
-// Remove these helper functions (no longer needed)
-export function getInputTypeForZodField(fieldType: ZodFieldType): string
-export function getDefaultValueForField(field: ZodField): /* ... */
-export function validateFieldValue(field: ZodField, value: unknown): string | null
-```
-
-**Keep (for Zod parsing only):**
-```typescript
-// Internal types for Zod parsing
-interface ParsedSchemaJson { /* ... */ }
-function isValidParsedSchema(obj: unknown): obj is ParsedSchemaJson { /* ... */ }
-
-// Main parser (now returns SchemaField[])
-export function parseSchemaJson(schemaJson: string): { fields: SchemaField[] } | null
-```
-
-**Action Items:**
-- [ ] Remove `ZodField` interface
-- [ ] Remove `ZodFieldConstraints` interface
-- [ ] Remove `ZodFieldType` type
-- [ ] Remove helper functions
-- [ ] Keep internal parsing types and `parseSchemaJson`
-- [ ] Update imports across codebase
-- [ ] Run TypeScript check: `pnpm run check:types`
-
-### 1.6 Update Tests
-
-**Files:**
-- `src/lib/schema.test.ts`
-- `src/components/frontmatter/fields/*.test.tsx`
-
-**Action Items:**
-- [ ] Update `schema.test.ts` for new `parseSchemaJson` return type
-- [ ] Update field component tests to use `SchemaField`
-- [ ] Verify all tests pass: `pnpm run test:run`
-
-### Phase 1 Verification Checklist
-
-- ✅ TypeScript compiles without errors (`pnpm run check:types`)
-- ✅ All tests pass (`pnpm run test:run`)
-- ✅ Both JSON schema and Zod fallback work in dev
-- ✅ Constraints preserved through entire pipeline
-- ✅ No `ZodField` references remain in codebase
-- ✅ Field components render correctly with `SchemaField`
-- ✅ Manual testing confirmed working in compiled app
-
-**Result:** Phase 1 complete. Type system unified, all 425 tests passing, all checks green.
-
----
-
-## Phase 2: Enhanced Field Type Support (REFINED)
-
-**Goal:** Handle nested objects, references, and complex arrays with pragmatic UI/UX.
-
-### Design Decisions
-
-**Arrays Strategy:**
-- ✅ Strings: TagInput (current implementation)
-- 🔄 Numbers: TagInput with number validation
-- 🔄 References: Multi-select combobox (shadcn Command)
-- 🔄 Complex types (dates, objects): YAML textarea fallback
-
-**Nested Objects:**
-- Visual grouping with section header + left border + indentation
-- Dot notation in field names (`author.name`)
-- Nested YAML structure in storage
-
-**References:**
-- Single: Searchable combobox (shadcn Combobox)
-- Array: Multi-select with tag display (shadcn Command)
-- Display: Show title from referenced item, store slug
-
-### Stage 2.1: Nested Object Support (~1.5 hrs)
-
-**Goal:** Visual grouping of nested object fields with proper YAML structure preservation.
-
-**Schema Example:**
-```typescript
-author: z.object({
-  name: z.string(),
-  email: z.string().email()
-})
-```
-
-**Target UI:**
-```
-Title *
-[input field]
-
-Author
-┃ Name *
-┃ [input field]
-┃
-┃ Email *
-┃ [input field]
-
-Description
-[textarea]
-```
-
-**Implementation:**
-
-1. **Update SchemaField interface** (`src/lib/schema.ts`)
-```typescript
-export interface SchemaField {
-  // ... existing
-  nestedFields?: SchemaField[]  // Child fields for object types
-  isNested?: boolean            // Is this field nested under a parent?
-  parentPath?: string           // e.g., "author" for "author.name"
-}
-```
-
-2. **Parse nested objects** (`src/lib/parseJsonSchema.ts`)
-   - Detect object types in schema
-   - Flatten to array with dot notation paths
-   - Preserve parent-child relationships
-
-3. **Render nested groups** (`src/components/frontmatter/FrontmatterPanel.tsx`)
-   - Group fields by parent path
-   - Add section headers (using shadcn Separator)
-   - Apply visual indentation + left border
-
-4. **Store handling** (`src/store/editorStore.ts`)
-   - Parse dot notation → nested object structure
-   - `author.name` → `{ author: { name: value } }`
-
-**Action Items:**
-- [ ] Add nested field properties to SchemaField
-- [ ] Update parseJsonSchema to flatten nested objects
-- [ ] Create NestedFieldGroup component
-- [ ] Update store to handle dot notation paths
-- [ ] Test with real nested schema
-
-### Stage 2.2: Single Reference Fields (~1 hr)
-
-**Goal:** Searchable combobox for single collection references.
-
-**Schema Example:**
-```typescript
-author: reference('authors')
-```
-
-**Target UI:**
-```
-Author *
-[Search authors... ▼]
-
-When opened:
-┌─────────────────────┐
-│ Search...           │
-├─────────────────────┤
-│ John Doe            │
-│ Jane Smith          │
-│ Bob Johnson         │
-└─────────────────────┘
-```
-
-**Implementation:**
-
-1. **Add Reference field type** (`src/lib/schema.ts`)
-```typescript
-enum FieldType {
-  // ... existing
-  Reference = 'reference',
-}
-
-interface SchemaField {
-  // ... existing
-  reference?: string  // Referenced collection name
-}
-```
-
-2. **Detect references in parser** (`src/lib/parseJsonSchema.ts`)
-   - Extract collection name from reference pattern
-   - Set `type: FieldType.Reference` and `reference: 'collectionName'`
-
-3. **Create ReferenceField component** (`src/components/frontmatter/fields/ReferenceField.tsx`)
-   - Use shadcn Combobox
-   - Load referenced collection files
-   - Display title, store slug
-   - Clear button if optional
-
-4. **Update field router** (`src/components/frontmatter/fields/FrontmatterField.tsx`)
-   - Route FieldType.Reference → ReferenceField
-
-**Action Items:**
-- [ ] Add FieldType.Reference enum value
-- [ ] Update parseJsonSchema reference detection
-- [ ] Create ReferenceField component with Combobox
-- [ ] Add to FrontmatterField router
-- [ ] Test with single reference schema
-
-### Stage 2.3: Array Reference Fields (~1 hr)
-
-**Goal:** Multi-select interface for array of references.
-
-**Schema Example:**
-```typescript
-relatedPosts: z.array(reference('posts'))
-```
-
-**Target UI:**
-```
-Related Posts
-[+ Add post ▼]
-
-[Understanding React] [×]
-[TypeScript Guide] [×]
-```
-
-**Implementation:**
-
-1. **Extend SchemaField** (`src/lib/schema.ts`)
-```typescript
-interface SchemaField {
-  // ... existing
-  subReference?: string  // For array of references
-}
-```
-
-2. **Detect array references** (`src/lib/parseJsonSchema.ts`)
-   - Check if array items are references
-   - Set `type: FieldType.Array`, `subType: FieldType.Reference`, `subReference: 'collectionName'`
-
-3. **Extend ReferenceField for multi-select**
-   - Add `multiple` prop
-   - Use shadcn Command for search
-   - Render selected as removable tags
-   - Store as array of slugs
-
-4. **Update field router**
-   - Detect array + reference combination
-   - Pass to ReferenceField with `multiple={true}`
-
-**Action Items:**
-- [ ] Add subReference to SchemaField
-- [ ] Update parser for array references
-- [ ] Add multi-select mode to ReferenceField
-- [ ] Update FrontmatterField router logic
-- [ ] Test with array reference schema
-
-### Stage 2.4: Enhanced Array Support (~30 min)
-
-**Goal:** Proper handling of number arrays and complex array fallback.
-
-**Implementation:**
-
-1. **Number array validation** (`src/components/frontmatter/fields/ArrayField.tsx`)
-   - Add number parsing/validation
-   - Show validation errors for non-numbers
-
-2. **YAML fallback component** (`src/components/frontmatter/fields/YamlField.tsx`)
-   - Textarea for complex types
-   - "Advanced" label hint
-   - Syntax highlighting (optional)
-
-3. **Router logic** (`src/components/frontmatter/fields/FrontmatterField.tsx`)
-   - String array → ArrayField
-   - Number array → ArrayField with number mode
-   - Reference array → ReferenceField multi-select
-   - Complex (objects, dates, etc.) → YamlField
-
-**Action Items:**
-- [ ] Add number validation to ArrayField
-- [ ] Create YamlField component
-- [ ] Update FrontmatterField routing logic
-- [ ] Test with various array types
-
-### 2.5 Record/Map Type Handling
-
-**Pattern:** `z.record(z.string())` → JSON textarea
-
-**Current State:** Already handled (returns `FieldType.String` in line 234).
-
-**Action Items:**
-- [ ] Verify records render as StringField
-- [ ] Add "JSON object expected" hint if needed
-- [ ] Test with `z.record(z.number())`
-
-### Phase 2 Verification Checklist
-
-- [ ] References show collection name indicator
-- [ ] Literals render as readonly fields
-- [ ] Unions show type options hint
-- [ ] Array of objects render as JSON textarea
-- [ ] Records render appropriately
-- [ ] All field types have appropriate UI hints
-
----
-
-## Phase 3: Real-World Schema Testing (Manual)
-
-**Goal:** Validate robustness with production schemas. **User will perform this phase manually.**
-
-### 3.1 Test Collections to Create
-
-Create these test schemas in `test/dummy-astro-project/src/content.config.ts`:
-
-#### Test 1: Nested Objects
-```typescript
-const blog = defineCollection({
-  schema: z.object({
-    title: z.string(),
-    seo: z.object({
-      title: z.string().min(5).max(60).describe("SEO title for search engines"),
-      description: z.string().max(160),
-      ogImage: image().optional(),
-      noIndex: z.boolean().default(false),
-    }),
-    author: z.object({
-      name: z.string(),
-      email: z.string().email(),
-      bio: z.string().optional(),
-    }).optional(),
-  })
-})
-```
-
-**Expected Behavior:**
-- Fields flatten: `seo.title`, `seo.description`, `seo.ogImage`, `seo.noIndex`
-- Labels: "SEO Title", "SEO Description", "SEO Og Image", "SEO No Index"
-- Parent object optional → all nested fields optional
-- Constraints preserved (min/max length)
-- Descriptions display correctly
-
-#### Test 2: References
-```typescript
-const articles = defineCollection({
-  schema: z.object({
-    title: z.string(),
-    primaryAuthor: reference('authors'),
-    relatedArticles: z.array(reference('articles')).max(5).optional(),
-    category: reference('categories').optional(),
-  })
-})
-```
-
-**Expected Behavior:**
-- Reference fields show collection name
-- Array of references handled
-- Max constraint shows (5 items max)
-- String input with reference indicator
-
-#### Test 3: Complex Arrays
-```typescript
-const portfolio = defineCollection({
-  schema: z.object({
-    title: z.string(),
-    tags: z.array(z.string()).min(1).max(10),
-    links: z.array(
-      z.object({
-        url: z.string().url(),
-        title: z.string(),
-        description: z.string().optional(),
+// In FrontmatterPanel.tsx
+const schema = React.useMemo(() => {
+  if (!currentCollection) return null
+
+  // Try JSON schema first
+  if (currentCollection.json_schema) {
+    const parsed = parseJsonSchema(currentCollection.json_schema)
+
+    if (parsed && currentCollection.schema) {
+      // Enhance with Zod reference info
+      const zodRefs = parseZodSchemaReferences(currentCollection.schema)
+
+      // Apply reference collection names from Zod
+      parsed.fields.forEach(field => {
+        if (field.type === FieldType.Reference && zodRefs.has(field.name)) {
+          field.reference = zodRefs.get(field.name)
+        }
+        if (field.type === FieldType.Array && field.subType === FieldType.Reference && zodRefs.has(field.name)) {
+          field.subReference = zodRefs.get(field.name)
+        }
       })
-    ).optional(),
-  })
-})
+
+      return parsed
+    }
+  }
+
+  // Fallback to Zod-only parsing
+  if (currentCollection.schema) {
+    return parseSchemaJson(currentCollection.schema)
+  }
+
+  return null
+}, [currentCollection])
 ```
 
-**Expected Behavior:**
-- `tags`: Renders as TagInput (current ArrayField)
-- `links`: Renders as JSON textarea
-- Constraints shown (1-10 tags)
+#### 3. Update parseJsonSchema Reference Detection
 
-#### Test 4: Unions and Literals
+Keep the anyOf pattern detection but don't rely on collection.const:
+
 ```typescript
-const pages = defineCollection({
-  schema: z.object({
-    title: z.string(),
-    template: z.literal('landing'),
-    status: z.union([z.literal('draft'), z.literal('published'), z.literal('archived')]),
-    visibility: z.enum(['public', 'private', 'internal']),
-  })
-})
+function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
+  isReference: boolean
+} {
+  for (const s of anyOfArray) {
+    const props = s.properties
+    if (
+      s.type === 'object' &&
+      props?.collection !== undefined &&
+      (props?.id !== undefined || props?.slug !== undefined)
+    ) {
+      // We know it's a reference, but don't try to extract collection name
+      // That will come from Zod schema
+      return { isReference: true }
+    }
+  }
+  return { isReference: false }
+}
 ```
 
-**Expected Behavior:**
-- `template`: Readonly field showing "landing"
-- `status`: Union shows all literal options (or renders as enum)
-- `visibility`: Enum dropdown
+---
 
-#### Test 5: Edge Cases
-```typescript
-const misc = defineCollection({
-  schema: z.object({
-    title: z.string(),
-    metadata: z.record(z.string()).optional(),
-    coordinates: z.tuple([z.number(), z.number()]).optional(),
-    config: z.object({
-      theme: z.enum(['light', 'dark']),
-      settings: z.record(z.boolean()),
-    }).optional(),
-  })
-})
-```
+## Test Case Setup
 
-**Expected Behavior:**
-- `metadata`: JSON textarea or string field
-- `coordinates`: JSON textarea
-- Nested object within nested object flattens correctly
-- `config.theme`, `config.settings` render appropriately
+We created a minimal test case to diagnose reference behavior:
 
-### 3.2 Real-World Schema Testing (User Action)
+**Test Collections:**
+- `authors.json` - File-based collection with 3 authors (danny-smith, jane-doe, john-developer)
+- `articles` - Has `author: reference('authors')` and `relatedArticles: z.array(reference('articles'))`
 
-**User will test with:**
-1. Personal blog schemas
-2. Documentation sites (Starlight)
-3. E-commerce/complex sites
-4. Any production schemas with known edge cases
+**Test Data:**
+- first-article.md → `author: danny-smith`
+- comprehensive-markdown-test.md → `author: jane-doe`, `relatedArticles: [first-article]`
+- second-article.md → `author: john-developer`, `relatedArticles: [first-article, comprehensive-markdown-test]`
 
-**What to Look For:**
-- [ ] All fields render with appropriate components
-- [ ] No UI layout breaks
-- [ ] Descriptions display correctly
-- [ ] Constraints visible and accurate
-- [ ] Default values work
-- [ ] Required/optional indicators correct
-- [ ] Nested fields flatten properly
-- [ ] Labels are human-readable
-- [ ] Save/load cycle preserves all data
-- [ ] No console errors or warnings
+**Runtime Verification:**
+The test project's index.astro successfully renders author names and related articles, confirming the schema works at runtime. The issue is purely in our editor's schema parsing.
 
-**Feedback Format:**
-```
-Schema: [name]
-Issue: [description]
-Expected: [what should happen]
-Actual: [what happened]
-Field: [specific field if applicable]
-```
+---
 
-### 3.3 Edge Case Scenarios
+## Phase 3: Real-World Schema Testing
 
-Test these specific scenarios:
+### Remaining Tasks
 
-1. **Very deeply nested objects** (3+ levels)
-2. **Optional parent with required children**
-3. **Mixed nested/flat in same collection**
-4. **Large enums** (50+ options)
-5. **Very long descriptions** (200+ characters)
-6. **Special characters in field names**
-7. **Image fields in nested objects**
-8. **References in nested objects**
-9. **Arrays of enums**
-10. **Discriminated unions** (if possible)
+- [ ] Implement Zod reference parsing function
+- [ ] Update FrontmatterPanel to use hybrid approach
+- [ ] Test with dummy project references (authors, relatedArticles)
+- [ ] Verify ReferenceField dropdown populates correctly
+- [ ] Test with production schemas
 
-### Phase 3 Output
+### Edge Cases to Test
 
-User provides feedback → We iterate and fix issues → Repeat until stable.
+1. **Nested object references** - `seo.author: reference('authors')`
+2. **Optional parent with reference child** - Does it work?
+3. **Self-references** - `relatedArticles: z.array(reference('articles'))` ✅ Schema exists
+4. **References in arrays of objects** - Complex nested structure
 
 ---
 
 ## Phase 4: UI Polish & Production Readiness
 
-**Goal:** Production-ready feature with polished UX.
-
 ### 4.1 Constraint Display Enhancement
 
-**File:** `src/components/frontmatter/fields/FieldWrapper.tsx`
-
-Improve constraint formatting:
+Improve constraint formatting in `FieldWrapper.tsx`:
 
 ```typescript
-// Format constraints for display
 function formatConstraints(constraints: FieldConstraints): string | null {
   const parts: string[] = []
 
-  if (constraints.minLength !== undefined && constraints.maxLength !== undefined) {
+  if (constraints.minLength && constraints.maxLength) {
     parts.push(`${constraints.minLength}-${constraints.maxLength} characters`)
-  } else if (constraints.minLength !== undefined) {
+  } else if (constraints.minLength) {
     parts.push(`Min ${constraints.minLength} characters`)
-  } else if (constraints.maxLength !== undefined) {
+  } else if (constraints.maxLength) {
     parts.push(`Max ${constraints.maxLength} characters`)
   }
 
@@ -662,46 +219,19 @@ function formatConstraints(constraints: FieldConstraints): string | null {
     parts.push(`Max: ${constraints.max}`)
   }
 
-  if (constraints.format === 'email') {
-    parts.push('Must be an email')
-  } else if (constraints.format === 'uri') {
-    parts.push('Must be a URL')
-  } else if (constraints.format === 'date' || constraints.format === 'date-time') {
-    parts.push('Date format')
-  }
-
-  if (constraints.pattern) {
-    parts.push(`Pattern: ${constraints.pattern}`)
-  }
+  if (constraints.format === 'email') parts.push('Must be an email')
+  if (constraints.format === 'uri') parts.push('Must be a URL')
+  if (constraints.pattern) parts.push(`Pattern: ${constraints.pattern}`)
 
   return parts.length > 0 ? parts.join(' • ') : null
 }
 ```
 
-**Action Items:**
-- [ ] Implement `formatConstraints` helper
-- [ ] Update FieldWrapper to use formatted constraints
-- [ ] Test with various constraint combinations
-- [ ] Ensure readable at all font sizes
+### 4.2 Label Improvement for Nested Fields
 
-### 4.2 Nested Field Label Improvement
-
-**File:** `src/lib/parseJsonSchema.ts`
-
-Improve label generation for acronyms and nested fields:
+Improve acronym handling in labels:
 
 ```typescript
-// Improve label generation
-function generateNestedLabel(parentPath: string, fieldName: string): string {
-  const parentLabel = camelCaseToTitleCase(parentPath.split('.').pop()!)
-  const childLabel = camelCaseToTitleCase(fieldName)
-
-  // Improve acronym handling (SEO instead of Seo)
-  const improvedParentLabel = improveAcronyms(parentLabel)
-
-  return `${improvedParentLabel} ${childLabel}`
-}
-
 function improveAcronyms(label: string): string {
   const acronyms = ['SEO', 'URL', 'API', 'HTML', 'CSS', 'JS', 'ID', 'OG']
   let result = label
@@ -715,311 +245,432 @@ function improveAcronyms(label: string): string {
 }
 ```
 
-**Action Items:**
-- [ ] Implement acronym improvement
-- [ ] Test with common acronyms (SEO, URL, API, etc.)
-- [ ] Update tests for new label format
+### 4.3 Documentation Updates
 
-### 4.3 Error Handling & Fallbacks
-
-**File:** `src/lib/parseJsonSchema.ts`
-
-Add better error handling:
-
-```typescript
-export function parseJsonSchema(schemaJson: string): { fields: SchemaField[] } | null {
-  try {
-    const schema = JSON.parse(schemaJson) as AstroJsonSchema
-
-    // Validate schema structure
-    if (!schema.$ref || !schema.definitions) {
-      if (import.meta.env.DEV) {
-        console.warn('[Schema] Invalid JSON schema structure:', {
-          hasRef: !!schema.$ref,
-          hasDefinitions: !!schema.definitions
-        })
-      }
-      return null
-    }
-
-    // ... rest of parsing
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.error('[Schema] Failed to parse JSON schema:', {
-        error: error instanceof Error ? error.message : String(error),
-        schemaPreview: schemaJson.slice(0, 100)
-      })
-    }
-    return null
-  }
-}
-```
-
-**Action Items:**
-- [ ] Add comprehensive error logging (dev mode only)
-- [ ] Validate schema structure before parsing
-- [ ] Handle malformed JSON gracefully
-- [ ] Test with invalid schemas
-
-### 4.4 Documentation Updates
-
-**Files to Update:**
-- `CLAUDE.md`
-- `docs/developer/architecture-guide.md`
-- JSDoc comments in `schema.ts`, `parseJsonSchema.ts`
-
-**Action Items:**
-- [ ] Update `CLAUDE.md` - remove ZodField references
-- [ ] Update `architecture-guide.md` Schema Parsing section
-- [ ] Add JSDoc to `SchemaField` interface
-- [ ] Add JSDoc to `parseJsonSchema` function
+- [ ] Update CLAUDE.md - remove outdated ZodField references
+- [ ] Update architecture-guide.md Schema Parsing section
+- [ ] Add JSDoc to SchemaField interface and key functions
 - [ ] Document supported field types and limitations
-- [ ] Add examples of complex patterns
-
-### 4.5 Performance Check
-
-**Action Items:**
-- [ ] Profile schema parsing with large schemas (100+ fields)
-- [ ] Check for unnecessary re-renders in field components
-- [ ] Verify schema parsing is properly memoized
-- [ ] Test with 5+ deeply nested collections
-
-### Phase 4 Verification Checklist
-
-- [ ] Constraints display in readable format
-- [ ] Nested labels look professional
-- [ ] Error handling is graceful
-- [ ] Documentation is accurate and complete
-- [ ] Performance is acceptable
-- [ ] No console warnings in production
-- [ ] Code is clean and well-commented
 
 ---
 
-## Critical Review & Notes
+## Key Architectural Decisions
 
-### Issues Found During Planning
+### Why Hybrid Approach for References?
 
-1. **CRITICAL BUG**: `FrontmatterPanel.tsx:68-82` loses constraint metadata when converting ZodField → SchemaField. This must be fixed in Phase 1.2.
+- **JSON Schema alone**: Cannot extract collection names (Astro limitation)
+- **Zod Schema alone**: Works but less reliable for complex types
+- **Hybrid**: Best of both - JSON for structure, Zod for reference metadata
 
-2. **ArrayField Limitation**: Only handles `string[]`, not `object[]`. Phase 2.4 addresses this.
+### Implementation Completed (Phase 1 & 2)
 
-3. **Label Generation**: Current nested labels like "Seo Title" could be improved to "SEO Title". Phase 4.2 addresses this.
+**Type System:**
+- ✅ Single `SchemaField` interface (no more dual types)
+- ✅ ZodField made internal-only for parsing
+- ✅ All 425 tests passing
 
-### Design Decisions
+**Field Types Implemented:**
+- ✅ Nested objects (flattened with dot notation: `author.name`)
+- ✅ References (single + array) - detection works, collection name extraction pending
+- ✅ Arrays (string, number, complex fallback to YamlField)
+- ✅ Enums, literals, dates, booleans, primitives
+- ✅ Visual grouping for nested fields in FrontmatterPanel
 
-1. **Why not separate LiteralField component?**
-   - Readonly StringField is simpler
-   - Avoids component proliferation
-   - Easier to maintain
-
-2. **Why JSON textarea for complex arrays?**
-   - Building object array editor is complex
-   - V1 should focus on common cases
-   - Can enhance in future if needed
-
-3. **Why not full union support?**
-   - Discriminated unions are complex to render
-   - Most unions are simple (string | boolean)
-   - String field with hint is good enough for V1
-
-### Scope Boundaries
-
-**In Scope:**
-- ✅ Type unification
-- ✅ Basic reference support
-- ✅ Nested object flattening
-- ✅ Array of strings
-- ✅ Enums and literals
-- ✅ Simple unions (with hints)
-
-**Out of Scope (Future Work):**
-- ❌ Reference autocomplete/dropdown
-- ❌ Object array editor UI
-- ❌ Discriminated union form builder
-- ❌ Custom validation UI
-- ❌ Transform/refine indication
+**Store Enhancements:**
+- ✅ `setNestedValue()`, `getNestedValue()`, `deleteNestedValue()` for dot notation handling
 
 ---
 
 ## Success Criteria
 
-### Phase 1 Complete When:
-- [ ] No `ZodField` references in codebase
-- [ ] All tests pass
-- [ ] TypeScript compiles cleanly
-- [ ] Both JSON and Zod parsers return `SchemaField[]`
-- [ ] Constraints preserved through pipeline
-
-### Phase 2 Complete When:
-- [ ] References show collection name
-- [ ] Literals render readonly
-- [ ] Unions show type hints
-- [ ] Complex arrays render appropriately
-- [ ] All advanced types have UI indicators
-
 ### Phase 3 Complete When:
-- [ ] User has tested 5+ real schemas
-- [ ] All reported issues fixed
-- [ ] No regressions in existing functionality
-- [ ] Save/load cycle works perfectly
+- [ ] Reference fields load collection options correctly
+- [ ] Both single and array references work
+- [ ] Self-references work (articles → articles)
+- [ ] Nested object references work
+- [ ] Production schemas tested
 
 ### Phase 4 Complete When:
-- [ ] Constraints display professionally
-- [ ] Labels are polished
-- [ ] Documentation complete
-- [ ] Performance verified
+- [ ] Constraints display professionally formatted
+- [ ] Nested field labels polished (proper acronyms)
+- [ ] Documentation complete and accurate
+- [ ] No console errors/warnings
 - [ ] Production ready
 
 ### Overall Success:
 - [ ] Works with Starlight schemas
 - [ ] Works with complex blog schemas
-- [ ] No console errors/warnings
 - [ ] UI is polished and intuitive
 - [ ] Backward compatible (Zod fallback works)
 - [ ] Well tested and documented
 
 ---
 
-## Estimated Effort
+## Scope Boundaries
 
-- **Phase 1:** 4-6 hours (critical foundation)
-- **Phase 2:** 3-4 hours (enhancements)
-- **Phase 3:** Variable (user testing + iteration)
-- **Phase 4:** 2-3 hours (polish)
+**In Scope:**
+- ✅ Type unification
+- 🔄 Reference support (collection name extraction pending)
+- ✅ Nested object flattening
+- ✅ Array handling (strings, numbers, complex)
+- ✅ Enums, literals, primitives
 
-**Total:** ~11-16 hours focused development + testing iteration cycles
-
----
-
-## Next Steps
-
-1. ✅ Review this plan
-2. ⏸️  Begin Phase 1.1 (audit)
-3. ⏸️  Implement Phase 1.2-1.6 (type unification)
-4. ⏸️  Verify Phase 1 complete
-5. ⏸️  Implement Phase 2 (enhanced fields)
-6. ⏸️  User performs Phase 3 testing
-7. ⏸️  Iterate based on feedback
-8. ⏸️  Implement Phase 4 (polish)
-9. ⏸️  Final verification
-10. ⏸️ Ship to production
+**Out of Scope (Future):**
+- ❌ Reference autocomplete with fuzzy search
+- ❌ Visual object array editor
+- ❌ Discriminated union form builder
+- ❌ Custom validation UI
+- ❌ Transform/refine indication
 
 ---
 
----
+## Implementation Plan (Detailed)
 
-## Phase 2 Implementation Status (2025-10-07)
+### Current State Analysis
 
-### ✅ Completed
-
-**Stage 2.1: Nested Object Support**
-- Added `isNested`, `parentPath`, `nestedFields` to SchemaField interface
-- Updated `parseJsonSchema.ts` to flatten nested objects with dot notation
-- Implemented visual grouping in FrontmatterPanel (section header + left border + indent)
-- Created helper functions in editorStore: `setNestedValue`, `getNestedValue`, `deleteNestedValue`
-- Updated all 7 field components to use `getNestedValue`
-
-**Stage 2.2: Single Reference Fields**
-- Added `reference` property to SchemaField
-- Updated parseJsonSchema to detect and extract collection names from reference patterns
-- Created ReferenceField.tsx using shadcn Combobox (Command + Popover)
-- Loads referenced collection files via TanStack Query
-- Displays titles from frontmatter, stores slugs
-- Updated FrontmatterField router
-
-**Stage 2.3: Array Reference Fields**
-- Added `subReference` property to SchemaField for array items
-- Updated parser to detect `array(reference('collection'))`
-- Enhanced ReferenceField with multi-select mode (badge display, keep-open behavior)
-- Updated FrontmatterField router with proper detection
-
-**Stage 2.4: Enhanced Array Support**
-- Updated ArrayField to handle number arrays (auto-conversion between numbers and strings)
-- Created YamlField.tsx for complex array types (JSON textarea with validation)
-- Updated FrontmatterField routing: array references → complex arrays → string/number arrays
-
-**TypeScript Compilation:** ✅ All code compiles successfully
-
----
-
-## 🐛 Issue Discovered During Testing (2025-10-07)
-
-### Problem: Reference Fields Not Loading Options
-
-**Symptoms:**
-- Reference field shows empty dropdown
-- No items found when clicking field
-- Collection name is correct in schema: `primaryAuthor: reference('authors')`
-- Authors collection exists and has files
-- No console errors logged
-
-**Schema Structure (Astro JSON Schema):**
-```json
-"primaryAuthor": {
-  "anyOf": [
-    {
-      "type": "string"
-    },
-    {
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "collection": { "type": "string" }
-      },
-      "required": ["id", "collection"],
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "properties": {
-        "slug": { "type": "string" },
-        "collection": { "type": "string" }
-      },
-      "required": ["slug", "collection"],
-      "additionalProperties": false
-    }
-  ]
+**1. Hybrid Schema Parsing (FrontmatterPanel.tsx):**
+```typescript
+// Current: Either/or approach
+if (json_schema) {
+  return parseJsonSchema(json_schema)  // ← Missing reference collection names
+}
+if (schema) {
+  return parseSchemaJson(schema)  // ← Has collection names but less reliable
 }
 ```
 
-**Root Cause Analysis Needed:**
+**Issue:** No combination of both. JSON schema detects references but lacks collection names.
 
-The `collection` property in the JSON schema is `{ "type": "string" }` without a `const` value. This means:
-- Astro's JSON schema generation doesn't preserve `reference('authors')` collection name
-- Our parser's `extractReferenceInfo()` function looks for `collection.const` but finds nothing
-- Result: `referencedCollection = undefined`
+**2. Reference Format in Frontmatter:**
 
-**Questions for Next Session:**
+Astro uses simple string IDs (confirmed working in dev server):
+```yaml
+# Single reference
+author: danny-smith
 
-1. **Check full schema definition:**
-   - Is there a `const` value for collection ANYWHERE in the `primaryAuthor` field definition?
-   - Paste the complete `definitions.blog` object to see if collection name is preserved elsewhere
+# Array reference
+relatedArticles: [first-article, comprehensive-markdown-test]
+```
 
-2. **Alternative schema sources:**
-   - Does the Zod schema preserve the collection name in a parseable way?
-   - Could we add a fallback to parse the raw `src/content/config.ts` file?
+Our store already handles this correctly:
+- Single: `updateFrontmatterField('author', 'danny-smith')`
+- Array: `updateFrontmatterField('relatedArticles', ['first-article', 'other-article'])`
+- Nested: `updateFrontmatterField('seo.author', 'danny-smith')` → converts to `{ seo: { author: 'danny-smith' } }`
 
-3. **Potential solutions:**
-   - Parse collection name from Zod schema as fallback (`/reference\('([^']+)'\)/`)
-   - Store collection mappings in generated schema metadata
-   - Add field descriptions that include collection name
-   - Different schema generation approach that preserves references
+**3. Display Strategy Issues:**
 
-**Debugging Added:**
-- Added console logging to ReferenceField showing:
-  - What collection name it's looking for
-  - What collections are available
-  - Whether collection was found
-- Added better empty state messaging in dropdown
+Current ReferenceField (lines 69-74):
+```typescript
+const title =
+  (file.frontmatter?.title as string | undefined) ||
+  (file.frontmatter?.name as string | undefined) ||
+  file.name
+```
 
-**Next Steps:**
-1. User to check browser console for debug logs
-2. User to paste full schema definition for `primaryAuthor` field
-3. Investigate if Zod schema has the collection name
-4. Implement fix based on findings
+**Problem:** Assumes glob collections with `frontmatter` property. File-based collections (like authors.json) have data at root level.
+
+**4. Fields Without Schema:**
+
+Lines 113-142 in FrontmatterPanel show we render frontmatter fields even without schema. If `author` exists in frontmatter but not in schema, it renders as StringField. This is correct behavior - no special reference handling without schema metadata.
+
+### Implementation Steps
+
+#### Step 1: Create Zod Reference Parser (New File)
+
+**File:** `src/lib/parseZodReferences.ts`
+
+```typescript
+/**
+ * Parse Zod schema string to extract reference field mappings
+ *
+ * Handles:
+ * - Single references: author: reference('authors')
+ * - Array references: relatedPosts: z.array(reference('posts'))
+ * - Nested references: seo: z.object({ author: reference('authors') })
+ */
+
+export interface ReferenceMapping {
+  fieldPath: string      // e.g., 'author' or 'seo.author'
+  collectionName: string // e.g., 'authors'
+  isArray: boolean       // true for array references
+}
+
+export function parseZodSchemaReferences(
+  zodSchema: string
+): ReferenceMapping[] {
+  const references: ReferenceMapping[] = []
+
+  // Pattern 1: Simple reference - author: reference('authors')
+  const singleRefRegex = /(\w+):\s*reference\(['"]([^'"]+)['"]\)/g
+
+  // Pattern 2: Array reference - posts: z.array(reference('posts'))
+  const arrayRefRegex = /(\w+):\s*z\.array\(reference\(['"]([^'"]+)['"]\)\)/g
+
+  let match
+
+  // Extract array references first (more specific pattern)
+  while ((match = arrayRefRegex.exec(zodSchema)) !== null) {
+    references.push({
+      fieldPath: match[1]!,
+      collectionName: match[2]!,
+      isArray: true,
+    })
+  }
+
+  // Extract single references (skip if already found as array)
+  const arrayFields = new Set(references.map(r => r.fieldPath))
+  while ((match = singleRefRegex.exec(zodSchema)) !== null) {
+    const fieldPath = match[1]!
+    if (!arrayFields.has(fieldPath)) {
+      references.push({
+        fieldPath,
+        collectionName: match[2]!,
+        isArray: false,
+      })
+    }
+  }
+
+  return references
+}
+```
+
+**Limitation:** This won't handle nested references (seo.author) in the initial implementation. The Zod schema string doesn't preserve deep nesting paths in a parseable way. We'll handle top-level references only for Phase 3.
+
+#### Step 2: Simplify JSON Schema Parser
+
+**File:** `src/lib/parseJsonSchema.ts` (Line ~300-323)
+
+**Why:** Current code tries to extract `collectionName` from `props.collection.const`, but this is always `undefined` (Astro doesn't preserve it). This adds dead code complexity.
+
+**Change:** Remove the collectionName extraction logic entirely:
+
+```typescript
+function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
+  isReference: boolean
+} {
+  for (const s of anyOfArray) {
+    const props = s.properties
+    if (
+      s.type === 'object' &&
+      props?.collection !== undefined &&
+      (props?.id !== undefined || props?.slug !== undefined)
+    ) {
+      // We know it's a reference, collection name will come from Zod
+      return { isReference: true }
+    }
+  }
+  return { isReference: false }
+}
+```
+
+**Result:** Simpler return type, removes dead code. Collection name will come from Zod parsing in Step 3.
+
+#### Step 3: Enhance FrontmatterPanel with Hybrid Approach
+
+**File:** `src/components/frontmatter/FrontmatterPanel.tsx` (Lines 32-73)
+
+Replace the either/or logic with hybrid combination:
+
+```typescript
+const schema = React.useMemo(() => {
+  if (!currentCollection) return null
+
+  // Try JSON schema first (best for structure)
+  if (currentCollection.json_schema) {
+    const parsed = parseJsonSchema(currentCollection.json_schema)
+
+    if (parsed) {
+      // Enhance with Zod reference metadata if available
+      if (currentCollection.schema) {
+        const zodRefs = parseZodSchemaReferences(currentCollection.schema)
+
+        // Apply collection names to reference fields
+        parsed.fields.forEach(field => {
+          const refMapping = zodRefs.find(r => r.fieldPath === field.name)
+
+          if (refMapping) {
+            if (refMapping.isArray && field.type === FieldType.Array) {
+              // Array reference
+              field.subReference = refMapping.collectionName
+            } else if (!refMapping.isArray && field.type === FieldType.Reference) {
+              // Single reference
+              field.reference = refMapping.collectionName
+            }
+          }
+        })
+      }
+
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Schema] Using JSON schema with Zod enhancements for: ${currentCollection.name}`
+        )
+      }
+
+      return parsed
+    }
+
+    // JSON parsing failed, log warning
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[Schema] JSON schema parsing failed for ${currentCollection.name}, falling back to Zod`
+      )
+    }
+  }
+
+  // Fallback: Zod-only parsing
+  if (currentCollection.schema) {
+    const parsed = parseSchemaJson(currentCollection.schema)
+    if (parsed) {
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Schema] Using Zod schema (fallback) for: ${currentCollection.name}`
+        )
+      }
+      return parsed
+    }
+  }
+
+  return null
+}, [currentCollection])
+```
+
+#### Step 4: Improve ReferenceField Display Logic
+
+**File:** `src/components/frontmatter/fields/ReferenceField.tsx` (Lines 66-81)
+
+**Why:** Current code only tries `title` and `name`. Need to try more common fields before falling back to filename.
+
+**Display priority order:**
+1. `title` - most common display field
+2. `name` - second most common
+3. `slug` - good for URL-based IDs
+4. `id` property - explicit identifier
+5. `file.id` - always exists (slug/id)
+6. `file.name` - filename as final fallback
+
+```typescript
+const options: ReferenceOption[] = React.useMemo(() => {
+  if (!files) return []
+
+  return files.map(file => {
+    // Try common display fields in priority order
+    // Don't search for "any string" - could grab description/bio
+
+    const label =
+      // Try frontmatter (glob collections)
+      (file.frontmatter?.title as string | undefined) ||
+      (file.frontmatter?.name as string | undefined) ||
+      (file.frontmatter?.slug as string | undefined) ||
+      // Try data property (file collections)
+      (file.data?.title as string | undefined) ||
+      (file.data?.name as string | undefined) ||
+      (file.data?.slug as string | undefined) ||
+      // Try root properties
+      (file.title as string | undefined) ||
+      (file.slug as string | undefined) ||
+      // Final fallbacks
+      file.id ||        // ID always exists
+      file.name ||      // Filename
+      'Untitled'
+
+    return {
+      value: file.id,   // Always use ID for the value
+      label,
+    }
+  })
+}, [files])
+```
+
+**Note:** We'll discover the actual structure of file-based collections during Step 5 testing and adjust the fallback chain if needed.
+
+#### Step 5: Verify Backend Support
+
+**Action:** Check if `useCollectionFilesQuery` works for file-based collections.
+
+The authors collection uses `file()` loader. Backend needs to:
+1. Detect file-based collections
+2. Load and parse JSON
+3. Return entries in same format as glob collections
+
+**If backend doesn't support file collections yet:**
+- Add to Rust backend to handle `file()` loader
+- Parse JSON and return entries with proper structure
+
+#### Step 6: Testing Checklist
+
+1. **Author dropdown (single reference):**
+   - [ ] Dropdown shows "Danny Smith", "Jane Doe", "John Developer"
+   - [ ] Selecting stores ID: `author: danny-smith`
+   - [ ] Display shows selected author name
+
+2. **Related Articles (array reference):**
+   - [ ] Dropdown shows article titles
+   - [ ] Multi-select works with badges
+   - [ ] Stores as array: `relatedArticles: [first-article, ...]`
+   - [ ] Respects max constraint (3 items)
+
+3. **Frontmatter without schema:**
+   - [ ] `author: some-value` without schema → renders as StringField
+   - [ ] No reference behavior without schema ✅
+
+4. **Hybrid parsing:**
+   - [ ] JSON schema + Zod works (reference collection names extracted)
+   - [ ] Zod-only fallback works
+   - [ ] Console logs show which approach used
+
+### Edge Cases & Limitations
+
+**Handled in Phase 3:**
+- ✅ Top-level single references
+- ✅ Top-level array references
+- ✅ Self-references (articles → articles)
+- ✅ File-based collections (authors.json)
+- ✅ Fields without schema
+
+**Out of Scope (Future):**
+- ❌ Nested references (seo.author: reference('authors'))
+  - Zod regex can't reliably track nesting context
+  - Would need more sophisticated AST parsing
+  - Not a common pattern in Astro sites
+
+- ❌ References in array of objects
+  - Example: `links: z.array(z.object({ author: reference('authors') }))`
+  - Too complex for regex parsing
+  - Will render as YamlField (JSON textarea)
+
+### File-Based Collection Display Strategy
+
+**Problem:** We don't know what fields will be in different collections (authors might have `name`, posts might have `title`).
+
+**Solution:** Try common display fields in priority order, but DON'T search for "any string property" (could grab description/bio).
+
+**Fallback hierarchy:**
+1. `title` - most common
+2. `name` - second most common
+3. `slug` - URL-based identifiers
+4. `id` property - explicit identifier
+5. `file.id` - always exists (slug/id)
+6. `file.name` - filename as final fallback
+
+**Try these in multiple locations:**
+- `frontmatter.*` (glob collections)
+- `data.*` (file collections - if backend exposes this way)
+- Direct properties (varies by backend implementation)
+
+**Accept limitation:** Sometimes we'll show IDs or filenames. That's okay - better than crashing or showing a long description field.
+
+### Success Criteria for This Implementation
+
+- [ ] Hybrid parsing works (JSON + Zod combination)
+- [ ] Dropdown shows best available label (title, name, slug, or ID/filename as fallback)
+- [ ] Related Articles multi-select populates and works correctly
+- [ ] Selecting values stores correct IDs/slugs in frontmatter as simple strings/arrays
+- [ ] Multi-select works for array references with badge display
+- [ ] Fields without schema continue to work as StringField (no regression)
+- [ ] All non-reference fields continue working unchanged
+- [ ] Console logs show which parsing approach was used (hybrid vs fallback)
 
 ---
 
-**Last Updated:** 2025-10-07
-**Document Version:** 1.1 (Added Phase 2 completion + reference field issue)
+**Last Updated:** 2025-10-09
+**Next Action:** Begin Step 1 - Create Zod reference parser

@@ -203,11 +203,10 @@ function determineFieldType(fieldSchema: JsonSchemaProperty): {
     }
     const refInfo = extractReferenceInfo(fieldSchema.anyOf)
     if (refInfo.isReference) {
+      // Reference detected, but collection name will be added from Zod schema
       return {
         type: FieldType.Reference,
-        reference: refInfo.collectionName,
-        // Keep referenceCollection for backwards compatibility
-        referenceCollection: refInfo.collectionName,
+        // reference and referenceCollection will be set by hybrid parser
       }
     }
     // Other unions - treat as string for V1
@@ -237,12 +236,13 @@ function determineFieldType(fieldSchema: JsonSchemaProperty): {
     if (itemsSchema) {
       const itemType = determineFieldType(itemsSchema)
 
-      // If array items are references, capture the collection name in subReference
-      if (itemType.type === FieldType.Reference && itemType.reference) {
+      // If array items are references, mark as array of references
+      // The collection name will be added from Zod schema by hybrid parser
+      if (itemType.type === FieldType.Reference) {
         return {
           type: FieldType.Array,
           subType: itemType.type,
-          subReference: itemType.reference,
+          // subReference will be set by hybrid parser
         }
       }
 
@@ -297,11 +297,14 @@ function isDateField(anyOfArray: JsonSchemaProperty[]): boolean {
 }
 
 /**
- * Check if anyOf represents a reference field and extract collection name
+ * Check if anyOf represents a reference field
+ *
+ * Note: This only detects if a field IS a reference based on the anyOf pattern.
+ * The collection name must be extracted from the Zod schema since Astro's
+ * JSON schema doesn't preserve it in the collection.const value.
  */
 function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
   isReference: boolean
-  collectionName?: string
 } {
   for (const s of anyOfArray) {
     const props = s.properties
@@ -310,13 +313,8 @@ function extractReferenceInfo(anyOfArray: JsonSchemaProperty[]): {
       props?.collection !== undefined &&
       (props?.id !== undefined || props?.slug !== undefined)
     ) {
-      // Extract collection name from const
-      const collectionName =
-        typeof props.collection === 'object' && 'const' in props.collection
-          ? (props.collection.const as string)
-          : undefined
-
-      return { isReference: true, collectionName }
+      // We know it's a reference, but collection name will come from Zod schema
+      return { isReference: true }
     }
   }
   return { isReference: false }

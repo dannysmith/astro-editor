@@ -12,6 +12,8 @@ interface ZodField {
   arrayType?: ZodFieldType // For array fields
   unionTypes?: Array<ZodFieldType | { type: 'Literal'; value: string }> // For union fields
   literalValue?: string // For literal fields
+  referencedCollection?: string // For reference fields
+  arrayReferenceCollection?: string // For array of references
 }
 
 interface ZodFieldConstraints {
@@ -57,6 +59,7 @@ type ZodFieldType =
   | 'Union'
   | 'Literal'
   | 'Object'
+  | 'Reference'
   | 'Unknown'
 
 // New JSON Schema-based interfaces
@@ -128,6 +131,8 @@ interface ParsedSchemaJson {
     arrayType?: string // For array fields
     unionTypes?: Array<string | { type: 'Literal'; value: string }> // For union fields
     literalValue?: string // For literal fields
+    referencedCollection?: string // For reference fields
+    arrayReferenceCollection?: string // For array of references
   }>
 }
 
@@ -145,6 +150,7 @@ function zodFieldTypeToFieldType(zodType: ZodFieldType): FieldType {
     Union: FieldType.String, // Fallback for V1
     Literal: FieldType.String, // Render as readonly string
     Object: FieldType.Unknown,
+    Reference: FieldType.Reference,
     Unknown: FieldType.Unknown,
   }
   return typeMap[zodType] || FieldType.Unknown
@@ -200,6 +206,14 @@ function zodFieldToSchemaField(zodField: ZodField): SchemaField {
     ...(zodField.arrayType && {
       subType: zodFieldTypeToFieldType(zodField.arrayType),
     }),
+    // Reference fields
+    ...(zodField.referencedCollection && {
+      reference: zodField.referencedCollection,
+      referenceCollection: zodField.referencedCollection, // backwards compat
+    }),
+    ...(zodField.arrayReferenceCollection && {
+      subReference: zodField.arrayReferenceCollection,
+    }),
   }
 }
 
@@ -238,6 +252,12 @@ export function parseSchemaJson(
       }),
       ...(field.literalValue !== undefined && {
         literalValue: field.literalValue,
+      }),
+      ...(field.referencedCollection !== undefined && {
+        referencedCollection: field.referencedCollection,
+      }),
+      ...(field.arrayReferenceCollection !== undefined && {
+        arrayReferenceCollection: field.arrayReferenceCollection,
       }),
     }))
 

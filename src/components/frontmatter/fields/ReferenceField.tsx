@@ -67,15 +67,21 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     if (!files) return []
 
     return files.map(file => {
-      // Try to get title from frontmatter, fallback to file name
-      const title =
+      // Try common display fields in priority order
+      // Don't search for "any string" - could grab description/bio
+      const label =
+        // Try frontmatter properties (works for both glob and file collections)
         (file.frontmatter?.title as string | undefined) ||
         (file.frontmatter?.name as string | undefined) ||
-        file.name
+        (file.frontmatter?.slug as string | undefined) ||
+        // Final fallbacks - FileEntry properties
+        file.id || // ID always exists
+        file.name || // Filename always exists
+        'Untitled'
 
       return {
-        value: file.id, // Use file id (slug)
-        label: title,
+        value: file.id, // Always use ID for the value
+        label,
       }
     })
   }, [files])
