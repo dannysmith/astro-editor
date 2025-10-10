@@ -178,6 +178,7 @@ version = "0.1.24"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
+ "indexmap 2.11.4",
  "log",
  "notify",
  "regex",

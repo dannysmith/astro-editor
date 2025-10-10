@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react'
 import { FrontmatterField } from './FrontmatterField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
-import type { ZodField } from '../../../lib/schema'
+import { FieldType, type SchemaField } from '../../../lib/schema'
 
 // Mock the project registry utils
 vi.mock('../../../../lib/project-registry/effective-settings', () => ({
@@ -25,10 +25,11 @@ describe('FrontmatterField Orchestrator', () => {
 
   describe('Field Type Selection Logic', () => {
     it('should render BooleanField for Boolean schema type', () => {
-      const booleanField: ZodField = {
+      const booleanField: SchemaField = {
         name: 'draft',
-        type: 'Boolean',
-        optional: true,
+        label: 'Draft',
+        type: FieldType.Boolean,
+        required: false,
       }
 
       renderWithProviders(
@@ -39,10 +40,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should render BooleanField for checkbox input type', () => {
-      const checkboxField: ZodField = {
+      const checkboxField: SchemaField = {
         name: 'published',
-        type: 'Boolean',
-        optional: false,
+        label: 'Published',
+        type: FieldType.Boolean,
+        required: true,
       }
 
       renderWithProviders(
@@ -57,10 +59,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should render NumberField for Number schema type', () => {
-      const numberField: ZodField = {
+      const numberField: SchemaField = {
         name: 'rating',
-        type: 'Number',
-        optional: true,
+        label: 'Rating',
+        type: FieldType.Number,
+        required: false,
       }
 
       renderWithProviders(
@@ -71,10 +74,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should render DateField for Date schema type', () => {
-      const dateField: ZodField = {
+      const dateField: SchemaField = {
         name: 'publishDate',
-        type: 'Date',
-        optional: true,
+        label: 'Publish Date',
+        type: FieldType.Date,
+        required: false,
       }
 
       renderWithProviders(
@@ -89,11 +93,12 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should render EnumField for Enum schema type with options', () => {
-      const enumField: ZodField = {
+      const enumField: SchemaField = {
         name: 'status',
-        type: 'Enum',
-        optional: false,
-        options: ['draft', 'published', 'archived'],
+        label: 'Status',
+        type: FieldType.Enum,
+        required: true,
+        enumValues: ['draft', 'published', 'archived'],
       }
 
       renderWithProviders(
@@ -104,10 +109,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should render ArrayField for Array schema type', () => {
-      const arrayField: ZodField = {
+      const arrayField: SchemaField = {
         name: 'tags',
-        type: 'Array',
-        optional: true,
+        label: 'Tags',
+        type: FieldType.Array,
+        required: false,
       }
 
       renderWithProviders(
@@ -189,10 +195,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should override schema type for title mapping', () => {
-      const stringField: ZodField = {
+      const stringField: SchemaField = {
         name: 'title',
-        type: 'String',
-        optional: false,
+        label: 'Title',
+        type: FieldType.String,
+        required: true,
       }
 
       renderWithProviders(
@@ -206,10 +213,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should override schema type for description mapping', () => {
-      const stringField: ZodField = {
+      const stringField: SchemaField = {
         name: 'description',
-        type: 'String',
-        optional: true,
+        label: 'Description',
+        type: FieldType.String,
+        required: false,
       }
 
       renderWithProviders(
@@ -227,10 +235,11 @@ describe('FrontmatterField Orchestrator', () => {
 
   describe('Required Field Handling', () => {
     it('should pass required=true for non-optional schema fields', () => {
-      const requiredField: ZodField = {
+      const requiredField: SchemaField = {
         name: 'title',
-        type: 'String',
-        optional: false,
+        label: 'Title',
+        type: FieldType.String,
+        required: true,
       }
 
       renderWithProviders(
@@ -241,10 +250,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should pass required=false for optional schema fields', () => {
-      const optionalField: ZodField = {
+      const optionalField: SchemaField = {
         name: 'description',
-        type: 'String',
-        optional: true,
+        label: 'Description',
+        type: FieldType.String,
+        required: false,
       }
 
       renderWithProviders(
@@ -269,10 +279,11 @@ describe('FrontmatterField Orchestrator', () => {
 
   describe('Complex Branching Logic', () => {
     it('should prioritize Array schema type over frontmatter array detection', () => {
-      const arrayField: ZodField = {
+      const arrayField: SchemaField = {
         name: 'tags',
-        type: 'Array',
-        optional: true,
+        label: 'Tags',
+        type: FieldType.Array,
+        required: false,
       }
 
       useEditorStore.setState({
@@ -288,10 +299,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should prioritize Boolean schema type over input type detection', () => {
-      const booleanField: ZodField = {
+      const booleanField: SchemaField = {
         name: 'flag',
-        type: 'Boolean',
-        optional: true,
+        label: 'Flag',
+        type: FieldType.Boolean,
+        required: false,
       }
 
       renderWithProviders(
@@ -319,11 +331,12 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should handle enum field without options gracefully', () => {
-      const enumFieldNoOptions: ZodField = {
+      const enumFieldNoOptions: SchemaField = {
         name: 'status',
-        type: 'Enum',
-        optional: true,
-        // Missing options property
+        label: 'Status',
+        type: FieldType.Enum,
+        required: false,
+        // Missing enumValues property
       }
 
       renderWithProviders(
@@ -339,11 +352,12 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should handle input type fallback chain', () => {
-      // Test the getInputTypeForZodField fallback
-      const unknownField: ZodField = {
+      // Test the fallback for Unknown type
+      const unknownField: SchemaField = {
         name: 'unknown',
-        type: 'Unknown',
-        optional: true,
+        label: 'Unknown',
+        type: FieldType.Unknown,
+        required: false,
       }
 
       renderWithProviders(
@@ -366,10 +380,11 @@ describe('FrontmatterField Orchestrator', () => {
     })
 
     it('should handle field with all optional properties undefined', () => {
-      const minimalField: ZodField = {
+      const minimalField: SchemaField = {
         name: 'minimal',
-        type: 'String',
-        optional: true,
+        label: 'Minimal',
+        type: FieldType.String,
+        required: false,
       }
 
       renderWithProviders(

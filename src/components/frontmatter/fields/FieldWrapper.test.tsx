@@ -50,10 +50,10 @@ describe('FieldWrapper', () => {
         </FieldWrapper>
       )
 
-      const wrapper = container.firstChild as HTMLElement
-      expect(
-        wrapper.querySelector('.flex.items-center.justify-between')
-      ).toBeInTheDocument()
+      // Check that the Field has horizontal orientation
+      const field = container.querySelector('[data-orientation="horizontal"]')
+      expect(field).toBeInTheDocument()
+      expect(screen.getByTestId('toggle')).toBeInTheDocument()
     })
   })
 

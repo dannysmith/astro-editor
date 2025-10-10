@@ -15,5 +15,12 @@ export const queryKeys = {
       'mdxComponents',
       mdxDirectory || 'default',
     ] as const,
+  fileBasedCollection: (projectPath: string, collectionName: string) =>
+    [
+      ...queryKeys.all,
+      projectPath,
+      'fileBasedCollection',
+      collectionName,
+    ] as const,
   // Add more keys here as needed
 }

@@ -50,6 +50,7 @@ pub enum ZodFieldType {
     Union(Vec<ZodFieldType>),
     Literal(String),
     Object(Vec<ZodField>),
+    Reference(String), // Stores the collection name
     Unknown,
 }
 
@@ -234,6 +235,21 @@ fn extract_collections_block(content: &str) -> Option<String> {
     None
 }
 
+/// Detect if a collection uses a file-based loader (should be excluded from main collections list)
+fn is_file_based_collection(full_content: &str, collection_name: &str) -> bool {
+    // Look for: const/let/var collectionName = defineCollection({ loader: file(...)
+    // or: collectionName: defineCollection({ loader: file(...)
+    // Handles exported variables too: export const collectionName = defineCollection...
+    let file_loader_pattern = format!(
+        r"(?:(?:const|let|var)\s+)?{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\("
+    );
+    if let Ok(file_loader_re) = Regex::new(&file_loader_pattern) {
+        file_loader_re.is_match(full_content)
+    } else {
+        false
+    }
+}
+
 fn parse_collection_definitions(
     collections_block: &str,
     content_dir: &Path,
@@ -255,14 +271,18 @@ fn parse_collection_definitions(
             for name in names_str.split(',') {
                 let collection_name = name.trim();
 
+                // Skip file-based collections - they should only be used for references
+                if is_file_based_collection(full_content, collection_name) {
+                    continue;
+                }
+
+                // Only include directory-based collections
                 let collection_path = content_dir.join(collection_name);
 
-                // Only include collections that have actual directories
                 if collection_path.exists() && collection_path.is_dir() {
                     let mut collection =
                         Collection::new(collection_name.to_string(), collection_path);
 
-                    // For new format, we need to look in the full content for the schema
                     if let Some(schema) = extract_basic_schema(full_content, collection_name) {
                         collection.schema = Some(schema);
                     }
@@ -277,13 +297,18 @@ fn parse_collection_definitions(
 
         for cap in collection_re.captures_iter(collections_block) {
             let collection_name = cap.get(1).unwrap().as_str();
+
+            // Skip file-based collections - they should only be used for references
+            if is_file_based_collection(full_content, collection_name) {
+                continue;
+            }
+
+            // Only include directory-based collections
             let collection_path = content_dir.join(collection_name);
 
-            // Only include collections that have actual directories
             if collection_path.exists() && collection_path.is_dir() {
                 let mut collection = Collection::new(collection_name.to_string(), collection_path);
 
-                // Try to extract schema information (simplified)
                 if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
                     collection.schema = Some(schema);
                 }
@@ -464,6 +489,7 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
                         ZodFieldType::Union(_) => "Union".to_string(),
                         ZodFieldType::Literal(_) => "Literal".to_string(),
                         ZodFieldType::Object(_) => "Object".to_string(),
+                        ZodFieldType::Reference(_) => "Reference".to_string(),
                         ZodFieldType::String => "String".to_string(),
                         ZodFieldType::Number => "Number".to_string(),
                         ZodFieldType::Boolean => "Boolean".to_string(),
@@ -480,14 +506,22 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
                     ZodFieldType::Enum(options) => {
                         field_json["options"] = serde_json::json!(options);
                     }
+                    ZodFieldType::Reference(collection_name) => {
+                        field_json["referencedCollection"] = serde_json::json!(collection_name);
+                    }
                     ZodFieldType::Array(inner_type) => {
                         field_json["arrayType"] = serde_json::json!(match **inner_type {
                             ZodFieldType::String => "String",
                             ZodFieldType::Number => "Number",
                             ZodFieldType::Boolean => "Boolean",
                             ZodFieldType::Date => "Date",
+                            ZodFieldType::Reference(_) => "Reference",
                             _ => "Unknown",
                         });
+                        // If array contains references, include the collection name
+                        if let ZodFieldType::Reference(collection_name) = &**inner_type {
+                            field_json["arrayReferenceCollection"] = serde_json::json!(collection_name);
+                        }
                     }
                     ZodFieldType::Union(types) => {
                         field_json["unionTypes"] = serde_json::json!(
@@ -596,7 +630,11 @@ fn parse_field_type_and_constraints(field_definition: &str) -> (ZodFieldType, Zo
     }
 
     // Determine base field type (order matters - check most specific first)
-    let field_type = if normalized.contains("z.array(") {
+    let field_type = if normalized.contains("reference(") {
+        // Extract collection name from reference('collectionName')
+        let collection_name = extract_reference_collection(&normalized);
+        ZodFieldType::Reference(collection_name)
+    } else if normalized.contains("z.array(") {
         // Extract array element type
         let inner_type = extract_array_inner_type(&normalized);
         ZodFieldType::Array(Box::new(inner_type))
@@ -680,14 +718,28 @@ fn extract_optional_inner_type(field_definition: &str) -> (ZodFieldType, ZodFiel
     }
 }
 
+fn extract_reference_collection(field_definition: &str) -> String {
+    // Extract collection name from reference('collectionName') or reference("collectionName")
+    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+
+    if let Some(cap) = reference_re.captures(field_definition) {
+        cap.get(1).unwrap().as_str().to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
 fn extract_array_inner_type(field_definition: &str) -> ZodFieldType {
-    // Extract type from z.array(z.string()) or z.array(z.number())
+    // Extract type from z.array(z.string()) or z.array(reference('posts'))
     let array_re = Regex::new(r"z\.array\s*\(\s*([^)]+)\s*\)").unwrap();
 
     if let Some(cap) = array_re.captures(field_definition) {
         let inner_def = cap.get(1).unwrap().as_str();
 
-        if inner_def.contains("z.string") {
+        if inner_def.contains("reference(") {
+            let collection_name = extract_reference_collection(inner_def);
+            ZodFieldType::Reference(collection_name)
+        } else if inner_def.contains("z.string") {
             ZodFieldType::String
         } else if inner_def.contains("z.number") {
             ZodFieldType::Number

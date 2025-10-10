@@ -2,17 +2,14 @@ import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { parseSchemaJson } from '../../lib/schema'
-import { parseJsonSchema } from '../../lib/parseJsonSchema'
+import { deserializeCompleteSchema } from '../../lib/schema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
-import type { SchemaField } from '../../lib/schema'
 
 interface Collection {
   name: string
   path: string
-  schema?: string
-  json_schema?: string
+  complete_schema?: string
 }
 
 export const FrontmatterPanel: React.FC = () => {
@@ -30,59 +27,20 @@ export const FrontmatterPanel: React.FC = () => {
     ? collections.find(c => c.name === currentFile.collection) || null
     : null
 
-  // Try JSON schema first, fall back to Zod schema
+  // Get schema from Rust backend
   const schema = React.useMemo(() => {
-    if (!currentCollection) return null
+    if (!currentCollection?.complete_schema) return null
 
-    // Primary: Try Astro-generated JSON schema
-    if (currentCollection.json_schema) {
-      const parsed = parseJsonSchema(currentCollection.json_schema)
-      if (parsed) {
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[Schema] Using JSON schema for collection: ${currentCollection.name}`
-          )
-        }
-        return parsed
-      }
-      // Log fallback in dev mode
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[Schema] JSON schema parsing failed for ${currentCollection.name}, falling back to Zod`
-        )
-      }
+    const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
+
+    if (import.meta.env.DEV && parsed) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[Schema] Loaded complete schema for: ${parsed.collectionName}`
+      )
     }
 
-    // Fallback: Use Zod schema
-    if (currentCollection.schema) {
-      const parsed = parseSchemaJson(currentCollection.schema)
-      if (parsed) {
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[Schema] Using Zod schema (fallback) for collection: ${currentCollection.name}`
-          )
-        }
-        // Convert Zod fields to SchemaField format for compatibility
-        return {
-          fields: parsed.fields.map(
-            field =>
-              ({
-                name: field.name,
-                label: camelCaseToTitleCase(field.name),
-                type: field.type.toLowerCase(),
-                required: !field.optional,
-                ...(field.options && { enumValues: field.options }),
-                ...(field.default && { default: field.default }),
-              }) as SchemaField
-          ),
-        }
-      }
-    }
-
-    return null
+    return parsed
   }, [currentCollection])
 
   // Listen for schema field order requests from editorStore
@@ -95,8 +53,8 @@ export const FrontmatterPanel: React.FC = () => {
       const requestedCollection = collections.find(
         c => c.name === collectionName
       )
-      const requestedSchema = requestedCollection?.schema
-        ? parseSchemaJson(requestedCollection.schema)
+      const requestedSchema = requestedCollection?.complete_schema
+        ? deserializeCompleteSchema(requestedCollection.complete_schema)
         : null
 
       // Extract field order from schema
@@ -125,12 +83,25 @@ export const FrontmatterPanel: React.FC = () => {
   // Get all fields to display
   const allFields = React.useMemo(() => {
     if (schema) {
+      // Get title field name from settings or default to 'title'
+      const titleFieldName =
+        currentProjectSettings?.frontmatterMappings?.title || 'title'
+
       // Start with all schema fields
       const schemaFields = schema.fields.map(field => ({
         fieldName: field.name,
         schemaField: field,
         value: frontmatter[field.name], // Don't auto-assign defaults that will get saved
       }))
+
+      // Reorder: title field first, then other schema fields in order
+      const titleField = schemaFields.find(f => f.fieldName === titleFieldName)
+      const otherSchemaFields = schemaFields.filter(
+        f => f.fieldName !== titleFieldName
+      )
+      const orderedSchemaFields = titleField
+        ? [titleField, ...otherSchemaFields]
+        : schemaFields
 
       // Add any extra frontmatter fields that aren't in the schema
       const schemaFieldNames = new Set(schema.fields.map(f => f.name))
@@ -143,7 +114,7 @@ export const FrontmatterPanel: React.FC = () => {
           value: frontmatter[fieldName],
         }))
 
-      return [...schemaFields, ...extraFields]
+      return [...orderedSchemaFields, ...extraFields]
     } else {
       // No schema available, just show existing frontmatter fields
       return Object.keys(frontmatter).map(fieldName => ({
@@ -152,7 +123,22 @@ export const FrontmatterPanel: React.FC = () => {
         value: frontmatter[fieldName],
       }))
     }
-  }, [frontmatter, schema])
+  }, [frontmatter, schema, currentProjectSettings])
+
+  // Group fields by parent path for nested object rendering
+  const groupedFields = React.useMemo(() => {
+    const groups: Map<string | null, typeof allFields> = new Map()
+
+    for (const field of allFields) {
+      const parentPath = field.schemaField?.parentPath ?? null
+      if (!groups.has(parentPath)) {
+        groups.set(parentPath, [])
+      }
+      groups.get(parentPath)!.push(field)
+    }
+
+    return groups
+  }, [allFields])
 
   return (
     <div className="h-full flex flex-col">
@@ -160,7 +146,8 @@ export const FrontmatterPanel: React.FC = () => {
         {currentFile ? (
           allFields.length > 0 ? (
             <div className="space-y-6">
-              {allFields.map(({ fieldName, schemaField }) => (
+              {/* Render top-level fields */}
+              {groupedFields.get(null)?.map(({ fieldName, schemaField }) => (
                 <FrontmatterField
                   key={fieldName}
                   name={fieldName}
@@ -168,6 +155,37 @@ export const FrontmatterPanel: React.FC = () => {
                   field={schemaField}
                 />
               ))}
+
+              {/* Render nested field groups */}
+              {Array.from(groupedFields.entries())
+                .filter(([parentPath]) => parentPath !== null)
+                .map(([parentPath, fields]) => (
+                  <div key={parentPath} className="space-y-4">
+                    {/* Parent section header */}
+                    <h3 className="text-sm font-medium text-foreground pt-2">
+                      {camelCaseToTitleCase(
+                        parentPath!.split('.').pop() || parentPath!
+                      )}
+                    </h3>
+
+                    {/* Nested fields with indentation */}
+                    <div className="pl-4 border-l-2 border-border space-y-4">
+                      {fields.map(({ fieldName, schemaField }) => (
+                        <FrontmatterField
+                          key={fieldName}
+                          name={fieldName}
+                          label={
+                            schemaField?.label ||
+                            camelCaseToTitleCase(
+                              fieldName.split('.').pop() || fieldName
+                            )
+                          }
+                          field={schemaField}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
             </div>
           ) : (
             <div className="text-center py-8">

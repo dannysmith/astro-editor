@@ -1,5 +1,5 @@
 ---
-import { getCollection, render } from 'astro:content';
+import { getCollection, render, getEntry } from 'astro:content';
 
 const articles = await getCollection('articles');
 const notes = await getCollection('notes');
@@ -9,6 +9,16 @@ const latestArticle = articles.sort((a, b) =>
 )[0];
 
 const { Content } = await render(latestArticle);
+
+// Get author for latest article
+const latestAuthor = latestArticle.data.author
+  ? await getEntry(latestArticle.data.author)
+  : null;
+
+// Get related articles for latest article
+const relatedArticles = latestArticle.data.relatedArticles
+  ? await Promise.all(latestArticle.data.relatedArticles.map(ref => getEntry(ref)))
+  : [];
 ---
 
 <html lang="en">
@@ -24,9 +34,18 @@ const { Content } = await render(latestArticle);
 
 		<h2>All Articles</h2>
 		<ul>
-			{articles.map(article => (
-				<li>{article.data.title} - {article.data.pubDate.toDateString()}</li>
-			))}
+			{articles.map(async (article) => {
+				const author = article.data.author ? await getEntry(article.data.author) : null;
+				return (
+					<li>
+						{article.data.title} - {article.data.pubDate.toDateString()}
+						{author && <span> by {author.data.name}</span>}
+						{article.data.relatedArticles && article.data.relatedArticles.length > 0 && (
+							<span> ({article.data.relatedArticles.length} related)</span>
+						)}
+					</li>
+				);
+			})}
 		</ul>
 
 		<h2>All Notes</h2>
@@ -38,6 +57,10 @@ const { Content } = await render(latestArticle);
 
 		<h2>Latest Article</h2>
 		<h3>{latestArticle.data.title}</h3>
+		{latestAuthor && <p>By: {latestAuthor.data.name} ({latestAuthor.data.email})</p>}
+		{relatedArticles.length > 0 && (
+			<p>Related articles: {relatedArticles.map(a => a.data.title).join(', ')}</p>
+		)}
 		<Content />
 	</body>
 </html>

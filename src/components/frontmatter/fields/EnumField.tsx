@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import {
   Select,
   SelectContent,
@@ -9,11 +9,11 @@ import {
 } from '../../ui/select'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface EnumFieldProps extends FieldProps {
   options: string[]
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const EnumField: React.FC<EnumFieldProps> = ({
@@ -24,6 +24,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -34,14 +35,10 @@ export const EnumField: React.FC<EnumFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Select
-        value={
-          frontmatter[name] && typeof frontmatter[name] === 'string'
-            ? frontmatter[name]
-            : '__NONE__'
-        }
+        value={value && typeof value === 'string' ? value : '__NONE__'}
         onValueChange={value => {
           // Special sentinel value means clear the field
           const finalValue = value === '__NONE__' ? undefined : value

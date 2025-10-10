@@ -1,14 +1,14 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface NumberFieldProps extends FieldProps {
   placeholder?: string
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({
@@ -19,6 +19,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -29,12 +30,12 @@ export const NumberField: React.FC<NumberFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Input
         type="number"
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => {
           const numValue = e.target.value ? Number(e.target.value) : undefined
           updateFrontmatterField(name, numValue)

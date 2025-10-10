@@ -5,7 +5,7 @@ export type { FileEntry, MarkdownContent } from './editorStore'
 export interface Collection {
   name: string
   path: string
-  schema?: string
+  complete_schema?: string // Complete merged schema from Rust backend
 }
 
 // The monolithic useAppStore has been decomposed into:

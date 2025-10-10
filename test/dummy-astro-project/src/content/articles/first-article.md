@@ -6,6 +6,7 @@ updatedDate: 2024-02-10
 tags: [astro, web-development, javascript]
 platform: medium
 draft: false
+author: danny-smith
 ---
 
 # Getting Started with Astro

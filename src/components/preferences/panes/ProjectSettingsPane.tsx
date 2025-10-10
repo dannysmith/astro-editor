@@ -1,22 +1,14 @@
 import React from 'react'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+  FieldContent,
+} from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
-
-const SettingsField: React.FC<{
-  label: string
-  children: React.ReactNode
-  description?: string
-}> = ({ label, children, description }) => (
-  <div className="space-y-2">
-    <Label className="text-sm font-medium text-foreground">{label}</Label>
-    {children}
-    {description && (
-      <p className="text-sm text-muted-foreground">{description}</p>
-    )}
-  </div>
-)
 
 const SettingsSection: React.FC<{
   title: string
@@ -27,7 +19,7 @@ const SettingsSection: React.FC<{
       <h3 className="text-lg font-medium text-foreground">{title}</h3>
       <Separator className="mt-2" />
     </div>
-    <div className="space-y-4">{children}</div>
+    <FieldGroup>{children}</FieldGroup>
   </div>
 )
 
@@ -50,55 +42,70 @@ export const ProjectSettingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <SettingsSection title="Path Overrides">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground -mt-3 mb-2">
           Override default Astro paths for{' '}
           <span className="font-medium">{projectName}</span>. Paths should be
           relative to the project root.
         </p>
 
-        <SettingsField
-          label="Content Directory"
-          description="Path to Astro content directory (default: src/content/)"
-        >
-          <Input
-            value={
-              currentProjectSettings?.pathOverrides?.contentDirectory || ''
-            }
-            onChange={e =>
-              handlePathOverrideChange('contentDirectory', e.target.value)
-            }
-            placeholder="src/content/"
-          />
-        </SettingsField>
+        <Field>
+          <FieldLabel>Content Directory</FieldLabel>
+          <FieldContent>
+            <Input
+              value={
+                currentProjectSettings?.pathOverrides?.contentDirectory || ''
+              }
+              onChange={e =>
+                handlePathOverrideChange('contentDirectory', e.target.value)
+              }
+              placeholder="src/content/"
+            />
+            <FieldDescription>
+              Path to Astro content directory (default: src/content/)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
-        <SettingsField
-          label="Assets Directory"
-          description="Path to Astro assets directory (default: src/assets/)"
-        >
-          <Input
-            value={currentProjectSettings?.pathOverrides?.assetsDirectory || ''}
-            onChange={e =>
-              handlePathOverrideChange('assetsDirectory', e.target.value)
-            }
-            placeholder="src/assets/"
-          />
-        </SettingsField>
+        <Field>
+          <FieldLabel>Assets Directory</FieldLabel>
+          <FieldContent>
+            <Input
+              value={
+                currentProjectSettings?.pathOverrides?.assetsDirectory || ''
+              }
+              onChange={e =>
+                handlePathOverrideChange('assetsDirectory', e.target.value)
+              }
+              placeholder="src/assets/"
+            />
+            <FieldDescription>
+              Path to Astro assets directory (default: src/assets/)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
 
-        <SettingsField
-          label="MDX Components Directory"
-          description="Path to components for use in MDX files (default: src/components/mdx/)"
-        >
-          <Input
-            value={
-              currentProjectSettings?.pathOverrides?.mdxComponentsDirectory ||
-              ''
-            }
-            onChange={e =>
-              handlePathOverrideChange('mdxComponentsDirectory', e.target.value)
-            }
-            placeholder="src/components/mdx/"
-          />
-        </SettingsField>
+        <Field>
+          <FieldLabel>MDX Components Directory</FieldLabel>
+          <FieldContent>
+            <Input
+              value={
+                currentProjectSettings?.pathOverrides?.mdxComponentsDirectory ||
+                ''
+              }
+              onChange={e =>
+                handlePathOverrideChange(
+                  'mdxComponentsDirectory',
+                  e.target.value
+                )
+              }
+              placeholder="src/components/mdx/"
+            />
+            <FieldDescription>
+              Path to components for use in MDX files (default:
+              src/components/mdx/)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
       </SettingsSection>
     </div>
   )

@@ -1,6 +1,7 @@
 mod commands;
 mod models;
 mod parser;
+mod schema_merger;
 
 use commands::*;
 use std::collections::HashMap;
@@ -331,6 +332,7 @@ pub fn run() {
             scan_project,
             scan_project_with_content_dir,
             scan_collection_files,
+            load_file_based_collection,
             read_json_schema,
             read_file,
             write_file,

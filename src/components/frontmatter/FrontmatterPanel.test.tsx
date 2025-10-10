@@ -82,14 +82,34 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
         fields: [
-          { name: 'title', type: 'String', optional: false },
-          { name: 'draft', type: 'Boolean', optional: true },
-          { name: 'tags', type: 'Array', optional: true },
-          { name: 'publishDate', type: 'Date', optional: true },
-          { name: 'rating', type: 'Number', optional: true },
+          {
+            name: 'title',
+            label: 'Title',
+            fieldType: 'string',
+            required: true,
+          },
+          {
+            name: 'draft',
+            label: 'Draft',
+            fieldType: 'boolean',
+            required: false,
+          },
+          { name: 'tags', label: 'Tags', fieldType: 'array', required: false },
+          {
+            name: 'publishDate',
+            label: 'Publish Date',
+            fieldType: 'date',
+            required: false,
+          },
+          {
+            name: 'rating',
+            label: 'Rating',
+            fieldType: 'number',
+            required: false,
+          },
         ],
       }),
     }
@@ -146,9 +166,16 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
-        fields: [{ name: 'draft', type: 'Boolean', optional: true }],
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
+        fields: [
+          {
+            name: 'draft',
+            label: 'Draft',
+            fieldType: 'boolean',
+            required: false,
+          },
+        ],
       }),
     }
 
@@ -182,9 +209,16 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
-        fields: [{ name: 'rating', type: 'Number', optional: true }],
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
+        fields: [
+          {
+            name: 'rating',
+            label: 'Rating',
+            fieldType: 'number',
+            required: false,
+          },
+        ],
       }),
     }
 
@@ -236,13 +270,28 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
         fields: [
-          { name: 'title', type: 'String', optional: false },
-          { name: 'publishDate', type: 'Date', optional: true },
-          { name: 'draft', type: 'Boolean', optional: true },
-          { name: 'tags', type: 'Array', optional: true },
+          {
+            name: 'title',
+            label: 'Title',
+            fieldType: 'string',
+            required: true,
+          },
+          {
+            name: 'publishDate',
+            label: 'Publish Date',
+            fieldType: 'date',
+            required: false,
+          },
+          {
+            name: 'draft',
+            label: 'Draft',
+            fieldType: 'boolean',
+            required: false,
+          },
+          { name: 'tags', label: 'Tags', fieldType: 'array', required: false },
         ],
       }),
     }
@@ -278,12 +327,27 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
         fields: [
-          { name: 'title', type: 'String', optional: false },
-          { name: 'description', type: 'String', optional: true },
-          { name: 'publishDate', type: 'Date', optional: true },
+          {
+            name: 'title',
+            label: 'Title',
+            fieldType: 'string',
+            required: true,
+          },
+          {
+            name: 'description',
+            label: 'Description',
+            fieldType: 'string',
+            required: false,
+          },
+          {
+            name: 'publishDate',
+            label: 'Publish Date',
+            fieldType: 'date',
+            required: false,
+          },
         ],
       }),
     }
@@ -348,9 +412,11 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
-        fields: [{ name: 'tags', type: 'Array', optional: true }],
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
+        fields: [
+          { name: 'tags', label: 'Tags', fieldType: 'array', required: false },
+        ],
       }),
     }
 
@@ -385,9 +451,16 @@ describe('FrontmatterPanel Component', () => {
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
-      schema: JSON.stringify({
-        type: 'zod',
-        fields: [{ name: 'title', type: 'String', optional: false }],
+      complete_schema: JSON.stringify({
+        collectionName: 'posts',
+        fields: [
+          {
+            name: 'title',
+            label: 'Title',
+            fieldType: 'string',
+            required: true,
+          },
+        ],
       }),
     }
 

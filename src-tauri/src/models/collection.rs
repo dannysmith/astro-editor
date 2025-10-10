@@ -5,8 +5,19 @@ use std::path::PathBuf;
 pub struct Collection {
     pub name: String,
     pub path: PathBuf,
-    pub schema: Option<String>, // Zod schema as JSON string (fallback)
-    pub json_schema: Option<String>, // Astro-generated JSON schema (primary)
+
+    // Internal use only - for schema merging in Rust
+    // These fields are loaded by parse_astro_config() and used by generate_complete_schema()
+    // We don't send them to frontend (skip_serializing) but need them in Rust
+    #[serde(skip_serializing)]
+    pub schema: Option<String>, // Zod schema JSON from parse_astro_config()
+
+    #[serde(skip_serializing)]
+    pub json_schema: Option<String>, // Astro JSON schema from .astro/collections/*.json
+
+    // Complete merged schema - ONLY this goes to frontend
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complete_schema: Option<String>, // Serialized SchemaDefinition
 }
 
 impl Collection {
@@ -16,6 +27,7 @@ impl Collection {
             path,
             schema: None,
             json_schema: None,
+            complete_schema: None,
         }
     }
 
@@ -26,12 +38,19 @@ impl Collection {
             path,
             schema: Some(schema),
             json_schema: None,
+            complete_schema: None,
         }
     }
 
     #[allow(dead_code)]
     pub fn with_json_schema(mut self, json_schema: String) -> Self {
         self.json_schema = Some(json_schema);
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_complete_schema(mut self, complete_schema: String) -> Self {
+        self.complete_schema = Some(complete_schema);
         self
     }
 }

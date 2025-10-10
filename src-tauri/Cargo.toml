@@ -41,6 +41,7 @@ swc_ecma_ast = "14"
 swc_ecma_parser = "21"
 swc_ecma_visit = "14"
 dirs = "5.0"
+indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 tempfile = "3.8"

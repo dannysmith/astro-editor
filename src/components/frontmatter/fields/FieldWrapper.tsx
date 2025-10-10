@@ -1,4 +1,10 @@
 import React from 'react'
+import {
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldContent,
+} from '@/components/ui/field'
 import type { FieldConstraints } from '../../../lib/schema'
 
 interface FieldWrapperProps {
@@ -32,46 +38,24 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
     showDefault ? defaultValue : undefined
   )
 
-  if (layout === 'horizontal') {
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-foreground">
-            {label}
-            {required && (
-              <span className="text-[var(--color-required)] ml-1">*</span>
-            )}
-          </label>
-          {children}
-        </div>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
-        {metadataText && (
-          <p className="text-xs text-muted-foreground">{metadataText}</p>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">
-          {label}
-          {required && (
-            <span className="text-[var(--color-required)] ml-1">*</span>
-          )}
-        </label>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
+    <Field orientation={layout}>
+      <FieldLabel>
+        {label}
+        {required && (
+          <span className="text-[var(--color-required)] ml-1">*</span>
         )}
-      </div>
-      {children}
-      {metadataText && (
-        <p className="text-xs text-muted-foreground">{metadataText}</p>
-      )}
-    </div>
+      </FieldLabel>
+      <FieldContent>
+        {children}
+        {description && <FieldDescription>{description}</FieldDescription>}
+        {metadataText && (
+          <FieldDescription className="text-xs">
+            {metadataText}
+          </FieldDescription>
+        )}
+      </FieldContent>
+    </Field>
   )
 }
 

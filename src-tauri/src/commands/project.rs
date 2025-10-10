@@ -1,5 +1,6 @@
 use crate::models::{Collection, FileEntry};
 use crate::parser::parse_astro_config;
+use crate::schema_merger;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -152,6 +153,11 @@ pub async fn scan_project_with_content_dir(
                 }
             }
 
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
+            }
+
             Ok(collections)
         }
         Ok(_) => {
@@ -170,6 +176,11 @@ pub async fn scan_project_with_content_dir(
                     );
                     collection.json_schema = Some(json_schema);
                 }
+            }
+
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
             }
 
             Ok(collections)
@@ -192,6 +203,11 @@ pub async fn scan_project_with_content_dir(
                 }
             }
 
+            // Generate complete schema for each collection
+            for collection in &mut collections {
+                generate_complete_schema(collection);
+            }
+
             Ok(collections)
         }
     }
@@ -211,6 +227,37 @@ fn load_json_schema_for_collection(
     }
 
     std::fs::read_to_string(&schema_path).map_err(|e| format!("Failed to read JSON schema: {e}"))
+}
+
+/// Generate complete schema by merging JSON schema and Zod schema
+fn generate_complete_schema(collection: &mut Collection) {
+    match schema_merger::create_complete_schema(
+        &collection.name,
+        collection.json_schema.as_deref(),
+        collection.schema.as_deref(),
+    ) {
+        Ok(complete_schema) => match serde_json::to_string(&complete_schema) {
+            Ok(serialized) => {
+                debug!(
+                    "Astro Editor [SCHEMA_MERGER] Generated complete schema for collection: {}",
+                    collection.name
+                );
+                collection.complete_schema = Some(serialized);
+            }
+            Err(e) => {
+                warn!(
+                    "Astro Editor [SCHEMA_MERGER] Failed to serialize complete schema for {}: {}",
+                    collection.name, e
+                );
+            }
+        },
+        Err(e) => {
+            warn!(
+                "Astro Editor [SCHEMA_MERGER] Failed to create complete schema for {}: {}",
+                collection.name, e
+            );
+        }
+    }
 }
 
 fn scan_content_directories_with_override(
@@ -307,6 +354,119 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
             }
         }
     }
+
+    Ok(files)
+}
+
+#[tauri::command]
+pub async fn load_file_based_collection(
+    project_path: String,
+    collection_name: String,
+) -> Result<Vec<FileEntry>, String> {
+    use regex::Regex;
+
+    debug!("Astro Editor [FILE_COLLECTION] Loading file-based collection: {collection_name}");
+
+    // Read content.config.ts to find the file path
+    let project = PathBuf::from(&project_path);
+    let config_paths = [
+        project.join("src").join("content.config.ts"),
+        project.join("src").join("content").join("config.ts"),
+    ];
+
+    let mut file_path: Option<PathBuf> = None;
+
+    for config_path in &config_paths {
+        if config_path.exists() {
+            let content = std::fs::read_to_string(config_path)
+                .map_err(|e| format!("Failed to read config: {e}"))?;
+
+            // Look for: const/let/var collectionName = defineCollection({ loader: file('./path/to/file.json')
+            // or: collectionName: defineCollection({ loader: file('./path/to/file.json')
+            // Handles exported variables too: export const collectionName = defineCollection...
+            let pattern = format!(
+                r#"(?:(?:const|let|var)\s+)?{collection_name}\s*[=:]\s*defineCollection\s*\(\s*\{{\s*loader:\s*file\s*\(\s*['"]([^'"]+)['"]"#
+            );
+
+            debug!("Astro Editor [FILE_COLLECTION] Regex pattern: {pattern}");
+            debug!(
+                "Astro Editor [FILE_COLLECTION] Config content (first 500 chars): {}",
+                &content.chars().take(500).collect::<String>()
+            );
+
+            if let Ok(re) = Regex::new(&pattern) {
+                if let Some(cap) = re.captures(&content) {
+                    let path_str = cap.get(1).unwrap().as_str();
+                    let cleaned_path = path_str.trim_start_matches("./");
+                    file_path = Some(project.join(cleaned_path));
+                    debug!("Astro Editor [FILE_COLLECTION] Matched! File path: {cleaned_path}");
+                    break;
+                } else {
+                    debug!("Astro Editor [FILE_COLLECTION] Regex did not match in content");
+                }
+            } else {
+                debug!("Astro Editor [FILE_COLLECTION] Failed to compile regex pattern");
+            }
+        }
+    }
+
+    let file_path = file_path.ok_or_else(|| {
+        format!("File-based collection '{collection_name}' not found in content.config")
+    })?;
+
+    debug!(
+        "Astro Editor [FILE_COLLECTION] Found file path: {}",
+        file_path.display()
+    );
+
+    // Read and parse the JSON file
+    let json_content = std::fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read collection file: {e}"))?;
+
+    let json_data: serde_json::Value =
+        serde_json::from_str(&json_content).map_err(|e| format!("Failed to parse JSON: {e}"))?;
+
+    // Convert JSON array to FileEntry objects
+    let mut files = Vec::new();
+
+    if let Some(array) = json_data.as_array() {
+        for item in array {
+            if let Some(obj) = item.as_object() {
+                // Extract unique identifier - try 'id' first, then 'slug'
+                let item_id = obj
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| obj.get("slug").and_then(|v| v.as_str()))
+                    .ok_or_else(|| {
+                        "Missing unique identifier: collection items must have either 'id' or 'slug' field".to_string()
+                    })?
+                    .to_string();
+
+                // Convert JSON object to HashMap for FileEntry frontmatter
+                let frontmatter: std::collections::HashMap<String, serde_json::Value> =
+                    obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+
+                // Create FileEntry with the JSON data as frontmatter
+                // For file-based collections, we need to manually set the id to use the item's id
+                // instead of deriving it from the file path
+                let mut file_entry = FileEntry::new(file_path.clone(), collection_name.clone())
+                    .with_frontmatter(frontmatter);
+
+                // Override the auto-generated id with the item's unique identifier from JSON
+                file_entry.id = format!("{collection_name}/{item_id}");
+
+                files.push(file_entry);
+            }
+        }
+    } else {
+        return Err("Collection file must contain a JSON array".to_string());
+    }
+
+    debug!(
+        "Astro Editor [FILE_COLLECTION] Loaded {} items from {}",
+        files.len(),
+        collection_name
+    );
 
     Ok(files)
 }

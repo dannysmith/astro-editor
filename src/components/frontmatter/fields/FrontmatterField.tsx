@@ -1,7 +1,7 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { useEffectiveSettings } from '../../../lib/project-registry/effective-settings'
-import { FieldType, type ZodField, type SchemaField } from '../../../lib/schema'
+import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
 import { NumberField } from './NumberField'
@@ -9,16 +9,13 @@ import { BooleanField } from './BooleanField'
 import { DateField } from './DateField'
 import { EnumField } from './EnumField'
 import { ArrayField } from './ArrayField'
+import { ReferenceField } from './ReferenceField'
+import { YamlField } from './YamlField'
 
 interface FrontmatterFieldProps {
   name: string
   label: string
-  field?: ZodField | SchemaField
-}
-
-function isSchemaField(field: ZodField | SchemaField): field is SchemaField {
-  // SchemaField has 'required' property, ZodField has 'optional'
-  return 'required' in field
+  field?: SchemaField
 }
 
 export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
@@ -29,35 +26,43 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   const { frontmatter } = useEditorStore()
   const { frontmatterMappings } = useEffectiveSettings()
 
-  // Determine field properties based on field type
+  // Determine field properties from SchemaField
   let fieldType: string
   let required: boolean
   let enumValues: string[] | undefined
 
   if (field) {
-    if (isSchemaField(field)) {
-      // New SchemaField format
-      fieldType = field.type
-      required = field.required
-      enumValues = field.enumValues
-    } else {
-      // Legacy ZodField format
-      fieldType = field.type
-      required = !field.optional
-      enumValues = field.options
-    }
+    fieldType = field.type
+    required = field.required
+    enumValues = field.enumValues
   } else {
     fieldType = 'string'
     required = false
   }
 
+  // Check if this is an array of references (should use ReferenceField in multi-select mode)
+  const isArrayReference =
+    (fieldType === (FieldType.Array as string) || fieldType === 'Array') &&
+    field?.subReference
+
+  // Check if this is a complex array (dates, objects, etc.) that should use YamlField
+  const isComplexArray =
+    !isArrayReference &&
+    (fieldType === (FieldType.Array as string) || fieldType === 'Array') &&
+    field?.subType &&
+    field.subType !== FieldType.String &&
+    field.subType !== FieldType.Number &&
+    field.subType !== FieldType.Integer
+
   // Check if this field should be treated as an array based on schema or frontmatter value
   const shouldUseArrayField =
-    fieldType === (FieldType.Array as string) ||
-    fieldType === 'Array' ||
-    (!field &&
-      Array.isArray(frontmatter[name]) &&
-      frontmatter[name].every((item: unknown) => typeof item === 'string'))
+    !isArrayReference &&
+    !isComplexArray &&
+    (fieldType === (FieldType.Array as string) ||
+      fieldType === 'Array' ||
+      (!field &&
+        Array.isArray(frontmatter[name]) &&
+        frontmatter[name].every((item: unknown) => typeof item === 'string')))
 
   // Handle boolean fields
   if (
@@ -115,7 +120,26 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     )
   }
 
-  // Handle array fields
+  // Handle array reference fields (multi-select references)
+  if (isArrayReference) {
+    return (
+      <ReferenceField
+        name={name}
+        label={label}
+        required={required}
+        field={field}
+      />
+    )
+  }
+
+  // Handle complex array fields (dates, objects, etc.) with YAML fallback
+  if (isComplexArray) {
+    return (
+      <YamlField name={name} label={label} required={required} field={field} />
+    )
+  }
+
+  // Handle array fields (strings and numbers)
   if (shouldUseArrayField) {
     return (
       <ArrayField name={name} label={label} required={required} field={field} />
@@ -148,13 +172,13 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     )
   }
 
-  // Handle reference fields (as string for V1)
+  // Handle reference fields
   if (
     fieldType === (FieldType.Reference as string) ||
     fieldType === 'reference'
   ) {
     return (
-      <StringField
+      <ReferenceField
         name={name}
         label={label}
         required={required}

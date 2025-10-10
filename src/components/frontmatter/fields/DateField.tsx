@@ -1,12 +1,12 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
-import type { ZodField, SchemaField } from '../../../lib/schema'
+import type { SchemaField } from '../../../lib/schema'
 
 interface DateFieldProps extends FieldProps {
-  field?: ZodField | SchemaField
+  field?: SchemaField
 }
 
 export const DateField: React.FC<DateFieldProps> = ({
@@ -16,6 +16,7 @@ export const DateField: React.FC<DateFieldProps> = ({
   field,
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = getNestedValue(frontmatter, name)
 
   return (
     <FieldWrapper
@@ -26,14 +27,10 @@ export const DateField: React.FC<DateFieldProps> = ({
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <DatePicker
-        value={
-          frontmatter[name] && typeof frontmatter[name] === 'string'
-            ? new Date(frontmatter[name])
-            : undefined
-        }
+        value={value && typeof value === 'string' ? new Date(value) : undefined}
         onChange={(date: Date | undefined) => {
           const dateValue =
             date instanceof Date && !isNaN(date.getTime())

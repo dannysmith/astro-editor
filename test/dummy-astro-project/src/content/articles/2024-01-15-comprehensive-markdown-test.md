@@ -5,6 +5,8 @@ description: "A comprehensive test document showcasing all GitHub Flavored Markd
 pubDate: 2024-01-15
 updatedDate: 2024-01-20
 tags: ["testing", "markdown", "gfm", "formatting", "documentation"]
+author: jane-doe
+relatedArticles: [first-article]
 ---
 
 # Comprehensive Markdown Feature Test
