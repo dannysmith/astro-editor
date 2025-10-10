@@ -18,6 +18,16 @@ function setNestedValue(
 ): Record<string, unknown> {
   const keys = path.split('.')
   if (keys.length === 1) {
+    // Protect against prototype pollution on simple keys
+    if (
+      path === '__proto__' ||
+      path === 'constructor' ||
+      path === 'prototype'
+    ) {
+      throw new Error(
+        `Unsafe key "${path}" in path "${path}", prototype pollution prevented.`
+      )
+    }
     // Simple key, no nesting
     return { ...obj, [path]: value }
   }
@@ -28,6 +38,12 @@ function setNestedValue(
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i]!
+    // Protect against prototype pollution in nested paths
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      throw new Error(
+        `Unsafe key "${key}" in path "${path}", prototype pollution prevented.`
+      )
+    }
     if (typeof current[key] !== 'object' || current[key] === null) {
       current[key] = {}
     } else {
@@ -39,6 +55,16 @@ function setNestedValue(
 
   // Set the final value
   const lastKey = keys[keys.length - 1]!
+  // Protect against prototype pollution on final key
+  if (
+    lastKey === '__proto__' ||
+    lastKey === 'constructor' ||
+    lastKey === 'prototype'
+  ) {
+    throw new Error(
+      `Unsafe key "${lastKey}" in path "${path}", prototype pollution prevented.`
+    )
+  }
   current[lastKey] = value
 
   return result
@@ -78,6 +104,16 @@ function deleteNestedValue(
 ): Record<string, unknown> {
   const keys = path.split('.')
   if (keys.length === 1) {
+    // Protect against prototype pollution on simple keys
+    if (
+      path === '__proto__' ||
+      path === 'constructor' ||
+      path === 'prototype'
+    ) {
+      throw new Error(
+        `Unsafe key "${path}" in path "${path}", prototype pollution prevented.`
+      )
+    }
     // Simple key
     const result = { ...obj }
     delete result[path]
@@ -91,6 +127,12 @@ function deleteNestedValue(
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i]!
+    // Protect against prototype pollution in nested paths
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      throw new Error(
+        `Unsafe key "${key}" in path "${path}", prototype pollution prevented.`
+      )
+    }
     if (typeof current[key] !== 'object' || current[key] === null) {
       // Path doesn't exist, nothing to delete
       return result
@@ -103,6 +145,16 @@ function deleteNestedValue(
 
   // Delete the final key
   const lastKey = keys[keys.length - 1]!
+  // Protect against prototype pollution on final key
+  if (
+    lastKey === '__proto__' ||
+    lastKey === 'constructor' ||
+    lastKey === 'prototype'
+  ) {
+    throw new Error(
+      `Unsafe key "${lastKey}" in path "${path}", prototype pollution prevented.`
+    )
+  }
   delete current[lastKey]
 
   // Clean up empty parent objects (bottom-up)
