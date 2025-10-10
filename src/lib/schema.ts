@@ -4,7 +4,6 @@ export interface CompleteSchema {
   fields: SchemaField[]
 }
 
-// New JSON Schema-based interfaces
 export interface SchemaField {
   // Identity
   name: string // Field name (or flattened: "seo.title")
