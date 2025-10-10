@@ -88,16 +88,25 @@ struct JsonSchemaDefinition {
     #[serde(default)]
     required: Option<Vec<String>>,
     #[serde(default)]
-    additional_properties: Option<AdditionalProperties>,
+    additional_properties: Option<CollectionAdditionalProperties>,
 }
 
-/// Additional properties can be boolean or schema
+/// Additional properties at collection level (for file-based collections)
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-enum AdditionalProperties {
+enum CollectionAdditionalProperties {
     #[allow(dead_code)]
     Boolean(bool),
     Schema(Box<JsonSchemaDefinition>),
+}
+
+/// Additional properties at property level (for dynamic properties)
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum PropertyAdditionalProperties {
+    #[allow(dead_code)]
+    Boolean(bool),
+    Schema(Box<JsonSchemaProperty>),
 }
 
 /// JSON Schema property
@@ -119,7 +128,7 @@ struct JsonSchemaProperty {
     #[serde(default)]
     properties: Option<IndexMap<String, JsonSchemaProperty>>,
     #[serde(default)]
-    additional_properties: Option<AdditionalProperties>,
+    additional_properties: Option<PropertyAdditionalProperties>,
     #[serde(default)]
     required: Option<Vec<String>>,
     #[serde(default)]
@@ -146,6 +155,8 @@ struct JsonSchemaProperty {
     max_items: Option<usize>,
     #[serde(default)]
     pattern: Option<String>,
+    #[serde(default)]
+    not: Option<Value>, // Ignored - used for validation, not structure
 }
 
 /// Type can be string or array of strings
@@ -173,48 +184,72 @@ pub fn create_complete_schema(
     json_schema: Option<&str>,
     zod_schema: Option<&str>,
 ) -> Result<SchemaDefinition, String> {
+    log::debug!(
+        "[Schema] Creating complete schema for: {} (json: {}, zod: {})",
+        collection_name,
+        json_schema.is_some(),
+        zod_schema.is_some()
+    );
+
     // 1. Try JSON schema first (most accurate for structure)
     if let Some(json) = json_schema {
-        if let Ok(mut schema) = parse_json_schema(collection_name, json) {
-            // 2. Enhance with Zod reference information
-            if let Some(zod) = zod_schema {
-                if let Err(e) = enhance_with_zod_references(&mut schema, zod) {
-                    log::warn!(
-                        "Failed to enhance schema with Zod references for {collection_name}: {e}"
-                    );
+        match parse_json_schema(collection_name, json) {
+            Ok(mut schema) => {
+                log::debug!(
+                    "[Schema] Successfully parsed JSON schema with {} fields",
+                    schema.fields.len()
+                );
+                // 2. Enhance with Zod reference information
+                if let Some(zod) = zod_schema {
+                    if let Err(e) = enhance_with_zod_references(&mut schema, zod) {
+                        log::warn!(
+                            "Failed to enhance schema with Zod references for {collection_name}: {e}"
+                        );
+                    }
                 }
+                return Ok(schema);
             }
-            return Ok(schema);
+            Err(e) => {
+                log::warn!("[Schema] Failed to parse JSON schema: {e}");
+            }
         }
     }
 
     // 3. Fallback to Zod-only parsing
     if let Some(zod) = zod_schema {
+        log::debug!("[Schema] Falling back to Zod-only parsing");
         return parse_zod_schema(collection_name, zod);
     }
 
+    log::error!("[Schema] No schema available for collection: {collection_name}");
     Err("No schema available".to_string())
 }
 
 /// Parse Astro JSON schema
 fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaDefinition, String> {
+    log::debug!("[Schema] Parsing JSON schema for collection: {collection_name}");
+
     let schema: AstroJsonSchema =
         serde_json::from_str(json_schema).map_err(|e| format!("Failed to parse JSON: {e}"))?;
 
     // Extract collection definition
     let collection_name_from_ref = schema.ref_.replace("#/definitions/", "");
+    log::debug!("[Schema] Looking for definition: {collection_name_from_ref}");
+
     let collection_def = schema
         .definitions
         .get(&collection_name_from_ref)
         .ok_or_else(|| format!("Collection definition not found: {collection_name}"))?;
 
     // Check for file-based collection
-    if let Some(AdditionalProperties::Schema(entry_schema)) = &collection_def.additional_properties
+    if let Some(CollectionAdditionalProperties::Schema(entry_schema)) = &collection_def.additional_properties
     {
+        log::debug!("[Schema] File-based collection detected");
         return parse_entry_schema(collection_name, entry_schema);
     }
 
     // Standard collection
+    log::debug!("[Schema] Standard collection detected");
     parse_entry_schema(collection_name, collection_def)
 }
 
@@ -228,11 +263,18 @@ fn parse_entry_schema(
         .as_ref()
         .ok_or("No properties found")?;
 
+    log::debug!(
+        "[Schema] Found {} properties in entry schema",
+        properties.len()
+    );
+
     let required_set: HashSet<String> = entry_schema
         .required
         .as_ref()
         .map(|r| r.iter().cloned().collect())
         .unwrap_or_default();
+
+    log::debug!("[Schema] Required fields: {:?}", required_set);
 
     let mut fields = Vec::new();
 
@@ -244,8 +286,19 @@ fn parse_entry_schema(
 
         let is_required = required_set.contains(field_name);
         let parsed_fields = parse_field(field_name, field_schema, is_required, "")?;
+        log::debug!(
+            "[Schema] Parsed field '{}' into {} field(s)",
+            field_name,
+            parsed_fields.len()
+        );
         fields.extend(parsed_fields);
     }
+
+    log::debug!(
+        "[Schema] Total fields extracted: {} for collection {}",
+        fields.len(),
+        collection_name
+    );
 
     Ok(SchemaDefinition {
         collection_name: collection_name.to_string(),
