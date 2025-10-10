@@ -106,6 +106,7 @@ enum CollectionAdditionalProperties {
 enum PropertyAdditionalProperties {
     #[allow(dead_code)]
     Boolean(bool),
+    #[allow(dead_code)]
     Schema(Box<JsonSchemaProperty>),
 }
 
@@ -156,6 +157,7 @@ struct JsonSchemaProperty {
     #[serde(default)]
     pattern: Option<String>,
     #[serde(default)]
+    #[allow(dead_code)]
     not: Option<Value>, // Ignored - used for validation, not structure
 }
 
@@ -242,7 +244,8 @@ fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaD
         .ok_or_else(|| format!("Collection definition not found: {collection_name}"))?;
 
     // Check for file-based collection
-    if let Some(CollectionAdditionalProperties::Schema(entry_schema)) = &collection_def.additional_properties
+    if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
+        &collection_def.additional_properties
     {
         log::debug!("[Schema] File-based collection detected");
         return parse_entry_schema(collection_name, entry_schema);
@@ -274,7 +277,7 @@ fn parse_entry_schema(
         .map(|r| r.iter().cloned().collect())
         .unwrap_or_default();
 
-    log::debug!("[Schema] Required fields: {:?}", required_set);
+    log::debug!("[Schema] Required fields: {required_set:?}");
 
     let mut fields = Vec::new();
 
