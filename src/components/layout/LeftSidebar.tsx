@@ -3,13 +3,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore, type FileEntry } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-
-interface Collection {
-  name: string
-  path: string
-  schema?: string
-}
 import { useCollectionFilesQuery } from '../../hooks/queries/useCollectionFilesQuery'
+import type { Collection } from '../../store'
 import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutation'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'

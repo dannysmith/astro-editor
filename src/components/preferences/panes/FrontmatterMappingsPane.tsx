@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
-import { parseSchemaJson, FieldType } from '../../../lib/schema'
+import { deserializeCompleteSchema, FieldType } from '../../../lib/schema'
 import type { SchemaField } from '../../../lib/schema'
 
 const SettingsSection: React.FC<{
@@ -47,9 +47,9 @@ export const FrontmatterMappingsPane: React.FC = () => {
     const fieldMap = new Map<string, SchemaField>()
 
     collections.forEach(collection => {
-      if (collection.schema) {
+      if (collection.complete_schema) {
         try {
-          const schema = parseSchemaJson(collection.schema)
+          const schema = deserializeCompleteSchema(collection.complete_schema)
           if (schema) {
             schema.fields.forEach(field => {
               fieldMap.set(field.name, field)

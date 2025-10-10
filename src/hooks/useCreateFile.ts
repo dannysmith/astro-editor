@@ -5,7 +5,7 @@ import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import { useCreateFileMutation } from './mutations/useCreateFileMutation'
-import { parseSchemaJson, FieldType } from '../lib/schema'
+import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 
 // Helper function to singularize collection name
@@ -108,8 +108,8 @@ export const useCreateFile = () => {
       }
 
       // Generate default frontmatter from schema
-      const schema = collection.schema
-        ? parseSchemaJson(collection.schema)
+      const schema = collection.complete_schema
+        ? deserializeCompleteSchema(collection.complete_schema)
         : null
       const defaultFrontmatter: Record<string, unknown> = {}
 

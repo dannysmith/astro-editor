@@ -2,16 +2,13 @@ import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { parseSchemaJson, deserializeCompleteSchema } from '../../lib/schema'
-import { parseJsonSchema } from '../../lib/parseJsonSchema'
+import { deserializeCompleteSchema } from '../../lib/schema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
 
 interface Collection {
   name: string
   path: string
-  schema?: string
-  json_schema?: string
   complete_schema?: string
 }
 
@@ -30,85 +27,20 @@ export const FrontmatterPanel: React.FC = () => {
     ? collections.find(c => c.name === currentFile.collection) || null
     : null
 
-  // Get schema - try complete_schema first, fall back to hybrid parsing
+  // Get schema from Rust backend
   const schema = React.useMemo(() => {
-    if (!currentCollection) return null
+    if (!currentCollection?.complete_schema) return null
 
-    // NEW: Try complete schema from Rust backend
-    if (currentCollection.complete_schema) {
-      const parsed = deserializeCompleteSchema(
-        currentCollection.complete_schema
+    const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
+
+    if (import.meta.env.DEV && parsed) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[Schema] Loaded complete schema for: ${parsed.collectionName}`
       )
-
-      if (parsed) {
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[Schema] Loaded complete schema for: ${parsed.collectionName}`
-          )
-        }
-        return parsed
-      }
     }
 
-    // FALLBACK: Use old hybrid parsing for backwards compatibility
-    // This will be removed once all projects regenerate schemas
-    if (currentCollection.json_schema) {
-      const parsed = parseJsonSchema(currentCollection.json_schema)
-
-      if (parsed) {
-        // Enhance with Zod reference metadata if available
-        if (currentCollection.schema) {
-          const zodSchema = parseSchemaJson(currentCollection.schema)
-
-          if (zodSchema) {
-            parsed.fields = parsed.fields.map(field => {
-              const zodField = zodSchema.fields.find(z => z.name === field.name)
-
-              if (zodField) {
-                return {
-                  ...field,
-                  ...(zodField.reference && {
-                    reference: zodField.reference,
-                    referenceCollection: zodField.reference,
-                  }),
-                  ...(zodField.subReference && {
-                    subReference: zodField.subReference,
-                  }),
-                }
-              }
-
-              return field
-            })
-          }
-        }
-
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[Schema] Using fallback hybrid parsing for: ${currentCollection.name}`
-          )
-        }
-
-        return parsed
-      }
-    }
-
-    // Last resort: Zod-only parsing
-    if (currentCollection.schema) {
-      const parsed = parseSchemaJson(currentCollection.schema)
-      if (parsed) {
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[Schema] Using Zod schema (fallback) for: ${currentCollection.name}`
-          )
-        }
-        return parsed
-      }
-    }
-
-    return null
+    return parsed
   }, [currentCollection])
 
   // Listen for schema field order requests from editorStore
@@ -121,8 +53,8 @@ export const FrontmatterPanel: React.FC = () => {
       const requestedCollection = collections.find(
         c => c.name === collectionName
       )
-      const requestedSchema = requestedCollection?.schema
-        ? parseSchemaJson(requestedCollection.schema)
+      const requestedSchema = requestedCollection?.complete_schema
+        ? deserializeCompleteSchema(requestedCollection.complete_schema)
         : null
 
       // Extract field order from schema

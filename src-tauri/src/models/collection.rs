@@ -6,13 +6,16 @@ pub struct Collection {
     pub name: String,
     pub path: PathBuf,
 
-    // Legacy fields - kept for backwards compatibility during migration
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema: Option<String>, // Zod schema as JSON string (fallback)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub json_schema: Option<String>, // Astro-generated JSON schema (primary)
+    // Internal use only - for schema merging in Rust
+    // These fields are loaded by parse_astro_config() and used by generate_complete_schema()
+    // We don't send them to frontend (skip_serializing) but need them in Rust
+    #[serde(skip_serializing)]
+    pub schema: Option<String>, // Zod schema JSON from parse_astro_config()
 
-    // NEW - Single source of truth for schema
+    #[serde(skip_serializing)]
+    pub json_schema: Option<String>, // Astro JSON schema from .astro/collections/*.json
+
+    // Complete merged schema - ONLY this goes to frontend
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_schema: Option<String>, // Serialized SchemaDefinition
 }
