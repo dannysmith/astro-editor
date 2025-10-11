@@ -16,15 +16,17 @@ interface FrontmatterFieldProps {
   name: string
   label: string
   field?: SchemaField
+  collectionName?: string
 }
 
 export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   name,
   label,
   field,
+  collectionName,
 }) => {
   const { frontmatter } = useEditorStore()
-  const { frontmatterMappings } = useEffectiveSettings()
+  const { frontmatterMappings } = useEffectiveSettings(collectionName)
 
   // Determine field properties from SchemaField
   let fieldType: string

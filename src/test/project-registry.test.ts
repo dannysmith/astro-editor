@@ -55,12 +55,7 @@ describe('Project Registry System', () => {
     expect(globalSettings.appearance.headingColor).toBeDefined()
     expect(globalSettings.appearance.headingColor.light).toBe('#191919') // Check heading color defaults
     expect(globalSettings.appearance.headingColor.dark).toBe('#cccccc')
-    expect(globalSettings.defaultProjectSettings).toBeDefined()
-    expect(globalSettings.defaultProjectSettings.pathOverrides).toBeDefined()
-    expect(
-      globalSettings.defaultProjectSettings.frontmatterMappings
-    ).toBeDefined()
-    expect(globalSettings.version).toBe(1)
+    expect(globalSettings.version).toBe(2)
 
     expect(registry.projects).toEqual({})
     expect(registry.lastOpenedProject).toBeNull()
@@ -121,8 +116,11 @@ describe('Project Registry System', () => {
 
     const effectiveSettings = await manager.getEffectiveSettings(projectId)
 
-    // Should return default settings since no project-specific overrides
-    expect(effectiveSettings).toEqual(DEFAULT_PROJECT_SETTINGS)
+    // Should return default settings plus collections array
+    expect(effectiveSettings).toEqual({
+      ...DEFAULT_PROJECT_SETTINGS,
+      collections: [],
+    })
   })
 
   it('should handle project path migration', async () => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Folder, FileText } from 'lucide-react'
+import { Settings, Folder, Layers, Wrench } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,7 +26,8 @@ import {
 } from '@/components/ui/sidebar'
 import { GeneralPane } from './panes/GeneralPane'
 import { ProjectSettingsPane } from './panes/ProjectSettingsPane'
-import { FrontmatterMappingsPane } from './panes/FrontmatterMappingsPane'
+import { CollectionSettingsPane } from './panes/CollectionSettingsPane'
+import { DebugPane } from './panes/DebugPane'
 import { usePreferences } from '../../hooks/usePreferences'
 
 interface PreferencesDialogProps {
@@ -34,7 +35,7 @@ interface PreferencesDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type PreferencePane = 'general' | 'project' | 'frontmatter'
+type PreferencePane = 'general' | 'project' | 'collections' | 'debug'
 
 const getNavigationItems = (hasProject: boolean) =>
   [
@@ -51,10 +52,16 @@ const getNavigationItems = (hasProject: boolean) =>
       available: hasProject,
     },
     {
-      id: 'frontmatter' as const,
-      name: 'Frontmatter Mappings',
-      icon: FileText,
+      id: 'collections' as const,
+      name: 'Collections',
+      icon: Layers,
       available: hasProject,
+    },
+    {
+      id: 'debug' as const,
+      name: 'Advanced',
+      icon: Wrench,
+      available: true,
     },
   ].filter(item => item.available)
 
@@ -64,8 +71,10 @@ const getPaneTitle = (pane: PreferencePane): string => {
       return 'General'
     case 'project':
       return 'Project Settings'
-    case 'frontmatter':
-      return 'Frontmatter Mappings'
+    case 'collections':
+      return 'Collections'
+    case 'debug':
+      return 'Advanced'
     default:
       return 'General'
   }
@@ -145,7 +154,8 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
               <div className="space-y-6">
                 {activePane === 'general' && <GeneralPane />}
                 {activePane === 'project' && <ProjectSettingsPane />}
-                {activePane === 'frontmatter' && <FrontmatterMappingsPane />}
+                {activePane === 'collections' && <CollectionSettingsPane />}
+                {activePane === 'debug' && <DebugPane />}
               </div>
             </div>
           </main>

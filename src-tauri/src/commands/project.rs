@@ -133,7 +133,7 @@ pub async fn scan_project_with_content_dir(
 
     // Try to parse Astro config first
     debug!("Astro Editor [PROJECT_SCAN] Attempting to parse Astro config");
-    match parse_astro_config(&path) {
+    match parse_astro_config(&path, content_directory.as_deref()) {
         Ok(mut collections) if !collections.is_empty() => {
             info!(
                 "Astro Editor [PROJECT_SCAN] Found {} collections from Astro config",

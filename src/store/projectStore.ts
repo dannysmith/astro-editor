@@ -11,6 +11,8 @@ import {
   ProjectSettings,
 } from '../lib/project-registry'
 import { useEditorStore } from './editorStore'
+import { queryClient } from '../lib/query-client'
+import { queryKeys } from '../lib/query-keys'
 
 interface ProjectState {
   // Core identifiers
@@ -181,16 +183,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // Try to load the last opened project from registry
       const lastProjectId = projectRegistryManager.getLastOpenedProjectId()
       if (lastProjectId) {
-        const projectData =
-          await projectRegistryManager.getProjectData(lastProjectId)
-        if (projectData) {
+        // Get project metadata from registry (not from project data)
+        const registry = projectRegistryManager.getRegistry()
+        const projectMetadata = registry.projects[lastProjectId]
+
+        if (projectMetadata) {
           try {
             // Verify the project path still exists before setting it
             await invoke('scan_project', {
-              projectPath: projectData.metadata.path,
+              projectPath: projectMetadata.path,
             })
             // If no error, the project path is valid, so restore it
-            get().setProject(projectData.metadata.path)
+            get().setProject(projectMetadata.path)
           } catch (error) {
             toast.info('Previous project no longer available', {
               description: 'The last opened project could not be found.',
@@ -198,7 +202,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             // eslint-disable-next-line no-console
             console.warn(
               'Saved project path no longer valid:',
-              projectData.metadata.path,
+              projectMetadata.path,
               error
             )
           }
@@ -267,13 +271,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateProjectSettings: async (settings: Partial<ProjectSettings>) => {
-    const { currentProjectId } = get()
+    const { currentProjectId, projectPath, selectedCollection } = get()
     if (!currentProjectId) {
       toast.error('No project is currently open')
       return
     }
 
     try {
+      // Check if path overrides are changing
+      const pathOverridesChanged = !!settings.pathOverrides
+
+      // If path overrides are changing and a file is open, handle gracefully
+      if (pathOverridesChanged) {
+        const { currentFile } = useEditorStore.getState()
+        if (currentFile) {
+          // Auto-save current file before settings change
+          await info(
+            'Astro Editor [PREFERENCES] Path settings changing while file is open - auto-saving'
+          )
+          try {
+            await useEditorStore.getState().saveFile()
+          } catch (saveError) {
+            await logError(
+              `Astro Editor [PREFERENCES] Failed to auto-save before settings change: ${String(saveError)}`
+            )
+          }
+
+          // Show warning toast
+          toast.warning('Path settings changed', {
+            description:
+              'The current file has been saved. Please reopen it to continue editing.',
+          })
+
+          // Close the current file to prevent save issues
+          useEditorStore.getState().closeCurrentFile()
+        }
+      }
+
       await projectRegistryManager.updateProjectSettings(
         currentProjectId,
         settings
@@ -281,6 +315,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const updatedSettings =
         await projectRegistryManager.getEffectiveSettings(currentProjectId)
       set({ currentProjectSettings: updatedSettings })
+
+      // Invalidate queries when settings change
+      if (projectPath) {
+        // If path overrides changed, invalidate collection-related queries
+        if (settings.pathOverrides) {
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.collections(projectPath),
+          })
+
+          // Invalidate collection files for current collection if any
+          if (selectedCollection) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.collectionFiles(
+                projectPath,
+                selectedCollection
+              ),
+            })
+          }
+
+          // Restart file watcher with new paths
+          await info(
+            'Astro Editor [PREFERENCES] Path overrides changed - restarting file watcher'
+          )
+          await get().stopFileWatcher()
+          await get().startFileWatcher()
+        }
+
+        // If frontmatter mappings changed, invalidate current file to update rendering
+        if (settings.frontmatterMappings) {
+          const { currentFile } = useEditorStore.getState()
+          if (currentFile) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+            })
+          }
+        }
+      }
     } catch (error) {
       toast.error('Failed to update project settings', {
         description:

@@ -13,6 +13,20 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
+// Mock project store
+vi.mock('../../../store/projectStore', () => ({
+  useProjectStore: {
+    getState: vi.fn(() => ({
+      currentProjectSettings: null, // Use defaults (no overrides)
+    })),
+  },
+}))
+
+// Mock path resolution to return default assets directory
+vi.mock('../../project-registry', () => ({
+  getEffectiveAssetsDirectory: vi.fn(() => 'src/assets'),
+}))
+
 const mockInvoke = vi.mocked(await import('@tauri-apps/api/core')).invoke
 
 describe('File Processing', () => {

@@ -62,7 +62,10 @@ pub struct ParsedSchema {
 }
 
 /// Parse Astro content config file and extract collection definitions
-pub fn parse_astro_config(project_path: &Path) -> Result<Vec<Collection>, String> {
+pub fn parse_astro_config(
+    project_path: &Path,
+    content_directory_override: Option<&str>,
+) -> Result<Vec<Collection>, String> {
     // Try both possible config file locations
     let config_paths = [
         project_path.join("src").join("content.config.ts"), // New format
@@ -74,7 +77,11 @@ pub fn parse_astro_config(project_path: &Path) -> Result<Vec<Collection>, String
             let content = std::fs::read_to_string(config_path)
                 .map_err(|e| format!("Failed to read config file: {e}"))?;
 
-            return parse_collections_from_content(&content, project_path);
+            return parse_collections_from_content(
+                &content,
+                project_path,
+                content_directory_override,
+            );
         }
     }
 
@@ -84,9 +91,16 @@ pub fn parse_astro_config(project_path: &Path) -> Result<Vec<Collection>, String
 fn parse_collections_from_content(
     content: &str,
     project_path: &Path,
+    content_directory_override: Option<&str>,
 ) -> Result<Vec<Collection>, String> {
     let mut collections = Vec::new();
-    let content_dir = project_path.join("src").join("content");
+
+    // Use override if provided, otherwise default to src/content
+    let content_dir = if let Some(override_path) = content_directory_override {
+        project_path.join(override_path)
+    } else {
+        project_path.join("src").join("content")
+    };
 
     // Remove comments and normalize whitespace
     let clean_content = remove_comments(content);
@@ -1054,7 +1068,7 @@ export default defineConfig({
 
         fs::create_dir_all(&blog_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1074,7 +1088,7 @@ export default defineConfig({
 });
 "#;
         let project_path = PathBuf::from("/tmp/empty-project");
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
     }
@@ -1126,7 +1140,7 @@ export default defineConfig({
         fs::create_dir_all(&blog_path).unwrap();
         fs::create_dir_all(&docs_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1181,7 +1195,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1217,7 +1231,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1255,7 +1269,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1311,7 +1325,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1358,7 +1372,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1440,7 +1454,7 @@ export const collections = {
 
         fs::create_dir_all(&test_path).unwrap();
 
-        let result = parse_collections_from_content(content, &project_path);
+        let result = parse_collections_from_content(content, &project_path, None);
         assert!(result.is_ok());
 
         let collections = result.unwrap();
@@ -1456,6 +1470,56 @@ export const collections = {
         assert_eq!(simple_field["constraints"]["trim"], true);
         // The optional should be detected
         assert_eq!(simple_field["optional"], true);
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_content_directory_override() {
+        let content = r#"
+import { defineConfig, defineCollection, z } from 'astro:content';
+
+export default defineConfig({
+  collections: {
+    blog: defineCollection({
+      type: 'content',
+      schema: z.object({
+        title: z.string(),
+        date: z.coerce.date(),
+      }),
+    }),
+  },
+});
+"#;
+
+        let temp_dir = std::env::temp_dir().join("test-content-dir-override");
+        let project_path = temp_dir.join("project");
+        // Use a custom content directory instead of src/content
+        let custom_content_dir = "content";
+        let blog_path = project_path.join(custom_content_dir).join("blog");
+
+        fs::create_dir_all(&blog_path).unwrap();
+
+        // Test with override
+        let result =
+            parse_collections_from_content(content, &project_path, Some(custom_content_dir));
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+        assert_eq!(collections[0].name, "blog");
+        assert!(collections[0].schema.is_some());
+
+        // Verify the path is using the override
+        let expected_path = project_path.join(custom_content_dir).join("blog");
+        assert_eq!(collections[0].path, expected_path);
+
+        // Test without override - should not find the collection since it's in custom location
+        let result_without_override = parse_collections_from_content(content, &project_path, None);
+        assert!(result_without_override.is_ok());
+        let collections_without_override = result_without_override.unwrap();
+        assert_eq!(collections_without_override.len(), 0); // Should be empty since default path doesn't exist
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();

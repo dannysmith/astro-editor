@@ -61,7 +61,8 @@ projectPath: string | null
 currentProjectId: string | null
 selectedCollection: string | null
 globalSettings: GlobalSettings | null
-// Actions: setProject, setSelectedCollection, loadPersistedProject
+currentProjectSettings: ProjectSettings | null  // Includes collections array
+// Actions: setProject, setSelectedCollection, loadPersistedProject, updateProjectSettings
 ```
 
 **3. UI Store (`useUIStore`)** - UI layout state:
@@ -332,7 +333,83 @@ listen('menu-format-bold', () => {
 })
 ```
 
-### 5. Schema Parsing Architecture
+### 5. Preferences and Settings Architecture
+
+**Three-Tier Settings Hierarchy**: The app uses a sophisticated preferences system with three levels of fallback: Collection → Project → Hard-coded Default.
+
+**Key Design Principles**:
+
+1. **No Global Defaults**: Global settings contain ONLY truly global preferences (theme, IDE command, etc.). There are NO global defaults for project or collection settings.
+2. **Sparse Storage**: Collections array stores ONLY explicit overrides, not all discovered collections.
+3. **Single Source of Truth**: Project metadata lives ONLY in the registry, not duplicated in project files.
+
+**Settings Resolution Pattern**:
+
+```typescript
+// useEffectiveSettings hook implements three-tier fallback
+const settings = useEffectiveSettings('blog')
+
+// Returns:
+// 1. Collection-specific override from collections array
+// 2. Falls back to project setting if collection not found
+// 3. Falls back to hard-coded default if project setting not set
+
+// Example fallback chain for contentDirectory:
+// 'content/blog/' → 'src/content/' → ASTRO_PATHS.CONTENT_DIR
+```
+
+**Collection-Scoped Settings**:
+
+Collection settings override project settings for specific collections:
+
+```typescript
+{
+  name: "blog",
+  settings: {
+    pathOverrides: {
+      // Absolute path from project root (NOT subdirectory of project content dir)
+      contentDirectory: "content/blog/",
+      assetsDirectory: "public/blog-images/"
+    },
+    frontmatterMappings: {
+      publishedDate: "publishDate",
+      title: "heading"
+    }
+  }
+}
+```
+
+**Path Override Semantics**: Collection path overrides are absolute paths from project root, allowing collections to exist anywhere in the project structure (e.g., `content/blog/` not `src/content/blog/`).
+
+**Settings Update Pattern**:
+
+When settings change, invalidate affected TanStack Query caches:
+
+```typescript
+const invalidateQueriesAfterSettingsChange = () => {
+  // Path changes: invalidate collection data
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.collections(projectPath),
+  })
+
+  // Frontmatter changes: refetch current file
+  if (currentFile) {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.collectionFiles(projectPath, currentFile.collection),
+    })
+  }
+}
+```
+
+**Architecture Benefits**:
+- Clear separation between global, project, and collection scopes
+- Flexible overrides without duplication
+- Automatic migration from v1 (with defaultProjectSettings) to v2 format
+- Supports complex project structures with per-collection paths
+
+See `docs/developer/preferences-system.md` for complete details.
+
+### 6. Schema Parsing Architecture
 
 **Rust-Based Schema Merging**: All schema parsing and merging happens in the Rust backend (`src-tauri/src/schema_merger.rs`).
 
@@ -928,11 +1005,19 @@ App
 │   │   └── openFile, saveFile, updateFrontmatterField
 │   ├── projectStore (project-level state)
 │   │   ├── projectPath, currentProjectId, selectedCollection
-│   │   ├── globalSettings, currentProjectSettings
-│   │   └── setProject, loadPersistedProject, startFileWatcher
+│   │   ├── globalSettings, currentProjectSettings (with collections array)
+│   │   └── setProject, loadPersistedProject, updateProjectSettings
 │   └── uiStore (UI layout state)
 │       ├── sidebarVisible, frontmatterPanelVisible
 │       └── toggleSidebar, toggleFrontmatterPanel
+├── Preferences System (Three-Tier Hierarchy):
+│   ├── useEffectiveSettings(collectionName?) - Settings resolution hook
+│   │   └── Collection → Project → Hard-coded Default
+│   ├── ProjectRegistryManager (src/lib/project-registry/)
+│   │   ├── Global settings (theme, IDE, etc.)
+│   │   ├── Project registry (metadata only)
+│   │   └── Project files (settings + collections array)
+│   └── Query invalidation on settings changes
 ├── hooks/queries/* (server state via TanStack Query)
 ├── hooks/mutations/* (write operations via TanStack Query)
 └── Tauri Commands (Rust backend)

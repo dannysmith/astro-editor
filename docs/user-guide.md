@@ -328,7 +328,7 @@ _[Gif needed: Using the component builder]_
 
 ## Preferences & Configuration
 
-Astro Editor provides both global preferences and project-specific settings to accommodate different workflows and project structures.
+Astro Editor provides global preferences, project-specific settings, and collection-scoped overrides to accommodate different workflows and project structures.
 
 ### General Preferences
 
@@ -343,39 +343,63 @@ Access global preferences through `Cmd+,` or the application menu. These setting
 - `code` for Visual Studio Code
 - `cursor` for Cursor
 - `subl` for Sublime Text
-- Custom paths like `/Applications/Nova.app/Contents/MacOS/Nova`
 
-**Default Project Settings**: Set the defaults that will be applied to newly opened projects.
+**Important**: Global settings contain ONLY truly global preferences (theme, IDE command, copyedit highlights, auto-save delay). There are no global defaults for project or collection settings.
 
 ### Project Settings
 
-Each project can override global settings to accommodate different structures or workflows. Access project settings through the preferences panel.
+Each project has its own settings that apply to the entire project. Access project settings through the preferences panel (only visible when a project is open).
 
 **Path Overrides**: Customize directory locations if your project uses non-standard paths:
 
 - **Content Directory**: Default is `src/content/`, but you might use `content/` or `docs/`
 - **Assets Directory**: Default is `src/assets/`, useful for projects using `public/images/` or `static/`
-- **MDX Components Directory**: Default is `src/components/mdx/` (reserved for future features)
 
-**Frontmatter Field Mappings**: Configure which frontmatter fields are used for specific purposes:
+Project-level path overrides apply to all collections unless a collection has its own override.
 
-- **Title Field**: Default `title`, controls file display names and special styling
-- **Date Field**: Default `["pubDate", "date", "publishedDate"]`, used for file sorting
-- **Description Field**: Default `description`, gets enhanced textarea styling
-- **Draft Field**: Default `draft`, controls draft detection and filtering
+### Collection Settings
+
+**New**: You can now configure settings for individual collections, allowing different collections to have different paths and field mappings.
+
+**When to Use Collection Settings**:
+- Blog posts in `content/blog/` while docs remain in `src/content/docs/`
+- Different collections using different field names (e.g., blog uses `publishDate`, docs use `date`)
+- Collection-specific asset directories (e.g., blog images in `public/blog-images/`)
+
+**Available Collection Settings**:
+
+**Path Overrides** (per collection):
+- **Content Directory**: Where this collection's files are located (absolute path from project root)
+  - Example: `content/blog/` means files are in `<project_root>/content/blog/`, not `<project_root>/src/content/blog/`
+- **Assets Directory**: Where this collection's assets should be copied (absolute path from project root)
+  - Example: `public/blog-images/` for blog, `public/docs-images/` for docs
+
+**Frontmatter Field Mappings** (per collection):
+- **Title Field**: Which field to use for file titles in sidebar (e.g., `title` or `heading`)
+- **Date Field**: Which field(s) to use for sorting files (e.g., `publishDate` or `["pubDate", "date"]`)
+- **Description Field**: Which field to style as a textarea (e.g., `description` or `summary`)
+- **Draft Field**: Which boolean field indicates draft status (e.g., `draft` or `published`)
+
+**How Settings Work (Three-Tier Fallback)**:
+
+When Astro Editor needs a setting (like content directory), it looks in this order:
+1. **Collection setting** (if configured for this collection)
+2. **Project setting** (if configured at project level)
+3. **Hard-coded default** (built into the app)
+
+**Example**: If you set project content directory to `content/`, all collections use `content/`. But if you configure the "blog" collection to use `content/blog-posts/`, only the blog collection uses that path while other collections still use `content/`.
 
 ### Settings Storage
 
 Settings are automatically saved to your system:
 
 - **Location**: `~/Library/Application Support/is.danny.astroeditor/`
-- **Global Settings**: Shared across all projects
-- **Project Registry**: Remembers all opened projects and their individual settings
+- **Global Settings**: Theme, IDE command, and other app-wide preferences
+- **Project Registry**: Remembers all opened projects and their metadata
+- **Project Files**: Individual settings files for each project (includes collection overrides)
 - **Auto-Recovery**: Settings persist across app restarts and crashes
 
 Projects are identified by their `package.json` name and automatically migrate if you move the project folder.
-
-_[Screenshot needed: Preferences window showing global and project-specific settings]_
 
 ## Troubleshooting & Support
 

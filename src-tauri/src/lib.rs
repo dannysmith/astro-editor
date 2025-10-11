@@ -362,7 +362,9 @@ pub fn run() {
             get_app_version,
             get_platform_info,
             get_app_info,
-            get_available_ides
+            get_available_ides,
+            open_preferences_folder,
+            reset_all_preferences
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

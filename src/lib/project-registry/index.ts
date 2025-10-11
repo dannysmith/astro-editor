@@ -163,7 +163,7 @@ export class ProjectRegistryManager {
   }
 
   /**
-   * Get project data (metadata + settings)
+   * Get project data (settings only, metadata is in registry)
    */
   async getProjectData(projectId: string): Promise<ProjectData | null> {
     if (!this.registry) {
@@ -191,8 +191,9 @@ export class ProjectRegistryManager {
 
     // Create default project data
     const defaultData: ProjectData = {
-      metadata,
       settings: { ...DEFAULT_PROJECT_SETTINGS },
+      collections: [],
+      version: 2,
     }
 
     // Cache and save
@@ -231,6 +232,11 @@ export class ProjectRegistryManager {
       },
     }
 
+    // Update collections if provided
+    if (settings.collections !== undefined) {
+      projectData.settings.collections = settings.collections
+    }
+
     // Update cache
     this.projectDataCache.set(projectId, projectData)
 
@@ -253,9 +259,9 @@ export class ProjectRegistryManager {
         ...this.globalSettings.general,
         ...settings.general,
       },
-      defaultProjectSettings: {
-        ...this.globalSettings.defaultProjectSettings,
-        ...settings.defaultProjectSettings,
+      appearance: {
+        ...this.globalSettings.appearance,
+        ...settings.appearance,
       },
     }
 
@@ -263,29 +269,31 @@ export class ProjectRegistryManager {
   }
 
   /**
-   * Get effective settings for a project (global defaults + project overrides)
+   * Get effective settings for a project (hard-coded defaults + project overrides)
    */
   async getEffectiveSettings(projectId: string): Promise<ProjectSettings> {
     const projectData = await this.getProjectData(projectId)
-    const globalSettings = this.getGlobalSettings()
 
     if (!projectData) {
-      return { ...globalSettings.defaultProjectSettings }
+      return { ...DEFAULT_PROJECT_SETTINGS }
     }
 
+    // Merge hard-coded defaults with project-specific settings
     return {
       pathOverrides: {
-        ...globalSettings.defaultProjectSettings.pathOverrides,
+        ...DEFAULT_PROJECT_SETTINGS.pathOverrides,
         ...projectData.settings.pathOverrides,
       },
       frontmatterMappings: {
-        ...globalSettings.defaultProjectSettings.frontmatterMappings,
+        ...DEFAULT_PROJECT_SETTINGS.frontmatterMappings,
         ...projectData.settings.frontmatterMappings,
       },
       collectionViewSettings: {
-        ...globalSettings.defaultProjectSettings.collectionViewSettings,
+        ...DEFAULT_PROJECT_SETTINGS.collectionViewSettings,
         ...projectData.settings.collectionViewSettings,
       },
+      // Include collections array if present
+      collections: projectData.settings.collections || [],
     }
   }
 
@@ -310,3 +318,5 @@ export const projectRegistryManager = new ProjectRegistryManager()
 // Export types and utilities
 export * from './types'
 export * from './defaults'
+export * from './collection-settings'
+export * from './path-resolution'
