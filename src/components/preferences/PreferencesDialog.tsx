@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Folder, Layers } from 'lucide-react'
+import { Settings, Folder, Layers, Wrench } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,6 +27,7 @@ import {
 import { GeneralPane } from './panes/GeneralPane'
 import { ProjectSettingsPane } from './panes/ProjectSettingsPane'
 import { CollectionSettingsPane } from './panes/CollectionSettingsPane'
+import { DebugPane } from './panes/DebugPane'
 import { usePreferences } from '../../hooks/usePreferences'
 
 interface PreferencesDialogProps {
@@ -34,7 +35,7 @@ interface PreferencesDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type PreferencePane = 'general' | 'project' | 'collections'
+type PreferencePane = 'general' | 'project' | 'collections' | 'debug'
 
 const getNavigationItems = (hasProject: boolean) =>
   [
@@ -56,6 +57,12 @@ const getNavigationItems = (hasProject: boolean) =>
       icon: Layers,
       available: hasProject,
     },
+    {
+      id: 'debug' as const,
+      name: 'Advanced',
+      icon: Wrench,
+      available: true,
+    },
   ].filter(item => item.available)
 
 const getPaneTitle = (pane: PreferencePane): string => {
@@ -66,6 +73,8 @@ const getPaneTitle = (pane: PreferencePane): string => {
       return 'Project Settings'
     case 'collections':
       return 'Collections'
+    case 'debug':
+      return 'Advanced'
     default:
       return 'General'
   }
@@ -146,6 +155,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                 {activePane === 'general' && <GeneralPane />}
                 {activePane === 'project' && <ProjectSettingsPane />}
                 {activePane === 'collections' && <CollectionSettingsPane />}
+                {activePane === 'debug' && <DebugPane />}
               </div>
             </div>
           </main>

@@ -993,7 +993,7 @@ Track completion of each subtask:
 - [x] **Subtask 4: Update Code** - All file operations respect hierarchy
 - [x] **Subtask 5: Robustness** - Edge cases handled, validation strategy clear
 - [x] **Subtask 6: UI** - Preferences UI shows scope clearly, collection settings fully functional
-- [ ] **Subtask 7: Debug Tools** - Reset and open folder tools functional
+- [x] **Subtask 7: Debug Tools** - Reset and open folder tools functional
 
 **Overall Quality Gates:**
 
