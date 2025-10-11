@@ -69,7 +69,8 @@ export const useCreateFile = () => {
 
     try {
       // Get current values from store state
-      const { selectedCollection } = useProjectStore.getState()
+      const { selectedCollection, currentSubdirectory } =
+        useProjectStore.getState()
       const currentProjectPath = useProjectStore.getState().projectPath
 
       if (!selectedCollection || !currentProjectPath) {
@@ -83,21 +84,28 @@ export const useCreateFile = () => {
         return
       }
 
+      // Calculate target directory (collection root or subdirectory)
+      const targetDirectory = currentSubdirectory
+        ? `${collection.path}/${currentSubdirectory}`
+        : collection.path
+
       // Generate filename based on today's date
       const today = new Date().toISOString().split('T')[0]
       let filename = `${today}.md`
       let counter = 1
 
-      // Check if file exists and increment counter if needed
-      const collectionFiles = await invoke<FileEntry[]>(
-        'scan_collection_files',
-        {
-          collectionPath: collection.path,
-        }
-      )
+      // Check if file exists in target directory and increment counter if needed
+      const existingDirContents = await invoke<{
+        files: FileEntry[]
+        subdirectories: unknown[]
+      }>('scan_directory', {
+        directoryPath: targetDirectory,
+        collectionName: selectedCollection,
+        collectionRoot: collection.path,
+      })
 
       const existingNames = new Set(
-        collectionFiles.map(f =>
+        existingDirContents.files.map(f =>
           f.extension ? `${f.name}.${f.extension}` : f.name
         )
       )
@@ -168,9 +176,9 @@ export const useCreateFile = () => {
               .join('\n')}\n---\n\n`
           : ''
 
-      // Create the file
+      // Create the file in target directory (respects current subdirectory)
       await createFileMutation.mutateAsync({
-        directory: collection.path,
+        directory: targetDirectory,
         filename,
         content: frontmatterYaml,
         projectPath: currentProjectPath,
@@ -178,11 +186,16 @@ export const useCreateFile = () => {
       })
 
       // Find and open the newly created file
-      const updatedFiles = await invoke<FileEntry[]>('scan_collection_files', {
-        collectionPath: collection.path,
+      const updatedDirContents = await invoke<{
+        files: FileEntry[]
+        subdirectories: unknown[]
+      }>('scan_directory', {
+        directoryPath: targetDirectory,
+        collectionName: selectedCollection,
+        collectionRoot: collection.path,
       })
 
-      const newFile = updatedFiles.find(
+      const newFile = updatedDirContents.files.find(
         f => (f.extension ? `${f.name}.${f.extension}` : f.name) === filename
       )
 

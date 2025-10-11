@@ -263,9 +263,13 @@ export function useLayoutEventListeners() {
     const handleFileOpened = (event: Event) => {
       const customEvent = event as CustomEvent<{ collectionName: string }>
       const { collectionName } = customEvent.detail
+      const { selectedCollection } = useProjectStore.getState()
 
-      // Update the selected collection to match the opened file
-      useProjectStore.getState().setSelectedCollection(collectionName)
+      // Only update the selected collection if it's actually changing
+      // This prevents resetting currentSubdirectory when opening a file in the same collection
+      if (selectedCollection !== collectionName) {
+        useProjectStore.getState().setSelectedCollection(collectionName)
+      }
     }
 
     window.addEventListener('toggle-focus-mode', handleToggleFocusMode)

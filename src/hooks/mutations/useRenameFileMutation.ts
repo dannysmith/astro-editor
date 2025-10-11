@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
+import { useProjectStore } from '@/store/projectStore'
 
 interface RenameFilePayload {
   oldPath: string
@@ -26,11 +27,14 @@ export const useRenameFileMutation = () => {
   return useMutation({
     mutationFn: renameFile,
     onSuccess: (_, variables) => {
-      // Invalidate collection files to show the renamed file
+      const { currentSubdirectory } = useProjectStore.getState()
+
+      // Invalidate current directory view to show the renamed file
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.collectionFiles(
+        queryKey: queryKeys.directoryContents(
           variables.projectPath,
-          variables.collectionName
+          variables.collectionName,
+          currentSubdirectory || 'root'
         ),
       })
 

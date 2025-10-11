@@ -1,10 +1,16 @@
-use crate::models::{Collection, FileEntry};
+use crate::models::{Collection, DirectoryInfo, FileEntry};
 use crate::parser::parse_astro_config;
 use crate::schema_merger;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirectoryScanResult {
+    pub subdirectories: Vec<DirectoryInfo>,
+    pub files: Vec<FileEntry>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RustToastEvent {
@@ -328,6 +334,9 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
         .unwrap_or("unknown")
         .to_string();
 
+    // Use path as collection root (flat scan, no subdirectories)
+    let collection_root = path.clone();
+
     // Scan for markdown and MDX files
     for entry in
         std::fs::read_dir(&path).map_err(|e| format!("Failed to read collection directory: {e}"))?
@@ -338,7 +347,11 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
         if path.is_file() {
             if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
                 if matches!(extension, "md" | "mdx") {
-                    let mut file_entry = FileEntry::new(path.clone(), collection_name.clone());
+                    let mut file_entry = FileEntry::new(
+                        path.clone(),
+                        collection_name.clone(),
+                        collection_root.clone(),
+                    );
 
                     // Parse frontmatter for basic metadata
                     if let Ok(content) = std::fs::read_to_string(&path) {
@@ -449,8 +462,11 @@ pub async fn load_file_based_collection(
                 // Create FileEntry with the JSON data as frontmatter
                 // For file-based collections, we need to manually set the id to use the item's id
                 // instead of deriving it from the file path
-                let mut file_entry = FileEntry::new(file_path.clone(), collection_name.clone())
-                    .with_frontmatter(frontmatter);
+                // Use the file's parent directory as collection root for file-based collections
+                let collection_root = file_path.parent().unwrap_or(&file_path).to_path_buf();
+                let mut file_entry =
+                    FileEntry::new(file_path.clone(), collection_name.clone(), collection_root)
+                        .with_frontmatter(frontmatter);
 
                 // Override the auto-generated id with the item's unique identifier from JSON
                 file_entry.id = format!("{collection_name}/{item_id}");
@@ -497,4 +513,143 @@ pub async fn read_json_schema(
         error!("Astro Editor [JSON_SCHEMA] {err_msg}");
         err_msg
     })
+}
+
+/// Scan a single directory (non-recursive) for subdirectories and markdown/mdx files
+#[tauri::command]
+pub async fn scan_directory(
+    directory_path: String,
+    collection_name: String,
+    collection_root: String,
+) -> Result<DirectoryScanResult, String> {
+    let dir_path = PathBuf::from(&directory_path);
+    let collection_root_path = PathBuf::from(&collection_root);
+
+    if !dir_path.exists() {
+        return Err(format!("Directory does not exist: {}", dir_path.display()));
+    }
+
+    if !dir_path.is_dir() {
+        return Err(format!("Path is not a directory: {}", dir_path.display()));
+    }
+
+    let mut subdirectories = Vec::new();
+    let mut files = Vec::new();
+
+    // Read directory entries
+    for entry in
+        std::fs::read_dir(&dir_path).map_err(|e| format!("Failed to read directory: {e}"))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+        let path = entry.path();
+
+        // Get file name for filtering
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+        // Skip hidden files/directories (starting with . or _)
+        if file_name.starts_with('.') || file_name.starts_with('_') {
+            continue;
+        }
+
+        // Skip symbolic links
+        let metadata = entry
+            .metadata()
+            .map_err(|e| format!("Failed to read metadata: {e}"))?;
+
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+
+        if path.is_dir() {
+            // Add subdirectory
+            if let Ok(dir_info) = DirectoryInfo::new(path, &collection_root_path) {
+                subdirectories.push(dir_info);
+            }
+        } else if path.is_file() {
+            // Check if it's a markdown or MDX file
+            if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+                if matches!(extension, "md" | "mdx") {
+                    let mut file_entry = FileEntry::new(
+                        path.clone(),
+                        collection_name.clone(),
+                        collection_root_path.clone(),
+                    );
+
+                    // Parse frontmatter for basic metadata
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(parsed) =
+                            crate::commands::files::parse_frontmatter_internal(&content)
+                        {
+                            file_entry = file_entry.with_frontmatter(parsed.frontmatter);
+                        }
+                    }
+
+                    files.push(file_entry);
+                }
+            }
+        }
+    }
+
+    Ok(DirectoryScanResult {
+        subdirectories,
+        files,
+    })
+}
+
+/// Count all markdown/mdx files recursively in a collection
+#[tauri::command]
+pub async fn count_collection_files_recursive(collection_path: String) -> Result<usize, String> {
+    let path = PathBuf::from(&collection_path);
+
+    if !path.exists() {
+        return Ok(0);
+    }
+
+    if !path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path.display()));
+    }
+
+    fn count_files_recursive(dir_path: &Path) -> Result<usize, String> {
+        let mut count = 0;
+
+        for entry in
+            std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {e}"))?
+        {
+            let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+            let path = entry.path();
+
+            // Get file name for filtering
+            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            // Skip hidden files/directories (starting with . or _)
+            if file_name.starts_with('.') || file_name.starts_with('_') {
+                continue;
+            }
+
+            // Skip symbolic links
+            let metadata = entry
+                .metadata()
+                .map_err(|e| format!("Failed to read metadata: {e}"))?;
+
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+
+            if path.is_dir() {
+                // Recursively count files in subdirectory
+                count += count_files_recursive(&path)?;
+            } else if path.is_file() {
+                // Check if it's a markdown or MDX file
+                if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+                    if matches!(extension, "md" | "mdx") {
+                        count += 1;
+                    }
+                }
+            }
+        }
+
+        Ok(count)
+    }
+
+    count_files_recursive(&path)
 }

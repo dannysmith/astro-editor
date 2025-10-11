@@ -75,9 +75,13 @@ function App() {
           // Only show dialog when manually checking and no update is available
           try {
             const version = await invoke<string>('get_app_version')
-            alert(`No updates available.\n\nYou are running the latest version (${version}).`)
+            alert(
+              `No updates available.\n\nYou are running the latest version (${version}).`
+            )
           } catch {
-            alert('No updates available.\n\nYou are running the latest version.')
+            alert(
+              'No updates available.\n\nYou are running the latest version.'
+            )
           }
         }
       })()

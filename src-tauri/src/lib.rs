@@ -338,6 +338,8 @@ pub fn run() {
             scan_project,
             scan_project_with_content_dir,
             scan_collection_files,
+            scan_directory,
+            count_collection_files_recursive,
             load_file_based_collection,
             read_json_schema,
             read_file,

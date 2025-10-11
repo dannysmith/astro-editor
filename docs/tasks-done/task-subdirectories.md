@@ -9,6 +9,7 @@
 **Scope**: 6 subtasks covering backend (Rust), state management (Zustand), data fetching (TanStack Query), UI (React), file operations, and edge cases.
 
 **Navigation Flow**:
+
 ```
 Collections List
   → Collection Root (articles/)
@@ -18,6 +19,7 @@ Collections List
 ```
 
 **Estimated Complexity**: Medium-High
+
 - Backend changes: Straightforward (new Tauri command, fix file IDs)
 - State management: Simple (add navigation state to projectStore)
 - UI changes: Moderate (breadcrumbs, directory rendering, navigation logic)
@@ -80,6 +82,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    - More efficient than building FileEntry objects just to count
 
 3. **Fix FileEntry::new() Signature** - BREAKING CHANGE:
+
    ```rust
    // OLD signature
    pub fn new(path: PathBuf, collection: String) -> Self
@@ -89,6 +92,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
    Inside new():
+
    ```rust
    // Calculate relative path from collection root
    let relative_path = path
@@ -123,6 +127,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 **Files to Modify**:
+
 - `src-tauri/src/commands/project.rs` - add `scan_directory` and `count_collection_files_recursive`
 - `src-tauri/src/models/file_entry.rs` - fix `FileEntry::new()` signature and ID generation
 - `src-tauri/src/models/mod.rs` - add `DirectoryInfo` type (or create `directory_info.rs`)
@@ -130,6 +135,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 - Update ALL call sites of `FileEntry::new()` to pass collection_root
 
 **Gotchas**:
+
 - **CRITICAL**: Changing FileEntry::new() is a breaking change - must update all call sites in Rust code
 - Hidden file detection: Starts with `.` (covers .DS_Store, .git, etc.)
 - Empty directories: MUST include them (user wants to create files in them)
@@ -141,6 +147,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 - Collection root calculation: Must be passed correctly from all call sites
 
 **Testing Requirements**:
+
 - Unit test FileEntry ID generation with nested paths
 - Unit test hidden file filtering (.hidden, .DS_Store)
 - Unit test symlink ignoring
@@ -156,29 +163,32 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 **Key Changes**:
 
 1. **Add to ProjectState interface**:
+
    ```typescript
    interface ProjectState {
      // ... existing fields
-     currentSubdirectory: string | null  // Relative path from collection root, e.g., "2024/january"
+     currentSubdirectory: string | null // Relative path from collection root, e.g., "2024/january"
 
      // ... existing actions
      setCurrentSubdirectory: (subdirectory: string | null) => void
-     navigateUp: () => void        // Go up one level in directory hierarchy
-     navigateToRoot: () => void    // Go to collection root (clear subdirectory)
+     navigateUp: () => void // Go up one level in directory hierarchy
+     navigateToRoot: () => void // Go to collection root (clear subdirectory)
    }
    ```
 
 2. **Update `setSelectedCollection`** to reset subdirectory:
+
    ```typescript
    setSelectedCollection: (collection: string | null) => {
      set({
        selectedCollection: collection,
-       currentSubdirectory: null  // Always reset when switching collections
+       currentSubdirectory: null, // Always reset when switching collections
      })
    }
    ```
 
 3. **Implement `navigateUp`** - Smart navigation up one level:
+
    ```typescript
    navigateUp: () => {
      const { currentSubdirectory } = get()
@@ -188,18 +198,19 @@ Astro Editor should support this in the left File browser sidebar. It should sho
      } else {
        // Go to parent directory
        const parts = currentSubdirectory.split('/')
-       parts.pop()  // Remove last segment
+       parts.pop() // Remove last segment
        set({ currentSubdirectory: parts.length > 0 ? parts.join('/') : null })
      }
    }
    ```
 
 4. **Create TypeScript types** matching Rust backend:
+
    ```typescript
    export interface DirectoryInfo {
-     name: string           // Just the directory name
-     relative_path: string  // Path from collection root
-     full_path: string     // Full filesystem path
+     name: string // Just the directory name
+     relative_path: string // Path from collection root
+     full_path: string // Full filesystem path
    }
 
    export interface DirectoryScanResult {
@@ -209,16 +220,19 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 **Files to Modify**:
+
 - `src/store/projectStore.ts` - add navigation state and actions
 - `src/store/index.ts` - export new types (DirectoryInfo, DirectoryScanResult)
 
 **State Behavior**:
+
 - `currentSubdirectory` is relative path from collection root (e.g., `"2024/january"`)
 - Reset to `null` when switching collections (don't persist subdirectory navigation)
 - Reset to `null` when closing project
 - Not persisted across app restarts (keep it simple)
 
 **Architecture Validation**:
+
 - ✅ Follows projectStore responsibility (project-level navigation state)
 - ✅ Maintains separation from editorStore (file editing state)
 - ✅ Uses getState() pattern for callbacks to avoid render cascades
@@ -231,13 +245,14 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 **Key Changes**:
 
 1. **Create `useDirectoryScanQuery`** - Replaces `useCollectionFilesQuery`:
+
    ```typescript
    // src/hooks/queries/useDirectoryScanQuery.ts
    export const useDirectoryScanQuery = (
      projectPath: string | null,
      collectionName: string | null,
      collectionPath: string | null,
-     subdirectory: string | null  // Relative path from collection root
+     subdirectory: string | null // Relative path from collection root
    ) => {
      return useQuery({
        queryKey: queryKeys.directoryContents(
@@ -262,6 +277,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 2. **Update `queryKeys` factory**:
+
    ```typescript
    // src/lib/query-keys.ts
    export const queryKeys = {
@@ -273,8 +289,15 @@ Astro Editor should support this in the left File browser sidebar. It should sho
      directoryContents: (
        projectPath: string,
        collectionName: string,
-       subdirectory: string  // 'root' or relative path
-     ) => [...queryKeys.all, projectPath, collectionName, 'directory', subdirectory] as const,
+       subdirectory: string // 'root' or relative path
+     ) =>
+       [
+         ...queryKeys.all,
+         projectPath,
+         collectionName,
+         'directory',
+         subdirectory,
+       ] as const,
 
      // Keep for file content queries
      fileContent: (projectPath: string, fileId: string) =>
@@ -283,6 +306,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 3. **Update Query Invalidation** in mutations:
+
    ```typescript
    // After file create/delete/rename in a subdirectory:
    queryClient.invalidateQueries({
@@ -290,16 +314,17 @@ Astro Editor should support this in the left File browser sidebar. It should sho
        projectPath,
        collectionName,
        currentSubdirectory || 'root'
-     )
+     ),
    })
 
    // Also invalidate parent directories if needed for file counts:
    queryClient.invalidateQueries({
-     queryKey: queryKeys.collections(projectPath)  // Refresh collection counts
+     queryKey: queryKeys.collections(projectPath), // Refresh collection counts
    })
    ```
 
 4. **Replace `useCollectionFilesQuery`** usage in components:
+
    ```typescript
    // OLD (LeftSidebar.tsx)
    const { data: files = [] } = useCollectionFilesQuery(...)
@@ -316,6 +341,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 **Files to Create/Modify**:
+
 - `src/hooks/queries/useDirectoryScanQuery.ts` - **NEW** hook
 - `src/lib/query-keys.ts` - update key structure
 - `src/hooks/queries/useCollectionFilesQuery.ts` - **DELETE** (replaced by useDirectoryScanQuery)
@@ -323,11 +349,13 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 - `src/components/layout/LeftSidebar.tsx` - replace useCollectionFilesQuery
 
 **Query Invalidation Patterns**:
+
 - File created/deleted/renamed: Invalidate current directory + collections (for counts)
 - Settings path changed: Invalidate all directory queries
 - External file change detected: Invalidate affected directory
 
 **Edge Cases**:
+
 - Handle query cancellation when navigating between directories quickly
 - Loading states during directory navigation
 - Error states (directory deleted, permissions issues)
@@ -339,6 +367,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 **Key Changes**:
 
 1. **Header with Breadcrumbs** - Replaces simple title:
+
    ```typescript
    // Current: <span>{headerTitle}</span>
    // New: Breadcrumb component
@@ -367,6 +396,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    - Separator is visual only (chevron or `/`)
 
 2. **Smart Back Button** - Context-aware navigation:
+
    ```typescript
    const handleBackClick = useCallback(() => {
      const { currentSubdirectory, selectedCollection, navigateUp } =
@@ -384,6 +414,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    ```
 
 3. **Render Subdirectories** - At top of file list, above files:
+
    ```typescript
    <div className="p-2">
      {/* Subdirectories first (alphabetically sorted) */}
@@ -412,10 +443,12 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    - Files sorted by date (EXACT same as current - per user requirement)
 
 **Files to Modify**:
+
 - `src/components/layout/LeftSidebar.tsx` - main implementation
 - Consider extracting `<Breadcrumbs>` if over ~30 lines, but keep inline initially
 
 **UI Requirements** (Per User):
+
 - **NOTHING changes about file items** (same sorting, same display, same badges, same colors)
 - **ONLY header changes** (breadcrumbs replace simple title)
 - Subdirectories shown at top (alphabetically)
@@ -423,6 +456,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 - Collection name always visible in breadcrumbs
 
 **Implementation Notes**:
+
 - Use existing `cn()` utility for classNames
 - Use lucide-react `Folder` icon for subdirectories
 - Maintain exact same hover/active states for files
@@ -432,12 +466,14 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 - Loading state: Show skeleton or existing file list while navigating
 
 **Breadcrumb Styling Guidance**:
+
 - Clickable segments: `text-foreground hover:underline cursor-pointer`
 - Current segment: `text-muted-foreground` (no hover, no cursor)
 - Separator: `text-muted-foreground mx-1` (could be `/` or `<ChevronRight className="size-3" />`)
 - Truncate long directory names if needed: `truncate max-w-[120px]`
 
 **Performance**:
+
 - Use `useCallback` for click handlers (getState() pattern)
 - Memoize sorted subdirectories/files if needed
 - No performance changes expected (subdirectories add minimal overhead)
@@ -449,14 +485,19 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 **Key Changes**:
 
 1. **File Creation** - Bridge pattern to pass subdirectory context:
+
    ```typescript
    // In Layout.tsx (has hook access)
    const handleCreateNewFile = useCallback(() => {
      const { projectPath, selectedCollection, currentSubdirectory } =
        useProjectStore.getState()
-     const collections = queryClient.getQueryData(queryKeys.collections(projectPath))
+     const collections = queryClient.getQueryData(
+       queryKeys.collections(projectPath)
+     )
 
-     const targetCollection = collections.find(c => c.name === selectedCollection)
+     const targetCollection = collections.find(
+       c => c.name === selectedCollection
+     )
      if (!targetCollection) return
 
      // Calculate target directory for new file
@@ -468,21 +509,22 @@ Astro Editor should support this in the left File browser sidebar. It should sho
      createFileMutation.mutate({
        projectPath,
        collectionName: selectedCollection,
-       targetDirectory: targetPath,  // NEW: Full path to target directory
+       targetDirectory: targetPath, // NEW: Full path to target directory
        // ... other params
      })
    }, [])
    ```
 
 2. **Update Create Mutation** - Pass target directory:
+
    ```typescript
    // useCreateFileMutation.ts
    export const useCreateFileMutation = () => {
      return useMutation({
        mutationFn: ({ targetDirectory, ...params }) => {
          return invoke('create_file', {
-           directory: targetDirectory,  // Use full target path
-           ...params
+           directory: targetDirectory, // Use full target path
+           ...params,
          })
        },
        onSuccess: (_, variables) => {
@@ -494,14 +536,14 @@ Astro Editor should support this in the left File browser sidebar. It should sho
              variables.projectPath,
              variables.collectionName,
              currentSubdirectory || 'root'
-           )
+           ),
          })
 
          // Also invalidate collection counts
          queryClient.invalidateQueries({
-           queryKey: queryKeys.collections(variables.projectPath)
+           queryKey: queryKeys.collections(variables.projectPath),
          })
-       }
+       },
      })
    }
    ```
@@ -519,6 +561,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
    - ONLY update query invalidation to use currentSubdirectory
 
 **Files to Modify**:
+
 - `src/components/layout/Layout.tsx` - update handleCreateNewFile to pass subdirectory
 - `src/hooks/mutations/useCreateFileMutation.ts` - accept targetDirectory parameter
 - `src/hooks/mutations/useDeleteFileMutation.ts` - update query invalidation
@@ -528,6 +571,7 @@ Astro Editor should support this in the left File browser sidebar. It should sho
 
 **Query Invalidation Updates**:
 All mutation onSuccess callbacks need to invalidate the correct directory:
+
 ```typescript
 onSuccess: (_, variables) => {
   const { currentSubdirectory } = useProjectStore.getState()
@@ -537,12 +581,13 @@ onSuccess: (_, variables) => {
       variables.projectPath,
       variables.collectionName,
       currentSubdirectory || 'root'
-    )
+    ),
   })
 }
 ```
 
 **Testing Requirements**:
+
 - Create file in collection root → appears in root directory view
 - Create file in subdirectory `2024/` → appears in `2024/` directory view
 - Create file in nested subdirectory `2024/january/` → appears in correct location
@@ -552,6 +597,7 @@ onSuccess: (_, variables) => {
 - File watcher detects changes in subdirectories → refreshes view automatically
 
 **Edge Cases**:
+
 - User creates file in subdirectory, then navigates away before file appears
 - User is in subdirectory, file gets deleted externally → handle gracefully
 - User creates file with name that already exists in subdirectory → Rust command should error
@@ -563,6 +609,7 @@ onSuccess: (_, variables) => {
 **Key Changes**:
 
 1. **Error Handling**:
+
    ```typescript
    // Handle directory deleted while user is in it
    const { data, error } = useDirectoryScanQuery(...)
@@ -577,15 +624,19 @@ onSuccess: (_, variables) => {
    ```
 
 2. **File Count Badges** - Use recursive count:
+
    ```typescript
    // LeftSidebar.tsx - collections list view
    useEffect(() => {
      const loadFileCounts = async () => {
        const counts: Record<string, number> = {}
        for (const collection of collections) {
-         const count = await invoke<number>('count_collection_files_recursive', {
-           collectionPath: collection.path,
-         })
+         const count = await invoke<number>(
+           'count_collection_files_recursive',
+           {
+             collectionPath: collection.path,
+           }
+         )
          counts[collection.name] = count
        }
        setFileCounts(counts)
@@ -597,6 +648,7 @@ onSuccess: (_, variables) => {
    ```
 
 3. **Loading States**:
+
    ```typescript
    const { data, isLoading } = useDirectoryScanQuery(...)
 
@@ -616,14 +668,15 @@ onSuccess: (_, variables) => {
    - Test: Create/delete file in subdirectory via Finder while app is open
 
 6. **State Reset on Project Switch**:
+
    ```typescript
    // In projectStore.setProject
    setProject: (path: string) => {
      // ... existing code
      set({
        projectPath: path,
-       selectedCollection: null,      // Reset collection
-       currentSubdirectory: null,     // Reset subdirectory
+       selectedCollection: null, // Reset collection
+       currentSubdirectory: null, // Reset subdirectory
        // ... other fields
      })
    }
@@ -638,8 +691,8 @@ onSuccess: (_, variables) => {
 8. **Performance Optimizations**:
    - Memoize sorted subdirectories:
      ```typescript
-     const sortedSubdirectories = useMemo(() =>
-       [...subdirectories].sort((a, b) => a.name.localeCompare(b.name)),
+     const sortedSubdirectories = useMemo(
+       () => [...subdirectories].sort((a, b) => a.name.localeCompare(b.name)),
        [subdirectories]
      )
      ```
@@ -647,6 +700,7 @@ onSuccess: (_, variables) => {
    - Consider React.memo for subdirectory items if performance issues arise
 
 **Files to Review**:
+
 - All files from previous subtasks
 - `src/components/layout/LeftSidebar.tsx` - comprehensive review
 - Query invalidation in all mutations
@@ -655,6 +709,7 @@ onSuccess: (_, variables) => {
 **Testing Scenarios**:
 
 **Basic Functionality**:
+
 - ✅ Navigate into subdirectory, see only files in that directory
 - ✅ Navigate into nested subdirectory (2-3 levels deep)
 - ✅ Back button goes up one level
@@ -665,6 +720,7 @@ onSuccess: (_, variables) => {
 - ✅ Delete file from subdirectory → removes from view
 
 **Edge Cases**:
+
 - ✅ Empty subdirectory → shows in list, can navigate into it, shows "No files"
 - ✅ Very deep nesting (5-7 levels) → all operations work
 - ✅ Special characters in dir names (spaces, unicode, emojis) → handles correctly
@@ -677,17 +733,20 @@ onSuccess: (_, variables) => {
 - ✅ Draft filter enabled, navigate between subdirectories → filter persists
 
 **Stress Testing**:
+
 - ✅ 100+ files in a single directory → loads and renders quickly
 - ✅ 50+ subdirectories in collection root → renders smoothly
 - ✅ Rapid navigation between subdirectories → no UI jank, queries cancel properly
 - ✅ Open file in deep subdirectory, auto-save every 2s → no issues
 
 **Cross-Platform**:
+
 - ✅ Path separators consistent on Windows/macOS/Linux
 - ✅ Hidden file filtering works on all platforms
 - ✅ Special characters handled on all platforms
 
 **Regression Testing**:
+
 - ✅ Flat collections (no subdirectories) still work exactly as before
 - ✅ All existing keyboard shortcuts still work
 - ✅ Command palette still works
@@ -698,6 +757,7 @@ onSuccess: (_, variables) => {
 - ✅ Date sorting still works
 
 **Final Checklist**:
+
 - [ ] All Rust tests pass
 - [ ] All TypeScript tests pass
 - [ ] No TypeScript errors (`pnpm run check:ts`)
@@ -711,6 +771,7 @@ onSuccess: (_, variables) => {
 ## Technical Considerations
 
 ### Architecture Alignment
+
 - ✅ Uses TanStack Query for server state (directory contents)
 - ✅ Uses Zustand projectStore for navigation state
 - ✅ Follows Direct Store Pattern in UI components
@@ -718,18 +779,21 @@ onSuccess: (_, variables) => {
 - ✅ Uses query invalidation for cache management
 
 ### Performance Patterns
+
 - Use `getState()` pattern to avoid render cascades when accessing navigation state
 - Memoize sorted/filtered file lists
 - Consider virtualization if subdirectories can have 100+ files
 - Optimize Rust directory scanning with iterators
 
 ### Breaking Changes
+
 - None expected - this is purely additive functionality
 - Existing flat collections will work as before (just show no subdirectories)
 
 ## Implementation Order and Dependencies
 
 **Recommended Order**:
+
 1. **Subtask 1** (Backend) → Independent, foundational
 2. **Subtask 2** (State) → Depends on Subtask 1 types
 3. **Subtask 3** (Queries) → Depends on Subtasks 1 & 2
@@ -738,10 +802,12 @@ onSuccess: (_, variables) => {
 6. **Subtask 6** (Polish) → Depends on all previous
 
 **Can Work in Parallel**:
+
 - Subtasks 1 & 2 (Backend and State are independent)
 - Once Subtask 3 is done, Subtasks 4 & 5 can be worked in parallel
 
 **Testing After Each Subtask**:
+
 1. After Subtask 1: Unit test Rust directory scanning
 2. After Subtask 2: Test state updates in isolation
 3. After Subtask 3: Test query hooks with mock data
