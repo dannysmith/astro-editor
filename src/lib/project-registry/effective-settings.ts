@@ -11,7 +11,7 @@ import { ASTRO_PATHS } from '../constants'
  * Returns default values if no project is loaded or no overrides exist
  */
 export const useEffectiveSettings = () => {
-  const { currentProjectSettings, globalSettings } = useProjectStore()
+  const { currentProjectSettings } = useProjectStore()
 
   const getEffectivePathOverrides = () => {
     const defaults = {
@@ -20,22 +20,15 @@ export const useEffectiveSettings = () => {
       mdxComponentsDirectory: ASTRO_PATHS.MDX_COMPONENTS_DIR,
     }
 
-    const globalDefaults =
-      globalSettings?.defaultProjectSettings?.pathOverrides || {}
     const projectOverrides = currentProjectSettings?.pathOverrides || {}
 
     return {
       contentDirectory:
-        projectOverrides.contentDirectory ||
-        globalDefaults.contentDirectory ||
-        defaults.contentDirectory,
+        projectOverrides.contentDirectory || defaults.contentDirectory,
       assetsDirectory:
-        projectOverrides.assetsDirectory ||
-        globalDefaults.assetsDirectory ||
-        defaults.assetsDirectory,
+        projectOverrides.assetsDirectory || defaults.assetsDirectory,
       mdxComponentsDirectory:
         projectOverrides.mdxComponentsDirectory ||
-        globalDefaults.mdxComponentsDirectory ||
         defaults.mdxComponentsDirectory,
     }
   }
@@ -48,21 +41,13 @@ export const useEffectiveSettings = () => {
       draft: 'draft',
     }
 
-    const globalDefaults =
-      globalSettings?.defaultProjectSettings?.frontmatterMappings || {}
     const projectOverrides = currentProjectSettings?.frontmatterMappings || {}
 
     return {
-      publishedDate:
-        projectOverrides.publishedDate ||
-        globalDefaults.publishedDate ||
-        defaults.publishedDate,
-      title: projectOverrides.title || globalDefaults.title || defaults.title,
-      description:
-        projectOverrides.description ||
-        globalDefaults.description ||
-        defaults.description,
-      draft: projectOverrides.draft || globalDefaults.draft || defaults.draft,
+      publishedDate: projectOverrides.publishedDate || defaults.publishedDate,
+      title: projectOverrides.title || defaults.title,
+      description: projectOverrides.description || defaults.description,
+      draft: projectOverrides.draft || defaults.draft,
     }
   }
 
@@ -76,8 +61,7 @@ export const useEffectiveSettings = () => {
  * Direct functions for use outside React components
  */
 export const getEffectiveSettings = (
-  currentProjectSettings?: ProjectSettings | null,
-  globalSettings?: { defaultProjectSettings?: ProjectSettings } | null
+  currentProjectSettings?: ProjectSettings | null
 ): {
   pathOverrides: {
     contentDirectory: string
@@ -105,10 +89,6 @@ export const getEffectiveSettings = (
     },
   }
 
-  const globalDefaults = globalSettings?.defaultProjectSettings || {
-    pathOverrides: {},
-    frontmatterMappings: {},
-  }
   const projectOverrides = currentProjectSettings || {
     pathOverrides: {},
     frontmatterMappings: {},
@@ -118,33 +98,26 @@ export const getEffectiveSettings = (
     pathOverrides: {
       contentDirectory:
         projectOverrides.pathOverrides?.contentDirectory ||
-        globalDefaults.pathOverrides?.contentDirectory ||
         defaults.pathOverrides.contentDirectory,
       assetsDirectory:
         projectOverrides.pathOverrides?.assetsDirectory ||
-        globalDefaults.pathOverrides?.assetsDirectory ||
         defaults.pathOverrides.assetsDirectory,
       mdxComponentsDirectory:
         projectOverrides.pathOverrides?.mdxComponentsDirectory ||
-        globalDefaults.pathOverrides?.mdxComponentsDirectory ||
         defaults.pathOverrides.mdxComponentsDirectory,
     },
     frontmatterMappings: {
       publishedDate:
         projectOverrides.frontmatterMappings?.publishedDate ||
-        globalDefaults.frontmatterMappings?.publishedDate ||
         defaults.frontmatterMappings.publishedDate,
       title:
         projectOverrides.frontmatterMappings?.title ||
-        globalDefaults.frontmatterMappings?.title ||
         defaults.frontmatterMappings.title,
       description:
         projectOverrides.frontmatterMappings?.description ||
-        globalDefaults.frontmatterMappings?.description ||
         defaults.frontmatterMappings.description,
       draft:
         projectOverrides.frontmatterMappings?.draft ||
-        globalDefaults.frontmatterMappings?.draft ||
         defaults.frontmatterMappings.draft,
     },
   }

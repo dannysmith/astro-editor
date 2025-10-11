@@ -34,9 +34,29 @@ export interface ProjectSettings {
   }
 }
 
+// Collection-specific settings (subset of ProjectSettings)
+export interface CollectionSpecificSettings {
+  pathOverrides?: {
+    contentDirectory?: string
+    assetsDirectory?: string
+  }
+  frontmatterMappings?: {
+    publishedDate?: string | string[]
+    title?: string
+    description?: string
+    draft?: string
+  }
+}
+
+export interface CollectionSettings {
+  name: string // Collection identifier
+  settings: CollectionSpecificSettings
+}
+
 export interface ProjectData {
-  metadata: ProjectMetadata
   settings: ProjectSettings
+  collections?: CollectionSettings[] // Collection-specific overrides
+  version: number
 }
 
 export interface ProjectRegistry {
@@ -64,7 +84,5 @@ export interface GlobalSettings {
       dark: string
     }
   }
-  // Default settings that apply to new projects
-  defaultProjectSettings: ProjectSettings
   version: number
 }

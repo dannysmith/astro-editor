@@ -181,16 +181,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // Try to load the last opened project from registry
       const lastProjectId = projectRegistryManager.getLastOpenedProjectId()
       if (lastProjectId) {
-        const projectData =
-          await projectRegistryManager.getProjectData(lastProjectId)
-        if (projectData) {
+        // Get project metadata from registry (not from project data)
+        const registry = projectRegistryManager.getRegistry()
+        const projectMetadata = registry.projects[lastProjectId]
+
+        if (projectMetadata) {
           try {
             // Verify the project path still exists before setting it
             await invoke('scan_project', {
-              projectPath: projectData.metadata.path,
+              projectPath: projectMetadata.path,
             })
             // If no error, the project path is valid, so restore it
-            get().setProject(projectData.metadata.path)
+            get().setProject(projectMetadata.path)
           } catch (error) {
             toast.info('Previous project no longer available', {
               description: 'The last opened project could not be found.',
@@ -198,7 +200,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             // eslint-disable-next-line no-console
             console.warn(
               'Saved project path no longer valid:',
-              projectData.metadata.path,
+              projectMetadata.path,
               error
             )
           }

@@ -24,11 +24,11 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
     ideCommand: '',
     theme: 'system',
     highlights: {
-      nouns: true,
-      verbs: true,
-      adjectives: true,
-      adverbs: true,
-      conjunctions: true,
+      nouns: false,
+      verbs: false,
+      adjectives: false,
+      adverbs: false,
+      conjunctions: false,
     },
     autoSaveDelay: 2,
   },
@@ -38,12 +38,11 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
       dark: '#cccccc', // Use default text color
     },
   },
-  defaultProjectSettings: DEFAULT_PROJECT_SETTINGS,
-  version: 1,
+  version: 2,
 }
 
 export const DEFAULT_PROJECT_REGISTRY: ProjectRegistry = {
   projects: {},
   lastOpenedProject: null,
-  version: 1,
+  version: 2,
 }
