@@ -952,7 +952,7 @@ For each subtask:
 
 Track completion of each subtask:
 
-- [ ] **Subtask 1: Bug Fix** - Content directory override works in config parser
+- [x] **Subtask 1: Bug Fix** - Content directory override works in config parser
 - [ ] **Subtask 2: Restructure** - New preference file structure, migration works
 - [ ] **Subtask 3: Collection Settings** - Three-tier fallback implemented
 - [ ] **Subtask 4: Update Code** - All file operations respect hierarchy
