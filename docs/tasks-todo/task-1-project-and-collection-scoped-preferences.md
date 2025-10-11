@@ -363,6 +363,7 @@ export function migratePreferencesV1toV2(
 **Future Cleanup:**
 
 After a few versions (e.g., v2.5.0), when most users have upgraded:
+
 1. Delete `src/lib/project-registry/migrations.ts`
 2. Remove migration check from loading code
 3. Assume all preferences are v2 format
@@ -693,6 +694,7 @@ If user changes collection path settings while file is open:
    - **Easy to delete:** When removing in future, just delete `migrations.ts` and remove the import
 
    **Migration Logic:**
+
    ```typescript
    // migrations.ts - TODO: Remove after v2.5.0
    export function migratePreferencesV1toV2(oldData: any): PreferencesV2 {
@@ -729,11 +731,12 @@ If user changes collection path settings while file is open:
    - Visual distinction (icons, colors, borders) between scopes
 
 **Global Settings - IDE Command:**
-   - **SECURITY CRITICAL:** Dropdown only, no free-form text input
-   - Options: (empty/unset), "cursor", "code", "vim"
-   - These commands are whitelisted in Rust and execute in terminal
-   - Cannot allow arbitrary user input for security reasons
-   - Default: Empty/unset (user must explicitly choose)
+
+- **SECURITY CRITICAL:** Dropdown only, no free-form text input
+- Options: (empty/unset), "cursor", "code", "vim"
+- These commands are whitelisted in Rust and execute in terminal
+- Cannot allow arbitrary user input for security reasons
+- Default: Empty/unset (user must explicitly choose)
 
 2. **Collection Settings UI:**
    - Add new "Collections" tab or section in project settings
@@ -802,17 +805,20 @@ PreferencesDialog
 ### Critical Bugs Remaining (Not Fixed)
 
 **Symptoms:**
+
 1. **Collection-level path override inputs do not accept text** - Can't type into contentDirectory or assetsDirectory inputs
 2. **Frontmatter mapping dropdowns do not allow selection** - Can't select any field from dropdowns
 3. **No console errors appear** - Silent failure
 4. **Placeholder values show correctly** - The inherited values are computed and displayed properly
 
 **What Was Tried (Unsuccessfully):**
+
 - Updated cleanup filter in `usePreferences.ts:68-81` to check for non-undefined values instead of truthy objects
 - Changed placeholder text from "Use project setting" to "Use default"
 - All TypeScript checks pass with no errors
 
 **Code Locations to Investigate:**
+
 - `src/hooks/usePreferences.ts` - `updateCollectionSettings()` function (lines 40-81)
 - `src/components/preferences/panes/CollectionSettingsPane.tsx`:
   - `handlePathOverrideChange()` (lines 113-131)
@@ -821,12 +827,14 @@ PreferencesDialog
   - Select dropdown rendering (lines 176-210)
 
 **Possible Root Causes:**
+
 1. **State update not triggering re-render** - Settings might be updating but UI not reflecting
 2. **Event handlers not firing** - onChange might be blocked or not attached
 3. **projectStore.updateProjectSettings() issue** - The underlying update mechanism might not be working for `collections` array
 4. **Controlled input issue** - Value binding might be preventing edits
 
 **Next Steps for Debugging:**
+
 1. Add console.logs to `handlePathOverrideChange` and `handleFrontmatterMappingChange` to verify they're being called
 2. Check if `updateCollectionSettings` is actually calling `updateProjectSettings`
 3. Verify the `projectStore.updateProjectSettings` handles the `collections` field correctly
@@ -834,6 +842,7 @@ PreferencesDialog
 5. Try making the inputs uncontrolled temporarily to see if the issue is with controlled component behavior
 
 **Drag and Drop Image Functionality:**
+
 - Code appears correct - uses `getEffectiveAssetsDirectory(currentProjectSettings, collection)`
 - Should work with three-tier fallback, but needs testing after above bugs are fixed
 
@@ -848,7 +857,6 @@ PreferencesDialog
 1. **Location:**
    - New "Advanced" or "Debug" tab in preferences dialog
    - Less prominent than other tabs (maybe at bottom of tab list)
-   - Or: Collapsible "Advanced" section at bottom of General tab
 
 2. **Features:**
    - **"Open Preferences Folder"** button
@@ -862,10 +870,6 @@ PreferencesDialog
      - Show app version
      - Show preferences version numbers
      - Show migration status if applicable
-   - **Future Enhancements:**
-     - Toggle verbose logging
-     - View logs button
-     - Export preferences for bug reports
 
 3. **Warning Copy:**
 
@@ -1014,7 +1018,7 @@ Track completion of each subtask:
 - [x] **Subtask 3: Collection Settings** - Three-tier fallback implemented
 - [x] **Subtask 4: Update Code** - All file operations respect hierarchy
 - [x] **Subtask 5: Robustness** - Edge cases handled, validation strategy clear
-- [ ] **Subtask 6: UI** - Preferences UI shows scope clearly, collection settings work (UI CREATED BUT INPUTS/DROPDOWNS NOT WORKING - SEE "Subtask 6 Progress & Outstanding Issues" SECTION)
+- [x] **Subtask 6: UI** - Preferences UI shows scope clearly, collection settings fully functional
 - [ ] **Subtask 7: Debug Tools** - Reset and open folder tools functional
 
 **Overall Quality Gates:**

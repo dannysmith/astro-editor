@@ -453,7 +453,7 @@ export const CollectionSettingsPane: React.FC = () => {
                           size="sm"
                           onClick={() => handleResetCollection(collection.name)}
                         >
-                          Reset to Project Defaults
+                          Reset to Defaults
                         </Button>
                       </div>
                     )}

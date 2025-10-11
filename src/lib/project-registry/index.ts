@@ -232,6 +232,11 @@ export class ProjectRegistryManager {
       },
     }
 
+    // Update collections if provided
+    if (settings.collections !== undefined) {
+      projectData.settings.collections = settings.collections
+    }
+
     // Update cache
     this.projectDataCache.set(projectId, projectData)
 
@@ -287,6 +292,8 @@ export class ProjectRegistryManager {
         ...DEFAULT_PROJECT_SETTINGS.collectionViewSettings,
         ...projectData.settings.collectionViewSettings,
       },
+      // Include collections array if present
+      collections: projectData.settings.collections || [],
     }
   }
 
