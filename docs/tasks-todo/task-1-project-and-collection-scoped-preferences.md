@@ -785,9 +785,11 @@ PreferencesDialog
 
 ---
 
-## Subtask 6 Progress & Outstanding Issues
+## Subtask 6 Progress
 
-### What Was Completed
+### ✅ COMPLETE - All Bugs Fixed
+
+**What Was Completed:**
 
 1. **Added scope indicators to all preference panes** - Clear headers showing "Global Settings", "Project Settings", etc.
 2. **Created CollectionSettingsPane component** - Full UI for collection-specific overrides with collapsible sections
@@ -802,49 +804,21 @@ PreferencesDialog
    - Removed "Frontmatter Mappings" tab entirely
    - Frontmatter configuration only available per-collection in Collections tab
 
-### Critical Bugs Remaining (Not Fixed)
+**Critical Bugs Fixed:**
 
-**Symptoms:**
+**Root Cause:** The `ProjectRegistryManager` class had two bugs:
+1. `updateProjectSettings()` method only saved 3 fields (pathOverrides, frontmatterMappings, collectionViewSettings) and completely ignored the `collections` field
+2. `getEffectiveSettings()` method only returned 3 fields and didn't include the `collections` array
 
-1. **Collection-level path override inputs do not accept text** - Can't type into contentDirectory or assetsDirectory inputs
-2. **Frontmatter mapping dropdowns do not allow selection** - Can't select any field from dropdowns
-3. **No console errors appear** - Silent failure
-4. **Placeholder values show correctly** - The inherited values are computed and displayed properly
+**Fix Applied:** (`src/lib/project-registry/index.ts`)
+1. Updated `updateProjectSettings()` to handle the `collections` field when provided
+2. Updated `getEffectiveSettings()` to return the `collections` array (defaults to empty array)
+3. Updated test expectation in `src/test/project-registry.test.ts` to expect the `collections` field
 
-**What Was Tried (Unsuccessfully):**
-
-- Updated cleanup filter in `usePreferences.ts:68-81` to check for non-undefined values instead of truthy objects
-- Changed placeholder text from "Use project setting" to "Use default"
-- All TypeScript checks pass with no errors
-
-**Code Locations to Investigate:**
-
-- `src/hooks/usePreferences.ts` - `updateCollectionSettings()` function (lines 40-81)
-- `src/components/preferences/panes/CollectionSettingsPane.tsx`:
-  - `handlePathOverrideChange()` (lines 113-131)
-  - `handleFrontmatterMappingChange()` (lines 134-152)
-  - Input field (lines 191-204)
-  - Select dropdown rendering (lines 176-210)
-
-**Possible Root Causes:**
-
-1. **State update not triggering re-render** - Settings might be updating but UI not reflecting
-2. **Event handlers not firing** - onChange might be blocked or not attached
-3. **projectStore.updateProjectSettings() issue** - The underlying update mechanism might not be working for `collections` array
-4. **Controlled input issue** - Value binding might be preventing edits
-
-**Next Steps for Debugging:**
-
-1. Add console.logs to `handlePathOverrideChange` and `handleFrontmatterMappingChange` to verify they're being called
-2. Check if `updateCollectionSettings` is actually calling `updateProjectSettings`
-3. Verify the `projectStore.updateProjectSettings` handles the `collections` field correctly
-4. Check if there's a React state batching issue preventing re-renders
-5. Try making the inputs uncontrolled temporarily to see if the issue is with controlled component behavior
-
-**Drag and Drop Image Functionality:**
-
-- Code appears correct - uses `getEffectiveAssetsDirectory(currentProjectSettings, collection)`
-- Should work with three-tier fallback, but needs testing after above bugs are fixed
+**Verification:**
+- User confirmed collection settings inputs and dropdowns now work correctly
+- All TypeScript, Rust, and lint checks pass
+- All 431 tests pass (including the updated test for collections field)
 
 ---
 
