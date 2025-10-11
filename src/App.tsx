@@ -3,12 +3,14 @@ import { ThemeProvider } from './lib/theme-provider'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { info, error } from '@tauri-apps/plugin-log'
+import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import { useEffect } from 'react'
 import './App.css'
 
 function App() {
   useEffect(() => {
-    const checkForUpdates = async () => {
+    const checkForUpdates = async (): Promise<boolean> => {
       try {
         const update = await check()
         if (update) {
@@ -51,15 +53,40 @@ function App() {
               )
             }
           }
+          return true
+        } else {
+          await info('No updates available')
+          return false
         }
       } catch (checkError) {
         await error(`Update check failed: ${String(checkError)}`)
+        return false
       }
     }
 
-    // Check for updates 5 seconds after app loads
-    const timer = setTimeout(checkForUpdates, 5000)
-    return () => clearTimeout(timer)
+    // Check for updates 5 seconds after app loads (silently)
+    const timer = setTimeout(() => void checkForUpdates(), 5000)
+
+    // Listen for manual update check from menu
+    const unlistenPromise = listen('menu-check-updates', () => {
+      void (async () => {
+        const updateFound = await checkForUpdates()
+        if (!updateFound) {
+          // Only show dialog when manually checking and no update is available
+          try {
+            const version = await invoke<string>('get_app_version')
+            alert(`No updates available.\n\nYou are running the latest version (${version}).`)
+          } catch {
+            alert('No updates available.\n\nYou are running the latest version.')
+          }
+        }
+      })()
+    })
+
+    return () => {
+      clearTimeout(timer)
+      void unlistenPromise.then(unlisten => unlisten())
+    }
   }, [])
 
   return (

@@ -90,7 +90,7 @@
       "endpoints": [
         "https://github.com/dannysmith/astro-editor/releases/latest/download/latest.json"
       ],
-      "dialog": true,
+      "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIxRjIwNEJDQkRFRDcwRDkKUldUWmNPMjl2QVR5c2VhQjRwTXBqRi9ZMk81azVERVlXMk1tQmdpZ01QdlY0RWExdE5yZXA4SS8K"
     }
   }

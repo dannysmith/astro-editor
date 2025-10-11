@@ -221,6 +221,8 @@ pub fn run() {
                 &[
                     &MenuItem::with_id(app, "about", "About Astro Editor", true, None::<&str>)?,
                     &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "check_updates", "Check for Updates...", true, None::<&str>)?,
+                    &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "preferences", "Preferences...", true, Some("Cmd+,"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &PredefinedMenuItem::hide(app, Some("Hide Astro Editor"))?,
@@ -289,6 +291,10 @@ pub fn run() {
                             .kind(MessageDialogKind::Info)
                             .blocking_show();
                     });
+                }
+                "check_updates" => {
+                    log::info!("Check for Updates menu item clicked");
+                    let _ = app.emit("menu-check-updates", ());
                 }
                 "preferences" => {
                     let _ = app.emit("menu-preferences", ());
