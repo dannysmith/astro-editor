@@ -41,6 +41,22 @@ export const ProjectSettingsPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
+        <h2 className="text-base font-semibold mb-1">
+          Project Settings
+          {projectName && (
+            <span className="text-muted-foreground font-normal ml-2">
+              · {projectName}
+            </span>
+          )}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          These settings apply to this project only. If not set, default values
+          are used. Collection-specific overrides can be configured in the
+          Collections tab.
+        </p>
+      </div>
+
       <SettingsSection title="Path Overrides">
         <p className="text-sm text-muted-foreground -mt-3 mb-2">
           Override default Astro paths for{' '}

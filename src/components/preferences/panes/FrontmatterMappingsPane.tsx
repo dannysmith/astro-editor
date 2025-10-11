@@ -133,6 +133,22 @@ export const FrontmatterMappingsPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
+        <h2 className="text-base font-semibold mb-1">
+          Project-Level Frontmatter Mappings
+          {projectName && (
+            <span className="text-muted-foreground font-normal ml-2">
+              · {projectName}
+            </span>
+          )}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Configure default frontmatter field mappings for this project.
+          Collection-specific overrides can be configured in the Collections
+          tab.
+        </p>
+      </div>
+
       <SettingsSection title="Frontmatter Field Mappings">
         <p className="text-sm text-muted-foreground -mt-3 mb-2">
           Map special frontmatter fields used by the app to your{' '}

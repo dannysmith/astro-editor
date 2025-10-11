@@ -1,6 +1,10 @@
 import { useCallback } from 'react'
 import { useProjectStore } from '../store/projectStore'
-import { GlobalSettings, ProjectSettings } from '../lib/project-registry'
+import {
+  GlobalSettings,
+  ProjectSettings,
+  CollectionSpecificSettings,
+} from '../lib/project-registry'
 
 /**
  * Custom hook for managing preferences with easy read/write access
@@ -29,6 +33,53 @@ export const usePreferences = () => {
     [updateProjectSettings]
   )
 
+  /**
+   * Update settings for a specific collection
+   * Creates or updates the collection in the collections array
+   */
+  const updateCollectionSettings = useCallback(
+    (collectionName: string, settings: CollectionSpecificSettings) => {
+      if (!currentProjectSettings) return Promise.resolve()
+
+      const existingCollections = currentProjectSettings.collections || []
+      const collectionIndex = existingCollections.findIndex(
+        c => c.name === collectionName
+      )
+
+      let updatedCollections
+      if (collectionIndex >= 0) {
+        // Update existing collection
+        updatedCollections = [...existingCollections]
+        updatedCollections[collectionIndex] = {
+          name: collectionName,
+          settings,
+        }
+      } else {
+        // Add new collection
+        updatedCollections = [
+          ...existingCollections,
+          {
+            name: collectionName,
+            settings,
+          },
+        ]
+      }
+
+      // Remove collections with no settings (cleanup)
+      updatedCollections = updatedCollections.filter(
+        c =>
+          c.settings.pathOverrides ||
+          c.settings.frontmatterMappings ||
+          Object.keys(c.settings).length > 0
+      )
+
+      return updateProjectSettings({
+        collections: updatedCollections,
+      })
+    },
+    [currentProjectSettings, updateProjectSettings]
+  )
+
   // Get project name from path
   const projectName = projectPath
     ? projectPath.split('/').pop() || 'Unknown Project'
@@ -39,6 +90,7 @@ export const usePreferences = () => {
     currentProjectSettings,
     updateGlobal,
     updateProject,
+    updateCollectionSettings,
     hasProject: !!currentProjectId,
     currentProjectId,
     projectPath,
