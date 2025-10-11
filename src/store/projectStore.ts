@@ -278,6 +278,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     try {
+      // Check if path overrides are changing
+      const pathOverridesChanged = !!settings.pathOverrides
+
+      // If path overrides are changing and a file is open, handle gracefully
+      if (pathOverridesChanged) {
+        const { currentFile } = useEditorStore.getState()
+        if (currentFile) {
+          // Auto-save current file before settings change
+          await info(
+            'Astro Editor [PREFERENCES] Path settings changing while file is open - auto-saving'
+          )
+          try {
+            await useEditorStore.getState().saveFile()
+          } catch (saveError) {
+            await logError(
+              `Astro Editor [PREFERENCES] Failed to auto-save before settings change: ${String(saveError)}`
+            )
+          }
+
+          // Show warning toast
+          toast.warning('Path settings changed', {
+            description:
+              'The current file has been saved. Please reopen it to continue editing.',
+          })
+
+          // Close the current file to prevent save issues
+          useEditorStore.getState().closeCurrentFile()
+        }
+      }
+
       await projectRegistryManager.updateProjectSettings(
         currentProjectId,
         settings
@@ -303,6 +333,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               ),
             })
           }
+
+          // Restart file watcher with new paths
+          await info(
+            'Astro Editor [PREFERENCES] Path overrides changed - restarting file watcher'
+          )
+          await get().stopFileWatcher()
+          await get().startFileWatcher()
         }
 
         // If frontmatter mappings changed, invalidate current file to update rendering
