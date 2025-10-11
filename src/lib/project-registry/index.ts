@@ -312,3 +312,4 @@ export const projectRegistryManager = new ProjectRegistryManager()
 export * from './types'
 export * from './defaults'
 export * from './collection-settings'
+export * from './path-resolution'

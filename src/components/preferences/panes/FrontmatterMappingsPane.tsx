@@ -39,7 +39,7 @@ export const FrontmatterMappingsPane: React.FC = () => {
   // Get collections from TanStack Query
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
-    currentProjectSettings?.pathOverrides?.contentDirectory
+    currentProjectSettings
   )
 
   // Get all schema fields from all collections

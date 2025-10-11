@@ -25,7 +25,7 @@ export function useCommandContext(): CommandContext {
   // Get collections data from TanStack Query
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
-    currentProjectSettings?.pathOverrides?.contentDirectory
+    currentProjectSettings
   )
 
   return {

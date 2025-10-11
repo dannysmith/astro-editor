@@ -52,7 +52,7 @@ export const useCreateFile = () => {
 
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
-    currentProjectSettings?.pathOverrides?.contentDirectory
+    currentProjectSettings
   )
 
   const createFileMutation = useCreateFileMutation()

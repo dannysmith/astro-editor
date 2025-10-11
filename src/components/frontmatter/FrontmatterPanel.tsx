@@ -19,7 +19,7 @@ export const FrontmatterPanel: React.FC = () => {
   // Use TanStack Query to fetch collections
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
-    currentProjectSettings?.pathOverrides?.contentDirectory
+    currentProjectSettings
   )
 
   // Get schema for current collection

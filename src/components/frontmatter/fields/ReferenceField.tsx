@@ -50,8 +50,13 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     ? field?.subReference
     : field?.reference || field?.referenceCollection
 
+  const { currentProjectSettings } = useProjectStore()
+
   // Get collections to find the collection path
-  const { data: collections = [] } = useCollectionsQuery(projectPath)
+  const { data: collections = [] } = useCollectionsQuery(
+    projectPath,
+    currentProjectSettings
+  )
   const currentCollection = collections.find(
     c => c.name === referencedCollection
   )

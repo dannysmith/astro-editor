@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { ProcessedFile } from './types'
 import { useProjectStore } from '../../../store/projectStore'
+import { getEffectiveAssetsDirectory } from '../../project-registry'
 import { ASTRO_PATHS } from '../../constants'
 
 /**
@@ -82,14 +83,16 @@ export const processDroppedFile = async (
   const isImage = isImageFile(filename)
 
   try {
-    // Get assets directory override from store
+    // Get assets directory using centralized path resolution with collection context
     const { currentProjectSettings } = useProjectStore.getState()
-    const assetsDirectory =
-      currentProjectSettings?.pathOverrides?.assetsDirectory
+    const assetsDirectory = getEffectiveAssetsDirectory(
+      currentProjectSettings,
+      collection
+    )
 
     let newPath: string
-    if (assetsDirectory && assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-      // Use the override
+    if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
+      // Use the resolved assets directory (could be collection-specific or project-level override)
       newPath = await invoke<string>('copy_file_to_assets_with_override', {
         sourcePath: filePath,
         projectPath: projectPath,

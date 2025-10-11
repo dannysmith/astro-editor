@@ -104,7 +104,7 @@ export const LeftSidebar: React.FC = () => {
 
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
-    currentProjectSettings?.pathOverrides?.contentDirectory
+    currentProjectSettings
   )
 
   // Get the current collection
@@ -142,8 +142,10 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [collections])
 
-  // Get effective settings for frontmatter field mappings
-  const { frontmatterMappings } = useEffectiveSettings()
+  // Get effective settings for frontmatter field mappings (collection-aware)
+  const { frontmatterMappings } = useEffectiveSettings(
+    selectedCollection || undefined
+  )
 
   // State for rename functionality
   const [renamingFileId, setRenamingFileId] = React.useState<string | null>(

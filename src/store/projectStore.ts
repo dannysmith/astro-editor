@@ -11,6 +11,8 @@ import {
   ProjectSettings,
 } from '../lib/project-registry'
 import { useEditorStore } from './editorStore'
+import { queryClient } from '../lib/query-client'
+import { queryKeys } from '../lib/query-keys'
 
 interface ProjectState {
   // Core identifiers
@@ -269,7 +271,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateProjectSettings: async (settings: Partial<ProjectSettings>) => {
-    const { currentProjectId } = get()
+    const { currentProjectId, projectPath, selectedCollection } = get()
     if (!currentProjectId) {
       toast.error('No project is currently open')
       return
@@ -283,6 +285,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const updatedSettings =
         await projectRegistryManager.getEffectiveSettings(currentProjectId)
       set({ currentProjectSettings: updatedSettings })
+
+      // Invalidate queries when settings change
+      if (projectPath) {
+        // If path overrides changed, invalidate collection-related queries
+        if (settings.pathOverrides) {
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.collections(projectPath),
+          })
+
+          // Invalidate collection files for current collection if any
+          if (selectedCollection) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.collectionFiles(
+                projectPath,
+                selectedCollection
+              ),
+            })
+          }
+        }
+
+        // If frontmatter mappings changed, invalidate current file to update rendering
+        if (settings.frontmatterMappings) {
+          const { currentFile } = useEditorStore.getState()
+          if (currentFile) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+            })
+          }
+        }
+      }
     } catch (error) {
       toast.error('Failed to update project settings', {
         description:
