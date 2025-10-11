@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Folder, FileText, Layers } from 'lucide-react'
+import { Settings, Folder, Layers } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/sidebar'
 import { GeneralPane } from './panes/GeneralPane'
 import { ProjectSettingsPane } from './panes/ProjectSettingsPane'
-import { FrontmatterMappingsPane } from './panes/FrontmatterMappingsPane'
 import { CollectionSettingsPane } from './panes/CollectionSettingsPane'
 import { usePreferences } from '../../hooks/usePreferences'
 
@@ -35,7 +34,7 @@ interface PreferencesDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type PreferencePane = 'general' | 'project' | 'frontmatter' | 'collections'
+type PreferencePane = 'general' | 'project' | 'collections'
 
 const getNavigationItems = (hasProject: boolean) =>
   [
@@ -52,12 +51,6 @@ const getNavigationItems = (hasProject: boolean) =>
       available: hasProject,
     },
     {
-      id: 'frontmatter' as const,
-      name: 'Frontmatter Mappings',
-      icon: FileText,
-      available: hasProject,
-    },
-    {
       id: 'collections' as const,
       name: 'Collections',
       icon: Layers,
@@ -71,8 +64,6 @@ const getPaneTitle = (pane: PreferencePane): string => {
       return 'General'
     case 'project':
       return 'Project Settings'
-    case 'frontmatter':
-      return 'Frontmatter Mappings'
     case 'collections':
       return 'Collections'
     default:
@@ -154,7 +145,6 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
               <div className="space-y-6">
                 {activePane === 'general' && <GeneralPane />}
                 {activePane === 'project' && <ProjectSettingsPane />}
-                {activePane === 'frontmatter' && <FrontmatterMappingsPane />}
                 {activePane === 'collections' && <CollectionSettingsPane />}
               </div>
             </div>

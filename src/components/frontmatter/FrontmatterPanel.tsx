@@ -5,6 +5,7 @@ import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { deserializeCompleteSchema } from '../../lib/schema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
+import { getEffectiveSettings } from '../../lib/project-registry/effective-settings'
 
 interface Collection {
   name: string
@@ -83,9 +84,11 @@ export const FrontmatterPanel: React.FC = () => {
   // Get all fields to display
   const allFields = React.useMemo(() => {
     if (schema) {
-      // Get title field name from settings or default to 'title'
-      const titleFieldName =
-        currentProjectSettings?.frontmatterMappings?.title || 'title'
+      // Get title field name from collection-specific settings
+      const effectiveSettings = currentFile
+        ? getEffectiveSettings(currentProjectSettings, currentFile.collection)
+        : getEffectiveSettings(currentProjectSettings)
+      const titleFieldName = effectiveSettings.frontmatterMappings.title
 
       // Start with all schema fields
       const schemaFields = schema.fields.map(field => ({
@@ -123,7 +126,7 @@ export const FrontmatterPanel: React.FC = () => {
         value: frontmatter[fieldName],
       }))
     }
-  }, [frontmatter, schema, currentProjectSettings])
+  }, [frontmatter, schema, currentProjectSettings, currentFile])
 
   // Group fields by parent path for nested object rendering
   const groupedFields = React.useMemo(() => {
@@ -153,6 +156,7 @@ export const FrontmatterPanel: React.FC = () => {
                   name={fieldName}
                   label={camelCaseToTitleCase(fieldName)}
                   field={schemaField}
+                  collectionName={currentFile.collection}
                 />
               ))}
 
@@ -181,6 +185,7 @@ export const FrontmatterPanel: React.FC = () => {
                             )
                           }
                           field={schemaField}
+                          collectionName={currentFile.collection}
                         />
                       ))}
                     </div>
