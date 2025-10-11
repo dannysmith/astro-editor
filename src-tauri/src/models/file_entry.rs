@@ -17,7 +17,7 @@ pub struct FileEntry {
 }
 
 impl FileEntry {
-    pub fn new(path: PathBuf, collection: String) -> Self {
+    pub fn new(path: PathBuf, collection: String, collection_root: PathBuf) -> Self {
         let name = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -30,7 +30,25 @@ impl FileEntry {
             .unwrap_or("")
             .to_string();
 
-        let id = format!("{collection}/{name}");
+        // Calculate relative path from collection root for proper ID generation
+        let id = if let Ok(relative_path) = path.strip_prefix(&collection_root) {
+            // Convert to string and ensure forward slashes for cross-platform consistency
+            let relative_str = relative_path.to_string_lossy().replace('\\', "/");
+
+            // Remove extension from relative path for the ID
+            let id_path = if !extension.is_empty() {
+                relative_str
+                    .strip_suffix(&format!(".{extension}"))
+                    .unwrap_or(&relative_str)
+            } else {
+                &relative_str
+            };
+
+            format!("{collection}/{id_path}")
+        } else {
+            // Fallback to old behavior if strip_prefix fails
+            format!("{collection}/{name}")
+        };
 
         // Get file modification time
         let last_modified = std::fs::metadata(&path)
@@ -75,10 +93,11 @@ mod tests {
 
     #[test]
     fn test_file_entry_creation() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/hello-world.md");
         let collection = "posts".to_string();
 
-        let entry = FileEntry::new(path.clone(), collection.clone());
+        let entry = FileEntry::new(path.clone(), collection.clone(), collection_root);
 
         assert_eq!(entry.name, "hello-world");
         assert_eq!(entry.extension, "md");
@@ -91,10 +110,11 @@ mod tests {
 
     #[test]
     fn test_file_entry_without_extension() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/readme");
         let collection = "docs".to_string();
 
-        let entry = FileEntry::new(path, collection);
+        let entry = FileEntry::new(path, collection, collection_root);
 
         assert_eq!(entry.name, "readme");
         assert_eq!(entry.extension, "");
@@ -103,13 +123,14 @@ mod tests {
 
     #[test]
     fn test_is_markdown() {
+        let collection_root = PathBuf::from("/test");
         let md_path = PathBuf::from("/test/post.md");
         let mdx_path = PathBuf::from("/test/post.mdx");
         let txt_path = PathBuf::from("/test/post.txt");
 
-        let md_entry = FileEntry::new(md_path, "posts".to_string());
-        let mdx_entry = FileEntry::new(mdx_path, "posts".to_string());
-        let txt_entry = FileEntry::new(txt_path, "posts".to_string());
+        let md_entry = FileEntry::new(md_path, "posts".to_string(), collection_root.clone());
+        let mdx_entry = FileEntry::new(mdx_path, "posts".to_string(), collection_root.clone());
+        let txt_entry = FileEntry::new(txt_path, "posts".to_string(), collection_root);
 
         assert!(md_entry.is_markdown());
         assert!(mdx_entry.is_markdown());
@@ -118,10 +139,11 @@ mod tests {
 
     #[test]
     fn test_special_characters_in_filename() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/hello-world_2024.md");
         let collection = "posts".to_string();
 
-        let entry = FileEntry::new(path, collection);
+        let entry = FileEntry::new(path, collection, collection_root);
 
         assert_eq!(entry.name, "hello-world_2024");
         assert_eq!(entry.extension, "md");
@@ -130,6 +152,7 @@ mod tests {
 
     #[test]
     fn test_with_frontmatter_draft_detection() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/draft-post.md");
         let collection = "posts".to_string();
 
@@ -140,7 +163,7 @@ mod tests {
             serde_json::Value::String("Draft Post".to_string()),
         );
 
-        let entry = FileEntry::new(path, collection).with_frontmatter(frontmatter);
+        let entry = FileEntry::new(path, collection, collection_root).with_frontmatter(frontmatter);
 
         assert!(entry.is_draft);
         assert_eq!(
@@ -151,6 +174,7 @@ mod tests {
 
     #[test]
     fn test_with_frontmatter_no_draft_field() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/published-post.md");
         let collection = "posts".to_string();
 
@@ -160,13 +184,14 @@ mod tests {
             serde_json::Value::String("Published Post".to_string()),
         );
 
-        let entry = FileEntry::new(path, collection).with_frontmatter(frontmatter);
+        let entry = FileEntry::new(path, collection, collection_root).with_frontmatter(frontmatter);
 
         assert!(!entry.is_draft); // Should default to false when no draft field
     }
 
     #[test]
     fn test_with_frontmatter_draft_false() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/published-post.md");
         let collection = "posts".to_string();
 
@@ -177,13 +202,14 @@ mod tests {
             serde_json::Value::String("Published Post".to_string()),
         );
 
-        let entry = FileEntry::new(path, collection).with_frontmatter(frontmatter);
+        let entry = FileEntry::new(path, collection, collection_root).with_frontmatter(frontmatter);
 
         assert!(!entry.is_draft);
     }
 
     #[test]
     fn test_with_frontmatter_draft_non_boolean() {
+        let collection_root = PathBuf::from("/test/posts");
         let path = PathBuf::from("/test/posts/weird-draft.md");
         let collection = "posts".to_string();
 
@@ -193,8 +219,21 @@ mod tests {
             serde_json::Value::String("true".to_string()),
         );
 
-        let entry = FileEntry::new(path, collection).with_frontmatter(frontmatter);
+        let entry = FileEntry::new(path, collection, collection_root).with_frontmatter(frontmatter);
 
         assert!(!entry.is_draft); // Should default to false when draft field is not boolean
+    }
+
+    #[test]
+    fn test_nested_file_id_generation() {
+        let collection_root = PathBuf::from("/test/posts");
+        let path = PathBuf::from("/test/posts/2024/january/my-post.md");
+        let collection = "posts".to_string();
+
+        let entry = FileEntry::new(path, collection, collection_root);
+
+        assert_eq!(entry.name, "my-post");
+        assert_eq!(entry.extension, "md");
+        assert_eq!(entry.id, "posts/2024/january/my-post");
     }
 }

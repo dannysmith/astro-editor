@@ -3,12 +3,19 @@ import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore, type FileEntry } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { useCollectionFilesQuery } from '../../hooks/queries/useCollectionFilesQuery'
+import { useDirectoryScanQuery } from '../../hooks/queries/useDirectoryScanQuery'
 import type { Collection } from '../../store'
 import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutation'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
-import { FolderOpen, ArrowLeft, FileText, Filter } from 'lucide-react'
+import {
+  FolderOpen,
+  ArrowLeft,
+  FileText,
+  Filter,
+  Folder,
+  ChevronRight,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
@@ -71,10 +78,13 @@ export const LeftSidebar: React.FC = () => {
 
   const {
     selectedCollection,
+    currentSubdirectory,
     projectPath,
     currentProjectSettings,
     setProject,
     setSelectedCollection,
+    setCurrentSubdirectory,
+    navigateUp,
   } = useProjectStore()
 
   // Get current collection's view settings
@@ -110,25 +120,41 @@ export const LeftSidebar: React.FC = () => {
   // Get the current collection
   const currentCollection = collections.find(c => c.name === selectedCollection)
 
-  const { data: files = [], refetch: refetchFiles } = useCollectionFilesQuery(
+  const {
+    data: dirContents,
+    refetch: refetchFiles,
+    isLoading: isLoadingDirectory,
+    isError: hasDirectoryError,
+    error: directoryError,
+  } = useDirectoryScanQuery(
     projectPath,
     selectedCollection,
-    currentCollection?.path || null
+    currentCollection?.path || null,
+    currentSubdirectory
+  )
+  // Extract files and subdirectories in useMemo to avoid lint warnings
+  const files = React.useMemo(() => dirContents?.files || [], [dirContents])
+  const subdirectories = React.useMemo(
+    () => dirContents?.subdirectories || [],
+    [dirContents]
   )
 
   const renameMutation = useRenameFileMutation()
 
-  // Load file counts for all collections
+  // Load file counts for all collections (recursive)
   useEffect(() => {
     const loadFileCounts = async () => {
       const counts: Record<string, number> = {}
 
       for (const collection of collections) {
         try {
-          const files = await invoke<unknown[]>('scan_collection_files', {
-            collectionPath: collection.path,
-          })
-          counts[collection.name] = files.length
+          const count = await invoke<number>(
+            'count_collection_files_recursive',
+            {
+              collectionPath: collection.path,
+            }
+          )
+          counts[collection.name] = count
         } catch {
           counts[collection.name] = 0
         }
@@ -172,7 +198,15 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleBackClick = () => {
-    setSelectedCollection(null)
+    navigateUp()
+  }
+
+  const handleSubdirectoryClick = (relativePath: string) => {
+    setCurrentSubdirectory(relativePath)
+  }
+
+  const handleBreadcrumbClick = (subdirectory: string | null) => {
+    setCurrentSubdirectory(subdirectory)
   }
 
   const handleFileClick = (file: FileEntry) => {
@@ -321,6 +355,12 @@ export const LeftSidebar: React.FC = () => {
     ? selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)
     : 'Collections'
 
+  // Generate breadcrumb segments
+  const breadcrumbSegments = React.useMemo(() => {
+    if (!selectedCollection || !currentSubdirectory) return []
+    return currentSubdirectory.split('/')
+  }, [selectedCollection, currentSubdirectory])
+
   return (
     <div className="h-full flex flex-col border-r bg-background">
       {/* Header */}
@@ -337,7 +377,7 @@ export const LeftSidebar: React.FC = () => {
               variant="ghost"
               size="sm"
               className="size-6 p-0 text-muted-foreground"
-              title="Back to Collections"
+              title="Back"
             >
               <ArrowLeft className="size-4" />
             </Button>
@@ -353,21 +393,58 @@ export const LeftSidebar: React.FC = () => {
               <FolderOpen className="size-4" />
             </Button>
           )}
-          <span className="text-sm font-medium text-foreground flex-1">
-            {headerTitle}
+          <div className="text-sm font-medium text-foreground flex-1 min-w-0 flex items-center gap-1">
+            {/* Collection name (always clickable to go to root) */}
+            {selectedCollection && currentSubdirectory ? (
+              <button
+                onClick={() => handleBreadcrumbClick(null)}
+                className="hover:underline cursor-pointer truncate"
+              >
+                {headerTitle}
+              </button>
+            ) : (
+              <span className="truncate">{headerTitle}</span>
+            )}
+
+            {/* Breadcrumb segments */}
+            {breadcrumbSegments.map((segment, index) => {
+              const isLast = index === breadcrumbSegments.length - 1
+              const pathUpToSegment = breadcrumbSegments
+                .slice(0, index + 1)
+                .join('/')
+
+              return (
+                <React.Fragment key={pathUpToSegment}>
+                  <ChevronRight className="size-3 text-muted-foreground flex-shrink-0" />
+                  {isLast ? (
+                    <span className="text-muted-foreground truncate">
+                      {segment}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleBreadcrumbClick(pathUpToSegment)}
+                      className="hover:underline cursor-pointer truncate"
+                    >
+                      {segment}
+                    </button>
+                  )}
+                </React.Fragment>
+              )
+            })}
+
             {showDraftsOnly && (
-              <span className="text-xs text-[var(--color-draft)] ml-2 font-normal">
-                (Drafts Only)
+              <span className="text-xs text-[var(--color-draft)] ml-2 font-normal flex-shrink-0">
+                (Drafts)
               </span>
             )}
-          </span>
+          </div>
           {selectedCollection && (
             <Button
               onClick={handleToggleDraftsOnly}
               variant="ghost"
               size="sm"
               className={cn(
-                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-muted-foreground',
+                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-muted-foreground flex-shrink-0',
                 showDraftsOnly &&
                   'text-[var(--color-draft)] bg-[var(--color-draft-bg)] hover:bg-[var(--color-draft-bg)]/80'
               )}
@@ -420,85 +497,139 @@ export const LeftSidebar: React.FC = () => {
         ) : (
           // Files List
           <div className="p-2">
-            {filteredAndSortedFiles.map(file => {
-              const title = getTitle(file, frontmatterMappings.title)
-              const publishedDate = getPublishedDate(
-                file.frontmatter || {},
-                frontmatterMappings.publishedDate
-              )
-              const isMdx = file.extension === 'mdx'
-              const isFileDraft =
-                file.isDraft ||
-                file.frontmatter?.[frontmatterMappings.draft] === true
-              const isSelected = currentFile?.id === file.id
-
-              return (
-                <button
-                  key={file.id}
-                  onClick={() => handleFileClick(file)}
-                  onContextMenu={e => void handleContextMenu(e, file)}
-                  className={cn(
-                    'w-full text-left p-3 rounded-md transition-colors',
-                    'hover:bg-accent',
-                    isFileDraft &&
-                      'bg-[var(--color-warning-bg)] hover:bg-[var(--color-warning-bg)]/80',
-                    isSelected && 'bg-primary/15 hover:bg-primary/20'
-                  )}
-                >
-                  <div className="flex items-start justify-between w-full gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm leading-tight truncate text-foreground">
-                        {title}
-                      </div>
-                      {publishedDate && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatDate(publishedDate)}
-                        </div>
-                      )}
-                      <div className="text-xs font-mono text-muted-foreground mt-1">
-                        {renamingFileId === file.id ? (
-                          <input
-                            type="text"
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onKeyDown={e => handleRenameKeyDown(e, file)}
-                            onBlur={() => void handleRenameSubmit(file)}
-                            className="bg-background border border-border rounded px-1 py-0.5 text-xs font-mono w-full text-foreground"
-                            autoFocus
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : file.extension ? (
-                          `${file.name}.${file.extension}`
-                        ) : (
-                          file.name
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {isFileDraft && (
-                        <Badge
-                          variant="destructive"
-                          className="text-xs px-1 py-0"
-                        >
-                          Draft
-                        </Badge>
-                      )}
-                      {isMdx && (
-                        <Badge variant="outline" className="text-xs px-1 py-0">
-                          MDX
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-            {filteredAndSortedFiles.length === 0 && (
+            {/* Loading State */}
+            {isLoadingDirectory && (
               <div className="p-4 text-center text-muted-foreground text-sm">
-                {showDraftsOnly
-                  ? 'No draft files found in this collection.'
-                  : 'No files found in this collection.'}
+                Loading directory...
               </div>
+            )}
+
+            {/* Error State */}
+            {hasDirectoryError && (
+              <div className="p-4 text-center">
+                <div className="text-sm text-destructive mb-2">
+                  Failed to load directory
+                </div>
+                <div className="text-xs text-muted-foreground mb-3">
+                  {directoryError instanceof Error
+                    ? directoryError.message
+                    : 'Unknown error occurred'}
+                </div>
+                <Button
+                  onClick={() => void refetchFiles()}
+                  variant="outline"
+                  size="sm"
+                >
+                  Try Again
+                </Button>
+              </div>
+            )}
+
+            {/* Content (only show if not loading and no error) */}
+            {!isLoadingDirectory && !hasDirectoryError && (
+              <>
+                {/* Subdirectories (alphabetically sorted) */}
+                {subdirectories
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(dir => (
+                    <button
+                      key={dir.relative_path}
+                      onClick={() => handleSubdirectoryClick(dir.relative_path)}
+                      className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2 mb-1"
+                    >
+                      <Folder className="size-4 text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-foreground truncate">
+                        {dir.name}
+                      </span>
+                    </button>
+                  ))}
+
+                {/* Files (sorted by date) */}
+                {filteredAndSortedFiles.map(file => {
+                  const title = getTitle(file, frontmatterMappings.title)
+                  const publishedDate = getPublishedDate(
+                    file.frontmatter || {},
+                    frontmatterMappings.publishedDate
+                  )
+                  const isMdx = file.extension === 'mdx'
+                  const isFileDraft =
+                    file.isDraft ||
+                    file.frontmatter?.[frontmatterMappings.draft] === true
+                  const isSelected = currentFile?.id === file.id
+
+                  return (
+                    <button
+                      key={file.id}
+                      onClick={() => handleFileClick(file)}
+                      onContextMenu={e => void handleContextMenu(e, file)}
+                      className={cn(
+                        'w-full text-left p-3 rounded-md transition-colors',
+                        'hover:bg-accent',
+                        isFileDraft &&
+                          'bg-[var(--color-warning-bg)] hover:bg-[var(--color-warning-bg)]/80',
+                        isSelected && 'bg-primary/15 hover:bg-primary/20'
+                      )}
+                    >
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm leading-tight truncate text-foreground">
+                            {title}
+                          </div>
+                          {publishedDate && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatDate(publishedDate)}
+                            </div>
+                          )}
+                          <div className="text-xs font-mono text-muted-foreground mt-1">
+                            {renamingFileId === file.id ? (
+                              <input
+                                type="text"
+                                value={renameValue}
+                                onChange={e => setRenameValue(e.target.value)}
+                                onKeyDown={e => handleRenameKeyDown(e, file)}
+                                onBlur={() => void handleRenameSubmit(file)}
+                                className="bg-background border border-border rounded px-1 py-0.5 text-xs font-mono w-full text-foreground"
+                                autoFocus
+                                onClick={e => e.stopPropagation()}
+                              />
+                            ) : file.extension ? (
+                              `${file.name}.${file.extension}`
+                            ) : (
+                              file.name
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {isFileDraft && (
+                            <Badge
+                              variant="destructive"
+                              className="text-xs px-1 py-0"
+                            >
+                              Draft
+                            </Badge>
+                          )}
+                          {isMdx && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1 py-0"
+                            >
+                              MDX
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+                {filteredAndSortedFiles.length === 0 &&
+                  subdirectories.length === 0 && (
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      {showDraftsOnly
+                        ? 'No draft files found in this directory.'
+                        : 'This directory is empty.'}
+                    </div>
+                  )}
+              </>
             )}
           </div>
         )}

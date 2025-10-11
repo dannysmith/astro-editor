@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { remove } from '@tauri-apps/plugin-fs'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
+import { useProjectStore } from '@/store/projectStore'
 
 interface DeleteFilePayload {
   filePath: string
@@ -22,12 +23,20 @@ export const useDeleteFileMutation = () => {
   return useMutation({
     mutationFn: deleteFile,
     onSuccess: (_, variables) => {
-      // Invalidate collection files to remove the deleted file from the list
+      const { currentSubdirectory } = useProjectStore.getState()
+
+      // Invalidate current directory view to remove the deleted file
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.collectionFiles(
+        queryKey: queryKeys.directoryContents(
           variables.projectPath,
-          variables.collectionName
+          variables.collectionName,
+          currentSubdirectory || 'root'
         ),
+      })
+
+      // Also invalidate collections to refresh file counts
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.collections(variables.projectPath),
       })
 
       // Remove the file content from cache

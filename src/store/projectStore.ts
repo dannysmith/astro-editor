@@ -19,6 +19,7 @@ interface ProjectState {
   projectPath: string | null
   currentProjectId: string | null
   selectedCollection: string | null
+  currentSubdirectory: string | null // Relative path from collection root, e.g., "2024/january"
 
   // Settings
   globalSettings: GlobalSettings | null
@@ -27,6 +28,9 @@ interface ProjectState {
   // Actions
   setProject: (path: string) => void
   setSelectedCollection: (collection: string | null) => void
+  setCurrentSubdirectory: (subdirectory: string | null) => void
+  navigateUp: () => void // Go up one level in directory hierarchy
+  navigateToRoot: () => void // Go to collection root (clear subdirectory)
   loadPersistedProject: () => Promise<void>
   initializeProjectRegistry: () => Promise<void>
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => Promise<void>
@@ -40,6 +44,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projectPath: null,
   currentProjectId: null,
   selectedCollection: null,
+  currentSubdirectory: null,
   globalSettings: null,
   currentProjectSettings: null,
 
@@ -72,6 +77,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           projectPath: path,
           currentProjectId: projectId,
           currentProjectSettings: projectSettings,
+          selectedCollection: null, // Reset collection when switching projects
+          currentSubdirectory: null, // Reset subdirectory when switching projects
         })
 
         // Project persistence is now handled by the project registry system
@@ -103,7 +110,33 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setSelectedCollection: (collection: string | null) => {
-    set({ selectedCollection: collection })
+    set({
+      selectedCollection: collection,
+      currentSubdirectory: null, // Always reset when switching collections
+    })
+  },
+
+  setCurrentSubdirectory: (subdirectory: string | null) => {
+    set({ currentSubdirectory: subdirectory })
+  },
+
+  navigateUp: () => {
+    const { currentSubdirectory } = get()
+    if (!currentSubdirectory) {
+      // Already at collection root, go to collections list
+      set({ selectedCollection: null })
+    } else {
+      // Go to parent directory
+      const parts = currentSubdirectory.split('/')
+      parts.pop() // Remove last segment
+      set({
+        currentSubdirectory: parts.length > 0 ? parts.join('/') : null,
+      })
+    }
+  },
+
+  navigateToRoot: () => {
+    set({ currentSubdirectory: null })
   },
 
   startFileWatcher: async () => {
