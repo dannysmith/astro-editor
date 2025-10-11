@@ -782,6 +782,63 @@ PreferencesDialog
 
 ---
 
+## Subtask 6 Progress & Outstanding Issues
+
+### What Was Completed
+
+1. **Added scope indicators to all preference panes** - Clear headers showing "Global Settings", "Project Settings", etc.
+2. **Created CollectionSettingsPane component** - Full UI for collection-specific overrides with collapsible sections
+3. **Removed FrontmatterMappingsPane** - Project-level frontmatter mappings removed from UI (backend still supports them for manual JSON editing)
+   - **Architectural Decision:** Only expose collection-specific frontmatter mappings in UI because different collections have different schemas. Merging fields from all collections into project-level dropdowns was confusing and semantically incorrect.
+   - Path overrides remain at both project and collection level (makes sense - e.g., "all collections in src/content/" at project level, "blog in content/blog/" at collection level)
+4. **Fixed FrontmatterField bug** - Now correctly uses collection-specific settings instead of project-level
+   - Added `collectionName` prop to FrontmatterField
+   - FrontmatterPanel now passes `currentFile.collection` to all field components
+   - FrontmatterField calls `useEffectiveSettings(collectionName)` for proper fallback
+5. **Updated PreferencesDialog navigation** - Now shows: General, Project Settings, Collections
+   - Removed "Frontmatter Mappings" tab entirely
+   - Frontmatter configuration only available per-collection in Collections tab
+
+### Critical Bugs Remaining (Not Fixed)
+
+**Symptoms:**
+1. **Collection-level path override inputs do not accept text** - Can't type into contentDirectory or assetsDirectory inputs
+2. **Frontmatter mapping dropdowns do not allow selection** - Can't select any field from dropdowns
+3. **No console errors appear** - Silent failure
+4. **Placeholder values show correctly** - The inherited values are computed and displayed properly
+
+**What Was Tried (Unsuccessfully):**
+- Updated cleanup filter in `usePreferences.ts:68-81` to check for non-undefined values instead of truthy objects
+- Changed placeholder text from "Use project setting" to "Use default"
+- All TypeScript checks pass with no errors
+
+**Code Locations to Investigate:**
+- `src/hooks/usePreferences.ts` - `updateCollectionSettings()` function (lines 40-81)
+- `src/components/preferences/panes/CollectionSettingsPane.tsx`:
+  - `handlePathOverrideChange()` (lines 113-131)
+  - `handleFrontmatterMappingChange()` (lines 134-152)
+  - Input field (lines 191-204)
+  - Select dropdown rendering (lines 176-210)
+
+**Possible Root Causes:**
+1. **State update not triggering re-render** - Settings might be updating but UI not reflecting
+2. **Event handlers not firing** - onChange might be blocked or not attached
+3. **projectStore.updateProjectSettings() issue** - The underlying update mechanism might not be working for `collections` array
+4. **Controlled input issue** - Value binding might be preventing edits
+
+**Next Steps for Debugging:**
+1. Add console.logs to `handlePathOverrideChange` and `handleFrontmatterMappingChange` to verify they're being called
+2. Check if `updateCollectionSettings` is actually calling `updateProjectSettings`
+3. Verify the `projectStore.updateProjectSettings` handles the `collections` field correctly
+4. Check if there's a React state batching issue preventing re-renders
+5. Try making the inputs uncontrolled temporarily to see if the issue is with controlled component behavior
+
+**Drag and Drop Image Functionality:**
+- Code appears correct - uses `getEffectiveAssetsDirectory(currentProjectSettings, collection)`
+- Should work with three-tier fallback, but needs testing after above bugs are fixed
+
+---
+
 ### Subtask 7: Debug Tools for Support
 
 **Goal:** Add developer/support tools to help diagnose preference issues.
@@ -953,11 +1010,11 @@ For each subtask:
 Track completion of each subtask:
 
 - [x] **Subtask 1: Bug Fix** - Content directory override works in config parser
-- [ ] **Subtask 2: Restructure** - New preference file structure, migration works
-- [ ] **Subtask 3: Collection Settings** - Three-tier fallback implemented
-- [ ] **Subtask 4: Update Code** - All file operations respect hierarchy
-- [ ] **Subtask 5: Robustness** - Edge cases handled, validation strategy clear
-- [ ] **Subtask 6: UI** - Preferences UI shows scope clearly, collection settings work
+- [x] **Subtask 2: Restructure** - New preference file structure, migration works
+- [x] **Subtask 3: Collection Settings** - Three-tier fallback implemented
+- [x] **Subtask 4: Update Code** - All file operations respect hierarchy
+- [x] **Subtask 5: Robustness** - Edge cases handled, validation strategy clear
+- [ ] **Subtask 6: UI** - Preferences UI shows scope clearly, collection settings work (UI CREATED BUT INPUTS/DROPDOWNS NOT WORKING - SEE "Subtask 6 Progress & Outstanding Issues" SECTION)
 - [ ] **Subtask 7: Debug Tools** - Reset and open folder tools functional
 
 **Overall Quality Gates:**

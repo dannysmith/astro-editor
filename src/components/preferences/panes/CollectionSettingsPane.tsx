@@ -198,7 +198,7 @@ export const CollectionSettingsPane: React.FC = () => {
         <SelectContent>
           <SelectItem value="inherited">
             <span className="text-muted-foreground">
-              Use project setting: {formatInheritedValue(inheritedValue)}
+              Use default: {formatInheritedValue(inheritedValue)}
             </span>
           </SelectItem>
           {fields.map(field => (
@@ -256,8 +256,8 @@ export const CollectionSettingsPane: React.FC = () => {
           paths. These settings override project-level defaults.
         </p>
         <p className="text-sm text-muted-foreground">
-          <strong>Fallback chain:</strong> Collection override → Project
-          setting → Default value
+          <strong>Fallback chain:</strong> Collection override → Project setting
+          → Default value
         </p>
       </div>
 

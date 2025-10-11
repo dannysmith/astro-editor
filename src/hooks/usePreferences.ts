@@ -66,12 +66,25 @@ export const usePreferences = () => {
       }
 
       // Remove collections with no settings (cleanup)
-      updatedCollections = updatedCollections.filter(
-        c =>
-          c.settings.pathOverrides ||
-          c.settings.frontmatterMappings ||
-          Object.keys(c.settings).length > 0
-      )
+      updatedCollections = updatedCollections.filter(c => {
+        const hasPathOverrides =
+          c.settings.pathOverrides &&
+          Object.keys(c.settings.pathOverrides).some(
+            key =>
+              c.settings.pathOverrides?.[
+                key as keyof typeof c.settings.pathOverrides
+              ] !== undefined
+          )
+        const hasFrontmatterMappings =
+          c.settings.frontmatterMappings &&
+          Object.keys(c.settings.frontmatterMappings).some(
+            key =>
+              c.settings.frontmatterMappings?.[
+                key as keyof typeof c.settings.frontmatterMappings
+              ] !== undefined
+          )
+        return hasPathOverrides || hasFrontmatterMappings
+      })
 
       return updateProjectSettings({
         collections: updatedCollections,
