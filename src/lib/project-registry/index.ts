@@ -311,3 +311,4 @@ export const projectRegistryManager = new ProjectRegistryManager()
 // Export types and utilities
 export * from './types'
 export * from './defaults'
+export * from './collection-settings'

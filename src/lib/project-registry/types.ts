@@ -32,6 +32,8 @@ export interface ProjectSettings {
       showDraftsOnly?: boolean
     }
   }
+  // Collection-specific settings overrides
+  collections?: CollectionSettings[]
 }
 
 // Collection-specific settings (subset of ProjectSettings)

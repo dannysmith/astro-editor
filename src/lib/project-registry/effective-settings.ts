@@ -1,18 +1,27 @@
 /**
- * Utilities for getting effective project settings
+ * Utilities for getting effective project settings with collection-scoped overrides
  */
 
 import { useProjectStore } from '../../store/projectStore'
 import { ProjectSettings } from './types'
 import { ASTRO_PATHS } from '../constants'
+import { getCollectionSettings } from './collection-settings'
 
 /**
- * Hook to get effective project settings with overrides applied
- * Returns default values if no project is loaded or no overrides exist
+ * Hook to get effective settings with optional collection-specific overrides
+ *
+ * @param collectionName - Optional collection name for collection-scoped settings
+ * @returns Effective settings with three-tier fallback (collection → project → defaults)
  */
-export const useEffectiveSettings = () => {
+export const useEffectiveSettings = (collectionName?: string) => {
   const { currentProjectSettings } = useProjectStore()
 
+  // If collection is specified and we have project settings, use collection-scoped settings
+  if (collectionName && currentProjectSettings) {
+    return getCollectionSettings(currentProjectSettings, collectionName)
+  }
+
+  // Otherwise, return project-level settings (two-tier fallback: project → defaults)
   const getEffectivePathOverrides = () => {
     const defaults = {
       contentDirectory: ASTRO_PATHS.CONTENT_DIR,
@@ -58,10 +67,15 @@ export const useEffectiveSettings = () => {
 }
 
 /**
- * Direct functions for use outside React components
+ * Direct function for use outside React components
+ *
+ * @param currentProjectSettings - Project settings to use for fallback
+ * @param collectionName - Optional collection name for collection-scoped settings
+ * @returns Effective settings with three-tier fallback (collection → project → defaults)
  */
 export const getEffectiveSettings = (
-  currentProjectSettings?: ProjectSettings | null
+  currentProjectSettings?: ProjectSettings | null,
+  collectionName?: string
 ): {
   pathOverrides: {
     contentDirectory: string
@@ -75,6 +89,12 @@ export const getEffectiveSettings = (
     draft: string
   }
 } => {
+  // If collection is specified and we have project settings, use collection-scoped settings
+  if (collectionName && currentProjectSettings) {
+    return getCollectionSettings(currentProjectSettings, collectionName)
+  }
+
+  // Otherwise, return project-level settings (two-tier fallback: project → defaults)
   const defaults = {
     pathOverrides: {
       contentDirectory: ASTRO_PATHS.CONTENT_DIR,
