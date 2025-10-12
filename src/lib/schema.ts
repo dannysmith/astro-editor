@@ -42,6 +42,7 @@ export interface FieldConstraints {
   maxLength?: number
   pattern?: string
   format?: 'email' | 'uri' | 'date-time' | 'date'
+  transform?: string // "astro-image" for image() helper
 }
 
 export enum FieldType {
@@ -56,6 +57,7 @@ export enum FieldType {
   Enum = 'enum',
   Reference = 'reference',
   Object = 'object', // For nested objects (rendered as grouped fields)
+  Image = 'image', // For Astro image() fields
   Unknown = 'unknown',
 }
 
@@ -132,6 +134,7 @@ function fieldTypeFromString(typeStr: string): FieldType {
     enum: FieldType.Enum,
     reference: FieldType.Reference,
     object: FieldType.Object,
+    image: FieldType.Image,
     unknown: FieldType.Unknown,
   }
   return typeMap[typeStr] || FieldType.Unknown

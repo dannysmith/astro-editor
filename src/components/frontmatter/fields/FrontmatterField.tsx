@@ -11,6 +11,7 @@ import { EnumField } from './EnumField'
 import { ArrayField } from './ArrayField'
 import { ReferenceField } from './ReferenceField'
 import { YamlField } from './YamlField'
+import { ImageField } from './ImageField'
 
 interface FrontmatterFieldProps {
   name: string
@@ -186,6 +187,13 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
         required={required}
         field={field}
       />
+    )
+  }
+
+  // Handle image fields (detected via transform constraint)
+  if (field?.constraints?.transform === 'astro-image') {
+    return (
+      <ImageField name={name} label={label} required={required} field={field} />
     )
   }
 

@@ -66,6 +66,8 @@ pub struct FieldConstraints {
     pub pattern: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>, // "email", "uri", "date-time", "date"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transform: Option<String>, // "astro-image" for image() helper
 }
 
 /// Astro JSON Schema structure
@@ -651,6 +653,7 @@ fn extract_constraints(
         max_length: None,
         pattern: None,
         format: None,
+        transform: None,
     };
 
     // Numeric constraints
@@ -702,6 +705,7 @@ fn extract_constraints(
         || constraints.max_length.is_some()
         || constraints.pattern.is_some()
         || constraints.format.is_some()
+        || constraints.transform.is_some()
     {
         Some(constraints)
     } else {
@@ -709,25 +713,51 @@ fn extract_constraints(
     }
 }
 
-/// Enhance JSON schema with Zod reference collection names
+/// Zod field data (references and transforms)
+struct ZodFieldData {
+    reference_collection: Option<String>,
+    transform: Option<String>,
+}
+
+/// Enhance JSON schema with Zod metadata (references and transforms)
 fn enhance_with_zod_references(
     schema: &mut SchemaDefinition,
     zod_schema: &str,
 ) -> Result<(), String> {
-    // Parse Zod schema to extract reference mappings
-    let reference_map = extract_zod_references(zod_schema)?;
+    // Parse Zod schema to extract field data
+    let field_data_map = extract_zod_field_data(zod_schema)?;
 
-    // Apply reference collection names to fields
+    // Apply Zod metadata to fields
     for field in &mut schema.fields {
-        if let Some(collection_name) = reference_map.get(&field.name) {
-            match field.field_type.as_str() {
-                "reference" => {
-                    field.reference_collection = Some(collection_name.clone());
+        if let Some(zod_data) = field_data_map.get(&field.name) {
+            // Apply reference collection names
+            if let Some(collection_name) = &zod_data.reference_collection {
+                match field.field_type.as_str() {
+                    "reference" => {
+                        field.reference_collection = Some(collection_name.clone());
+                    }
+                    "array" if field.sub_type.as_deref() == Some("reference") => {
+                        field.array_reference_collection = Some(collection_name.clone());
+                    }
+                    _ => {}
                 }
-                "array" if field.sub_type.as_deref() == Some("reference") => {
-                    field.array_reference_collection = Some(collection_name.clone());
+            }
+
+            // Apply transform constraint
+            if let Some(transform) = &zod_data.transform {
+                if field.constraints.is_none() {
+                    field.constraints = Some(FieldConstraints {
+                        min: None,
+                        max: None,
+                        min_length: None,
+                        max_length: None,
+                        pattern: None,
+                        format: None,
+                        transform: Some(transform.clone()),
+                    });
+                } else if let Some(constraints) = &mut field.constraints {
+                    constraints.transform = Some(transform.clone());
                 }
-                _ => {}
             }
         }
     }
@@ -735,8 +765,8 @@ fn enhance_with_zod_references(
     Ok(())
 }
 
-/// Extract reference field mappings from Zod schema JSON
-fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, String> {
+/// Extract field data (references and transforms) from Zod schema JSON
+fn extract_zod_field_data(zod_schema: &str) -> Result<IndexMap<String, ZodFieldData>, String> {
     #[derive(Deserialize)]
     struct ZodSchema {
         fields: Vec<ZodField>,
@@ -753,25 +783,46 @@ fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, 
         referenced_collection: Option<String>,
         #[serde(default)]
         array_reference_collection: Option<String>,
+        #[serde(default)]
+        constraints: Option<Value>,
     }
 
     let schema: ZodSchema =
         serde_json::from_str(zod_schema).map_err(|e| format!("Failed to parse Zod JSON: {e}"))?;
 
-    let mut reference_map = IndexMap::new();
+    let mut field_data_map = IndexMap::new();
 
     for field in schema.fields {
-        // Single reference
+        let mut zod_data = ZodFieldData {
+            reference_collection: None,
+            transform: None,
+        };
+
+        // Extract reference collection
         if let Some(collection) = field.referenced_collection {
-            reference_map.insert(field.name.clone(), collection);
+            zod_data.reference_collection = Some(collection);
+        } else if let Some(collection) = field.array_reference_collection {
+            zod_data.reference_collection = Some(collection);
         }
-        // Array reference
-        else if let Some(collection) = field.array_reference_collection {
-            reference_map.insert(field.name, collection);
+
+        // Extract transform from constraints
+        if let Some(constraints_value) = &field.constraints {
+            if let Some(obj) = constraints_value.as_object() {
+                if let Some(transform_value) = obj.get("transform") {
+                    if let Some(transform_str) = transform_value.as_str() {
+                        zod_data.transform = Some(transform_str.to_string());
+                    }
+                }
+            }
+        }
+
+        // Only add if we have data
+        if zod_data.reference_collection.is_some() || zod_data.transform.is_some() {
+            field_data_map.insert(field.name, zod_data);
         }
     }
 
-    Ok(reference_map)
+    Ok(field_data_map)
 }
 
 /// Parse Zod schema (fallback when JSON schema unavailable)
@@ -879,6 +930,7 @@ fn parse_zod_constraints(constraints: &Value) -> Option<FieldConstraints> {
         } else {
             None
         },
+        transform: obj.get("transform").and_then(|v| v.as_str()).map(String::from),
     };
 
     // Only return if any constraints are set
@@ -888,6 +940,7 @@ fn parse_zod_constraints(constraints: &Value) -> Option<FieldConstraints> {
         || result.max_length.is_some()
         || result.pattern.is_some()
         || result.format.is_some()
+        || result.transform.is_some()
     {
         Some(result)
     } else {
@@ -961,7 +1014,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_zod_references() {
+    fn test_extract_zod_field_data() {
         let zod_schema = r##"{
             "type": "zod",
             "fields": [
@@ -977,15 +1030,33 @@ mod tests {
                     "arrayType": "Reference",
                     "optional": true,
                     "arrayReferenceCollection": "tags"
+                },
+                {
+                    "name": "cover",
+                    "type": "String",
+                    "optional": true,
+                    "constraints": {
+                        "transform": "astro-image"
+                    }
                 }
             ]
         }"##;
 
-        let result = extract_zod_references(zod_schema);
+        let result = extract_zod_field_data(zod_schema);
         assert!(result.is_ok());
 
         let map = result.unwrap();
-        assert_eq!(map.get("author"), Some(&"authors".to_string()));
-        assert_eq!(map.get("tags"), Some(&"tags".to_string()));
+        assert_eq!(
+            map.get("author").and_then(|d| d.reference_collection.as_ref()),
+            Some(&"authors".to_string())
+        );
+        assert_eq!(
+            map.get("tags").and_then(|d| d.reference_collection.as_ref()),
+            Some(&"tags".to_string())
+        );
+        assert_eq!(
+            map.get("cover").and_then(|d| d.transform.as_ref()),
+            Some(&"astro-image".to_string())
+        );
     }
 }

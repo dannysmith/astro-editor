@@ -846,6 +846,9 @@ src/components/frontmatter/fields/
 ├── DateField.tsx        # Date picker integration
 ├── EnumField.tsx        # Select dropdown
 ├── ArrayField.tsx       # Tag input with validation
+├── ImageField.tsx       # Image picker with drag-and-drop
+├── ReferenceField.tsx   # Reference dropdown for related content
+├── YamlField.tsx        # YAML editor for complex structures
 ├── FrontmatterField.tsx # Orchestrator component
 └── index.ts             # Barrel exports
 ```
@@ -859,6 +862,47 @@ src/components/frontmatter/fields/
 5. **Field Components**: Use FieldWrapper for consistent layouts
 6. **Layout Support**: Use `layout="horizontal"` for toggles/switches
 7. **Utility Separation**: Shared logic in utils.ts
+
+**ImageField Component:**
+
+The ImageField component provides specialized handling for Astro's `image()` helper fields:
+
+```typescript
+// Detection via transform constraint from schema
+if (field?.constraints?.transform === 'astro-image') {
+  return <ImageField name={name} label={label} required={required} field={field} />
+}
+
+// ImageField provides:
+// - File picker with image validation
+// - Drag-and-drop support for external images
+// - Image preview with loading/error states
+// - Path resolution (relative and project-relative)
+// - Automatic file copying to assets directory
+```
+
+**Path Handling Strategy:**
+
+ImageField follows the same file handling pattern as editor drag-and-drop:
+
+1. **When Adding Images**:
+   - Calls `copy_file_to_assets_with_override` Tauri command
+   - Copies file to `src/assets/{collection}/` (or custom directory)
+   - Stores path with leading `/` for Astro compatibility: `/src/assets/blog/2025-01-15-image.jpg`
+   - Uses `formatPathForAstro()` utility to ensure correct format
+
+2. **When Displaying Previews**:
+   - Accepts any path format (relative `./`, project-relative `/src/`)
+   - Uses `resolveImagePath()` to convert to absolute file system path
+   - Uses `getImageSrc()` to convert to Tauri `asset://` URL
+   - Handles missing/broken images gracefully
+
+3. **Path Resolution Utilities** (`src/lib/image-path.ts`):
+   - `resolveImagePath()`: Converts any format to absolute path
+   - `getImageSrc()`: Converts to asset:// URL for preview
+   - `formatPathForAstro()`: Ensures leading `/` for Astro builds
+
+This ensures images work both in the editor preview and in Astro builds, while matching the behavior users expect from editor drag-and-drop.
 
 ### Settings and Preferences Forms
 

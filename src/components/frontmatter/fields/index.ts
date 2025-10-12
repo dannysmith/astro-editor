@@ -8,6 +8,7 @@ export { EnumField } from './EnumField'
 export { ArrayField } from './ArrayField'
 export { ReferenceField } from './ReferenceField'
 export { YamlField } from './YamlField'
+export { ImageField } from './ImageField'
 
 // Orchestrator component
 export { FrontmatterField } from './FrontmatterField'
