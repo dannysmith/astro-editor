@@ -1,7 +1,7 @@
 {
   "name": "astro-editor",
   "private": true,
-  "version": "0.1.24",
+  "version": "0.1.25",
   "type": "module",
   "author": "Danny Smith",
   "description": "Astro Editor is a native macOS application designed specifically for editing Astro content collections. It provides a distraction-free writing environment with seamless frontmatter editing capabilities. It also provides a component builder for MDX files, and a number of writing modes to help you write.",
