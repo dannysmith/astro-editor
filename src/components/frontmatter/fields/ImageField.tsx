@@ -1,9 +1,9 @@
 import React from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { Button } from '../../ui/button'
-import { Input } from '../../ui/input'
 import { FieldWrapper } from './FieldWrapper'
 import { Upload, X, Image as ImageIcon } from 'lucide-react'
 import { cn } from '../../../lib/utils'
@@ -29,9 +29,6 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   const value = getNestedValue(frontmatter, name)
   const imagePath = typeof value === 'string' ? value : ''
 
-  // Ref for hidden file input
-  const fileInputRef = React.useRef<HTMLInputElement>(null)
-
   // State for drag-and-drop and preview
   const [isDragging, setIsDragging] = React.useState(false)
   const [isProcessing, setIsProcessing] = React.useState(false)
@@ -52,7 +49,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         const src = await getImageSrc(imagePath, currentFile.path, projectPath)
         setPreviewSrc(src)
         setPreviewError(false)
-      } catch (error) {
+      } catch {
         setPreviewSrc(null)
         setPreviewError(true)
       }
@@ -62,32 +59,37 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   }, [imagePath, projectPath, currentFile?.path])
 
   // Handler for "Choose Image" button click
-  const handleChooseImage = () => {
-    fileInputRef.current?.click()
-  }
-
-  // Handler for file selection
-  const handleFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Get the file path from the browser File object
-    const sourcePath = (file as File & { path?: string }).path
-    if (!sourcePath) {
-      toast.error('Could not get file path', {
-        description: 'Please try dragging and dropping instead',
+  const handleChooseImage = async () => {
+    try {
+      // Use Tauri's native file dialog
+      const selected = await open({
+        title: 'Select Image',
+        multiple: false,
+        filters: [
+          {
+            name: 'Images',
+            extensions: [
+              'png',
+              'jpg',
+              'jpeg',
+              'gif',
+              'webp',
+              'svg',
+              'bmp',
+              'ico',
+            ],
+          },
+        ],
       })
-      return
-    }
 
-    // Process the file
-    await processImageFile(sourcePath)
-
-    // Reset file input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      if (selected && typeof selected === 'string') {
+        await processImageFile(selected)
+      }
+    } catch (error) {
+      toast.error('Failed to open file dialog', {
+        description:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      })
     }
   }
 
@@ -171,7 +173,6 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   // Drag-and-drop handlers
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault()
-    e.stopPropagation()
     if (e.dataTransfer.types.includes('Files')) {
       setIsDragging(true)
     }
@@ -179,7 +180,6 @@ export const ImageField: React.FC<ImageFieldProps> = ({
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
-    e.stopPropagation()
     // Only set dragging to false if we're leaving the drop zone itself
     // (not just moving between child elements)
     if (e.currentTarget === e.target) {
@@ -189,14 +189,12 @@ export const ImageField: React.FC<ImageFieldProps> = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
-    e.stopPropagation()
     // Required to allow drop
     e.dataTransfer.dropEffect = 'copy'
   }
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
-    e.stopPropagation()
     setIsDragging(false)
 
     // Get the first file from the drop
@@ -211,7 +209,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       return
     }
 
-    // Get the file path (Tauri provides this)
+    // Get the file path (Tauri provides this after processing)
     const sourcePath = (file as File & { path?: string }).path
     if (!sourcePath) {
       toast.error('Could not get file path', {
@@ -246,16 +244,6 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       </div>
 
       <div className="space-y-3">
-        {/* Hidden file input */}
-        <Input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileSelect}
-          aria-label={`Choose image for ${label}`}
-        />
-
         {/* Current image path display */}
         {imagePath && (
           <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border animate-in fade-in-0 slide-in-from-top-1 duration-200">
@@ -288,7 +276,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
-          onDrop={handleDrop}
+          onDrop={e => void handleDrop(e)}
         >
           {/* Image preview area */}
           {imagePath ? (
@@ -326,7 +314,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleChooseImage}
+                  onClick={() => void handleChooseImage()}
                   disabled={isProcessing}
                   className="transition-all duration-200"
                 >

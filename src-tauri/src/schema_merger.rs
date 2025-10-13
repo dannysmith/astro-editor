@@ -930,7 +930,10 @@ fn parse_zod_constraints(constraints: &Value) -> Option<FieldConstraints> {
         } else {
             None
         },
-        transform: obj.get("transform").and_then(|v| v.as_str()).map(String::from),
+        transform: obj
+            .get("transform")
+            .and_then(|v| v.as_str())
+            .map(String::from),
     };
 
     // Only return if any constraints are set
@@ -1047,11 +1050,13 @@ mod tests {
 
         let map = result.unwrap();
         assert_eq!(
-            map.get("author").and_then(|d| d.reference_collection.as_ref()),
+            map.get("author")
+                .and_then(|d| d.reference_collection.as_ref()),
             Some(&"authors".to_string())
         );
         assert_eq!(
-            map.get("tags").and_then(|d| d.reference_collection.as_ref()),
+            map.get("tags")
+                .and_then(|d| d.reference_collection.as_ref()),
             Some(&"tags".to_string())
         );
         assert_eq!(

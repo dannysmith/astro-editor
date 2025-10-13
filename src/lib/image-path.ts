@@ -1,5 +1,5 @@
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { join, isAbsolute, resolve, dirname } from '@tauri-apps/api/path'
+import { join, resolve, dirname } from '@tauri-apps/api/path'
 
 /**
  * Resolves an image path from frontmatter to an absolute file system path.
