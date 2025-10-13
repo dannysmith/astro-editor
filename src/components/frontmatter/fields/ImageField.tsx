@@ -1,5 +1,6 @@
 import React from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
@@ -11,6 +12,7 @@ import { formatPathForAstro, getImageSrc } from '../../../lib/image-path'
 import { getEffectiveAssetsDirectory } from '../../../lib/project-registry'
 import { ASTRO_PATHS } from '../../../lib/constants'
 import { toast } from '../../../lib/toast'
+import { claimDrop, isDropClaimed } from '../../../lib/drop-coordinator'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
@@ -35,6 +37,9 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   const [previewSrc, setPreviewSrc] = React.useState<string | null>(null)
   const [previewError, setPreviewError] = React.useState(false)
   const [srAnnouncement, setSrAnnouncement] = React.useState('')
+
+  // Ref to track if mouse is over the drop zone
+  const isHoveringRef = React.useRef(false)
 
   // Load image preview when path changes
   React.useEffect(() => {
@@ -101,80 +106,154 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   }
 
   // Shared logic for processing an image file
-  const processImageFile = async (sourcePath: string) => {
-    // Validate project context
-    if (!projectPath) {
-      toast.error('No project open', {
-        description: 'Please open a project before adding images',
-      })
-      return
-    }
+  const processImageFile = React.useCallback(
+    async (sourcePath: string) => {
+      // Validate project context
+      if (!projectPath) {
+        toast.error('No project open', {
+          description: 'Please open a project before adding images',
+        })
+        return
+      }
 
-    if (!currentFile?.collection) {
-      toast.error('No collection found', {
-        description: 'Could not determine the current collection',
-      })
-      return
-    }
+      if (!currentFile?.collection) {
+        toast.error('No collection found', {
+          description: 'Could not determine the current collection',
+        })
+        return
+      }
 
-    setIsProcessing(true)
+      setIsProcessing(true)
 
-    try {
-      // Determine assets directory (collection-specific or project-level override)
-      const assetsDirectory = getEffectiveAssetsDirectory(
-        currentProjectSettings,
-        currentFile.collection
-      )
+      try {
+        // Determine assets directory (collection-specific or project-level override)
+        const assetsDirectory = getEffectiveAssetsDirectory(
+          currentProjectSettings,
+          currentFile.collection
+        )
 
-      // Copy file to assets directory using Tauri command
-      let relativePath: string
-      if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-        // Use collection-specific or project-level override
-        relativePath = await invoke<string>(
-          'copy_file_to_assets_with_override',
-          {
+        // Copy file to assets directory using Tauri command
+        let relativePath: string
+        if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
+          // Use collection-specific or project-level override
+          relativePath = await invoke<string>(
+            'copy_file_to_assets_with_override',
+            {
+              sourcePath,
+              projectPath,
+              collection: currentFile.collection,
+              assetsDirectory,
+            }
+          )
+        } else {
+          // Use default assets directory
+          relativePath = await invoke<string>('copy_file_to_assets', {
             sourcePath,
             projectPath,
             collection: currentFile.collection,
-            assetsDirectory,
-          }
-        )
-      } else {
-        // Use default assets directory
-        relativePath = await invoke<string>('copy_file_to_assets', {
-          sourcePath,
-          projectPath,
-          collection: currentFile.collection,
+          })
+        }
+
+        // Format path for Astro (ensure leading slash)
+        const formattedPath = formatPathForAstro(relativePath)
+
+        // Update frontmatter field
+        updateFrontmatterField(name, formattedPath)
+
+        toast.success('Image added', {
+          description: `Image copied to ${relativePath}`,
         })
+
+        // Screen reader announcement
+        setSrAnnouncement(`Image selected: ${relativePath}`)
+      } catch (error) {
+        toast.error('Failed to add image', {
+          description:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        })
+      } finally {
+        setIsProcessing(false)
       }
+    },
+    [
+      projectPath,
+      currentProjectSettings,
+      currentFile,
+      name,
+      updateFrontmatterField,
+    ]
+  )
 
-      // Format path for Astro (ensure leading slash)
-      const formattedPath = formatPathForAstro(relativePath)
+  // Set up Tauri drag-drop event listener
+  React.useEffect(() => {
+    const setupTauriListener = async () => {
+      const unlisten = await listen<string[] | string>(
+        'tauri://drag-drop',
+        event => {
+          // Only handle if hovering over this ImageField and not already claimed
+          if (!isHoveringRef.current || isDropClaimed()) {
+            return
+          }
 
-      // Update frontmatter field
-      updateFrontmatterField(name, formattedPath)
+          // Claim this drop to prevent editor from processing it
+          claimDrop()
+          setIsDragging(false)
 
-      toast.success('Image added', {
-        description: `Image copied to ${relativePath}`,
-      })
+          // Parse file paths from payload
+          let filePaths: string[] = []
+          if (Array.isArray(event.payload)) {
+            filePaths = event.payload
+          } else if (typeof event.payload === 'string') {
+            filePaths = [event.payload]
+          }
 
-      // Screen reader announcement
-      setSrAnnouncement(`Image selected: ${relativePath}`)
-    } catch (error) {
-      toast.error('Failed to add image', {
-        description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      })
-    } finally {
-      setIsProcessing(false)
+          // Get first file
+          const firstFile = filePaths[0]
+          if (!firstFile) return
+
+          // Validate it's an image by file extension
+          const imageExtensions = [
+            '.png',
+            '.jpg',
+            '.jpeg',
+            '.gif',
+            '.webp',
+            '.svg',
+            '.bmp',
+            '.ico',
+          ]
+          const isImage = imageExtensions.some(ext =>
+            firstFile.toLowerCase().endsWith(ext)
+          )
+
+          if (!isImage) {
+            toast.error('Invalid file type', {
+              description: 'Please drop an image file',
+            })
+            return
+          }
+
+          // Process the dropped file
+          void processImageFile(firstFile)
+        }
+      )
+
+      return unlisten
     }
-  }
 
-  // Drag-and-drop handlers
+    const cleanup = setupTauriListener()
+    return () => {
+      void cleanup.then(unlisten => unlisten())
+    }
+  }, [processImageFile])
+
+  // React drag handlers for visual feedback
+  // (Actual drop handling is done by Tauri event listener above)
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault()
     if (e.dataTransfer.types.includes('Files')) {
       setIsDragging(true)
+      isHoveringRef.current = true
     }
   }
 
@@ -184,42 +263,21 @@ export const ImageField: React.FC<ImageFieldProps> = ({
     // (not just moving between child elements)
     if (e.currentTarget === e.target) {
       setIsDragging(false)
+      isHoveringRef.current = false
     }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
-    // Required to allow drop
+    // Required to allow drop and show correct cursor
     e.dataTransfer.dropEffect = 'copy'
   }
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
+    // Reset visual state - actual file processing is done by Tauri listener
     setIsDragging(false)
-
-    // Get the first file from the drop
-    const file = e.dataTransfer.files[0]
-    if (!file) return
-
-    // Validate it's an image
-    if (!file.type.startsWith('image/')) {
-      toast.error('Invalid file type', {
-        description: 'Please drop an image file',
-      })
-      return
-    }
-
-    // Get the file path (Tauri provides this after processing)
-    const sourcePath = (file as File & { path?: string }).path
-    if (!sourcePath) {
-      toast.error('Could not get file path', {
-        description: 'Please try using the file picker instead',
-      })
-      return
-    }
-
-    // Process the dropped file
-    await processImageFile(sourcePath)
+    isHoveringRef.current = false
   }
 
   return (
@@ -276,7 +334,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
-          onDrop={e => void handleDrop(e)}
+          onDrop={handleDrop}
         >
           {/* Image preview area */}
           {imagePath ? (

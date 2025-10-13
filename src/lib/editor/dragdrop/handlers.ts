@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view'
 import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
+import { isDropClaimed } from '../../drop-coordinator'
 import { processDroppedFiles } from './fileProcessing'
 import {
   validateDropContext,
@@ -43,6 +44,15 @@ export const handleTauriFileDrop = async (
   payload: unknown,
   editorView: EditorView | null
 ): Promise<DropResult> => {
+  // Check if another component (e.g., ImageField) has already claimed this drop
+  if (isDropClaimed()) {
+    return {
+      success: false,
+      insertText: '',
+      error: 'Drop claimed by another handler',
+    }
+  }
+
   if (!editorView) {
     return { success: false, insertText: '', error: 'No editor view available' }
   }
