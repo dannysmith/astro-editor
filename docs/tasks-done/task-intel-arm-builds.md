@@ -1,7 +1,7 @@
 # Task 1: Add Intel Build Support
 
 ## Status
-✅ IMPLEMENTED - Ready for testing
+🧪 IN TESTING - v0.1.26 draft release (branch: add-intel-build)
 
 ## Context
 Currently building only Apple Silicon (ARM) DMG. Need to support Intel-based Macs as well.
@@ -291,6 +291,22 @@ args: ${{ matrix.args }}
 ```
 - **Purpose**: Clearly communicates that single DMG works on all Macs
 
+### `website/index.html`
+
+**Updated Download Button (line 310-336)**
+```html
+<!-- BEFORE: Single line text -->
+<span>Download for macOS</span>
+
+<!-- AFTER: Two-line button with subtitle -->
+<div class="flex flex-col items-start">
+  <span>Download for macOS</span>
+  <span class="text-xs text-white/70 font-normal">Universal (Intel & Apple Silicon)</span>
+</div>
+```
+- **Purpose**: Clearly communicates universal binary support to users
+- **Also updated**: aria-label for accessibility
+
 ### What Stays the Same (Critical!)
 
 **✅ All signing configuration unchanged:**
@@ -305,9 +321,8 @@ args: ${{ matrix.args }}
 - Works with both "aarch64" and "universal" filenames automatically
 
 **✅ No changes needed to:**
-- `prepare-release.js` - Versioning works the same
+- `prepare-release.js` - Versioning works the same (see Testing Notes for branch handling)
 - `deploy-website.yml` - Already copies DMG correctly
-- Website download button - Can be updated later (optional)
 
 ### Auto-Updater Behavior
 
@@ -372,29 +387,175 @@ args: ${{ matrix.args }}
 
 The only reason to use separate builds would be if the universal binary size becomes prohibitively large (e.g., >500MB), which is unlikely for this application.
 
-## Testing Plan
+## Testing Approach
 
-After implementation:
+### Branch Strategy for Safe Testing
 
-1. **Build Testing**:
-   - Trigger release workflow
-   - Verify universal DMG is created
-   - Check DMG size (should be ~2x current size)
+**Testing on `add-intel-build` branch before merging to `main`:**
 
-2. **Installation Testing**:
-   - Test on Intel Mac
-   - Test on Apple Silicon Mac
-   - Verify app runs natively (not under Rosetta)
+This allows testing the changes in isolation without affecting the main branch until verified.
 
-3. **Auto-Update Testing**:
-   - Install v0.1.25 on both architectures
-   - Release v0.1.26 as universal
-   - Verify update notification appears
-   - Verify update installs correctly
+**Why this works:**
+1. Tag triggers workflow (not branch)
+2. Workflow checks out the **tag** (which points to branch commit)
+3. Builds the code from the tag regardless of which branch it was created on
+4. Draft release created for manual verification
+5. Main branch untouched until ready to merge
 
-4. **Website Testing**:
-   - Verify DMG downloads from website
-   - Check file naming and size
+### Release Process for Testing
+
+**Using prepare-release.js on non-main branch:**
+
+```bash
+# 1. Run prepare-release (updates versions, creates commit & tag)
+pnpm run prepare-release 0.1.26
+
+# 2. When prompted "Would you like me to execute these git commands? (y/N):"
+#    Answer: N (because script hardcodes 'main' branch)
+
+# 3. Manually push with correct branch name:
+git push origin add-intel-build --tags
+```
+
+**Critical:** The script's `git push origin main --tags` at line 158 is hardcoded, so we must answer 'N' and push manually with the correct branch name.
+
+### Test Verification Checklist
+
+**1. Draft Release Verification (GitHub Releases page):**
+- [ ] DMG filename includes "universal" (e.g., `Astro Editor_0.1.26_universal.dmg`)
+- [ ] File size is approximately 12-13MB (double the current 6.2MB)
+- [ ] `.sig` signature file present
+- [ ] Release body shows "Universal - works on both Intel and Apple Silicon"
+- [ ] Release is marked as "Draft"
+
+**2. latest.json Verification:**
+- [ ] Download latest.json from release assets
+- [ ] Verify contains `darwin-universal` entry
+- [ ] Verify contains `darwin-aarch64` entry (for existing ARM users)
+- [ ] Verify contains `darwin-x86_64` entry (for Intel users)
+- [ ] All three entries point to same universal DMG URL
+- [ ] Signatures present for all three entries
+
+**3. DMG Installation Testing (on test Mac):**
+- [ ] Download universal DMG from draft release
+- [ ] Install on Mac
+- [ ] Verify app launches successfully
+- [ ] Check Activity Monitor: app should show "Apple" or "Intel" (not "Intel (Rosetta)")
+- [ ] Test basic functionality (open project, edit file, save)
+
+**4. Auto-Updater Testing (if time permits):**
+- [ ] Install v0.1.25 on test Mac
+- [ ] Publish v0.1.26 draft release
+- [ ] Launch v0.1.25 app
+- [ ] Verify update notification appears within 5 seconds
+- [ ] Click "Update" and verify installation succeeds
+- [ ] Verify app relaunches successfully on v0.1.26
+
+**5. Website Testing (after merge to main):**
+- [ ] Website DMG downloads correctly
+- [ ] Download button shows "Universal (Intel & Apple Silicon)" subtitle
+- [ ] DMG filename is `astro-editor-latest.dmg`
+
+### Expected Outcomes
+
+**Success Criteria:**
+1. ✅ Universal DMG builds without errors
+2. ✅ File size approximately doubles (6.2MB → ~12-13MB)
+3. ✅ latest.json has all three platform entries
+4. ✅ App runs natively on both architectures (no Rosetta)
+5. ✅ Existing ARM users can update seamlessly
+6. ✅ All signing and notarization passes
+
+**If Issues Arise:**
+- Draft release allows testing without affecting users
+- Can delete tag and draft release if needed
+- Make fixes on branch and try again
+- Only merge to main after full verification
+
+### Post-Testing: Merge to Main
+
+Once v0.1.26 draft release is verified:
+
+```bash
+# Switch to main
+git checkout main
+git pull origin main
+
+# Merge the branch
+git merge add-intel-build
+
+# Push to main (workflow already ran on tag, no re-trigger)
+git push origin main
+
+# Manually publish the draft release on GitHub
+```
+
+## Implementation Session Summary
+
+**Date:** 2025-10-16
+**Branch:** `add-intel-build`
+**Test Version:** v0.1.26
+
+### Key Decisions Made
+
+1. **Universal Binary Chosen:** After thorough research, universal binary approach selected for:
+   - Simplicity (single build, single DMG)
+   - User experience (no architecture selection needed)
+   - Industry standard for 2025
+   - Auto-updater simplicity
+
+2. **Minimal Changes Strategy:** Only 4 surgical changes to release.yml:
+   - Rust targets installation
+   - Matrix args update
+   - updaterJsonKeepUniversal flag
+   - Release body text update
+   - **All signing/notarization config preserved intact**
+
+3. **Branch Testing Approach:** Test on feature branch before merging to main:
+   - Safer than testing directly on main
+   - Can delete/retry if issues arise
+   - Draft release prevents user impact
+
+### Critical Findings
+
+1. **prepare-release.js Branch Handling:**
+   - Script hardcodes `git push origin main --tags` at line 158
+   - Solution: Answer 'N' to auto-push prompt, manually push with correct branch
+   - This is the ONLY difference when testing on non-main branch
+
+2. **Auto-Updater Compatibility:**
+   - `updaterJsonKeepUniversal: true` generates all three platform entries
+   - Existing ARM users will find `darwin-aarch64` entry
+   - New Intel users will find `darwin-x86_64` entry
+   - Both point to same universal DMG - seamless upgrade
+
+3. **File Size Impact:**
+   - Current ARM-only: 6.2MB
+   - Expected Universal: ~12-13MB
+   - Acceptable trade-off for compatibility
+
+### Files Modified
+
+1. `.github/workflows/release.yml` - 4 precise changes (lines 27, 57-61, 102, 108)
+2. `website/index.html` - Download button updated (lines 310-336)
+3. `docs/tasks-todo/task-1-intel-arm-builds.md` - This documentation
+
+### Files NOT Modified (Intentionally)
+
+1. `scripts/prepare-release.js` - Works as-is with manual push workaround
+2. `.github/workflows/deploy-website.yml` - Already handles universal DMG
+3. `docs/release-process.md` - Already showed `universal.dmg` in examples
+4. `docs/developer/apple-signing-setup.md` - Signing process identical
+5. `docs/developer/architecture-guide.md` - Not relevant to build process
+
+### Next Steps After Successful Test
+
+1. Verify all items in Test Verification Checklist
+2. If successful: Merge `add-intel-build` → `main`
+3. Manually publish draft release on GitHub
+4. Monitor for any user reports on Intel Macs
+5. Update task status to ✅ COMPLETED
+6. Move task to `docs/tasks-done/`
 
 ## References
 
