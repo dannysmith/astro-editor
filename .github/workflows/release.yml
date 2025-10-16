@@ -111,8 +111,8 @@ jobs:
       - name: Copy DMG to website folder
         if: matrix.platform == 'macos-14'
         run: |
-          # Find the generated DMG file
-          DMG_FILE=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
+          # Find the generated DMG file (universal binary location)
+          DMG_FILE=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
 
           if [ -n "$DMG_FILE" ]; then
             echo "Found DMG: $DMG_FILE"
