@@ -24,7 +24,7 @@ jobs:
       matrix:
         include:
           - platform: 'macos-14'
-            args: '--bundles app,dmg'
+            args: '--target universal-apple-darwin --bundles app,dmg'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -53,6 +53,12 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Rust targets for universal binary
+        if: matrix.platform == 'macos-14'
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup target add x86_64-apple-darwin
 
       - name: Import Code-Signing Certificates
         if: matrix.platform == 'macos-14'
@@ -93,12 +99,13 @@ jobs:
             ## Astro Editor ${{ github.ref_name || inputs.version }}
 
             ### Installation Instructions
-            - **macOS**: Download the `.dmg` file and drag Astro Editor to the Applications folder.
+            - **macOS**: Download the `.dmg` file (Universal - works on both Intel and Apple Silicon) and drag Astro Editor to the Applications folder.
 
             **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name || inputs.version }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
 
       - name: Copy DMG to website folder
