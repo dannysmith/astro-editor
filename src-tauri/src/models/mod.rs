@@ -6,4 +6,4 @@ pub mod mdx_component;
 pub use collection::Collection;
 pub use directory_info::DirectoryInfo;
 pub use file_entry::FileEntry;
-pub use mdx_component::{MdxComponent, PropInfo};
+pub use mdx_component::{ComponentFramework, MdxComponent, PropInfo};

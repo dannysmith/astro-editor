@@ -3,6 +3,15 @@ import { create } from 'zustand'
 import { MdxComponent } from '../hooks/queries/useMdxComponentsQuery'
 import { useUIStore } from './uiStore'
 
+// Client directive types for framework components
+export type ClientDirective =
+  | 'none'
+  | 'client:load'
+  | 'client:idle'
+  | 'client:visible'
+  | 'client:media'
+  | 'client:only'
+
 // Define State and Actions
 interface ComponentBuilderState {
   isOpen: boolean
@@ -11,6 +20,7 @@ interface ComponentBuilderState {
   enabledProps: Set<string>
   editorView: EditorView | null
   propSearchQuery: string
+  clientDirective: ClientDirective
 }
 
 interface ComponentBuilderActions {
@@ -21,6 +31,7 @@ interface ComponentBuilderActions {
   insert: () => void
   back: () => void
   setPropSearchQuery: (query: string) => void
+  setClientDirective: (directive: ClientDirective) => void
 }
 
 const initialState: ComponentBuilderState = {
@@ -30,6 +41,7 @@ const initialState: ComponentBuilderState = {
   enabledProps: new Set(),
   editorView: null,
   propSearchQuery: '',
+  clientDirective: 'none',
 }
 
 // Create Store
@@ -78,7 +90,8 @@ export const useComponentBuilderStore = create<
   },
 
   insert: () => {
-    const { selectedComponent, enabledProps, editorView } = get()
+    const { selectedComponent, enabledProps, editorView, clientDirective } =
+      get()
     if (!selectedComponent || !editorView) return
 
     // Import the snippet builder and insert command dynamically to avoid circular dependencies
@@ -88,7 +101,11 @@ export const useComponentBuilderStore = create<
         '../lib/editor/commands/insertSnippet'
       )
 
-      const snippetString = buildSnippet(selectedComponent, enabledProps)
+      const snippetString = buildSnippet(
+        selectedComponent,
+        enabledProps,
+        clientDirective
+      )
       insertSnippet(editorView, snippetString)
       get().close() // Close and reset after insertion
 
@@ -105,7 +122,11 @@ export const useComponentBuilderStore = create<
       selectedComponent: null,
       enabledProps: new Set(),
       propSearchQuery: '',
+      clientDirective: 'none',
     }),
 
   setPropSearchQuery: (query: string) => set({ propSearchQuery: query }),
+
+  setClientDirective: (directive: ClientDirective) =>
+    set({ clientDirective: directive }),
 }))

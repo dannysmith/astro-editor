@@ -1,6 +1,15 @@
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum ComponentFramework {
+    Astro,
+    React,
+    Vue,
+    Svelte,
+}
+
+#[derive(Serialize, Clone, Debug)]
 pub struct PropInfo {
     pub name: String,
     pub prop_type: String, // e.g., "'warning' | 'info'", "string", "boolean"
@@ -15,4 +24,5 @@ pub struct MdxComponent {
     pub props: Vec<PropInfo>,
     pub has_slot: bool,
     pub description: Option<String>, // Extracted from JSDoc comments if available
+    pub framework: ComponentFramework, // Framework type
 }

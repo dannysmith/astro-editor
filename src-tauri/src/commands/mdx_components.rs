@@ -1,4 +1,4 @@
-use crate::models::{MdxComponent, PropInfo};
+use crate::models::{ComponentFramework, MdxComponent, PropInfo};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -31,6 +31,17 @@ fn validate_project_path(file_path: &Path, project_root: &Path) -> Result<PathBu
     Ok(canonical_file)
 }
 
+/// Detects the framework based on file extension
+fn detect_framework(path: &Path) -> ComponentFramework {
+    match path.extension().and_then(|s| s.to_str()) {
+        Some("astro") => ComponentFramework::Astro,
+        Some("tsx" | "jsx") => ComponentFramework::React,
+        Some("vue") => ComponentFramework::Vue,
+        Some("svelte") => ComponentFramework::Svelte,
+        _ => ComponentFramework::Astro, // fallback
+    }
+}
+
 #[tauri::command]
 pub async fn scan_mdx_components(
     project_path: String,
@@ -58,8 +69,9 @@ pub async fn scan_mdx_components(
     {
         let path = entry.path();
 
-        // Only process .astro files
-        if path.extension().and_then(|s| s.to_str()) != Some("astro") {
+        // Only process supported component files
+        let ext = path.extension().and_then(|s| s.to_str());
+        if !matches!(ext, Some("astro" | "tsx" | "jsx" | "vue" | "svelte")) {
             continue;
         }
 
@@ -70,10 +82,19 @@ pub async fn scan_mdx_components(
 
         // Validate each component file is within project bounds
         match validate_project_path(path, project_root) {
-            Ok(_) => match parse_astro_component(path, &project_path) {
-                Ok(component) => components.push(component),
-                Err(e) => eprintln!("Error parsing MDX component {}: {e}", path.display()),
-            },
+            Ok(_) => {
+                let framework = detect_framework(path);
+                let result = match framework {
+                    ComponentFramework::Astro => parse_astro_component(path, &project_path),
+                    ComponentFramework::React => parse_react_component(path, &project_path),
+                    ComponentFramework::Vue => parse_vue_component(path, &project_path),
+                    ComponentFramework::Svelte => parse_svelte_component(path, &project_path),
+                };
+                match result {
+                    Ok(component) => components.push(component),
+                    Err(e) => eprintln!("Error parsing MDX component {}: {e}", path.display()),
+                }
+            }
             Err(e) => {
                 eprintln!(
                     "Skipping file outside project directory: {}: {e}",
@@ -130,6 +151,109 @@ fn parse_astro_component(path: &Path, project_root: &str) -> Result<MdxComponent
         props,
         has_slot,
         description: None, // TODO: Extract from JSDoc comments
+        framework: ComponentFramework::Astro,
+    })
+}
+
+fn parse_react_component(path: &Path, project_root: &str) -> Result<MdxComponent, String> {
+    // Validate the component file path is within project bounds
+    let project_root_path = Path::new(project_root);
+    let _validated_path = validate_project_path(path, project_root_path)?;
+
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+
+    // Extract component name from filename
+    let component_name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid filename")?
+        .to_string();
+
+    // Calculate relative path
+    let relative_path = path
+        .strip_prefix(project_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+
+    // Parse React component props (with graceful degradation)
+    let (props, has_slot) = parse_react_props(&content).unwrap_or_else(|_| (Vec::new(), false));
+
+    Ok(MdxComponent {
+        name: component_name,
+        file_path: relative_path,
+        props,
+        has_slot,
+        description: None,
+        framework: ComponentFramework::React,
+    })
+}
+
+fn parse_vue_component(path: &Path, project_root: &str) -> Result<MdxComponent, String> {
+    // Validate the component file path is within project bounds
+    let project_root_path = Path::new(project_root);
+    let _validated_path = validate_project_path(path, project_root_path)?;
+
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+
+    // Extract component name from filename
+    let component_name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid filename")?
+        .to_string();
+
+    // Calculate relative path
+    let relative_path = path
+        .strip_prefix(project_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+
+    // Parse Vue component props (with graceful degradation)
+    let (props, has_slot) = parse_vue_props(&content).unwrap_or_else(|_| (Vec::new(), false));
+
+    Ok(MdxComponent {
+        name: component_name,
+        file_path: relative_path,
+        props,
+        has_slot,
+        description: None,
+        framework: ComponentFramework::Vue,
+    })
+}
+
+fn parse_svelte_component(path: &Path, project_root: &str) -> Result<MdxComponent, String> {
+    // Validate the component file path is within project bounds
+    let project_root_path = Path::new(project_root);
+    let _validated_path = validate_project_path(path, project_root_path)?;
+
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+
+    // Extract component name from filename
+    let component_name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid filename")?
+        .to_string();
+
+    // Calculate relative path
+    let relative_path = path
+        .strip_prefix(project_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+
+    // Parse Svelte component props (with graceful degradation)
+    let (props, has_slot) = parse_svelte_props(&content).unwrap_or_else(|_| (Vec::new(), false));
+
+    Ok(MdxComponent {
+        name: component_name,
+        file_path: relative_path,
+        props,
+        has_slot,
+        description: None,
+        framework: ComponentFramework::Svelte,
     })
 }
 
@@ -141,6 +265,365 @@ fn extract_frontmatter(content: &str) -> Result<String, String> {
     }
 
     Ok(parts[1].to_string())
+}
+
+/// Parse React component props from TypeScript/TSX file
+/// Supports inline types and interface references
+/// Returns (props, has_children)
+fn parse_react_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
+    // Create a source map (required by swc)
+    let cm = Lrc::new(SourceMap::default());
+
+    // Create a file source
+    let fm = cm.new_source_file(
+        Rc::new(FileName::Custom("component.tsx".into())),
+        content.to_string(),
+    );
+
+    // Parse the TypeScript code
+    let syntax = Syntax::Typescript(TsSyntax {
+        tsx: true,
+        decorators: false,
+        ..Default::default()
+    });
+
+    let module = parse_file_as_module(&fm, syntax, EsVersion::Es2022, None, &mut vec![])
+        .map_err(|e| format!("Failed to parse TypeScript: {e:?}"))?;
+
+    // Find function component and extract props
+    let mut visitor = ReactPropsVisitor {
+        props: Vec::new(),
+        interfaces: std::collections::HashMap::new(),
+    };
+
+    module.visit_with(&mut visitor);
+
+    // Check if 'children' prop exists
+    let has_children = visitor.props.iter().any(|p| p.name == "children");
+
+    Ok((visitor.props, has_children))
+}
+
+/// Parse Vue component props from .vue file
+/// Supports Composition API defineProps<{...}>() pattern
+/// Returns (props, has_slot)
+fn parse_vue_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
+    // Extract script section
+    let script_content = extract_vue_script(content)?;
+
+    // Find defineProps<{...}>() pattern
+    let props_type = extract_define_props_type(&script_content)?;
+
+    // Parse the type definition as TypeScript
+    let props = parse_vue_type_definition(&props_type)?;
+
+    // Check for slot in template
+    let has_slot = content.contains("<slot") || content.contains("<slot/>");
+
+    Ok((props, has_slot))
+}
+
+/// Extract <script> section from Vue file
+fn extract_vue_script(content: &str) -> Result<String, String> {
+    // Find <script> tag (handle both <script> and <script setup lang="ts">)
+    let script_start = content.find("<script").ok_or("No <script> tag found")?;
+
+    let script_content_start = content[script_start..]
+        .find('>')
+        .ok_or("Malformed <script> tag")?
+        + script_start
+        + 1;
+
+    let script_end = content[script_content_start..]
+        .find("</script>")
+        .ok_or("No closing </script> tag")?
+        + script_content_start;
+
+    Ok(content[script_content_start..script_end].to_string())
+}
+
+/// Extract the type definition from defineProps<{...}>()
+fn extract_define_props_type(script: &str) -> Result<String, String> {
+    // Find defineProps<
+    let define_props_start = script.find("defineProps<").ok_or("No defineProps found")?;
+
+    let type_start = define_props_start + "defineProps<".len();
+
+    // Find matching closing >
+    let mut depth = 1;
+    let mut type_end = type_start;
+    let chars: Vec<char> = script.chars().collect();
+
+    for (i, ch) in chars.iter().enumerate().skip(type_start) {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    type_end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if depth != 0 {
+        return Err("Unmatched angle brackets in defineProps".to_string());
+    }
+
+    Ok(script[type_start..type_end].to_string())
+}
+
+/// Parse Vue props type definition (TypeScript object type)
+fn parse_vue_type_definition(type_def: &str) -> Result<Vec<PropInfo>, String> {
+    // Strip outer braces if present
+    let trimmed = type_def.trim();
+    let inner_content = if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+
+    // Add semicolons to each line for proper TypeScript parsing
+    let lines: Vec<String> = inner_content
+        .lines()
+        .map(|line| {
+            let trimmed_line = line.trim();
+            // Skip empty lines or lines that already have semicolons
+            if trimmed_line.is_empty() || trimmed_line.ends_with(';') {
+                line.to_string()
+            } else {
+                // Add semicolon to property definitions
+                format!("{line};")
+            }
+        })
+        .collect();
+
+    let normalized_type = lines.join("\n");
+
+    // Wrap in interface to reuse TypeScript parser
+    let wrapped = format!("interface Props {{\n{normalized_type}\n}}");
+
+    // Parse as TypeScript
+    parse_props_from_typescript(&wrapped)
+}
+
+/// Parse Svelte component props from .svelte file
+/// Supports export let propName: Type pattern
+/// Returns (props, has_slot)
+fn parse_svelte_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
+    // Extract script section
+    let script_content = extract_svelte_script(content)?;
+
+    // Find all export let statements
+    let props = parse_svelte_export_lets(&script_content)?;
+
+    // Check for slot in markup
+    let has_slot = content.contains("<slot") || content.contains("<slot/>");
+
+    Ok((props, has_slot))
+}
+
+/// Extract <script> section from Svelte file
+fn extract_svelte_script(content: &str) -> Result<String, String> {
+    // Find <script> tag
+    let script_start = content.find("<script").ok_or("No <script> tag found")?;
+
+    let script_content_start = content[script_start..]
+        .find('>')
+        .ok_or("Malformed <script> tag")?
+        + script_start
+        + 1;
+
+    let script_end = content[script_content_start..]
+        .find("</script>")
+        .ok_or("No closing </script> tag")?
+        + script_content_start;
+
+    Ok(content[script_content_start..script_end].to_string())
+}
+
+/// Parse export let statements from Svelte script
+fn parse_svelte_export_lets(script: &str) -> Result<Vec<PropInfo>, String> {
+    let mut props = Vec::new();
+
+    // Process each line looking for export let statements
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Skip lines that don't start with export let
+        if !trimmed.starts_with("export let ") {
+            continue;
+        }
+
+        // Parse: export let propName: Type
+        // or: export let propName: Type = defaultValue
+        let after_export = trimmed.strip_prefix("export let ").unwrap();
+
+        // Find the colon that separates name from type
+        let colon_pos = match after_export.find(':') {
+            Some(pos) => pos,
+            None => continue, // No type annotation, skip
+        };
+
+        let prop_name = after_export[..colon_pos].trim().to_string();
+        let after_colon = &after_export[colon_pos + 1..];
+
+        // Find where the type ends (either at = or newline/semicolon)
+        let type_end = after_colon.find('=').unwrap_or(after_colon.len());
+
+        let type_str = after_colon[..type_end].trim();
+
+        // Check if optional (has default value or includes undefined)
+        let is_optional = after_colon.contains('=') || type_str.contains("undefined");
+
+        // Clean up the type string
+        let clean_type = type_str.trim_end_matches(';').trim().to_string();
+
+        props.push(PropInfo {
+            name: prop_name,
+            prop_type: clean_type,
+            is_optional,
+            default_value: None,
+        });
+    }
+
+    if props.is_empty() {
+        return Err("No export let statements found".to_string());
+    }
+
+    Ok(props)
+}
+
+struct ReactPropsVisitor {
+    props: Vec<PropInfo>,
+    interfaces: std::collections::HashMap<String, Vec<PropInfo>>,
+}
+
+impl Visit for ReactPropsVisitor {
+    // Collect interface definitions
+    fn visit_ts_interface_decl(&mut self, node: &TsInterfaceDecl) {
+        let interface_name = node.id.sym.to_string();
+        let mut interface_props = Vec::new();
+
+        for member in &node.body.body {
+            if let TsTypeElement::TsPropertySignature(prop) = member {
+                if let Some(prop_info) = extract_prop_info(prop) {
+                    interface_props.push(prop_info);
+                }
+            }
+        }
+
+        self.interfaces.insert(interface_name, interface_props);
+    }
+
+    // Find function declarations
+    fn visit_fn_decl(&mut self, node: &FnDecl) {
+        if let Some(props) = extract_props_from_function(&node.function, &self.interfaces) {
+            self.props = props;
+        }
+    }
+
+    // Find arrow functions (const Component = () => {})
+    fn visit_var_declarator(&mut self, node: &VarDeclarator) {
+        if let Some(init) = &node.init {
+            if let Expr::Arrow(arrow) = init.as_ref() {
+                if let Some(props) = extract_props_from_arrow(arrow, &self.interfaces) {
+                    self.props = props;
+                }
+            }
+        }
+    }
+
+    // Handle export default function
+    fn visit_export_default_decl(&mut self, node: &ExportDefaultDecl) {
+        if let DefaultDecl::Fn(fn_expr) = &node.decl {
+            if let Some(props) = extract_props_from_function(&fn_expr.function, &self.interfaces) {
+                self.props = props;
+            }
+        }
+    }
+}
+
+/// Extract props from a function declaration
+fn extract_props_from_function(
+    func: &Function,
+    interfaces: &std::collections::HashMap<String, Vec<PropInfo>>,
+) -> Option<Vec<PropInfo>> {
+    // Get first parameter
+    let first_param = func.params.first()?;
+
+    // Extract type annotation from the pattern
+    extract_type_ann_from_pat(&first_param.pat, interfaces)
+}
+
+/// Extract props from an arrow function
+fn extract_props_from_arrow(
+    arrow: &ArrowExpr,
+    interfaces: &std::collections::HashMap<String, Vec<PropInfo>>,
+) -> Option<Vec<PropInfo>> {
+    // Get first parameter
+    let first_param = arrow.params.first()?;
+
+    // Extract type annotation from the pattern
+    extract_type_ann_from_pat(first_param, interfaces)
+}
+
+/// Extract type annotation from a Pat (pattern)
+fn extract_type_ann_from_pat(
+    pat: &Pat,
+    interfaces: &std::collections::HashMap<String, Vec<PropInfo>>,
+) -> Option<Vec<PropInfo>> {
+    match pat {
+        Pat::Object(obj_pat) => {
+            if let Some(type_ann) = &obj_pat.type_ann {
+                extract_props_from_type_annotation(&type_ann.type_ann, interfaces)
+            } else {
+                None
+            }
+        }
+        Pat::Ident(ident) => {
+            if let Some(type_ann) = &ident.type_ann {
+                extract_props_from_type_annotation(&type_ann.type_ann, interfaces)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Extract props from a type annotation
+/// Handles inline object types and interface references
+fn extract_props_from_type_annotation(
+    ts_type: &TsType,
+    interfaces: &std::collections::HashMap<String, Vec<PropInfo>>,
+) -> Option<Vec<PropInfo>> {
+    match ts_type {
+        // Inline object type: { prop: Type }
+        TsType::TsTypeLit(type_lit) => {
+            let mut props = Vec::new();
+            for member in &type_lit.members {
+                if let TsTypeElement::TsPropertySignature(prop) = member {
+                    if let Some(prop_info) = extract_prop_info(prop) {
+                        props.push(prop_info);
+                    }
+                }
+            }
+            Some(props)
+        }
+        // Interface reference: PropsInterface
+        TsType::TsTypeRef(type_ref) => {
+            if let TsEntityName::Ident(ident) = &type_ref.type_name {
+                let interface_name = ident.sym.to_string();
+                interfaces.get(&interface_name).cloned()
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 }
 
 fn parse_props_from_typescript(typescript_code: &str) -> Result<Vec<PropInfo>, String> {
@@ -376,6 +859,39 @@ interface Props {
         assert_eq!(components[0].name, "Alert");
         assert_eq!(components[0].props.len(), 2);
         assert!(components[0].has_slot);
+        // Verify framework is detected correctly
+        assert!(matches!(components[0].framework, ComponentFramework::Astro));
+    }
+
+    #[test]
+    fn test_detect_framework() {
+        use std::path::PathBuf;
+
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Alert.astro")),
+            ComponentFramework::Astro
+        ));
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Button.tsx")),
+            ComponentFramework::React
+        ));
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Card.jsx")),
+            ComponentFramework::React
+        ));
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Modal.vue")),
+            ComponentFramework::Vue
+        ));
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Tabs.svelte")),
+            ComponentFramework::Svelte
+        ));
+        // Test fallback for unknown extension
+        assert!(matches!(
+            detect_framework(&PathBuf::from("Unknown.xyz")),
+            ComponentFramework::Astro
+        ));
     }
 
     #[tokio::test]
@@ -394,5 +910,590 @@ interface Props {
         // Should succeed but return empty results since the path doesn't exist within project bounds
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
+    }
+
+    // React Parser Tests
+
+    #[test]
+    fn test_parse_react_inline_types() {
+        let code = r#"
+            function Button({ variant, size }: { variant: 'primary' | 'secondary', size?: number }) {
+                return <button>{variant}</button>;
+            }
+        "#;
+
+        let (props, has_children) = parse_react_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("primary"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "size");
+        assert_eq!(props[1].prop_type, "number");
+        assert!(props[1].is_optional);
+
+        assert!(!has_children);
+    }
+
+    #[test]
+    fn test_parse_react_interface() {
+        let code = r#"
+            interface ButtonProps {
+                variant: 'primary' | 'secondary';
+                disabled?: boolean;
+            }
+
+            function Button({ variant, disabled }: ButtonProps) {
+                return <button disabled={disabled}>{variant}</button>;
+            }
+        "#;
+
+        let (props, has_children) = parse_react_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("primary"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "disabled");
+        assert_eq!(props[1].prop_type, "boolean");
+        assert!(props[1].is_optional);
+
+        assert!(!has_children);
+    }
+
+    #[test]
+    fn test_parse_react_children() {
+        let code = r#"
+            interface CardProps {
+                title: string;
+                children?: React.ReactNode;
+            }
+
+            function Card({ title, children }: CardProps) {
+                return <div><h1>{title}</h1>{children}</div>;
+            }
+        "#;
+
+        let (props, has_children) = parse_react_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "title");
+        assert_eq!(props[1].name, "children");
+
+        // Children prop should trigger has_slot
+        assert!(has_children);
+    }
+
+    #[test]
+    fn test_parse_react_arrow_function() {
+        let code = r#"
+            const Alert = ({ message, type }: { message: string, type?: 'info' | 'warning' }) => {
+                return <div className={type}>{message}</div>;
+            };
+        "#;
+
+        let (props, has_children) = parse_react_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "message");
+        assert_eq!(props[0].prop_type, "string");
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "type");
+        assert!(props[1].prop_type.contains("info"));
+        assert!(props[1].is_optional);
+
+        assert!(!has_children);
+    }
+
+    #[test]
+    fn test_parse_react_optional_props() {
+        let code = r#"
+            interface Props {
+                required: string;
+                optional?: string;
+                optionalNumber?: number;
+            }
+
+            export default function Component({ required, optional, optionalNumber }: Props) {
+                return <div>{required}</div>;
+            }
+        "#;
+
+        let (props, _) = parse_react_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert!(!props[0].is_optional); // required
+        assert!(props[1].is_optional); // optional
+        assert!(props[2].is_optional); // optionalNumber
+    }
+
+    #[test]
+    fn test_parse_react_graceful_degradation() {
+        // Malformed code should return empty props, not crash
+        let code = r#"
+            this is not valid typescript code at all!
+        "#;
+
+        let result = parse_react_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_mixed_components() {
+        let temp_dir = TempDir::new().unwrap();
+        let mdx_dir = temp_dir.path().join("src/components/mdx");
+        fs::create_dir_all(&mdx_dir).unwrap();
+
+        // Create Astro component
+        let astro_content = r#"---
+interface Props {
+    message: string;
+}
+---
+<div>{message}</div>"#;
+        fs::write(mdx_dir.join("Alert.astro"), astro_content).unwrap();
+
+        // Create React component
+        let react_content = r#"
+export default function Button({ label }: { label: string }) {
+    return <button>{label}</button>;
+}
+"#;
+        fs::write(mdx_dir.join("Button.tsx"), react_content).unwrap();
+
+        // Create Vue component with props
+        let vue_content = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
+<template>
+  <div>{{ title }}</div>
+</template>
+"#;
+        fs::write(mdx_dir.join("Card.vue"), vue_content).unwrap();
+
+        let components = scan_mdx_components(
+            temp_dir.path().to_str().unwrap().to_string(),
+            Some("src/components/mdx".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(components.len(), 3);
+
+        // Find each component by name
+        let alert = components.iter().find(|c| c.name == "Alert").unwrap();
+        let button = components.iter().find(|c| c.name == "Button").unwrap();
+        let card = components.iter().find(|c| c.name == "Card").unwrap();
+
+        // Verify Astro component
+        assert!(matches!(alert.framework, ComponentFramework::Astro));
+        assert_eq!(alert.props.len(), 1);
+        assert_eq!(alert.props[0].name, "message");
+
+        // Verify React component
+        assert!(matches!(button.framework, ComponentFramework::React));
+        assert_eq!(button.props.len(), 1);
+        assert_eq!(button.props[0].name, "label");
+
+        // Verify Vue component
+        assert!(matches!(card.framework, ComponentFramework::Vue));
+        assert_eq!(card.props.len(), 1);
+        assert_eq!(card.props[0].name, "title");
+    }
+
+    // Vue Parser Tests
+
+    #[test]
+    fn test_parse_vue_define_props() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  variant: 'info' | 'warning'
+  message: string
+  count?: number
+}>()
+</script>
+
+<template>
+  <div>{{ message }}</div>
+</template>
+"#;
+
+        let (props, has_slot) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("info"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "message");
+        assert_eq!(props[1].prop_type, "string");
+        assert!(!props[1].is_optional);
+
+        assert_eq!(props[2].name, "count");
+        assert_eq!(props[2].prop_type, "number");
+        assert!(props[2].is_optional);
+
+        assert!(!has_slot);
+    }
+
+    #[test]
+    fn test_parse_vue_with_slot() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
+<template>
+  <div>
+    <h1>{{ title }}</h1>
+    <slot />
+  </div>
+</template>
+"#;
+
+        let (props, has_slot) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "title");
+        assert!(has_slot);
+    }
+
+    #[test]
+    fn test_parse_vue_optional_props() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  required: string
+  optional?: string
+  optionalNumber?: number
+}>()
+</script>
+
+<template>
+  <div />
+</template>
+"#;
+
+        let (props, _) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert!(!props[0].is_optional); // required
+        assert!(props[1].is_optional); // optional
+        assert!(props[2].is_optional); // optionalNumber
+    }
+
+    #[test]
+    fn test_parse_vue_union_types() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  size: 'small' | 'medium' | 'large'
+  variant: 'primary' | 'secondary'
+}>()
+</script>
+
+<template>
+  <div />
+</template>
+"#;
+
+        let (props, _) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "size");
+        assert!(props[0].prop_type.contains("small"));
+        assert!(props[0].prop_type.contains("medium"));
+        assert!(props[0].prop_type.contains("large"));
+
+        assert_eq!(props[1].name, "variant");
+        assert!(props[1].prop_type.contains("primary"));
+        assert!(props[1].prop_type.contains("secondary"));
+    }
+
+    #[test]
+    fn test_parse_vue_no_script() {
+        // Vue component without script section
+        let code = r#"
+<template>
+  <div>Simple template</div>
+</template>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_vue_no_define_props() {
+        // Vue component with script but no defineProps
+        let code = r#"
+<script setup lang="ts">
+const message = ref('hello')
+</script>
+
+<template>
+  <div>{{ message }}</div>
+</template>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_vue_graceful_degradation() {
+        // Malformed Vue code
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  this is not valid typescript
+}>()
+</script>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    // Svelte Parser Tests
+
+    #[test]
+    fn test_parse_svelte_export_let() {
+        let code = r#"
+<script lang="ts">
+  export let variant: 'info' | 'warning'
+  export let message: string
+  export let count: number
+</script>
+
+<div>{message}</div>
+"#;
+
+        let (props, has_slot) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("info"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "message");
+        assert_eq!(props[1].prop_type, "string");
+        assert!(!props[1].is_optional);
+
+        assert_eq!(props[2].name, "count");
+        assert_eq!(props[2].prop_type, "number");
+        assert!(!props[2].is_optional);
+
+        assert!(!has_slot);
+    }
+
+    #[test]
+    fn test_parse_svelte_optional_props() {
+        let code = r#"
+<script lang="ts">
+  export let required: string
+  export let optional: string | undefined = undefined
+  export let withDefault: number = 42
+</script>
+
+<div />
+"#;
+
+        let (props, _) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert!(!props[0].is_optional); // required
+        assert!(props[1].is_optional); // optional (has undefined)
+        assert!(props[2].is_optional); // withDefault (has default value)
+    }
+
+    #[test]
+    fn test_parse_svelte_with_slot() {
+        let code = r#"
+<script lang="ts">
+  export let title: string
+</script>
+
+<div>
+  <h1>{title}</h1>
+  <slot />
+</div>
+"#;
+
+        let (props, has_slot) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "title");
+        assert!(has_slot);
+    }
+
+    #[test]
+    fn test_parse_svelte_union_types() {
+        let code = r#"
+<script lang="ts">
+  export let size: 'small' | 'medium' | 'large'
+  export let variant: 'primary' | 'secondary'
+</script>
+
+<div />
+"#;
+
+        let (props, _) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "size");
+        assert!(props[0].prop_type.contains("small"));
+        assert!(props[0].prop_type.contains("medium"));
+        assert!(props[0].prop_type.contains("large"));
+
+        assert_eq!(props[1].name, "variant");
+        assert!(props[1].prop_type.contains("primary"));
+        assert!(props[1].prop_type.contains("secondary"));
+    }
+
+    #[test]
+    fn test_parse_svelte_no_script() {
+        // Svelte component without script section
+        let code = r#"
+<div>Simple markup</div>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_svelte_no_export_let() {
+        // Svelte component with script but no export let
+        let code = r#"
+<script lang="ts">
+  let message = 'hello'
+</script>
+
+<div>{message}</div>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_svelte_graceful_degradation() {
+        // Export let without type annotation
+        let code = r#"
+<script>
+  export let message
+</script>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully (no type annotation)
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_all_frameworks() {
+        let temp_dir = TempDir::new().unwrap();
+        let mdx_dir = temp_dir.path().join("src/components/mdx");
+        fs::create_dir_all(&mdx_dir).unwrap();
+
+        // Create Astro component
+        let astro_content = r#"---
+interface Props {
+    message: string;
+}
+---
+<div>{message}</div>"#;
+        fs::write(mdx_dir.join("Alert.astro"), astro_content).unwrap();
+
+        // Create React component
+        let react_content = r#"
+export default function Button({ label }: { label: string }) {
+    return <button>{label}</button>;
+}
+"#;
+        fs::write(mdx_dir.join("Button.tsx"), react_content).unwrap();
+
+        // Create Vue component
+        let vue_content = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
+<template>
+  <div>{{ title }}</div>
+</template>
+"#;
+        fs::write(mdx_dir.join("Card.vue"), vue_content).unwrap();
+
+        // Create Svelte component
+        let svelte_content = r#"
+<script lang="ts">
+  export let count: number
+</script>
+
+<div>{count}</div>
+"#;
+        fs::write(mdx_dir.join("Counter.svelte"), svelte_content).unwrap();
+
+        let components = scan_mdx_components(
+            temp_dir.path().to_str().unwrap().to_string(),
+            Some("src/components/mdx".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(components.len(), 4);
+
+        // Find each component by name
+        let alert = components.iter().find(|c| c.name == "Alert").unwrap();
+        let button = components.iter().find(|c| c.name == "Button").unwrap();
+        let card = components.iter().find(|c| c.name == "Card").unwrap();
+        let counter = components.iter().find(|c| c.name == "Counter").unwrap();
+
+        // Verify Astro component
+        assert!(matches!(alert.framework, ComponentFramework::Astro));
+        assert_eq!(alert.props.len(), 1);
+        assert_eq!(alert.props[0].name, "message");
+
+        // Verify React component
+        assert!(matches!(button.framework, ComponentFramework::React));
+        assert_eq!(button.props.len(), 1);
+        assert_eq!(button.props[0].name, "label");
+
+        // Verify Vue component
+        assert!(matches!(card.framework, ComponentFramework::Vue));
+        assert_eq!(card.props.len(), 1);
+        assert_eq!(card.props[0].name, "title");
+
+        // Verify Svelte component
+        assert!(matches!(counter.framework, ComponentFramework::Svelte));
+        assert_eq!(counter.props.len(), 1);
+        assert_eq!(counter.props[0].name, "count");
     }
 }
