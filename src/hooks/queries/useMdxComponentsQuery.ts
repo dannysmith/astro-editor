@@ -15,6 +15,7 @@ export interface MdxComponent {
   props: PropInfo[]
   has_slot: boolean
   description?: string | null
+  framework: 'astro' | 'react' | 'vue' | 'svelte'
 }
 
 export function useMdxComponentsQuery(

@@ -16,6 +16,7 @@ import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery
 import { useProjectStore } from '../../store/projectStore'
 import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { FrameworkIcon } from '../icons/FrameworkIcon'
 
 /**
  * MDX Component Builder Dialog
@@ -187,27 +188,50 @@ export function ComponentBuilderDialog() {
               <>
                 <CommandEmpty>No results found.</CommandEmpty>
                 <CommandGroup>
-                  {components.map(component => (
-                    <CommandItem
-                      key={component.name}
-                      value={component.name}
-                      onSelect={() => selectComponent(component)}
-                      className="cursor-pointer"
-                    >
-                      <div className="flex flex-col">
-                        <span>{component.name}</span>
-                        {component.description && (
+                  {components.map(component => {
+                    const frameworkColors = {
+                      astro: 'text-orange-600 dark:text-orange-400',
+                      react: 'text-blue-600 dark:text-blue-400',
+                      vue: 'text-green-600 dark:text-green-400',
+                      svelte: 'text-red-600 dark:text-red-400',
+                    }
+
+                    return (
+                      <CommandItem
+                        key={component.name}
+                        value={component.name}
+                        onSelect={() => selectComponent(component)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span>{component.name}</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-xs flex items-center gap-1',
+                                frameworkColors[component.framework]
+                              )}
+                            >
+                              <FrameworkIcon framework={component.framework} />
+                              {component.framework}
+                            </Badge>
+                          </div>
+                          {component.description && (
+                            <span className="text-xs text-muted-foreground">
+                              {component.description}
+                            </span>
+                          )}
                           <span className="text-xs text-muted-foreground">
-                            {component.description}
+                            {component.props.length === 0
+                              ? 'No props detected'
+                              : `${component.props.length} props`}
+                            {component.has_slot && ' + slot'}
                           </span>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {component.props.length} props
-                          {component.has_slot && ' + slot'}
-                        </span>
-                      </div>
-                    </CommandItem>
-                  ))}
+                        </div>
+                      </CommandItem>
+                    )
+                  })}
                 </CommandGroup>
               </>
             )}
