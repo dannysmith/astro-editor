@@ -194,7 +194,7 @@ fn parse_vue_component(path: &Path, project_root: &str) -> Result<MdxComponent, 
     let project_root_path = Path::new(project_root);
     let _validated_path = validate_project_path(path, project_root_path)?;
 
-    let _content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
 
     // Extract component name from filename
     let component_name = path
@@ -210,13 +210,14 @@ fn parse_vue_component(path: &Path, project_root: &str) -> Result<MdxComponent, 
         .to_string_lossy()
         .to_string();
 
-    // TODO: Implement Vue props parsing
-    // For now, return empty props with graceful degradation
+    // Parse Vue component props (with graceful degradation)
+    let (props, has_slot) = parse_vue_props(&content).unwrap_or_else(|_| (Vec::new(), false));
+
     Ok(MdxComponent {
         name: component_name,
         file_path: relative_path,
-        props: Vec::new(),
-        has_slot: false,
+        props,
+        has_slot,
         description: None,
         framework: ComponentFramework::Vue,
     })
@@ -300,6 +301,111 @@ fn parse_react_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
     let has_children = visitor.props.iter().any(|p| p.name == "children");
 
     Ok((visitor.props, has_children))
+}
+
+/// Parse Vue component props from .vue file
+/// Supports Composition API defineProps<{...}>() pattern
+/// Returns (props, has_slot)
+fn parse_vue_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
+    // Extract script section
+    let script_content = extract_vue_script(content)?;
+
+    // Find defineProps<{...}>() pattern
+    let props_type = extract_define_props_type(&script_content)?;
+
+    // Parse the type definition as TypeScript
+    let props = parse_vue_type_definition(&props_type)?;
+
+    // Check for slot in template
+    let has_slot = content.contains("<slot") || content.contains("<slot/>");
+
+    Ok((props, has_slot))
+}
+
+/// Extract <script> section from Vue file
+fn extract_vue_script(content: &str) -> Result<String, String> {
+    // Find <script> tag (handle both <script> and <script setup lang="ts">)
+    let script_start = content.find("<script").ok_or("No <script> tag found")?;
+
+    let script_content_start = content[script_start..]
+        .find('>')
+        .ok_or("Malformed <script> tag")?
+        + script_start
+        + 1;
+
+    let script_end = content[script_content_start..]
+        .find("</script>")
+        .ok_or("No closing </script> tag")?
+        + script_content_start;
+
+    Ok(content[script_content_start..script_end].to_string())
+}
+
+/// Extract the type definition from defineProps<{...}>()
+fn extract_define_props_type(script: &str) -> Result<String, String> {
+    // Find defineProps<
+    let define_props_start = script.find("defineProps<").ok_or("No defineProps found")?;
+
+    let type_start = define_props_start + "defineProps<".len();
+
+    // Find matching closing >
+    let mut depth = 1;
+    let mut type_end = type_start;
+    let chars: Vec<char> = script.chars().collect();
+
+    for (i, ch) in chars.iter().enumerate().skip(type_start) {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    type_end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if depth != 0 {
+        return Err("Unmatched angle brackets in defineProps".to_string());
+    }
+
+    Ok(script[type_start..type_end].to_string())
+}
+
+/// Parse Vue props type definition (TypeScript object type)
+fn parse_vue_type_definition(type_def: &str) -> Result<Vec<PropInfo>, String> {
+    // Strip outer braces if present
+    let trimmed = type_def.trim();
+    let inner_content = if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+
+    // Add semicolons to each line for proper TypeScript parsing
+    let lines: Vec<String> = inner_content
+        .lines()
+        .map(|line| {
+            let trimmed_line = line.trim();
+            // Skip empty lines or lines that already have semicolons
+            if trimmed_line.is_empty() || trimmed_line.ends_with(';') {
+                line.to_string()
+            } else {
+                // Add semicolon to property definitions
+                format!("{line};")
+            }
+        })
+        .collect();
+
+    let normalized_type = lines.join("\n");
+
+    // Wrap in interface to reuse TypeScript parser
+    let wrapped = format!("interface Props {{\n{normalized_type}\n}}");
+
+    // Parse as TypeScript
+    parse_props_from_typescript(&wrapped)
 }
 
 struct ReactPropsVisitor {
@@ -872,10 +978,16 @@ export default function Button({ label }: { label: string }) {
 "#;
         fs::write(mdx_dir.join("Button.tsx"), react_content).unwrap();
 
-        // Create Vue component (will have empty props for now)
+        // Create Vue component with props
         let vue_content = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
 <template>
-  <div>{{ message }}</div>
+  <div>{{ title }}</div>
 </template>
 "#;
         fs::write(mdx_dir.join("Card.vue"), vue_content).unwrap();
@@ -904,8 +1016,172 @@ export default function Button({ label }: { label: string }) {
         assert_eq!(button.props.len(), 1);
         assert_eq!(button.props[0].name, "label");
 
-        // Verify Vue component (empty props for now)
+        // Verify Vue component
         assert!(matches!(card.framework, ComponentFramework::Vue));
-        assert_eq!(card.props.len(), 0);
+        assert_eq!(card.props.len(), 1);
+        assert_eq!(card.props[0].name, "title");
+    }
+
+    // Vue Parser Tests
+
+    #[test]
+    fn test_parse_vue_define_props() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  variant: 'info' | 'warning'
+  message: string
+  count?: number
+}>()
+</script>
+
+<template>
+  <div>{{ message }}</div>
+</template>
+"#;
+
+        let (props, has_slot) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("info"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "message");
+        assert_eq!(props[1].prop_type, "string");
+        assert!(!props[1].is_optional);
+
+        assert_eq!(props[2].name, "count");
+        assert_eq!(props[2].prop_type, "number");
+        assert!(props[2].is_optional);
+
+        assert!(!has_slot);
+    }
+
+    #[test]
+    fn test_parse_vue_with_slot() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
+<template>
+  <div>
+    <h1>{{ title }}</h1>
+    <slot />
+  </div>
+</template>
+"#;
+
+        let (props, has_slot) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "title");
+        assert!(has_slot);
+    }
+
+    #[test]
+    fn test_parse_vue_optional_props() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  required: string
+  optional?: string
+  optionalNumber?: number
+}>()
+</script>
+
+<template>
+  <div />
+</template>
+"#;
+
+        let (props, _) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert!(!props[0].is_optional); // required
+        assert!(props[1].is_optional); // optional
+        assert!(props[2].is_optional); // optionalNumber
+    }
+
+    #[test]
+    fn test_parse_vue_union_types() {
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  size: 'small' | 'medium' | 'large'
+  variant: 'primary' | 'secondary'
+}>()
+</script>
+
+<template>
+  <div />
+</template>
+"#;
+
+        let (props, _) = parse_vue_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "size");
+        assert!(props[0].prop_type.contains("small"));
+        assert!(props[0].prop_type.contains("medium"));
+        assert!(props[0].prop_type.contains("large"));
+
+        assert_eq!(props[1].name, "variant");
+        assert!(props[1].prop_type.contains("primary"));
+        assert!(props[1].prop_type.contains("secondary"));
+    }
+
+    #[test]
+    fn test_parse_vue_no_script() {
+        // Vue component without script section
+        let code = r#"
+<template>
+  <div>Simple template</div>
+</template>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_vue_no_define_props() {
+        // Vue component with script but no defineProps
+        let code = r#"
+<script setup lang="ts">
+const message = ref('hello')
+</script>
+
+<template>
+  <div>{{ message }}</div>
+</template>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_vue_graceful_degradation() {
+        // Malformed Vue code
+        let code = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  this is not valid typescript
+}>()
+</script>
+"#;
+
+        let result = parse_vue_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
     }
 }
