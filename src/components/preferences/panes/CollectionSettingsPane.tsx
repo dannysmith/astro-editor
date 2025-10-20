@@ -35,7 +35,9 @@ const SettingsSection: React.FC<{
 }> = ({ title, children }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+        {title}
+      </h3>
       <Separator className="mt-2" />
     </div>
     <FieldGroup>{children}</FieldGroup>
@@ -286,7 +288,9 @@ export const CollectionSettingsPane: React.FC = () => {
                     ) : (
                       <ChevronRight className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                     )}
-                    <span className="font-medium text-gray-900 dark:text-white">{collection.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {collection.name}
+                    </span>
                     {hasOverrides && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                         Custom

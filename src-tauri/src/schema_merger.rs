@@ -954,7 +954,7 @@ mod tests {
 
         let title_field = schema.fields.iter().find(|f| f.name == "title").unwrap();
         assert_eq!(title_field.field_type, "string");
-        assert_eq!(title_field.required, true);
+        assert!(title_field.required);
 
         let count_field = schema.fields.iter().find(|f| f.name == "count").unwrap();
         assert_eq!(count_field.field_type, "integer");

@@ -25,7 +25,9 @@ const SettingsSection: React.FC<{
 }> = ({ title, children }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+        {title}
+      </h3>
       <Separator className="mt-2" />
     </div>
     <FieldGroup>{children}</FieldGroup>
@@ -162,7 +164,9 @@ export const GeneralPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">Global Settings</h2>
+        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+          Global Settings
+        </h2>
         <p className="text-sm text-muted-foreground">
           These settings apply across all projects and are stored globally on
           your system.

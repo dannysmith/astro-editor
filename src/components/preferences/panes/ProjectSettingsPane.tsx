@@ -16,7 +16,9 @@ const SettingsSection: React.FC<{
 }> = ({ title, children }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+        {title}
+      </h3>
       <Separator className="mt-2" />
     </div>
     <FieldGroup>{children}</FieldGroup>
