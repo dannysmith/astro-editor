@@ -203,31 +203,31 @@ export function ComponentBuilderDialog() {
                         onSelect={() => selectComponent(component)}
                         className="cursor-pointer"
                       >
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <div className="flex flex-col">
                             <span>{component.name}</span>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'text-xs flex items-center gap-1',
-                                frameworkColors[component.framework]
-                              )}
-                            >
-                              <FrameworkIcon framework={component.framework} />
-                              {component.framework}
-                            </Badge>
-                          </div>
-                          {component.description && (
+                            {component.description && (
+                              <span className="text-xs text-muted-foreground">
+                                {component.description}
+                              </span>
+                            )}
                             <span className="text-xs text-muted-foreground">
-                              {component.description}
+                              {component.props.length === 0
+                                ? 'No props detected'
+                                : `${component.props.length} props`}
+                              {component.has_slot && ' + slot'}
                             </span>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {component.props.length === 0
-                              ? 'No props detected'
-                              : `${component.props.length} props`}
-                            {component.has_slot && ' + slot'}
-                          </span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-xs flex items-center gap-1 shrink-0',
+                              frameworkColors[component.framework]
+                            )}
+                          >
+                            <FrameworkIcon framework={component.framework} />
+                            {component.framework}
+                          </Badge>
                         </div>
                       </CommandItem>
                     )
