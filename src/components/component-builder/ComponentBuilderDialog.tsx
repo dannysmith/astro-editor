@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, ArrowLeft } from 'lucide-react'
+import { Check, ArrowLeft, Circle, CircleDot } from 'lucide-react'
 import {
   CommandDialog,
   CommandEmpty,
@@ -11,12 +11,25 @@ import {
 } from '../ui/command'
 import { Badge } from '../ui/badge'
 import { cn } from '../../lib/utils'
-import { useComponentBuilderStore } from '../../store/componentBuilderStore'
+import {
+  useComponentBuilderStore,
+  ClientDirective,
+} from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
 import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { FrameworkIcon } from '../icons/FrameworkIcon'
+
+// Client directive options for framework components
+const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'client:idle', label: 'client:idle (recommended)' },
+  { value: 'client:load', label: 'client:load' },
+  { value: 'client:visible', label: 'client:visible' },
+  { value: 'client:media', label: 'client:media' },
+  { value: 'client:only', label: 'client:only' },
+]
 
 /**
  * MDX Component Builder Dialog
@@ -31,12 +44,14 @@ export function ComponentBuilderDialog() {
     selectedComponent,
     enabledProps,
     propSearchQuery,
+    clientDirective,
     close,
     selectComponent,
     toggleProp,
     insert,
     back,
     setPropSearchQuery,
+    setClientDirective,
   } = useComponentBuilderStore()
 
   // Fetch MDX components using TanStack Query with effective settings
@@ -160,11 +175,19 @@ export function ComponentBuilderDialog() {
       .map(prop => `${prop.name}=""`)
       .join(' ')
 
+    // Add client directive for framework components (not Astro)
+    const directiveString =
+      selectedComponent.framework !== 'astro' && clientDirective !== 'none'
+        ? ` ${clientDirective}`
+        : ''
+
+    const allAttrs = [propsString, directiveString].filter(Boolean).join(' ')
+
     if (selectedComponent.has_slot) {
-      return `<${selectedComponent.name}${propsString ? ' ' + propsString : ''}></${selectedComponent.name}>`
+      return `<${selectedComponent.name}${allAttrs ? ' ' + allAttrs : ''}></${selectedComponent.name}>`
     }
-    return `<${selectedComponent.name}${propsString ? ' ' + propsString : ''} />`
-  }, [selectedComponent, enabledProps])
+    return `<${selectedComponent.name}${allAttrs ? ' ' + allAttrs : ''} />`
+  }, [selectedComponent, enabledProps, clientDirective])
 
   return (
     <CommandDialog
@@ -319,6 +342,32 @@ export function ComponentBuilderDialog() {
                 )}
               </>
             )}
+            {/* Client Directive Group - Only for framework components */}
+            {selectedComponent.framework !== 'astro' && (
+              <CommandGroup heading="Client Directive">
+                {clientDirectiveOptions.map(option => {
+                  const isSelected = clientDirective === option.value
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={() => setClientDirective(option.value)}
+                      onKeyDown={handleCommandItemKeyDown}
+                      className="cursor-pointer"
+                    >
+                      {isSelected ? (
+                        <CircleDot className="mr-2 h-3.5 w-3.5" />
+                      ) : (
+                        <Circle className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      <span className="flex-1">{option.label}</span>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            )}
+            {/* Spacer to prevent scroll jump on last item */}
+            <div className="h-24" />
           </CommandList>
 
           {/* Preview section */}
