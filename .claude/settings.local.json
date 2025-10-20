@@ -47,7 +47,8 @@
       "WebSearch",
       "Bash(git log:*)",
       "Bash(yes)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:docs.astro.build)"
     ],
     "deny": []
   }
