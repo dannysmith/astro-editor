@@ -228,7 +228,7 @@ fn parse_svelte_component(path: &Path, project_root: &str) -> Result<MdxComponen
     let project_root_path = Path::new(project_root);
     let _validated_path = validate_project_path(path, project_root_path)?;
 
-    let _content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
 
     // Extract component name from filename
     let component_name = path
@@ -244,13 +244,14 @@ fn parse_svelte_component(path: &Path, project_root: &str) -> Result<MdxComponen
         .to_string_lossy()
         .to_string();
 
-    // TODO: Implement Svelte props parsing
-    // For now, return empty props with graceful degradation
+    // Parse Svelte component props (with graceful degradation)
+    let (props, has_slot) = parse_svelte_props(&content).unwrap_or_else(|_| (Vec::new(), false));
+
     Ok(MdxComponent {
         name: component_name,
         file_path: relative_path,
-        props: Vec::new(),
-        has_slot: false,
+        props,
+        has_slot,
         description: None,
         framework: ComponentFramework::Svelte,
     })
@@ -406,6 +407,93 @@ fn parse_vue_type_definition(type_def: &str) -> Result<Vec<PropInfo>, String> {
 
     // Parse as TypeScript
     parse_props_from_typescript(&wrapped)
+}
+
+/// Parse Svelte component props from .svelte file
+/// Supports export let propName: Type pattern
+/// Returns (props, has_slot)
+fn parse_svelte_props(content: &str) -> Result<(Vec<PropInfo>, bool), String> {
+    // Extract script section
+    let script_content = extract_svelte_script(content)?;
+
+    // Find all export let statements
+    let props = parse_svelte_export_lets(&script_content)?;
+
+    // Check for slot in markup
+    let has_slot = content.contains("<slot") || content.contains("<slot/>");
+
+    Ok((props, has_slot))
+}
+
+/// Extract <script> section from Svelte file
+fn extract_svelte_script(content: &str) -> Result<String, String> {
+    // Find <script> tag
+    let script_start = content.find("<script").ok_or("No <script> tag found")?;
+
+    let script_content_start = content[script_start..]
+        .find('>')
+        .ok_or("Malformed <script> tag")?
+        + script_start
+        + 1;
+
+    let script_end = content[script_content_start..]
+        .find("</script>")
+        .ok_or("No closing </script> tag")?
+        + script_content_start;
+
+    Ok(content[script_content_start..script_end].to_string())
+}
+
+/// Parse export let statements from Svelte script
+fn parse_svelte_export_lets(script: &str) -> Result<Vec<PropInfo>, String> {
+    let mut props = Vec::new();
+
+    // Process each line looking for export let statements
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Skip lines that don't start with export let
+        if !trimmed.starts_with("export let ") {
+            continue;
+        }
+
+        // Parse: export let propName: Type
+        // or: export let propName: Type = defaultValue
+        let after_export = trimmed.strip_prefix("export let ").unwrap();
+
+        // Find the colon that separates name from type
+        let colon_pos = match after_export.find(':') {
+            Some(pos) => pos,
+            None => continue, // No type annotation, skip
+        };
+
+        let prop_name = after_export[..colon_pos].trim().to_string();
+        let after_colon = &after_export[colon_pos + 1..];
+
+        // Find where the type ends (either at = or newline/semicolon)
+        let type_end = after_colon.find('=').unwrap_or(after_colon.len());
+
+        let type_str = after_colon[..type_end].trim();
+
+        // Check if optional (has default value or includes undefined)
+        let is_optional = after_colon.contains('=') || type_str.contains("undefined");
+
+        // Clean up the type string
+        let clean_type = type_str.trim_end_matches(';').trim().to_string();
+
+        props.push(PropInfo {
+            name: prop_name,
+            prop_type: clean_type,
+            is_optional,
+            default_value: None,
+        });
+    }
+
+    if props.is_empty() {
+        return Err("No export let statements found".to_string());
+    }
+
+    Ok(props)
 }
 
 struct ReactPropsVisitor {
@@ -1183,5 +1271,229 @@ const props = defineProps<{
 
         // Should fail gracefully
         assert!(result.is_err());
+    }
+
+    // Svelte Parser Tests
+
+    #[test]
+    fn test_parse_svelte_export_let() {
+        let code = r#"
+<script lang="ts">
+  export let variant: 'info' | 'warning'
+  export let message: string
+  export let count: number
+</script>
+
+<div>{message}</div>
+"#;
+
+        let (props, has_slot) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert_eq!(props[0].name, "variant");
+        assert!(props[0].prop_type.contains("info"));
+        assert!(!props[0].is_optional);
+
+        assert_eq!(props[1].name, "message");
+        assert_eq!(props[1].prop_type, "string");
+        assert!(!props[1].is_optional);
+
+        assert_eq!(props[2].name, "count");
+        assert_eq!(props[2].prop_type, "number");
+        assert!(!props[2].is_optional);
+
+        assert!(!has_slot);
+    }
+
+    #[test]
+    fn test_parse_svelte_optional_props() {
+        let code = r#"
+<script lang="ts">
+  export let required: string
+  export let optional: string | undefined = undefined
+  export let withDefault: number = 42
+</script>
+
+<div />
+"#;
+
+        let (props, _) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 3);
+        assert!(!props[0].is_optional); // required
+        assert!(props[1].is_optional); // optional (has undefined)
+        assert!(props[2].is_optional); // withDefault (has default value)
+    }
+
+    #[test]
+    fn test_parse_svelte_with_slot() {
+        let code = r#"
+<script lang="ts">
+  export let title: string
+</script>
+
+<div>
+  <h1>{title}</h1>
+  <slot />
+</div>
+"#;
+
+        let (props, has_slot) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "title");
+        assert!(has_slot);
+    }
+
+    #[test]
+    fn test_parse_svelte_union_types() {
+        let code = r#"
+<script lang="ts">
+  export let size: 'small' | 'medium' | 'large'
+  export let variant: 'primary' | 'secondary'
+</script>
+
+<div />
+"#;
+
+        let (props, _) = parse_svelte_props(code).unwrap();
+
+        assert_eq!(props.len(), 2);
+        assert_eq!(props[0].name, "size");
+        assert!(props[0].prop_type.contains("small"));
+        assert!(props[0].prop_type.contains("medium"));
+        assert!(props[0].prop_type.contains("large"));
+
+        assert_eq!(props[1].name, "variant");
+        assert!(props[1].prop_type.contains("primary"));
+        assert!(props[1].prop_type.contains("secondary"));
+    }
+
+    #[test]
+    fn test_parse_svelte_no_script() {
+        // Svelte component without script section
+        let code = r#"
+<div>Simple markup</div>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_svelte_no_export_let() {
+        // Svelte component with script but no export let
+        let code = r#"
+<script lang="ts">
+  let message = 'hello'
+</script>
+
+<div>{message}</div>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_svelte_graceful_degradation() {
+        // Export let without type annotation
+        let code = r#"
+<script>
+  export let message
+</script>
+"#;
+
+        let result = parse_svelte_props(code);
+
+        // Should fail gracefully (no type annotation)
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_all_frameworks() {
+        let temp_dir = TempDir::new().unwrap();
+        let mdx_dir = temp_dir.path().join("src/components/mdx");
+        fs::create_dir_all(&mdx_dir).unwrap();
+
+        // Create Astro component
+        let astro_content = r#"---
+interface Props {
+    message: string;
+}
+---
+<div>{message}</div>"#;
+        fs::write(mdx_dir.join("Alert.astro"), astro_content).unwrap();
+
+        // Create React component
+        let react_content = r#"
+export default function Button({ label }: { label: string }) {
+    return <button>{label}</button>;
+}
+"#;
+        fs::write(mdx_dir.join("Button.tsx"), react_content).unwrap();
+
+        // Create Vue component
+        let vue_content = r#"
+<script setup lang="ts">
+const props = defineProps<{
+  title: string
+}>()
+</script>
+
+<template>
+  <div>{{ title }}</div>
+</template>
+"#;
+        fs::write(mdx_dir.join("Card.vue"), vue_content).unwrap();
+
+        // Create Svelte component
+        let svelte_content = r#"
+<script lang="ts">
+  export let count: number
+</script>
+
+<div>{count}</div>
+"#;
+        fs::write(mdx_dir.join("Counter.svelte"), svelte_content).unwrap();
+
+        let components = scan_mdx_components(
+            temp_dir.path().to_str().unwrap().to_string(),
+            Some("src/components/mdx".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(components.len(), 4);
+
+        // Find each component by name
+        let alert = components.iter().find(|c| c.name == "Alert").unwrap();
+        let button = components.iter().find(|c| c.name == "Button").unwrap();
+        let card = components.iter().find(|c| c.name == "Card").unwrap();
+        let counter = components.iter().find(|c| c.name == "Counter").unwrap();
+
+        // Verify Astro component
+        assert!(matches!(alert.framework, ComponentFramework::Astro));
+        assert_eq!(alert.props.len(), 1);
+        assert_eq!(alert.props[0].name, "message");
+
+        // Verify React component
+        assert!(matches!(button.framework, ComponentFramework::React));
+        assert_eq!(button.props.len(), 1);
+        assert_eq!(button.props[0].name, "label");
+
+        // Verify Vue component
+        assert!(matches!(card.framework, ComponentFramework::Vue));
+        assert_eq!(card.props.len(), 1);
+        assert_eq!(card.props[0].name, "title");
+
+        // Verify Svelte component
+        assert!(matches!(counter.framework, ComponentFramework::Svelte));
+        assert_eq!(counter.props.len(), 1);
+        assert_eq!(counter.props[0].name, "count");
     }
 }
