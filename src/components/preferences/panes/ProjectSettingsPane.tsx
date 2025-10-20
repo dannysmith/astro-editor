@@ -16,7 +16,7 @@ const SettingsSection: React.FC<{
 }> = ({ title, children }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-medium text-foreground">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
       <Separator className="mt-2" />
     </div>
     <FieldGroup>{children}</FieldGroup>
@@ -42,7 +42,7 @@ export const ProjectSettingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1">
+        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
           Project Settings
           {projectName && (
             <span className="text-muted-foreground font-normal ml-2">

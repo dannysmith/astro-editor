@@ -35,7 +35,7 @@ const SettingsSection: React.FC<{
 }> = ({ title, children }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-medium text-foreground">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
       <Separator className="mt-2" />
     </div>
     <FieldGroup>{children}</FieldGroup>
@@ -218,7 +218,7 @@ export const CollectionSettingsPane: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-          <h2 className="text-base font-semibold mb-1">
+          <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
             Collection Settings
             {projectName && (
               <span className="text-muted-foreground font-normal ml-2">
@@ -243,7 +243,7 @@ export const CollectionSettingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1">
+        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
           Collection Settings
           {projectName && (
             <span className="text-muted-foreground font-normal ml-2">
@@ -282,11 +282,11 @@ export const CollectionSettingsPane: React.FC = () => {
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-accent/50 transition-colors">
                   <div className="flex items-center gap-2">
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                     )}
-                    <span className="font-medium">{collection.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{collection.name}</span>
                     {hasOverrides && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                         Custom
