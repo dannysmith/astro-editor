@@ -358,13 +358,7 @@ fn parse_field(
     // Build field
     let field = SchemaField {
         name: full_path.clone(),
-        label: if !parent_path.is_empty() {
-            let parent_label =
-                camel_case_to_title_case(parent_path.split('.').next_back().unwrap_or(""));
-            format!("{parent_label} {label}")
-        } else {
-            label
-        },
+        label, // Use simple label; parent context is shown via UI grouping
         field_type: field_type_info.field_type,
         sub_type: field_type_info.sub_type,
         required: is_required && field_schema.default.is_none(),
