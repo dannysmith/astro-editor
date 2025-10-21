@@ -423,7 +423,7 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
 }
 
 fn parse_yaml_to_json(yaml_str: &str) -> Result<HashMap<String, Value>, String> {
-    // Enhanced YAML parser - handles basic key-value pairs and arrays
+    // Enhanced YAML parser - handles basic key-value pairs, arrays, and nested objects
     let mut result = HashMap::new();
     let lines: Vec<&str> = yaml_str.lines().collect();
     let mut i = 0;
@@ -447,7 +447,14 @@ fn parse_yaml_to_json(yaml_str: &str) -> Result<HashMap<String, Value>, String> 
                     i += lines_consumed;
                     Value::Array(array_value)
                 } else {
-                    Value::String(String::new())
+                    // Check if this is a nested object
+                    let (object_value, lines_consumed) = parse_yaml_object(&lines, i + 1, 0)?;
+                    if !object_value.is_empty() {
+                        i += lines_consumed;
+                        Value::Object(object_value)
+                    } else {
+                        Value::String(String::new())
+                    }
                 }
             } else if value.starts_with('[') && value.ends_with(']') {
                 // Parse inline array like [one, two, three]
@@ -511,6 +518,105 @@ fn parse_yaml_array(lines: &[&str], start_index: usize) -> Result<(Vec<Value>, u
     Ok((array, i - start_index))
 }
 
+fn parse_yaml_object(lines: &[&str], start_index: usize, parent_indent: usize) -> Result<(serde_json::Map<String, Value>, usize), String> {
+    let mut object = serde_json::Map::new();
+    let mut i = start_index;
+
+    // Determine the indent level of the first property (if any)
+    let mut object_indent = None;
+
+    while i < lines.len() {
+        let line = lines[i];
+
+        // Skip empty lines
+        if line.trim().is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // Count leading spaces to determine indentation
+        let current_indent = line.len() - line.trim_start().len();
+
+        // If we haven't determined the object indent yet, use the first non-empty line
+        if object_indent.is_none() {
+            if current_indent > parent_indent {
+                object_indent = Some(current_indent);
+            } else {
+                // No indented content, empty object
+                break;
+            }
+        }
+
+        let expected_indent = object_indent.unwrap();
+
+        // If indentation is less than expected, we've left this object
+        if current_indent < expected_indent {
+            break;
+        }
+
+        // If indentation is greater, skip (nested content handled recursively)
+        if current_indent > expected_indent {
+            i += 1;
+            continue;
+        }
+
+        // Parse key-value pair
+        let trimmed = line.trim();
+        if let Some((key, value)) = trimmed.split_once(':') {
+            let key = key.trim().to_string();
+            let value = value.trim();
+
+            // Parse the value
+            let parsed_value = if value.is_empty() {
+                // Check for nested array
+                let (array_value, lines_consumed) = parse_yaml_array(lines, i + 1)?;
+                if !array_value.is_empty() {
+                    i += lines_consumed;
+                    Value::Array(array_value)
+                } else {
+                    // Check for nested object
+                    let (nested_obj, lines_consumed) = parse_yaml_object(lines, i + 1, current_indent)?;
+                    if !nested_obj.is_empty() {
+                        i += lines_consumed;
+                        Value::Object(nested_obj)
+                    } else {
+                        Value::String(String::new())
+                    }
+                }
+            } else if value.starts_with('[') && value.ends_with(']') {
+                // Inline array
+                let array_content = &value[1..value.len() - 1];
+                let items: Vec<Value> = array_content
+                    .split(',')
+                    .map(|s| {
+                        Value::String(s.trim().trim_matches('"').trim_matches('\'').to_string())
+                    })
+                    .collect();
+                Value::Array(items)
+            } else if value == "true" {
+                Value::Bool(true)
+            } else if value == "false" {
+                Value::Bool(false)
+            } else if let Ok(num) = value.parse::<i64>() {
+                Value::Number(serde_json::Number::from(num))
+            } else if let Ok(num) = value.parse::<f64>() {
+                Value::Number(
+                    serde_json::Number::from_f64(num).unwrap_or(serde_json::Number::from(0)),
+                )
+            } else {
+                // String value
+                let cleaned = value.trim_matches('"').trim_matches('\'');
+                Value::String(cleaned.to_string())
+            };
+
+            object.insert(key, parsed_value);
+        }
+        i += 1;
+    }
+
+    Ok((object, i - start_index))
+}
+
 fn rebuild_markdown_with_frontmatter(
     frontmatter: &HashMap<String, Value>,
     content: &str,
@@ -524,6 +630,74 @@ fn rebuild_markdown_with_frontmatter_and_imports(
     content: &str,
 ) -> Result<String, String> {
     rebuild_markdown_with_frontmatter_and_imports_ordered(frontmatter, imports, content, None)
+}
+
+/// Serialize a value to YAML format with proper indentation
+fn serialize_value_to_yaml(value: &Value, indent_level: usize) -> String {
+    let indent = "  ".repeat(indent_level);
+
+    match value {
+        Value::String(s) => {
+            // Convert ISO datetime strings to date-only format
+            if s.len() > 10
+                && s.contains('T')
+                && (s.ends_with('Z') || s.contains('+') || s.contains('-'))
+            {
+                // This looks like an ISO datetime string, extract just the date part
+                if let Some(date_part) = s.split('T').next() {
+                    if date_part.len() == 10 && date_part.matches('-').count() == 2 {
+                        return date_part.to_string();
+                    }
+                }
+            }
+
+            if s.len() == 10
+                && s.matches('-').count() == 2
+                && s.chars().all(|c| c.is_ascii_digit() || c == '-')
+            {
+                // This looks like a date string (YYYY-MM-DD), don't quote it
+                s.clone()
+            } else if s.contains(' ') || s.contains(':') || s.contains('\n') {
+                // Quote strings that contain special characters or spaces
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else {
+                s.clone()
+            }
+        }
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::Array(arr) => {
+            // Format array as YAML array
+            if arr.is_empty() {
+                "[]".to_string()
+            } else {
+                let mut array_str = String::new();
+                for item in arr {
+                    let item_str = match item {
+                        Value::String(s) => s.clone(),
+                        _ => serialize_value_to_yaml(item, 0),
+                    };
+                    array_str.push_str(&format!("\n{indent}  - {item_str}"));
+                }
+                array_str
+            }
+        }
+        Value::Object(obj) => {
+            // Format object as nested YAML
+            let mut object_str = String::new();
+            for (key, val) in obj {
+                let val_str = serialize_value_to_yaml(val, indent_level + 1);
+                // Check if value needs to be on next line (objects/arrays)
+                if matches!(val, Value::Object(_) | Value::Array(_)) {
+                    object_str.push_str(&format!("\n{indent}  {key}:{val_str}"));
+                } else {
+                    object_str.push_str(&format!("\n{indent}  {key}: {val_str}"));
+                }
+            }
+            object_str
+        }
+        Value::Null => "null".to_string(),
+    }
 }
 
 fn rebuild_markdown_with_frontmatter_and_imports_ordered(
@@ -561,58 +735,14 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
         // Write frontmatter in the determined order
         for key in ordered_keys {
             if let Some(value) = frontmatter.get(&key) {
-                let value_str = match value {
-                    Value::String(s) => {
-                        // Convert ISO datetime strings to date-only format
-                        if s.len() > 10
-                            && s.contains('T')
-                            && (s.ends_with('Z') || s.contains('+') || s.contains('-'))
-                        {
-                            // This looks like an ISO datetime string, extract just the date part
-                            if let Some(date_part) = s.split('T').next() {
-                                if date_part.len() == 10 && date_part.matches('-').count() == 2 {
-                                    date_part.to_string()
-                                } else {
-                                    s.clone()
-                                }
-                            } else {
-                                s.clone()
-                            }
-                        } else if s.len() == 10
-                            && s.matches('-').count() == 2
-                            && s.chars().all(|c| c.is_ascii_digit() || c == '-')
-                        {
-                            // This looks like a date string (YYYY-MM-DD), don't quote it
-                            s.clone()
-                        } else if s.contains(' ') || s.contains(':') || s.contains('\n') {
-                            // Quote strings that contain special characters or spaces
-                            format!("\"{}\"", s.replace('"', "\\\""))
-                        } else {
-                            s.clone()
-                        }
-                    }
-                    Value::Bool(b) => b.to_string(),
-                    Value::Number(n) => n.to_string(),
-                    Value::Array(arr) => {
-                        // Format array as YAML array
-                        if arr.is_empty() {
-                            "[]".to_string()
-                        } else {
-                            let mut array_str = String::new();
-                            for item in arr {
-                                let item_str = match item {
-                                    Value::String(s) => s.clone(),
-                                    _ => item.to_string(),
-                                };
-                                array_str.push_str(&format!("\n  - {item_str}"));
-                            }
-                            array_str
-                        }
-                    }
-                    _ => format!("\"{value}\""),
-                };
+                let value_str = serialize_value_to_yaml(value, 0);
 
-                result.push_str(&format!("{key}: {value_str}\n"));
+                // Check if value needs to be on next line (objects/arrays)
+                if matches!(value, Value::Object(_) | Value::Array(_)) {
+                    result.push_str(&format!("{key}:{value_str}\n"));
+                } else {
+                    result.push_str(&format!("{key}: {value_str}\n"));
+                }
             }
         }
 
@@ -1623,5 +1753,133 @@ Regular markdown content here."#;
         let relative_path = result.unwrap();
         let dest_path = project_dir.path().join(&relative_path);
         assert!(dest_path.exists());
+    }
+
+    #[test]
+    fn test_serialize_nested_object_to_yaml() {
+        use serde_json::json;
+
+        let mut frontmatter = HashMap::new();
+        frontmatter.insert("title".to_string(), json!("Test Post"));
+        frontmatter.insert(
+            "metadata".to_string(),
+            json!({
+                "category": "Blog",
+                "priority": 2,
+                "deadline": "2025-10-21"
+            }),
+        );
+        frontmatter.insert(
+            "tags".to_string(),
+            json!(["rust", "yaml", "testing"]),
+        );
+
+        let content = "# Test Content\n\nThis is a test.";
+
+        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            "",
+            content,
+            None,
+        )
+        .unwrap();
+
+        // Verify the result contains proper YAML nested object syntax
+        assert!(result.contains("metadata:"));
+        assert!(result.contains("  category: Blog"));
+        assert!(result.contains("  priority: 2"));
+        assert!(result.contains("  deadline: 2025-10-21"));
+
+        // Verify tags array is formatted correctly
+        assert!(result.contains("tags:"));
+        assert!(result.contains("  - rust"));
+        assert!(result.contains("  - yaml"));
+        assert!(result.contains("  - testing"));
+
+        // Ensure metadata is NOT JSON-stringified
+        assert!(!result.contains(r#"metadata: "{"#));
+        assert!(!result.contains(r#"{"category":"Blog""#));
+
+        // Verify proper frontmatter structure
+        assert!(result.starts_with("---\n"));
+        assert!(result.contains("---\n\n# Test Content"));
+
+        // Optional: Print for manual inspection during development
+        // println!("Generated YAML:\n{}", result);
+    }
+
+    #[test]
+    fn test_parse_nested_object_from_yaml() {
+        let yaml_content = r#"title: Test Post
+metadata:
+  category: Blog
+  priority: 2
+  deadline: 2025-10-21
+tags:
+  - rust
+  - yaml
+  - testing"#;
+
+        let result = parse_yaml_to_json(yaml_content).unwrap();
+
+        // Verify title
+        assert_eq!(result.get("title").unwrap(), &Value::String("Test Post".to_string()));
+
+        // Verify nested metadata object
+        let metadata = result.get("metadata").unwrap();
+        assert!(metadata.is_object());
+        let metadata_obj = metadata.as_object().unwrap();
+        assert_eq!(metadata_obj.get("category").unwrap(), &Value::String("Blog".to_string()));
+        assert_eq!(metadata_obj.get("priority").unwrap(), &Value::Number(serde_json::Number::from(2)));
+        assert_eq!(metadata_obj.get("deadline").unwrap(), &Value::String("2025-10-21".to_string()));
+
+        // Verify tags array
+        let tags = result.get("tags").unwrap();
+        assert!(tags.is_array());
+        let tags_array = tags.as_array().unwrap();
+        assert_eq!(tags_array.len(), 3);
+        assert_eq!(tags_array[0], Value::String("rust".to_string()));
+        assert_eq!(tags_array[1], Value::String("yaml".to_string()));
+        assert_eq!(tags_array[2], Value::String("testing".to_string()));
+    }
+
+    #[test]
+    fn test_parse_and_serialize_roundtrip() {
+        let original_yaml = r#"title: Roundtrip Test
+description: Testing parse and serialize roundtrip
+metadata:
+  category: Development
+  priority: 5
+  deadline: 2025-12-31
+tags:
+  - test
+  - roundtrip"#;
+
+        // Parse YAML to HashMap
+        let parsed = parse_yaml_to_json(original_yaml).unwrap();
+
+        // Serialize back to markdown with frontmatter (verifies serialization works)
+        let content = "# Test Content";
+        let _serialized = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &parsed,
+            "",
+            content,
+            None,
+        )
+        .unwrap();
+
+        // Parse again
+        let reparsed_content = format!("---\n{}\n---\n\n{}",
+            original_yaml,
+            content
+        );
+        let reparsed = parse_frontmatter(&reparsed_content).unwrap();
+
+        // Verify metadata object survived the roundtrip
+        let metadata = reparsed.frontmatter.get("metadata").unwrap();
+        assert!(metadata.is_object());
+        let metadata_obj = metadata.as_object().unwrap();
+        assert_eq!(metadata_obj.get("category").unwrap(), &Value::String("Development".to_string()));
+        assert_eq!(metadata_obj.get("priority").unwrap(), &Value::Number(serde_json::Number::from(5)));
     }
 }
