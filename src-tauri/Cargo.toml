@@ -1,6 +1,6 @@
 [package]
 name = "astro-editor"
-version = "0.1.28"
+version = "0.1.29"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
