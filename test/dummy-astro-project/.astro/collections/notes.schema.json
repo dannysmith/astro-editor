@@ -42,6 +42,40 @@
           "items": {
             "type": "string"
           }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "number"
+            },
+            "deadline": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "integer",
+                  "format": "unix-time"
+                }
+              ]
+            }
+          },
+          "required": [
+            "category"
+          ],
+          "additionalProperties": false
+        },
+        "$schema": {
+          "type": "string"
         }
       },
       "required": [

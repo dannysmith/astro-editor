@@ -2,7 +2,9 @@
 title: "Copyedit Mode Test"
 description: "Simple test file for parts of speech highlighting"
 pubDate: 2025-01-22
-tags: ["test", "copyedit"]
+tags: 
+  - test
+  - copyedit
 ---
 
 # Copyedit Mode Testing

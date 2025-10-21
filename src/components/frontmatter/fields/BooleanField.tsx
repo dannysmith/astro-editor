@@ -53,6 +53,7 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
       defaultValue={field?.default}
       currentValue={value}
       layout="horizontal"
+      hideDefaultValue={true}
     >
       <Switch
         checked={getBooleanValue(value)}

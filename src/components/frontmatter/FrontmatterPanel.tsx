@@ -108,8 +108,23 @@ export const FrontmatterPanel: React.FC = () => {
 
       // Add any extra frontmatter fields that aren't in the schema
       const schemaFieldNames = new Set(schema.fields.map(f => f.name))
+
+      // Filter out parent object keys if their nested properties exist in schema
+      // e.g., exclude "metadata" if schema has "metadata.category", "metadata.priority", etc.
       const extraFields = Object.keys(frontmatter)
-        .filter(key => !schemaFieldNames.has(key))
+        .filter(key => {
+          // If the key is in the schema, it's not an extra field
+          if (schemaFieldNames.has(key)) return false
+
+          // Check if this key is a parent path for any schema fields
+          // e.g., if key is "metadata" and schema has "metadata.category", exclude it
+          const isParentPath = schema.fields.some(f =>
+            f.name.startsWith(`${key}.`)
+          )
+          if (isParentPath) return false
+
+          return true
+        })
         .sort()
         .map(fieldName => ({
           fieldName,

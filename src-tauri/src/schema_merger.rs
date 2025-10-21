@@ -358,13 +358,7 @@ fn parse_field(
     // Build field
     let field = SchemaField {
         name: full_path.clone(),
-        label: if !parent_path.is_empty() {
-            let parent_label =
-                camel_case_to_title_case(parent_path.split('.').next_back().unwrap_or(""));
-            format!("{parent_label} {label}")
-        } else {
-            label
-        },
+        label, // Use simple label; parent context is shown via UI grouping
         field_type: field_type_info.field_type,
         sub_type: field_type_info.sub_type,
         required: is_required && field_schema.default.is_none(),
@@ -509,8 +503,13 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         &field_schema.type_,
         Some(StringOrArray::String(s)) if s == "object"
     ) {
-        // Records (with additionalProperties) - treat as JSON string
-        if field_schema.additional_properties.is_some() {
+        // Records (with additionalProperties: true or schema) - treat as JSON string
+        // Note: additionalProperties: false means "strict object", not a dynamic record
+        if matches!(
+            &field_schema.additional_properties,
+            Some(PropertyAdditionalProperties::Boolean(true))
+                | Some(PropertyAdditionalProperties::Schema(_))
+        ) {
             return Ok(FieldTypeInfo {
                 field_type: "string".to_string(),
                 sub_type: None,
@@ -519,7 +518,7 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
                 array_reference_collection: None,
             });
         }
-        // Nested objects will be flattened by parse_field
+        // Nested objects (including those with additionalProperties: false) will be flattened by parse_field
         return Ok(FieldTypeInfo {
             field_type: "unknown".to_string(),
             sub_type: None,
@@ -987,5 +986,73 @@ mod tests {
         let map = result.unwrap();
         assert_eq!(map.get("author"), Some(&"authors".to_string()));
         assert_eq!(map.get("tags"), Some(&"tags".to_string()));
+    }
+
+    #[test]
+    fn test_parse_nested_object_with_additional_properties_false() {
+        // Regression test for bug where additionalProperties: false was treated as a dynamic record
+        let json_schema = r##"{
+            "$ref": "#/definitions/notes",
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "definitions": {
+                "notes": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "metadata": {
+                            "type": "object",
+                            "properties": {
+                                "category": { "type": "string" },
+                                "priority": { "type": "number" }
+                            },
+                            "required": ["category"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "required": ["title"]
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("notes", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        assert_eq!(schema.collection_name, "notes");
+
+        // Should have 3 fields: title, metadata.category, metadata.priority
+        // NOT 2 fields (title + metadata as string)
+        assert_eq!(schema.fields.len(), 3);
+
+        // Check title field
+        let title_field = schema.fields.iter().find(|f| f.name == "title").unwrap();
+        assert_eq!(title_field.field_type, "string");
+        assert!(title_field.required);
+        assert_eq!(title_field.parent_path, None);
+
+        // Check metadata.category field
+        let category_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "metadata.category")
+            .unwrap();
+        assert_eq!(category_field.field_type, "string");
+        assert!(category_field.required);
+        assert_eq!(category_field.parent_path, Some("metadata".to_string()));
+        assert_eq!(category_field.is_nested, Some(true));
+
+        // Check metadata.priority field
+        let priority_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "metadata.priority")
+            .unwrap();
+        assert_eq!(priority_field.field_type, "number");
+        assert!(!priority_field.required);
+        assert_eq!(priority_field.parent_path, Some("metadata".to_string()));
+        assert_eq!(priority_field.is_nested, Some(true));
+
+        // Ensure NO field named "metadata" was created
+        assert!(!schema.fields.iter().any(|f| f.name == "metadata"));
     }
 }
