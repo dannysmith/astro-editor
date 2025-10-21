@@ -5,7 +5,6 @@ pubDate: 2025-01-22
 tags: 
   - test
   - copyedit
-metadata: "{"category":"Blog","deadline":"2025-10-21","priority":2}"
 ---
 
 # Copyedit Mode Testing
