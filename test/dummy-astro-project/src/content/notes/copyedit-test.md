@@ -2,7 +2,10 @@
 title: "Copyedit Mode Test"
 description: "Simple test file for parts of speech highlighting"
 pubDate: 2025-01-22
-tags: ["test", "copyedit"]
+tags: 
+  - test
+  - copyedit
+metadata: "{"category":"Blog","deadline":"2025-10-21","priority":2}"
 ---
 
 # Copyedit Mode Testing
