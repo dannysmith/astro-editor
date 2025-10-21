@@ -118,7 +118,9 @@ export const FrontmatterPanel: React.FC = () => {
 
           // Check if this key is a parent path for any schema fields
           // e.g., if key is "metadata" and schema has "metadata.category", exclude it
-          const isParentPath = schema.fields.some(f => f.name.startsWith(`${key}.`))
+          const isParentPath = schema.fields.some(f =>
+            f.name.startsWith(`${key}.`)
+          )
           if (isParentPath) return false
 
           return true

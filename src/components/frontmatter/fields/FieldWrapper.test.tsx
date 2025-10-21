@@ -297,5 +297,35 @@ describe('FieldWrapper', () => {
 
       expect(screen.getByText('Default: {"key":"value"}')).toBeInTheDocument()
     })
+
+    it('hides default value when hideDefaultValue is true', () => {
+      render(
+        <FieldWrapper
+          label="Test"
+          defaultValue="default text"
+          currentValue={undefined}
+          hideDefaultValue={true}
+        >
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.queryByText(/Default:/)).not.toBeInTheDocument()
+    })
+
+    it('still shows default value when hideDefaultValue is false', () => {
+      render(
+        <FieldWrapper
+          label="Test"
+          defaultValue="default text"
+          currentValue={undefined}
+          hideDefaultValue={false}
+        >
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.getByText('Default: default text')).toBeInTheDocument()
+    })
   })
 })

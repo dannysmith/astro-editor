@@ -1031,20 +1031,28 @@ mod tests {
         assert_eq!(title_field.parent_path, None);
 
         // Check metadata.category field
-        let category_field = schema.fields.iter().find(|f| f.name == "metadata.category").unwrap();
+        let category_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "metadata.category")
+            .unwrap();
         assert_eq!(category_field.field_type, "string");
         assert!(category_field.required);
         assert_eq!(category_field.parent_path, Some("metadata".to_string()));
         assert_eq!(category_field.is_nested, Some(true));
 
         // Check metadata.priority field
-        let priority_field = schema.fields.iter().find(|f| f.name == "metadata.priority").unwrap();
+        let priority_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "metadata.priority")
+            .unwrap();
         assert_eq!(priority_field.field_type, "number");
         assert!(!priority_field.required);
         assert_eq!(priority_field.parent_path, Some("metadata".to_string()));
         assert_eq!(priority_field.is_nested, Some(true));
 
         // Ensure NO field named "metadata" was created
-        assert!(schema.fields.iter().find(|f| f.name == "metadata").is_none());
+        assert!(!schema.fields.iter().any(|f| f.name == "metadata"));
     }
 }

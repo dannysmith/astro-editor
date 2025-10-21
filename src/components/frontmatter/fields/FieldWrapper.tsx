@@ -16,6 +16,7 @@ interface FieldWrapperProps {
   layout?: 'vertical' | 'horizontal'
   children: React.ReactNode
   currentValue?: unknown
+  hideDefaultValue?: boolean
 }
 
 export const FieldWrapper: React.FC<FieldWrapperProps> = ({
@@ -27,11 +28,12 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   layout = 'vertical',
   children,
   currentValue,
+  hideDefaultValue = false,
 }) => {
   const isEmpty =
     currentValue === undefined || currentValue === null || currentValue === ''
 
-  const showDefault = defaultValue !== undefined && isEmpty
+  const showDefault = !hideDefaultValue && defaultValue !== undefined && isEmpty
 
   const metadataText = formatMetadata(
     constraints,

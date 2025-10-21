@@ -518,7 +518,11 @@ fn parse_yaml_array(lines: &[&str], start_index: usize) -> Result<(Vec<Value>, u
     Ok((array, i - start_index))
 }
 
-fn parse_yaml_object(lines: &[&str], start_index: usize, parent_indent: usize) -> Result<(serde_json::Map<String, Value>, usize), String> {
+fn parse_yaml_object(
+    lines: &[&str],
+    start_index: usize,
+    parent_indent: usize,
+) -> Result<(serde_json::Map<String, Value>, usize), String> {
     let mut object = serde_json::Map::new();
     let mut i = start_index;
 
@@ -575,7 +579,8 @@ fn parse_yaml_object(lines: &[&str], start_index: usize, parent_indent: usize) -
                     Value::Array(array_value)
                 } else {
                     // Check for nested object
-                    let (nested_obj, lines_consumed) = parse_yaml_object(lines, i + 1, current_indent)?;
+                    let (nested_obj, lines_consumed) =
+                        parse_yaml_object(lines, i + 1, current_indent)?;
                     if !nested_obj.is_empty() {
                         i += lines_consumed;
                         Value::Object(nested_obj)
@@ -1769,20 +1774,13 @@ Regular markdown content here."#;
                 "deadline": "2025-10-21"
             }),
         );
-        frontmatter.insert(
-            "tags".to_string(),
-            json!(["rust", "yaml", "testing"]),
-        );
+        frontmatter.insert("tags".to_string(), json!(["rust", "yaml", "testing"]));
 
         let content = "# Test Content\n\nThis is a test.";
 
-        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            "",
-            content,
-            None,
-        )
-        .unwrap();
+        let result =
+            rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
+                .unwrap();
 
         // Verify the result contains proper YAML nested object syntax
         assert!(result.contains("metadata:"));
@@ -1823,15 +1821,27 @@ tags:
         let result = parse_yaml_to_json(yaml_content).unwrap();
 
         // Verify title
-        assert_eq!(result.get("title").unwrap(), &Value::String("Test Post".to_string()));
+        assert_eq!(
+            result.get("title").unwrap(),
+            &Value::String("Test Post".to_string())
+        );
 
         // Verify nested metadata object
         let metadata = result.get("metadata").unwrap();
         assert!(metadata.is_object());
         let metadata_obj = metadata.as_object().unwrap();
-        assert_eq!(metadata_obj.get("category").unwrap(), &Value::String("Blog".to_string()));
-        assert_eq!(metadata_obj.get("priority").unwrap(), &Value::Number(serde_json::Number::from(2)));
-        assert_eq!(metadata_obj.get("deadline").unwrap(), &Value::String("2025-10-21".to_string()));
+        assert_eq!(
+            metadata_obj.get("category").unwrap(),
+            &Value::String("Blog".to_string())
+        );
+        assert_eq!(
+            metadata_obj.get("priority").unwrap(),
+            &Value::Number(serde_json::Number::from(2))
+        );
+        assert_eq!(
+            metadata_obj.get("deadline").unwrap(),
+            &Value::String("2025-10-21".to_string())
+        );
 
         // Verify tags array
         let tags = result.get("tags").unwrap();
@@ -1860,26 +1870,25 @@ tags:
 
         // Serialize back to markdown with frontmatter (verifies serialization works)
         let content = "# Test Content";
-        let _serialized = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &parsed,
-            "",
-            content,
-            None,
-        )
-        .unwrap();
+        let _serialized =
+            rebuild_markdown_with_frontmatter_and_imports_ordered(&parsed, "", content, None)
+                .unwrap();
 
         // Parse again
-        let reparsed_content = format!("---\n{}\n---\n\n{}",
-            original_yaml,
-            content
-        );
+        let reparsed_content = format!("---\n{original_yaml}\n---\n\n{content}");
         let reparsed = parse_frontmatter(&reparsed_content).unwrap();
 
         // Verify metadata object survived the roundtrip
         let metadata = reparsed.frontmatter.get("metadata").unwrap();
         assert!(metadata.is_object());
         let metadata_obj = metadata.as_object().unwrap();
-        assert_eq!(metadata_obj.get("category").unwrap(), &Value::String("Development".to_string()));
-        assert_eq!(metadata_obj.get("priority").unwrap(), &Value::Number(serde_json::Number::from(5)));
+        assert_eq!(
+            metadata_obj.get("category").unwrap(),
+            &Value::String("Development".to_string())
+        );
+        assert_eq!(
+            metadata_obj.get("priority").unwrap(),
+            &Value::Number(serde_json::Number::from(5))
+        );
     }
 }
