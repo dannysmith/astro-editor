@@ -27,7 +27,7 @@ declare global {
 
 const EditorViewComponent: React.FC = () => {
   const currentFileId = useEditorStore(state => state.currentFile?.id)
-  const currentFile = useEditorStore(state => state.currentFile)
+  const currentFilePath = useEditorStore(state => state.currentFile?.path)
   const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
@@ -252,7 +252,7 @@ const EditorViewComponent: React.FC = () => {
         <ImagePreview
           hoveredImage={hoveredImage}
           projectPath={projectPath}
-          currentFilePath={currentFile?.path || null}
+          currentFilePath={currentFilePath || null}
         />
       )}
     </div>

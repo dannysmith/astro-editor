@@ -11,7 +11,7 @@ interface ImagePreviewProps {
 
 type LoadingState = 'idle' | 'loading' | 'success' | 'error'
 
-export const ImagePreview: React.FC<ImagePreviewProps> = ({
+const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
   hoveredImage,
   projectPath,
   currentFilePath,
@@ -66,7 +66,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
     }
 
     loadImage()
-  }, [hoveredImage, projectPath, currentFilePath])
+  }, [hoveredImage?.url, projectPath, currentFilePath])
 
   // Don't render anything if no hovered image or if error state (fail silently)
   if (!hoveredImage || loadingState === 'error') {
@@ -142,3 +142,6 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
     </div>
   )
 }
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+export const ImagePreview = React.memo(ImagePreviewComponent)

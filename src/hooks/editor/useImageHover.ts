@@ -54,10 +54,16 @@ export const useImageHover = (
         )
 
         if (hoveredUrl) {
-          setHoveredImage({
-            url: hoveredUrl.url,
-            from: hoveredUrl.from,
-            to: hoveredUrl.to,
+          // Only update if the URL changed (avoid re-renders on position changes)
+          setHoveredImage(prev => {
+            if (prev?.url === hoveredUrl.url) {
+              return prev // Same URL, don't create new object
+            }
+            return {
+              url: hoveredUrl.url,
+              from: hoveredUrl.from,
+              to: hoveredUrl.to,
+            }
           })
         } else {
           setHoveredImage(null)
