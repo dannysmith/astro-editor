@@ -5,11 +5,15 @@ import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
 import { ImageThumbnail } from './ImageThumbnail'
 import { FileUploadButton } from '../../tauri'
-import { Button } from '../../ui/button'
-import { Input } from '../../ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '../../ui/input-group'
 import { getEffectiveAssetsDirectory } from '../../../lib/project-registry'
 import { ASTRO_PATHS } from '../../../lib/constants'
-import { X, Loader2, Edit3 } from 'lucide-react'
+import { X, Loader2, Edit3, Check } from 'lucide-react'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
@@ -38,10 +42,12 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   const { frontmatter, updateFrontmatterField } = useEditorStore()
   const value = getNestedValue(frontmatter, name)
   const [isLoading, setIsLoading] = useState(false)
-  const [isManualEdit, setIsManualEdit] = useState(false)
-  const [manualPath, setManualPath] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
 
   const stringValue = typeof value === 'string' ? value : ''
+  // When editing, show edit value; otherwise show current value
+  const displayValue = isEditing ? editValue : stringValue
 
   const handleFileSelect = async (filePath: string) => {
     setIsLoading(true)
@@ -117,79 +123,41 @@ export const ImageField: React.FC<ImageFieldProps> = ({
     updateFrontmatterField(name, undefined)
   }
 
-  const handleManualEditToggle = () => {
-    if (isManualEdit) {
-      // Cancel manual edit - reset to current value
-      setManualPath('')
-      setIsManualEdit(false)
-    } else {
-      // Start manual edit - initialize with current value
-      setManualPath(stringValue)
-      setIsManualEdit(true)
-    }
+  const handleEditStart = () => {
+    setEditValue(stringValue)
+    setIsEditing(true)
   }
 
-  const handleManualPathSave = async () => {
-    const trimmedPath = manualPath.trim()
+  const handleEditCancel = () => {
+    setEditValue('')
+    setIsEditing(false)
+  }
+
+  const handleEditSave = () => {
+    const trimmedPath = editValue.trim()
 
     // Empty path means clear
     if (!trimmedPath) {
       updateFrontmatterField(name, undefined)
-      setIsManualEdit(false)
-      setManualPath('')
+      setIsEditing(false)
+      setEditValue('')
       return
     }
 
-    // Validate the path exists in the project
-    const { projectPath } = useProjectStore.getState()
-    if (!projectPath) {
-      window.dispatchEvent(
-        new CustomEvent('toast', {
-          detail: {
-            title: 'Invalid path',
-            description: 'No project context available',
-            variant: 'destructive',
-          },
-        })
-      )
-      return
-    }
+    // Manual edit: user has full control, no validation
+    // If the path doesn't exist, the preview will simply fail to load
+    updateFrontmatterField(name, trimmedPath)
+    setIsEditing(false)
+    setEditValue('')
 
-    try {
-      // Try to read the file to validate it exists
-      // Use the resolve_image_path command to validate
-      await invoke<string>('resolve_image_path', {
-        imagePath: trimmedPath,
-        projectPath: projectPath,
+    window.dispatchEvent(
+      new CustomEvent('toast', {
+        detail: {
+          title: 'Path updated',
+          description: 'Image path has been updated',
+        },
       })
-
-      // Path is valid, update frontmatter
-      updateFrontmatterField(name, trimmedPath)
-      setIsManualEdit(false)
-      setManualPath('')
-
-      window.dispatchEvent(
-        new CustomEvent('toast', {
-          detail: {
-            title: 'Path updated',
-            description: 'Image path has been updated',
-          },
-        })
-      )
-    } catch (error) {
-      window.dispatchEvent(
-        new CustomEvent('toast', {
-          detail: {
-            title: 'Invalid path',
-            description:
-              error instanceof Error
-                ? error.message
-                : 'Path does not exist or is outside the project',
-            variant: 'destructive',
-          },
-        })
-      )
-    }
+    )
   }
 
   return (
@@ -204,89 +172,78 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       currentValue={value}
     >
       <div className="space-y-2">
-        {/* Current path display and preview */}
-        {stringValue && !isManualEdit && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 text-sm text-muted-foreground">
-                {stringValue}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleClear}
-                type="button"
-                title="Clear image"
-              >
-                <X className="size-3" />
-              </Button>
-            </div>
-            <ImageThumbnail path={stringValue} />
-          </div>
-        )}
-
-        {/* Manual path editing */}
-        {isManualEdit && (
-          <div className="space-y-2">
-            <Input
+        {/* Path display/edit with InputGroup - only shown when image exists */}
+        {stringValue && (
+          <InputGroup>
+            <InputGroupInput
               type="text"
-              value={manualPath}
-              onChange={e => setManualPath(e.target.value)}
+              value={displayValue}
+              onChange={e => setEditValue(e.target.value)}
               placeholder="Enter image path (e.g., /src/assets/image.jpg)"
+              disabled={!isEditing}
               onKeyDown={e => {
+                if (!isEditing) return
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  void handleManualPathSave()
+                  handleEditSave()
                 } else if (e.key === 'Escape') {
                   e.preventDefault()
-                  handleManualEditToggle()
+                  handleEditCancel()
                 }
               }}
             />
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => void handleManualPathSave()}
-                type="button"
-              >
-                Save
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleManualEditToggle}
-                type="button"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
+            <InputGroupAddon align="inline-end">
+              {isEditing ? (
+                <>
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={handleEditSave}
+                    title="Save path"
+                  >
+                    <Check className="size-3.5" />
+                  </InputGroupButton>
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={handleEditCancel}
+                    title="Cancel"
+                  >
+                    <X className="size-3.5" />
+                  </InputGroupButton>
+                </>
+              ) : (
+                <>
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={handleEditStart}
+                    title="Edit path manually"
+                  >
+                    <Edit3 className="size-3.5" />
+                  </InputGroupButton>
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={handleClear}
+                    title="Clear image"
+                  >
+                    <X className="size-3.5" />
+                  </InputGroupButton>
+                </>
+              )}
+            </InputGroupAddon>
+          </InputGroup>
         )}
 
-        {/* File upload button and manual edit toggle */}
-        {!isManualEdit && (
-          <div className="flex items-center gap-2">
-            <FileUploadButton
-              accept={IMAGE_EXTENSIONS}
-              onFileSelect={handleFileSelect}
-              disabled={isLoading}
-            >
-              {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {stringValue ? 'Change Image' : 'Select Image'}
-            </FileUploadButton>
+        {/* File upload button - above preview */}
+        <FileUploadButton
+          accept={IMAGE_EXTENSIONS}
+          onFileSelect={handleFileSelect}
+          disabled={isLoading}
+        >
+          {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+          {stringValue ? 'Change Image' : 'Select Image'}
+        </FileUploadButton>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualEditToggle}
-              type="button"
-              title="Edit path manually"
-            >
-              <Edit3 className="size-3" />
-            </Button>
-          </div>
-        )}
+        {/* Preview - always shown when stringValue exists, never hidden during editing */}
+        {stringValue && <ImageThumbnail path={stringValue} />}
       </div>
     </FieldWrapper>
   )
