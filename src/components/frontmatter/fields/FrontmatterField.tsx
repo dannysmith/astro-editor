@@ -151,7 +151,9 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
 
   // Handle image fields
   if (fieldType === (FieldType.Image as string) || fieldType === 'image') {
-    return <ImageField name={name} label={label} required={required} field={field} />
+    return (
+      <ImageField name={name} label={label} required={required} field={field} />
+    )
   }
 
   // Handle email fields

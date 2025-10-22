@@ -34,7 +34,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
 
   const stringValue = typeof value === 'string' ? value : ''
 
-  const handleFileSelect = async (filePath: string) => {
+  const handleFileSelect = (filePath: string) => {
     setIsLoading(true)
     try {
       // For Phase 2, we just set the path directly

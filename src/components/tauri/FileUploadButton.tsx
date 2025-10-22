@@ -41,7 +41,10 @@ function getFileExtension(path: string): string | null {
 /**
  * Check if file extension is accepted
  */
-function isExtensionAccepted(path: string, acceptedExtensions: string[]): boolean {
+function isExtensionAccepted(
+  path: string,
+  acceptedExtensions: string[]
+): boolean {
   const extension = getFileExtension(path)
   return extension ? acceptedExtensions.includes(extension) : false
 }
@@ -108,7 +111,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
       }
 
       // Call the callback with the selected file path
-      await onFileSelectRef.current(selected as string)
+      await onFileSelectRef.current(selected)
     } catch (error) {
       if (import.meta.env.DEV) {
         // eslint-disable-next-line no-console
@@ -147,11 +150,12 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
 
             // Take the first file
             const filePath = paths[0]
+            if (!filePath) return
 
             // Validate file extension
             if (!isExtensionAccepted(filePath, accept)) {
               if (import.meta.env.DEV) {
-                const extension = getFileExtension(filePath)
+                const extension = getFileExtension(filePath) ?? 'unknown'
                 // eslint-disable-next-line no-console
                 console.warn(
                   `File type .${extension} not accepted. Expected: ${accept.join(', ')}`
@@ -162,9 +166,11 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
 
             // Process the file - use ref to avoid dependency
             setIsProcessing(true)
-            Promise.resolve(onFileSelectRef.current(filePath)).finally(() => {
-              setIsProcessing(false)
-            })
+            void Promise.resolve(onFileSelectRef.current(filePath)).finally(
+              () => {
+                setIsProcessing(false)
+              }
+            )
           }
         )
 
@@ -193,7 +199,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
       size={size}
       className={className}
       disabled={disabled || isProcessing}
-      onClick={handleClick}
+      onClick={() => void handleClick()}
       type="button"
     >
       {children}

@@ -709,10 +709,7 @@ fn extract_constraints(
 }
 
 /// Enhance JSON schema with Zod reference collection names
-fn enhance_schema_from_zod(
-    schema: &mut SchemaDefinition,
-    zod_schema: &str,
-) -> Result<(), String> {
+fn enhance_schema_from_zod(schema: &mut SchemaDefinition, zod_schema: &str) -> Result<(), String> {
     // Parse Zod schema to extract reference mappings and image field types
     let (reference_map, image_fields) = extract_zod_enhancements(zod_schema)?;
 
@@ -784,9 +781,9 @@ fn extract_zod_enhancements(
         }
 
         // Image field detection
-        if field.type_ == "Image" {
-            image_fields.insert(field.name);
-        } else if field.type_ == "Array" && field.array_type.as_deref() == Some("Image") {
+        if field.type_ == "Image"
+            || (field.type_ == "Array" && field.array_type.as_deref() == Some("Image"))
+        {
             image_fields.insert(field.name);
         }
     }
