@@ -18,7 +18,11 @@
  * ```
  */
 
-export { handleTauriFileDrop, parseFileDropPayload } from './handlers'
+export {
+  handleTauriFileDrop,
+  parseFileDropPayload,
+  isDropWithinElement,
+} from './handlers'
 export {
   processDroppedFile,
   processDroppedFiles,

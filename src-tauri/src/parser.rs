@@ -51,6 +51,7 @@ pub enum ZodFieldType {
     Literal(String),
     Object(Vec<ZodField>),
     Reference(String), // Stores the collection name
+    Image,
     Unknown,
 }
 
@@ -508,6 +509,7 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
                         ZodFieldType::Number => "Number".to_string(),
                         ZodFieldType::Boolean => "Boolean".to_string(),
                         ZodFieldType::Date => "Date".to_string(),
+                        ZodFieldType::Image => "Image".to_string(),
                         ZodFieldType::Unknown => "Unknown".to_string(),
                     },
                     "optional": f.optional,
@@ -529,6 +531,7 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
                             ZodFieldType::Number => "Number",
                             ZodFieldType::Boolean => "Boolean",
                             ZodFieldType::Date => "Date",
+                            ZodFieldType::Image => "Image",
                             ZodFieldType::Reference(_) => "Reference",
                             _ => "Unknown",
                         });
@@ -544,6 +547,7 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
                                 ZodFieldType::Number => serde_json::json!("Number"),
                                 ZodFieldType::Boolean => serde_json::json!("Boolean"),
                                 ZodFieldType::Date => serde_json::json!("Date"),
+                                ZodFieldType::Image => serde_json::json!("Image"),
                                 ZodFieldType::Literal(val) => serde_json::json!({"type": "Literal", "value": val}),
                                 _ => serde_json::json!("Unknown"),
                             }).collect::<Vec<_>>()
@@ -644,7 +648,10 @@ fn parse_field_type_and_constraints(field_definition: &str) -> (ZodFieldType, Zo
     }
 
     // Determine base field type (order matters - check most specific first)
-    let field_type = if normalized.contains("reference(") {
+    let field_type = if normalized.contains("image()") {
+        // Astro's image() helper - return Image type directly
+        ZodFieldType::Image
+    } else if normalized.contains("reference(") {
         // Extract collection name from reference('collectionName')
         let collection_name = extract_reference_collection(&normalized);
         ZodFieldType::Reference(collection_name)
@@ -678,10 +685,6 @@ fn parse_field_type_and_constraints(field_definition: &str) -> (ZodFieldType, Zo
         ZodFieldType::Number
     } else if normalized.contains("z.boolean()") {
         ZodFieldType::Boolean
-    } else if normalized.contains("image()") {
-        // Astro's image() helper - treat as string with additional metadata
-        constraints.transform = Some("astro-image".to_string());
-        ZodFieldType::String
     } else {
         ZodFieldType::Unknown
     };
@@ -712,7 +715,9 @@ fn extract_optional_inner_type(field_definition: &str) -> (ZodFieldType, ZodFiel
         // Parse the inner type directly without recursion to avoid infinite loops
         let mut constraints = ZodFieldConstraints::default();
 
-        let field_type = if inner_def.contains("z.string") {
+        let field_type = if inner_def.contains("image()") {
+            ZodFieldType::Image
+        } else if inner_def.contains("z.string") {
             constraints = extract_string_constraints(inner_def);
             ZodFieldType::String
         } else if inner_def.contains("z.number") {

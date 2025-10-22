@@ -10,27 +10,54 @@ import {
 import { FileDropPayload, DropResult } from './types'
 
 /**
- * Parse file paths from different payload formats
+ * Parse file drop payload from Tauri event
  * @param payload - Unknown payload from Tauri drag-drop event
- * @returns Array of file paths
+ * @returns FileDropPayload with paths and position
  */
-export const parseFileDropPayload = (payload: unknown): string[] => {
+export const parseFileDropPayload = (
+  payload: unknown
+): { paths: string[]; position?: { x: number; y: number } } => {
   let filePaths: string[] = []
+  let position: { x: number; y: number } | undefined = undefined
 
   if (Array.isArray(payload)) {
     filePaths = payload as string[]
   } else if (typeof payload === 'string') {
     filePaths = [payload]
   } else if (payload && typeof payload === 'object' && 'paths' in payload) {
-    // In case the payload has a 'paths' property
-    filePaths = (payload as FileDropPayload).paths || []
+    const payloadObj = payload as FileDropPayload
+    filePaths = payloadObj.paths || []
+    position = payloadObj.position
   } else {
     // eslint-disable-next-line no-console
     console.error('Unexpected payload format:', payload)
-    return []
+    return { paths: [] }
   }
 
-  return filePaths
+  return { paths: filePaths, position }
+}
+
+/**
+ * Check if drop position is within element bounds
+ * @param position - Drop position
+ * @param element - DOM element to check
+ * @returns true if position is within element bounds
+ */
+export const isDropWithinElement = (
+  position: { x: number; y: number } | undefined,
+  element: Element | null
+): boolean => {
+  if (!position || !element) {
+    return false
+  }
+
+  const rect = element.getBoundingClientRect()
+  return (
+    position.x >= rect.left &&
+    position.x <= rect.right &&
+    position.y >= rect.top &&
+    position.y <= rect.bottom
+  )
 }
 
 /**
@@ -43,15 +70,47 @@ export const handleTauriFileDrop = async (
   payload: unknown,
   editorView: EditorView | null
 ): Promise<DropResult> => {
+  // eslint-disable-next-line no-console
+  console.log('[DROP] Handler called, editorView:', !!editorView)
+
   if (!editorView) {
+    // eslint-disable-next-line no-console
+    console.log('[DROP] No editor view')
     return { success: false, insertText: '', error: 'No editor view available' }
   }
 
-  // Parse file paths from payload
-  const filePaths = parseFileDropPayload(payload)
+  // Parse file paths and position from payload
+  const { paths: filePaths, position } = parseFileDropPayload(payload)
+  // eslint-disable-next-line no-console
+  console.log('[DROP] Files:', filePaths.length, 'Position:', position)
+
   if (filePaths.length === 0) {
     return { success: false, insertText: '', error: 'No files in drop payload' }
   }
+
+  // Check if drop is within editor element bounds
+  // This prevents conflicts with FileUploadButton and other UI elements
+  const editorElement = editorView.dom.closest('[data-editor-container]')
+  // eslint-disable-next-line no-console
+  console.log('[DROP] Element found:', !!editorElement)
+
+  const isWithin = isDropWithinElement(position, editorElement)
+  // eslint-disable-next-line no-console
+  console.log('[DROP] Is within bounds:', isWithin)
+
+  if (!isWithin) {
+    // Drop is outside editor bounds, ignore it
+    // eslint-disable-next-line no-console
+    console.log('[DROP] Ignoring - outside bounds')
+    return {
+      success: false,
+      insertText: '',
+      error: 'Drop outside editor bounds',
+    }
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('[DROP] Processing...')
 
   // Get current project path and file from store
   const { projectPath } = useProjectStore.getState()

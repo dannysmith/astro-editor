@@ -367,6 +367,8 @@ pub fn run() {
             write_file_content,
             create_directory,
             resolve_image_path,
+            is_path_in_project,
+            get_relative_path,
             open_path_in_ide,
             get_app_version,
             get_platform_info,

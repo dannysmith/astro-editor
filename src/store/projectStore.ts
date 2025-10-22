@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { error as logError, info, debug } from '@tauri-apps/plugin-log'
 import { toast } from '../lib/toast'
 import { ASTRO_PATHS } from '../lib/constants'
@@ -25,6 +25,10 @@ interface ProjectState {
   globalSettings: GlobalSettings | null
   currentProjectSettings: ProjectSettings | null
 
+  // Event listener cleanup functions
+  _unlistenFileChanged: UnlistenFn | null
+  _unlistenSchemaChanged: UnlistenFn | null
+
   // Actions
   setProject: (path: string) => void
   setSelectedCollection: (collection: string | null) => void
@@ -47,6 +51,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   currentSubdirectory: null,
   globalSettings: null,
   currentProjectSettings: null,
+  _unlistenFileChanged: null,
+  _unlistenSchemaChanged: null,
 
   // Actions
   setProject: (path: string) => {
@@ -158,7 +164,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
 
       // Listen for file change events
-      const unlistenFileChanged = listen(
+      const unlistenFileChanged = await listen(
         'file-changed',
         (event: { payload: unknown }) => {
           // File refresh is now handled by TanStack Query invalidation
@@ -173,8 +179,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
       )
 
-      // Store the unlisten function for cleanup (though we don't currently clean it up)
-      void unlistenFileChanged
+      // Listen for schema change events (config.ts or .schema.json files)
+      const unlistenSchemaChanged = await listen('schema-changed', () => {
+        // Invalidate collections query to re-parse schemas
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.collections(projectPath),
+        })
+      })
+
+      // Store the unlisten functions for cleanup
+      set({
+        _unlistenFileChanged: unlistenFileChanged,
+        _unlistenSchemaChanged: unlistenSchemaChanged,
+      })
     } catch (error) {
       const errorMsg = formatErrorForLogging(
         'PROJECT_SETUP',
@@ -190,10 +207,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   stopFileWatcher: async () => {
-    const { projectPath } = get()
+    const { projectPath, _unlistenFileChanged, _unlistenSchemaChanged } = get()
     if (!projectPath) return
 
     try {
+      // Clean up event listeners first
+      if (_unlistenFileChanged) {
+        _unlistenFileChanged()
+      }
+      if (_unlistenSchemaChanged) {
+        _unlistenSchemaChanged()
+      }
+      set({
+        _unlistenFileChanged: null,
+        _unlistenSchemaChanged: null,
+      })
+
       await invoke('stop_watching_project', { projectPath })
     } catch (error) {
       const errorMsg = formatErrorForLogging(

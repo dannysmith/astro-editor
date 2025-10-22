@@ -34,20 +34,29 @@ const articles = defineCollection({
 
 const notes = defineCollection({
   loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/notes' }),
-  schema: z.object({
-    title: z.string(),
-    sourceURL: z.string().url().optional(),
-    slug: z.string().optional(),
-    draft: z.boolean().default(false),
-    description: z.string().optional(),
-    pubDate: z.coerce.date(),
-    tags: z.array(z.string()).optional(),
-    metadata: z.object({
-      category: z.string(),
-      priority: z.number().optional(),
-      deadline: z.coerce.date().optional(),
-    }).optional(),
-  }),
+  schema: ({ image }) =>
+    z.object({
+      title: z.string(),
+      sourceURL: z.string().url().optional(),
+      slug: z.string().optional(),
+      draft: z.boolean().default(false),
+      description: z.string().optional(),
+      pubDate: z.coerce.date(),
+      tags: z.array(z.string()).optional(),
+      metadata: z
+        .object({
+          category: z.string(),
+          priority: z.number().optional(),
+          deadline: z.coerce.date().optional(),
+        })
+        .optional(),
+      coverImage: z
+        .object({
+          image: image().optional(),
+          alt: z.string().optional(),
+        })
+        .optional(),
+    }),
 });
 
 export const collections = { authors, articles, notes };

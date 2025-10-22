@@ -996,6 +996,47 @@ pub async fn create_directory(path: String, project_root: String) -> Result<(), 
     std::fs::create_dir_all(&validated_path).map_err(|e| format!("Failed to create directory: {e}"))
 }
 
+/// Checks if a file path is within the project directory
+///
+/// # Arguments
+/// * `file_path` - The absolute path to check
+/// * `project_path` - The absolute path to the project root
+///
+/// # Returns
+/// True if the file is within the project, false otherwise
+#[tauri::command]
+pub async fn is_path_in_project(file_path: String, project_path: String) -> bool {
+    let file = Path::new(&file_path);
+    let project = Path::new(&project_path);
+
+    file.canonicalize()
+        .ok()
+        .and_then(|f| project.canonicalize().ok().map(|p| f.starts_with(p)))
+        .unwrap_or(false)
+}
+
+/// Gets the relative path of a file from the project root
+///
+/// # Arguments
+/// * `file_path` - The absolute path to the file
+/// * `project_path` - The absolute path to the project root
+///
+/// # Returns
+/// The relative path from project root, or an error if the file is not in the project
+#[tauri::command]
+pub async fn get_relative_path(file_path: String, project_path: String) -> Result<String, String> {
+    let file = Path::new(&file_path)
+        .canonicalize()
+        .map_err(|e| format!("Invalid file path: {e}"))?;
+    let project = Path::new(&project_path)
+        .canonicalize()
+        .map_err(|e| format!("Invalid project path: {e}"))?;
+
+    file.strip_prefix(&project)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|_| "Path not in project".to_string())
+}
+
 /// Resolves an image path from markdown to an absolute filesystem path
 ///
 /// Handles both absolute paths (starting with /) and relative paths (starting with ./ or ../)

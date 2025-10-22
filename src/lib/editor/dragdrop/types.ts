@@ -4,6 +4,10 @@
 
 export interface FileDropPayload {
   paths?: string[]
+  position?: {
+    x: number
+    y: number
+  }
 }
 
 export interface ProcessedFile {

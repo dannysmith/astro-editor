@@ -11,6 +11,7 @@ import { EnumField } from './EnumField'
 import { ArrayField } from './ArrayField'
 import { ReferenceField } from './ReferenceField'
 import { YamlField } from './YamlField'
+import { ImageField } from './ImageField'
 
 interface FrontmatterFieldProps {
   name: string
@@ -145,6 +146,13 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   if (shouldUseArrayField) {
     return (
       <ArrayField name={name} label={label} required={required} field={field} />
+    )
+  }
+
+  // Handle image fields
+  if (fieldType === (FieldType.Image as string) || fieldType === 'image') {
+    return (
+      <ImageField name={name} label={label} required={required} field={field} />
     )
   }
 
