@@ -18,19 +18,25 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [loadingState, setLoadingState] = useState<LoadingState>('idle')
-  const [errorMessage, setErrorMessage] = useState<string>('')
+  const prevUrlRef = React.useRef<string | null>(null)
 
   useEffect(() => {
     if (!hoveredImage) {
       setImageUrl(null)
       setLoadingState('idle')
-      setErrorMessage('')
+      prevUrlRef.current = null
       return
     }
 
+    // If we're hovering over the same URL, don't reload (just position changed)
+    if (hoveredImage.url === prevUrlRef.current) {
+      return
+    }
+
+    prevUrlRef.current = hoveredImage.url
+
     const loadImage = async () => {
       setLoadingState('loading')
-      setErrorMessage('')
 
       try {
         const path = hoveredImage.url
@@ -53,11 +59,9 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
         const assetUrl = convertFileSrc(absolutePath)
         setImageUrl(assetUrl)
         setLoadingState('success')
-      } catch (error) {
+      } catch {
+        // Fail silently - don't show error state
         setLoadingState('error')
-        setErrorMessage(
-          error instanceof Error ? error.message : 'Failed to load image'
-        )
       }
     }
 
@@ -124,7 +128,6 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
           }}
           onError={() => {
             setLoadingState('error')
-            setErrorMessage('Image failed to load')
           }}
         />
       )}
