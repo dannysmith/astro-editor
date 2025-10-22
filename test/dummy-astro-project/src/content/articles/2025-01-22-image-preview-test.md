@@ -6,6 +6,7 @@ pubDate: 2025-01-22
 tags: ["testing", "images", "preview"]
 author: danny-smith
 draft: false
+cover: "/src/assets/articles/styleguide-image.jpg"
 ---
 
 # Image Preview Testing Article

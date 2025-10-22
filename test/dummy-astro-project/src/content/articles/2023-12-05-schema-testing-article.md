@@ -9,6 +9,7 @@ tags:
   ['schema', 'testing', 'validation', 'frontmatter', 'fields', 'comprehensive']
 platform: 'external'
 redirectURL: 'https://external-blog.com/schema-testing'
+cover: './imagetest.png'
 styleguide: false
 ---
 
