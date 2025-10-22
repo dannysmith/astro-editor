@@ -202,19 +202,21 @@ Created production-ready preview component with full feature set:
 - Props interface with `HoveredImage`, `projectPath`, `currentFilePath`
 - Conditional rendering - only shows when `hoveredImage` is not null
 - TypeScript with proper types throughout
+- **Performance**: Memoized with `React.memo` to prevent unnecessary re-renders
 
 **2. Path Resolution Logic:**
 
 - **Remote URLs**: Used directly without resolution
 - **Local paths**: Call `invoke('resolve_image_path')` then `convertFileSrc()`
 - Handles all three path types from Phase 2
+- **Caching**: Uses `prevUrlRef` to track previous URL - only reloads when URL changes, not on mouse position changes
 
 **3. Loading States:**
 
 - **Idle**: No preview shown (opacity: 0)
 - **Loading**: Animated spinner (24px, macOS-style)
 - **Success**: Image displayed with smooth fade-in
-- **Error**: Error message with red accent color
+- **Error**: Fails silently (no preview shown)
 
 **4. Styling (macOS Aesthetic):**
 
@@ -229,19 +231,21 @@ Created production-ready preview component with full feature set:
 
 **5. Error Handling:**
 
+- **Silent failure** for missing images (local or remote)
 - Try-catch around path resolution
 - onError handler for image load failures
-- User-friendly error messages displayed in preview
+- Remote broken images show browser's default icon (intentional UX)
 
 **Phase 5: Editor Integration** ✅ (COMPLETED)
 
-Successfully wired up ImagePreview to the editor:
+Successfully wired up ImagePreview to the editor with performance optimizations:
 
-**1. Store Integration:**
+**1. Store Integration (Performance Optimized):**
 
-- Added `useProjectStore` import
-- Get `projectPath` from store
-- Get `currentFile` from `useEditorStore`
+- Added `useProjectStore` import for `projectPath`
+- **Optimized selector**: Use `currentFilePath` instead of full `currentFile` object
+  - `const currentFilePath = useEditorStore(state => state.currentFile?.path)`
+  - Prevents re-renders when other `currentFile` properties change
 
 **2. Component Integration:**
 
@@ -250,23 +254,65 @@ Successfully wired up ImagePreview to the editor:
 - Passed three required props:
   - `hoveredImage` from `useImageHover` hook
   - `projectPath` from store
-  - `currentFilePath` as `currentFile?.path || null`
+  - `currentFilePath || null`
 
-**3. Cleanup:**
+**3. Hover State Optimization:**
 
-- Removed debug console.log effect
-- Removed TODO comment
+- Updated `useImageHover` to only create new state object when URL changes
+- Uses `setHoveredImage(prev => prev?.url === url ? prev : newObject)`
+- Prevents re-renders when only mouse position changes
 
-**4. Type Safety:**
+**4. ImagePreview Optimizations:**
+
+- useEffect dependencies changed to `[hoveredImage?.url, ...]` instead of full object
+- Component memoized with `React.memo`
+- Effect only runs when URL changes, not on position changes
+
+**5. Type Safety & Testing:**
 
 - Conditional rendering handles null projectPath
 - All TypeScript checks pass ✅
 - All 458 tests pass ✅
 
-**Phase 6: Polish & Edge Cases**
+**6. Architecture Compliance:**
 
-- Debounce preview updates (avoid flickering on quick hover changes)
-- Handle images that fail to load
+- Follows architecture guide's specific selector pattern
+- No unnecessary store subscriptions
+- Strategic memoization to break render cascades
+- Proper ref usage for caching without triggering re-renders
+
+**Phase 6: Polish & Edge Cases** ✅ (COMPLETED)
+
+Implemented final polish and edge case handling:
+
+**1. Flickering Prevention:**
+
+- ✅ URL caching in `ImagePreview` via `prevUrlRef`
+- ✅ State optimization in `useImageHover` - only updates when URL changes
+- ✅ Effect dependencies optimized to run only on URL change
+- No flickering when moving mouse over same image
+
+**2. Error Handling:**
+
+- ✅ Silent failure for missing local images
+- ✅ Silent failure for unreachable remote images
+- ✅ Browser's default broken image icon shown for remote URLs (intentional UX)
+- No error modals or disruptive UI
+
+**3. Performance Optimizations:**
+
+- ✅ React.memo on ImagePreview component
+- ✅ Specific store selectors (currentFilePath only)
+- ✅ Optimized useEffect dependencies
+- ✅ State updates only on actual changes
+- No unnecessary re-renders
+
+**4. Testing:**
+
+- ✅ Manual testing with test article confirms all path types work
+- ✅ All automated tests passing (458 total)
+- ✅ TypeScript compilation passes
+- ✅ Architecture guide compliance verified
 
 ### Technical Notes for Continuation
 
@@ -326,11 +372,3 @@ const assetUrl = convertFileSrc(absolutePath)
 - Path outside project: Already prevented by validation
 - Network error (remote): Show "Failed to load image"
 - File read error: Show error message in preview
-
-## Part Two - Support Astro image helper in content colelctions
-
-Astro supports images in content collections. See here for the docs: https://docs.astro.build/en/guides/images/#images-in-content-collections
-
-I would like to update the parser to recognize when we have an image field and rather than rendering a string component, I would like to render an image component which should have a shadcn file picker which allows the user to choose a file but also allows drag and drop into it.
-
-Once a file has been chosen it should use the same mechanism to rename it and move it to the correct assets directory. This should be the same code that we currently use when files or images are dragged into the editor. And then ideally we should use the same underlying code to show a small preview of that image just below the picker. When we tried to implement this before, it got very complicated very quickly. I don't see why it should be that complicated to implement this.

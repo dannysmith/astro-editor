@@ -2,34 +2,47 @@
 
 ## Overview
 
-Implementation of image preview functionality for markdown/MDX files, showing image previews when hovering over image URLs with the Option/Alt key held.
+Shows image previews in bottom-right corner when hovering over image paths/URLs with Alt key held. Works across markdown, HTML, MDX components, and plain text using syntax-agnostic detection.
 
-## Architecture
+**Key Files**:
+- `src/components/editor/ImagePreview.tsx` - Preview component
+- `src/hooks/editor/useImageHover.ts` - Hover tracking
+- `src/lib/editor/urls/detection.ts` - Image detection
+- `src-tauri/src/commands/files.rs:1012` - `resolve_image_path` command
+- `src/components/editor/Editor.tsx:251-257` - Integration
 
-### Path Resolution Strategy
+## Path Resolution
 
-The system supports three types of image paths:
+The system handles three path types:
 
-#### 1. Absolute Paths (from project root)
-- **Format**: `/src/assets/articles/image.png`
-- **Resolution**: Strip leading `/`, join with project root
-- **Use case**: Most common in Astro projects
+### 1. Remote URLs
+```
+https://example.com/image.png
+```
+Used directly without resolution.
 
-#### 2. Relative Paths
-- **Format**: `./image.png` or `../images/image.png`
-- **Resolution**: Resolve relative to current file's directory
-- **Use case**: Images in same directory as content file
+### 2. Absolute Paths (from project root)
+```
+/src/assets/articles/image.png
+```
+Resolution logic:
+- Strip leading `/`
+- Join with project root
+- Validate with `validate_project_path`
+- Return absolute filesystem path
 
-#### 3. Remote URLs
-- **Format**: `https://example.com/image.png`
-- **Resolution**: Use directly, no path resolution needed
-- **Use case**: External images
+### 3. Relative Paths
+```
+./image.png
+../images/photo.jpg
+```
+Resolution logic:
+- Get directory of current file
+- Resolve path relative to that directory
+- Validate with `validate_project_path`
+- Return absolute filesystem path
 
-### Components
-
-#### Tauri Command: `resolve_image_path`
-
-Location: `src-tauri/src/commands/files.rs`
+### Tauri Command
 
 ```rust
 pub async fn resolve_image_path(
@@ -39,64 +52,156 @@ pub async fn resolve_image_path(
 ) -> Result<String, String>
 ```
 
-**Purpose**: Converts markdown image paths to absolute filesystem paths
+Returns validated absolute filesystem path. Security enforced by `validate_project_path` to prevent traversal attacks.
 
-**Logic**:
-1. If path starts with `/` → treat as absolute from project root
-2. If path starts with `./` or `../` → resolve relative to current file (requires `current_file_path`)
-3. Otherwise → try as absolute from project root
-4. Validate path is within project bounds
-5. Check file exists
-6. Return absolute path
+### Frontend Usage
 
-**Security**: Uses existing `validate_project_path` to prevent path traversal attacks
+```typescript
+// For remote URLs - use directly
+if (path.startsWith('http://') || path.startsWith('https://')) {
+  setImageUrl(path)
+  return
+}
 
-#### Frontend Flow
+// For local paths - resolve then convert
+const absolutePath = await invoke<string>('resolve_image_path', {
+  imagePath: path,
+  projectRoot: projectPath,
+  currentFilePath,
+})
 
-1. **Image Detection** (`src/lib/editor/urls/detection.ts`)
-   - **Syntax-agnostic approach**: Detects ANY path/URL ending with image extension
-   - Works across markdown, HTML, MDX components, and plain text
-   - Three path types detected:
-     - Remote URLs: `https://example.com/image.png`
-     - Relative paths: `./image.png` or `../images/photo.jpg`
-     - Absolute paths: `/src/assets/image.png`
-   - Key functions:
-     - `isImageUrl(urlOrPath: string): boolean` - Checks if path ends with image extension
-     - `findImageUrlsAndPathsInText(text: string, offset?: number): UrlMatch[]` - Finds all image paths
+// Convert to asset protocol URL
+const assetUrl = convertFileSrc(absolutePath)
+```
 
-2. **Hover Tracking** (`src/hooks/editor/useImageHover.ts`)
-   - Monitors mouse position when Alt key is pressed
-   - Uses CodeMirror's `posAtCoords()` to map screen position to document position
-   - Scans current line for image paths using `findImageUrlsAndPathsInText()`
-   - Returns `HoveredImage` object with path/URL and position info
+## Architecture
 
-3. **Path Resolution** (React component - Phase 4)
-   - For remote URLs: Use directly
-   - For local paths: Call `resolve_image_path` command with:
-     - Image path from detection
-     - Project root from store
-     - Current file path from store
-   - Get back validated absolute path
+### Image Detection
 
-4. **Asset Protocol Conversion**
-   ```typescript
-   import { convertFileSrc } from '@tauri-apps/api/core'
-   const assetUrl = convertFileSrc(absolutePath)
-   ```
+**Strategy**: Syntax-agnostic regex detection. Finds any path/URL ending with image extension, regardless of surrounding syntax.
 
-5. **Display**
-   - Use `assetUrl` in `<img src={assetUrl} />`
-   - Tauri asset protocol handles loading from filesystem
+```typescript
+// From src/lib/editor/urls/detection.ts
+export function findImageUrlsAndPathsInText(
+  text: string,
+  offset?: number
+): UrlMatch[]
+```
 
-### Configuration
+Works with:
+- Markdown: `![alt](./image.png)`
+- HTML: `<img src="/src/assets/image.jpg" />`
+- MDX: `<Image src="https://example.com/photo.png" />`
+- Plain text: Any path ending with `.png`, `.jpg`, etc.
 
-#### Tauri Config (`src-tauri/tauri.conf.json`)
+### Component Flow
 
+1. **Hover Tracking** (`useImageHover.ts`)
+   - Listens for mousemove when Alt pressed
+   - Uses CodeMirror's `posAtCoords()` to map mouse → document position
+   - Scans current line for image paths
+   - Returns `HoveredImage { url, from, to }` or null
+
+2. **Preview Component** (`ImagePreview.tsx`)
+   - Receives `hoveredImage`, `projectPath`, `currentFilePath`
+   - Resolves local paths via `resolve_image_path` command
+   - Converts to asset protocol URL via `convertFileSrc()`
+   - Manages loading states: idle → loading → success/error
+
+3. **Integration** (`Editor.tsx`)
+   - Gets `hoveredImage` from `useImageHover(viewRef.current, isAltPressed)`
+   - Passes to `ImagePreview` component with store data
+   - Conditional render: only shows when `projectPath` available
+
+### Why Editor.tsx?
+
+ImagePreview lives in Editor.tsx (not MainEditor.tsx) because:
+- Tight coupling with `viewRef` (CodeMirror EditorView instance)
+- Semantically part of editing experience
+- First React UI component integrated with editor
+- Moving up would break encapsulation
+
+## Performance Patterns
+
+### 1. Specific Store Selectors
+```typescript
+// ✅ Only subscribe to path changes
+const currentFilePath = useEditorStore(state => state.currentFile?.path)
+
+// ❌ Would subscribe to all file property changes
+const currentFile = useEditorStore(state => state.currentFile)
+```
+
+### 2. Conditional State Updates (Prevents re-renders on mousemove)
+```typescript
+setHoveredImage(prev => {
+  if (prev?.url === hoveredUrl.url) {
+    return prev // Same URL, don't create new object
+  }
+  return { url: hoveredUrl.url, from: hoveredUrl.from, to: hoveredUrl.to }
+})
+```
+
+### 3. URL Caching (Prevents re-fetching same image)
+```typescript
+const prevUrlRef = React.useRef<string | null>(null)
+
+if (hoveredImage.url === prevUrlRef.current) {
+  return // Don't reload, just position changed
+}
+```
+
+### 4. Optimized Dependencies
+```typescript
+// Only re-run when URL changes, not position
+useEffect(() => {
+  // ...
+}, [hoveredImage?.url, projectPath, currentFilePath])
+```
+
+### 5. Strategic Memoization
+```typescript
+export const ImagePreview = React.memo(ImagePreviewComponent)
+```
+
+These patterns prevent:
+- Unnecessary re-renders on mousemove
+- Re-fetching images when hovering over same URL
+- Render cascades from store updates
+
+## Error Handling
+
+**Strategy**: Silent failure for better UX.
+
+```typescript
+if (!hoveredImage || loadingState === 'error') {
+  return null // Don't render anything
+}
+```
+
+**Rationale**: Image preview is an optional enhancement. Errors shouldn't interrupt writing flow.
+
+**Scenarios**:
+- Local file not found → No preview
+- Path resolution fails → No preview
+- Image load fails → No preview
+- Remote URL unreachable → Browser's default broken image icon (provides feedback)
+
+## Security
+
+- **Path Validation**: All paths validated by `validate_project_path` in Rust
+- **Project Boundary**: Paths must be within project root
+- **Asset Protocol**: Tauri's secure file access via `convertFileSrc()`
+- **No Path Traversal**: `../../../etc/passwd` rejected by validation
+
+## Configuration
+
+### Tauri (`src-tauri/tauri.conf.json`)
 ```json
 {
   "app": {
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'",
+      "csp": "img-src 'self' asset: http://asset.localhost data:;",
       "assetProtocol": {
         "enable": true,
         "scope": ["**"]
@@ -106,141 +211,7 @@ pub async fn resolve_image_path(
 }
 ```
 
-**Key points**:
-- CSP allows `asset:` and `http://asset.localhost` in img-src
-- Asset protocol enabled with broad scope (`**`)
-- Also allows `data:` URIs for inline images
-
-#### Cargo.toml
-
+### Cargo (`src-tauri/Cargo.toml`)
 ```toml
-tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 ```
-
-**Required**: Must include `protocol-asset` feature when asset protocol is enabled
-
-## Testing
-
-### Automated Tests
-
-Location: `src/lib/editor/urls/detection.test.ts`
-
-**Coverage**: 20 test cases covering all image detection scenarios
-
-**Test categories**:
-- Remote URLs with various extensions
-- Relative paths (`./ `and `../`)
-- Absolute paths from project root
-- Images in markdown syntax
-- Images in HTML img tags
-- Images in custom components
-- Mixed content scenarios
-- Case-insensitive extension matching
-- Query parameters in URLs
-- Position offset calculations
-
-**All tests passing**: 458 total tests in project
-
-### Manual Testing
-
-**Test Article**: `/test/dummy-astro-project/src/content/articles/2025-01-22-image-preview-test.md`
-
-Contains:
-- Remote URL: `https://danny.is/avatar.jpg`
-- Absolute path: `/src/assets/articles/styleguide-image.jpg`
-- Relative path: `./imagetest.png`
-- HTML img tag: `<img src="/src/assets/articles/styleguide-image.jpg" />`
-- Mixed content with inline images
-
-**Manual Testing Steps** (Current - Phase 3):
-
-1. Run `pnpm run dev` and open dummy project
-2. Open the test article
-3. Hold Alt/Option key
-4. Hover over any image path/URL
-5. Check browser console for: `"Hovered image: [path/url]"`
-6. Verify works for ALL image types (remote, relative, absolute)
-
-**Expected Behavior** (Phase 4 - Preview UI):
-- Image preview appears in bottom-right corner
-- Max 300x300px dimensions
-- Smooth fade in/out animation
-- Loading state while resolving/loading
-- Error state if image fails to load
-
-## Implementation Status
-
-### Completed (Phases 1-3)
-
-✅ **Phase 1: Path Resolution & Image Loading**
-- Tauri command `resolve_image_path` (src-tauri/src/commands/files.rs:1012)
-- Asset protocol configuration in tauri.conf.json
-- Security via `validate_project_path`
-- Tested with all three path types
-
-✅ **Phase 2: Image Detection**
-- Syntax-agnostic detection in `src/lib/editor/urls/detection.ts`
-- `findImageUrlsAndPathsInText()` finds ALL image paths regardless of syntax
-- 20 automated tests covering all scenarios
-- Works with markdown, HTML, MDX components, plain text
-
-✅ **Phase 3: Hover State Management**
-- `useImageHover` hook in `src/hooks/editor/useImageHover.ts`
-- Integrated into Editor.tsx
-- Tracks mouse position when Alt is pressed
-- Returns hovered image path/URL with position info
-
-### Remaining (Phases 4-6)
-
-**Phase 4: ImagePreview React Component** (NEXT)
-- Create `src/components/editor/ImagePreview.tsx`
-- Fixed position bottom-right corner
-- 300x300px max dimensions
-- Smooth fade in/out animation
-- macOS aesthetic styling
-- Loading and error states
-
-**Phase 5: Wire Up to Editor**
-- Import ImagePreview in Editor.tsx
-- Pass `hoveredImage` from useImageHover hook
-- Pass `projectPath` and `currentFile.path` from stores
-- Show preview when `hoveredImage !== null`
-- Remove debug console.log
-
-**Phase 6: Polish & Edge Cases**
-- Debounce preview updates
-- Handle image load failures
-- Consider path caching
-- Test with various project structures
-- Optional: keyboard shortcut to toggle preview
-
-## Security Considerations
-
-- **Path traversal**: Prevented by `validate_project_path`
-- **Scope restriction**: Asset protocol scope set to `**` for flexibility
-  - Consider tightening to specific directories if needed
-- **File existence check**: Prevents probing filesystem
-- **Project boundary**: All paths validated within project root
-
-## Performance Considerations
-
-- **Asset protocol**: More efficient than base64 encoding
-- **Path resolution**: Minimal overhead, runs in Rust
-- **Caching**: Browser caches asset:// URLs
-- **Debouncing**: Consider debouncing preview updates if needed
-
-## Future Enhancements
-
-### Part Two: Astro image() helper in content collections
-- Parse Astro image fields in schema
-- Render file picker component
-- Support drag & drop
-- Show preview after selection
-- Use same path resolution logic
-
-### Additional improvements
-- Cache resolved paths to avoid re-resolution
-- Support more image formats (WebP, AVIF)
-- Add image dimensions to preview
-- Show loading spinner
-- Keyboard shortcut to toggle preview
