@@ -107,7 +107,10 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       }
 
       // Update frontmatter with project-root-relative path
-      updateFrontmatterField(name, `/${relativePath}`)
+      const normalizedPath = relativePath.startsWith('/')
+        ? relativePath
+        : `/${relativePath}`
+      updateFrontmatterField(name, normalizedPath)
     } catch (error) {
       // Show error toast
       window.dispatchEvent(

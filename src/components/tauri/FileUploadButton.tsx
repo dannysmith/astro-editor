@@ -86,6 +86,17 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
     onFileSelectRef.current = onFileSelect
   }, [onFileSelect])
 
+  // Store disabled and isProcessing in refs for drag-drop handler
+  const isProcessingRef = React.useRef(isProcessing)
+  React.useEffect(() => {
+    isProcessingRef.current = isProcessing
+  }, [isProcessing])
+
+  const disabledRef = React.useRef(disabled)
+  React.useEffect(() => {
+    disabledRef.current = disabled
+  }, [disabled])
+
   // Handle file picker dialog
   const handleClick = React.useCallback(async () => {
     if (disabled || isProcessing) return
@@ -130,6 +141,9 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
         const unlisten = await listen<FileDropPayload>(
           'tauri://drag-drop',
           event => {
+            // Prevent concurrent operations
+            if (disabledRef.current || isProcessingRef.current) return
+
             const payload = event.payload
             const paths = payload.paths || []
             const position = payload.position
