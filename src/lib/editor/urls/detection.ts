@@ -120,9 +120,7 @@ export const findImageUrlsAndPathsInText = (
 
   // Helper to check if a range overlaps with already processed ranges
   const isOverlapping = (start: number, end: number): boolean => {
-    return processedRanges.some(
-      range => start < range.to && end > range.from
-    )
+    return processedRanges.some(range => start < range.to && end > range.from)
   }
 
   // 1. Find remote URLs (http/https) with image extensions

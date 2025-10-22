@@ -65,8 +65,8 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
       }
     }
 
-    loadImage()
-  }, [hoveredImage?.url, projectPath, currentFilePath])
+    void loadImage()
+  }, [hoveredImage?.url, projectPath, currentFilePath, hoveredImage])
 
   // Don't render anything if no hovered image or if error state (fail silently)
   if (!hoveredImage || loadingState === 'error') {

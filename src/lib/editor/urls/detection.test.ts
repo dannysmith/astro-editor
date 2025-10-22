@@ -445,7 +445,9 @@ describe('URL Detection', () => {
       const images = findImageUrlsAndPathsInText(text)
 
       expect(images).toHaveLength(1)
-      expect(images[0]?.url).toBe('https://cdn.com/image.png?size=large&quality=high')
+      expect(images[0]?.url).toBe(
+        'https://cdn.com/image.png?size=large&quality=high'
+      )
     })
 
     it('should apply offset correctly', () => {
