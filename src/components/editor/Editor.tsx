@@ -9,6 +9,7 @@ import {
   useEditorHandlers,
   useTauriListeners,
 } from '../../hooks/editor'
+import { useImageHover } from '../../hooks/editor/useImageHover'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
@@ -61,6 +62,17 @@ const EditorViewComponent: React.FC = () => {
   )
 
   useTauriListeners(viewRef.current)
+
+  // Track hovered image URLs when Alt is pressed
+  const hoveredImage = useImageHover(viewRef.current, isAltPressed)
+
+  // TODO: Remove - Debug logging for image hover
+  useEffect(() => {
+    if (hoveredImage) {
+      // eslint-disable-next-line no-console
+      console.log('Hovered image:', hoveredImage.url)
+    }
+  }, [hoveredImage])
 
   // Handle mode changes - use stable callback with getState() pattern
   const handleModeChange = useCallback(() => {

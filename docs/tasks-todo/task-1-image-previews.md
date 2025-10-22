@@ -81,11 +81,42 @@ const imageUrls = findImageUrlsInText(text)
 // Returns: [{ url: 'https://example.com/image.png', from: 18, to: 48 }]
 ```
 
-**Phase 3: Hover State Management**
-1. Add state to Editor.tsx or create new hook:
-   - Track currently hovered image URL when Alt pressed
-   - Clear on Alt release or mouse move away
-   - Store both the URL and current file path (for relative path resolution)
+**Phase 3: Hover State Management** ✅ (COMPLETED)
+
+Implemented hover tracking for image URLs when Alt key is pressed:
+
+**1. Created `useImageHover` Hook** (`src/hooks/editor/useImageHover.ts`)
+- Tracks mouse position over CodeMirror editor
+- Detects when cursor is over an image URL (using `findImageUrlsInText`)
+- Only active when Alt key is pressed
+- Returns `HoveredImage` object with URL and position info, or null
+
+**2. Hook Features:**
+- Uses CodeMirror's `posAtCoords()` to map mouse position to document position
+- Scans current line for image URLs using Phase 2's detection functions
+- Auto-clears on Alt release or mouse leave
+- Handles edge cases (out of bounds positions, no view instance)
+
+**3. Integration:**
+- Integrated into `Editor.tsx:67` via `useImageHover(viewRef.current, isAltPressed)`
+- Exports `HoveredImage` type for use in preview component
+- Temporary debug logging to console (to be removed)
+
+**4. Return Type:**
+```typescript
+interface HoveredImage {
+  url: string    // The image URL being hovered over
+  from: number   // Start position in document
+  to: number     // End position in document
+}
+```
+
+**5. Testing:**
+To test, run the app and:
+1. Open a markdown file with image URLs
+2. Hold Alt/Option key
+3. Hover over an image URL
+4. Check browser console - should log "Hovered image: [url]"
 
 **Phase 4: ImagePreview React Component**
 Create `src/components/editor/ImagePreview.tsx`:
