@@ -366,6 +366,7 @@ pub fn run() {
             read_file_content,
             write_file_content,
             create_directory,
+            resolve_image_path,
             open_path_in_ide,
             get_app_version,
             get_platform_info,

@@ -2,6 +2,8 @@
  * URL detection utilities for the editor
  */
 
+import { IMAGE_EXTENSIONS } from '../dragdrop/fileProcessing'
+
 export interface UrlMatch {
   url: string
   from: number
@@ -82,4 +84,31 @@ export const findUrlsInText = (
  */
 export const isValidUrl = (text: string): boolean => {
   return urlRegex.test(text.trim())
+}
+
+/**
+ * Check if a URL points to an image based on its file extension
+ * Handles query parameters and fragments by only checking the path portion
+ * @param url - URL to check
+ * @returns true if the URL path ends with an image extension
+ */
+export const isImageUrl = (url: string): boolean => {
+  // Remove query parameters and fragments to check only the path
+  const urlPath = (url.split('?')[0] ?? '').split('#')[0] ?? ''
+  return IMAGE_EXTENSIONS.some(ext => urlPath.toLowerCase().endsWith(ext))
+}
+
+/**
+ * Find image URLs in text (both markdown images and plain image URLs)
+ * This is a convenience function that filters findUrlsInText results to only image URLs
+ * @param text - Text to search for image URLs
+ * @param offset - Offset to add to positions (for line-based searching)
+ * @returns Array of image URL matches with positions
+ */
+export const findImageUrlsInText = (
+  text: string,
+  offset: number = 0
+): UrlMatch[] => {
+  const allUrls = findUrlsInText(text, offset)
+  return allUrls.filter(urlMatch => isImageUrl(urlMatch.url))
 }

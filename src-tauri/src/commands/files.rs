@@ -996,6 +996,62 @@ pub async fn create_directory(path: String, project_root: String) -> Result<(), 
     std::fs::create_dir_all(&validated_path).map_err(|e| format!("Failed to create directory: {e}"))
 }
 
+/// Resolves an image path from markdown to an absolute filesystem path
+///
+/// Handles both absolute paths (starting with /) and relative paths (starting with ./ or ../)
+/// For absolute paths: treats them as relative to project root
+/// For relative paths: resolves relative to the current file's directory
+///
+/// # Arguments
+/// * `image_path` - The image path from markdown (e.g., "/src/assets/image.png" or "./image.png")
+/// * `project_root` - The absolute path to the project root directory
+/// * `current_file_path` - Optional absolute path to the current file being edited
+///
+/// # Returns
+/// The validated absolute filesystem path that can be used with convertFileSrc
+#[tauri::command]
+pub async fn resolve_image_path(
+    image_path: String,
+    project_root: String,
+    current_file_path: Option<String>,
+) -> Result<String, String> {
+    let project_root_path = Path::new(&project_root);
+
+    // Determine the absolute path based on the image path format
+    let absolute_path = if image_path.starts_with('/') {
+        // Absolute path from project root - strip leading slash and join with project root
+        let relative_path = image_path.trim_start_matches('/');
+        project_root_path.join(relative_path)
+    } else if image_path.starts_with("./") || image_path.starts_with("../") {
+        // Relative path - need current file path to resolve
+        let current_file = current_file_path
+            .ok_or_else(|| "Cannot resolve relative path without current file path".to_string())?;
+        let current_file_path = Path::new(&current_file);
+        let current_dir = current_file_path
+            .parent()
+            .ok_or_else(|| "Invalid current file path".to_string())?;
+        current_dir.join(&image_path)
+    } else {
+        // Ambiguous path (no leading / or ./) - try as absolute from project root first
+        project_root_path.join(&image_path)
+    };
+
+    // Validate the path is within project bounds and exists
+    let validated_path =
+        validate_project_path(absolute_path.to_string_lossy().as_ref(), &project_root)?;
+
+    // Check if file exists
+    if !validated_path.exists() {
+        return Err(format!(
+            "Image file not found: {}",
+            validated_path.display()
+        ));
+    }
+
+    // Return the absolute path as a string
+    Ok(validated_path.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
