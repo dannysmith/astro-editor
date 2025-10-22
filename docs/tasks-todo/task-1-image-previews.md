@@ -23,6 +23,7 @@ I'm keen to do this in the simplest way possible.
 Implemented and tested the core infrastructure for loading images from various sources:
 
 **1. Tauri Command: `resolve_image_path`**
+
 - Location: `src-tauri/src/commands/files.rs:1012`
 - Handles three path types:
   - Absolute from project root: `/src/assets/image.png`
@@ -32,17 +33,20 @@ Implemented and tested the core infrastructure for loading images from various s
 - Returns validated absolute filesystem path
 
 **2. Configuration Changes**
+
 - `src-tauri/tauri.conf.json`: Added asset protocol with CSP
   - Enabled `assetProtocol` with scope `["**"]`
   - CSP allows `asset:` and `http://asset.localhost` in img-src
 - `src-tauri/Cargo.toml`: Added `protocol-asset` feature to Tauri dependency
 
 **3. Testing Results**
+
 - ✅ Remote URLs work (direct HTTP/HTTPS)
 - ✅ Absolute paths from project root work (`/src/assets/...`)
 - ✅ Relative paths work (`./image.png` - resolves relative to current file)
 
 **4. Documentation**
+
 - Created `docs/developer/image-preview-implementation.md`
 - Covers: Architecture, security, path resolution logic, configuration, integration plan
 
@@ -53,6 +57,7 @@ Implemented and tested the core infrastructure for loading images from various s
 Implemented syntax-agnostic image detection that finds ALL image paths/URLs regardless of context:
 
 **1. Functions Added to `src/lib/editor/urls/detection.ts`:**
+
 - `isImageUrl(urlOrPath: string): boolean` - Checks if URL/path ends with image extension
   - Handles query parameters and fragments correctly
   - Case-insensitive matching
@@ -66,13 +71,18 @@ Implemented syntax-agnostic image detection that finds ALL image paths/URLs rega
   - Detects based on image extension only - syntax-agnostic approach
 
 **2. Test Coverage:**
+
 - 20 test cases covering all image detection scenarios
 - All tests passing (458 total tests in project)
 - Tests cover: remote URLs, relative paths, absolute paths, markdown, HTML, custom components, mixed content
 
 **3. Usage:**
+
 ```typescript
-import { findImageUrlsAndPathsInText, isImageUrl } from '@/lib/editor/urls/detection'
+import {
+  findImageUrlsAndPathsInText,
+  isImageUrl,
+} from '@/lib/editor/urls/detection'
 
 // Check if a URL/path is an image
 isImageUrl('https://example.com/photo.jpg') // true
@@ -81,7 +91,8 @@ isImageUrl('/assets/hero.webp') // true
 isImageUrl('https://example.com/page.html') // false
 
 // Find all image URLs/paths in text - works in ANY context
-const text = 'Remote: https://cdn.com/img.jpg, Local: ./test.png, Absolute: /assets/icon.svg'
+const text =
+  'Remote: https://cdn.com/img.jpg, Local: ./test.png, Absolute: /assets/icon.svg'
 const images = findImageUrlsAndPathsInText(text)
 // Returns: [
 //   { url: 'https://cdn.com/img.jpg', from: 8, to: 30 },
@@ -92,6 +103,7 @@ const images = findImageUrlsAndPathsInText(text)
 
 **4. Design Decision:**
 Chose syntax-agnostic detection over parsing specific syntaxes (markdown/HTML/MDX) because:
+
 - Works with any component type (Image, MyFancyImage, etc.)
 - Future-proof - new syntaxes work automatically
 - Simpler logic - just find paths ending with image extensions
@@ -102,12 +114,14 @@ Chose syntax-agnostic detection over parsing specific syntaxes (markdown/HTML/MD
 Implemented hover tracking for image paths/URLs when Alt key is pressed:
 
 **1. Created `useImageHover` Hook** (`src/hooks/editor/useImageHover.ts`)
+
 - Tracks mouse position over CodeMirror editor
 - Detects when cursor is over an image path/URL (using `findImageUrlsAndPathsInText`)
 - Only active when Alt key is pressed
 - Returns `HoveredImage` object with path/URL and position info, or null
 
 **2. Hook Features:**
+
 - Uses CodeMirror's `posAtCoords()` to map mouse position to document position
 - Scans current line for image paths/URLs using Phase 2's detection function
 - Works for remote URLs, relative paths, and absolute paths
@@ -115,27 +129,31 @@ Implemented hover tracking for image paths/URLs when Alt key is pressed:
 - Handles edge cases (out of bounds positions, no view instance)
 
 **3. Integration:**
+
 - Integrated into `Editor.tsx:67` via `useImageHover(viewRef.current, isAltPressed)`
 - Exports `HoveredImage` type for use in preview component
 - Temporary debug logging to console (to be removed)
 
 **4. Return Type:**
+
 ```typescript
 interface HoveredImage {
-  url: string    // The image URL being hovered over
-  from: number   // Start position in document
-  to: number     // End position in document
+  url: string // The image URL being hovered over
+  from: number // Start position in document
+  to: number // End position in document
 }
 ```
 
 **5. Testing:**
 To test, run the app and:
+
 1. Open a markdown file with image URLs
 2. Hold Alt/Option key
 3. Hover over an image URL
 4. Check browser console - should log "Hovered image: [url]"
 
 **Test Article Created:**
+
 - Location: `/test/dummy-astro-project/src/content/articles/2025-01-22-image-preview-test.md`
 - Contains Lorem Ipsum text with 4 image types:
   - Absolute path: `![Styleguide Image](/src/assets/articles/styleguide-image.jpg)`
@@ -147,64 +165,113 @@ To test, run the app and:
 
 ### Current Working Status
 
-**What's Working Now (Phases 1-3):**
-- ✅ Tauri command `resolve_image_path` handles all path types (remote, relative, absolute)
-- ✅ Asset protocol configured and working (tested in Phase 1)
-- ✅ Syntax-agnostic image detection (`isImageUrl`, `findImageUrlsAndPathsInText`)
-- ✅ Detects images in markdown, HTML, MDX components, and plain text
-- ✅ Works with remote URLs (`https://...`), relative paths (`./...`, `../...`), and absolute paths (`/src/...`)
-- ✅ Hover tracking hook (`useImageHover`) integrated in Editor.tsx
-- ✅ Debug logging to console when hovering over ANY image path/URL with Alt pressed
-- ✅ All tests passing (458 tests including 20 new image detection tests)
+**What's Working Now (Phases 1-5):**
 
-**Ready to Test:**
+- ✅ **Phase 1**: Tauri command `resolve_image_path` handles all path types (remote, relative, absolute)
+- ✅ **Phase 1**: Asset protocol configured and working
+- ✅ **Phase 2**: Syntax-agnostic image detection (`isImageUrl`, `findImageUrlsAndPathsInText`)
+- ✅ **Phase 2**: Detects images in markdown, HTML, MDX components, and plain text
+- ✅ **Phase 3**: Hover tracking hook (`useImageHover`) integrated in Editor.tsx
+- ✅ **Phase 4**: ImagePreview component with loading, error, and success states
+- ✅ **Phase 4**: macOS aesthetic styling with backdrop blur and smooth animations
+- ✅ **Phase 5**: Full integration into Editor.tsx with store data
+- ✅ All tests passing (458 tests including 20 new image detection tests)
+- ✅ TypeScript compilation passes
+
+**Ready to Test (Full Feature):**
+
 1. Run `pnpm run dev` and open test project
 2. Open the test article at `/test/dummy-astro-project/src/content/articles/2025-01-22-image-preview-test.md`
-3. Hold Alt and hover over ANY image path/URL (remote, relative, or absolute)
-4. Should see console output: "Hovered image: [path/url]" for ALL image types
+3. Hold Alt/Option and hover over ANY image path/URL:
+   - Remote URL: `https://danny.is/avatar.jpg`
+   - Absolute path: `/src/assets/articles/styleguide-image.jpg`
+   - Relative path: `./imagetest.png`
+   - HTML img tag src attribute
+4. Should see image preview appear in bottom-right corner with:
+   - Loading spinner while resolving/loading
+   - Image preview (max 300x300px) when loaded
+   - Error message if image fails to load
+   - Smooth fade in/out animation
 
-**Next: Build the Preview UI (Phase 4)**
+**Phase 4: ImagePreview React Component** ✅ (COMPLETED)
 
----
+Created production-ready preview component with full feature set:
 
-**Phase 4: ImagePreview React Component**
-Create `src/components/editor/ImagePreview.tsx`:
-```tsx
-interface ImagePreviewProps {
-  imageUrl: string | null  // The markdown URL to preview
-  projectPath: string
-  currentFilePath: string | null
-  visible: boolean
-}
-```
+**1. Component Created** (`src/components/editor/ImagePreview.tsx`)
 
-Features needed:
-- Fixed position bottom-right corner
-- 300x300 max dimensions
-- Smooth fade in/out (CSS transitions)
-- Loading state (spinner)
-- Error state (graceful failure message)
-- Use `invoke('resolve_image_path')` then `convertFileSrc()`
-- macOS aesthetic styling
+- Props interface with `HoveredImage`, `projectPath`, `currentFilePath`
+- Conditional rendering - only shows when `hoveredImage` is not null
+- TypeScript with proper types throughout
 
-**Phase 5: Wire Up to Editor**
-1. Import ImagePreview in Editor.tsx
-2. Pass `hoveredImage` from `useImageHover` hook (already available at Editor.tsx:67)
-3. Pass `projectPath` from `useProjectStore`
-4. Pass `currentFile?.path` from `useEditorStore` for relative path resolution
-5. Show preview when: `hoveredImage !== null`
-6. Remove debug console.log from Editor.tsx:70-75
+**2. Path Resolution Logic:**
+
+- **Remote URLs**: Used directly without resolution
+- **Local paths**: Call `invoke('resolve_image_path')` then `convertFileSrc()`
+- Handles all three path types from Phase 2
+
+**3. Loading States:**
+
+- **Idle**: No preview shown (opacity: 0)
+- **Loading**: Animated spinner (24px, macOS-style)
+- **Success**: Image displayed with smooth fade-in
+- **Error**: Error message with red accent color
+
+**4. Styling (macOS Aesthetic):**
+
+- Fixed position bottom-right (24px from edges)
+- Max dimensions: 300x300px
+- Semi-transparent white background (rgba(255, 255, 255, 0.98))
+- Backdrop blur effect (blur(10px))
+- Subtle border and shadow
+- Rounded corners (8px border-radius)
+- Smooth 0.2s fade transition
+- Object-fit: contain for images
+
+**5. Error Handling:**
+
+- Try-catch around path resolution
+- onError handler for image load failures
+- User-friendly error messages displayed in preview
+
+**Phase 5: Editor Integration** ✅ (COMPLETED)
+
+Successfully wired up ImagePreview to the editor:
+
+**1. Store Integration:**
+
+- Added `useProjectStore` import
+- Get `projectPath` from store
+- Get `currentFile` from `useEditorStore`
+
+**2. Component Integration:**
+
+- Imported `ImagePreview` component
+- Added to JSX with conditional rendering (`{projectPath && ...}`)
+- Passed three required props:
+  - `hoveredImage` from `useImageHover` hook
+  - `projectPath` from store
+  - `currentFilePath` as `currentFile?.path || null`
+
+**3. Cleanup:**
+
+- Removed debug console.log effect
+- Removed TODO comment
+
+**4. Type Safety:**
+
+- Conditional rendering handles null projectPath
+- All TypeScript checks pass ✅
+- All 458 tests pass ✅
 
 **Phase 6: Polish & Edge Cases**
+
 - Debounce preview updates (avoid flickering on quick hover changes)
 - Handle images that fail to load
-- Consider caching resolved paths
-- Test with various project structures
-- Keyboard shortcut to toggle preview on/off (optional)
 
 ### Technical Notes for Continuation
 
 **Existing Systems to Leverage:**
+
 - Alt key detection: Already working in `Editor.tsx:88-131` via `isAltPressed` state
 - Hover tracking: `useImageHover` hook returns `HoveredImage | null` at `Editor.tsx:67`
 - URL detection: `findImageUrlsInText()` from `src/lib/editor/urls/detection.ts`
@@ -213,12 +280,23 @@ Features needed:
 - Store access: Use `useProjectStore` for `projectPath`, `useEditorStore` for `currentFile`
 
 **Image Extensions:**
+
 ```typescript
 // From src/lib/editor/dragdrop/fileProcessing.ts
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico']
+const IMAGE_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.bmp',
+  '.ico',
+]
 ```
 
 **Asset Protocol Usage (For Phase 4 Implementation):**
+
 ```typescript
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { invoke } from '@tauri-apps/api/core'
@@ -243,6 +321,7 @@ const assetUrl = convertFileSrc(absolutePath)
 ```
 
 **Error Handling:**
+
 - Path not found: Show "Image not found" message
 - Path outside project: Already prevented by validation
 - Network error (remote): Show "Failed to load image"
