@@ -24,6 +24,66 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ## Implementation Plan
 
+### Phase 0: FileUpload Component (Prerequisite) ✓ TESTABLE
+
+**Goal**: Create a reusable file upload component that works in Tauri (supports both dialog picker and drag/drop).
+
+**Why First**:
+- Native `<input type="file">` doesn't provide real paths in Tauri (browser security model)
+- Need Tauri dialog plugin + drag/drop event handling
+- Reusable component for any future file upload needs in the app
+
+**Component Design**:
+
+1. **Create FileUploadButton component** (`src/components/ui/file-upload-button.tsx`)
+   - Renders as a shadcn `Button` (customizable via props)
+   - Opens Tauri file picker dialog on click
+   - Listens for drag/drop events on button element
+   - Returns real file path via callback
+
+   ```tsx
+   interface FileUploadButtonProps {
+     accept: string[]  // File extensions: ['png', 'jpg', 'jpeg']
+     onFileSelect: (path: string) => void | Promise<void>
+     disabled?: boolean
+     children: React.ReactNode  // Button content
+     className?: string
+     variant?: ButtonProps['variant']
+     size?: ButtonProps['size']
+   }
+   ```
+
+2. **Implementation details**:
+   - Use `open()` from `@tauri-apps/plugin-dialog` for file picker
+   - Listen to `tauri://drag-drop` event (like existing editor drag/drop)
+   - Validate dropped files match accepted extensions
+   - Cleanup event listeners on unmount
+   - Handle loading state during async operations
+   - Error handling for dialog cancellation (user clicks cancel)
+
+3. **Usage pattern**:
+   ```tsx
+   <FileUploadButton
+     accept={['png', 'jpg', 'jpeg', 'gif', 'webp']}
+     onFileSelect={async (path) => {
+       // Do something with real file path
+     }}
+     disabled={isLoading}
+   >
+     Select Image
+   </FileUploadButton>
+   ```
+
+**Testing Checkpoint**:
+- Create test page/component that uses FileUploadButton
+- Click button → verify dialog opens with correct file filters
+- Select file → verify callback receives real file path
+- Drag file onto button → verify callback receives real file path
+- Drag wrong file type → verify rejected (no callback)
+- Click cancel in dialog → verify no error, no callback
+
+---
+
 ### Phase 1: Type Detection & Schema Flow ✓ TESTABLE
 
 **Goal**: Get `image()` fields properly detected and typed through the entire schema pipeline.
@@ -41,7 +101,13 @@ Astro supports images in content collections with a special `image()` helper. It
 
 3. **Update schema merger** (`src-tauri/src/schema_merger.rs`)
    - Add "image" case to `zod_type_to_field_type()` function (line 844)
-   - Ensure JSON schema path can be enhanced with Image type from Zod (may need to check transform in `enhance_with_zod_references()`)
+   - **Refactor/extend `enhance_with_zod_references()`**:
+     - Rename to `enhance_schema_from_zod()` (more general, handles references AND images AND future enhancements)
+     - Parse Zod schema to extract BOTH reference collections AND image field types
+     - Apply image types to schema fields (change field_type from "string" to "image" when Zod shows Image)
+     - Keep existing reference enhancement logic
+     - Update `extract_zod_references()` to also return image field names (or create parallel extraction)
+   - Update function call site (line 206) to use new name
 
 **Frontend Changes**:
 
@@ -57,6 +123,10 @@ Astro supports images in content collections with a special `image()` helper. It
 - Check browser Console → verify `cover` field has `fieldType: 'image'` (not 'string')
 - Verify constraints don't contain the transform hack
 - Remove console logging after verification
+- **Run Rust tests**: `cargo test` in `src-tauri/` - all existing tests should pass
+- **Add test coverage** (details TBD in Phase 5):
+  - Parser tests for `image()` detection
+  - Schema merger tests for image type enhancement
 
 ---
 
@@ -71,7 +141,7 @@ Astro supports images in content collections with a special `image()` helper. It
    - Use Direct Store Pattern (access `frontmatter` and `updateFrontmatterField` directly)
    - Render `FieldWrapper` with label, required, description, constraints
 
-2. **Basic UI structure** (using existing shadcn components):
+2. **Basic UI structure** (using FileUploadButton from Phase 0):
    ```tsx
    <FieldWrapper {...props}>
      {value && (
@@ -80,14 +150,21 @@ Astro supports images in content collections with a special `image()` helper. It
          <ImageThumbnail path={value} /> {/* Reuse preview logic */}
        </div>
      )}
-     <Input type="file" accept="image/*" onChange={handleFileChange} />
+     <FileUploadButton
+       accept={['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']}
+       onFileSelect={handleFileSelect}
+       disabled={isLoading}
+     >
+       {value ? 'Change Image' : 'Select Image'}
+     </FileUploadButton>
    </FieldWrapper>
    ```
 
    **Design notes**:
-   - Use existing `Input` component from `@/components/ui/input`
+   - Use `FileUploadButton` from Phase 0 (handles dialog + drag/drop)
    - Use existing `FieldWrapper` pattern (same as other fields)
    - Match text styling patterns (e.g., `text-muted-foreground` for path display)
+   - Button text changes based on whether image exists
 
 3. **Create ImageThumbnail helper component** (`src/components/frontmatter/fields/ImageThumbnail.tsx`)
    - Reuse path resolution logic from `ImagePreview.tsx`
@@ -102,9 +179,11 @@ Astro supports images in content collections with a special `image()` helper. It
 - Open article with `cover` field already populated
 - Verify path displays as text
 - Verify thumbnail preview renders correctly below
-- Verify file input is visible
+- Verify "Change Image" button is visible
+- Click button → verify dialog opens
 - Open article without cover field
-- Verify empty state shows only file input (no path/preview)
+- Verify empty state shows "Select Image" button (no path/preview)
+- Verify drag/drop onto button works (from Phase 0)
 
 ---
 
@@ -112,41 +191,73 @@ Astro supports images in content collections with a special `image()` helper. It
 
 **Goal**: Selecting a file copies it to assets and updates frontmatter.
 
-**Shared Logic Extraction**:
+**Logic Duplication** (to be refactored later):
 
-1. **Create shared file processing utilities** (`src/lib/files/imageProcessing.ts`)
-   - Extract `copyImageToAssets(filePath: string, projectPath: string, collection: string)`
-   - Calls existing `copy_file_to_assets_with_override` Tauri command
-   - Handles path override logic (reuse from `processDroppedFile`)
+1. **Duplicate file processing logic** in `ImageField.tsx`
+   - Copy relevant logic from `processDroppedFile()`
+   - Inline calls to `copy_file_to_assets_with_override` Tauri command
+   - Handle path override logic (same as drag/drop)
    - Returns project-root-relative path
+   - **⚠️ TECHNICAL DEBT**: Track for future refactoring (see Architecture Notes)
 
-2. **Refactor existing drag/drop** (`src/lib/editor/dragdrop/fileProcessing.ts`)
-   - Update `processDroppedFile()` to use shared `copyImageToAssets()`
-   - Maintain same behavior, reduce duplication
+2. **DO NOT refactor drag/drop** at this stage
+   - Keep existing working code unchanged
+   - Reduces risk of breaking existing functionality
 
 **ImageField File Handling**:
 
 3. **Implement file selection handler** in `ImageField.tsx`:
    ```tsx
-   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-     const file = e.target.files?.[0]
-     if (!file) return
+   const handleFileSelect = async (filePath: string) => {
+     setIsLoading(true)
 
-     const projectPath = useProjectStore.getState().currentProjectPath
-     const collection = useEditorStore.getState().currentFile?.collection
+     const { currentProjectPath } = useProjectStore.getState()
+     const { currentFile } = useEditorStore.getState()
+     const collection = currentFile?.collection
 
      try {
-       const relativePath = await copyImageToAssets(
-         file.path, // Tauri provides real path
-         projectPath,
+       // Get effective assets directory (respects overrides)
+       const { currentProjectSettings } = useProjectStore.getState()
+       const assetsDirectory = getEffectiveAssetsDirectory(
+         currentProjectSettings,
          collection
        )
+
+       // Copy file to assets
+       let relativePath: string
+       if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
+         relativePath = await invoke('copy_file_to_assets_with_override', {
+           sourcePath: filePath,
+           projectPath: currentProjectPath,
+           collection,
+           assetsDirectory,
+         })
+       } else {
+         relativePath = await invoke('copy_file_to_assets', {
+           sourcePath: filePath,
+           projectPath: currentProjectPath,
+           collection,
+         })
+       }
+
+       // Update frontmatter with project-root-relative path
        updateFrontmatterField(name, `/${relativePath}`)
      } catch (error) {
        // Show error toast
+       window.dispatchEvent(new CustomEvent('toast', {
+         detail: {
+           title: 'Failed to add image',
+           description: error.message,
+           variant: 'error'
+         }
+       }))
+     } finally {
+       setIsLoading(false)
      }
    }
    ```
+
+   **Note**: This duplicates logic from `processDroppedFile()` - tracked as technical debt.
 
 4. **Add loading state**:
    - Show spinner/disable input during copy
@@ -192,9 +303,10 @@ Astro supports images in content collections with a special `image()` helper. It
 
 2. **Add manual path input option**:
    - Small "Edit path manually" toggle/link
-   - When active, show text input instead of file picker
+   - When active, show text input instead of file button
    - Allows users who already have images in place to set path
-   - Validate path exists before accepting
+   - **Validate path exists**: Use existing `validate_project_path` (via read_file or similar command)
+   - If path invalid or outside project → show error, don't update frontmatter
 
 **Error Handling**:
 
@@ -238,14 +350,28 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ### Phase 5: Testing & Documentation
 
-**Comprehensive Testing**:
+**Rust Test Coverage**:
 
-1. Test all field configurations:
+1. **Add parser tests** (`src-tauri/src/parser.rs`):
+   - Test parsing `image()` returns `ZodFieldType::Image`
+   - Test parsing `image().optional()` marks as optional
+   - Test serialization doesn't include transform hack
+   - Follow existing test patterns in file
+
+2. **Add schema merger tests** (`src-tauri/src/schema_merger.rs`):
+   - Test `enhance_schema_from_zod()` applies image types correctly
+   - Test both reference AND image enhancement in one pass
+   - Test Zod-only parsing with image fields
+   - Add tests following existing patterns
+
+**Comprehensive Manual Testing**:
+
+3. Test all field configurations:
    - `image()` (required)
    - `image().optional()`
    - `image().default('/some/path.jpg')`
 
-2. Test edge cases:
+4. Test edge cases:
    - Empty project (no assets directory yet)
    - Collection-specific asset overrides
    - Very long filenames
@@ -254,17 +380,19 @@ Astro supports images in content collections with a special `image()` helper. It
    - Switching between files in same collection
    - Switching between collections
 
-3. Test interactions:
+5. Test interactions:
    - Image field + editor drag/drop (should both work)
    - Multiple image fields in same schema
    - Nested objects containing image fields (if supported)
+   - FileUploadButton used in other contexts (verify reusability)
 
 **Documentation**:
 
-4. Update architecture docs:
+6. Update architecture docs:
    - Add ImageField to field type documentation
    - Document image processing flow
-   - Note shared utilities location
+   - Document FileUploadButton component and usage
+   - Note technical debt in Architecture Notes (see below)
 
 ---
 
@@ -297,3 +425,27 @@ Astro supports images in content collections with a special `image()` helper. It
 - Debounce preview rendering if needed
 - Conditional preview loading (only when value exists)
 - Clear refs/state on unmount
+
+**Technical Debt Tracking**:
+
+The following code duplications exist and should be refactored after Phase 4 is complete:
+
+1. **File Processing Logic** (Priority: Medium)
+   - **Location 1**: `src/lib/editor/dragdrop/fileProcessing.ts` - `processDroppedFile()`
+   - **Location 2**: `src/components/frontmatter/fields/ImageField.tsx` - `handleFileSelect()`
+   - **Duplication**: Asset directory resolution, file copying, path formatting
+   - **Refactor Plan**: Extract to `src/lib/files/imageProcessing.ts` with:
+     - `copyImageToAssets(filePath, projectPath, collection)` → returns relative path
+     - Both locations consume this shared utility
+   - **Risk if not refactored**: Changes to file processing logic must be made in two places
+
+2. **Image Path Resolution** (Already shared ✓)
+   - `resolve_image_path` Tauri command (Rust)
+   - Used by both ImagePreview and ImageThumbnail
+   - No action needed
+
+3. **Image Extensions List** (Priority: Low)
+   - **Location 1**: `src/lib/editor/dragdrop/fileProcessing.ts` - `IMAGE_EXTENSIONS`
+   - **Location 2**: `ImageField.tsx` - hardcoded in `accept` prop
+   - **Refactor Plan**: Export from shared constant file
+   - **Risk if not refactored**: Adding new image format requires two updates
