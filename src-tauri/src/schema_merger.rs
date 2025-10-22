@@ -201,11 +201,11 @@ pub fn create_complete_schema(
                     "[Schema] Successfully parsed JSON schema with {} fields",
                     schema.fields.len()
                 );
-                // 2. Enhance with Zod reference information
+                // 2. Enhance with Zod information (references and image types)
                 if let Some(zod) = zod_schema {
-                    if let Err(e) = enhance_with_zod_references(&mut schema, zod) {
+                    if let Err(e) = enhance_schema_from_zod(&mut schema, zod) {
                         log::warn!(
-                            "Failed to enhance schema with Zod references for {collection_name}: {e}"
+                            "Failed to enhance schema with Zod data for {collection_name}: {e}"
                         );
                     }
                 }
@@ -709,15 +709,16 @@ fn extract_constraints(
 }
 
 /// Enhance JSON schema with Zod reference collection names
-fn enhance_with_zod_references(
+fn enhance_schema_from_zod(
     schema: &mut SchemaDefinition,
     zod_schema: &str,
 ) -> Result<(), String> {
-    // Parse Zod schema to extract reference mappings
-    let reference_map = extract_zod_references(zod_schema)?;
+    // Parse Zod schema to extract reference mappings and image field types
+    let (reference_map, image_fields) = extract_zod_enhancements(zod_schema)?;
 
-    // Apply reference collection names to fields
+    // Apply enhancements to fields
     for field in &mut schema.fields {
+        // Apply reference collection names
         if let Some(collection_name) = reference_map.get(&field.name) {
             match field.field_type.as_str() {
                 "reference" => {
@@ -729,13 +730,24 @@ fn enhance_with_zod_references(
                 _ => {}
             }
         }
+
+        // Apply image field types (override string type from JSON schema)
+        if image_fields.contains(&field.name) {
+            if field.field_type == "string" {
+                field.field_type = "image".to_string();
+            } else if field.field_type == "array" && field.sub_type.as_deref() == Some("string") {
+                field.sub_type = Some("image".to_string());
+            }
+        }
     }
 
     Ok(())
 }
 
-/// Extract reference field mappings from Zod schema JSON
-fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, String> {
+/// Extract reference field mappings and image field names from Zod schema JSON
+fn extract_zod_enhancements(
+    zod_schema: &str,
+) -> Result<(IndexMap<String, String>, HashSet<String>), String> {
     #[derive(Deserialize)]
     struct ZodSchema {
         fields: Vec<ZodField>,
@@ -746,18 +758,20 @@ fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, 
     struct ZodField {
         name: String,
         #[serde(rename = "type")]
-        #[allow(dead_code)]
         type_: String,
         #[serde(default)]
         referenced_collection: Option<String>,
         #[serde(default)]
         array_reference_collection: Option<String>,
+        #[serde(default)]
+        array_type: Option<String>,
     }
 
     let schema: ZodSchema =
         serde_json::from_str(zod_schema).map_err(|e| format!("Failed to parse Zod JSON: {e}"))?;
 
     let mut reference_map = IndexMap::new();
+    let mut image_fields = HashSet::new();
 
     for field in schema.fields {
         // Single reference
@@ -766,11 +780,18 @@ fn extract_zod_references(zod_schema: &str) -> Result<IndexMap<String, String>, 
         }
         // Array reference
         else if let Some(collection) = field.array_reference_collection {
-            reference_map.insert(field.name, collection);
+            reference_map.insert(field.name.clone(), collection);
+        }
+
+        // Image field detection
+        if field.type_ == "Image" {
+            image_fields.insert(field.name);
+        } else if field.type_ == "Array" && field.array_type.as_deref() == Some("Image") {
+            image_fields.insert(field.name);
         }
     }
 
-    Ok(reference_map)
+    Ok((reference_map, image_fields))
 }
 
 /// Parse Zod schema (fallback when JSON schema unavailable)
@@ -850,6 +871,7 @@ fn zod_type_to_field_type(zod_type: &str) -> String {
         "Array" => "array",
         "Enum" => "enum",
         "Reference" => "reference",
+        "Image" => "image",
         _ => "unknown",
     }
     .to_string()
@@ -980,12 +1002,12 @@ mod tests {
             ]
         }"##;
 
-        let result = extract_zod_references(zod_schema);
+        let result = extract_zod_enhancements(zod_schema);
         assert!(result.is_ok());
 
-        let map = result.unwrap();
-        assert_eq!(map.get("author"), Some(&"authors".to_string()));
-        assert_eq!(map.get("tags"), Some(&"tags".to_string()));
+        let (reference_map, _image_fields) = result.unwrap();
+        assert_eq!(reference_map.get("author"), Some(&"authors".to_string()));
+        assert_eq!(reference_map.get("tags"), Some(&"tags".to_string()));
     }
 
     #[test]
