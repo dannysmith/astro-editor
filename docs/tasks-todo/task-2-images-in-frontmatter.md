@@ -1,9 +1,13 @@
 ## Task: Support Astro image helper in content colelctions
 
-We have recently implemented floating image previews in the editor. When holding option and hovering over any image URL or path, it's displayed in a floating window as a preview.
+We have recently implemented floating image previews in the editor - when holding alt and hovering over any image URL or path, a preview is displayed floating in the bottom right of the editor. See `docs/developer/image-preview-implementation.md` for details on this.
 
-Astro supports images in content collections. See here for the docs: https://docs.astro.build/en/guides/images/#images-in-content-collections
+Astro supports images in content collections with a special `image()` helper. It is not possible to know about this from the generated JSON schemas because they show any image fields as a string (the path to the file). So we have to do this by reading `content.config.json` Similar way to how we do it for references. See here for the docs on images in content collections: https://docs.astro.build/en/guides/images/#images-in-content-collections
 
-I would like to update the parser to recognize when we have an image field and rather than rendering a string component, I would like to render an image component which should have a shadcn file picker which allows the user to choose a file but also allows drag and drop into it.
-
-Once a file has been chosen it should use the same mechanism to rename it and move it to the correct assets directory. This should be the same code that we currently use when files or images are dragged into the editor. And then ideally we should use the same underlying code to show a small preview of that image just below the picker. When we tried to implement this before, it got very complicated very quickly. I don't see why it should be that complicated to implement this.
+- I would like to update the parser to recognize when we have an astro image field and correctly pass that to the frontend in the merged schema.
+- We should then render a shadcn `<Input type="file" />` in the sidebar instead of a text field. This should natively support drag/drop.
+- When a file is dropped, it should be copied and renamed in exactly the same way as we currently do for images dragged into the editor. See `processDroppedFile()` in `src/lib/editor/dragdrop/fileProcessing.ts` and related files. It may be necessary to extract some of the renaming logic and copying logic into library functions which can be shared between these two things. I'll leave that up to you. This should respect any path overrides for the current project and collection, as you would expect. And it should obviously be aware of the current collection, again, in exactly the same way that we do with dragging and dropping.
+- Make sure field data itself should be updated with the path to the new file and the preview displayed (see below).
+- If the front matter of the document already has the path to the file, i.e. when we open the document there's already an image in the field, we should display a small preview of it just below the picker. We can probably use similar code to the folating image previews we recently implemented.
+- We need to think about how we handle it where the front matter is already there because I'm not sure that we can put a string path into a file picker component. So we may need to display the component and maybe we need to have a button that when you press it, it actually uploads the file or copies it or something. We need to think about the best UI for making this simple.
+- We want to keep this as clean and robust as possible. Because we did try this before, it got very complicated very quickly.
