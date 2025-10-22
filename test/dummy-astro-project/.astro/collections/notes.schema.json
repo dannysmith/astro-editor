@@ -74,6 +74,18 @@
           ],
           "additionalProperties": false
         },
+        "coverImage": {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "string"
+            },
+            "alt": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "$schema": {
           "type": "string"
         }
