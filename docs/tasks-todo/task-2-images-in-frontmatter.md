@@ -312,9 +312,43 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ---
 
-### Phase 4: Polish & Edge Cases ✓ TESTABLE
+### Phase 4: Polish & Edge Cases ✅ COMPLETE
 
 **Goal**: Handle all edge cases and provide excellent UX.
+
+**Status**: ✅ All features implemented and tested
+
+**Implementation Summary**:
+
+All features from Phase 4 have been successfully implemented in `ImageField.tsx`:
+
+1. **Clear Button** ✅
+   - Ghost button with X icon positioned inline with path text
+   - Clears frontmatter field when clicked
+   - Following ReferenceField pattern
+
+2. **Manual Path Editing** ✅
+   - Edit button with Edit3 icon to toggle manual edit mode
+   - Text input with Enter to save, Escape to cancel
+   - Path validation using `resolve_image_path` Tauri command
+   - Toast feedback for invalid paths
+
+3. **Comprehensive Error Handling** ✅
+   - Success toast when image is added
+   - Error toast for invalid paths
+   - Error toast for file copy failures
+   - Error toast for validation failures
+   - All using existing toast system
+
+4. **Loading States** ✅
+   - Loader2 spinner shown inline with button text during file operations
+   - Button disabled during loading
+   - Prevents multiple simultaneous uploads
+
+5. **File Input State Management** ✅
+   - State properly managed through React useState
+   - Manual edit mode toggles correctly
+   - Clean state transitions between modes
 
 **Clear Functionality**:
 
