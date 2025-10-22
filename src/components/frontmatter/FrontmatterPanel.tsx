@@ -39,14 +39,6 @@ export const FrontmatterPanel: React.FC = () => {
       console.log(
         `[Schema] Loaded complete schema for: ${parsed.collectionName}`
       )
-      // TEMPORARY: Phase 1 verification - check image field types
-      // eslint-disable-next-line no-console
-      console.log('[Schema] All fields:', parsed.fields)
-      const imageFields = parsed.fields.filter(f => f.type === 'image')
-      if (imageFields.length > 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Schema] Image fields detected:', imageFields)
-      }
     }
 
     return parsed

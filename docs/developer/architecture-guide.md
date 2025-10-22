@@ -15,6 +15,8 @@ The codebase follows a clear separation between different types of concerns:
 - **Editor Logic**: Isolated in `src/lib/editor/` modules
 - **Reusable UI Logic**: Extracted to `src/hooks/`
 - **Pure UI Components**: In `src/components/`
+  - `src/components/ui/`: shadcn/ui components (form controls, buttons, dialogs, etc.)
+  - `src/components/tauri/`: Tauri-specific shared components (e.g., FileUploadButton)
 
 ### 2. State Management Philosophy
 
@@ -136,6 +138,42 @@ Extract code into `lib/` when:
 3. It has complex logic that benefits from isolation
 4. It could be tested independently
 5. It might be extended in the future
+
+#### Component Organization
+
+**UI Components Directory Structure:**
+
+- `src/components/ui/`: shadcn/ui components (Button, Input, Select, Dialog, etc.)
+- `src/components/tauri/`: Shared Tauri-specific components that integrate with Tauri APIs
+
+**When to Create a Tauri Component:**
+
+Place components in `src/components/tauri/` when they:
+
+1. Use Tauri-specific APIs (`@tauri-apps/api`, `@tauri-apps/plugin-*`)
+2. Are general-purpose and reusable across multiple features
+3. Handle native system integration (file dialogs, drag-drop, etc.)
+
+**Example: FileUploadButton**
+
+```typescript
+// src/components/tauri/FileUploadButton.tsx
+// Reusable file picker with dialog + drag/drop support
+// Uses @tauri-apps/plugin-dialog and tauri://drag-drop events
+export const FileUploadButton: React.FC<FileUploadButtonProps> = ({ ... }) => {
+  // Component handles both click (dialog) and drag/drop
+}
+```
+
+**Export Pattern:**
+
+```typescript
+// src/components/tauri/index.ts
+export { FileUploadButton } from './FileUploadButton'
+export type { FileUploadButtonProps } from './FileUploadButton'
+```
+
+This allows clean imports: `import { FileUploadButton } from '@/components/tauri'`
 
 ### 4. Hook Patterns
 
