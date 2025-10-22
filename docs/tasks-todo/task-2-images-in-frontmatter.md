@@ -135,9 +135,11 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ---
 
-### Phase 2: Basic ImageField Component ✓ TESTABLE
+### Phase 2: Basic ImageField Component ✅ COMPLETE
 
 **Goal**: Render a basic image field that shows existing images and has file input structure.
+
+**Status**: ✅ Complete and tested
 
 **Component Creation**:
 
@@ -198,6 +200,26 @@ Astro supports images in content collections with a special `image()` helper. It
 ### Phase 3: File Processing Integration ✓ TESTABLE
 
 **Goal**: Selecting a file copies it to assets and updates frontmatter.
+
+**Known Issue - Drag-Drop Event Conflict**:
+
+The editor's drag-drop handler (`src/lib/editor/dragdrop/`) listens to Tauri's global `tauri://drag-drop` event. When dragging an image onto the FileUploadButton:
+- ✅ FileUploadButton correctly receives the file and updates frontmatter
+- ❌ Editor ALSO receives the event and inserts a markdown image link into the editor content
+- ❌ Editor runs file copying logic, potentially duplicating the file
+
+**Solution** (implement in this phase):
+1. **Update editor drag-drop logic** to check drop position and ignore drops outside the editor element
+2. **Modify `useImageDragDrop` hook** (`src/hooks/editor/useImageDragDrop.ts`) to:
+   - Get editor element bounding rect
+   - Check if drop position falls within editor bounds
+   - Only process drop if it's inside the editor element
+   - This allows FileUploadButton and other UI elements to handle their own drops without editor interference
+
+**Alternative approach** (if position checking proves complex):
+- Have FileUploadButton set a flag when processing a drop
+- Editor checks this flag and skips processing if true
+- Clear flag after processing completes
 
 **Logic Duplication** (to be refactored later):
 
@@ -282,7 +304,9 @@ Astro supports images in content collections with a special `image()` helper. It
 - Verify preview updates immediately
 - Verify respects collection-specific asset directory overrides
 - Test with file name conflicts (should add -1, -2, etc.)
-- Test drag-and-drop onto editor still works correctly
+- **Test drag-and-drop onto FileUploadButton** - should ONLY update frontmatter, NOT insert into editor
+- **Test drag-and-drop onto editor** - should still work correctly (insert markdown + copy file)
+- Verify no duplicate file copies or markdown insertions occur
 
 ---
 
