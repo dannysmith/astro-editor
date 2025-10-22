@@ -62,46 +62,52 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         throw new Error('No project or collection context available')
       }
 
-      // Get effective assets directory (respects collection and project overrides)
-      const assetsDirectory = getEffectiveAssetsDirectory(
-        currentProjectSettings,
-        collection
-      )
+      // Check if file is already in project
+      const isInProject = await invoke<boolean>('is_path_in_project', {
+        filePath: filePath,
+        projectPath: projectPath,
+      })
 
-      // Copy file to assets directory
       let relativePath: string
-      if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-        // Use override path
-        relativePath = await invoke<string>(
-          'copy_file_to_assets_with_override',
-          {
+
+      if (isInProject) {
+        // File is already in project - use existing path
+        relativePath = await invoke<string>('get_relative_path', {
+          filePath: filePath,
+          projectPath: projectPath,
+        })
+      } else {
+        // File is outside project - copy it to assets directory
+        // Get effective assets directory (respects collection and project overrides)
+        const assetsDirectory = getEffectiveAssetsDirectory(
+          currentProjectSettings,
+          collection
+        )
+
+        // Copy file to assets directory
+        if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
+          // Use override path
+          relativePath = await invoke<string>(
+            'copy_file_to_assets_with_override',
+            {
+              sourcePath: filePath,
+              projectPath: projectPath,
+              collection: collection,
+              assetsDirectory: assetsDirectory,
+            }
+          )
+        } else {
+          // Use default path
+          relativePath = await invoke<string>('copy_file_to_assets', {
             sourcePath: filePath,
             projectPath: projectPath,
             collection: collection,
-            assetsDirectory: assetsDirectory,
-          }
-        )
-      } else {
-        // Use default path
-        relativePath = await invoke<string>('copy_file_to_assets', {
-          sourcePath: filePath,
-          projectPath: projectPath,
-          collection: collection,
-        })
+          })
+        }
       }
 
       // Update frontmatter with project-root-relative path
       updateFrontmatterField(name, `/${relativePath}`)
-
-      // Show success toast
-      window.dispatchEvent(
-        new CustomEvent('toast', {
-          detail: {
-            title: 'Image added',
-            description: 'Image has been copied to assets directory',
-          },
-        })
-      )
     } catch (error) {
       // Show error toast
       window.dispatchEvent(
@@ -149,15 +155,6 @@ export const ImageField: React.FC<ImageFieldProps> = ({
     updateFrontmatterField(name, trimmedPath)
     setIsEditing(false)
     setEditValue('')
-
-    window.dispatchEvent(
-      new CustomEvent('toast', {
-        detail: {
-          title: 'Path updated',
-          description: 'Image path has been updated',
-        },
-      })
-    )
   }
 
   return (
