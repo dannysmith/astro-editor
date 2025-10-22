@@ -4,11 +4,14 @@ import { EditorState } from '@codemirror/state'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
+import { useProjectStore } from '../../store/projectStore'
 import {
   useEditorSetup,
   useEditorHandlers,
   useTauriListeners,
 } from '../../hooks/editor'
+import { useImageHover } from '../../hooks/editor/useImageHover'
+import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
@@ -24,6 +27,8 @@ declare global {
 
 const EditorViewComponent: React.FC = () => {
   const currentFileId = useEditorStore(state => state.currentFile?.id)
+  const currentFilePath = useEditorStore(state => state.currentFile?.path)
+  const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -61,6 +66,9 @@ const EditorViewComponent: React.FC = () => {
   )
 
   useTauriListeners(viewRef.current)
+
+  // Track hovered image URLs when Alt is pressed
+  const hoveredImage = useImageHover(viewRef.current, isAltPressed)
 
   // Handle mode changes - use stable callback with getState() pattern
   const handleModeChange = useCallback(() => {
@@ -240,6 +248,13 @@ const EditorViewComponent: React.FC = () => {
         className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''} ${typewriterModeEnabled ? 'typewriter-mode' : ''}`}
         data-editor-container
       />
+      {projectPath && (
+        <ImagePreview
+          hoveredImage={hoveredImage}
+          projectPath={projectPath}
+          currentFilePath={currentFilePath || null}
+        />
+      )}
     </div>
   )
 }
