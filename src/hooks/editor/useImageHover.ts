@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { EditorView } from '@codemirror/view'
-import { findImageUrlsInText } from '../../lib/editor/urls/detection'
+import { findImageUrlsAndPathsInText } from '../../lib/editor/urls/detection'
 
 export interface HoveredImage {
   url: string
@@ -45,8 +45,8 @@ export const useImageHover = (
         const lineText = line.text
         const lineStart = line.from
 
-        // Find all image URLs in this line
-        const imageUrls = findImageUrlsInText(lineText, lineStart)
+        // Find all image URLs and paths in this line
+        const imageUrls = findImageUrlsAndPathsInText(lineText, lineStart)
 
         // Check if cursor is within any image URL range
         const hoveredUrl = imageUrls.find(

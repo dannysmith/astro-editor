@@ -4,7 +4,7 @@ import {
   isValidUrl,
   urlRegex,
   isImageUrl,
-  findImageUrlsInText,
+  findImageUrlsAndPathsInText,
 } from './detection'
 
 describe('URL Detection', () => {
@@ -322,123 +322,182 @@ describe('URL Detection', () => {
     })
   })
 
-  describe('findImageUrlsInText', () => {
-    it('should find markdown image with image URL', () => {
-      const text = 'Check out ![screenshot](https://example.com/screenshot.png) here'
-      const imageUrls = findImageUrlsInText(text)
+  describe('findImageUrlsAndPathsInText', () => {
+    it('should find remote image URLs', () => {
+      const text = 'Check out https://example.com/screenshot.png here'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]).toEqual({
+      expect(images).toHaveLength(1)
+      expect(images[0]).toEqual({
         url: 'https://example.com/screenshot.png',
-        from: 24,
-        to: 58,
+        from: 10,
+        to: 44,
       })
     })
 
-    it('should find multiple image URLs', () => {
-      const text =
-        'Images: ![one](https://example.com/1.png) and ![two](https://example.com/2.jpg)'
-      const imageUrls = findImageUrlsInText(text)
+    it('should find relative paths with ./', () => {
+      const text = 'Local image: ./images/photo.jpg'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(2)
-      expect(imageUrls[0]).toEqual({
-        url: 'https://example.com/1.png',
-        from: 15,
-        to: 40,
-      })
-      expect(imageUrls[1]).toEqual({
-        url: 'https://example.com/2.jpg',
-        from: 53,
-        to: 78,
-      })
-    })
-
-    it('should find plain image URLs', () => {
-      const text = 'See image at https://example.com/photo.jpg for details'
-      const imageUrls = findImageUrlsInText(text)
-
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]).toEqual({
-        url: 'https://example.com/photo.jpg',
+      expect(images).toHaveLength(1)
+      expect(images[0]).toEqual({
+        url: './images/photo.jpg',
         from: 13,
-        to: 42,
+        to: 31,
       })
     })
 
-    it('should filter out non-image URLs', () => {
-      const text =
-        'Visit [site](https://example.com) and see ![image](https://example.com/pic.png)'
-      const imageUrls = findImageUrlsInText(text)
+    it('should find relative paths with ../', () => {
+      const text = 'Parent directory: ../assets/icon.png'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]).toEqual({
-        url: 'https://example.com/pic.png',
-        from: 51,
-        to: 78,
+      expect(images).toHaveLength(1)
+      expect(images[0]).toEqual({
+        url: '../assets/icon.png',
+        from: 18,
+        to: 36,
       })
     })
 
-    it('should handle mixed URLs and only return images', () => {
+    it('should find absolute paths from project root', () => {
+      const text = 'Absolute path: /src/assets/hero.webp'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+      expect(images[0]).toEqual({
+        url: '/src/assets/hero.webp',
+        from: 15,
+        to: 36,
+      })
+    })
+
+    it('should find images in markdown syntax', () => {
+      const text = 'Check out ![screenshot](https://example.com/image.png) here'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('https://example.com/image.png')
+    })
+
+    it('should find images in HTML img tags', () => {
+      const text = '<img src="/src/assets/photo.jpg" alt="Photo" />'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('/src/assets/photo.jpg')
+    })
+
+    it('should find images in custom components', () => {
+      const text = '<Image path="./local.png" />'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('./local.png')
+    })
+
+    it('should find multiple images of different types', () => {
       const text =
-        'Link to https://example.com and image https://example.com/image.png and video https://example.com/video.mp4'
-      const imageUrls = findImageUrlsInText(text)
+        'Remote: https://cdn.com/img.jpg, Local: ./test.png, Absolute: /assets/icon.svg'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]?.url).toBe('https://example.com/image.png')
+      expect(images).toHaveLength(3)
+      expect(images[0]?.url).toBe('https://cdn.com/img.jpg')
+      expect(images[1]?.url).toBe('./test.png')
+      expect(images[2]?.url).toBe('/assets/icon.svg')
     })
 
-    it('should handle different image extensions', () => {
+    it('should handle all image extensions', () => {
       const text =
-        'PNG ![](https://a.com/1.png), JPEG ![](https://b.com/2.jpeg), GIF ![](https://c.com/3.gif), WebP ![](https://d.com/4.webp)'
-      const imageUrls = findImageUrlsInText(text)
+        'PNG: ./1.png, JPG: ./2.jpg, JPEG: ./3.jpeg, GIF: ./4.gif, WebP: ./5.webp, SVG: ./6.svg'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(4)
-      expect(imageUrls[0]?.url).toBe('https://a.com/1.png')
-      expect(imageUrls[1]?.url).toBe('https://b.com/2.jpeg')
-      expect(imageUrls[2]?.url).toBe('https://c.com/3.gif')
-      expect(imageUrls[3]?.url).toBe('https://d.com/4.webp')
+      expect(images).toHaveLength(6)
+      expect(images.map(img => img.url)).toEqual([
+        './1.png',
+        './2.jpg',
+        './3.jpeg',
+        './4.gif',
+        './5.webp',
+        './6.svg',
+      ])
     })
 
-    it('should return empty array when no image URLs found', () => {
-      const text = 'Visit https://example.com and [GitHub](https://github.com)'
-      const imageUrls = findImageUrlsInText(text)
+    it('should be case-insensitive for extensions', () => {
+      const text = 'Image: ./Photo.PNG and /assets/Icon.JPG'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(0)
+      expect(images).toHaveLength(2)
+      expect(images[0]?.url).toBe('./Photo.PNG')
+      expect(images[1]?.url).toBe('/assets/Icon.JPG')
     })
 
-    it('should return empty array for empty text', () => {
-      const imageUrls = findImageUrlsInText('')
+    it('should filter out non-image paths', () => {
+      const text =
+        'Link: https://example.com/page and Image: https://example.com/photo.jpg'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(0)
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('https://example.com/photo.jpg')
+    })
+
+    it('should handle images with query parameters', () => {
+      const text = 'CDN: https://cdn.com/image.png?size=large&quality=high'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('https://cdn.com/image.png?size=large&quality=high')
     })
 
     it('should apply offset correctly', () => {
-      const text = 'Image: ![](https://example.com/image.png)'
-      const imageUrls = findImageUrlsInText(text, 50)
+      const text = 'Image: ./test.png'
+      const images = findImageUrlsAndPathsInText(text, 100)
 
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]).toEqual({
-        url: 'https://example.com/image.png',
-        from: 61,
-        to: 90,
+      expect(images).toHaveLength(1)
+      expect(images[0]).toEqual({
+        url: './test.png',
+        from: 107,
+        to: 117,
       })
     })
 
-    it('should handle case-insensitive extension matching', () => {
-      const text = 'Image ![](https://example.com/Photo.PNG) here'
-      const imageUrls = findImageUrlsInText(text)
+    it('should handle plain text with image paths', () => {
+      const text = 'Check the file at ./docs/screenshot.png for reference'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(1)
-      expect(imageUrls[0]?.url).toBe('https://example.com/Photo.PNG')
+      expect(images).toHaveLength(1)
+      expect(images[0]?.url).toBe('./docs/screenshot.png')
     })
 
-    it('should handle local absolute paths', () => {
-      const text = 'Local image ![](/src/assets/image.png) here'
-      // Note: findUrlsInText only finds http(s) URLs, so this won't match
-      // This is expected behavior - local paths would need to be detected separately
-      const imageUrls = findImageUrlsInText(text)
+    it('should not match URLs without image extensions', () => {
+      const text = 'Visit https://example.com and /about/page'
+      const images = findImageUrlsAndPathsInText(text)
 
-      expect(imageUrls).toHaveLength(0)
+      expect(images).toHaveLength(0)
+    })
+
+    it('should return empty array for empty text', () => {
+      const images = findImageUrlsAndPathsInText('')
+
+      expect(images).toHaveLength(0)
+    })
+
+    it('should avoid duplicate matches', () => {
+      // Same image path should only be matched once even if it appears in overlapping contexts
+      const text = './image.png'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(1)
+    })
+
+    it('should work with mixed markdown and plain text', () => {
+      const text =
+        'See ![alt](https://example.com/one.png) and also ./local.jpg plus /assets/three.gif'
+      const images = findImageUrlsAndPathsInText(text)
+
+      expect(images).toHaveLength(3)
+      expect(images[0]?.url).toBe('https://example.com/one.png')
+      expect(images[1]?.url).toBe('./local.jpg')
+      expect(images[2]?.url).toBe('/assets/three.gif')
     })
   })
 })

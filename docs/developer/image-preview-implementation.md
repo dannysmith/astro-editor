@@ -53,25 +53,38 @@ pub async fn resolve_image_path(
 
 #### Frontend Flow
 
-1. **URL Detection** (`src/lib/editor/urls/detection.ts`)
-   - Existing system detects URLs in markdown
-   - Supports both `![alt](url)` and plain URLs
-   - Filter for image extensions (`.png`, `.jpg`, etc.)
+1. **Image Detection** (`src/lib/editor/urls/detection.ts`)
+   - **Syntax-agnostic approach**: Detects ANY path/URL ending with image extension
+   - Works across markdown, HTML, MDX components, and plain text
+   - Three path types detected:
+     - Remote URLs: `https://example.com/image.png`
+     - Relative paths: `./image.png` or `../images/photo.jpg`
+     - Absolute paths: `/src/assets/image.png`
+   - Key functions:
+     - `isImageUrl(urlOrPath: string): boolean` - Checks if path ends with image extension
+     - `findImageUrlsAndPathsInText(text: string, offset?: number): UrlMatch[]` - Finds all image paths
 
-2. **Path Resolution** (React component)
-   - Call `resolve_image_path` command with:
-     - Image path from markdown
+2. **Hover Tracking** (`src/hooks/editor/useImageHover.ts`)
+   - Monitors mouse position when Alt key is pressed
+   - Uses CodeMirror's `posAtCoords()` to map screen position to document position
+   - Scans current line for image paths using `findImageUrlsAndPathsInText()`
+   - Returns `HoveredImage` object with path/URL and position info
+
+3. **Path Resolution** (React component - Phase 4)
+   - For remote URLs: Use directly
+   - For local paths: Call `resolve_image_path` command with:
+     - Image path from detection
      - Project root from store
      - Current file path from store
    - Get back validated absolute path
 
-3. **Asset Protocol Conversion**
+4. **Asset Protocol Conversion**
    ```typescript
    import { convertFileSrc } from '@tauri-apps/api/core'
    const assetUrl = convertFileSrc(absolutePath)
    ```
 
-4. **Display**
+5. **Display**
    - Use `assetUrl` in `<img src={assetUrl} />`
    - Tauri asset protocol handles loading from filesystem
 
@@ -106,85 +119,100 @@ tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 
 **Required**: Must include `protocol-asset` feature when asset protocol is enabled
 
-## Testing Plan
+## Testing
 
-### Test Component
+### Automated Tests
 
-Location: `src/components/ImagePreviewTest.tsx`
+Location: `src/lib/editor/urls/detection.test.ts`
 
-Temporary test component for validating functionality before integration.
+**Coverage**: 20 test cases covering all image detection scenarios
 
-**Features**:
-- Manual path input
-- Shows resolved absolute path
-- Shows asset protocol URL
-- Displays image preview (300x300 max)
-- Error handling and display
-- Quick test buttons for common scenarios
+**Test categories**:
+- Remote URLs with various extensions
+- Relative paths (`./ `and `../`)
+- Absolute paths from project root
+- Images in markdown syntax
+- Images in HTML img tags
+- Images in custom components
+- Mixed content scenarios
+- Case-insensitive extension matching
+- Query parameters in URLs
+- Position offset calculations
 
-**Test Cases**:
+**All tests passing**: 458 total tests in project
 
-1. **Remote URLs**
-   - Input: `https://picsum.photos/400/300`
-   - Expected: Direct display without resolution
+### Manual Testing
 
-2. **Absolute from project root**
-   - Input: `/src/assets/articles/example.png`
-   - Expected: Resolved to full path, displayed via asset protocol
+**Test Article**: `/test/dummy-astro-project/src/content/articles/2025-01-22-image-preview-test.md`
 
-3. **Relative paths**
-   - Input: `./example.png`
-   - Expected: Resolved relative to current file (requires file open)
+Contains:
+- Remote URL: `https://danny.is/avatar.jpg`
+- Absolute path: `/src/assets/articles/styleguide-image.jpg`
+- Relative path: `./imagetest.png`
+- HTML img tag: `<img src="/src/assets/articles/styleguide-image.jpg" />`
+- Mixed content with inline images
 
-### Manual Testing Steps
+**Manual Testing Steps** (Current - Phase 3):
 
-1. **Setup**:
-   - Run `pnpm run dev`
-   - Open an Astro project
-   - Open a markdown/MDX file
+1. Run `pnpm run dev` and open dummy project
+2. Open the test article
+3. Hold Alt/Option key
+4. Hover over any image path/URL
+5. Check browser console for: `"Hovered image: [path/url]"`
+6. Verify works for ALL image types (remote, relative, absolute)
 
-2. **Test Remote Image**:
-   - Click "Remote URL" test button
-   - Verify image loads
-   - Check console for asset URL format
+**Expected Behavior** (Phase 4 - Preview UI):
+- Image preview appears in bottom-right corner
+- Max 300x300px dimensions
+- Smooth fade in/out animation
+- Loading state while resolving/loading
+- Error state if image fails to load
 
-3. **Test Local Absolute Path**:
-   - Find an image in project's assets directory
-   - Enter path like `/src/assets/image.png`
-   - Verify resolution and display
+## Implementation Status
 
-4. **Test Relative Path**:
-   - With a file open, try `./image.png`
-   - Verify it resolves relative to open file's directory
+### Completed (Phases 1-3)
 
-5. **Test Error Handling**:
-   - Try non-existent path
-   - Try path outside project
-   - Verify appropriate error messages
+✅ **Phase 1: Path Resolution & Image Loading**
+- Tauri command `resolve_image_path` (src-tauri/src/commands/files.rs:1012)
+- Asset protocol configuration in tauri.conf.json
+- Security via `validate_project_path`
+- Tested with all three path types
 
-## Integration Plan
+✅ **Phase 2: Image Detection**
+- Syntax-agnostic detection in `src/lib/editor/urls/detection.ts`
+- `findImageUrlsAndPathsInText()` finds ALL image paths regardless of syntax
+- 20 automated tests covering all scenarios
+- Works with markdown, HTML, MDX components, plain text
 
-Once testing is complete:
+✅ **Phase 3: Hover State Management**
+- `useImageHover` hook in `src/hooks/editor/useImageHover.ts`
+- Integrated into Editor.tsx
+- Tracks mouse position when Alt is pressed
+- Returns hovered image path/URL with position info
 
-1. **Remove test component** from Layout.tsx
-2. **Create ImagePreview component** for production use
-   - Position: Fixed bottom-right corner
-   - Size: 300x300 max
-   - Animation: Smooth fade in/out
-   - Style: Match macOS aesthetic
+### Remaining (Phases 4-6)
 
-3. **Extend URL detection** to identify image URLs
-   - Check URL ends with image extension
-   - Filter in detection.ts or create new imageDetection.ts
+**Phase 4: ImagePreview React Component** (NEXT)
+- Create `src/components/editor/ImagePreview.tsx`
+- Fixed position bottom-right corner
+- 300x300px max dimensions
+- Smooth fade in/out animation
+- macOS aesthetic styling
+- Loading and error states
 
-4. **Add hover tracking** in Editor.tsx
-   - Track hovered image URL when Alt pressed
-   - Clear on Alt release or mouse leave
+**Phase 5: Wire Up to Editor**
+- Import ImagePreview in Editor.tsx
+- Pass `hoveredImage` from useImageHover hook
+- Pass `projectPath` and `currentFile.path` from stores
+- Show preview when `hoveredImage !== null`
+- Remove debug console.log
 
-5. **Wire up preview component**
-   - Show when hovered image URL exists
-   - Hide on Alt release or URL change
-   - Handle loading and error states
+**Phase 6: Polish & Edge Cases**
+- Debounce preview updates
+- Handle image load failures
+- Consider path caching
+- Test with various project structures
+- Optional: keyboard shortcut to toggle preview
 
 ## Security Considerations
 
