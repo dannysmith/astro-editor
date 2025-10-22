@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { convertFileSrc } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/tauri'
 import { useProjectStore } from '../../../store/projectStore'
 import { useEditorStore } from '../../../store/editorStore'
 
