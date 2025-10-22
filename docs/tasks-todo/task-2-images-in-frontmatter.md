@@ -203,25 +203,25 @@ Astro supports images in content collections with a special `image()` helper. It
 
 **Status**: ✅ Complete and tested
 
-**Known Issue - Drag-Drop Event Conflict**:
+**Implementation Summary**:
 
-The editor's drag-drop handler (`src/lib/editor/dragdrop/`) listens to Tauri's global `tauri://drag-drop` event. When dragging an image onto the FileUploadButton:
-- ✅ FileUploadButton correctly receives the file and updates frontmatter
-- ❌ Editor ALSO receives the event and inserts a markdown image link into the editor content
-- ❌ Editor runs file copying logic, potentially duplicating the file
+1. **Position-based drop detection** (`src/lib/editor/dragdrop/handlers.ts:46-61`)
+   - Added `isDropWithinElement()` utility function
+   - Checks if drop position is within element bounds using `getBoundingClientRect()`
+   - Editor only processes drops that occur within `[data-editor-container]` element
+   - FileUploadButton only processes drops within its button bounds
 
-**Solution** (implement in this phase):
-1. **Update editor drag-drop logic** to check drop position and ignore drops outside the editor element
-2. **Modify `useImageDragDrop` hook** (`src/hooks/editor/useImageDragDrop.ts`) to:
-   - Get editor element bounding rect
-   - Check if drop position falls within editor bounds
-   - Only process drop if it's inside the editor element
-   - This allows FileUploadButton and other UI elements to handle their own drops without editor interference
+2. **Updated payload parsing** (`src/lib/editor/dragdrop/handlers.ts:17-38`)
+   - `parseFileDropPayload()` now extracts both `paths` and `position` from Tauri event
+   - Handles backward compatibility with old array format
+   - Position coordinates are provided by Tauri v2 drag-drop events
 
-**Alternative approach** (if position checking proves complex):
-- Have FileUploadButton set a flag when processing a drop
-- Editor checks this flag and skips processing if true
-- Clear flag after processing completes
+3. **Fixed editor view initialization** (`src/hooks/editor/useTauriListeners.ts:10-14`)
+   - Hook now only sets up listeners when `editorView` is not null
+   - Prevents passing null to handler (which was causing silent failures)
+   - Re-runs when editorView becomes available
+
+**Result**: Both editor and FileUploadButton can coexist without conflicts. Drops are processed based on position, ensuring correct behavior for each component.
 
 **Logic Duplication** (to be refactored later):
 

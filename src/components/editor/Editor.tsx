@@ -1,16 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useProjectStore } from '../../store/projectStore'
-import {
-  useEditorSetup,
-  useEditorHandlers,
-  useTauriListeners,
-} from '../../hooks/editor'
+import { useEditorSetup, useEditorHandlers } from '../../hooks/editor'
 import { useImageHover } from '../../hooks/editor/useImageHover'
+import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
@@ -64,8 +62,6 @@ const EditorViewComponent: React.FC = () => {
     handleBlur,
     componentBuilderHandler
   )
-
-  useTauriListeners(viewRef.current)
 
   // Track hovered image URLs when Alt is pressed
   const hoveredImage = useImageHover(viewRef.current, isAltPressed)
@@ -193,10 +189,32 @@ const EditorViewComponent: React.FC = () => {
     // Set up commands once the view is ready
     currentSetupCommands(view)
 
+    // Set up Tauri event listeners now that view is ready
+    let unlistenDrop: UnlistenFn | null = null
+    const setupTauriListeners = async () => {
+      try {
+        unlistenDrop = await listen('tauri://drag-drop', event => {
+          void handleTauriFileDrop(event.payload, view)
+        })
+      } catch (error) {
+        // Ignore errors in setting up Tauri listeners
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to setup Tauri drag-drop listener:', error)
+        }
+      }
+    }
+    void setupTauriListeners()
+
     return () => {
       view.destroy()
       viewRef.current = null
       currentCleanupCommands()
+
+      // Clean up Tauri listeners
+      if (unlistenDrop) {
+        unlistenDrop()
+      }
 
       // Clean up typing detection timeout
       if (typingResetTimeout.current) {

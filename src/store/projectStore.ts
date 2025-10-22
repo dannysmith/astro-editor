@@ -173,8 +173,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
       )
 
-      // Store the unlisten function for cleanup (though we don't currently clean it up)
+      // Listen for schema change events (config.ts or .schema.json files)
+      const unlistenSchemaChanged = listen('schema-changed', () => {
+        // Invalidate collections query to re-parse schemas
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.collections(projectPath),
+        })
+      })
+
+      // Store the unlisten functions for cleanup (though we don't currently clean them up)
       void unlistenFileChanged
+      void unlistenSchemaChanged
     } catch (error) {
       const errorMsg = formatErrorForLogging(
         'PROJECT_SETUP',

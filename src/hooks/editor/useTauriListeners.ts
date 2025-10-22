@@ -8,6 +8,11 @@ import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
  */
 export const useTauriListeners = (editorView: EditorView | null) => {
   useEffect(() => {
+    // Don't set up listeners if editor view isn't ready yet
+    if (!editorView) {
+      return
+    }
+
     const setupTauriListeners = async () => {
       try {
         // Listen for file drop events

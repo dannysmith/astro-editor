@@ -32,17 +32,41 @@ pub async fn start_watching_project_with_content_dir(
     })
     .map_err(|e| format!("Failed to create watcher: {e}"))?;
 
+    let project_root = PathBuf::from(&project_path);
+
     // Watch the content directory specifically (use override if provided)
-    let content_path = if let Some(content_dir) = content_directory {
-        PathBuf::from(&project_path).join(content_dir)
+    let content_path = if let Some(content_dir) = &content_directory {
+        project_root.join(content_dir)
     } else {
-        PathBuf::from(&project_path).join("src").join("content")
+        project_root.join("src").join("content")
     };
 
     if content_path.exists() {
         watcher
             .watch(&content_path, RecursiveMode::Recursive)
-            .map_err(|e| format!("Failed to watch directory: {e}"))?;
+            .map_err(|e| format!("Failed to watch content directory: {e}"))?;
+    }
+
+    // Watch for schema changes: src/content/config.ts or src/content.config.ts
+    let config_paths = vec![
+        project_root.join("src").join("content").join("config.ts"),
+        project_root.join("src").join("content.config.ts"),
+    ];
+
+    for config_path in config_paths {
+        if config_path.exists() {
+            watcher
+                .watch(&config_path, RecursiveMode::NonRecursive)
+                .map_err(|e| format!("Failed to watch config file: {e}"))?;
+        }
+    }
+
+    // Watch the generated JSON schemas directory: .astro/collections/
+    let schemas_path = project_root.join(".astro").join("collections");
+    if schemas_path.exists() {
+        watcher
+            .watch(&schemas_path, RecursiveMode::NonRecursive)
+            .map_err(|e| format!("Failed to watch schemas directory: {e}"))?;
     }
 
     // Store the watcher so it doesn't get dropped
@@ -86,18 +110,28 @@ pub async fn stop_watching_project(app: AppHandle, project_path: String) -> Resu
 }
 
 async fn process_events(app: &AppHandle, events: &mut [Event]) {
+    let mut schema_changed = false;
+
     for event in events.iter() {
         match &event.kind {
             EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
-                // Check if it's a markdown file
                 for path in &event.paths {
+                    let path_str = path.to_string_lossy();
+
+                    // Check if it's a schema-related file
+                    if is_schema_file(path) {
+                        schema_changed = true;
+                        continue;
+                    }
+
+                    // Check if it's a markdown file
                     if let Some(extension) = path.extension() {
                         if matches!(extension.to_str(), Some("md") | Some("mdx")) {
                             // Emit event to frontend
                             if let Err(e) = app.emit(
                                 "file-changed",
                                 FileChangeEvent {
-                                    path: path.to_string_lossy().to_string(),
+                                    path: path_str.to_string(),
                                     kind: format!("{:?}", event.kind),
                                 },
                             ) {
@@ -110,6 +144,30 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
             _ => {}
         }
     }
+
+    // Emit schema-changed event once if any schema files changed
+    if schema_changed {
+        if let Err(e) = app.emit("schema-changed", ()) {
+            eprintln!("Failed to emit schema change event: {e}");
+        }
+    }
+}
+
+/// Check if a file path is a schema-related file
+fn is_schema_file(path: &std::path::Path) -> bool {
+    let path_str = path.to_string_lossy();
+
+    // Check for content config files
+    if path_str.ends_with("src/content/config.ts") || path_str.ends_with("src/content.config.ts") {
+        return true;
+    }
+
+    // Check for generated JSON schema files
+    if path_str.contains(".astro/collections/") && path_str.ends_with(".schema.json") {
+        return true;
+    }
+
+    false
 }
 
 #[derive(serde::Serialize, Clone)]
