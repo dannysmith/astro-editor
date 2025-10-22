@@ -24,18 +24,21 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ## Implementation Plan
 
-### Phase 0: FileUpload Component (Prerequisite) ✓ TESTABLE
+### Phase 0: FileUploadButton Component (Prerequisite) ✅ COMPLETE
 
 **Goal**: Create a reusable file upload component that works in Tauri (supports both dialog picker and drag/drop).
 
-**Why First**:
-- Native `<input type="file">` doesn't provide real paths in Tauri (browser security model)
-- Need Tauri dialog plugin + drag/drop event handling
-- Reusable component for any future file upload needs in the app
+**Status**: ✅ Complete and tested
+
+- Component location: `src/components/tauri/FileUploadButton.tsx`
+- Exported from: `src/components/tauri/index.ts`
+- Architecture reviewed and follows best practices
+- Position-based drop detection working correctly
+- Click and drag/drop both tested and working
 
 **Component Design**:
 
-1. **Create FileUploadButton component** (`src/components/ui/file-upload-button.tsx`)
+1. **FileUploadButton component** (`src/components/tauri/FileUploadButton.tsx`)
    - Renders as a shadcn `Button` (customizable via props)
    - Opens Tauri file picker dialog on click
    - Listens for drag/drop events on button element
@@ -43,10 +46,10 @@ Astro supports images in content collections with a special `image()` helper. It
 
    ```tsx
    interface FileUploadButtonProps {
-     accept: string[]  // File extensions: ['png', 'jpg', 'jpeg']
+     accept: string[] // File extensions: ['png', 'jpg', 'jpeg']
      onFileSelect: (path: string) => void | Promise<void>
      disabled?: boolean
-     children: React.ReactNode  // Button content
+     children: React.ReactNode // Button content
      className?: string
      variant?: ButtonProps['variant']
      size?: ButtonProps['size']
@@ -65,7 +68,7 @@ Astro supports images in content collections with a special `image()` helper. It
    ```tsx
    <FileUploadButton
      accept={['png', 'jpg', 'jpeg', 'gif', 'webp']}
-     onFileSelect={async (path) => {
+     onFileSelect={async path => {
        // Do something with real file path
      }}
      disabled={isLoading}
@@ -75,6 +78,7 @@ Astro supports images in content collections with a special `image()` helper. It
    ```
 
 **Testing Checkpoint**:
+
 - Create test page/component that uses FileUploadButton
 - Click button → verify dialog opens with correct file filters
 - Select file → verify callback receives real file path
@@ -84,7 +88,7 @@ Astro supports images in content collections with a special `image()` helper. It
 
 ---
 
-### Phase 1: Type Detection & Schema Flow ✓ TESTABLE
+### Phase 1: Type Detection & Schema Flow ✅ COMPLETE
 
 **Goal**: Get `image()` fields properly detected and typed through the entire schema pipeline.
 
@@ -118,6 +122,7 @@ Astro supports images in content collections with a special `image()` helper. It
    - Add `image: FieldType.Image` mapping
 
 **Testing Checkpoint**:
+
 - Add temporary console logging in `FrontmatterPanel.tsx` to log schema fields: `console.log('Schema fields:', completeSchema?.fields)`
 - Open test project with `cover: image().optional()` field in schema
 - Check browser Console → verify `cover` field has `fieldType: 'image'` (not 'string')
@@ -140,8 +145,10 @@ Astro supports images in content collections with a special `image()` helper. It
    - Accept standard `FieldProps` interface
    - Use Direct Store Pattern (access `frontmatter` and `updateFrontmatterField` directly)
    - Render `FieldWrapper` with label, required, description, constraints
+   - Import FileUploadButton: `import { FileUploadButton } from '@/components/tauri'`
 
 2. **Basic UI structure** (using FileUploadButton from Phase 0):
+
    ```tsx
    <FieldWrapper {...props}>
      {value && (
@@ -176,6 +183,7 @@ Astro supports images in content collections with a special `image()` helper. It
    - Render `<ImageField />` component
 
 **Testing Checkpoint**:
+
 - Open article with `cover` field already populated
 - Verify path displays as text
 - Verify thumbnail preview renders correctly below
@@ -207,6 +215,7 @@ Astro supports images in content collections with a special `image()` helper. It
 **ImageField File Handling**:
 
 3. **Implement file selection handler** in `ImageField.tsx`:
+
    ```tsx
    const handleFileSelect = async (filePath: string) => {
      setIsLoading(true)
@@ -244,13 +253,15 @@ Astro supports images in content collections with a special `image()` helper. It
        updateFrontmatterField(name, `/${relativePath}`)
      } catch (error) {
        // Show error toast
-       window.dispatchEvent(new CustomEvent('toast', {
-         detail: {
-           title: 'Failed to add image',
-           description: error.message,
-           variant: 'error'
-         }
-       }))
+       window.dispatchEvent(
+         new CustomEvent('toast', {
+           detail: {
+             title: 'Failed to add image',
+             description: error.message,
+             variant: 'error',
+           },
+         })
+       )
      } finally {
        setIsLoading(false)
      }
@@ -264,6 +275,7 @@ Astro supports images in content collections with a special `image()` helper. It
    - Update preview immediately when complete
 
 **Testing Checkpoint**:
+
 - Select an image file via file picker
 - Verify file appears in `/src/assets/{collection}/` with correct naming (YYYY-MM-DD-kebab-name.ext)
 - Verify frontmatter updates with correct path
@@ -288,13 +300,9 @@ Astro supports images in content collections with a special `image()` helper. It
    - Clears file input state
 
    **Design pattern** (following ReferenceField pattern):
+
    ```tsx
-   <Button
-     variant="ghost"
-     size="icon-sm"
-     onClick={handleClear}
-     type="button"
-   >
+   <Button variant="ghost" size="icon-sm" onClick={handleClear} type="button">
      <X className="size-3" />
    </Button>
    ```
@@ -325,8 +333,11 @@ Astro supports images in content collections with a special `image()` helper. It
    - Prevent multiple simultaneous uploads
 
    **Design pattern**:
+
    ```tsx
-   {isLoading && <Loader2Icon className="size-4 animate-spin" />}
+   {
+     isLoading && <Loader2Icon className="size-4 animate-spin" />
+   }
    ```
 
 **Input Reset**:
@@ -336,6 +347,7 @@ Astro supports images in content collections with a special `image()` helper. It
    - Clear input if user cancels selection
 
 **Testing Checkpoint**:
+
 - Test Clear button removes image and clears frontmatter
 - Test manual path editing with valid path
 - Test manual path editing with invalid path (should show error)
@@ -399,12 +411,14 @@ Astro supports images in content collections with a special `image()` helper. It
 ## Architecture Notes
 
 **Why New FieldType.Image?**
+
 - Consistent with existing `Email` and `URL` types (semantic clarity)
 - Type-safe on both frontend and backend
 - Cleaner than checking constraint hacks
 - Better for future enhancements (different image types, validation, etc.)
 
 **Simplicity Principles**:
+
 - Direct Store Pattern (no form state layer)
 - Immediate operations (no deferred/batched file operations)
 - Reuse existing code (file copy, path resolution, image preview)
@@ -415,12 +429,14 @@ Astro supports images in content collections with a special `image()` helper. It
 - Silent failure for preview rendering (like floating preview)
 
 **Shared Code**:
+
 - `copyImageToAssets()` - Used by both ImageField and drag/drop
 - `resolveImagePath()` - Already shared via Tauri command
 - `ImageThumbnail` - Reusable preview component
 - Asset protocol conversion - Already centralized
 
 **Performance Considerations**:
+
 - Use specific store selectors (only re-render on value change)
 - Debounce preview rendering if needed
 - Conditional preview loading (only when value exists)
