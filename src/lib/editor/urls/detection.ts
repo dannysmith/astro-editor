@@ -2,7 +2,7 @@
  * URL detection utilities for the editor
  */
 
-import { IMAGE_EXTENSIONS } from '../dragdrop/fileProcessing'
+import { IMAGE_EXTENSIONS_WITH_DOTS } from '../../files'
 
 export interface UrlMatch {
   url: string
@@ -95,7 +95,9 @@ export const isValidUrl = (text: string): boolean => {
 export const isImageUrl = (urlOrPath: string): boolean => {
   // Remove query parameters and fragments to check only the path
   const cleanPath = (urlOrPath.split('?')[0] ?? '').split('#')[0] ?? ''
-  return IMAGE_EXTENSIONS.some(ext => cleanPath.toLowerCase().endsWith(ext))
+  return IMAGE_EXTENSIONS_WITH_DOTS.some(ext =>
+    cleanPath.toLowerCase().endsWith(ext)
+  )
 }
 
 /**
