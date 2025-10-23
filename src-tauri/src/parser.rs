@@ -1100,6 +1100,112 @@ fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
     matches
 }
 
+/// Find the field name by scanning backwards from a position to the nearest ':'
+/// Returns the field name (identifier before the colon)
+fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<String> {
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut pos = start_pos;
+
+    // Scan backwards to find ':'
+    while pos > 0 {
+        if chars[pos] == ':' {
+            // Found colon, now scan backwards to find the field name
+            let mut field_end = pos;
+            while field_end > 0 && chars[field_end - 1].is_whitespace() {
+                field_end -= 1;
+            }
+
+            let mut field_start = field_end;
+            while field_start > 0 {
+                let ch = chars[field_start - 1];
+                if ch.is_alphanumeric() || ch == '_' || ch == '$' {
+                    field_start -= 1;
+                } else {
+                    break;
+                }
+            }
+
+            if field_start < field_end {
+                let field_name: String = chars[field_start..field_end].iter().collect();
+                log::debug!("Found field name '{}' at position {}", field_name, field_start);
+                return Some(field_name);
+            }
+        }
+        pos -= 1;
+    }
+
+    None
+}
+
+/// Trace backwards from helper position to build dotted field path
+///
+/// Examples:
+/// - Top-level: "heroImage: image()" → "heroImage"
+/// - Nested: "coverImage: z.object({ image: image() })" → "coverImage.image"
+/// - Deep: "meta: { author: { avatar: image() } }" → "meta.author.avatar"
+fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<String, String> {
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut path_components = Vec::new();
+    let mut current_pos = helper_position;
+
+    log::debug!("Resolving field path from position {}", helper_position);
+
+    // First, find the immediate field name for this helper
+    if let Some(field_name) = find_field_name_backwards(schema_text, current_pos) {
+        path_components.push(field_name.clone());
+        log::debug!("Added field component: '{}'", field_name);
+
+        // Now trace backwards through brace levels to find parent fields
+        let mut brace_level = 0;
+        current_pos = helper_position;
+
+        while current_pos > 0 {
+            current_pos -= 1;
+            let ch = chars[current_pos];
+
+            match ch {
+                '}' => {
+                    brace_level += 1;
+                    log::debug!("Found '}}' at {}, brace_level now {}", current_pos, brace_level);
+                }
+                '{' => {
+                    brace_level -= 1;
+                    log::debug!("Found '{{' at {}, brace_level now {}", current_pos, brace_level);
+
+                    // When we exit to a parent level (brace_level becomes negative)
+                    if brace_level < 0 {
+                        // Look for a parent field name before this '{'
+                        if let Some(parent_field) = find_field_name_backwards(schema_text, current_pos) {
+                            // Make sure we haven't already added this field (avoid duplicates)
+                            if path_components.last() != Some(&parent_field) {
+                                path_components.push(parent_field.clone());
+                                log::debug!("Added parent field component: '{}'", parent_field);
+                            }
+                            // Reset brace level for the next parent
+                            brace_level = 0;
+                        } else {
+                            // No parent field found, we've reached the top level
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    } else {
+        return Err(format!(
+            "Could not find field name for helper at position {}",
+            helper_position
+        ));
+    }
+
+    // Reverse to get the path from outermost to innermost
+    path_components.reverse();
+    let path = path_components.join(".");
+    log::debug!("Resolved path: '{}'", path);
+    Ok(path)
+}
+
 fn extract_default_value(schema_text: &str, field_name: &str) -> Option<String> {
     let default_re = Regex::new(&format!(r"{field_name}.*\.default\s*\(\s*([^)]+)\s*\)")).unwrap();
 
@@ -1328,6 +1434,150 @@ export const collections = {
         // Should find the deeply nested image()
         assert_eq!(helpers.len(), 1, "Should find 1 helper");
         assert_eq!(helpers[0].helper_type, HelperType::Image);
+    }
+
+    // --- UNIT TESTS FOR PATH RESOLUTION ---
+
+    #[test]
+    fn test_resolve_top_level_field() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            title: z.string(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(path.unwrap(), "hero", "Should resolve to 'hero'");
+    }
+
+    #[test]
+    fn test_resolve_nested_field() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z.object({
+                image: image(),
+                alt: z.string(),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "coverImage.image",
+            "Should resolve to 'coverImage.image'"
+        );
+    }
+
+    #[test]
+    fn test_resolve_deep_nested_field() {
+        let schema_text = r#"
+        z.object({
+            metadata: z.object({
+                author: z.object({
+                    avatar: image(),
+                }),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "metadata.author.avatar",
+            "Should resolve to 'metadata.author.avatar'"
+        );
+    }
+
+    #[test]
+    fn test_resolve_multiline_nested() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z
+                .object({
+                    image: image().optional(),
+                    alt: z.string(),
+                })
+                .optional(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "coverImage.image",
+            "Should resolve to 'coverImage.image' even with multi-line"
+        );
+    }
+
+    #[test]
+    fn test_resolve_array_of_references() {
+        let schema_text = r#"
+        z.object({
+            tags: z.array(reference('tags')),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(path.unwrap(), "tags", "Should resolve to 'tags'");
+    }
+
+    #[test]
+    fn test_resolve_multiple_helpers() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            author: reference('authors'),
+            coverImage: z.object({
+                image: image(),
+                alt: z.string(),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 3, "Should find 3 helpers");
+
+        // Test each helper's path
+        for helper in &helpers {
+            let path = resolve_field_path(schema_text, helper.position);
+            assert!(path.is_ok(), "Should resolve all paths successfully");
+            let path_str = path.unwrap();
+
+            match helper.helper_type {
+                HelperType::Image => {
+                    assert!(
+                        path_str == "hero" || path_str == "coverImage.image",
+                        "Image path should be 'hero' or 'coverImage.image', got '{}'",
+                        path_str
+                    );
+                }
+                HelperType::Reference => {
+                    assert_eq!(path_str, "author", "Reference path should be 'author'");
+                }
+            }
+        }
     }
 
     // --- NEW FOCUSED TESTS FOR PATTERN MATCHING APPROACH ---
