@@ -9,6 +9,32 @@ https://github.com/dannysmith/astro-editor/issues/40
 - **Effort**: Medium (4-6 hours)
 - **Assigned**: Unassigned
 
+## Quick Start for Implementation
+
+**READ THIS FIRST!** This is a complete rewrite of the Zod parser with a simplified, focused approach.
+
+### What You Need to Know
+
+1. **The Goal**: Fix nested image fields (e.g., `coverImage.image`) which currently don't work due to multi-line formatting
+2. **The Approach**: Pattern matching instead of line-by-line parsing
+3. **Massive Simplification**: Remove ~500 lines of constraint parsing code (JSON schemas have all that!)
+4. **Start with Phase 0**: Delete obsolete tests, write new focused tests (TDD approach)
+
+### Key Decisions Already Made
+
+✅ **JSON schemas contain ALL constraints** - verified by examining actual generated schemas
+✅ **Arrays of objects NOT supported** - intentionally skipping `z.array(z.object({ src: image() }))`
+✅ **Arrays of helpers ARE supported** - `z.array(reference('tags'))` works fine
+✅ **Only parse image() and reference()** - everything else comes from JSON schemas
+
+### Expected Outcome
+
+- **Code**: 1100 lines → 600-700 lines (40% reduction!)
+- **Tests**: 14 tests → 13 tests (but testing the RIGHT things)
+- **Functionality**: Nested image fields work, everything else still works
+
+**⚠️ CRITICAL**: Read the "CRITICAL GOTCHAS" section below before starting!
+
 ## Context
 
 The current Zod schema parser uses line-by-line parsing with brace counting to extract field definitions from `src/content.config.ts`. This approach is fragile and breaks with common formatting patterns like:
@@ -181,6 +207,35 @@ This task was created after attempting to fix nested image field support by impr
 4. It's easier to maintain and extend
 
 The immediate benefit is nested image fields working correctly. The longer-term benefit is a more maintainable codebase that's easier to extend when new Astro/Zod helpers need special handling.
+
+---
+
+## FINAL PLAN AFTER CRITICAL REVIEW ✅
+
+### What Changed After Deep Code Review
+
+**Before Review**: Simple path resolution - just scan backwards and build dotted paths.
+
+**After Review - CRITICAL DISCOVERY**: Arrays are NOT flattened in JSON schema!
+
+**What This Means**:
+1. **Array Detection Is Mandatory**: Path resolution MUST detect `z.array(...)`
+2. **Different Output for Arrays**: `{ name: "gallery", type: "Array", arrayType: "Image" }`
+3. **Not Optional**: Without this, arrays of objects with images won't work at all
+
+**Key Technical Findings**:
+- JSON schema has `gallery` (array field), NOT `gallery.src` (nested fields)
+- The merger looks for array field names and changes their `sub_type`
+- Current parser likely has bugs with arrays of objects (explains why UI doesn't support them)
+- We ONLY output Image/Reference fields (JSON schema handles everything else)
+- Comments are pre-removed by `remove_comments()` before we run
+- Field names MUST match JSON schema exactly (dotted paths for nested objects)
+
+**Plan Updates**:
+- Phase 0: Added array tests (critical!)
+- Phase 2: Path resolution returns `PathInfo { field_path, is_in_array }`
+- Phase 3: Different output logic for array vs non-array fields
+- Added "CRITICAL GOTCHAS" section with 6 important discoveries
 
 ---
 
@@ -364,22 +419,27 @@ fn test_multiline_nested_object() {
 }
 ```
 
-6. **Test array with object containing image**:
+6. **Test array of references** (arrays of helpers - SUPPORTED):
 ```rust
 #[test]
-fn test_array_with_image() {
+fn test_array_of_references() {
     let schema_text = r#"
     z.object({
-      gallery: z.array(z.object({
-        src: image(),
-        caption: z.string(),
-      })),
+      relatedArticles: z.array(reference('articles')),
     })
     "#;
 
-    // Should find: [{ name: "gallery.src", type: "Image" }]
+    // Should find:
+    // [{
+    //   name: "relatedArticles",
+    //   type: "Array",
+    //   arrayType: "Reference",
+    //   arrayReferenceCollection: "articles"
+    // }]
 }
 ```
+
+**Note**: We're NOT testing `z.array(z.object({ src: image() }))` because we're intentionally not supporting that case (too complex, UI doesn't support it, extremely rare).
 
 7. **Test comments don't break parsing**:
 ```rust
@@ -406,11 +466,23 @@ fn test_helpers_with_comments() {
 
 **Action Items**:
 
-1. **Delete the 7 constraint-parsing tests** - they test the wrong thing
+1. **Delete the 7 constraint-parsing tests** - they test the wrong thing (JSON schemas have all constraints)
 2. **Keep the 6 infrastructure tests** - they test collection discovery
-3. **Write the 7 new focused tests** - these define what we're building
+3. **Write the 6-7 new focused tests** - these define what we're building
 4. **Run tests** - they should fail (we haven't implemented yet)
 5. **Use test failures to guide implementation**
+
+**Why Delete Constraint Tests**:
+✅ **VERIFIED** by examining actual JSON schemas from `test/dummy-astro-project/.astro/collections/`:
+- String constraints (minLength, maxLength) ✅ In JSON schemas
+- Number constraints (minimum, maximum) ✅ In JSON schemas
+- Format validation (email, uri) ✅ In JSON schemas
+- Descriptions ✅ In JSON schemas
+- Defaults ✅ In JSON schemas
+- Enums ✅ In JSON schemas
+- Required fields ✅ In JSON schemas
+
+The Zod parser does NOT need to parse any of this!
 
 **Success Criteria**:
 - Removed ~50% of tests (the constraint parsing ones)
@@ -520,11 +592,43 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
     let mut current_pos = helper_position;
     let mut brace_level = 0;
 
-    // Scan backwards through schema text
-    // Track brace levels and field names
-    // Build path components
+    loop {
+        // 1. Scan backwards to find field name (word before ':')
+        let field_name = find_field_name_before(schema_text, current_pos)?;
+        path_components.push(field_name);
 
-    // Reverse and join with dots
+        // 2. Continue scanning backwards through the text
+        // Track brace levels to know when we exit to parent object
+        while current_pos > 0 {
+            let ch = schema_text.chars().nth(current_pos)?;
+
+            if ch == '}' {
+                brace_level += 1;
+            } else if ch == '{' {
+                brace_level -= 1;
+
+                if brace_level < 0 {
+                    // We've exited the current object level
+                    // Check if there's a parent field
+                    if let Some(parent_name) = find_parent_field_name(schema_text, current_pos)? {
+                        current_pos = find_field_start_position(schema_text, current_pos)?;
+                        break; // Continue outer loop to add parent
+                    } else {
+                        // Top level reached
+                        path_components.reverse();
+                        return Ok(path_components.join("."));
+                    }
+                }
+            }
+
+            current_pos -= 1;
+        }
+
+        if current_pos == 0 {
+            break; // Reached start of text
+        }
+    }
+
     path_components.reverse();
     Ok(path_components.join("."))
 }
@@ -540,9 +644,7 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
 - Top-level fields (no nesting): `heroImage: image()` → `heroImage`
 - Single nesting: `cover: z.object({ image: image() })` → `cover.image`
 - Deep nesting (3+ levels): `meta: { author: { avatar: image() } }` → `meta.author.avatar`
-- Arrays with objects: `gallery: z.array(z.object({ src: image() }))` → `gallery.src`
-  - No special array handling - just resolve path normally through `z.array(...)`
-  - JSON schema has the array structure; we just mark `src` as Image type
+- **Arrays of helpers**: `tags: z.array(reference('tags'))` → `tags` with arrayType
 - Multi-line formatting: field name on different line than helper
 - Comments between field name and helper
 - Whitespace variations
@@ -550,14 +652,24 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
 **Error Handling**:
 - If path resolution fails, log warning with context and skip that field
 - Don't fail the entire parse - Zod parser is enhancing, not source of truth
+- Arrays of objects with helpers will likely fail path resolution - this is fine, we skip them
+
+**Path Resolution Algorithm** (SIMPLIFIED):
+1. Start at helper position
+2. Scan backwards to find nearest field name (word before `:`)
+3. Track brace levels `{}` to know when we exit to parent object
+4. When we exit a brace level, find parent field name
+5. Build dotted path from innermost to outermost
+6. For arrays of helpers like `z.array(reference('tags'))`, the field name is `tags` (no nesting to resolve)
 
 **Testing**:
 - Unit test: Top-level field path
 - Unit test: Single-level nested path
 - Unit test: Deep nested path (3+ levels)
-- Unit test: Array with image field
+- Unit test: Array of references (simple case)
 - Unit test: Multi-line formatted nested object
 - Unit test: Field with comments between name and helper
+- **NOT testing**: Arrays of objects with helpers (intentionally not supported)
 
 **Success Criteria**:
 - Correctly resolves `coverImage.image` from notes collection schema
@@ -618,6 +730,7 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
             Err(e) => {
                 log::warn!("Failed to resolve field path at position {}: {}", helper.position, e);
                 // Skip this field - it will be treated as whatever JSON schema says
+                // This includes arrays of objects with helpers (not supported)
             }
         }
     }
@@ -956,13 +1069,103 @@ If any checkpoint fails, fix issues before moving to next phase.
 
 ---
 
+## CRITICAL GOTCHAS DISCOVERED (Read This First!)
+
+**TL;DR - Arrays of Objects with Images/References NOT Supported**:
+We're intentionally NOT supporting `z.array(z.object({ src: image() }))` in this rewrite. It's rare, the UI doesn't support it anyway, and it would add significant complexity. We ONLY support:
+- Top-level helpers: `cover: image()`
+- Nested object helpers: `coverImage: z.object({ image: image() })`
+- Arrays of helpers: `tags: z.array(reference('tags'))` ✅ (this works fine!)
+
+---
+
+### Gotcha #1: JSON Schemas Contain ALL Constraints ✅ VERIFIED
+
+**CONFIRMED** by checking actual generated JSON schemas from `test/dummy-astro-project`:
+
+The JSON schemas generated by `astro sync` contain:
+- ✅ String constraints: `minLength`, `maxLength`
+- ✅ Number constraints: `minimum`, `maximum`
+- ✅ Format validation: `format: "uri"`, `format: "email"`
+- ✅ Descriptions: `description` field
+- ✅ Defaults: `default` field
+- ✅ Enums: `enum` array
+- ✅ Required fields: `required` array
+- ✅ Array constraints: `maxItems`
+
+**What This Means**: The Zod parser does NOT need to parse ANY of these! JSON schema is the complete source of truth for constraints, descriptions, defaults, enums, literals, unions, and optional detection.
+
+**Zod Parser's ONLY Job**: Find `image()` and `reference()` helpers, resolve their field paths. That's it!
+
+### Gotcha #2: Field Names MUST Match JSON Schema Exactly
+
+JSON schema flattens nested objects with dotted paths:
+- `coverImage.image` ← JSON schema has this exact field name
+- `coverImage.alt` ← JSON schema has this exact field name
+- NOT `coverImage` → `image` separately
+
+Our Zod parser MUST output the same dotted paths or the merger won't find them!
+
+### Gotcha #3: We ONLY Output Image and Reference Fields
+
+Looking at `extract_zod_enhancements()` in schema_merger.rs:
+- It only looks for `type_ == "Image"` or `type_ == "Reference"`
+- It ignores String, Number, Boolean, etc.
+- JSON schema already has all that info
+
+**So we skip ALL fields except image() and reference() helpers!**
+
+### Gotcha #4: Arrays of Helpers ARE Supported (But Not Arrays of Objects!)
+
+**Supported** ✅:
+```typescript
+tags: z.array(reference('tags'))
+```
+Output:
+```json
+{
+  "name": "tags",
+  "type": "Array",
+  "arrayType": "Reference",
+  "arrayReferenceCollection": "tags"
+}
+```
+
+**NOT Supported** ❌ (intentionally - too complex, UI doesn't support anyway):
+```typescript
+gallery: z.array(z.object({ src: image() }))
+```
+
+### Gotcha #5: Comments Are Already Removed
+
+Looking at the code flow, `remove_comments()` is called BEFORE our parser runs. So we don't need to handle comments in helper finding. But testing with comments is still good for robustness.
+
+### Gotcha #6: Strings Containing "image()" Might Match
+
+```typescript
+description: z.string().describe("Use image() helper")
+```
+
+Our regex will match `image()` inside the string! The current parser has this same bug, so it's not a regression. Low priority to fix.
+
+**Mitigation**: Accept this limitation for now. Real-world schemas rarely have "image()" in strings.
+
 ## Implementation Decisions (Clarified)
 
-1. **Array Handling**: For `gallery: z.array(z.object({ src: image() }))`:
-   - Resolve path as `gallery.src` (just like any other nested field)
-   - Don't add special array handling code
-   - JSON schema already has the array structure; we just mark that `src` is Image type
-   - This naturally supports arrays of objects without special-case code
+1. **Array Handling** ⚠️ SIMPLIFIED AFTER REVIEW:
+   - **Arrays of helpers (SUPPORTED)**: `tags: z.array(reference('tags'))`
+     - These already work with current parser
+     - Path resolution: just find the array field name
+     - Output: `{ name: "tags", type: "Array", arrayType: "Reference", arrayReferenceCollection: "tags" }`
+
+   - **Arrays of objects with helpers (NOT SUPPORTED)**: `gallery: z.array(z.object({ src: image() }))`
+     - Intentionally skipping this case
+     - Too complex, UI doesn't support it anyway, extremely rare in practice
+     - If found, we'll just skip it (path resolution will likely fail, we log warning)
+
+   - **Implementation**: Simple path resolution without array detection
+     - For `tags: z.array(reference('tags'))`: resolve to `tags`
+     - For `gallery: z.array(z.object({ src: image() }))`: path resolution will fail when it tries to build `gallery.src`, we skip with warning
 
 2. **Error Handling**: When path resolution fails:
    - Log a warning with the helper position and context
