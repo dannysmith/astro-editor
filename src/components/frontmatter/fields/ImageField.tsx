@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore, getNestedValue } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
@@ -11,8 +10,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '../../ui/input-group'
-import { getEffectiveAssetsDirectory } from '../../../lib/project-registry'
-import { ASTRO_PATHS } from '../../../lib/constants'
+import { processFileToAssets, IMAGE_EXTENSIONS } from '../../../lib/files'
 import { X, Loader2, Edit3, Check } from 'lucide-react'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
@@ -20,18 +18,6 @@ import type { SchemaField } from '../../../lib/schema'
 interface ImageFieldProps extends FieldProps {
   field?: SchemaField
 }
-
-// Supported image extensions
-const IMAGE_EXTENSIONS = [
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'webp',
-  'svg',
-  'bmp',
-  'ico',
-]
 
 export const ImageField: React.FC<ImageFieldProps> = ({
   name,
@@ -57,62 +43,24 @@ export const ImageField: React.FC<ImageFieldProps> = ({
     const collection = currentFile?.collection
 
     try {
-      // If no project or no current file, we can't process the file properly
+      // Validate context
       if (!projectPath || !currentFile || !collection) {
         throw new Error('No project or collection context available')
       }
 
-      // Check if file is already in project
-      const isInProject = await invoke<boolean>('is_path_in_project', {
-        filePath: filePath,
-        projectPath: projectPath,
+      // Use shared utility with 'only-if-outside-project' strategy
+      const result = await processFileToAssets({
+        sourcePath: filePath,
+        projectPath,
+        collection,
+        projectSettings: currentProjectSettings,
+        copyStrategy: 'only-if-outside-project',
       })
 
-      let relativePath: string
-
-      if (isInProject) {
-        // File is already in project - use existing path
-        relativePath = await invoke<string>('get_relative_path', {
-          filePath: filePath,
-          projectPath: projectPath,
-        })
-      } else {
-        // File is outside project - copy it to assets directory
-        // Get effective assets directory (respects collection and project overrides)
-        const assetsDirectory = getEffectiveAssetsDirectory(
-          currentProjectSettings,
-          collection
-        )
-
-        // Copy file to assets directory
-        if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-          // Use override path
-          relativePath = await invoke<string>(
-            'copy_file_to_assets_with_override',
-            {
-              sourcePath: filePath,
-              projectPath: projectPath,
-              collection: collection,
-              assetsDirectory: assetsDirectory,
-            }
-          )
-        } else {
-          // Use default path
-          relativePath = await invoke<string>('copy_file_to_assets', {
-            sourcePath: filePath,
-            projectPath: projectPath,
-            collection: collection,
-          })
-        }
-      }
-
-      // Update frontmatter with project-root-relative path
-      const normalizedPath = relativePath.startsWith('/')
-        ? relativePath
-        : `/${relativePath}`
-      updateFrontmatterField(name, normalizedPath)
+      // Update frontmatter with normalized path
+      updateFrontmatterField(name, result.relativePath)
     } catch (error) {
-      // Show error toast
+      // Show error toast (component-specific UI concern)
       window.dispatchEvent(
         new CustomEvent('toast', {
           detail: {
@@ -234,7 +182,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
 
         {/* File upload button - above preview */}
         <FileUploadButton
-          accept={IMAGE_EXTENSIONS}
+          accept={[...IMAGE_EXTENSIONS]}
           onFileSelect={handleFileSelect}
           disabled={isLoading}
         >
