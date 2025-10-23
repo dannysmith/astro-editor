@@ -184,11 +184,47 @@ The immediate benefit is nested image fields working correctly. The longer-term 
 
 ---
 
+## UPDATED PLAN (Based on Feedback)
+
+**Key Change**: Start with Phase 0 - Test Audit!
+
+### Why This Matters
+
+The current parser has **7 tests testing constraint parsing** (string min/max, number constraints, optional syntax, etc.). These test features we're REMOVING because JSON schema handles them.
+
+If we implement the new parser first, we'll waste time trying to fix these tests. Instead:
+
+1. **Delete the 7 obsolete tests** (they test wrong behavior)
+2. **Write 7 new focused tests** (image/reference discovery only)
+3. **Then implement** (guided by the new tests)
+
+This prevents us from chasing test failures for features we're deliberately not implementing!
+
+### Code Impact
+
+- **Before**: ~1100 lines, complex line-based parsing
+- **After**: ~600-700 lines, simple pattern matching
+- **Tests Before**: ~14 tests (7 testing wrong things)
+- **Tests After**: ~13 tests (6 infrastructure + 7 focused new tests)
+
+---
+
 ## Phased Implementation Plan
 
 ### Overview
 
-This rewrite will be completed in 5 distinct phases, each independently testable. The key insight is that the Zod parser's ONLY job is to find `image()` and `reference()` helper calls and resolve their field paths. The JSON schema parser handles the actual structure.
+This rewrite will be completed in 6 phases (0-5), starting with test cleanup. The key insight is that the Zod parser's ONLY job is to find `image()` and `reference()` helper calls and resolve their field paths. The JSON schema parser handles the actual structure.
+
+**🎯 CRITICAL: Start with Phase 0 (Test Audit)**
+
+Why? Because many existing tests validate the WRONG behavior (constraint parsing, optional detection, etc.). If we implement first, we'll waste time trying to make old tests pass that test features we're deliberately removing. Instead:
+
+1. **Phase 0**: Delete obsolete tests, write focused new tests (TDD approach)
+2. **Phase 1-3**: Implement (guided by the new test suite)
+3. **Phase 4**: Add edge case tests discovered during implementation
+4. **Phase 5**: Cleanup and documentation
+
+**Expected Code Reduction**: ~1100 lines → ~600-700 lines (40% reduction!)
 
 **Core Philosophy**:
 - **We're ENHANCING, not parsing**: JSON schema is the source of truth for structure
@@ -213,6 +249,183 @@ This rewrite will be completed in 5 distinct phases, each independently testable
   ]
 }
 ```
+
+### Phase 0: Test Audit & Focused Test Suite (START HERE)
+
+**Goal**: Review existing tests, remove those testing wrong behavior, write focused tests for the NEW approach.
+
+**Current Test Situation**:
+Looking at `src-tauri/src/parser.rs`, there are ~14 tests. Many test things we're NO LONGER DOING:
+
+**Tests to DELETE** (testing constraint parsing - not our job anymore):
+1. `test_enhanced_schema_parsing` - Tests parsing string/number constraints
+2. `test_literal_field_parsing` - Tests parsing literal types
+3. `test_union_field_parsing` - Tests parsing union types
+4. `test_optional_syntax_parsing` - Tests parsing optional syntax
+5. `test_string_constraints_parsing` - Tests regex, email, min/max length
+6. `test_number_constraints_parsing` - Tests min/max, positive/negative
+7. `test_multiline_field_normalization` - Tests constraint parsing from multi-line
+
+**Tests to KEEP** (infrastructure, still needed):
+1. `test_parse_simple_config` - Collection discovery
+2. `test_empty_config` - Empty collections handling
+3. `test_extract_collections_block` - Finding collections export
+4. `test_remove_comments` - Comment removal (still needed)
+5. `test_improved_comment_stripping` - Advanced comment removal
+6. `test_content_directory_override` - Custom content directory
+
+**New Focused Tests to WRITE** (before implementing):
+
+1. **Test finding top-level image helper**:
+```rust
+#[test]
+fn test_find_top_level_image() {
+    let schema_text = r#"
+    z.object({
+      hero: image(),
+      title: z.string(),
+    })
+    "#;
+
+    // Should find: [{ name: "hero", type: "Image" }]
+}
+```
+
+2. **Test finding nested image helper**:
+```rust
+#[test]
+fn test_find_nested_image() {
+    let schema_text = r#"
+    z.object({
+      coverImage: z.object({
+        image: image().optional(),
+        alt: z.string(),
+      }),
+    })
+    "#;
+
+    // Should find: [{ name: "coverImage.image", type: "Image" }]
+}
+```
+
+3. **Test finding deeply nested image (3+ levels)**:
+```rust
+#[test]
+fn test_find_deep_nested_image() {
+    let schema_text = r#"
+    z.object({
+      metadata: z.object({
+        author: z.object({
+          avatar: image(),
+        }),
+      }),
+    })
+    "#;
+
+    // Should find: [{ name: "metadata.author.avatar", type: "Image" }]
+}
+```
+
+4. **Test finding reference with collection name**:
+```rust
+#[test]
+fn test_find_reference_helper() {
+    let schema_text = r#"
+    z.object({
+      author: reference('authors'),
+      tags: z.array(reference('tags')),
+    })
+    "#;
+
+    // Should find:
+    // [
+    //   { name: "author", type: "Reference", referencedCollection: "authors" },
+    //   { name: "tags", type: "Reference", referencedCollection: "tags" }
+    // ]
+}
+```
+
+5. **Test multi-line formatting** (the bug we're fixing!):
+```rust
+#[test]
+fn test_multiline_nested_object() {
+    let schema_text = r#"
+    z.object({
+      coverImage: z
+        .object({
+          image: image().optional(),
+          alt: z.string().optional(),
+        })
+        .optional(),
+    })
+    "#;
+
+    // Should find: [{ name: "coverImage.image", type: "Image" }]
+}
+```
+
+6. **Test array with object containing image**:
+```rust
+#[test]
+fn test_array_with_image() {
+    let schema_text = r#"
+    z.object({
+      gallery: z.array(z.object({
+        src: image(),
+        caption: z.string(),
+      })),
+    })
+    "#;
+
+    // Should find: [{ name: "gallery.src", type: "Image" }]
+}
+```
+
+7. **Test comments don't break parsing**:
+```rust
+#[test]
+fn test_helpers_with_comments() {
+    let schema_text = r#"
+    z.object({
+      // Profile image
+      avatar: image().optional(),
+      /* Cover image */
+      cover: z.object({
+        image: image(), // The actual image
+      }),
+    })
+    "#;
+
+    // Should find:
+    // [
+    //   { name: "avatar", type: "Image" },
+    //   { name: "cover.image", type: "Image" }
+    // ]
+}
+```
+
+**Action Items**:
+
+1. **Delete the 7 constraint-parsing tests** - they test the wrong thing
+2. **Keep the 6 infrastructure tests** - they test collection discovery
+3. **Write the 7 new focused tests** - these define what we're building
+4. **Run tests** - they should fail (we haven't implemented yet)
+5. **Use test failures to guide implementation**
+
+**Success Criteria**:
+- Removed ~50% of tests (the constraint parsing ones)
+- Have clear, focused test suite that defines new behavior
+- Tests fail initially (expected - we haven't implemented yet)
+- Tests are simple and focused on helper discovery + path resolution
+
+**Manual Validation**:
+After writing tests, review them:
+- Do they test ONLY image()/reference() discovery?
+- Do they test path resolution correctly?
+- Are they simple and readable?
+- Do they cover edge cases (multi-line, deep nesting, arrays)?
+
+---
 
 ### Phase 1: Foundation - Helper Discovery
 
@@ -459,11 +672,13 @@ fn parse_schema_fields(schema_text: &str) -> Option<String> {
 
 ---
 
-### Phase 4: Testing & Validation
+### Phase 4: Additional Edge Case Testing
 
-**Goal**: Comprehensive testing of the new implementation with previously broken cases.
+**Goal**: Add any additional edge case tests discovered during implementation.
 
-**New Tests to Add**:
+**Note**: The core test suite was written in Phase 0. This phase is for any edge cases found during implementation.
+
+**Potential Additional Tests**:
 
 1. **Test multi-line nested object with image**:
 ```rust
@@ -602,12 +817,29 @@ const blog = defineCollection({
 
 **Goal**: Remove old code, add documentation, and prepare for production.
 
+**Note**: We already deleted obsolete tests in Phase 0, so this is about code cleanup.
+
 **Cleanup Tasks**:
 
 1. **Remove old line-based parsing code**:
    - Remove the old `parse_schema_fields()` implementation (lines 416-492)
-   - Remove `process_field()` if only used by old approach
-   - Keep any helper functions still used by new approach
+   - Remove `process_field()` and other line-based helpers if only used by old approach
+   - Remove old helper functions that are no longer needed:
+     - `parse_field_type_and_constraints()` - we don't parse constraints anymore
+     - `extract_string_constraints()` - not our job
+     - `extract_number_constraints()` - not our job
+     - `normalize_field_definition()` - not needed
+     - `extract_optional_inner_type()` - not our job
+     - `extract_array_inner_type()` - not needed (path resolution handles this)
+     - `extract_union_types()` - not our job
+     - `extract_literal_value()` - not our job
+     - `extract_enum_values()` - not our job
+     - `extract_default_value()` - not our job
+     - `serialize_constraints()` - not our job anymore
+   - Keep only what's needed:
+     - `extract_reference_collection()` - still needed for reference() collection names
+     - `remove_comments()` - still needed for preprocessing
+     - Collection discovery functions - still needed
 
 2. **Code organization**:
    - Group helper discovery functions together
@@ -697,9 +929,14 @@ const blog = defineCollection({
    - [ ] Examples provided
    - [ ] Edge cases documented
 
+**Code Size Reduction**:
+Before: ~1100 lines of parser.rs
+After: Should be ~600-700 lines (significant simplification!)
+
 **Success Criteria**:
 - Code is clean and well-documented
-- Old line-based approach is completely removed
+- Old line-based approach is completely removed (~400-500 lines deleted)
+- All obsolete helper functions removed
 - New approach is easy to understand and extend
 - Documentation explains the pattern-matching approach
 - Ready for production use
