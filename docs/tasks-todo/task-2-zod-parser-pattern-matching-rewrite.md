@@ -5,9 +5,149 @@ https://github.com/dannysmith/astro-editor/issues/40
 ## Status
 
 - **Priority**: 3
-- **Status**: Todo
+- **Status**: In Progress (Phase 3 - 70% complete)
 - **Effort**: Medium (4-6 hours)
-- **Assigned**: Unassigned
+- **Assigned**: In Progress
+
+---
+
+## 🚧 CURRENT PROGRESS & HANDOFF NOTES (2025-01-24)
+
+### What's Been Completed ✅
+
+**Phase 0: Test Audit (DONE)**
+- ✅ Deleted 7 obsolete constraint-parsing tests
+- ✅ Wrote 7 new focused tests for helper discovery and path resolution
+- ✅ All infrastructure tests (6) still passing
+
+**Phase 1: Helper Discovery (DONE)**
+- ✅ Created `HelperType` enum and `HelperMatch` struct (src-tauri/src/parser.rs:65-78)
+- ✅ Implemented `find_helper_calls()` function (lines 1048-1101)
+  - Uses regex to find `image()` and `reference()` calls
+  - Extracts collection names from `reference('collectionName')`
+  - Comprehensive logging with context
+- ✅ All 3 unit tests passing:
+  - `test_find_helper_calls_basic`
+  - `test_find_helper_calls_multiline`
+  - `test_find_helper_calls_deep_nesting`
+
+**Phase 2: Path Resolution (DONE)**
+- ✅ Implemented `find_field_name_backwards()` helper (lines 1103-1138)
+- ✅ Implemented `resolve_field_path()` core algorithm (lines 1159-1226)
+  - Scans backwards from helper position
+  - Tracks brace levels to find parent fields
+  - Builds dotted paths (e.g., `coverImage.image`, `metadata.author.avatar`)
+- ✅ All 6 unit tests passing:
+  - `test_resolve_top_level_field`
+  - `test_resolve_nested_field`
+  - `test_resolve_deep_nested_field`
+  - `test_resolve_multiline_nested`
+  - `test_resolve_array_of_references`
+  - `test_resolve_multiple_helpers`
+
+**Phase 3: Integration (70% DONE)**
+- ✅ Implemented `is_inside_array()` helper (lines 1140-1157)
+- ✅ Implemented `extract_zod_special_fields()` main function (lines 1228-1337)
+  - Finds helpers, resolves paths, creates JSON output
+  - Handles both array and non-array contexts
+  - Proper error handling with warnings
+- ✅ Replaced `parse_schema_fields()` to call new function (line 437-439)
+- ✅ Unit test `test_extract_zod_special_fields_basic` passing
+- ✅ Unit test `test_extract_basic_schema_with_arrow_function` passing
+
+### Current Issue 🔍
+
+**Problem**: Integration tests failing with `collections.len() == 0`
+
+**Tests Failing** (7 total):
+- `test_find_top_level_image`
+- `test_find_nested_image`
+- `test_find_deep_nested_image`
+- `test_find_reference_helper`
+- `test_multiline_nested_object`
+- `test_array_of_references`
+- `test_helpers_with_comments`
+
+**What Works**:
+- ✅ Individual functions all work (helper finding, path resolution, extraction)
+- ✅ `extract_collections_block()` finds the collections block correctly
+- ✅ Schema extraction works when tested directly
+- ✅ Directory creation works
+
+**What Doesn't Work**:
+- ❌ `parse_collection_definitions()` returns 0 collections even though it receives the collections block
+
+**Debug Output** (from `test_full_parse_with_image_helper`):
+```
+Created directory: "/var/.../test-full-parse-image/project/src/content/test"
+Directory exists: true
+[DEBUG] Found collections block, length: 128
+[DEBUG] Full collections block: '{ ... (content exists but gets truncated)
+Parse result: Ok([])
+Collections found: 0
+```
+
+**Root Cause Hypothesis**:
+The issue is in `parse_collection_definitions()` (lines 283-350). This function has two code paths:
+
+1. **New format path** (lines 296-322): Tries to match `{ articles, notes }` style exports
+2. **Old format path** (lines 323-350): Tries to match `collection_name: defineCollection(...)` style
+
+The test schemas use `export const collections = { test: defineCollection({ ... }) }` format, which should match the OLD format path, but it's not finding them.
+
+**Likely Issue**: The regex `r"(\w+)\s*:\s*defineCollection\s*\("` on line 325 needs to be checked. The collections block being passed might not contain `defineCollection` in the expected position.
+
+**Next Steps to Debug**:
+1. Add debug prints in `parse_collection_definitions()` to see which code path executes
+2. Print the regex captures to see if it's matching
+3. Check if the collections_block content is what we expect
+4. Verify the directory existence check on line 336 is working
+
+### Files Modified
+
+- `src-tauri/src/parser.rs` - Main implementation file
+  - Added new structs/enums (lines 65-78)
+  - Added new pattern-matching functions (lines 1048-1337)
+  - Replaced `parse_schema_fields()` body (line 437-439)
+  - Added debug logging throughout
+  - Added 10 new unit tests
+  - Deleted 7 obsolete tests
+
+### What Needs to Be Done Next
+
+**Immediate** (to complete Phase 3):
+1. Debug `parse_collection_definitions()` to find why collections aren't being detected
+   - Add more debug output to see regex matching
+   - Verify collections_block content
+   - Check both code paths (new format vs old format)
+2. Fix the collection detection logic
+3. Remove debug prints once working
+4. Verify all 7 failing integration tests pass
+
+**Then** (Phases 4-5):
+- Phase 4: Add edge case tests if needed
+- Phase 5: Clean up old code and documentation
+
+### Test Summary
+
+**Passing** (15):
+- All infrastructure tests
+- All helper discovery unit tests
+- All path resolution unit tests
+- Integration tests for schemas without helpers
+
+**Failing** (7):
+- All integration tests that expect to find image/reference helpers
+
+### Important Context
+
+- The pattern-matching approach is **fundamentally working** - all unit tests prove this
+- The issue is in the **collection discovery** layer, not the parsing layer
+- The failing tests all use `export const collections = { ... }` format
+- These tests create temp directories and call `parse_collections_from_content()`
+- The old code being replaced is ~500 lines of complex constraint parsing that we're removing
+
+---
 
 ## Quick Start for Implementation
 
@@ -483,6 +623,39 @@ fn test_helpers_with_comments() {
 - Required fields ✅ In JSON schemas
 
 The Zod parser does NOT need to parse any of this!
+
+---
+
+## 🔧 DEBUGGING INFO FOR NEXT SESSION
+
+**DEBUG LOGGING IS IN PLACE** - The code now has comprehensive debug output in `parse_collection_definitions()` (lines 283-380).
+
+### To Debug the Issue:
+
+Run this command and examine the output:
+```bash
+cd src-tauri
+cargo test parser::tests::test_full_parse_with_image_helper -- --exact --nocapture
+```
+
+**What to look for in the debug output:**
+1. `[DEBUG] collections_block content:` - Shows the EXACT content being parsed
+2. `[DEBUG] Trying NEW format regex match...` - Did it match the new format?
+3. `[DEBUG] Trying OLD format regex match...` - Did it match the old format?
+4. `[DEBUG] OLD format found X matches` - How many collection definitions found?
+5. `[DEBUG]   exists: true/false` - Does the directory exist?
+6. `[DEBUG]   is_dir: true/false` - Is it a directory?
+7. `[DEBUG] Returning X collections` - Final count
+
+**Hypothesis**: The regex is matching `test: defineCollection(...)` correctly (old format), but one of these is failing:
+- Directory doesn't exist at the expected path
+- Directory check is failing for some reason
+- Schema extraction is failing
+
+**Quick Fix Once You Identify the Issue:**
+- If directory path is wrong: Check `content_dir` in the debug output
+- If regex isn't matching: The collections_block content will show why
+- If schema extraction fails: Add debug to `extract_basic_schema()`
 
 **Success Criteria**:
 - Removed ~50% of tests (the constraint parsing ones)

@@ -285,6 +285,11 @@ fn parse_collection_definitions(
     content_dir: &Path,
     full_content: &str,
 ) -> Result<Vec<Collection>, String> {
+    println!("\n[DEBUG parse_collection_definitions] Called");
+    println!("[DEBUG] collections_block length: {}", collections_block.len());
+    println!("[DEBUG] collections_block content:\n{}", collections_block);
+    println!("[DEBUG] content_dir: {:?}", content_dir);
+
     let mut collections = Vec::new();
 
     // For new format, extract collection names from export block: { articles, notes }
@@ -293,10 +298,13 @@ fn parse_collection_definitions(
         Regex::new(r"\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\}")
             .unwrap();
 
+    println!("[DEBUG] Trying NEW format regex match (simple name list)...");
     if let Some(cap) = export_names_re.captures(collections_block) {
         let names_str = cap.get(1).unwrap().as_str();
+        println!("[DEBUG] NEW format regex matched: '{}'", names_str);
         // Additional check: if the names_str contains "defineCollection" or ":", it's the old format
         if !names_str.contains("defineCollection") && !names_str.contains(":") {
+            println!("[DEBUG] Taking NEW format path (no defineCollection or : in match)");
             // Split by comma and clean up names
             for name in names_str.split(',') {
                 let collection_name = name.trim();
@@ -320,34 +328,54 @@ fn parse_collection_definitions(
                     collections.push(collection);
                 }
             }
+        } else {
+            println!("[DEBUG] NEW format check failed (contains defineCollection or :), falling through");
         }
     } else {
-        // Fallback to old format: collection_name: defineCollection(...)
-        let collection_re = Regex::new(r"(\w+)\s*:\s*defineCollection\s*\(").unwrap();
+        println!("[DEBUG] NEW format regex didn't match");
+    }
 
-        for cap in collection_re.captures_iter(collections_block) {
-            let collection_name = cap.get(1).unwrap().as_str();
+    // Fallback to old format: collection_name: defineCollection(...)
+    println!("\n[DEBUG] Trying OLD format regex match...");
+    let collection_re = Regex::new(r"(\w+)\s*:\s*defineCollection\s*\(").unwrap();
 
-            // Skip file-based collections - they should only be used for references
-            if is_file_based_collection(full_content, collection_name) {
-                continue;
+    let old_format_matches: Vec<_> = collection_re.captures_iter(collections_block).collect();
+    println!("[DEBUG] OLD format found {} matches", old_format_matches.len());
+
+    for cap in old_format_matches {
+        let collection_name = cap.get(1).unwrap().as_str();
+        println!("[DEBUG] OLD format processing collection: '{}'", collection_name);
+
+        // Skip file-based collections - they should only be used for references
+        if is_file_based_collection(full_content, collection_name) {
+            println!("[DEBUG] Skipping '{}' - is file-based collection", collection_name);
+            continue;
+        }
+
+        // Only include directory-based collections
+        let collection_path = content_dir.join(collection_name);
+        println!("[DEBUG] Checking directory: {:?}", collection_path);
+        println!("[DEBUG]   exists: {}", collection_path.exists());
+        println!("[DEBUG]   is_dir: {}", collection_path.is_dir());
+
+        if collection_path.exists() && collection_path.is_dir() {
+            println!("[DEBUG] ✓ Adding collection '{}'", collection_name);
+            let mut collection = Collection::new(collection_name.to_string(), collection_path);
+
+            if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
+                println!("[DEBUG] ✓ Found schema for '{}'", collection_name);
+                collection.schema = Some(schema);
+            } else {
+                println!("[DEBUG] ✗ No schema found for '{}'", collection_name);
             }
 
-            // Only include directory-based collections
-            let collection_path = content_dir.join(collection_name);
-
-            if collection_path.exists() && collection_path.is_dir() {
-                let mut collection = Collection::new(collection_name.to_string(), collection_path);
-
-                if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
-                    collection.schema = Some(schema);
-                }
-
-                collections.push(collection);
-            }
+            collections.push(collection);
+        } else {
+            println!("[DEBUG] ✗ Skipping '{}' - directory doesn't exist or isn't a directory", collection_name);
         }
     }
 
+    println!("[DEBUG] Returning {} collections\n", collections.len());
     Ok(collections)
 }
 
@@ -420,7 +448,6 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
 
         if brace_count == 0 {
             let schema_text = &collection_block[start + 1..end].trim(); // +1 to skip opening brace
-
             return parse_schema_fields(schema_text);
         }
     }
@@ -429,159 +456,8 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
 }
 
 fn parse_schema_fields(schema_text: &str) -> Option<String> {
-    let mut schema_fields = Vec::new();
-    let mut processed_fields = std::collections::HashSet::new();
-
-    // Parse fields - handle both single line and multiline definitions
-    let mut current_field = String::new();
-    let mut in_field = false;
-    let mut brace_count = 0;
-
-    for line in schema_text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line == "}" || line == "{" {
-            continue;
-        }
-
-        // Check if this line starts a new field (contains ':' and we're not already in a field)
-        if line.contains(':') && !in_field {
-            // Process previous field if exists
-            if !current_field.is_empty() {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-            }
-
-            current_field = line.to_string();
-            in_field = true;
-
-            // Count parentheses and other grouping characters to detect if field continues
-            brace_count = line.matches('(').count() as i32 - line.matches(')').count() as i32;
-
-            // If the field appears complete on one line (balanced parens), process it immediately
-            if brace_count == 0 && (line.ends_with(',') || !line.contains('(')) {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-                in_field = false;
-            }
-        } else if in_field {
-            // Continue accumulating the current field
-            current_field.push(' ');
-            current_field.push_str(line);
-
-            // Update brace count
-            brace_count += line.matches('(').count() as i32 - line.matches(')').count() as i32;
-
-            // If braces are balanced, the field is complete
-            if brace_count <= 0 {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-                in_field = false;
-                brace_count = 0;
-            }
-        }
-    }
-
-    // Process any remaining field
-    if !current_field.is_empty() {
-        process_field(
-            &current_field,
-            &mut schema_fields,
-            &mut processed_fields,
-            schema_text,
-        );
-    }
-
-    if !schema_fields.is_empty() {
-        // Serialize to JSON for storage
-        let schema_json = serde_json::json!({
-            "type": "zod",
-            "fields": schema_fields.iter().map(|f| {
-                let mut field_json = serde_json::json!({
-                    "name": f.name,
-                    "type": match &f.field_type {
-                        ZodFieldType::Enum(_) => "Enum".to_string(),
-                        ZodFieldType::Array(_) => "Array".to_string(),
-                        ZodFieldType::Union(_) => "Union".to_string(),
-                        ZodFieldType::Literal(_) => "Literal".to_string(),
-                        ZodFieldType::Object(_) => "Object".to_string(),
-                        ZodFieldType::Reference(_) => "Reference".to_string(),
-                        ZodFieldType::String => "String".to_string(),
-                        ZodFieldType::Number => "Number".to_string(),
-                        ZodFieldType::Boolean => "Boolean".to_string(),
-                        ZodFieldType::Date => "Date".to_string(),
-                        ZodFieldType::Image => "Image".to_string(),
-                        ZodFieldType::Unknown => "Unknown".to_string(),
-                    },
-                    "optional": f.optional,
-                    "default": f.default_value,
-                    "constraints": serialize_constraints(&f.constraints)
-                });
-
-                // Add type-specific options
-                match &f.field_type {
-                    ZodFieldType::Enum(options) => {
-                        field_json["options"] = serde_json::json!(options);
-                    }
-                    ZodFieldType::Reference(collection_name) => {
-                        field_json["referencedCollection"] = serde_json::json!(collection_name);
-                    }
-                    ZodFieldType::Array(inner_type) => {
-                        field_json["arrayType"] = serde_json::json!(match **inner_type {
-                            ZodFieldType::String => "String",
-                            ZodFieldType::Number => "Number",
-                            ZodFieldType::Boolean => "Boolean",
-                            ZodFieldType::Date => "Date",
-                            ZodFieldType::Image => "Image",
-                            ZodFieldType::Reference(_) => "Reference",
-                            _ => "Unknown",
-                        });
-                        // If array contains references, include the collection name
-                        if let ZodFieldType::Reference(collection_name) = &**inner_type {
-                            field_json["arrayReferenceCollection"] = serde_json::json!(collection_name);
-                        }
-                    }
-                    ZodFieldType::Union(types) => {
-                        field_json["unionTypes"] = serde_json::json!(
-                            types.iter().map(|t| match t {
-                                ZodFieldType::String => serde_json::json!("String"),
-                                ZodFieldType::Number => serde_json::json!("Number"),
-                                ZodFieldType::Boolean => serde_json::json!("Boolean"),
-                                ZodFieldType::Date => serde_json::json!("Date"),
-                                ZodFieldType::Image => serde_json::json!("Image"),
-                                ZodFieldType::Literal(val) => serde_json::json!({"type": "Literal", "value": val}),
-                                _ => serde_json::json!("Unknown"),
-                            }).collect::<Vec<_>>()
-                        );
-                    }
-                    ZodFieldType::Literal(value) => {
-                        field_json["literalValue"] = serde_json::json!(value);
-                    }
-                    _ => {}
-                }
-
-                field_json
-            }).collect::<Vec<_>>()
-        });
-
-        return Some(schema_json.to_string());
-    }
-
-    None
+    // Use the new pattern-matching approach
+    extract_zod_special_fields(schema_text)
 }
 
 fn process_field(
@@ -1137,6 +1013,25 @@ fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<Stri
     None
 }
 
+/// Check if a helper is inside a z.array() call
+/// Returns true if z.array( appears between the last ':' and the helper position
+fn is_inside_array(schema_text: &str, helper_position: usize) -> bool {
+    // Scan backwards from helper position to find the last ':'
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut pos = helper_position;
+
+    while pos > 0 {
+        if chars[pos] == ':' {
+            // Found the field colon, now check if z.array( appears between : and helper
+            let between = &schema_text[pos..helper_position];
+            return between.contains("z.array(");
+        }
+        pos -= 1;
+    }
+
+    false
+}
+
 /// Trace backwards from helper position to build dotted field path
 ///
 /// Examples:
@@ -1206,6 +1101,114 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
     Ok(path)
 }
 
+/// Extract special fields (image and reference helpers) using pattern matching
+///
+/// This is the main entry point that replaces the old line-based parsing.
+/// Returns the same JSON format for backwards compatibility.
+fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
+    // 1. Find all helper calls
+    let helpers = find_helper_calls(schema_text);
+
+    if helpers.is_empty() {
+        return None;
+    }
+
+    // 2. Resolve field path for each helper
+    let mut fields_json = Vec::new();
+
+    for helper in helpers {
+        match resolve_field_path(schema_text, helper.position) {
+            Ok(field_path) => {
+                log::debug!(
+                    "Resolved helper at position {} to path '{}'",
+                    helper.position,
+                    field_path
+                );
+
+                // Check if this helper is inside an array
+                let in_array = is_inside_array(schema_text, helper.position);
+
+                // Create field JSON based on helper type and array context
+                let field_json = if in_array {
+                    // Array field
+                    match helper.helper_type {
+                        HelperType::Image => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Array",
+                                "arrayType": "Image",
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                        HelperType::Reference => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Array",
+                                "arrayType": "Reference",
+                                "arrayReferenceCollection": helper.collection_name.unwrap_or_default(),
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                    }
+                } else {
+                    // Non-array field
+                    match helper.helper_type {
+                        HelperType::Image => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Image",
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                        HelperType::Reference => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Reference",
+                                "referencedCollection": helper.collection_name.unwrap_or_default(),
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                    }
+                };
+
+                fields_json.push(field_json);
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to resolve field path at position {}: {}",
+                    helper.position,
+                    e
+                );
+                // Skip this field - it will be treated as whatever JSON schema says
+            }
+        }
+    }
+
+    // 3. Serialize to JSON (same format as before)
+    if !fields_json.is_empty() {
+        let schema_json = serde_json::json!({
+            "type": "zod",
+            "fields": fields_json
+        });
+
+        log::debug!(
+            "Generated schema JSON with {} fields",
+            fields_json.len()
+        );
+        return Some(schema_json.to_string());
+    }
+
+    None
+}
+
 fn extract_default_value(schema_text: &str, field_name: &str) -> Option<String> {
     let default_re = Regex::new(&format!(r"{field_name}.*\.default\s*\(\s*([^)]+)\s*\)")).unwrap();
 
@@ -1255,7 +1258,8 @@ export default defineConfig({
         let collections = result.unwrap();
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0].name, "blog");
-        assert!(collections[0].schema.is_some());
+        // Schema is None because there are no image() or reference() helpers
+        assert!(collections[0].schema.is_none());
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();
@@ -1290,6 +1294,65 @@ export default defineConfig({
         let block_content = block.unwrap();
         assert!(block_content.contains("blog"));
         assert!(block_content.contains("notes"));
+    }
+
+    #[test]
+    fn test_extract_collections_block_export_const() {
+        // New format used in our tests
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      hero: image(),
+    }),
+  }),
+};
+"#;
+        let block = extract_collections_block(content);
+        assert!(block.is_some(), "Should extract collections block");
+        let block_content = block.unwrap();
+        assert!(block_content.contains("test"), "Should contain 'test' collection");
+        assert!(block_content.contains("defineCollection"), "Should contain defineCollection");
+    }
+
+    #[test]
+    fn test_full_parse_with_image_helper() {
+        // This is the EXACT content from test_find_top_level_image
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      hero: image(),
+      title: z.string(),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-full-parse-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+        println!("Created directory: {:?}", test_path);
+        println!("Directory exists: {}", test_path.exists());
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        println!("Parse result: {:?}", result);
+
+        assert!(result.is_ok(), "Should parse successfully");
+        let collections = result.unwrap();
+        println!("Collections found: {}", collections.len());
+
+        for (i, col) in collections.iter().enumerate() {
+            println!("Collection {}: name={}, schema={:?}", i, col.name, col.schema.is_some());
+        }
+
+        assert_eq!(collections.len(), 1, "Should find 1 collection");
+        assert_eq!(collections[0].name, "test");
+        assert!(collections[0].schema.is_some(), "Should have schema with image helper");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
@@ -1434,6 +1497,53 @@ export const collections = {
         // Should find the deeply nested image()
         assert_eq!(helpers.len(), 1, "Should find 1 helper");
         assert_eq!(helpers[0].helper_type, HelperType::Image);
+    }
+
+    // --- UNIT TEST FOR INTEGRATION ---
+
+    #[test]
+    fn test_extract_zod_special_fields_basic() {
+        // This is what should be extracted from z.object({ ... })
+        let schema_text = r#"
+hero: image(),
+title: z.string(),
+        "#;
+
+        let result = extract_zod_special_fields(schema_text);
+        assert!(result.is_some(), "Should find image() helper");
+
+        let schema_json = result.unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        assert_eq!(parsed["type"], "zod");
+        let fields = parsed["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 1, "Should have 1 field (only image helper)");
+        assert_eq!(fields[0]["name"], "hero");
+        assert_eq!(fields[0]["type"], "Image");
+    }
+
+    #[test]
+    fn test_extract_basic_schema_with_arrow_function() {
+        let content = r#"
+export const test = defineCollection({
+  schema: ({ image }) => z.object({
+    hero: image(),
+    title: z.string(),
+  }),
+});
+        "#;
+
+        let result = extract_basic_schema(content, "test");
+        assert!(result.is_some(), "Should extract schema from arrow function syntax");
+
+        let schema_json = result.unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        assert_eq!(parsed["type"], "zod");
+        let fields = parsed["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 1, "Should have 1 field");
+        assert_eq!(fields[0]["name"], "hero");
+        assert_eq!(fields[0]["type"], "Image");
     }
 
     // --- UNIT TESTS FOR PATH RESOLUTION ---
@@ -1919,7 +2029,8 @@ export default defineConfig({
         let collections = result.unwrap();
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0].name, "blog");
-        assert!(collections[0].schema.is_some());
+        // Schema is None because there are no image() or reference() helpers
+        assert!(collections[0].schema.is_none());
 
         // Verify the path is using the override
         let expected_path = project_path.join(custom_content_dir).join("blog");
