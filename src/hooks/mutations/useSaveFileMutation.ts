@@ -44,12 +44,15 @@ export const useSaveFileMutation = () => {
         ),
       })
 
-      // Also invalidate collection files to update any metadata changes
+      // Also invalidate directory contents to update any metadata changes (title, draft, pubDate, etc.)
+      // This invalidates all directory scans for this collection (root + all subdirectories)
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.collectionFiles(
+        queryKey: [
+          ...queryKeys.all,
           variables.projectPath,
-          variables.collectionName
-        ),
+          variables.collectionName,
+          'directory',
+        ],
       })
 
       toast.success('File saved successfully')

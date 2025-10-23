@@ -375,12 +375,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ isDirty: false })
 
       // Invalidate queries to update UI with new frontmatter
+      // This invalidates all directory scans for this collection (root + all subdirectories)
       if (projectPath && currentFile.collection) {
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.collectionFiles(
+          queryKey: [
+            ...queryKeys.all,
             projectPath,
-            currentFile.collection
-          ),
+            currentFile.collection,
+            'directory',
+          ],
         })
       }
 

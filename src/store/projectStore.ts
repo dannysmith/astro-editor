@@ -386,13 +386,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             queryKey: queryKeys.collections(projectPath),
           })
 
-          // Invalidate collection files for current collection if any
+          // Invalidate directory contents for current collection if any
+          // This invalidates all directory scans for this collection (root + all subdirectories)
           if (selectedCollection) {
             await queryClient.invalidateQueries({
-              queryKey: queryKeys.collectionFiles(
+              queryKey: [
+                ...queryKeys.all,
                 projectPath,
-                selectedCollection
-              ),
+                selectedCollection,
+                'directory',
+              ],
             })
           }
 
