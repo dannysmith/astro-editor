@@ -190,6 +190,13 @@ The immediate benefit is nested image fields working correctly. The longer-term 
 
 This rewrite will be completed in 5 distinct phases, each independently testable. The key insight is that the Zod parser's ONLY job is to find `image()` and `reference()` helper calls and resolve their field paths. The JSON schema parser handles the actual structure.
 
+**Core Philosophy**:
+- **We're ENHANCING, not parsing**: JSON schema is the source of truth for structure
+- **Keep it simple**: No special cases, no complex logic, no performance tuning
+- **Arrays are free**: Resolve `gallery.src` the same as `cover.image` - no special handling
+- **Failures are OK**: If we can't resolve a path, skip it and log a warning
+- **No optional detection**: JSON schema already knows what's required/optional
+
 **Output Format to Maintain**:
 ```json
 {
@@ -317,13 +324,19 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
    - Log the final resolved path
 
 **Edge Cases to Handle**:
-- Top-level fields (no nesting): `heroImage: image()`
-- Single nesting: `cover: z.object({ image: image() })`
-- Deep nesting (3+ levels): `meta: { author: { avatar: image() } }`
-- Arrays with objects: `gallery: z.array(z.object({ src: image() }))`
+- Top-level fields (no nesting): `heroImage: image()` → `heroImage`
+- Single nesting: `cover: z.object({ image: image() })` → `cover.image`
+- Deep nesting (3+ levels): `meta: { author: { avatar: image() } }` → `meta.author.avatar`
+- Arrays with objects: `gallery: z.array(z.object({ src: image() }))` → `gallery.src`
+  - No special array handling - just resolve path normally through `z.array(...)`
+  - JSON schema has the array structure; we just mark `src` as Image type
 - Multi-line formatting: field name on different line than helper
 - Comments between field name and helper
 - Whitespace variations
+
+**Error Handling**:
+- If path resolution fails, log warning with context and skip that field
+- Don't fail the entire parse - Zod parser is enhancing, not source of truth
 
 **Testing**:
 - Unit test: Top-level field path
@@ -383,14 +396,15 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
                         HelperType::Reference =>
                             ZodFieldType::Reference(helper.collection_name.unwrap_or_default()),
                     },
-                    optional: true,  // Will be determined by JSON schema
+                    optional: true,  // JSON schema determines actual required/optional status
                     default_value: None,
                     constraints: ZodFieldConstraints::default(),
                 };
                 schema_fields.push(field);
             }
             Err(e) => {
-                log::warn!("Failed to resolve field path: {}", e);
+                log::warn!("Failed to resolve field path at position {}: {}", helper.position, e);
+                // Skip this field - it will be treated as whatever JSON schema says
             }
         }
     }
@@ -559,16 +573,11 @@ const blog = defineCollection({
 - Check that `notes.coverImage.image` is found (nested)
 - Verify `articles.author` and `articles.relatedArticles` references work
 
-**Performance Testing**:
-- Measure parsing time for dummy project schema
-- Ensure it's comparable to or better than old approach
-- Test with large schemas (100+ fields)
-
 **Success Criteria**:
 - All new tests pass
 - All existing tests still pass
 - Dummy project parses correctly
-- Performance is acceptable (<50ms for typical schemas)
+- No obvious performance issues (Rust is fast, schemas are small)
 
 **Manual Testing Script**:
 ```
@@ -710,23 +719,25 @@ If any checkpoint fails, fix issues before moving to next phase.
 
 ---
 
-## Questions to Clarify Before Starting
+## Implementation Decisions (Clarified)
 
-1. **Array Handling**: For `gallery: z.array(z.object({ src: image() }))`, should we:
-   - Generate field name as `gallery.src`?
-   - Skip array elements (since JSON schema handles structure)?
-   - Handle specially?
+1. **Array Handling**: For `gallery: z.array(z.object({ src: image() }))`:
+   - Resolve path as `gallery.src` (just like any other nested field)
+   - Don't add special array handling code
+   - JSON schema already has the array structure; we just mark that `src` is Image type
+   - This naturally supports arrays of objects without special-case code
 
-2. **Error Handling**: When path resolution fails, should we:
-   - Skip that field with a warning?
-   - Return an error and fail parsing?
-   - Use a fallback field name?
+2. **Error Handling**: When path resolution fails:
+   - Log a warning with the helper position and context
+   - Skip that field (don't include it in Zod output)
+   - Field will be treated as whatever JSON schema says (probably string)
+   - This is fine - Zod parser is just ENHANCING, not the source of truth
 
-3. **Optional Detection**: The current parser detects `.optional()` in field definitions. Should the new approach:
-   - Skip optional detection (let JSON schema handle it)?
-   - Add optional detection in Phase 3?
+3. **Optional Detection**:
+   - **Don't implement it** - JSON schema handles required/optional via the "required" array
+   - Remove `.optional()` detection from the plan
+   - Simplifies the code significantly
 
-4. **Performance Requirements**: What's the acceptable parsing time for:
-   - Small schemas (10 fields)?
-   - Medium schemas (50 fields)?
-   - Large schemas (100+ fields)?
+4. **Performance**:
+   - Don't worry about it - Rust is fast, schemas are small (typically <20 fields)
+   - No need for optimization unless we write obviously inefficient code
