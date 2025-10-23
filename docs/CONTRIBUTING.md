@@ -26,26 +26,27 @@ This document provides guidelines and information for contributors.
 
 ### Before Making Changes
 
-1. Read the project documentation in `/docs/developer/`
-2. Check the current task status in `CLAUDE.md`
-3. Review existing patterns in the codebase
+1. Read `docs/developer/architecture-guide.md` for core patterns
+2. Check `docs/TASKS.md` for current work
+3. Review existing code for established patterns
 
 ### Code Quality
 
-Run quality checks before committing:
+Always run before committing:
 
 ```bash
 pnpm run check:all  # TypeScript + Rust + tests
 pnpm run fix:all    # Auto-fix issues
 ```
 
-### Architecture Guidelines
+### Key Patterns
 
-- Follow patterns documented in `docs/developer/architecture-guide.md`
-- Use the Direct Store Pattern for Zustand integration
-- Extract complex logic to `lib/` modules
-- Write tests for business logic
-- Use TanStack Query for server state, Zustand for client state
+- **State**: TanStack Query for server state, Zustand for client state, useState for local UI
+- **Forms**: Use Direct Store Pattern (not React Hook Form)
+- **Code extraction**: Move complex logic to `lib/` modules with tests
+- **Performance**: Use `getState()` in callbacks to avoid render cascades
+
+See `docs/developer/architecture-guide.md` for detailed patterns.
 
 ### Technology Stack
 
@@ -67,61 +68,31 @@ pnpm run fix:all    # Auto-fix issues
 
 ## Code Style
 
-### TypeScript/React
+**TypeScript/React:**
+- Strict TypeScript enabled
+- Direct Store Pattern for forms (not React Hook Form)
+- Functional components with hooks
+- `kebab-case` directories, `PascalCase` files
 
-- Use strict TypeScript configuration
-- Follow existing component organization patterns
-- Use the Direct Store Pattern for form components
-- Prefer functional components with hooks
-
-### Rust
-
-- Use modern Rust formatting: `format!("{variable}")`
+**Rust:**
+- Modern formatting: `format!("{variable}")`
 - Follow Clippy recommendations
-- Use Tauri v2 APIs only
-
-### File Organization
-
-- Components: `kebab-case` directories, `PascalCase` files
-- Use barrel exports via `index.ts`
-- Group by domain, not technical concerns
+- Tauri v2 APIs only
 
 ## Testing
 
-- Write unit tests for `lib/` modules
-- Write integration tests for user workflows
-- Test complex field components
-- Use Vitest and React Testing Library patterns
+Write tests for:
+- Business logic in `lib/` modules (unit tests)
+- User workflows (integration tests)
+- Complex field components (component tests)
 
-## Common Patterns
-
-### Adding New Commands
-
-1. Update types in `src/lib/commands/types.ts`
-2. Add context function in `src/lib/commands/command-context.ts`
-3. Define commands in `src/lib/commands/app-commands.ts`
-4. Update group order in `src/hooks/useCommandPalette.ts`
-
-### State Management
-
-- "Server" state: Use TanStack Query hooks
-- Client state: Use Zustand stores (decomposed architecture)
-- Local state: Keep in components for UI presentation
-
-### Component Extraction
-
-Extract to `lib/` when:
-
-- 50+ lines of related logic
-- Used by 2+ components
-- Needs unit tests
-- Contains business rules
+Use Vitest + React Testing Library.
 
 ## Documentation
 
-- Update `docs/developer/architecture-guide.md` for new patterns
+- Update `docs/developer/architecture-guide.md` when adding new patterns
 - Document public APIs with JSDoc
-- Keep `CLAUDE.md` current with major architectural changes
+- Keep `CLAUDE.md` current for major architectural changes
 
 ## Questions?
 
