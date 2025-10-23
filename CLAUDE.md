@@ -27,7 +27,8 @@
 ### New Sessions
 
 - Read @docs/TASKS.md for task management
-- Review `docs/developer/architecture-guide.md` for patterns
+- Review `docs/developer/architecture-guide.md` for essential patterns
+- Consult specialized guides when working on specific features (see [Documentation Structure](#documentation-structure))
 - Check git status and project structure
 
 ### Development Practices
@@ -43,8 +44,39 @@
 7. **Quality Gates**: Run `pnpm run check:all` after significant changes
 8. **No Dev Server**: Ask user to run and report back
 9. **No Unsolicited Commits**: Only when explicitly requested
-10. **Documentation**: Update `docs/developer/architecture-guide.md` for new patterns
+10. **Documentation**: Update `docs/developer/` guides for new patterns
 11. **Removing files**: Always use `rm -f`
+
+### Documentation Structure
+
+**Core Guides** (read for daily development):
+- `docs/developer/architecture-guide.md` - Essential patterns (START HERE)
+- `docs/developer/performance-guide.md` - Performance optimization (getState, memoization)
+- `docs/developer/testing-guide.md` - Testing strategies
+
+**Feature Implementation** (consult when implementing specific features):
+- `docs/developer/form-patterns.md` - Frontmatter fields and settings forms
+- `docs/developer/schema-system.md` - Schema parsing and merging (Rust)
+- `docs/developer/keyboard-shortcuts.md` - Implementing shortcuts
+- `docs/developer/decisions.md` - Architectural choices and trade-offs
+
+**System Documentation** (reference for system features):
+- `docs/developer/preferences-system.md` - Three-tier settings hierarchy
+- `docs/developer/color-system.md` - Color tokens and dark mode
+- `docs/developer/toast-system.md` - Notification system
+- `docs/developer/editor-styles.md` - CodeMirror syntax highlighting
+- `docs/developer/recovery-system.md` - Crash recovery
+
+**Component/Reference** (specific implementations):
+- `docs/developer/unified-title-bar.md` - Main toolbar component
+- `docs/developer/image-preview-implementation.md` - Image field preview
+- `docs/developer/astro-generated-contentcollection-schemas.md` - Astro JSON Schema reference
+
+**Operations** (for releases and setup):
+- `docs/developer/release-process.md` - Release workflow
+- `docs/developer/apple-signing-setup.md` - Code signing
+
+See `docs/README.md` for the complete categorized list.
 
 ### Documentation & Versions
 
@@ -108,6 +140,18 @@ The project has six specialized agents to help with complex implementation chall
 - **Call external consultants** when facing novel problems or needing deep expertise
 - **Combine agents** when problems span multiple domains (e.g., performance + UI)
 - **Agents can collaborate** - one may recommend consulting another for specialized aspects
+
+## Custom Commands
+
+### /check - Quality Control
+
+Use `/check` to verify work quality before completing tasks:
+- Checks adherence to architecture-guide.md patterns
+- Removes unnecessary comments and console.logs
+- Runs `pnpm run check:all` and fixes errors
+- Cleans up leftover code from failed approaches
+
+**When to use**: Before completing significant features or refactoring work.
 
 ## Technology Stack
 
