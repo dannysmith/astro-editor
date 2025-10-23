@@ -62,6 +62,21 @@ pub struct ParsedSchema {
     pub raw: String,
 }
 
+/// Helper type for pattern matching approach
+#[derive(Debug, Clone, PartialEq)]
+enum HelperType {
+    Image,
+    Reference,
+}
+
+/// Represents a match of an image() or reference() helper call
+#[derive(Debug, Clone)]
+struct HelperMatch {
+    helper_type: HelperType,
+    position: usize,
+    collection_name: Option<String>,
+}
+
 /// Parse Astro content config file and extract collection definitions
 pub fn parse_astro_config(
     project_path: &Path,
@@ -1030,6 +1045,61 @@ fn serialize_constraints(constraints: &ZodFieldConstraints) -> serde_json::Value
     constraint_json
 }
 
+/// Find all image() and reference() helper calls in schema text
+/// Returns positions and metadata for each helper found
+fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
+    let mut matches = Vec::new();
+
+    // Find image() calls - regex: r"image\s*\(\s*\)"
+    let image_re = Regex::new(r"image\s*\(\s*\)").unwrap();
+    for image_match in image_re.find_iter(schema_text) {
+        let position = image_match.start();
+
+        // Log the match with surrounding context
+        let context_start = position.saturating_sub(20);
+        let context_end = (position + 30).min(schema_text.len());
+        let context = &schema_text[context_start..context_end];
+        log::debug!(
+            "Found image() helper at position {}: context: '{}'",
+            position,
+            context.replace('\n', " ")
+        );
+
+        matches.push(HelperMatch {
+            helper_type: HelperType::Image,
+            position,
+            collection_name: None,
+        });
+    }
+
+    // Find reference() calls - regex: r"reference\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
+    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+    for reference_match in reference_re.captures_iter(schema_text) {
+        let position = reference_match.get(0).unwrap().start();
+        let collection_name = reference_match.get(1).unwrap().as_str().to_string();
+
+        // Log the match with surrounding context
+        let context_start = position.saturating_sub(20);
+        let context_end = (position + 40).min(schema_text.len());
+        let context = &schema_text[context_start..context_end];
+        log::debug!(
+            "Found reference('{}') helper at position {}: context: '{}'",
+            collection_name,
+            position,
+            context.replace('\n', " ")
+        );
+
+        matches.push(HelperMatch {
+            helper_type: HelperType::Reference,
+            position,
+            collection_name: Some(collection_name),
+        });
+    }
+
+    log::debug!("Total helpers found: {}", matches.len());
+    matches
+}
+
 fn extract_default_value(schema_text: &str, field_name: &str) -> Option<String> {
     let default_re = Regex::new(&format!(r"{field_name}.*\.default\s*\(\s*([^)]+)\s*\)")).unwrap();
 
@@ -1170,6 +1240,94 @@ export const collections = {
         // Should preserve the actual code
         assert!(clean.contains("export const collections"));
         assert!(clean.contains("z.string()"));
+    }
+
+    // --- UNIT TESTS FOR HELPER DISCOVERY ---
+
+    #[test]
+    fn test_find_helper_calls_basic() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            author: reference('authors'),
+            title: z.string(),
+            tags: z.array(reference('tags')),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find 1 image() and 2 reference() calls
+        assert_eq!(helpers.len(), 3, "Should find 3 helpers total");
+
+        let image_helpers: Vec<_> = helpers
+            .iter()
+            .filter(|h| h.helper_type == HelperType::Image)
+            .collect();
+        assert_eq!(image_helpers.len(), 1, "Should find 1 image() helper");
+
+        let reference_helpers: Vec<_> = helpers
+            .iter()
+            .filter(|h| h.helper_type == HelperType::Reference)
+            .collect();
+        assert_eq!(
+            reference_helpers.len(),
+            2,
+            "Should find 2 reference() helpers"
+        );
+
+        // Verify collection names are extracted
+        let author_helper = reference_helpers
+            .iter()
+            .find(|h| h.collection_name == Some("authors".to_string()));
+        assert!(
+            author_helper.is_some(),
+            "Should find reference('authors')"
+        );
+
+        let tags_helper = reference_helpers
+            .iter()
+            .find(|h| h.collection_name == Some("tags".to_string()));
+        assert!(tags_helper.is_some(), "Should find reference('tags')");
+    }
+
+    #[test]
+    fn test_find_helper_calls_multiline() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z
+                .object({
+                    image: image().optional(),
+                    alt: z.string(),
+                })
+                .optional(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find the image() even with multi-line formatting
+        assert_eq!(helpers.len(), 1, "Should find 1 helper");
+        assert_eq!(helpers[0].helper_type, HelperType::Image);
+    }
+
+    #[test]
+    fn test_find_helper_calls_deep_nesting() {
+        let schema_text = r#"
+        z.object({
+            metadata: z.object({
+                author: z.object({
+                    avatar: image(),
+                }),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find the deeply nested image()
+        assert_eq!(helpers.len(), 1, "Should find 1 helper");
+        assert_eq!(helpers[0].helper_type, HelperType::Image);
     }
 
     // --- NEW FOCUSED TESTS FOR PATTERN MATCHING APPROACH ---
