@@ -2,118 +2,101 @@
 
 ![Screenshots of Astro Editor](docs/assets/header.png)
 
-## Features
-
-- Super-clean, minimal markdown editor inspired by iA Writer, supporting markdown and MDX files. Hides YAML frontmatter and component imports so you can focus on your writing.
-- User-friendly frontmatter panel based on the file's frontmatter **and the collection schema**, including validation and a specific UI for common fields like `title` and `description` (configurable).
-- In MDX files, `Cmd + /` opens a palette to quickly insert Astro components intended for use in MDX files (e.g., `<Callout>`). Props can be selected and tabbed through after insertion. Available components and their props are read from your Astro project. Defaults, slots, and required props are respected.
-- File List sidebar ordered by `pubDate` field (not filename), with drafts clearly marked (configurable).
-- Dragging images/files into the editor copies them to your Astro `assets` folder (with a web-safe filename) and inserts the correct markdown tag.
-- Focus and typewriter mode à la iA Writer.
-- Command palette for quick access to all commands, including _Open Project/Collection/Current File_ in your configured IDE.
-- Duplicate, rename, and create new files easily.
-- Keyboard shortcuts for inline markdown formatting, toggling headings, etc. Pasting URLs over selected text inserts a link tag. Holding option makes URLs clickable. Multiple cursors à la VSCode.
-- Autosave & crash recovery.
+A native macOS markdown editor for Astro content collections. Clean writing interface with automatic frontmatter editing based on your collection schemas.
 
 https://github.com/user-attachments/assets/89b87f98-88c0-4845-a020-284201464b86
 
+## Features
+
+**Writing Environment**
+- Clean markdown/MDX editor with syntax highlighting. Frontmatter and imports are hidden while editing, shown in a dedicated sidebar.
+- Focus mode (highlights current sentence), typewriter mode (cursor stays centered), and copyedit mode (highlights parts of speech).
+- Image preview on hover (Option + hover over paths).
+- Comprehensive keyboard shortcuts for formatting, headings, and navigation.
+- Auto-save every 2 seconds with crash recovery.
+
+**Frontmatter & Schema Integration**
+- Generates editing forms from your Astro collection schemas with proper validation.
+- Supports all Zod types: strings, numbers, dates, booleans, enums, arrays, nested objects, references, and image fields.
+- Image fields provide drag-and-drop with automatic copying to your assets directory.
+- Field constraints (min/max, character limits) enforced in the UI.
+
+**MDX Components**
+- `Cmd + /` opens component builder showing all components in your `src/components/mdx/` directory.
+- Supports Astro, React, Vue, and Svelte components.
+- Automatically detects available props and lets you tab through values after insertion.
+
+**File Management**
+- Collections and files automatically discovered from your `content.config.ts`.
+- Full support for subdirectories within collections.
+- Files sorted by publication date (configurable field name) with draft indicators.
+- Context menu for rename, duplicate, reveal in Finder, copy path.
+- Command palette (`Cmd + K`) for quick file switching and command access.
+
+**Project Configuration**
+- Per-project and per-collection settings for custom directory structures.
+- Configurable field mappings (title, date, draft, description fields).
+- Light/dark theme with system integration.
+- IDE integration (open files/projects in VSCode, Cursor, etc.).
+
 ## Supported Astro Projects
 
-- Supported Astro Versions: > 5.x
-- Supported Content Collections: Astro 4+ [content collections](https://docs.astro.build/en/guides/content-collections/) defined in `content.config.ts` using the `glob` loader. Non-`.md/.mdx` files in these collections will be ignored.
+- **Astro Version**: 5.x (may work with 4.x but expect bugs)
+- **Content Collections**: Must use the `glob` loader and have a schema defined with `defineCollection`
+- **Configuration**: Requires `src/content/config.ts` or `src/content.config.ts`
 
-By default, Astro Editor expects the following structure in your Astro project:
+Non-markdown/MDX files in collections are ignored.
+
+Default directory structure (all paths are configurable per project and per collection):
 
 ```
 my-astro-site
 └── src
-    ├── assets
-    │   └── mycollection
-    │       └── image1.png
-    ├── components
-    │   └── mdx
-    │       └── ExampleAstroComponent.astro
-    ├── content
-    │   └── mycollection
-    │       └── blog-post.mdx
-    └── content.config.ts
+    ├── assets/mycollection/      # Images and media
+    ├── components/mdx/            # Astro/React/Vue/Svelte components for MDX
+    ├── content/mycollection/      # Markdown and MDX files
+    └── content.config.ts          # Collection definitions
 ```
-
-The paths to the _Assets_, _Content_, and _MDX Components_ directories (relative to the project root) are configurable per project, but their internal structures are not.
 
 ## Installation
 
 Download the [latest Release](https://github.com/dannysmith/astro-editor/releases)
 
-## User Guide
+## Documentation
 
-See [User Guide](docs/user-guide.md)
+- **[User Guide](docs/user-guide.md)** - Complete feature documentation
+- **[Contributing](docs/CONTRIBUTING.md)** - Development setup and guidelines
 
-## Disclaimer ⚠️
+## Disclaimer
 
-This is a work in progress so it's probably best to commit regularly in your Astro project if you're writing a lot of stuff in Astro Editor.
+Work in progress. Commit your Astro project regularly when using the editor.
 
-## Feature Requests & Bug Reports
+## Contributing
 
-### Bug Reports
+Bug reports and feature requests are welcome. See the [issue tracker](https://github.com/dannysmith/astro-editor/issues).
 
-**Please** file an issue if you experience:
+**Project Philosophy:**
+- This is a tool for "writer mode", not "coder mode". Features related to git, publishing, deployment, or code editing are out of scope.
+- The UI is intentionally opinionated for simplicity. Customization options are limited to what's needed to work with different Astro project structures.
 
-- Problems handling your Astro schema, frontmatter, or directory structure
-- Problems reading or writing your Markdown/MDX files – especially if it caused corruption or data loss in your Astro site
-- Problems handling your "MDX" Astro components
-- Changes to how Astro works which have broken something
-- Crashes or bugs
-- Confusing or unexpected UI behavior or UX
-- Debilitating performance issues
-
-### Feature Requests
-
-Feature requests are **always** welcome.
-
-1️⃣ This project is designed to provide a pleasant user experience when authoring or editing markdown & MDX files in the content collections of local Astro sites. It's for when you're in "writer mode", not "coder mode". Everything else about managing an Astro site should happen when you're in "coder mode", and therefore in your text editor & terminal. Anything to do with git, publishing, deploying, or code is **explicitly out of scope** and will remain so.
-
-2️⃣ The goal of this project is **simplicity when writing**, so the UI/UX is intentionally opinionated. Configuration options are deliberately limited to "making it work with your Astro project and no more". I'm unlikely to accept features which add complexity to the UI or customization/extensibility.
-
-I appreciate all feature requests which are mindful of 👆 and are written clearly enough for me to understand them.
-
-### Pull Requests
-
-PRs are most welcome. See [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+Pull requests welcome. See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup.
 
 ## Roadmap
 
 See the [GitHub Project](https://github.com/users/dannysmith/projects/5/)
 
-## Thanks 🙏
+## Credits
 
-- [iA Writer](https://ia.net/writer) for the inspiration and [beautiful typefaces](https://github.com/iaolo/iA-Fonts).
-- [DarkMatter](https://getdarkmatter.dev/) because [Vadim](https://vadimdemedes.com/) did this before me.
+- [iA Writer](https://ia.net/writer) for inspiration and [typography](https://github.com/iaolo/iA-Fonts)
+- [DarkMatter](https://getdarkmatter.dev/) by [Vadim Demedes](https://vadimdemedes.com/)
 
-# Development
+## Development
 
-## Quick Start
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) and [developer docs](docs/developer/) for setup and architecture details.
 
-### Installation
-
-Ensure you have the Xcode command line tools, node and rust installed (see [here](https://v2.tauri.app/start/prerequisites) for more)
-
+**Quick start:**
+```bash
+pnpm install
+pnpm reset:testdata  # Creates test Astro project
+pnpm run tauri:dev   # Starts dev server
 ```
-xcode-select --install # Command line tools
-curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh # install rust
-node -v # Check you have node installed
-```
-
-The clone the repo and run
-
-```
-pnpm install # Install node deps
-pnpm reset:testdata # Create a local astro project for manual testing
-pnpm run tauri:dev # Start the development app (which will install any missing rust dependencies)
-```
-
-### Basic Workflow
-
-## Developer Docs
-
-See [CONTRIBUTING.md](docs/CONTRIBUTING.md) and the [developer docs](docs/developer/).
