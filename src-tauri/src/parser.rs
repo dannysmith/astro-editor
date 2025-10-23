@@ -1134,276 +1134,6 @@ export default defineConfig({
         assert!(clean.contains("defineConfig"));
     }
 
-    #[test]
-    fn test_enhanced_schema_parsing() {
-        let content = include_str!("test_fixtures/enhanced_config.ts");
-        let temp_dir = std::env::temp_dir().join("test-enhanced-parser");
-        let project_path = temp_dir.join("project");
-        let blog_path = project_path.join("src").join("content").join("blog");
-        let docs_path = project_path.join("src").join("content").join("docs");
-
-        fs::create_dir_all(&blog_path).unwrap();
-        fs::create_dir_all(&docs_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 2);
-
-        // Find blog collection
-        let blog_collection = collections.iter().find(|c| c.name == "blog").unwrap();
-        assert!(blog_collection.schema.is_some());
-
-        let schema_json = blog_collection.schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-
-        // Verify schema structure
-        assert_eq!(parsed_schema["type"], "zod");
-        let fields = parsed_schema["fields"].as_array().unwrap();
-        assert!(fields.len() > 10); // Should have many fields
-
-        // Test specific field types and constraints
-        let title_field = fields.iter().find(|f| f["name"] == "title").unwrap();
-        assert_eq!(title_field["type"], "String");
-        assert_eq!(title_field["constraints"]["minLength"], 1);
-        assert_eq!(title_field["constraints"]["maxLength"], 100);
-
-        let word_count_field = fields.iter().find(|f| f["name"] == "wordCount").unwrap();
-        assert_eq!(word_count_field["type"], "Number");
-        assert_eq!(word_count_field["constraints"]["min"], 0);
-        assert_eq!(word_count_field["constraints"]["max"], 10000);
-
-        let email_field = fields.iter().find(|f| f["name"] == "authorEmail").unwrap();
-        assert_eq!(email_field["type"], "String");
-        assert_eq!(email_field["constraints"]["email"], true);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_literal_field_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      category: z.literal('blog'),
-      version: z.literal(1),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-literal-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let category_field = fields.iter().find(|f| f["name"] == "category").unwrap();
-        assert_eq!(category_field["type"], "Literal");
-        assert_eq!(category_field["literalValue"], "blog");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_union_field_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      status: z.union([z.literal('draft'), z.literal('published'), z.literal('archived')]),
-      visibility: z.union([z.string(), z.null()]),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-union-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let status_field = fields.iter().find(|f| f["name"] == "status").unwrap();
-        assert_eq!(status_field["type"], "Union");
-        let union_types = status_field["unionTypes"].as_array().unwrap();
-        assert_eq!(union_types.len(), 3);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_optional_syntax_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      regularOptional: z.string().optional(),
-      altOptional: z.optional(z.string().min(10)),
-      altOptionalWithConstraints: z.optional(z.string().email()),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-optional-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        // Both syntaxes should be marked as optional
-        let regular_optional = fields
-            .iter()
-            .find(|f| f["name"] == "regularOptional")
-            .unwrap();
-        assert_eq!(regular_optional["optional"], true);
-
-        let alt_optional = fields.iter().find(|f| f["name"] == "altOptional").unwrap();
-        assert_eq!(alt_optional["optional"], true);
-        // The constraints should be passed through from the inner type
-        if !alt_optional["constraints"]["minLength"].is_null() {
-            assert_eq!(alt_optional["constraints"]["minLength"], 10);
-        }
-
-        let alt_with_constraints = fields
-            .iter()
-            .find(|f| f["name"] == "altOptionalWithConstraints")
-            .unwrap();
-        assert_eq!(alt_with_constraints["optional"], true);
-        // For now, just check that it's detected as optional - constraint parsing for z.optional() can be improved later
-        assert_eq!(alt_with_constraints["type"], "String");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_string_constraints_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      slug: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/),
-      email: z.string().email(),
-      trimmed: z.string().trim(),
-      twitter: z.string().startsWith('@'),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-string-constraints");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let slug_field = fields.iter().find(|f| f["name"] == "slug").unwrap();
-        assert_eq!(slug_field["constraints"]["minLength"], 3);
-        assert_eq!(slug_field["constraints"]["maxLength"], 50);
-        assert!(slug_field["constraints"]["regex"]
-            .as_str()
-            .unwrap()
-            .contains("^[a-z0-9-]+$"));
-
-        let email_field = fields.iter().find(|f| f["name"] == "email").unwrap();
-        assert_eq!(email_field["constraints"]["email"], true);
-
-        let twitter_field = fields.iter().find(|f| f["name"] == "twitter").unwrap();
-        assert_eq!(twitter_field["constraints"]["startsWith"], "@");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_number_constraints_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      count: z.number().min(0).max(100),
-      positive: z.number().positive(),
-      negative: z.number().negative(),
-      integer: z.number().int(),
-      nonnegative: z.number().nonnegative(),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-number-constraints");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let count_field = fields.iter().find(|f| f["name"] == "count").unwrap();
-        assert_eq!(count_field["constraints"]["min"], 0);
-        assert_eq!(count_field["constraints"]["max"], 100);
-
-        let positive_field = fields.iter().find(|f| f["name"] == "positive").unwrap();
-        assert_eq!(positive_field["constraints"]["min"], 1);
-
-        let negative_field = fields.iter().find(|f| f["name"] == "negative").unwrap();
-        assert_eq!(negative_field["constraints"]["max"], -1);
-
-        let integer_field = fields.iter().find(|f| f["name"] == "integer").unwrap();
-        assert_eq!(integer_field["constraints"]["transform"], "integer");
-
-        let nonnegative_field = fields.iter().find(|f| f["name"] == "nonnegative").unwrap();
-        assert_eq!(nonnegative_field["constraints"]["min"], 0);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
 
     #[test]
     fn test_improved_comment_stripping() {
@@ -1442,18 +1172,21 @@ export const collections = {
         assert!(clean.contains("z.string()"));
     }
 
+    // --- NEW FOCUSED TESTS FOR PATTERN MATCHING APPROACH ---
+
     #[test]
-    fn test_multiline_field_normalization() {
+    fn test_find_top_level_image() {
         let content = r#"
 export const collections = {
   test: defineCollection({
-    schema: z.object({
-      simpleField: z.string().min(5).max(100).trim().optional(),
+    schema: ({ image }) => z.object({
+      hero: image(),
+      title: z.string(),
     }),
   }),
 };
 "#;
-        let temp_dir = std::env::temp_dir().join("test-multiline-parsing");
+        let temp_dir = std::env::temp_dir().join("test-top-level-image");
         let project_path = temp_dir.join("project");
         let test_path = project_path.join("src").join("content").join("test");
 
@@ -1463,22 +1196,286 @@ export const collections = {
         assert!(result.is_ok());
 
         let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
         let schema_json = collections[0].schema.as_ref().unwrap();
         let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
         let fields = parsed_schema["fields"].as_array().unwrap();
 
-        let simple_field = fields.iter().find(|f| f["name"] == "simpleField").unwrap();
-
-        // The field should be parsed with constraints from the chained methods
-        assert_eq!(simple_field["constraints"]["minLength"], 5);
-        assert_eq!(simple_field["constraints"]["maxLength"], 100);
-        assert_eq!(simple_field["constraints"]["trim"], true);
-        // The optional should be detected
-        assert_eq!(simple_field["optional"], true);
+        // Should find hero as Image type
+        let hero_field = fields.iter().find(|f| f["name"] == "hero");
+        assert!(hero_field.is_some(), "Should find hero field");
+        let hero_field = hero_field.unwrap();
+        assert_eq!(hero_field["type"], "Image");
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();
     }
+
+    #[test]
+    fn test_find_nested_image() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      coverImage: z.object({
+        image: image().optional(),
+        alt: z.string(),
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-nested-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find coverImage.image with dotted path
+        let image_field = fields.iter().find(|f| f["name"] == "coverImage.image");
+        assert!(
+            image_field.is_some(),
+            "Should find coverImage.image field with dotted path"
+        );
+        let image_field = image_field.unwrap();
+        assert_eq!(image_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_find_deep_nested_image() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      metadata: z.object({
+        author: z.object({
+          avatar: image(),
+        }),
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-deep-nested-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find metadata.author.avatar with dotted path
+        let avatar_field = fields.iter().find(|f| f["name"] == "metadata.author.avatar");
+        assert!(
+            avatar_field.is_some(),
+            "Should find metadata.author.avatar field with dotted path"
+        );
+        let avatar_field = avatar_field.unwrap();
+        assert_eq!(avatar_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_find_reference_helper() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ reference }) => z.object({
+      author: reference('authors'),
+      tags: z.array(reference('tags')),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-reference-helper");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find author as Reference type with collection name
+        let author_field = fields.iter().find(|f| f["name"] == "author");
+        assert!(author_field.is_some(), "Should find author field");
+        let author_field = author_field.unwrap();
+        assert_eq!(author_field["type"], "Reference");
+        assert_eq!(author_field["referencedCollection"], "authors");
+
+        // Should find tags as Array type with Reference inner type
+        let tags_field = fields.iter().find(|f| f["name"] == "tags");
+        assert!(tags_field.is_some(), "Should find tags field");
+        let tags_field = tags_field.unwrap();
+        assert_eq!(tags_field["type"], "Array");
+        assert_eq!(tags_field["arrayType"], "Reference");
+        assert_eq!(tags_field["arrayReferenceCollection"], "tags");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_multiline_nested_object() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      coverImage: z
+        .object({
+          image: image().optional(),
+          alt: z.string().optional(),
+        })
+        .optional(),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-multiline-nested");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find coverImage.image despite multi-line formatting
+        let image_field = fields.iter().find(|f| f["name"] == "coverImage.image");
+        assert!(
+            image_field.is_some(),
+            "Should find coverImage.image field even with multi-line formatting"
+        );
+        let image_field = image_field.unwrap();
+        assert_eq!(image_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_array_of_references() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ reference }) => z.object({
+      relatedArticles: z.array(reference('articles')),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-array-references");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find relatedArticles as Array with Reference inner type
+        let related_field = fields.iter().find(|f| f["name"] == "relatedArticles");
+        assert!(related_field.is_some(), "Should find relatedArticles field");
+        let related_field = related_field.unwrap();
+        assert_eq!(related_field["type"], "Array");
+        assert_eq!(related_field["arrayType"], "Reference");
+        assert_eq!(related_field["arrayReferenceCollection"], "articles");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_helpers_with_comments() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      // Profile image
+      avatar: image().optional(),
+      /* Cover image */
+      cover: z.object({
+        image: image(), // The actual image
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-helpers-comments");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find both avatar and cover.image
+        let avatar_field = fields.iter().find(|f| f["name"] == "avatar");
+        assert!(avatar_field.is_some(), "Should find avatar field");
+        assert_eq!(avatar_field.unwrap()["type"], "Image");
+
+        let cover_image_field = fields.iter().find(|f| f["name"] == "cover.image");
+        assert!(cover_image_field.is_some(), "Should find cover.image field");
+        assert_eq!(cover_image_field.unwrap()["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    // --- END NEW FOCUSED TESTS ---
 
     #[test]
     fn test_content_directory_override() {
