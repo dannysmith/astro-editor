@@ -17,6 +17,9 @@ const AutoExpandingTextarea = React.forwardRef<
       ref={ref}
       minRows={minRows}
       maxRows={maxRows}
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck="false"
       className={cn(
         // Base styles from shadcn textarea
         'border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex w-full rounded-md border bg-transparent px-3 py-2 text-gray-900 dark:text-white shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
