@@ -181,3 +181,552 @@ This task was created after attempting to fix nested image field support by impr
 4. It's easier to maintain and extend
 
 The immediate benefit is nested image fields working correctly. The longer-term benefit is a more maintainable codebase that's easier to extend when new Astro/Zod helpers need special handling.
+
+---
+
+## Phased Implementation Plan
+
+### Overview
+
+This rewrite will be completed in 5 distinct phases, each independently testable. The key insight is that the Zod parser's ONLY job is to find `image()` and `reference()` helper calls and resolve their field paths. The JSON schema parser handles the actual structure.
+
+**Output Format to Maintain**:
+```json
+{
+  "type": "zod",
+  "fields": [
+    {
+      "name": "coverImage.image",  // ← Dotted path for nested fields
+      "type": "Image",              // ← Type from helper
+      "optional": true,
+      "default": null,
+      "constraints": {},
+      "referencedCollection": "collectionName"  // ← For reference() helpers
+    }
+  ]
+}
+```
+
+### Phase 1: Foundation - Helper Discovery
+
+**Goal**: Create the infrastructure to find all `image()` and `reference()` calls in schema text.
+
+**Deliverables**:
+
+1. **New struct for tracking helper locations**:
+```rust
+#[derive(Debug, Clone)]
+struct HelperMatch {
+    helper_type: HelperType,      // Image or Reference
+    position: usize,              // Byte position in schema text
+    collection_name: Option<String>, // For reference('authors')
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum HelperType {
+    Image,
+    Reference,
+}
+```
+
+2. **Pattern matching function**:
+```rust
+/// Find all image() and reference() helper calls in schema text
+/// Returns positions and metadata for each helper found
+fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
+    let mut matches = Vec::new();
+
+    // Find image() calls - regex: r"image\s*\(\s*\)"
+    // Find reference() calls - regex: r"reference\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
+
+    // Log each match found with position and context
+
+    matches
+}
+```
+
+3. **Add comprehensive logging**:
+   - Log the total number of helpers found
+   - Log each helper's position and surrounding context (±20 chars)
+   - Log the collection name for reference() helpers
+
+**Testing**:
+- Unit test: Find single top-level `image()` call
+- Unit test: Find multiple `image()` calls
+- Unit test: Find `reference('authors')` with collection name
+- Unit test: Find helpers in multi-line formatted code
+- Unit test: Handle edge cases (comments, strings containing "image()")
+
+**Success Criteria**:
+- Can find all `image()` calls in test/dummy-astro-project/src/content.config.ts
+- Can extract collection names from `reference()` calls
+- Handles multi-line formatting correctly
+- Ignores `image()` in comments
+
+**Manual Testing**:
+After Phase 1, you can manually test by adding console logs to see which helpers are found in the dummy project.
+
+---
+
+### Phase 2: Path Resolution
+
+**Goal**: For each helper found, trace backwards through the schema text to build the dotted field path.
+
+**Algorithm**:
+
+```
+Given: helper position in schema text
+Find: dotted path like "coverImage.image"
+
+1. Start at helper position
+2. Scan backwards to find the nearest field name (word before ':')
+3. Track brace levels { } to know when we're inside nested objects
+4. When we exit a brace level, scan backwards to find parent field name
+5. Build path from innermost to outermost: ["image", "coverImage"] → "coverImage.image"
+```
+
+**Deliverables**:
+
+1. **Path resolution function**:
+```rust
+/// Trace backwards from helper position to build dotted field path
+///
+/// Examples:
+/// - Top-level: "heroImage: image()" → "heroImage"
+/// - Nested: "coverImage: z.object({ image: image() })" → "coverImage.image"
+/// - Deep: "meta: { author: { avatar: image() } }" → "meta.author.avatar"
+fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<String, String> {
+    let mut path_components = Vec::new();
+    let mut current_pos = helper_position;
+    let mut brace_level = 0;
+
+    // Scan backwards through schema text
+    // Track brace levels and field names
+    // Build path components
+
+    // Reverse and join with dots
+    path_components.reverse();
+    Ok(path_components.join("."))
+}
+```
+
+2. **Add detailed logging**:
+   - Log the path resolution process for each helper
+   - Log brace levels as we trace backwards
+   - Log each field name component found
+   - Log the final resolved path
+
+**Edge Cases to Handle**:
+- Top-level fields (no nesting): `heroImage: image()`
+- Single nesting: `cover: z.object({ image: image() })`
+- Deep nesting (3+ levels): `meta: { author: { avatar: image() } }`
+- Arrays with objects: `gallery: z.array(z.object({ src: image() }))`
+- Multi-line formatting: field name on different line than helper
+- Comments between field name and helper
+- Whitespace variations
+
+**Testing**:
+- Unit test: Top-level field path
+- Unit test: Single-level nested path
+- Unit test: Deep nested path (3+ levels)
+- Unit test: Array with image field
+- Unit test: Multi-line formatted nested object
+- Unit test: Field with comments between name and helper
+
+**Success Criteria**:
+- Correctly resolves `coverImage.image` from notes collection schema
+- Handles arbitrary nesting depth
+- Works with all formatting variations
+- Returns clear error messages for malformed schemas
+
+**Manual Testing**:
+Test path resolution by adding logs showing resolved paths for all helpers in dummy project.
+
+---
+
+### Phase 3: Integration - Replace Line-Based Parser
+
+**Goal**: Replace `parse_schema_fields()` with new pattern-matching approach while maintaining exact same output format.
+
+**Strategy**:
+- Keep all existing helper functions (`extract_reference_collection`, etc.)
+- Keep the ZodField struct and JSON serialization unchanged
+- Only replace the core field extraction logic
+
+**Deliverables**:
+
+1. **New main extraction function**:
+```rust
+/// Extract special fields (image and reference helpers) using pattern matching
+///
+/// This is the main entry point that replaces the old line-based parsing.
+/// Returns the same JSON format for backwards compatibility.
+fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
+    // 1. Find all helper calls
+    let helpers = find_helper_calls(schema_text);
+
+    if helpers.is_empty() {
+        return None;
+    }
+
+    // 2. Resolve field path for each helper
+    let mut schema_fields = Vec::new();
+
+    for helper in helpers {
+        match resolve_field_path(schema_text, helper.position) {
+            Ok(field_path) => {
+                // Create ZodField with minimal info (just name and type)
+                let field = ZodField {
+                    name: field_path,
+                    field_type: match helper.helper_type {
+                        HelperType::Image => ZodFieldType::Image,
+                        HelperType::Reference =>
+                            ZodFieldType::Reference(helper.collection_name.unwrap_or_default()),
+                    },
+                    optional: true,  // Will be determined by JSON schema
+                    default_value: None,
+                    constraints: ZodFieldConstraints::default(),
+                };
+                schema_fields.push(field);
+            }
+            Err(e) => {
+                log::warn!("Failed to resolve field path: {}", e);
+            }
+        }
+    }
+
+    // 3. Serialize to JSON (same format as before)
+    if !schema_fields.is_empty() {
+        let schema_json = serde_json::json!({
+            "type": "zod",
+            "fields": schema_fields.iter().map(|f| {
+                // Same serialization logic as before...
+            }).collect::<Vec<_>>()
+        });
+
+        return Some(schema_json.to_string());
+    }
+
+    None
+}
+```
+
+2. **Update `parse_schema_fields()` to call new function**:
+```rust
+fn parse_schema_fields(schema_text: &str) -> Option<String> {
+    // Replace entire function body with:
+    extract_zod_special_fields(schema_text)
+}
+```
+
+3. **Preserve all helper functions**:
+   - Keep `extract_reference_collection()` for reference name extraction
+   - Keep `serialize_constraints()` for JSON output
+   - Keep `remove_comments()` for preprocessing
+
+**Testing**:
+- Run ALL existing parser tests - they should all pass
+- Test with enhanced_config.ts fixture
+- Test with dummy project's content.config.ts
+- Verify output JSON format matches exactly
+
+**Success Criteria**:
+- All existing tests pass without modification
+- Output JSON format is identical to before
+- No regressions in existing functionality
+- Nested image fields now work correctly
+
+**Manual Testing**:
+1. Run the app with dummy project
+2. Open a note with `coverImage` field
+3. Verify that `coverImage.image` renders as ImageField (not text input)
+4. Test file upload on nested image field
+5. Verify top-level image fields still work (articles collection `cover` field)
+
+---
+
+### Phase 4: Testing & Validation
+
+**Goal**: Comprehensive testing of the new implementation with previously broken cases.
+
+**New Tests to Add**:
+
+1. **Test multi-line nested object with image**:
+```rust
+#[test]
+fn test_multiline_nested_image_field() {
+    let content = r#"
+export const notes = defineCollection({
+  schema: ({ image }) => z.object({
+    coverImage: z
+      .object({
+        image: image().optional(),
+        alt: z.string().optional(),
+      })
+      .optional(),
+  }),
+});
+"#;
+    // Test that coverImage.image is found with type Image
+}
+```
+
+2. **Test deeply nested image fields (3+ levels)**:
+```rust
+#[test]
+fn test_deep_nested_image_field() {
+    let content = r#"
+const blog = defineCollection({
+  schema: ({ image }) => z.object({
+    metadata: z.object({
+      author: z.object({
+        avatar: image().optional(),
+      }),
+    }),
+  }),
+});
+"#;
+    // Test that metadata.author.avatar is found
+}
+```
+
+3. **Test array with object containing image**:
+```rust
+#[test]
+fn test_array_with_image_field() {
+    let content = r#"
+const gallery = defineCollection({
+  schema: ({ image }) => z.object({
+    images: z.array(z.object({
+      src: image(),
+      caption: z.string(),
+    })),
+  }),
+});
+"#;
+    // Test that images.src is found (or appropriate path)
+}
+```
+
+4. **Test mixed formatting**:
+```rust
+#[test]
+fn test_mixed_formatting() {
+    let content = r#"
+const mixed = defineCollection({
+  schema: ({ image }) => z.object({
+    hero: image(),  // Inline
+    cover: z.object({
+      image: image().optional(),  // Nested inline
+    }),
+    gallery: z
+      .object({
+        thumbnail: image(),  // Nested multi-line
+      })
+      .optional(),
+  }),
+});
+"#;
+    // Test that all three are found
+}
+```
+
+5. **Test comments in definitions**:
+```rust
+#[test]
+fn test_comments_in_definitions() {
+    let content = r#"
+const blog = defineCollection({
+  schema: ({ image }) => z.object({
+    // Profile image
+    avatar: image().optional(),
+    /* Cover image
+       with multi-line comment */
+    cover: z.object({
+      image: image(), // The actual image
+    }),
+  }),
+});
+"#;
+    // Test that both avatar and cover.image are found
+}
+```
+
+**Integration Testing**:
+- Test with real dummy project: `test/dummy-astro-project/src/content.config.ts`
+- Verify both `articles` and `notes` collections parse correctly
+- Check that `articles.cover` is found (top-level)
+- Check that `notes.coverImage.image` is found (nested)
+- Verify `articles.author` and `articles.relatedArticles` references work
+
+**Performance Testing**:
+- Measure parsing time for dummy project schema
+- Ensure it's comparable to or better than old approach
+- Test with large schemas (100+ fields)
+
+**Success Criteria**:
+- All new tests pass
+- All existing tests still pass
+- Dummy project parses correctly
+- Performance is acceptable (<50ms for typical schemas)
+
+**Manual Testing Script**:
+```
+1. Open dummy project in app
+2. Navigate to notes collection
+3. Create new note
+4. Verify coverImage section renders:
+   - Image upload field for coverImage.image
+   - Text field for coverImage.alt
+5. Upload an image to coverImage.image
+6. Save note
+7. Verify image path is saved correctly in frontmatter
+8. Test articles collection:
+   - Verify cover field renders as image upload
+   - Verify author renders as dropdown (reference)
+   - Verify relatedArticles renders as multi-select
+```
+
+---
+
+### Phase 5: Cleanup & Documentation
+
+**Goal**: Remove old code, add documentation, and prepare for production.
+
+**Cleanup Tasks**:
+
+1. **Remove old line-based parsing code**:
+   - Remove the old `parse_schema_fields()` implementation (lines 416-492)
+   - Remove `process_field()` if only used by old approach
+   - Keep any helper functions still used by new approach
+
+2. **Code organization**:
+   - Group helper discovery functions together
+   - Group path resolution functions together
+   - Add module-level documentation explaining the approach
+
+3. **Add inline documentation**:
+```rust
+/// # Zod Schema Parser - Pattern Matching Approach
+///
+/// This module extracts special Zod helpers (image() and reference()) from
+/// Astro content.config.ts files. It uses pattern matching rather than
+/// line-by-line parsing to be robust against formatting variations.
+///
+/// ## Architecture
+///
+/// 1. **Helper Discovery**: Find all image() and reference() calls
+/// 2. **Path Resolution**: Trace backwards to build dotted field paths
+/// 3. **JSON Output**: Serialize to format expected by schema_merger.rs
+///
+/// ## Why Pattern Matching?
+///
+/// The Zod parser's ONLY job is to find image() and reference() helpers.
+/// The JSON schema parser handles all other field information. Pattern
+/// matching is more robust than line-based parsing for this task.
+///
+/// ## Example
+///
+/// Input:
+/// ```typescript
+/// coverImage: z.object({
+///   image: image().optional(),
+///   alt: z.string(),
+/// })
+/// ```
+///
+/// Output:
+/// ```json
+/// {
+///   "type": "zod",
+///   "fields": [{
+///     "name": "coverImage.image",
+///     "type": "Image",
+///     "optional": true
+///   }]
+/// }
+/// ```
+```
+
+4. **Add function-level documentation**:
+   - Document each public function with examples
+   - Document edge cases handled
+   - Document error conditions
+
+**Documentation Updates**:
+
+1. Update `docs/developer/schema-system.md`:
+   - Add section on new pattern-matching approach
+   - Explain why it's better than line-based parsing
+   - Add examples of supported nesting patterns
+
+2. Add code comments for non-obvious logic:
+   - Explain brace-level tracking algorithm
+   - Explain why we scan backwards vs forwards
+   - Document regex patterns used
+
+**Final Validation**:
+
+1. **Code Review Checklist**:
+   - [ ] All tests pass (existing + new)
+   - [ ] No compiler warnings
+   - [ ] No clippy warnings
+   - [ ] Code is well-documented
+   - [ ] No TODO comments left
+   - [ ] Logging is appropriate (not too verbose)
+
+2. **Integration Checklist**:
+   - [ ] Dummy project works correctly
+   - [ ] Nested image fields render properly
+   - [ ] Top-level fields still work
+   - [ ] Reference fields work
+   - [ ] Performance is acceptable
+
+3. **Documentation Checklist**:
+   - [ ] Architecture guide updated
+   - [ ] Inline docs complete
+   - [ ] Examples provided
+   - [ ] Edge cases documented
+
+**Success Criteria**:
+- Code is clean and well-documented
+- Old line-based approach is completely removed
+- New approach is easy to understand and extend
+- Documentation explains the pattern-matching approach
+- Ready for production use
+
+---
+
+## Phase Transition Checkpoints
+
+After each phase, verify:
+
+1. **Code compiles without warnings**
+2. **All tests pass**
+3. **Manual testing confirms expected behavior**
+4. **Logging provides useful debugging information**
+
+If any checkpoint fails, fix issues before moving to next phase.
+
+---
+
+## Questions to Clarify Before Starting
+
+1. **Array Handling**: For `gallery: z.array(z.object({ src: image() }))`, should we:
+   - Generate field name as `gallery.src`?
+   - Skip array elements (since JSON schema handles structure)?
+   - Handle specially?
+
+2. **Error Handling**: When path resolution fails, should we:
+   - Skip that field with a warning?
+   - Return an error and fail parsing?
+   - Use a fallback field name?
+
+3. **Optional Detection**: The current parser detects `.optional()` in field definitions. Should the new approach:
+   - Skip optional detection (let JSON schema handle it)?
+   - Add optional detection in Phase 3?
+
+4. **Performance Requirements**: What's the acceptable parsing time for:
+   - Small schemas (10 fields)?
+   - Medium schemas (50 fields)?
+   - Large schemas (100+ fields)?
