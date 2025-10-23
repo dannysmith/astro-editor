@@ -6,18 +6,25 @@
       "properties": {
         "title": {
           "type": "string",
+          "minLength": 3,
+          "maxLength": 100,
           "description": "This is the title of the article",
           "markdownDescription": "This is the title of the article"
         },
         "slug": {
-          "type": "string"
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50
         },
         "draft": {
           "type": "boolean",
           "default": false
         },
         "description": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 200,
+          "description": "A brief description of the article",
+          "markdownDescription": "A brief description of the article"
         },
         "pubDate": {
           "anyOf": [
