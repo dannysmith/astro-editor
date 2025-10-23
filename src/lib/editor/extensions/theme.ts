@@ -30,7 +30,7 @@ export const createEditorTheme = () => {
       padding: '40px 0',
     },
     '.cm-scroller': {
-      fontVariantLigatures: 'common-ligatures',
+      fontVariantLigatures: 'none', // Disable ligatures to fix cursor positioning with iA Writer Duo
       backgroundColor: 'var(--editor-color-background)',
     },
     '.cm-focused': {
