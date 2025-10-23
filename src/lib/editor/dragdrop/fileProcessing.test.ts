@@ -5,8 +5,8 @@ import {
   formatAsMarkdown,
   processDroppedFile,
   processDroppedFiles,
-  IMAGE_EXTENSIONS,
 } from './fileProcessing'
+import { IMAGE_EXTENSIONS_WITH_DOTS } from '../../files'
 
 // Mock Tauri invoke
 vi.mock('@tauri-apps/api/core', () => ({
@@ -22,28 +22,35 @@ vi.mock('../../../store/projectStore', () => ({
   },
 }))
 
-// Mock path resolution to return default assets directory
-vi.mock('../../project-registry', () => ({
-  getEffectiveAssetsDirectory: vi.fn(() => 'src/assets'),
-}))
+// Mock the shared files module
+vi.mock('../../files', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../files')>('../../files')
+  return {
+    ...actual,
+    processFileToAssets: vi.fn(),
+  }
+})
 
-const mockInvoke = vi.mocked(await import('@tauri-apps/api/core')).invoke
+const mockProcessFileToAssets = vi.mocked(
+  (await import('../../files')).processFileToAssets
+)
 
 describe('File Processing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  describe('IMAGE_EXTENSIONS', () => {
+  describe('IMAGE_EXTENSIONS_WITH_DOTS', () => {
     it('should include common image extensions', () => {
-      expect(IMAGE_EXTENSIONS).toContain('.png')
-      expect(IMAGE_EXTENSIONS).toContain('.jpg')
-      expect(IMAGE_EXTENSIONS).toContain('.jpeg')
-      expect(IMAGE_EXTENSIONS).toContain('.gif')
-      expect(IMAGE_EXTENSIONS).toContain('.webp')
-      expect(IMAGE_EXTENSIONS).toContain('.svg')
-      expect(IMAGE_EXTENSIONS).toContain('.bmp')
-      expect(IMAGE_EXTENSIONS).toContain('.ico')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.png')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.jpg')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.jpeg')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.gif')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.webp')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.svg')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.bmp')
+      expect(IMAGE_EXTENSIONS_WITH_DOTS).toContain('.ico')
     })
   })
 
@@ -173,8 +180,11 @@ describe('File Processing', () => {
 
   describe('processDroppedFile', () => {
     it('should process image file successfully', async () => {
-      const mockNewPath = 'assets/collection/image.png'
-      mockInvoke.mockResolvedValue(mockNewPath)
+      mockProcessFileToAssets.mockResolvedValue({
+        relativePath: '/assets/collection/image.png',
+        wasCopied: true,
+        filename: 'image.png',
+      })
 
       const result = await processDroppedFile(
         '/path/to/image.png',
@@ -189,16 +199,21 @@ describe('File Processing', () => {
         markdownText: '![image.png](/assets/collection/image.png)',
       })
 
-      expect(mockInvoke).toHaveBeenCalledWith('copy_file_to_assets', {
+      expect(mockProcessFileToAssets).toHaveBeenCalledWith({
         sourcePath: '/path/to/image.png',
         projectPath: '/project/path',
         collection: 'collection',
+        projectSettings: null,
+        copyStrategy: 'always',
       })
     })
 
     it('should process non-image file successfully', async () => {
-      const mockNewPath = 'assets/collection/document.pdf'
-      mockInvoke.mockResolvedValue(mockNewPath)
+      mockProcessFileToAssets.mockResolvedValue({
+        relativePath: '/assets/collection/document.pdf',
+        wasCopied: true,
+        filename: 'document.pdf',
+      })
 
       const result = await processDroppedFile(
         '/path/to/document.pdf',
@@ -215,7 +230,7 @@ describe('File Processing', () => {
     })
 
     it('should handle copy failure gracefully', async () => {
-      mockInvoke.mockRejectedValue(new Error('Copy failed'))
+      mockProcessFileToAssets.mockRejectedValue(new Error('Copy failed'))
 
       const result = await processDroppedFile(
         '/path/to/image.png',
@@ -232,8 +247,11 @@ describe('File Processing', () => {
     })
 
     it('should handle Windows paths', async () => {
-      const mockNewPath = 'assets/collection/file.txt'
-      mockInvoke.mockResolvedValue(mockNewPath)
+      mockProcessFileToAssets.mockResolvedValue({
+        relativePath: '/assets/collection/file.txt',
+        wasCopied: true,
+        filename: 'file.txt',
+      })
 
       const result = await processDroppedFile(
         'C:\\Users\\User\\file.txt',
@@ -250,8 +268,11 @@ describe('File Processing', () => {
     })
 
     it('should handle complex filenames', async () => {
-      const mockNewPath = 'assets/collection/my-file.final.v2.png'
-      mockInvoke.mockResolvedValue(mockNewPath)
+      mockProcessFileToAssets.mockResolvedValue({
+        relativePath: '/assets/collection/my-file.final.v2.png',
+        wasCopied: true,
+        filename: 'my-file.final.v2.png',
+      })
 
       const result = await processDroppedFile(
         '/path/to/my-file.final.v2.png',
@@ -271,9 +292,17 @@ describe('File Processing', () => {
 
   describe('processDroppedFiles', () => {
     it('should process multiple files successfully', async () => {
-      mockInvoke
-        .mockResolvedValueOnce('assets/collection/image.png')
-        .mockResolvedValueOnce('assets/collection/document.pdf')
+      mockProcessFileToAssets
+        .mockResolvedValueOnce({
+          relativePath: '/assets/collection/image.png',
+          wasCopied: true,
+          filename: 'image.png',
+        })
+        .mockResolvedValueOnce({
+          relativePath: '/assets/collection/document.pdf',
+          wasCopied: true,
+          filename: 'document.pdf',
+        })
 
       const result = await processDroppedFiles(
         ['/path/to/image.png', '/path/to/document.pdf'],
@@ -306,8 +335,12 @@ describe('File Processing', () => {
     })
 
     it('should handle mix of successes and failures', async () => {
-      mockInvoke
-        .mockResolvedValueOnce('assets/collection/image.png')
+      mockProcessFileToAssets
+        .mockResolvedValueOnce({
+          relativePath: '/assets/collection/image.png',
+          wasCopied: true,
+          filename: 'image.png',
+        })
         .mockRejectedValueOnce(new Error('Copy failed'))
 
       const result = await processDroppedFiles(
@@ -336,10 +369,13 @@ describe('File Processing', () => {
         { length: 10 },
         (_, i) => `/path/to/file${i}.txt`
       )
-      mockInvoke.mockImplementation((_, args) => {
-        const { sourcePath } = args as { sourcePath: string }
-        const filename = sourcePath.split('/').pop()
-        return Promise.resolve(`assets/collection/${filename}`)
+      mockProcessFileToAssets.mockImplementation(({ sourcePath }) => {
+        const filename = sourcePath.split('/').pop() || ''
+        return Promise.resolve({
+          relativePath: `/assets/collection/${filename}`,
+          wasCopied: true,
+          filename,
+        })
       })
 
       const result = await processDroppedFiles(
@@ -349,7 +385,7 @@ describe('File Processing', () => {
       )
 
       expect(result).toHaveLength(10)
-      expect(mockInvoke).toHaveBeenCalledTimes(10)
+      expect(mockProcessFileToAssets).toHaveBeenCalledTimes(10)
 
       // Verify all files were processed
       filePaths.forEach((path, index) => {

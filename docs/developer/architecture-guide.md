@@ -136,6 +136,65 @@ Extract to `src/hooks/` when:
 3. Same logic needed in multiple components
 4. Manages side effects (subscriptions, timers, etc.)
 
+#### Shared File Processing Module
+
+The `src/lib/files/` module demonstrates good module organization for shared business logic:
+
+```
+files/
+├── index.ts              # Public API exports
+├── types.ts              # TypeScript interfaces
+├── constants.ts          # IMAGE_EXTENSIONS
+├── fileProcessing.ts     # Core business logic
+└── fileProcessing.test.ts # Comprehensive tests
+```
+
+**Core Function: `processFileToAssets()`**
+
+Centralizes file copying logic with configurable behavior via strategy pattern:
+
+```typescript
+import { processFileToAssets } from '@/lib/files'
+
+// Strategy 1: Always copy (editor drag-and-drop)
+const result = await processFileToAssets({
+  sourcePath: filePath,
+  projectPath,
+  collection,
+  projectSettings: currentProjectSettings,
+  copyStrategy: 'always', // Always copies to assets directory
+})
+
+// Strategy 2: Only if outside project (ImageField)
+const result = await processFileToAssets({
+  sourcePath: filePath,
+  projectPath,
+  collection,
+  projectSettings: currentProjectSettings,
+  copyStrategy: 'only-if-outside-project', // Conditionally copies
+})
+
+// Returns normalized path and metadata
+console.log(result.relativePath) // '/assets/collection/image.png'
+console.log(result.wasCopied)    // true/false
+console.log(result.filename)     // 'image.png'
+```
+
+**Strategy Pattern Benefits**:
+- **Single source of truth**: Eliminates code duplication (removed 125+ duplicate lines)
+- **Configurable behavior**: Same function serves different use cases
+- **Separation of concerns**: Business logic isolated from UI logic
+- **Testable**: Pure functions with comprehensive test coverage
+
+**When to use each strategy**:
+- `'always'`: When user explicitly adds files (drag-and-drop, paste)
+- `'only-if-outside-project'`: When files might already be in project (manual path edits, existing references)
+
+**UI-specific logic stays in components**:
+- Markdown formatting (`formatAsMarkdown`)
+- Toast notifications
+- React state management
+
 ## Critical Patterns
 
 ### The `getState()` Pattern (CRITICAL)

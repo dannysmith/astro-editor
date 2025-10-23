@@ -1,22 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
 import { ProcessedFile } from './types'
 import { useProjectStore } from '../../../store/projectStore'
-import { getEffectiveAssetsDirectory } from '../../project-registry'
-import { ASTRO_PATHS } from '../../constants'
-
-/**
- * Image file extensions that should be treated as images
- */
-export const IMAGE_EXTENSIONS = [
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.svg',
-  '.bmp',
-  '.ico',
-] as const
+import { processFileToAssets, IMAGE_EXTENSIONS_WITH_DOTS } from '../../files'
 
 /**
  * Check if a file is an image based on its extension
@@ -25,9 +9,7 @@ export const IMAGE_EXTENSIONS = [
  */
 export const isImageFile = (filename: string): boolean => {
   const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
-  return IMAGE_EXTENSIONS.includes(
-    extension as (typeof IMAGE_EXTENSIONS)[number]
-  )
+  return IMAGE_EXTENSIONS_WITH_DOTS.includes(extension)
 }
 
 /**
@@ -83,33 +65,24 @@ export const processDroppedFile = async (
   const isImage = isImageFile(filename)
 
   try {
-    // Get assets directory using centralized path resolution with collection context
+    // Get current settings for asset directory resolution
     const { currentProjectSettings } = useProjectStore.getState()
-    const assetsDirectory = getEffectiveAssetsDirectory(
-      currentProjectSettings,
-      collection
+
+    // Use shared utility with 'always' strategy
+    const result = await processFileToAssets({
+      sourcePath: filePath,
+      projectPath,
+      collection,
+      projectSettings: currentProjectSettings,
+      copyStrategy: 'always',
+    })
+
+    // Format as markdown (editor-specific concern)
+    const markdownText = formatAsMarkdown(
+      result.filename,
+      result.relativePath,
+      isImage
     )
-
-    let newPath: string
-    if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-      // Use the resolved assets directory (could be collection-specific or project-level override)
-      newPath = await invoke<string>('copy_file_to_assets_with_override', {
-        sourcePath: filePath,
-        projectPath: projectPath,
-        collection: collection,
-        assetsDirectory: assetsDirectory,
-      })
-    } else {
-      // Use default
-      newPath = await invoke<string>('copy_file_to_assets', {
-        sourcePath: filePath,
-        projectPath: projectPath,
-        collection: collection,
-      })
-    }
-
-    // Return markdown formatted string with new path
-    const markdownText = formatAsMarkdown(filename, `/${newPath}`, isImage)
 
     return {
       originalPath: filePath,
@@ -118,7 +91,7 @@ export const processDroppedFile = async (
       markdownText,
     }
   } catch {
-    // Fallback to original path if copy fails
+    // Fallback to original path if processing fails (preserve existing behavior)
     const markdownText = formatAsMarkdown(filename, filePath, isImage)
 
     return {
