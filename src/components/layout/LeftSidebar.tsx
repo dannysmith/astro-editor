@@ -433,7 +433,7 @@ export const LeftSidebar: React.FC = () => {
             })}
 
             {showDraftsOnly && (
-              <span className="text-xs text-[var(--color-draft)] ml-2 font-normal flex-shrink-0">
+              <span className="text-xs text-[hsl(var(--color-draft))] ml-2 font-normal flex-shrink-0">
                 (Drafts)
               </span>
             )}
@@ -444,9 +444,10 @@ export const LeftSidebar: React.FC = () => {
               variant="ghost"
               size="sm"
               className={cn(
-                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-muted-foreground flex-shrink-0',
-                showDraftsOnly &&
-                  'text-[var(--color-draft)] bg-[var(--color-draft-bg)] hover:bg-[var(--color-draft-bg)]/80'
+                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                showDraftsOnly
+                  ? 'text-[hsl(var(--color-draft))] bg-[var(--color-draft-bg)] hover:bg-[var(--color-draft-bg)]/80'
+                  : 'text-muted-foreground'
               )}
               title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
             >
