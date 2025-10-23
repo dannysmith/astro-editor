@@ -1,5 +1,7 @@
 # Task: Refactor Duplicated File Copying and Processing Logic
 
+https://github.com/dannysmith/astro-editor/issues/41
+
 ## Context
 
 During implementation of image fields in frontmatter (see `docs/tasks-done/task-images-in-frontmatter.md`), we intentionally duplicated file processing logic to avoid complicating that branch. This has created **two separate code paths** for handling images/files that are dragged or selected, with different business rules and no shared abstractions.
@@ -9,6 +11,7 @@ During implementation of image fields in frontmatter (see `docs/tasks-done/task-
 ### Current State: Two Divergent Implementations
 
 **Location 1: Editor Drag-and-Drop** (`src/lib/editor/dragdrop/fileProcessing.ts`)
+
 - **Always copies and renames files** to assets directory
 - Uses date-prefixed kebab-case naming: `YYYY-MM-DD-filename.ext`
 - Respects collection-specific and project-level asset directory overrides
@@ -16,6 +19,7 @@ During implementation of image fields in frontmatter (see `docs/tasks-done/task-
 - Returns markdown-formatted strings for insertion into editor
 
 **Location 2: Frontmatter Image Fields** (`src/components/frontmatter/fields/ImageField.tsx`)
+
 - **Conditionally copies files** - only if outside project directory
 - If file is already in project, uses existing path without copying/renaming
 - Same date-prefixed kebab-case naming for copied files
@@ -25,16 +29,19 @@ During implementation of image fields in frontmatter (see `docs/tasks-done/task-
 ### Business Logic Discrepancy
 
 The key difference is **when to copy**:
+
 - **Editor drag-and-drop**: Always copies, always renames (one-off images specific to article)
 - **Frontmatter uploads**: Only copies if outside project (standard reusable assets like cover images)
 
 This behavioral difference makes sense:
+
 - Images dragged into content are typically article-specific and should be standardized
 - Images uploaded to frontmatter fields (e.g., `cover`) are often reusable assets already in the project
 
 ### Code Duplication Analysis
 
 **Shared logic across both paths:**
+
 1. **Asset directory resolution** - `getEffectiveAssetsDirectory()` (already shared ✓)
 2. **File copying to assets** - calls to `copy_file_to_assets` and `copy_file_to_assets_with_override` Tauri commands
 3. **Path override handling** - same conditional logic for default vs. override paths
@@ -42,11 +49,13 @@ This behavioral difference makes sense:
 5. **Error handling** - toast notifications for failures
 
 **Duplicated constants:**
+
 - `IMAGE_EXTENSIONS` array exists in both:
   - `src/lib/editor/dragdrop/fileProcessing.ts` (as const array with dots: `['.png', '.jpg', ...]`)
   - `src/components/frontmatter/fields/ImageField.tsx` (as plain array: `['png', 'jpg', ...]`)
 
 **Not duplicated (unique to each path):**
+
 - Markdown formatting (`formatAsMarkdown`) - editor-specific
 - Position-based drop detection (`isDropWithinElement`) - editor-specific
 - "Already in project" check - frontmatter-specific
@@ -64,7 +73,9 @@ This behavioral difference makes sense:
 ### Evidence of Fragility
 
 The task description in `task-images-in-frontmatter.md` explicitly noted this as technical debt:
+
 > **Technical Debt Tracking**: File Processing Logic (Priority: Medium)
+>
 > - **Duplication**: Asset directory resolution, file copying, path formatting
 > - **Risk if not refactored**: Changes to file processing logic must be made in two places
 
@@ -73,6 +84,7 @@ The task description in `task-images-in-frontmatter.md` explicitly noted this as
 ### High-Level Approach
 
 Create a **shared file processing utility** that:
+
 1. Encapsulates the core file copying and path resolution logic
 2. Provides **configuration options** to handle both use cases (always-copy vs. conditional-copy)
 3. Maintains separation of concerns (markdown formatting stays in editor, UI logic stays in components)
@@ -82,6 +94,7 @@ Create a **shared file processing utility** that:
 **New module**: `src/lib/files/imageProcessing.ts` (or `src/lib/files/assetProcessing.ts`)
 
 **Core function signature:**
+
 ```typescript
 interface ProcessImageOptions {
   sourcePath: string
@@ -94,8 +107,8 @@ interface ProcessImageOptions {
 }
 
 interface ProcessImageResult {
-  relativePath: string  // Project-root-relative path (with leading /)
-  wasCopied: boolean    // Whether file was copied or path reused
+  relativePath: string // Project-root-relative path (with leading /)
+  wasCopied: boolean // Whether file was copied or path reused
 }
 
 async function processImageToAssets(
@@ -104,25 +117,27 @@ async function processImageToAssets(
 ```
 
 **Usage in editor drag-and-drop:**
+
 ```typescript
 const result = await processImageToAssets({
   sourcePath: filePath,
   projectPath,
   collection,
   projectSettings,
-  copyStrategy: 'always'  // Always copy and rename
+  copyStrategy: 'always', // Always copy and rename
 })
 // Then format as markdown: formatAsMarkdown(filename, result.relativePath, isImage)
 ```
 
 **Usage in ImageField:**
+
 ```typescript
 const result = await processImageToAssets({
   sourcePath: filePath,
   projectPath,
   collection,
   projectSettings,
-  copyStrategy: 'only-if-outside-project'  // Conditional copy
+  copyStrategy: 'only-if-outside-project', // Conditional copy
 })
 updateFrontmatterField(name, result.relativePath)
 ```
@@ -130,9 +145,17 @@ updateFrontmatterField(name, result.relativePath)
 ### Shared Constants
 
 **New module**: `src/lib/files/constants.ts`
+
 ```typescript
 export const IMAGE_EXTENSIONS = [
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'svg',
+  'bmp',
+  'ico',
 ] as const
 
 export const IMAGE_EXTENSIONS_WITH_DOTS = IMAGE_EXTENSIONS.map(ext => `.${ext}`)
@@ -172,22 +195,27 @@ export const IMAGE_EXTENSIONS_WITH_DOTS = IMAGE_EXTENSIONS.map(ext => `.${ext}`)
 ### Alternative Approaches Considered
 
 **Option B: Separate functions for each use case**
+
 ```typescript
 // Two separate functions with different behaviors
 async function copyImageToAssetsForEditor(...)
 async function copyImageToAssetsForFrontmatter(...)
 ```
+
 **Rejected because**: Doesn't reduce duplication, just makes it explicit
 
 **Option C: Single function with boolean flag**
+
 ```typescript
 async function processImage(..., alwaysCopy: boolean)
 ```
+
 **Rejected because**: Less clear than named strategy, harder to extend later
 
 ## Success Criteria
 
 After refactoring:
+
 1. ✓ Both editor drag-and-drop and ImageField use shared utility
 2. ✓ Existing behavior is preserved (no regressions)
 3. ✓ All existing tests pass
@@ -198,15 +226,18 @@ After refactoring:
 ## Related Files
 
 **Files to modify:**
+
 - `src/lib/editor/dragdrop/fileProcessing.ts` - refactor to use shared utility
 - `src/components/frontmatter/fields/ImageField.tsx` - refactor to use shared utility
 - `src/lib/files/` (new directory) - create shared modules
 
 **Files to reference:**
+
 - `src-tauri/src/commands/files.rs` - Tauri commands used by both paths
 - `src/lib/project-registry/path-resolution.ts` - shared path resolution utilities
 
 **Backend commands used:**
+
 - `copy_file_to_assets` - basic file copy with date-prefixed naming
 - `copy_file_to_assets_with_override` - file copy with custom assets directory
 - `is_path_in_project` - check if file is already in project

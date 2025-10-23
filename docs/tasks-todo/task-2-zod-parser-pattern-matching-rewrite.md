@@ -1,6 +1,9 @@
 # Task 3: Rewrite Zod Schema Parser to Use Pattern Matching
 
+https://github.com/dannysmith/astro-editor/issues/40
+
 ## Status
+
 - **Priority**: 3
 - **Status**: Todo
 - **Effort**: Medium (4-6 hours)
@@ -37,16 +40,19 @@ The current line-based parsing approach tries to do too much and is too sensitiv
 Rewrite the Zod parser to use a two-pass pattern-matching approach:
 
 ### Pass 1: Find Special Helper Calls
+
 - Scan entire schema text for `image()` and `reference()` occurrences
 - Extract surrounding context (field name and containing structure)
 - Don't try to parse the entire schema - just find the helpers
 
 ### Pass 2: Resolve Field Paths
+
 - For each helper found, trace backwards through the schema text
 - Use brace-level counting to find parent object names
 - Build dotted paths (e.g., `coverImage.image`, `metadata.author.avatar`)
 
 ### Benefits
+
 - **More robust**: Works with any formatting (multi-line, inline, etc.)
 - **Simpler**: Focused on actual purpose (find helpers, resolve paths)
 - **Maintainable**: Easier to understand and extend
@@ -55,6 +61,7 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 ## Implementation Details
 
 ### Current Code Location
+
 - File: `src-tauri/src/parser.rs`
 - Function: `parse_schema_fields()` (lines ~420-492)
 - Related: `process_field_with_parent()`, `parse_nested_object()`, `parse_object_field()`
@@ -62,6 +69,7 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 ### Suggested Approach
 
 1. **Create new pattern matching functions**:
+
    ```rust
    fn find_helper_calls(schema_text: &str, helper_name: &str) -> Vec<HelperMatch> {
        // Find all occurrences of helper_name() with position info
@@ -96,11 +104,13 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 ## Testing Strategy
 
 ### Unit Tests to Update
+
 - `test_image_helper_detection` - should still pass
 - `test_reference_helper_detection` - should still pass
 - `test_nested_object_with_image_fields` - should pass with new approach
 
 ### New Tests to Add
+
 - Multi-line image field definitions
 - Deeply nested image fields (3+ levels)
 - Arrays with image fields
@@ -108,6 +118,7 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 - Comments in field definitions
 
 ### Integration Testing
+
 - Test with `test/dummy-astro-project/src/content.config.ts`
 - Verify nested image fields render as ImageField components
 - Verify existing non-nested fields still work
@@ -116,21 +127,25 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 ## Risks and Mitigations
 
 ### Risk 1: Breaking Existing Functionality
+
 - **Impact**: High
 - **Mitigation**: Comprehensive test suite, test with real project schemas
 - **Validation**: All existing tests must pass before merging
 
 ### Risk 2: Complex Nested Structures
+
 - **Impact**: Medium
 - **Mitigation**: Design path resolution to handle arbitrary nesting depth
 - **Validation**: Test with 3+ level nesting
 
 ### Risk 3: Formatting Edge Cases
+
 - **Impact**: Low
 - **Mitigation**: Document supported formatting patterns, focus on common Prettier output
 - **Validation**: Test with various formatting styles
 
 ### Risk 4: Future Extensibility
+
 - **Impact**: Low
 - **Mitigation**: Make helper detection parameterized (pass in list of helpers to find)
 - **Validation**: Easy to add new helpers in the future
@@ -146,9 +161,11 @@ Rewrite the Zod parser to use a two-pass pattern-matching approach:
 7. ✅ Performance is comparable or better (pattern matching is O(n), line parsing was also O(n))
 
 ## Dependencies
+
 - None (self-contained refactor)
 
 ## Related Files
+
 - `src-tauri/src/parser.rs` - Main implementation
 - `src-tauri/src/schema_merger.rs` - Uses Zod parser output
 - `test/dummy-astro-project/src/content.config.ts` - Test schema
