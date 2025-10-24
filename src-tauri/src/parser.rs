@@ -2,66 +2,6 @@ use crate::models::Collection;
 use regex::Regex;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
-pub struct ZodField {
-    pub name: String,
-    pub field_type: ZodFieldType,
-    pub optional: bool,
-    pub default_value: Option<String>,
-    pub constraints: ZodFieldConstraints,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ZodFieldConstraints {
-    pub min: Option<i64>,
-    pub max: Option<i64>,
-    pub regex: Option<String>,
-    pub url: bool,
-    pub email: bool,
-    pub uuid: bool,
-    pub cuid: bool,
-    pub cuid2: bool,
-    pub ulid: bool,
-    pub emoji: bool,
-    pub ip: bool,
-    pub includes: Option<String>,
-    pub starts_with: Option<String>,
-    pub ends_with: Option<String>,
-    pub length: Option<i64>,
-    pub trim: bool,
-    pub to_lower_case: bool,
-    pub to_upper_case: bool,
-    pub transform: Option<String>,
-    pub refine: Option<String>,
-    pub literal: Option<String>,
-    pub min_length: Option<i64>,
-    pub max_length: Option<i64>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum ZodFieldType {
-    String,
-    Number,
-    Boolean,
-    Date,
-    Array(Box<ZodFieldType>),
-    Enum(Vec<String>),
-    Union(Vec<ZodFieldType>),
-    Literal(String),
-    Object(Vec<ZodField>),
-    Reference(String), // Stores the collection name
-    Image,
-    Unknown,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ParsedSchema {
-    pub fields: Vec<ZodField>,
-    pub raw: String,
-}
-
 /// Helper type for pattern matching approach
 #[derive(Debug, Clone, PartialEq)]
 enum HelperType {
@@ -285,11 +225,6 @@ fn parse_collection_definitions(
     content_dir: &Path,
     full_content: &str,
 ) -> Result<Vec<Collection>, String> {
-    println!("\n[DEBUG parse_collection_definitions] Called");
-    println!("[DEBUG] collections_block length: {}", collections_block.len());
-    println!("[DEBUG] collections_block content:\n{}", collections_block);
-    println!("[DEBUG] content_dir: {:?}", content_dir);
-
     let mut collections = Vec::new();
 
     // For new format, extract collection names from export block: { articles, notes }
@@ -298,13 +233,10 @@ fn parse_collection_definitions(
         Regex::new(r"\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\}")
             .unwrap();
 
-    println!("[DEBUG] Trying NEW format regex match (simple name list)...");
     if let Some(cap) = export_names_re.captures(collections_block) {
         let names_str = cap.get(1).unwrap().as_str();
-        println!("[DEBUG] NEW format regex matched: '{}'", names_str);
         // Additional check: if the names_str contains "defineCollection" or ":", it's the old format
         if !names_str.contains("defineCollection") && !names_str.contains(":") {
-            println!("[DEBUG] Taking NEW format path (no defineCollection or : in match)");
             // Split by comma and clean up names
             for name in names_str.split(',') {
                 let collection_name = name.trim();
@@ -328,54 +260,34 @@ fn parse_collection_definitions(
                     collections.push(collection);
                 }
             }
-        } else {
-            println!("[DEBUG] NEW format check failed (contains defineCollection or :), falling through");
         }
-    } else {
-        println!("[DEBUG] NEW format regex didn't match");
     }
 
     // Fallback to old format: collection_name: defineCollection(...)
-    println!("\n[DEBUG] Trying OLD format regex match...");
     let collection_re = Regex::new(r"(\w+)\s*:\s*defineCollection\s*\(").unwrap();
 
-    let old_format_matches: Vec<_> = collection_re.captures_iter(collections_block).collect();
-    println!("[DEBUG] OLD format found {} matches", old_format_matches.len());
-
-    for cap in old_format_matches {
+    for cap in collection_re.captures_iter(collections_block) {
         let collection_name = cap.get(1).unwrap().as_str();
-        println!("[DEBUG] OLD format processing collection: '{}'", collection_name);
 
         // Skip file-based collections - they should only be used for references
         if is_file_based_collection(full_content, collection_name) {
-            println!("[DEBUG] Skipping '{}' - is file-based collection", collection_name);
             continue;
         }
 
         // Only include directory-based collections
         let collection_path = content_dir.join(collection_name);
-        println!("[DEBUG] Checking directory: {:?}", collection_path);
-        println!("[DEBUG]   exists: {}", collection_path.exists());
-        println!("[DEBUG]   is_dir: {}", collection_path.is_dir());
 
         if collection_path.exists() && collection_path.is_dir() {
-            println!("[DEBUG] ✓ Adding collection '{}'", collection_name);
             let mut collection = Collection::new(collection_name.to_string(), collection_path);
 
             if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
-                println!("[DEBUG] ✓ Found schema for '{}'", collection_name);
                 collection.schema = Some(schema);
-            } else {
-                println!("[DEBUG] ✗ No schema found for '{}'", collection_name);
             }
 
             collections.push(collection);
-        } else {
-            println!("[DEBUG] ✗ Skipping '{}' - directory doesn't exist or isn't a directory", collection_name);
         }
     }
 
-    println!("[DEBUG] Returning {} collections\n", collections.len());
     Ok(collections)
 }
 
@@ -456,469 +368,7 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
 }
 
 fn parse_schema_fields(schema_text: &str) -> Option<String> {
-    // Use the new pattern-matching approach
     extract_zod_special_fields(schema_text)
-}
-
-fn process_field(
-    field_definition: &str,
-    schema_fields: &mut Vec<ZodField>,
-    processed_fields: &mut std::collections::HashSet<String>,
-    schema_text: &str,
-) {
-    // Remove trailing comma if present
-    let field_definition = field_definition.trim_end_matches(',');
-
-    // Extract field name first
-    if let Some(colon_pos) = field_definition.find(':') {
-        let field_name = field_definition[..colon_pos].trim();
-
-        // Skip if we've already processed this field
-        if processed_fields.contains(field_name) {
-            return;
-        }
-        processed_fields.insert(field_name.to_string());
-
-        let field_def_content = &field_definition[colon_pos + 1..].trim();
-
-        // Determine field type and extract constraints
-        let (field_type, constraints) = parse_field_type_and_constraints(field_def_content);
-
-        // Check if field is optional or has default
-        let has_optional =
-            field_def_content.contains(".optional()") || field_def_content.contains("z.optional(");
-        let has_default = field_def_content.contains(".default(");
-
-        // If field has a default, treat it as optional for UI purposes
-        let is_optional = has_optional || has_default;
-
-        let default_value = if has_default {
-            extract_default_value(schema_text, field_name)
-        } else {
-            None
-        };
-
-        schema_fields.push(ZodField {
-            name: field_name.to_string(),
-            field_type,
-            optional: is_optional,
-            default_value,
-            constraints,
-        });
-    }
-}
-
-fn extract_enum_values(field_definition: &str) -> Vec<String> {
-    // Extract values from z.enum(['value1', 'value2']) or z.enum(["value1", "value2"])
-    let enum_re = Regex::new(r"z\.enum\s*\(\s*\[\s*([^\]]+)\s*\]\s*\)").unwrap();
-
-    if let Some(cap) = enum_re.captures(field_definition) {
-        let values_str = cap.get(1).unwrap().as_str();
-
-        // Split by comma and clean up quotes
-        values_str
-            .split(',')
-            .map(|v| v.trim().trim_matches('"').trim_matches('\'').to_string())
-            .filter(|v| !v.is_empty())
-            .collect()
-    } else {
-        vec![]
-    }
-}
-
-fn parse_field_type_and_constraints(field_definition: &str) -> (ZodFieldType, ZodFieldConstraints) {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Normalize whitespace and handle multi-line definitions
-    let normalized = normalize_field_definition(field_definition);
-
-    // Check for z.optional(z.type()) syntax first
-    if normalized.contains("z.optional(") {
-        let inner_type = extract_optional_inner_type(&normalized);
-        return (inner_type.0, inner_type.1);
-    }
-
-    // Determine base field type (order matters - check most specific first)
-    let field_type = if normalized.contains("image()") {
-        // Astro's image() helper - return Image type directly
-        ZodFieldType::Image
-    } else if normalized.contains("reference(") {
-        // Extract collection name from reference('collectionName')
-        let collection_name = extract_reference_collection(&normalized);
-        ZodFieldType::Reference(collection_name)
-    } else if normalized.contains("z.array(") {
-        // Extract array element type
-        let inner_type = extract_array_inner_type(&normalized);
-        ZodFieldType::Array(Box::new(inner_type))
-    } else if normalized.contains("z.enum(") {
-        // Extract enum values from z.enum(['value1', 'value2'])
-        let enum_values = extract_enum_values(&normalized);
-        ZodFieldType::Enum(enum_values)
-    } else if normalized.contains("z.union(") {
-        // Extract union types from z.union([z.string(), z.null()])
-        let union_types = extract_union_types(&normalized);
-        ZodFieldType::Union(union_types)
-    } else if normalized.contains("z.literal(") {
-        // Extract literal value from z.literal("value")
-        let literal_value = extract_literal_value(&normalized);
-        ZodFieldType::Literal(literal_value)
-    } else if normalized.contains("z.object(") {
-        // For nested objects, we'll parse them recursively in the future
-        // For now, treat as unknown but mark that it's an object
-        ZodFieldType::Object(vec![])
-    } else if normalized.contains("z.coerce.date()") || normalized.contains("z.date()") {
-        ZodFieldType::Date
-    } else if normalized.contains("z.string()") || normalized.contains("z.string().") {
-        constraints = extract_string_constraints(&normalized);
-        ZodFieldType::String
-    } else if normalized.contains("z.number()") || normalized.contains("z.number().") {
-        constraints = extract_number_constraints(&normalized);
-        ZodFieldType::Number
-    } else if normalized.contains("z.boolean()") {
-        ZodFieldType::Boolean
-    } else {
-        ZodFieldType::Unknown
-    };
-
-    (field_type, constraints)
-}
-
-fn normalize_field_definition(field_definition: &str) -> String {
-    // Remove extra whitespace and normalize line breaks
-    let normalized = field_definition
-        .lines()
-        .map(|line| line.trim())
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // Collapse multiple spaces
-    let space_re = Regex::new(r"\s+").unwrap();
-    space_re.replace_all(&normalized, " ").to_string()
-}
-
-fn extract_optional_inner_type(field_definition: &str) -> (ZodFieldType, ZodFieldConstraints) {
-    // Extract type from z.optional(z.string()) or z.optional(z.number().min(1))
-    let optional_re = Regex::new(r"z\.optional\s*\(\s*([^)]+)\s*\)").unwrap();
-
-    if let Some(cap) = optional_re.captures(field_definition) {
-        let inner_def = cap.get(1).unwrap().as_str();
-
-        // Parse the inner type directly without recursion to avoid infinite loops
-        let mut constraints = ZodFieldConstraints::default();
-
-        let field_type = if inner_def.contains("image()") {
-            ZodFieldType::Image
-        } else if inner_def.contains("z.string") {
-            constraints = extract_string_constraints(inner_def);
-            ZodFieldType::String
-        } else if inner_def.contains("z.number") {
-            constraints = extract_number_constraints(inner_def);
-            ZodFieldType::Number
-        } else if inner_def.contains("z.boolean") {
-            ZodFieldType::Boolean
-        } else if inner_def.contains("z.date") {
-            ZodFieldType::Date
-        } else {
-            ZodFieldType::Unknown
-        };
-
-        (field_type, constraints)
-    } else {
-        (ZodFieldType::Unknown, ZodFieldConstraints::default())
-    }
-}
-
-fn extract_reference_collection(field_definition: &str) -> String {
-    // Extract collection name from reference('collectionName') or reference("collectionName")
-    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
-
-    if let Some(cap) = reference_re.captures(field_definition) {
-        cap.get(1).unwrap().as_str().to_string()
-    } else {
-        "unknown".to_string()
-    }
-}
-
-fn extract_array_inner_type(field_definition: &str) -> ZodFieldType {
-    // Extract type from z.array(z.string()) or z.array(reference('posts'))
-    let array_re = Regex::new(r"z\.array\s*\(\s*([^)]+)\s*\)").unwrap();
-
-    if let Some(cap) = array_re.captures(field_definition) {
-        let inner_def = cap.get(1).unwrap().as_str();
-
-        if inner_def.contains("reference(") {
-            let collection_name = extract_reference_collection(inner_def);
-            ZodFieldType::Reference(collection_name)
-        } else if inner_def.contains("z.string") {
-            ZodFieldType::String
-        } else if inner_def.contains("z.number") {
-            ZodFieldType::Number
-        } else if inner_def.contains("z.boolean") {
-            ZodFieldType::Boolean
-        } else if inner_def.contains("z.date") {
-            ZodFieldType::Date
-        } else {
-            ZodFieldType::Unknown
-        }
-    } else {
-        ZodFieldType::String // Default fallback
-    }
-}
-
-fn extract_union_types(field_definition: &str) -> Vec<ZodFieldType> {
-    // Extract types from z.union([z.string(), z.null(), z.number()])
-    let union_re = Regex::new(r"z\.union\s*\(\s*\[\s*([^\]]+)\s*\]\s*\)").unwrap();
-
-    if let Some(cap) = union_re.captures(field_definition) {
-        let types_str = cap.get(1).unwrap().as_str();
-
-        let mut union_types = Vec::new();
-
-        // Split by comma and parse each type
-        for type_str in types_str.split(',') {
-            let type_str = type_str.trim();
-
-            let field_type = if type_str.contains("z.string") {
-                ZodFieldType::String
-            } else if type_str.contains("z.number") {
-                ZodFieldType::Number
-            } else if type_str.contains("z.boolean") {
-                ZodFieldType::Boolean
-            } else if type_str.contains("z.date") {
-                ZodFieldType::Date
-            } else if type_str.contains("z.null") || type_str.contains("null") {
-                // Represent null as a special string literal
-                ZodFieldType::Literal("null".to_string())
-            } else if type_str.contains("z.undefined") || type_str.contains("undefined") {
-                ZodFieldType::Literal("undefined".to_string())
-            } else {
-                ZodFieldType::Unknown
-            };
-
-            union_types.push(field_type);
-        }
-
-        union_types
-    } else {
-        vec![]
-    }
-}
-
-fn extract_literal_value(field_definition: &str) -> String {
-    // Extract value from z.literal("value") or z.literal('value')
-    let literal_re = Regex::new(r#"z\.literal\s*\(\s*["']([^"']+)["']\s*\)"#).unwrap();
-
-    if let Some(cap) = literal_re.captures(field_definition) {
-        cap.get(1).unwrap().as_str().to_string()
-    } else {
-        // Try without quotes for numbers/booleans
-        let literal_unquoted_re = Regex::new(r"z\.literal\s*\(\s*([^)]+)\s*\)").unwrap();
-        if let Some(cap) = literal_unquoted_re.captures(field_definition) {
-            cap.get(1).unwrap().as_str().trim().to_string()
-        } else {
-            "unknown".to_string()
-        }
-    }
-}
-
-fn extract_string_constraints(field_definition: &str) -> ZodFieldConstraints {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Extract min/max length
-    if let Some(cap) = Regex::new(r"\.min\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.min_length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.max\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.max_length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.length\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    // Extract regex pattern
-    if let Some(cap) = Regex::new(r"\.regex\s*\(\s*/([^/]+)/([gimuy]*)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        let pattern = cap.get(1).unwrap().as_str();
-        let flags = cap.get(2).map(|m| m.as_str()).unwrap_or("");
-        constraints.regex = Some(format!("/{pattern}/{flags}"));
-    }
-
-    // Extract string validation methods
-    constraints.url = field_definition.contains(".url()");
-    constraints.email = field_definition.contains(".email()");
-    constraints.uuid = field_definition.contains(".uuid()");
-    constraints.cuid = field_definition.contains(".cuid()");
-    constraints.cuid2 = field_definition.contains(".cuid2()");
-    constraints.ulid = field_definition.contains(".ulid()");
-    constraints.emoji = field_definition.contains(".emoji()");
-    constraints.ip = field_definition.contains(".ip()");
-
-    // Extract string transformation methods
-    constraints.trim = field_definition.contains(".trim()");
-    constraints.to_lower_case = field_definition.contains(".toLowerCase()");
-    constraints.to_upper_case = field_definition.contains(".toUpperCase()");
-
-    // Extract includes/startsWith/endsWith
-    if let Some(cap) = Regex::new(r#"\.includes\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.includes = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    if let Some(cap) = Regex::new(r#"\.startsWith\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.starts_with = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    if let Some(cap) = Regex::new(r#"\.endsWith\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.ends_with = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    constraints
-}
-
-fn extract_number_constraints(field_definition: &str) -> ZodFieldConstraints {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Extract min/max values
-    if let Some(cap) = Regex::new(r"\.min\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.min = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.max\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.max = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    // Check for integer/positive/negative constraints
-    if field_definition.contains(".int()") {
-        constraints.transform = Some("integer".to_string());
-    }
-
-    if field_definition.contains(".positive()") {
-        constraints.min = Some(1);
-    }
-
-    if field_definition.contains(".negative()") {
-        constraints.max = Some(-1);
-    }
-
-    if field_definition.contains(".nonnegative()") {
-        constraints.min = Some(0);
-    }
-
-    if field_definition.contains(".nonpositive()") {
-        constraints.max = Some(0);
-    }
-
-    constraints
-}
-
-fn serialize_constraints(constraints: &ZodFieldConstraints) -> serde_json::Value {
-    let mut constraint_json = serde_json::json!({});
-
-    // Add numeric constraints
-    if let Some(min) = constraints.min {
-        constraint_json["min"] = serde_json::json!(min);
-    }
-    if let Some(max) = constraints.max {
-        constraint_json["max"] = serde_json::json!(max);
-    }
-    if let Some(length) = constraints.length {
-        constraint_json["length"] = serde_json::json!(length);
-    }
-    if let Some(min_length) = constraints.min_length {
-        constraint_json["minLength"] = serde_json::json!(min_length);
-    }
-    if let Some(max_length) = constraints.max_length {
-        constraint_json["maxLength"] = serde_json::json!(max_length);
-    }
-
-    // Add string constraints
-    if let Some(regex) = &constraints.regex {
-        constraint_json["regex"] = serde_json::json!(regex);
-    }
-    if let Some(includes) = &constraints.includes {
-        constraint_json["includes"] = serde_json::json!(includes);
-    }
-    if let Some(starts_with) = &constraints.starts_with {
-        constraint_json["startsWith"] = serde_json::json!(starts_with);
-    }
-    if let Some(ends_with) = &constraints.ends_with {
-        constraint_json["endsWith"] = serde_json::json!(ends_with);
-    }
-
-    // Add boolean constraints
-    if constraints.url {
-        constraint_json["url"] = serde_json::json!(true);
-    }
-    if constraints.email {
-        constraint_json["email"] = serde_json::json!(true);
-    }
-    if constraints.uuid {
-        constraint_json["uuid"] = serde_json::json!(true);
-    }
-    if constraints.cuid {
-        constraint_json["cuid"] = serde_json::json!(true);
-    }
-    if constraints.cuid2 {
-        constraint_json["cuid2"] = serde_json::json!(true);
-    }
-    if constraints.ulid {
-        constraint_json["ulid"] = serde_json::json!(true);
-    }
-    if constraints.emoji {
-        constraint_json["emoji"] = serde_json::json!(true);
-    }
-    if constraints.ip {
-        constraint_json["ip"] = serde_json::json!(true);
-    }
-    if constraints.trim {
-        constraint_json["trim"] = serde_json::json!(true);
-    }
-    if constraints.to_lower_case {
-        constraint_json["toLowerCase"] = serde_json::json!(true);
-    }
-    if constraints.to_upper_case {
-        constraint_json["toUpperCase"] = serde_json::json!(true);
-    }
-
-    // Add transform/refine information
-    if let Some(transform) = &constraints.transform {
-        constraint_json["transform"] = serde_json::json!(transform);
-    }
-    if let Some(refine) = &constraints.refine {
-        constraint_json["refine"] = serde_json::json!(refine);
-    }
-    if let Some(literal) = &constraints.literal {
-        constraint_json["literal"] = serde_json::json!(literal);
-    }
-
-    constraint_json
 }
 
 /// Find all image() and reference() helper calls in schema text
@@ -926,44 +376,21 @@ fn serialize_constraints(constraints: &ZodFieldConstraints) -> serde_json::Value
 fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
     let mut matches = Vec::new();
 
-    // Find image() calls - regex: r"image\s*\(\s*\)"
+    // Find image() calls
     let image_re = Regex::new(r"image\s*\(\s*\)").unwrap();
     for image_match in image_re.find_iter(schema_text) {
-        let position = image_match.start();
-
-        // Log the match with surrounding context
-        let context_start = position.saturating_sub(20);
-        let context_end = (position + 30).min(schema_text.len());
-        let context = &schema_text[context_start..context_end];
-        log::debug!(
-            "Found image() helper at position {}: context: '{}'",
-            position,
-            context.replace('\n', " ")
-        );
-
         matches.push(HelperMatch {
             helper_type: HelperType::Image,
-            position,
+            position: image_match.start(),
             collection_name: None,
         });
     }
 
-    // Find reference() calls - regex: r"reference\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
+    // Find reference() calls
     let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
     for reference_match in reference_re.captures_iter(schema_text) {
         let position = reference_match.get(0).unwrap().start();
         let collection_name = reference_match.get(1).unwrap().as_str().to_string();
-
-        // Log the match with surrounding context
-        let context_start = position.saturating_sub(20);
-        let context_end = (position + 40).min(schema_text.len());
-        let context = &schema_text[context_start..context_end];
-        log::debug!(
-            "Found reference('{}') helper at position {}: context: '{}'",
-            collection_name,
-            position,
-            context.replace('\n', " ")
-        );
 
         matches.push(HelperMatch {
             helper_type: HelperType::Reference,
@@ -972,7 +399,6 @@ fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
         });
     }
 
-    log::debug!("Total helpers found: {}", matches.len());
     matches
 }
 
@@ -1003,7 +429,6 @@ fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<Stri
 
             if field_start < field_end {
                 let field_name: String = chars[field_start..field_end].iter().collect();
-                log::debug!("Found field name '{}' at position {}", field_name, field_start);
                 return Some(field_name);
             }
         }
@@ -1043,12 +468,9 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
     let mut path_components = Vec::new();
     let mut current_pos = helper_position;
 
-    log::debug!("Resolving field path from position {}", helper_position);
-
     // First, find the immediate field name for this helper
     if let Some(field_name) = find_field_name_backwards(schema_text, current_pos) {
         path_components.push(field_name.clone());
-        log::debug!("Added field component: '{}'", field_name);
 
         // Now trace backwards through brace levels to find parent fields
         let mut brace_level = 0;
@@ -1061,11 +483,9 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
             match ch {
                 '}' => {
                     brace_level += 1;
-                    log::debug!("Found '}}' at {}, brace_level now {}", current_pos, brace_level);
                 }
                 '{' => {
                     brace_level -= 1;
-                    log::debug!("Found '{{' at {}, brace_level now {}", current_pos, brace_level);
 
                     // When we exit to a parent level (brace_level becomes negative)
                     if brace_level < 0 {
@@ -1074,7 +494,6 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
                             // Make sure we haven't already added this field (avoid duplicates)
                             if path_components.last() != Some(&parent_field) {
                                 path_components.push(parent_field.clone());
-                                log::debug!("Added parent field component: '{}'", parent_field);
                             }
                             // Reset brace level for the next parent
                             brace_level = 0;
@@ -1089,15 +508,13 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
         }
     } else {
         return Err(format!(
-            "Could not find field name for helper at position {}",
-            helper_position
+            "Could not find field name for helper at position {helper_position}"
         ));
     }
 
     // Reverse to get the path from outermost to innermost
     path_components.reverse();
     let path = path_components.join(".");
-    log::debug!("Resolved path: '{}'", path);
     Ok(path)
 }
 
@@ -1119,12 +536,6 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
     for helper in helpers {
         match resolve_field_path(schema_text, helper.position) {
             Ok(field_path) => {
-                log::debug!(
-                    "Resolved helper at position {} to path '{}'",
-                    helper.position,
-                    field_path
-                );
-
                 // Check if this helper is inside an array
                 let in_array = is_inside_array(schema_text, helper.position);
 
@@ -1181,12 +592,7 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
 
                 fields_json.push(field_json);
             }
-            Err(e) => {
-                log::warn!(
-                    "Failed to resolve field path at position {}: {}",
-                    helper.position,
-                    e
-                );
+            Err(_) => {
                 // Skip this field - it will be treated as whatever JSON schema says
             }
         }
@@ -1199,25 +605,10 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
             "fields": fields_json
         });
 
-        log::debug!(
-            "Generated schema JSON with {} fields",
-            fields_json.len()
-        );
         return Some(schema_json.to_string());
     }
 
     None
-}
-
-fn extract_default_value(schema_text: &str, field_name: &str) -> Option<String> {
-    let default_re = Regex::new(&format!(r"{field_name}.*\.default\s*\(\s*([^)]+)\s*\)")).unwrap();
-
-    if let Some(cap) = default_re.captures(schema_text) {
-        let default_val = cap.get(1).unwrap().as_str().trim();
-        Some(default_val.trim_matches('"').trim_matches('\'').to_string())
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]
