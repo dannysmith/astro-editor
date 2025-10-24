@@ -2,64 +2,19 @@ use crate::models::Collection;
 use regex::Regex;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
-pub struct ZodField {
-    pub name: String,
-    pub field_type: ZodFieldType,
-    pub optional: bool,
-    pub default_value: Option<String>,
-    pub constraints: ZodFieldConstraints,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ZodFieldConstraints {
-    pub min: Option<i64>,
-    pub max: Option<i64>,
-    pub regex: Option<String>,
-    pub url: bool,
-    pub email: bool,
-    pub uuid: bool,
-    pub cuid: bool,
-    pub cuid2: bool,
-    pub ulid: bool,
-    pub emoji: bool,
-    pub ip: bool,
-    pub includes: Option<String>,
-    pub starts_with: Option<String>,
-    pub ends_with: Option<String>,
-    pub length: Option<i64>,
-    pub trim: bool,
-    pub to_lower_case: bool,
-    pub to_upper_case: bool,
-    pub transform: Option<String>,
-    pub refine: Option<String>,
-    pub literal: Option<String>,
-    pub min_length: Option<i64>,
-    pub max_length: Option<i64>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum ZodFieldType {
-    String,
-    Number,
-    Boolean,
-    Date,
-    Array(Box<ZodFieldType>),
-    Enum(Vec<String>),
-    Union(Vec<ZodFieldType>),
-    Literal(String),
-    Object(Vec<ZodField>),
-    Reference(String), // Stores the collection name
+/// Helper type for pattern matching approach
+#[derive(Debug, Clone, PartialEq)]
+enum HelperType {
     Image,
-    Unknown,
+    Reference,
 }
 
+/// Represents a match of an image() or reference() helper call
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ParsedSchema {
-    pub fields: Vec<ZodField>,
-    pub raw: String,
+struct HelperMatch {
+    helper_type: HelperType,
+    position: usize,
+    collection_name: Option<String>,
 }
 
 /// Parse Astro content config file and extract collection definitions
@@ -306,30 +261,30 @@ fn parse_collection_definitions(
                 }
             }
         }
-    } else {
-        // Fallback to old format: collection_name: defineCollection(...)
-        let collection_re = Regex::new(r"(\w+)\s*:\s*defineCollection\s*\(").unwrap();
+    }
 
-        for cap in collection_re.captures_iter(collections_block) {
-            let collection_name = cap.get(1).unwrap().as_str();
+    // Fallback to old format: collection_name: defineCollection(...)
+    let collection_re = Regex::new(r"(\w+)\s*:\s*defineCollection\s*\(").unwrap();
 
-            // Skip file-based collections - they should only be used for references
-            if is_file_based_collection(full_content, collection_name) {
-                continue;
+    for cap in collection_re.captures_iter(collections_block) {
+        let collection_name = cap.get(1).unwrap().as_str();
+
+        // Skip file-based collections - they should only be used for references
+        if is_file_based_collection(full_content, collection_name) {
+            continue;
+        }
+
+        // Only include directory-based collections
+        let collection_path = content_dir.join(collection_name);
+
+        if collection_path.exists() && collection_path.is_dir() {
+            let mut collection = Collection::new(collection_name.to_string(), collection_path);
+
+            if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
+                collection.schema = Some(schema);
             }
 
-            // Only include directory-based collections
-            let collection_path = content_dir.join(collection_name);
-
-            if collection_path.exists() && collection_path.is_dir() {
-                let mut collection = Collection::new(collection_name.to_string(), collection_path);
-
-                if let Some(schema) = extract_basic_schema(collections_block, collection_name) {
-                    collection.schema = Some(schema);
-                }
-
-                collections.push(collection);
-            }
+            collections.push(collection);
         }
     }
 
@@ -405,7 +360,6 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
 
         if brace_count == 0 {
             let schema_text = &collection_block[start + 1..end].trim(); // +1 to skip opening brace
-
             return parse_schema_fields(schema_text);
         }
     }
@@ -414,631 +368,249 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
 }
 
 fn parse_schema_fields(schema_text: &str) -> Option<String> {
-    let mut schema_fields = Vec::new();
-    let mut processed_fields = std::collections::HashSet::new();
+    extract_zod_special_fields(schema_text)
+}
 
-    // Parse fields - handle both single line and multiline definitions
-    let mut current_field = String::new();
-    let mut in_field = false;
-    let mut brace_count = 0;
+/// Find all image() and reference() helper calls in schema text
+/// Returns positions and metadata for each helper found
+fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
+    let mut matches = Vec::new();
 
-    for line in schema_text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line == "}" || line == "{" {
-            continue;
-        }
-
-        // Check if this line starts a new field (contains ':' and we're not already in a field)
-        if line.contains(':') && !in_field {
-            // Process previous field if exists
-            if !current_field.is_empty() {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-            }
-
-            current_field = line.to_string();
-            in_field = true;
-
-            // Count parentheses and other grouping characters to detect if field continues
-            brace_count = line.matches('(').count() as i32 - line.matches(')').count() as i32;
-
-            // If the field appears complete on one line (balanced parens), process it immediately
-            if brace_count == 0 && (line.ends_with(',') || !line.contains('(')) {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-                in_field = false;
-            }
-        } else if in_field {
-            // Continue accumulating the current field
-            current_field.push(' ');
-            current_field.push_str(line);
-
-            // Update brace count
-            brace_count += line.matches('(').count() as i32 - line.matches(')').count() as i32;
-
-            // If braces are balanced, the field is complete
-            if brace_count <= 0 {
-                process_field(
-                    &current_field,
-                    &mut schema_fields,
-                    &mut processed_fields,
-                    schema_text,
-                );
-                current_field.clear();
-                in_field = false;
-                brace_count = 0;
-            }
-        }
+    // Find image() calls
+    let image_re = Regex::new(r"image\s*\(\s*\)").unwrap();
+    for image_match in image_re.find_iter(schema_text) {
+        matches.push(HelperMatch {
+            helper_type: HelperType::Image,
+            position: image_match.start(),
+            collection_name: None,
+        });
     }
 
-    // Process any remaining field
-    if !current_field.is_empty() {
-        process_field(
-            &current_field,
-            &mut schema_fields,
-            &mut processed_fields,
-            schema_text,
-        );
+    // Find reference() calls
+    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+    for reference_match in reference_re.captures_iter(schema_text) {
+        let position = reference_match.get(0).unwrap().start();
+        let collection_name = reference_match.get(1).unwrap().as_str().to_string();
+
+        matches.push(HelperMatch {
+            helper_type: HelperType::Reference,
+            position,
+            collection_name: Some(collection_name),
+        });
     }
 
-    if !schema_fields.is_empty() {
-        // Serialize to JSON for storage
-        let schema_json = serde_json::json!({
-            "type": "zod",
-            "fields": schema_fields.iter().map(|f| {
-                let mut field_json = serde_json::json!({
-                    "name": f.name,
-                    "type": match &f.field_type {
-                        ZodFieldType::Enum(_) => "Enum".to_string(),
-                        ZodFieldType::Array(_) => "Array".to_string(),
-                        ZodFieldType::Union(_) => "Union".to_string(),
-                        ZodFieldType::Literal(_) => "Literal".to_string(),
-                        ZodFieldType::Object(_) => "Object".to_string(),
-                        ZodFieldType::Reference(_) => "Reference".to_string(),
-                        ZodFieldType::String => "String".to_string(),
-                        ZodFieldType::Number => "Number".to_string(),
-                        ZodFieldType::Boolean => "Boolean".to_string(),
-                        ZodFieldType::Date => "Date".to_string(),
-                        ZodFieldType::Image => "Image".to_string(),
-                        ZodFieldType::Unknown => "Unknown".to_string(),
-                    },
-                    "optional": f.optional,
-                    "default": f.default_value,
-                    "constraints": serialize_constraints(&f.constraints)
-                });
+    matches
+}
 
-                // Add type-specific options
-                match &f.field_type {
-                    ZodFieldType::Enum(options) => {
-                        field_json["options"] = serde_json::json!(options);
-                    }
-                    ZodFieldType::Reference(collection_name) => {
-                        field_json["referencedCollection"] = serde_json::json!(collection_name);
-                    }
-                    ZodFieldType::Array(inner_type) => {
-                        field_json["arrayType"] = serde_json::json!(match **inner_type {
-                            ZodFieldType::String => "String",
-                            ZodFieldType::Number => "Number",
-                            ZodFieldType::Boolean => "Boolean",
-                            ZodFieldType::Date => "Date",
-                            ZodFieldType::Image => "Image",
-                            ZodFieldType::Reference(_) => "Reference",
-                            _ => "Unknown",
-                        });
-                        // If array contains references, include the collection name
-                        if let ZodFieldType::Reference(collection_name) = &**inner_type {
-                            field_json["arrayReferenceCollection"] = serde_json::json!(collection_name);
+/// Find the field name by scanning backwards from a position to the nearest ':'
+/// Returns the field name (identifier before the colon)
+fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<String> {
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut pos = start_pos;
+
+    // Scan backwards to find ':'
+    while pos > 0 {
+        if chars[pos] == ':' {
+            // Found colon, now scan backwards to find the field name
+            let mut field_end = pos;
+            while field_end > 0 && chars[field_end - 1].is_whitespace() {
+                field_end -= 1;
+            }
+
+            let mut field_start = field_end;
+            while field_start > 0 {
+                let ch = chars[field_start - 1];
+                if ch.is_alphanumeric() || ch == '_' || ch == '$' {
+                    field_start -= 1;
+                } else {
+                    break;
+                }
+            }
+
+            if field_start < field_end {
+                let field_name: String = chars[field_start..field_end].iter().collect();
+                return Some(field_name);
+            }
+        }
+        pos -= 1;
+    }
+
+    None
+}
+
+/// Check if a helper is inside a z.array() call
+/// Returns true if z.array( appears between the last ':' and the helper position
+fn is_inside_array(schema_text: &str, helper_position: usize) -> bool {
+    // Scan backwards from helper position to find the last ':'
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut pos = helper_position;
+
+    while pos > 0 {
+        if chars[pos] == ':' {
+            // Found the field colon, now check if z.array( appears between : and helper
+            let between = &schema_text[pos..helper_position];
+            return between.contains("z.array(");
+        }
+        pos -= 1;
+    }
+
+    false
+}
+
+/// Trace backwards from helper position to build dotted field path
+///
+/// Examples:
+/// - Top-level: "heroImage: image()" → "heroImage"
+/// - Nested: "coverImage: z.object({ image: image() })" → "coverImage.image"
+/// - Deep: "meta: { author: { avatar: image() } }" → "meta.author.avatar"
+fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<String, String> {
+    let chars: Vec<char> = schema_text.chars().collect();
+    let mut path_components = Vec::new();
+    let mut current_pos = helper_position;
+
+    // First, find the immediate field name for this helper
+    if let Some(field_name) = find_field_name_backwards(schema_text, current_pos) {
+        path_components.push(field_name.clone());
+
+        // Now trace backwards through brace levels to find parent fields
+        let mut brace_level = 0;
+        current_pos = helper_position;
+
+        while current_pos > 0 {
+            current_pos -= 1;
+            let ch = chars[current_pos];
+
+            match ch {
+                '}' => {
+                    brace_level += 1;
+                }
+                '{' => {
+                    brace_level -= 1;
+
+                    // When we exit to a parent level (brace_level becomes negative)
+                    if brace_level < 0 {
+                        // Look for a parent field name before this '{'
+                        if let Some(parent_field) =
+                            find_field_name_backwards(schema_text, current_pos)
+                        {
+                            // Make sure we haven't already added this field (avoid duplicates)
+                            if path_components.last() != Some(&parent_field) {
+                                path_components.push(parent_field.clone());
+                            }
+                            // Reset brace level for the next parent
+                            brace_level = 0;
+                        } else {
+                            // No parent field found, we've reached the top level
+                            break;
                         }
                     }
-                    ZodFieldType::Union(types) => {
-                        field_json["unionTypes"] = serde_json::json!(
-                            types.iter().map(|t| match t {
-                                ZodFieldType::String => serde_json::json!("String"),
-                                ZodFieldType::Number => serde_json::json!("Number"),
-                                ZodFieldType::Boolean => serde_json::json!("Boolean"),
-                                ZodFieldType::Date => serde_json::json!("Date"),
-                                ZodFieldType::Image => serde_json::json!("Image"),
-                                ZodFieldType::Literal(val) => serde_json::json!({"type": "Literal", "value": val}),
-                                _ => serde_json::json!("Unknown"),
-                            }).collect::<Vec<_>>()
-                        );
-                    }
-                    ZodFieldType::Literal(value) => {
-                        field_json["literalValue"] = serde_json::json!(value);
-                    }
-                    _ => {}
                 }
+                _ => {}
+            }
+        }
+    } else {
+        return Err(format!(
+            "Could not find field name for helper at position {helper_position}"
+        ));
+    }
 
-                field_json
-            }).collect::<Vec<_>>()
+    // Reverse to get the path from outermost to innermost
+    path_components.reverse();
+    let path = path_components.join(".");
+    Ok(path)
+}
+
+/// Extract special fields (image and reference helpers) using pattern matching
+///
+/// This is the main entry point that replaces the old line-based parsing.
+/// Returns the same JSON format for backwards compatibility.
+fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
+    // 1. Find all helper calls
+    let helpers = find_helper_calls(schema_text);
+
+    if helpers.is_empty() {
+        return None;
+    }
+
+    // 2. Resolve field path for each helper
+    let mut fields_json = Vec::new();
+
+    for helper in helpers {
+        match resolve_field_path(schema_text, helper.position) {
+            Ok(field_path) => {
+                // Check if this helper is inside an array
+                let in_array = is_inside_array(schema_text, helper.position);
+
+                // Create field JSON based on helper type and array context
+                let field_json = if in_array {
+                    // Array field
+                    match helper.helper_type {
+                        HelperType::Image => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Array",
+                                "arrayType": "Image",
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                        HelperType::Reference => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Array",
+                                "arrayType": "Reference",
+                                "arrayReferenceCollection": helper.collection_name.unwrap_or_default(),
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                    }
+                } else {
+                    // Non-array field
+                    match helper.helper_type {
+                        HelperType::Image => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Image",
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                        HelperType::Reference => {
+                            serde_json::json!({
+                                "name": field_path,
+                                "type": "Reference",
+                                "referencedCollection": helper.collection_name.unwrap_or_default(),
+                                "optional": true,
+                                "default": null,
+                                "constraints": {}
+                            })
+                        }
+                    }
+                };
+
+                fields_json.push(field_json);
+            }
+            Err(_) => {
+                // Skip this field - it will be treated as whatever JSON schema says
+            }
+        }
+    }
+
+    // 3. Serialize to JSON (same format as before)
+    if !fields_json.is_empty() {
+        let schema_json = serde_json::json!({
+            "type": "zod",
+            "fields": fields_json
         });
 
         return Some(schema_json.to_string());
     }
 
     None
-}
-
-fn process_field(
-    field_definition: &str,
-    schema_fields: &mut Vec<ZodField>,
-    processed_fields: &mut std::collections::HashSet<String>,
-    schema_text: &str,
-) {
-    // Remove trailing comma if present
-    let field_definition = field_definition.trim_end_matches(',');
-
-    // Extract field name first
-    if let Some(colon_pos) = field_definition.find(':') {
-        let field_name = field_definition[..colon_pos].trim();
-
-        // Skip if we've already processed this field
-        if processed_fields.contains(field_name) {
-            return;
-        }
-        processed_fields.insert(field_name.to_string());
-
-        let field_def_content = &field_definition[colon_pos + 1..].trim();
-
-        // Determine field type and extract constraints
-        let (field_type, constraints) = parse_field_type_and_constraints(field_def_content);
-
-        // Check if field is optional or has default
-        let has_optional =
-            field_def_content.contains(".optional()") || field_def_content.contains("z.optional(");
-        let has_default = field_def_content.contains(".default(");
-
-        // If field has a default, treat it as optional for UI purposes
-        let is_optional = has_optional || has_default;
-
-        let default_value = if has_default {
-            extract_default_value(schema_text, field_name)
-        } else {
-            None
-        };
-
-        schema_fields.push(ZodField {
-            name: field_name.to_string(),
-            field_type,
-            optional: is_optional,
-            default_value,
-            constraints,
-        });
-    }
-}
-
-fn extract_enum_values(field_definition: &str) -> Vec<String> {
-    // Extract values from z.enum(['value1', 'value2']) or z.enum(["value1", "value2"])
-    let enum_re = Regex::new(r"z\.enum\s*\(\s*\[\s*([^\]]+)\s*\]\s*\)").unwrap();
-
-    if let Some(cap) = enum_re.captures(field_definition) {
-        let values_str = cap.get(1).unwrap().as_str();
-
-        // Split by comma and clean up quotes
-        values_str
-            .split(',')
-            .map(|v| v.trim().trim_matches('"').trim_matches('\'').to_string())
-            .filter(|v| !v.is_empty())
-            .collect()
-    } else {
-        vec![]
-    }
-}
-
-fn parse_field_type_and_constraints(field_definition: &str) -> (ZodFieldType, ZodFieldConstraints) {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Normalize whitespace and handle multi-line definitions
-    let normalized = normalize_field_definition(field_definition);
-
-    // Check for z.optional(z.type()) syntax first
-    if normalized.contains("z.optional(") {
-        let inner_type = extract_optional_inner_type(&normalized);
-        return (inner_type.0, inner_type.1);
-    }
-
-    // Determine base field type (order matters - check most specific first)
-    let field_type = if normalized.contains("image()") {
-        // Astro's image() helper - return Image type directly
-        ZodFieldType::Image
-    } else if normalized.contains("reference(") {
-        // Extract collection name from reference('collectionName')
-        let collection_name = extract_reference_collection(&normalized);
-        ZodFieldType::Reference(collection_name)
-    } else if normalized.contains("z.array(") {
-        // Extract array element type
-        let inner_type = extract_array_inner_type(&normalized);
-        ZodFieldType::Array(Box::new(inner_type))
-    } else if normalized.contains("z.enum(") {
-        // Extract enum values from z.enum(['value1', 'value2'])
-        let enum_values = extract_enum_values(&normalized);
-        ZodFieldType::Enum(enum_values)
-    } else if normalized.contains("z.union(") {
-        // Extract union types from z.union([z.string(), z.null()])
-        let union_types = extract_union_types(&normalized);
-        ZodFieldType::Union(union_types)
-    } else if normalized.contains("z.literal(") {
-        // Extract literal value from z.literal("value")
-        let literal_value = extract_literal_value(&normalized);
-        ZodFieldType::Literal(literal_value)
-    } else if normalized.contains("z.object(") {
-        // For nested objects, we'll parse them recursively in the future
-        // For now, treat as unknown but mark that it's an object
-        ZodFieldType::Object(vec![])
-    } else if normalized.contains("z.coerce.date()") || normalized.contains("z.date()") {
-        ZodFieldType::Date
-    } else if normalized.contains("z.string()") || normalized.contains("z.string().") {
-        constraints = extract_string_constraints(&normalized);
-        ZodFieldType::String
-    } else if normalized.contains("z.number()") || normalized.contains("z.number().") {
-        constraints = extract_number_constraints(&normalized);
-        ZodFieldType::Number
-    } else if normalized.contains("z.boolean()") {
-        ZodFieldType::Boolean
-    } else {
-        ZodFieldType::Unknown
-    };
-
-    (field_type, constraints)
-}
-
-fn normalize_field_definition(field_definition: &str) -> String {
-    // Remove extra whitespace and normalize line breaks
-    let normalized = field_definition
-        .lines()
-        .map(|line| line.trim())
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // Collapse multiple spaces
-    let space_re = Regex::new(r"\s+").unwrap();
-    space_re.replace_all(&normalized, " ").to_string()
-}
-
-fn extract_optional_inner_type(field_definition: &str) -> (ZodFieldType, ZodFieldConstraints) {
-    // Extract type from z.optional(z.string()) or z.optional(z.number().min(1))
-    let optional_re = Regex::new(r"z\.optional\s*\(\s*([^)]+)\s*\)").unwrap();
-
-    if let Some(cap) = optional_re.captures(field_definition) {
-        let inner_def = cap.get(1).unwrap().as_str();
-
-        // Parse the inner type directly without recursion to avoid infinite loops
-        let mut constraints = ZodFieldConstraints::default();
-
-        let field_type = if inner_def.contains("image()") {
-            ZodFieldType::Image
-        } else if inner_def.contains("z.string") {
-            constraints = extract_string_constraints(inner_def);
-            ZodFieldType::String
-        } else if inner_def.contains("z.number") {
-            constraints = extract_number_constraints(inner_def);
-            ZodFieldType::Number
-        } else if inner_def.contains("z.boolean") {
-            ZodFieldType::Boolean
-        } else if inner_def.contains("z.date") {
-            ZodFieldType::Date
-        } else {
-            ZodFieldType::Unknown
-        };
-
-        (field_type, constraints)
-    } else {
-        (ZodFieldType::Unknown, ZodFieldConstraints::default())
-    }
-}
-
-fn extract_reference_collection(field_definition: &str) -> String {
-    // Extract collection name from reference('collectionName') or reference("collectionName")
-    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
-
-    if let Some(cap) = reference_re.captures(field_definition) {
-        cap.get(1).unwrap().as_str().to_string()
-    } else {
-        "unknown".to_string()
-    }
-}
-
-fn extract_array_inner_type(field_definition: &str) -> ZodFieldType {
-    // Extract type from z.array(z.string()) or z.array(reference('posts'))
-    let array_re = Regex::new(r"z\.array\s*\(\s*([^)]+)\s*\)").unwrap();
-
-    if let Some(cap) = array_re.captures(field_definition) {
-        let inner_def = cap.get(1).unwrap().as_str();
-
-        if inner_def.contains("reference(") {
-            let collection_name = extract_reference_collection(inner_def);
-            ZodFieldType::Reference(collection_name)
-        } else if inner_def.contains("z.string") {
-            ZodFieldType::String
-        } else if inner_def.contains("z.number") {
-            ZodFieldType::Number
-        } else if inner_def.contains("z.boolean") {
-            ZodFieldType::Boolean
-        } else if inner_def.contains("z.date") {
-            ZodFieldType::Date
-        } else {
-            ZodFieldType::Unknown
-        }
-    } else {
-        ZodFieldType::String // Default fallback
-    }
-}
-
-fn extract_union_types(field_definition: &str) -> Vec<ZodFieldType> {
-    // Extract types from z.union([z.string(), z.null(), z.number()])
-    let union_re = Regex::new(r"z\.union\s*\(\s*\[\s*([^\]]+)\s*\]\s*\)").unwrap();
-
-    if let Some(cap) = union_re.captures(field_definition) {
-        let types_str = cap.get(1).unwrap().as_str();
-
-        let mut union_types = Vec::new();
-
-        // Split by comma and parse each type
-        for type_str in types_str.split(',') {
-            let type_str = type_str.trim();
-
-            let field_type = if type_str.contains("z.string") {
-                ZodFieldType::String
-            } else if type_str.contains("z.number") {
-                ZodFieldType::Number
-            } else if type_str.contains("z.boolean") {
-                ZodFieldType::Boolean
-            } else if type_str.contains("z.date") {
-                ZodFieldType::Date
-            } else if type_str.contains("z.null") || type_str.contains("null") {
-                // Represent null as a special string literal
-                ZodFieldType::Literal("null".to_string())
-            } else if type_str.contains("z.undefined") || type_str.contains("undefined") {
-                ZodFieldType::Literal("undefined".to_string())
-            } else {
-                ZodFieldType::Unknown
-            };
-
-            union_types.push(field_type);
-        }
-
-        union_types
-    } else {
-        vec![]
-    }
-}
-
-fn extract_literal_value(field_definition: &str) -> String {
-    // Extract value from z.literal("value") or z.literal('value')
-    let literal_re = Regex::new(r#"z\.literal\s*\(\s*["']([^"']+)["']\s*\)"#).unwrap();
-
-    if let Some(cap) = literal_re.captures(field_definition) {
-        cap.get(1).unwrap().as_str().to_string()
-    } else {
-        // Try without quotes for numbers/booleans
-        let literal_unquoted_re = Regex::new(r"z\.literal\s*\(\s*([^)]+)\s*\)").unwrap();
-        if let Some(cap) = literal_unquoted_re.captures(field_definition) {
-            cap.get(1).unwrap().as_str().trim().to_string()
-        } else {
-            "unknown".to_string()
-        }
-    }
-}
-
-fn extract_string_constraints(field_definition: &str) -> ZodFieldConstraints {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Extract min/max length
-    if let Some(cap) = Regex::new(r"\.min\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.min_length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.max\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.max_length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.length\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.length = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    // Extract regex pattern
-    if let Some(cap) = Regex::new(r"\.regex\s*\(\s*/([^/]+)/([gimuy]*)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        let pattern = cap.get(1).unwrap().as_str();
-        let flags = cap.get(2).map(|m| m.as_str()).unwrap_or("");
-        constraints.regex = Some(format!("/{pattern}/{flags}"));
-    }
-
-    // Extract string validation methods
-    constraints.url = field_definition.contains(".url()");
-    constraints.email = field_definition.contains(".email()");
-    constraints.uuid = field_definition.contains(".uuid()");
-    constraints.cuid = field_definition.contains(".cuid()");
-    constraints.cuid2 = field_definition.contains(".cuid2()");
-    constraints.ulid = field_definition.contains(".ulid()");
-    constraints.emoji = field_definition.contains(".emoji()");
-    constraints.ip = field_definition.contains(".ip()");
-
-    // Extract string transformation methods
-    constraints.trim = field_definition.contains(".trim()");
-    constraints.to_lower_case = field_definition.contains(".toLowerCase()");
-    constraints.to_upper_case = field_definition.contains(".toUpperCase()");
-
-    // Extract includes/startsWith/endsWith
-    if let Some(cap) = Regex::new(r#"\.includes\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.includes = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    if let Some(cap) = Regex::new(r#"\.startsWith\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.starts_with = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    if let Some(cap) = Regex::new(r#"\.endsWith\s*\(\s*["']([^"']+)["']\s*\)"#)
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.ends_with = Some(cap.get(1).unwrap().as_str().to_string());
-    }
-
-    constraints
-}
-
-fn extract_number_constraints(field_definition: &str) -> ZodFieldConstraints {
-    let mut constraints = ZodFieldConstraints::default();
-
-    // Extract min/max values
-    if let Some(cap) = Regex::new(r"\.min\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.min = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    if let Some(cap) = Regex::new(r"\.max\s*\(\s*(\d+)\s*\)")
-        .unwrap()
-        .captures(field_definition)
-    {
-        constraints.max = Some(cap.get(1).unwrap().as_str().parse().unwrap_or(0));
-    }
-
-    // Check for integer/positive/negative constraints
-    if field_definition.contains(".int()") {
-        constraints.transform = Some("integer".to_string());
-    }
-
-    if field_definition.contains(".positive()") {
-        constraints.min = Some(1);
-    }
-
-    if field_definition.contains(".negative()") {
-        constraints.max = Some(-1);
-    }
-
-    if field_definition.contains(".nonnegative()") {
-        constraints.min = Some(0);
-    }
-
-    if field_definition.contains(".nonpositive()") {
-        constraints.max = Some(0);
-    }
-
-    constraints
-}
-
-fn serialize_constraints(constraints: &ZodFieldConstraints) -> serde_json::Value {
-    let mut constraint_json = serde_json::json!({});
-
-    // Add numeric constraints
-    if let Some(min) = constraints.min {
-        constraint_json["min"] = serde_json::json!(min);
-    }
-    if let Some(max) = constraints.max {
-        constraint_json["max"] = serde_json::json!(max);
-    }
-    if let Some(length) = constraints.length {
-        constraint_json["length"] = serde_json::json!(length);
-    }
-    if let Some(min_length) = constraints.min_length {
-        constraint_json["minLength"] = serde_json::json!(min_length);
-    }
-    if let Some(max_length) = constraints.max_length {
-        constraint_json["maxLength"] = serde_json::json!(max_length);
-    }
-
-    // Add string constraints
-    if let Some(regex) = &constraints.regex {
-        constraint_json["regex"] = serde_json::json!(regex);
-    }
-    if let Some(includes) = &constraints.includes {
-        constraint_json["includes"] = serde_json::json!(includes);
-    }
-    if let Some(starts_with) = &constraints.starts_with {
-        constraint_json["startsWith"] = serde_json::json!(starts_with);
-    }
-    if let Some(ends_with) = &constraints.ends_with {
-        constraint_json["endsWith"] = serde_json::json!(ends_with);
-    }
-
-    // Add boolean constraints
-    if constraints.url {
-        constraint_json["url"] = serde_json::json!(true);
-    }
-    if constraints.email {
-        constraint_json["email"] = serde_json::json!(true);
-    }
-    if constraints.uuid {
-        constraint_json["uuid"] = serde_json::json!(true);
-    }
-    if constraints.cuid {
-        constraint_json["cuid"] = serde_json::json!(true);
-    }
-    if constraints.cuid2 {
-        constraint_json["cuid2"] = serde_json::json!(true);
-    }
-    if constraints.ulid {
-        constraint_json["ulid"] = serde_json::json!(true);
-    }
-    if constraints.emoji {
-        constraint_json["emoji"] = serde_json::json!(true);
-    }
-    if constraints.ip {
-        constraint_json["ip"] = serde_json::json!(true);
-    }
-    if constraints.trim {
-        constraint_json["trim"] = serde_json::json!(true);
-    }
-    if constraints.to_lower_case {
-        constraint_json["toLowerCase"] = serde_json::json!(true);
-    }
-    if constraints.to_upper_case {
-        constraint_json["toUpperCase"] = serde_json::json!(true);
-    }
-
-    // Add transform/refine information
-    if let Some(transform) = &constraints.transform {
-        constraint_json["transform"] = serde_json::json!(transform);
-    }
-    if let Some(refine) = &constraints.refine {
-        constraint_json["refine"] = serde_json::json!(refine);
-    }
-    if let Some(literal) = &constraints.literal {
-        constraint_json["literal"] = serde_json::json!(literal);
-    }
-
-    constraint_json
-}
-
-fn extract_default_value(schema_text: &str, field_name: &str) -> Option<String> {
-    let default_re = Regex::new(&format!(r"{field_name}.*\.default\s*\(\s*([^)]+)\s*\)")).unwrap();
-
-    if let Some(cap) = default_re.captures(schema_text) {
-        let default_val = cap.get(1).unwrap().as_str().trim();
-        Some(default_val.trim_matches('"').trim_matches('\'').to_string())
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]
@@ -1079,7 +651,8 @@ export default defineConfig({
         let collections = result.unwrap();
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0].name, "blog");
-        assert!(collections[0].schema.is_some());
+        // Schema is None because there are no image() or reference() helpers
+        assert!(collections[0].schema.is_none());
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();
@@ -1117,6 +690,65 @@ export default defineConfig({
     }
 
     #[test]
+    fn test_extract_collections_block_export_const() {
+        // New format used in our tests
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      hero: image(),
+    }),
+  }),
+};
+"#;
+        let block = extract_collections_block(content);
+        assert!(block.is_some(), "Should extract collections block");
+        let block_content = block.unwrap();
+        assert!(
+            block_content.contains("test"),
+            "Should contain 'test' collection"
+        );
+        assert!(
+            block_content.contains("defineCollection"),
+            "Should contain defineCollection"
+        );
+    }
+
+    #[test]
+    fn test_full_parse_with_image_helper() {
+        // This is the EXACT content from test_find_top_level_image
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      hero: image(),
+      title: z.string(),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-full-parse-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok(), "Should parse successfully");
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1, "Should find 1 collection");
+        assert_eq!(collections[0].name, "test");
+        assert!(
+            collections[0].schema.is_some(),
+            "Should have schema with image helper"
+        );
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
     fn test_remove_comments() {
         let content = r#"
 // This is a comment
@@ -1132,277 +764,6 @@ export default defineConfig({
         assert!(!clean.contains("block comment"));
         assert!(!clean.contains("End comment"));
         assert!(clean.contains("defineConfig"));
-    }
-
-    #[test]
-    fn test_enhanced_schema_parsing() {
-        let content = include_str!("test_fixtures/enhanced_config.ts");
-        let temp_dir = std::env::temp_dir().join("test-enhanced-parser");
-        let project_path = temp_dir.join("project");
-        let blog_path = project_path.join("src").join("content").join("blog");
-        let docs_path = project_path.join("src").join("content").join("docs");
-
-        fs::create_dir_all(&blog_path).unwrap();
-        fs::create_dir_all(&docs_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 2);
-
-        // Find blog collection
-        let blog_collection = collections.iter().find(|c| c.name == "blog").unwrap();
-        assert!(blog_collection.schema.is_some());
-
-        let schema_json = blog_collection.schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-
-        // Verify schema structure
-        assert_eq!(parsed_schema["type"], "zod");
-        let fields = parsed_schema["fields"].as_array().unwrap();
-        assert!(fields.len() > 10); // Should have many fields
-
-        // Test specific field types and constraints
-        let title_field = fields.iter().find(|f| f["name"] == "title").unwrap();
-        assert_eq!(title_field["type"], "String");
-        assert_eq!(title_field["constraints"]["minLength"], 1);
-        assert_eq!(title_field["constraints"]["maxLength"], 100);
-
-        let word_count_field = fields.iter().find(|f| f["name"] == "wordCount").unwrap();
-        assert_eq!(word_count_field["type"], "Number");
-        assert_eq!(word_count_field["constraints"]["min"], 0);
-        assert_eq!(word_count_field["constraints"]["max"], 10000);
-
-        let email_field = fields.iter().find(|f| f["name"] == "authorEmail").unwrap();
-        assert_eq!(email_field["type"], "String");
-        assert_eq!(email_field["constraints"]["email"], true);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_literal_field_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      category: z.literal('blog'),
-      version: z.literal(1),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-literal-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let category_field = fields.iter().find(|f| f["name"] == "category").unwrap();
-        assert_eq!(category_field["type"], "Literal");
-        assert_eq!(category_field["literalValue"], "blog");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_union_field_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      status: z.union([z.literal('draft'), z.literal('published'), z.literal('archived')]),
-      visibility: z.union([z.string(), z.null()]),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-union-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let status_field = fields.iter().find(|f| f["name"] == "status").unwrap();
-        assert_eq!(status_field["type"], "Union");
-        let union_types = status_field["unionTypes"].as_array().unwrap();
-        assert_eq!(union_types.len(), 3);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_optional_syntax_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      regularOptional: z.string().optional(),
-      altOptional: z.optional(z.string().min(10)),
-      altOptionalWithConstraints: z.optional(z.string().email()),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-optional-parsing");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        assert_eq!(collections.len(), 1);
-
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        // Both syntaxes should be marked as optional
-        let regular_optional = fields
-            .iter()
-            .find(|f| f["name"] == "regularOptional")
-            .unwrap();
-        assert_eq!(regular_optional["optional"], true);
-
-        let alt_optional = fields.iter().find(|f| f["name"] == "altOptional").unwrap();
-        assert_eq!(alt_optional["optional"], true);
-        // The constraints should be passed through from the inner type
-        if !alt_optional["constraints"]["minLength"].is_null() {
-            assert_eq!(alt_optional["constraints"]["minLength"], 10);
-        }
-
-        let alt_with_constraints = fields
-            .iter()
-            .find(|f| f["name"] == "altOptionalWithConstraints")
-            .unwrap();
-        assert_eq!(alt_with_constraints["optional"], true);
-        // For now, just check that it's detected as optional - constraint parsing for z.optional() can be improved later
-        assert_eq!(alt_with_constraints["type"], "String");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_string_constraints_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      slug: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/),
-      email: z.string().email(),
-      trimmed: z.string().trim(),
-      twitter: z.string().startsWith('@'),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-string-constraints");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let slug_field = fields.iter().find(|f| f["name"] == "slug").unwrap();
-        assert_eq!(slug_field["constraints"]["minLength"], 3);
-        assert_eq!(slug_field["constraints"]["maxLength"], 50);
-        assert!(slug_field["constraints"]["regex"]
-            .as_str()
-            .unwrap()
-            .contains("^[a-z0-9-]+$"));
-
-        let email_field = fields.iter().find(|f| f["name"] == "email").unwrap();
-        assert_eq!(email_field["constraints"]["email"], true);
-
-        let twitter_field = fields.iter().find(|f| f["name"] == "twitter").unwrap();
-        assert_eq!(twitter_field["constraints"]["startsWith"], "@");
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_number_constraints_parsing() {
-        let content = r#"
-export const collections = {
-  test: defineCollection({
-    schema: z.object({
-      count: z.number().min(0).max(100),
-      positive: z.number().positive(),
-      negative: z.number().negative(),
-      integer: z.number().int(),
-      nonnegative: z.number().nonnegative(),
-    }),
-  }),
-};
-"#;
-        let temp_dir = std::env::temp_dir().join("test-number-constraints");
-        let project_path = temp_dir.join("project");
-        let test_path = project_path.join("src").join("content").join("test");
-
-        fs::create_dir_all(&test_path).unwrap();
-
-        let result = parse_collections_from_content(content, &project_path, None);
-        assert!(result.is_ok());
-
-        let collections = result.unwrap();
-        let schema_json = collections[0].schema.as_ref().unwrap();
-        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
-        let fields = parsed_schema["fields"].as_array().unwrap();
-
-        let count_field = fields.iter().find(|f| f["name"] == "count").unwrap();
-        assert_eq!(count_field["constraints"]["min"], 0);
-        assert_eq!(count_field["constraints"]["max"], 100);
-
-        let positive_field = fields.iter().find(|f| f["name"] == "positive").unwrap();
-        assert_eq!(positive_field["constraints"]["min"], 1);
-
-        let negative_field = fields.iter().find(|f| f["name"] == "negative").unwrap();
-        assert_eq!(negative_field["constraints"]["max"], -1);
-
-        let integer_field = fields.iter().find(|f| f["name"] == "integer").unwrap();
-        assert_eq!(integer_field["constraints"]["transform"], "integer");
-
-        let nonnegative_field = fields.iter().find(|f| f["name"] == "nonnegative").unwrap();
-        assert_eq!(nonnegative_field["constraints"]["min"], 0);
-
-        // Clean up
-        fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
@@ -1442,18 +803,300 @@ export const collections = {
         assert!(clean.contains("z.string()"));
     }
 
+    // --- UNIT TESTS FOR HELPER DISCOVERY ---
+
     #[test]
-    fn test_multiline_field_normalization() {
+    fn test_find_helper_calls_basic() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            author: reference('authors'),
+            title: z.string(),
+            tags: z.array(reference('tags')),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find 1 image() and 2 reference() calls
+        assert_eq!(helpers.len(), 3, "Should find 3 helpers total");
+
+        let image_helpers: Vec<_> = helpers
+            .iter()
+            .filter(|h| h.helper_type == HelperType::Image)
+            .collect();
+        assert_eq!(image_helpers.len(), 1, "Should find 1 image() helper");
+
+        let reference_helpers: Vec<_> = helpers
+            .iter()
+            .filter(|h| h.helper_type == HelperType::Reference)
+            .collect();
+        assert_eq!(
+            reference_helpers.len(),
+            2,
+            "Should find 2 reference() helpers"
+        );
+
+        // Verify collection names are extracted
+        let author_helper = reference_helpers
+            .iter()
+            .find(|h| h.collection_name == Some("authors".to_string()));
+        assert!(author_helper.is_some(), "Should find reference('authors')");
+
+        let tags_helper = reference_helpers
+            .iter()
+            .find(|h| h.collection_name == Some("tags".to_string()));
+        assert!(tags_helper.is_some(), "Should find reference('tags')");
+    }
+
+    #[test]
+    fn test_find_helper_calls_multiline() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z
+                .object({
+                    image: image().optional(),
+                    alt: z.string(),
+                })
+                .optional(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find the image() even with multi-line formatting
+        assert_eq!(helpers.len(), 1, "Should find 1 helper");
+        assert_eq!(helpers[0].helper_type, HelperType::Image);
+    }
+
+    #[test]
+    fn test_find_helper_calls_deep_nesting() {
+        let schema_text = r#"
+        z.object({
+            metadata: z.object({
+                author: z.object({
+                    avatar: image(),
+                }),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+
+        // Should find the deeply nested image()
+        assert_eq!(helpers.len(), 1, "Should find 1 helper");
+        assert_eq!(helpers[0].helper_type, HelperType::Image);
+    }
+
+    // --- UNIT TEST FOR INTEGRATION ---
+
+    #[test]
+    fn test_extract_zod_special_fields_basic() {
+        // This is what should be extracted from z.object({ ... })
+        let schema_text = r#"
+hero: image(),
+title: z.string(),
+        "#;
+
+        let result = extract_zod_special_fields(schema_text);
+        assert!(result.is_some(), "Should find image() helper");
+
+        let schema_json = result.unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        assert_eq!(parsed["type"], "zod");
+        let fields = parsed["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 1, "Should have 1 field (only image helper)");
+        assert_eq!(fields[0]["name"], "hero");
+        assert_eq!(fields[0]["type"], "Image");
+    }
+
+    #[test]
+    fn test_extract_basic_schema_with_arrow_function() {
+        let content = r#"
+export const test = defineCollection({
+  schema: ({ image }) => z.object({
+    hero: image(),
+    title: z.string(),
+  }),
+});
+        "#;
+
+        let result = extract_basic_schema(content, "test");
+        assert!(
+            result.is_some(),
+            "Should extract schema from arrow function syntax"
+        );
+
+        let schema_json = result.unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        assert_eq!(parsed["type"], "zod");
+        let fields = parsed["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 1, "Should have 1 field");
+        assert_eq!(fields[0]["name"], "hero");
+        assert_eq!(fields[0]["type"], "Image");
+    }
+
+    // --- UNIT TESTS FOR PATH RESOLUTION ---
+
+    #[test]
+    fn test_resolve_top_level_field() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            title: z.string(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(path.unwrap(), "hero", "Should resolve to 'hero'");
+    }
+
+    #[test]
+    fn test_resolve_nested_field() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z.object({
+                image: image(),
+                alt: z.string(),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "coverImage.image",
+            "Should resolve to 'coverImage.image'"
+        );
+    }
+
+    #[test]
+    fn test_resolve_deep_nested_field() {
+        let schema_text = r#"
+        z.object({
+            metadata: z.object({
+                author: z.object({
+                    avatar: image(),
+                }),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "metadata.author.avatar",
+            "Should resolve to 'metadata.author.avatar'"
+        );
+    }
+
+    #[test]
+    fn test_resolve_multiline_nested() {
+        let schema_text = r#"
+        z.object({
+            coverImage: z
+                .object({
+                    image: image().optional(),
+                    alt: z.string(),
+                })
+                .optional(),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(
+            path.unwrap(),
+            "coverImage.image",
+            "Should resolve to 'coverImage.image' even with multi-line"
+        );
+    }
+
+    #[test]
+    fn test_resolve_array_of_references() {
+        let schema_text = r#"
+        z.object({
+            tags: z.array(reference('tags')),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 1);
+
+        let path = resolve_field_path(schema_text, helpers[0].position);
+        assert!(path.is_ok(), "Should resolve path successfully");
+        assert_eq!(path.unwrap(), "tags", "Should resolve to 'tags'");
+    }
+
+    #[test]
+    fn test_resolve_multiple_helpers() {
+        let schema_text = r#"
+        z.object({
+            hero: image(),
+            author: reference('authors'),
+            coverImage: z.object({
+                image: image(),
+                alt: z.string(),
+            }),
+        })
+        "#;
+
+        let helpers = find_helper_calls(schema_text);
+        assert_eq!(helpers.len(), 3, "Should find 3 helpers");
+
+        // Test each helper's path
+        for helper in &helpers {
+            let path = resolve_field_path(schema_text, helper.position);
+            assert!(path.is_ok(), "Should resolve all paths successfully");
+            let path_str = path.unwrap();
+
+            match helper.helper_type {
+                HelperType::Image => {
+                    assert!(
+                        path_str == "hero" || path_str == "coverImage.image",
+                        "Image path should be 'hero' or 'coverImage.image', got '{}'",
+                        path_str
+                    );
+                }
+                HelperType::Reference => {
+                    assert_eq!(path_str, "author", "Reference path should be 'author'");
+                }
+            }
+        }
+    }
+
+    // --- NEW FOCUSED TESTS FOR PATTERN MATCHING APPROACH ---
+
+    #[test]
+    fn test_find_top_level_image() {
         let content = r#"
 export const collections = {
   test: defineCollection({
-    schema: z.object({
-      simpleField: z.string().min(5).max(100).trim().optional(),
+    schema: ({ image }) => z.object({
+      hero: image(),
+      title: z.string(),
     }),
   }),
 };
 "#;
-        let temp_dir = std::env::temp_dir().join("test-multiline-parsing");
+        let temp_dir = std::env::temp_dir().join("test-top-level-image");
         let project_path = temp_dir.join("project");
         let test_path = project_path.join("src").join("content").join("test");
 
@@ -1463,22 +1106,288 @@ export const collections = {
         assert!(result.is_ok());
 
         let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
         let schema_json = collections[0].schema.as_ref().unwrap();
         let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
         let fields = parsed_schema["fields"].as_array().unwrap();
 
-        let simple_field = fields.iter().find(|f| f["name"] == "simpleField").unwrap();
-
-        // The field should be parsed with constraints from the chained methods
-        assert_eq!(simple_field["constraints"]["minLength"], 5);
-        assert_eq!(simple_field["constraints"]["maxLength"], 100);
-        assert_eq!(simple_field["constraints"]["trim"], true);
-        // The optional should be detected
-        assert_eq!(simple_field["optional"], true);
+        // Should find hero as Image type
+        let hero_field = fields.iter().find(|f| f["name"] == "hero");
+        assert!(hero_field.is_some(), "Should find hero field");
+        let hero_field = hero_field.unwrap();
+        assert_eq!(hero_field["type"], "Image");
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();
     }
+
+    #[test]
+    fn test_find_nested_image() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      coverImage: z.object({
+        image: image().optional(),
+        alt: z.string(),
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-nested-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find coverImage.image with dotted path
+        let image_field = fields.iter().find(|f| f["name"] == "coverImage.image");
+        assert!(
+            image_field.is_some(),
+            "Should find coverImage.image field with dotted path"
+        );
+        let image_field = image_field.unwrap();
+        assert_eq!(image_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_find_deep_nested_image() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      metadata: z.object({
+        author: z.object({
+          avatar: image(),
+        }),
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-deep-nested-image");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find metadata.author.avatar with dotted path
+        let avatar_field = fields
+            .iter()
+            .find(|f| f["name"] == "metadata.author.avatar");
+        assert!(
+            avatar_field.is_some(),
+            "Should find metadata.author.avatar field with dotted path"
+        );
+        let avatar_field = avatar_field.unwrap();
+        assert_eq!(avatar_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_find_reference_helper() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ reference }) => z.object({
+      author: reference('authors'),
+      tags: z.array(reference('tags')),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-reference-helper");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find author as Reference type with collection name
+        let author_field = fields.iter().find(|f| f["name"] == "author");
+        assert!(author_field.is_some(), "Should find author field");
+        let author_field = author_field.unwrap();
+        assert_eq!(author_field["type"], "Reference");
+        assert_eq!(author_field["referencedCollection"], "authors");
+
+        // Should find tags as Array type with Reference inner type
+        let tags_field = fields.iter().find(|f| f["name"] == "tags");
+        assert!(tags_field.is_some(), "Should find tags field");
+        let tags_field = tags_field.unwrap();
+        assert_eq!(tags_field["type"], "Array");
+        assert_eq!(tags_field["arrayType"], "Reference");
+        assert_eq!(tags_field["arrayReferenceCollection"], "tags");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_multiline_nested_object() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      coverImage: z
+        .object({
+          image: image().optional(),
+          alt: z.string().optional(),
+        })
+        .optional(),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-multiline-nested");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find coverImage.image despite multi-line formatting
+        let image_field = fields.iter().find(|f| f["name"] == "coverImage.image");
+        assert!(
+            image_field.is_some(),
+            "Should find coverImage.image field even with multi-line formatting"
+        );
+        let image_field = image_field.unwrap();
+        assert_eq!(image_field["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_array_of_references() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ reference }) => z.object({
+      relatedArticles: z.array(reference('articles')),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-array-references");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find relatedArticles as Array with Reference inner type
+        let related_field = fields.iter().find(|f| f["name"] == "relatedArticles");
+        assert!(related_field.is_some(), "Should find relatedArticles field");
+        let related_field = related_field.unwrap();
+        assert_eq!(related_field["type"], "Array");
+        assert_eq!(related_field["arrayType"], "Reference");
+        assert_eq!(related_field["arrayReferenceCollection"], "articles");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_helpers_with_comments() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      // Profile image
+      avatar: image().optional(),
+      /* Cover image */
+      cover: z.object({
+        image: image(), // The actual image
+      }),
+    }),
+  }),
+};
+"#;
+        let temp_dir = std::env::temp_dir().join("test-helpers-comments");
+        let project_path = temp_dir.join("project");
+        let test_path = project_path.join("src").join("content").join("test");
+
+        fs::create_dir_all(&test_path).unwrap();
+
+        let result = parse_collections_from_content(content, &project_path, None);
+        assert!(result.is_ok());
+
+        let collections = result.unwrap();
+        assert_eq!(collections.len(), 1);
+
+        let schema_json = collections[0].schema.as_ref().unwrap();
+        let parsed_schema: serde_json::Value = serde_json::from_str(schema_json).unwrap();
+        let fields = parsed_schema["fields"].as_array().unwrap();
+
+        // Should find both avatar and cover.image
+        let avatar_field = fields.iter().find(|f| f["name"] == "avatar");
+        assert!(avatar_field.is_some(), "Should find avatar field");
+        assert_eq!(avatar_field.unwrap()["type"], "Image");
+
+        let cover_image_field = fields.iter().find(|f| f["name"] == "cover.image");
+        assert!(cover_image_field.is_some(), "Should find cover.image field");
+        assert_eq!(cover_image_field.unwrap()["type"], "Image");
+
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    // --- END NEW FOCUSED TESTS ---
 
     #[test]
     fn test_content_directory_override() {
@@ -1514,7 +1423,8 @@ export default defineConfig({
         let collections = result.unwrap();
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0].name, "blog");
-        assert!(collections[0].schema.is_some());
+        // Schema is None because there are no image() or reference() helpers
+        assert!(collections[0].schema.is_none());
 
         // Verify the path is using the override
         let expected_path = project_path.join(custom_content_dir).join("blog");
