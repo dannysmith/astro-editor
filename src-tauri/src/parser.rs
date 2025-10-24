@@ -490,7 +490,9 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
                     // When we exit to a parent level (brace_level becomes negative)
                     if brace_level < 0 {
                         // Look for a parent field name before this '{'
-                        if let Some(parent_field) = find_field_name_backwards(schema_text, current_pos) {
+                        if let Some(parent_field) =
+                            find_field_name_backwards(schema_text, current_pos)
+                        {
                             // Make sure we haven't already added this field (avoid duplicates)
                             if path_components.last() != Some(&parent_field) {
                                 path_components.push(parent_field.clone());
@@ -702,8 +704,14 @@ export const collections = {
         let block = extract_collections_block(content);
         assert!(block.is_some(), "Should extract collections block");
         let block_content = block.unwrap();
-        assert!(block_content.contains("test"), "Should contain 'test' collection");
-        assert!(block_content.contains("defineCollection"), "Should contain defineCollection");
+        assert!(
+            block_content.contains("test"),
+            "Should contain 'test' collection"
+        );
+        assert!(
+            block_content.contains("defineCollection"),
+            "Should contain defineCollection"
+        );
     }
 
     #[test]
@@ -724,23 +732,17 @@ export const collections = {
         let test_path = project_path.join("src").join("content").join("test");
 
         fs::create_dir_all(&test_path).unwrap();
-        println!("Created directory: {:?}", test_path);
-        println!("Directory exists: {}", test_path.exists());
 
         let result = parse_collections_from_content(content, &project_path, None);
-        println!("Parse result: {:?}", result);
-
         assert!(result.is_ok(), "Should parse successfully");
+
         let collections = result.unwrap();
-        println!("Collections found: {}", collections.len());
-
-        for (i, col) in collections.iter().enumerate() {
-            println!("Collection {}: name={}, schema={:?}", i, col.name, col.schema.is_some());
-        }
-
         assert_eq!(collections.len(), 1, "Should find 1 collection");
         assert_eq!(collections[0].name, "test");
-        assert!(collections[0].schema.is_some(), "Should have schema with image helper");
+        assert!(
+            collections[0].schema.is_some(),
+            "Should have schema with image helper"
+        );
 
         // Clean up
         fs::remove_dir_all(&temp_dir).ok();
@@ -763,7 +765,6 @@ export default defineConfig({
         assert!(!clean.contains("End comment"));
         assert!(clean.contains("defineConfig"));
     }
-
 
     #[test]
     fn test_improved_comment_stripping() {
@@ -840,10 +841,7 @@ export const collections = {
         let author_helper = reference_helpers
             .iter()
             .find(|h| h.collection_name == Some("authors".to_string()));
-        assert!(
-            author_helper.is_some(),
-            "Should find reference('authors')"
-        );
+        assert!(author_helper.is_some(), "Should find reference('authors')");
 
         let tags_helper = reference_helpers
             .iter()
@@ -925,7 +923,10 @@ export const test = defineCollection({
         "#;
 
         let result = extract_basic_schema(content, "test");
-        assert!(result.is_some(), "Should extract schema from arrow function syntax");
+        assert!(
+            result.is_some(),
+            "Should extract schema from arrow function syntax"
+        );
 
         let schema_json = result.unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
@@ -1196,7 +1197,9 @@ export const collections = {
         let fields = parsed_schema["fields"].as_array().unwrap();
 
         // Should find metadata.author.avatar with dotted path
-        let avatar_field = fields.iter().find(|f| f["name"] == "metadata.author.avatar");
+        let avatar_field = fields
+            .iter()
+            .find(|f| f["name"] == "metadata.author.avatar");
         assert!(
             avatar_field.is_some(),
             "Should find metadata.author.avatar field with dotted path"
