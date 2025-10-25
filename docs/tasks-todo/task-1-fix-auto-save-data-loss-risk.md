@@ -47,28 +47,85 @@ scheduleAutoSave: () => {
 
 - [ ] Persist dirty state to localStorage as backup
 
-## Options for Implementation
+## Implementation Plan
 
-### Option A: Force Save After Max Delay (Recommended)
+**Approach**: Option A (Force Save After Max Delay) - simplest solution that meets requirements
 
-Track time since last save. If it exceeds max delay (10s), force save immediately instead of debouncing.
+### Changes Required
 
-**Pros**: Simple, handles continuous typing
-**Cons**: Slight complexity in tracking last save time
+**File**: `src/store/editorStore.ts`
 
-### Option B: Periodic Save + Debounced Save
+1. **Add state field** to `EditorState` interface:
+   ```typescript
+   lastSaveTimestamp: number | null  // Timestamp of last successful save
+   ```
 
-Run two timers: one for debouncing (2s), one for periodic backup (10s).
+2. **Update initial state**:
+   ```typescript
+   lastSaveTimestamp: null,
+   ```
 
-**Pros**: Clear separation of concerns
-**Cons**: Two timers to manage
+3. **Modify `scheduleAutoSave()` method**:
+   ```typescript
+   scheduleAutoSave: () => {
+     const store = get()
+     const now = Date.now()
+     const maxDelay = 10000 // 10 seconds in milliseconds
 
-### Option C: Remove Debouncing Entirely
+     // Check if we should force save due to max delay
+     if (store.isDirty && store.lastSaveTimestamp) {
+       const timeSinceLastSave = now - store.lastSaveTimestamp
+       if (timeSinceLastSave >= maxDelay) {
+         // Force save immediately, don't debounce
+         void store.saveFile(false)
+         return
+       }
+     }
 
-Just save every N seconds while content is dirty, period.
+     // Normal debounced behavior (existing code)
+     if (store.autoSaveTimeoutId) {
+       clearTimeout(store.autoSaveTimeoutId)
+     }
 
-**Pros**: Simplest possible implementation
-**Cons**: More disk I/O, might feel laggy on slow systems
+     const globalSettings = useProjectStore.getState().globalSettings
+     const autoSaveDelay = globalSettings?.general?.autoSaveDelay || 2
+
+     const timeoutId = setTimeout(() => {
+       void store.saveFile(false)
+     }, autoSaveDelay * 1000)
+
+     set({ autoSaveTimeoutId: timeoutId })
+   },
+   ```
+
+4. **Update `saveFile()` method** to set timestamp after successful save:
+   ```typescript
+   // Add after successful save (after isDirty: false)
+   set({ lastSaveTimestamp: Date.now() })
+   ```
+
+### How It Works
+
+1. User types → `scheduleAutoSave()` is called
+2. Check: Has it been ≥10s since last save?
+   - **Yes**: Force save immediately, skip debouncing
+   - **No**: Use normal 2s debounce behavior
+3. On successful save, record timestamp
+4. Repeat
+
+### What This Achieves
+
+- ✅ Saves within 10s max during continuous typing
+- ✅ Preserves 2s debounce for normal typing (no save spam)
+- ✅ No additional timers or complexity
+- ✅ No localStorage or recovery changes needed
+- ✅ Works with existing save button and unsaved indicator
+
+### Testing
+
+Manual test: Type continuously for 15 minutes
+- Expected: File saves every ~10 seconds
+- Verify: Check file modification time or console logs
 
 ## Context from Review
 
