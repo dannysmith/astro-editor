@@ -16,12 +16,12 @@ scheduleAutoSave: () => {
 
   // Clear existing timeout
   if (store.autoSaveTimeoutId) {
-    clearTimeout(store.autoSaveTimeoutId)  // ⚠️ Resets on every keystroke
+    clearTimeout(store.autoSaveTimeoutId) // ⚠️ Resets on every keystroke
   }
 
   const timeoutId = setTimeout(() => {
     void store.saveFile(false)
-  }, autoSaveDelay * 1000)  // 2 seconds
+  }, autoSaveDelay * 1000) // 2 seconds
 
   set({ autoSaveTimeoutId: timeoutId })
 }
@@ -38,34 +38,33 @@ scheduleAutoSave: () => {
 ## Requirements
 
 **Must Have**:
+
 - [ ] Auto-save MUST fire within a maximum time window (e.g., 10 seconds) regardless of continuous typing
 - [ ] Current debounced behavior should remain (don't save on every keystroke)
 - [ ] No breaking changes to existing auto-save UX
 
-**Should Have**:
-- [ ] Visual indicator when file has unsaved changes
-- [ ] Toast notification on auto-save failure (not just success)
-- [ ] Verification that auto-save actually works during continuous typing
-
 **Nice to Have**:
+
 - [ ] Persist dirty state to localStorage as backup
-- [ ] "Unsaved changes" dialog on app close/quit
 
 ## Options for Implementation
 
 ### Option A: Force Save After Max Delay (Recommended)
+
 Track time since last save. If it exceeds max delay (10s), force save immediately instead of debouncing.
 
 **Pros**: Simple, handles continuous typing
 **Cons**: Slight complexity in tracking last save time
 
 ### Option B: Periodic Save + Debounced Save
+
 Run two timers: one for debouncing (2s), one for periodic backup (10s).
 
 **Pros**: Clear separation of concerns
 **Cons**: Two timers to manage
 
 ### Option C: Remove Debouncing Entirely
+
 Just save every N seconds while content is dirty, period.
 
 **Pros**: Simplest possible implementation
@@ -76,6 +75,7 @@ Just save every N seconds while content is dirty, period.
 From staff engineering review:
 
 > **Issues:**
+>
 > 1. **Continuous typing prevents save**: If user types for 10 minutes straight (e.g., during flow state), auto-save never fires
 > 2. **No save queue**: If save fails, there's no retry mechanism
 > 3. **Silent failures**: Failed auto-saves just log; user may not notice until data is lost
@@ -86,11 +86,13 @@ From staff engineering review:
 ## Implementation Notes
 
 Current auto-save config:
-- Delay: 2 seconds (defined in `editorStore.ts`)
+
+- Delay: 2 seconds (defined in `editorStore.ts`) an configurable in preferences.
 - Triggered on content/frontmatter changes
-- Success toast shown, failures logged to console
+- Failures logged to console
 
 Key files:
+
 - `src/store/editorStore.ts` - `scheduleAutoSave()` function
 - `src/store/editorStore.ts` - `saveFile()` function
 - Auto-save scheduled from: `setEditorContent()`, `updateFrontmatterField()`, etc.
@@ -99,7 +101,6 @@ Key files:
 
 - [ ] User can type continuously for 15+ minutes and auto-save still fires within max delay
 - [ ] Debounced behavior preserved (no save on every keystroke during normal typing)
-- [ ] Visual indicator shows when file is dirty/unsaved
 - [ ] Failed auto-saves show toast notification to user
 - [ ] Manual testing: type continuously for 15min, verify multiple auto-saves occurred
 - [ ] Manual testing: kill app while dirty, verify recovery data exists or changes were saved
