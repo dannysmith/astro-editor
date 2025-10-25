@@ -1,20 +1,27 @@
-# Replace Custom YAML Parser with serde_yml
+# Replace Custom YAML Parser with serde_norway
 
 **Priority**: HIGH (should fix before 1.0.0)
 **Effort**: ~1-2 days
 **Type**: Reliability, maintenance, code simplification
 
-## Crate Choice: serde_yml (Not serde_yaml)
+## Crate Choice: serde_norway (Not serde_yaml or serde_yml)
 
-**IMPORTANT**: Use `serde_yml`, NOT `serde_yaml`.
+**IMPORTANT**: Use `serde_norway`, NOT `serde_yaml` or `serde_yml`.
 
-`serde_yaml` (dtolnay's original crate) was **deprecated in March 2024** and is no longer maintained. `serde_yml` is the actively maintained fork that continues development with the same API.
+- `serde_yaml` (dtolnay's original) was **deprecated in March 2024**
+- `serde_yml` was **archived in September 2025** due to unsoundness issues (segfaults, RUSTSEC-2025-0068)
 
-- **Add**: `serde_yml = "0.0.13"` (check crates.io for latest version)
-- **Crate**: https://crates.io/crates/serde_yml
-- **Docs**: https://doc.serdeyml.com/serde_yml/
+**serde_norway** is the actively maintained fork that:
+- Uses maintained `unsafe-libyaml-norway` (not unmaintained libyaml)
+- Has recent releases (v0.9.42, Dec 2024)
+- Is recommended by RustSec advisory as a safe alternative
 
-The API is nearly identical to serde_yaml, so examples in the wild using `serde_yaml` are still relevant - just replace the crate name.
+- **Add**: `serde_norway = "0.9.42"`
+- **Crate**: https://crates.io/crates/serde_norway
+- **Docs**: https://docs.rs/serde_norway/
+- **Repo**: https://github.com/cafkafk/serde-yaml
+
+The API is identical to serde_yaml (drop-in replacement).
 
 ## Problem
 
@@ -48,12 +55,12 @@ If users have existing Astro projects with frontmatter that uses these features,
 
 This is particularly risky for a 1.0.0 release when users will be opening their real projects.
 
-## Benefits of Using serde_yml
+## Benefits of Using serde_norway
 
 1. **Robustness**: Handles entire YAML 1.2 spec correctly
-2. **Security**: Battle-tested, security-audited implementation
+2. **Security**: Actively maintained with safe underlying library (unsafe-libyaml-norway)
 3. **Code reduction**: Delete ~300 lines of complex parsing/serialization logic
-4. **Better error messages**: serde_yml provides detailed parse error context
+4. **Better error messages**: serde_norway provides detailed parse error context
 5. **Maintainability**: Community-maintained, receives bug fixes and improvements
 
 ## Test Project Analysis
@@ -73,18 +80,18 @@ Analysis of `test/dummy-astro-project` and `test/starlight-minimal` shows:
 - ❌ Multi-line block scalars (`|`, `>`)
 - ❌ Explicit type tags (`!!str`)
 
-**Conclusion**: Migration risk is **LOW**. Test projects use only basic YAML features that serde_yml handles identically to our custom parser.
+**Conclusion**: Migration risk is **LOW**. Test projects use only basic YAML features that serde_norway handles identically to our custom parser.
 
 ## Implementation Approach: Full Replacement (Recommended)
 
-Replace both parsing and serialization with serde_yml.
+Replace both parsing and serialization with serde_norway.
 
 **Architecture changes**:
 1. Replace `HashMap<String, Value>` with `IndexMap<String, Value>` throughout
-2. Use `serde_yml` for parsing YAML → IndexMap
+2. Use `serde_norway` for parsing YAML → IndexMap
 3. Implement date normalization preprocessing before serialization
 4. Implement field ordering by building an ordered IndexMap before serialization
-5. Use `serde_yml` for serialization IndexMap → YAML
+5. Use `serde_norway` for serialization IndexMap → YAML
 
 ### Why IndexMap?
 
@@ -220,7 +227,7 @@ use indexmap::IndexMap;
 ### Step 1: Add Dependency
 ```toml
 # Cargo.toml
-serde_yml = "0.0.13"  # Check for latest version
+serde_norway = "0.9.42"
 ```
 
 ### Step 2: Replace HashMap with IndexMap
@@ -239,10 +246,10 @@ serde_yml = "0.0.13"  # Check for latest version
 
 **Replace with**:
 ```rust
-use serde_yml;
+use serde_norway;
 
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
-    serde_yml::from_str(yaml_str)
+    serde_norway::from_str(yaml_str)
         .map_err(|e| format!("Failed to parse YAML: {}", e))
 }
 ```
@@ -281,7 +288,7 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
 
         // Serialize to YAML
         result.push_str("---\n");
-        let yaml = serde_yml::to_string(&normalized)
+        let yaml = serde_norway::to_string(&normalized)
             .map_err(|e| format!("Failed to serialize YAML: {}", e))?;
         result.push_str(&yaml);
         result.push_str("---\n");
@@ -366,10 +373,10 @@ title: Simple Title        # No quotes
 description: "Has: colon"  # Quoted because contains colon
 ```
 
-**serde_yml behavior**: May quote more conservatively
+**serde_norway behavior**: May quote more conservatively
 
 **Impact**: Cosmetic only - functionally equivalent YAML
-**Mitigation**: Accept serde_yml's quoting (it's spec-compliant)
+**Mitigation**: Accept serde_norway's quoting (it's spec-compliant)
 
 ### 4. ⚠️ Array Formatting
 
@@ -380,7 +387,7 @@ tags:
   - yaml
 ```
 
-**Need to verify**: serde_yml uses same format (not inline `[rust, yaml]`)
+**Need to verify**: serde_norway uses same format (not inline `[rust, yaml]`)
 
 **Testing**: Check output with test projects before committing
 
@@ -396,7 +403,7 @@ tags:
 ## Requirements
 
 **Must Have**:
-- [x] Use `serde_yml` (not deprecated `serde_yaml`)
+- [x] Use `serde_norway` (not deprecated `serde_yaml` or unsound `serde_yml`)
 - [ ] Parse all valid YAML frontmatter without data loss
 - [ ] Handle existing Astro project frontmatter correctly
 - [ ] Preserve field ordering capability (schema order → alphabetical)
@@ -415,7 +422,7 @@ tags:
 
 ## Success Criteria
 
-- [ ] `serde_yml` added to dependencies
+- [ ] `serde_norway` added to dependencies
 - [ ] Custom parser functions removed (`parse_yaml_to_json`, helper functions)
 - [ ] Custom serializer removed (`serialize_value_to_yaml`)
 - [ ] `HashMap<String, Value>` replaced with `IndexMap<String, Value>` everywhere
@@ -468,13 +475,13 @@ tags:
 - Current implementation: `src-tauri/src/commands/files.rs:425-706`
 - Staff Engineering Review: `docs/reviews/2025-staff-engineering-review.md` (Issue #2)
 - Staff Engineer Review: `docs/reviews/staff-engineer-review-2025-10-24.md` (Issue #2)
-- serde_yml crate: https://crates.io/crates/serde_yml
-- serde_yml docs: https://doc.serdeyml.com/serde_yml/
+- serde_norway crate: https://crates.io/crates/serde_norway
+- serde_norway docs: https://docs.rs/serde_norway/
 - IndexMap (already a dep): `Cargo.toml:44`
 
 ## Recommendation
 
-**Do this before 1.0.0.** The risk of shipping with a custom YAML parser outweighs minor formatting changes from switching to serde_yml. The downsides are cosmetic (formatting differences), while the upsides are substantial (correctness, maintenance, robustness).
+**Do this before 1.0.0.** The risk of shipping with a custom YAML parser outweighs minor formatting changes from switching to serde_norway. The downsides are cosmetic (formatting differences), while the upsides are substantial (correctness, maintenance, robustness).
 
 All critical features (field ordering, date normalization) can be preserved with preprocessing/postprocessing. The implementation is straightforward and well-understood.
 

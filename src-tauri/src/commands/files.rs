@@ -1,6 +1,7 @@
 use chrono::Local;
+use indexmap::IndexMap;
 use serde_json::Value;
-use std::collections::HashMap;
+use serde_norway;
 use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
@@ -225,7 +226,7 @@ pub async fn copy_file_to_assets_with_override(
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct MarkdownContent {
-    pub frontmatter: HashMap<String, Value>,
+    pub frontmatter: IndexMap<String, Value>,
     pub content: String,
     pub raw_frontmatter: String,
     pub imports: String, // MDX imports to hide from editor
@@ -246,7 +247,7 @@ pub async fn parse_markdown_content(
 #[tauri::command]
 pub async fn update_frontmatter(
     file_path: String,
-    frontmatter: HashMap<String, Value>,
+    frontmatter: IndexMap<String, Value>,
     project_root: String,
 ) -> Result<(), String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
@@ -262,7 +263,7 @@ pub async fn update_frontmatter(
 #[tauri::command]
 pub async fn save_markdown_content(
     file_path: String,
-    frontmatter: HashMap<String, Value>,
+    frontmatter: IndexMap<String, Value>,
     content: String,
     imports: String,
     schema_field_order: Option<Vec<String>>,
@@ -290,7 +291,7 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
         // No frontmatter, but might have imports at the top
         let (imports, content_without_imports) = extract_imports_from_content(&lines);
         return Ok(MarkdownContent {
-            frontmatter: HashMap::new(),
+            frontmatter: IndexMap::new(),
             content: content_without_imports,
             raw_frontmatter: String::new(),
             imports,
@@ -315,8 +316,8 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     let raw_frontmatter = frontmatter_lines.join("\n");
 
     // Parse YAML frontmatter
-    let frontmatter: HashMap<String, Value> = if raw_frontmatter.trim().is_empty() {
-        HashMap::new()
+    let frontmatter: IndexMap<String, Value> = if raw_frontmatter.trim().is_empty() {
+        IndexMap::new()
     } else {
         parse_yaml_to_json(&raw_frontmatter)?
     };
@@ -422,215 +423,85 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
     (imports_string, content_string)
 }
 
-fn parse_yaml_to_json(yaml_str: &str) -> Result<HashMap<String, Value>, String> {
-    // Enhanced YAML parser - handles basic key-value pairs, arrays, and nested objects
-    let mut result = HashMap::new();
-    let lines: Vec<&str> = yaml_str.lines().collect();
-    let mut i = 0;
+/// Normalizes ISO datetime strings to date-only format recursively
+/// Converts "2024-01-15T00:00:00Z" -> "2024-01-15"
+fn normalize_dates(frontmatter: &mut IndexMap<String, Value>) {
+    for (_, value) in frontmatter.iter_mut() {
+        normalize_value(value);
+    }
+}
 
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line.is_empty() || line.starts_with('#') {
-            i += 1;
-            continue;
-        }
-
-        if let Some((key, value)) = line.split_once(':') {
-            let key = key.trim().to_string();
-            let value = value.trim();
-
-            // Parse different value types
-            let parsed_value = if value.is_empty() {
-                // Check if this is a multi-line array
-                let (array_value, lines_consumed) = parse_yaml_array(&lines, i + 1)?;
-                if !array_value.is_empty() {
-                    i += lines_consumed;
-                    Value::Array(array_value)
-                } else {
-                    // Check if this is a nested object
-                    let (object_value, lines_consumed) = parse_yaml_object(&lines, i + 1, 0)?;
-                    if !object_value.is_empty() {
-                        i += lines_consumed;
-                        Value::Object(object_value)
-                    } else {
-                        Value::String(String::new())
+/// Recursively normalizes dates in a Value
+fn normalize_value(value: &mut Value) {
+    match value {
+        Value::String(s) => {
+            // If string looks like ISO datetime, extract date part
+            if s.len() > 10 && s.contains('T') && (s.ends_with('Z') || s.contains('+')) {
+                if let Some(date_part) = s.split('T').next() {
+                    if date_part.len() == 10 && date_part.matches('-').count() == 2 {
+                        *s = date_part.to_string();
                     }
                 }
-            } else if value.starts_with('[') && value.ends_with(']') {
-                // Parse inline array like [one, two, three]
-                let array_content = &value[1..value.len() - 1];
-                let items: Vec<Value> = array_content
-                    .split(',')
-                    .map(|s| {
-                        Value::String(s.trim().trim_matches('"').trim_matches('\'').to_string())
-                    })
-                    .collect();
-                Value::Array(items)
-            } else if value == "true" {
-                Value::Bool(true)
-            } else if value == "false" {
-                Value::Bool(false)
-            } else if let Ok(num) = value.parse::<i64>() {
-                Value::Number(serde_json::Number::from(num))
-            } else if let Ok(num) = value.parse::<f64>() {
-                Value::Number(
-                    serde_json::Number::from_f64(num).unwrap_or(serde_json::Number::from(0)),
-                )
-            } else {
-                // Remove quotes if present
-                let cleaned = value.trim_matches('"').trim_matches('\'');
-                Value::String(cleaned.to_string())
-            };
-
-            result.insert(key, parsed_value);
-        }
-        i += 1;
-    }
-
-    Ok(result)
-}
-
-fn parse_yaml_array(lines: &[&str], start_index: usize) -> Result<(Vec<Value>, usize), String> {
-    let mut array = Vec::new();
-    let mut i = start_index;
-
-    while i < lines.len() {
-        let line = lines[i].trim();
-
-        // Skip empty lines
-        if line.is_empty() {
-            i += 1;
-            continue;
-        }
-
-        // Check if this is an array item
-        if let Some(stripped) = line.strip_prefix("- ") {
-            let item_value = stripped.trim();
-            let cleaned = item_value.trim_matches('"').trim_matches('\'');
-            array.push(Value::String(cleaned.to_string()));
-            i += 1;
-        } else {
-            // Not an array item, stop parsing
-            break;
-        }
-    }
-
-    Ok((array, i - start_index))
-}
-
-fn parse_yaml_object(
-    lines: &[&str],
-    start_index: usize,
-    parent_indent: usize,
-) -> Result<(serde_json::Map<String, Value>, usize), String> {
-    let mut object = serde_json::Map::new();
-    let mut i = start_index;
-
-    // Determine the indent level of the first property (if any)
-    let mut object_indent = None;
-
-    while i < lines.len() {
-        let line = lines[i];
-
-        // Skip empty lines
-        if line.trim().is_empty() {
-            i += 1;
-            continue;
-        }
-
-        // Count leading spaces to determine indentation
-        let current_indent = line.len() - line.trim_start().len();
-
-        // If we haven't determined the object indent yet, use the first non-empty line
-        if object_indent.is_none() {
-            if current_indent > parent_indent {
-                object_indent = Some(current_indent);
-            } else {
-                // No indented content, empty object
-                break;
             }
         }
-
-        let expected_indent = object_indent.unwrap();
-
-        // If indentation is less than expected, we've left this object
-        if current_indent < expected_indent {
-            break;
+        Value::Object(obj) => {
+            for (_, v) in obj.iter_mut() {
+                normalize_value(v);
+            }
         }
-
-        // If indentation is greater, skip (nested content handled recursively)
-        if current_indent > expected_indent {
-            i += 1;
-            continue;
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                normalize_value(v);
+            }
         }
+        _ => {}
+    }
+}
 
-        // Parse key-value pair
-        let trimmed = line.trim();
-        if let Some((key, value)) = trimmed.split_once(':') {
-            let key = key.trim().to_string();
-            let value = value.trim();
+/// Builds an ordered IndexMap with schema fields first, then remaining fields alphabetically
+fn build_ordered_frontmatter(
+    frontmatter: IndexMap<String, Value>,
+    schema_field_order: Option<Vec<String>>,
+) -> IndexMap<String, Value> {
+    let mut ordered = IndexMap::new();
 
-            // Parse the value
-            let parsed_value = if value.is_empty() {
-                // Check for nested array
-                let (array_value, lines_consumed) = parse_yaml_array(lines, i + 1)?;
-                if !array_value.is_empty() {
-                    i += lines_consumed;
-                    Value::Array(array_value)
-                } else {
-                    // Check for nested object
-                    let (nested_obj, lines_consumed) =
-                        parse_yaml_object(lines, i + 1, current_indent)?;
-                    if !nested_obj.is_empty() {
-                        i += lines_consumed;
-                        Value::Object(nested_obj)
-                    } else {
-                        Value::String(String::new())
-                    }
-                }
-            } else if value.starts_with('[') && value.ends_with(']') {
-                // Inline array
-                let array_content = &value[1..value.len() - 1];
-                let items: Vec<Value> = array_content
-                    .split(',')
-                    .map(|s| {
-                        Value::String(s.trim().trim_matches('"').trim_matches('\'').to_string())
-                    })
-                    .collect();
-                Value::Array(items)
-            } else if value == "true" {
-                Value::Bool(true)
-            } else if value == "false" {
-                Value::Bool(false)
-            } else if let Ok(num) = value.parse::<i64>() {
-                Value::Number(serde_json::Number::from(num))
-            } else if let Ok(num) = value.parse::<f64>() {
-                Value::Number(
-                    serde_json::Number::from_f64(num).unwrap_or(serde_json::Number::from(0)),
-                )
-            } else {
-                // String value
-                let cleaned = value.trim_matches('"').trim_matches('\'');
-                Value::String(cleaned.to_string())
-            };
-
-            object.insert(key, parsed_value);
+    // First, add schema fields in order
+    if let Some(schema_order) = schema_field_order {
+        for key in schema_order {
+            if let Some(value) = frontmatter.get(&key) {
+                ordered.insert(key, value.clone());
+            }
         }
-        i += 1;
     }
 
-    Ok((object, i - start_index))
+    // Then add remaining fields alphabetically
+    let mut remaining: Vec<_> = frontmatter
+        .iter()
+        .filter(|(k, _)| !ordered.contains_key(*k))
+        .collect();
+    remaining.sort_by_key(|(k, _)| *k);
+
+    for (key, value) in remaining {
+        ordered.insert(key.clone(), value.clone());
+    }
+
+    ordered
+}
+
+/// Parse YAML string to IndexMap using serde_norway
+fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
+    serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {}", e))
 }
 
 fn rebuild_markdown_with_frontmatter(
-    frontmatter: &HashMap<String, Value>,
+    frontmatter: &IndexMap<String, Value>,
     content: &str,
 ) -> Result<String, String> {
     rebuild_markdown_with_frontmatter_and_imports(frontmatter, "", content)
 }
 
 fn rebuild_markdown_with_frontmatter_and_imports(
-    frontmatter: &HashMap<String, Value>,
+    frontmatter: &IndexMap<String, Value>,
     imports: &str,
     content: &str,
 ) -> Result<String, String> {
@@ -638,75 +509,8 @@ fn rebuild_markdown_with_frontmatter_and_imports(
 }
 
 /// Serialize a value to YAML format with proper indentation
-fn serialize_value_to_yaml(value: &Value, indent_level: usize) -> String {
-    let indent = "  ".repeat(indent_level);
-
-    match value {
-        Value::String(s) => {
-            // Convert ISO datetime strings to date-only format
-            if s.len() > 10
-                && s.contains('T')
-                && (s.ends_with('Z') || s.contains('+') || s.contains('-'))
-            {
-                // This looks like an ISO datetime string, extract just the date part
-                if let Some(date_part) = s.split('T').next() {
-                    if date_part.len() == 10 && date_part.matches('-').count() == 2 {
-                        return date_part.to_string();
-                    }
-                }
-            }
-
-            if s.len() == 10
-                && s.matches('-').count() == 2
-                && s.chars().all(|c| c.is_ascii_digit() || c == '-')
-            {
-                // This looks like a date string (YYYY-MM-DD), don't quote it
-                s.clone()
-            } else if s.contains(' ') || s.contains(':') || s.contains('\n') {
-                // Quote strings that contain special characters or spaces
-                format!("\"{}\"", s.replace('"', "\\\""))
-            } else {
-                s.clone()
-            }
-        }
-        Value::Bool(b) => b.to_string(),
-        Value::Number(n) => n.to_string(),
-        Value::Array(arr) => {
-            // Format array as YAML array
-            if arr.is_empty() {
-                "[]".to_string()
-            } else {
-                let mut array_str = String::new();
-                for item in arr {
-                    let item_str = match item {
-                        Value::String(s) => s.clone(),
-                        _ => serialize_value_to_yaml(item, 0),
-                    };
-                    array_str.push_str(&format!("\n{indent}  - {item_str}"));
-                }
-                array_str
-            }
-        }
-        Value::Object(obj) => {
-            // Format object as nested YAML
-            let mut object_str = String::new();
-            for (key, val) in obj {
-                let val_str = serialize_value_to_yaml(val, indent_level + 1);
-                // Check if value needs to be on next line (objects/arrays)
-                if matches!(val, Value::Object(_) | Value::Array(_)) {
-                    object_str.push_str(&format!("\n{indent}  {key}:{val_str}"));
-                } else {
-                    object_str.push_str(&format!("\n{indent}  {key}: {val_str}"));
-                }
-            }
-            object_str
-        }
-        Value::Null => "null".to_string(),
-    }
-}
-
 fn rebuild_markdown_with_frontmatter_and_imports_ordered(
-    frontmatter: &HashMap<String, Value>,
+    frontmatter: &IndexMap<String, Value>,
     imports: &str,
     content: &str,
     schema_field_order: Option<Vec<String>>,
@@ -715,42 +519,18 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
 
     // Add frontmatter if present
     if !frontmatter.is_empty() {
+        // Build ordered frontmatter (schema fields first, then alphabetical)
+        let ordered = build_ordered_frontmatter(frontmatter.clone(), schema_field_order);
+
+        // Normalize dates (ISO datetime -> date-only)
+        let mut normalized = ordered;
+        normalize_dates(&mut normalized);
+
+        // Serialize to YAML using serde_norway
         result.push_str("---\n");
-
-        // Create an ordered list of keys
-        let mut ordered_keys = Vec::new();
-        let mut remaining_keys: std::collections::HashSet<String> =
-            frontmatter.keys().cloned().collect();
-
-        // First, add keys in schema order (if provided)
-        if let Some(schema_order) = schema_field_order {
-            for key in schema_order {
-                if frontmatter.contains_key(&key) {
-                    ordered_keys.push(key.clone());
-                    remaining_keys.remove(&key);
-                }
-            }
-        }
-
-        // Then add any remaining keys in alphabetical order to maintain consistency
-        let mut remaining_sorted: Vec<String> = remaining_keys.into_iter().collect();
-        remaining_sorted.sort();
-        ordered_keys.extend(remaining_sorted);
-
-        // Write frontmatter in the determined order
-        for key in ordered_keys {
-            if let Some(value) = frontmatter.get(&key) {
-                let value_str = serialize_value_to_yaml(value, 0);
-
-                // Check if value needs to be on next line (objects/arrays)
-                if matches!(value, Value::Object(_) | Value::Array(_)) {
-                    result.push_str(&format!("{key}:{value_str}\n"));
-                } else {
-                    result.push_str(&format!("{key}: {value_str}\n"));
-                }
-            }
-        }
-
+        let yaml = serde_norway::to_string(&normalized)
+            .map_err(|e| format!("Failed to serialize YAML: {}", e))?;
+        result.push_str(&yaml);
         result.push_str("---\n");
     }
 
@@ -1495,7 +1275,7 @@ This is a test post with arrays."#;
 
     #[test]
     fn test_rebuild_markdown_with_frontmatter() {
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert("title".to_string(), Value::String("New Title".to_string()));
         frontmatter.insert("draft".to_string(), Value::Bool(true));
 
@@ -1503,8 +1283,11 @@ This is a test post with arrays."#;
 
         let result = rebuild_markdown_with_frontmatter(&frontmatter, content).unwrap();
 
+        println!("Generated YAML:\n{}", result);
+
         assert!(result.starts_with("---\n"));
-        assert!(result.contains("title: \"New Title\""));
+        // serde_norway doesn't quote simple strings without special characters
+        assert!(result.contains("title: New Title") || result.contains("title: \"New Title\""));
         assert!(result.contains("draft: true"));
         assert!(result.contains("# Content"));
     }
@@ -1525,7 +1308,7 @@ This is a test post with arrays."#;
         fs::create_dir_all(&project_root).unwrap();
         fs::write(&test_file, "initial").unwrap(); // Create file first
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert(
             "title".to_string(),
             Value::String("Test Article".to_string()),
@@ -1549,7 +1332,8 @@ This is a test post with arrays."#;
         // Verify the saved file
         let saved_content = fs::read_to_string(&test_file).unwrap();
         assert!(saved_content.starts_with("---\n"));
-        assert!(saved_content.contains("title: \"Test Article\""));
+        // serde_norway doesn't quote simple strings
+        assert!(saved_content.contains("title: Test Article") || saved_content.contains("title: \"Test Article\""));
         assert!(saved_content.contains("draft: false"));
         assert!(saved_content.contains("# Test Article"));
         assert!(saved_content.contains("This is the article content."));
@@ -1629,7 +1413,7 @@ Regular markdown content here."#;
 
     #[test]
     fn test_rebuild_with_imports() {
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
 
         let imports = "import React from 'react';\nimport { Component } from './Component';";
@@ -1861,7 +1645,7 @@ Regular markdown content here."#;
     fn test_serialize_nested_object_to_yaml() {
         use serde_json::json;
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert("title".to_string(), json!("Test Post"));
         frontmatter.insert(
             "metadata".to_string(),
@@ -1879,6 +1663,9 @@ Regular markdown content here."#;
             rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
                 .unwrap();
 
+        // Print for debugging
+        println!("Generated YAML:\n{}", result);
+
         // Verify the result contains proper YAML nested object syntax
         assert!(result.contains("metadata:"));
         assert!(result.contains("  category: Blog"));
@@ -1886,10 +1673,11 @@ Regular markdown content here."#;
         assert!(result.contains("  deadline: 2025-10-21"));
 
         // Verify tags array is formatted correctly
+        // serde_norway uses "- item" without indent (valid YAML)
         assert!(result.contains("tags:"));
-        assert!(result.contains("  - rust"));
-        assert!(result.contains("  - yaml"));
-        assert!(result.contains("  - testing"));
+        assert!(result.contains("- rust"));
+        assert!(result.contains("- yaml"));
+        assert!(result.contains("- testing"));
 
         // Ensure metadata is NOT JSON-stringified
         assert!(!result.contains(r#"metadata: "{"#));
@@ -1899,8 +1687,8 @@ Regular markdown content here."#;
         assert!(result.starts_with("---\n"));
         assert!(result.contains("---\n\n# Test Content"));
 
-        // Optional: Print for manual inspection during development
-        // println!("Generated YAML:\n{}", result);
+        // Print for manual inspection
+        println!("Generated YAML:\n{}", result);
     }
 
     #[test]
@@ -1987,5 +1775,252 @@ tags:
             metadata_obj.get("priority").unwrap(),
             &Value::Number(serde_json::Number::from(5))
         );
+    }
+
+    #[test]
+    fn test_serde_norway_handles_anchors() {
+        // Test that serde_norway parses YAML with anchors/aliases without errors
+        // Note: When deserializing to serde_json::Value, YAML merge keys (<<) are
+        // preserved as literal keys rather than being merged. This is expected behavior
+        // and doesn't affect Astro frontmatter which rarely uses anchors.
+        let yaml = r#"base: &base
+  title: Base Title
+  category: Blog
+reference: *base"#;
+
+        let result = parse_yaml_to_json(yaml);
+        assert!(
+            result.is_ok(),
+            "serde_norway should parse YAML with anchors without error"
+        );
+
+        let parsed = result.unwrap();
+
+        // Verify base object
+        let base = parsed.get("base").unwrap();
+        assert!(base.is_object());
+        let base_obj = base.as_object().unwrap();
+        assert_eq!(
+            base_obj.get("title").unwrap(),
+            &Value::String("Base Title".to_string())
+        );
+        assert_eq!(
+            base_obj.get("category").unwrap(),
+            &Value::String("Blog".to_string())
+        );
+
+        // Verify reference points to the same structure
+        let reference = parsed.get("reference").unwrap();
+        assert!(reference.is_object());
+        let reference_obj = reference.as_object().unwrap();
+        assert_eq!(
+            reference_obj.get("title").unwrap(),
+            &Value::String("Base Title".to_string())
+        );
+        assert_eq!(
+            reference_obj.get("category").unwrap(),
+            &Value::String("Blog".to_string())
+        );
+    }
+
+    #[test]
+    fn test_serde_norway_handles_block_scalars() {
+        // Test multi-line strings with pipe (literal) and fold scalars
+        let yaml = r#"literal: |
+  First line
+  Second line
+  Third line
+folded: >
+  This is a
+  long description
+  that will be folded"#;
+
+        let result = parse_yaml_to_json(yaml);
+        assert!(
+            result.is_ok(),
+            "serde_norway should parse block scalars (| and >)"
+        );
+
+        let parsed = result.unwrap();
+
+        // Verify literal scalar (preserves newlines)
+        let literal = parsed.get("literal").unwrap();
+        assert!(literal.is_string());
+        let literal_str = literal.as_str().unwrap();
+        assert!(literal_str.contains("First line"));
+        assert!(literal_str.contains("Second line"));
+
+        // Verify folded scalar exists
+        let folded = parsed.get("folded").unwrap();
+        assert!(folded.is_string());
+        let folded_str = folded.as_str().unwrap();
+        assert!(folded_str.contains("This is a"));
+        assert!(folded_str.contains("long description"));
+    }
+
+    #[test]
+    fn test_date_normalization_in_nested_objects() {
+        // Test that date normalization works recursively in nested objects and arrays
+        let mut frontmatter = IndexMap::new();
+
+        // Add nested object with date
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "deadline".to_string(),
+            Value::String("2024-01-15T00:00:00Z".to_string()),
+        );
+        metadata.insert(
+            "created".to_string(),
+            Value::String("2024-01-01T12:30:00+00:00".to_string()),
+        );
+        frontmatter.insert("metadata".to_string(), Value::Object(metadata));
+
+        // Add array with dates
+        let events = vec![
+            Value::String("2024-02-14T00:00:00Z".to_string()),
+            Value::String("2024-03-20T00:00:00Z".to_string()),
+        ];
+        frontmatter.insert("events".to_string(), Value::Array(events));
+
+        // Add top-level date
+        frontmatter.insert(
+            "publishDate".to_string(),
+            Value::String("2024-06-15T00:00:00Z".to_string()),
+        );
+
+        // Apply normalization
+        normalize_dates(&mut frontmatter);
+
+        // Verify nested object dates are normalized
+        let metadata = frontmatter.get("metadata").unwrap().as_object().unwrap();
+        assert_eq!(
+            metadata.get("deadline").unwrap(),
+            &Value::String("2024-01-15".to_string()),
+            "Nested object date should be normalized to date-only"
+        );
+        assert_eq!(
+            metadata.get("created").unwrap(),
+            &Value::String("2024-01-01".to_string()),
+            "Nested object date with timezone should be normalized"
+        );
+
+        // Verify array dates are normalized
+        let events = frontmatter.get("events").unwrap().as_array().unwrap();
+        assert_eq!(
+            events[0],
+            Value::String("2024-02-14".to_string()),
+            "Array date should be normalized"
+        );
+        assert_eq!(
+            events[1],
+            Value::String("2024-03-20".to_string()),
+            "Array date should be normalized"
+        );
+
+        // Verify top-level date is normalized
+        assert_eq!(
+            frontmatter.get("publishDate").unwrap(),
+            &Value::String("2024-06-15".to_string()),
+            "Top-level date should be normalized"
+        );
+    }
+
+    #[test]
+    fn test_date_normalization_preserves_non_dates() {
+        // Ensure date normalization doesn't affect strings that aren't ISO datetimes
+        let mut frontmatter = IndexMap::new();
+
+        frontmatter.insert(
+            "title".to_string(),
+            Value::String("My Post Title".to_string()),
+        );
+        frontmatter.insert("slug".to_string(), Value::String("my-post".to_string()));
+        frontmatter.insert(
+            "url".to_string(),
+            Value::String("https://example.com/path".to_string()),
+        );
+        frontmatter.insert(
+            "short_date".to_string(),
+            Value::String("2024-01-15".to_string()),
+        ); // Already date-only
+
+        let original = frontmatter.clone();
+        normalize_dates(&mut frontmatter);
+
+        // All non-datetime strings should be unchanged
+        assert_eq!(frontmatter, original);
+    }
+
+    #[test]
+    fn test_field_ordering_preserved() {
+        // Test that build_ordered_frontmatter respects schema order then alphabetical
+        let mut frontmatter = IndexMap::new();
+
+        // Add fields in random order
+        frontmatter.insert("zebra".to_string(), Value::String("z".to_string()));
+        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
+        frontmatter.insert(
+            "publishDate".to_string(),
+            Value::String("2024-01-15".to_string()),
+        );
+        frontmatter.insert("apple".to_string(), Value::String("a".to_string()));
+        frontmatter.insert("draft".to_string(), Value::Bool(false));
+
+        // Define schema order (common Astro frontmatter fields)
+        let schema_order = vec![
+            "title".to_string(),
+            "publishDate".to_string(),
+            "draft".to_string(),
+        ];
+
+        let ordered = build_ordered_frontmatter(frontmatter, Some(schema_order));
+
+        // Verify order: schema fields first (title, publishDate, draft),
+        // then non-schema fields alphabetically (apple, zebra)
+        let keys: Vec<&String> = ordered.keys().collect();
+        assert_eq!(keys.len(), 5);
+        assert_eq!(keys[0], "title");
+        assert_eq!(keys[1], "publishDate");
+        assert_eq!(keys[2], "draft");
+        assert_eq!(keys[3], "apple"); // Alphabetical
+        assert_eq!(keys[4], "zebra"); // Alphabetical
+    }
+
+    #[test]
+    fn test_field_ordering_no_schema() {
+        // Test that without schema, fields are purely alphabetical
+        let mut frontmatter = IndexMap::new();
+
+        frontmatter.insert("zebra".to_string(), Value::String("z".to_string()));
+        frontmatter.insert("apple".to_string(), Value::String("a".to_string()));
+        frontmatter.insert("middle".to_string(), Value::String("m".to_string()));
+
+        let ordered = build_ordered_frontmatter(frontmatter, None);
+
+        let keys: Vec<&String> = ordered.keys().collect();
+        assert_eq!(keys, vec!["apple", "middle", "zebra"]);
+    }
+
+    #[test]
+    fn test_field_ordering_partial_schema_match() {
+        // Test when schema specifies fields that don't exist in frontmatter
+        let mut frontmatter = IndexMap::new();
+
+        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
+        frontmatter.insert("extra".to_string(), Value::String("e".to_string()));
+
+        // Schema includes fields that don't exist
+        let schema_order = vec![
+            "title".to_string(),
+            "publishDate".to_string(), // Doesn't exist
+            "draft".to_string(),       // Doesn't exist
+        ];
+
+        let ordered = build_ordered_frontmatter(frontmatter, Some(schema_order));
+
+        let keys: Vec<&String> = ordered.keys().collect();
+        assert_eq!(keys.len(), 2);
+        assert_eq!(keys[0], "title"); // Schema field that exists
+        assert_eq!(keys[1], "extra"); // Non-schema field, alphabetically
     }
 }

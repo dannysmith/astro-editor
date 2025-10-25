@@ -455,8 +455,8 @@ pub async fn load_file_based_collection(
                     })?
                     .to_string();
 
-                // Convert JSON object to HashMap for FileEntry frontmatter
-                let frontmatter: std::collections::HashMap<String, serde_json::Value> =
+                // Convert JSON object to IndexMap for FileEntry frontmatter
+                let frontmatter: indexmap::IndexMap<String, serde_json::Value> =
                     obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
                 // Create FileEntry with the JSON data as frontmatter
