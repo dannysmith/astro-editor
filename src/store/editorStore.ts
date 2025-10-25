@@ -7,6 +7,8 @@ import { toast } from '../lib/toast'
 import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
 
+const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seconds)
+
 /**
  * Set a nested value in an object using dot notation
  * Example: setNestedValue(obj, 'author.name', 'John') → { author: { name: 'John' } }
@@ -204,6 +206,7 @@ interface EditorState {
   isDirty: boolean // True if changes need to be saved
   recentlySavedFile: string | null // Track recently saved file to ignore file watcher
   autoSaveTimeoutId: number | null // Auto-save timeout ID
+  lastSaveTimestamp: number | null // Timestamp of last successful save
 
   // Actions
   openFile: (file: FileEntry) => Promise<void>
@@ -226,6 +229,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   recentlySavedFile: null,
   autoSaveTimeoutId: null,
+  lastSaveTimestamp: null,
 
   // Actions
   openFile: async (file: FileEntry) => {
@@ -372,7 +376,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         set({ autoSaveTimeoutId: null })
       }
 
-      set({ isDirty: false })
+      set({ isDirty: false, lastSaveTimestamp: Date.now() })
 
       // Invalidate queries to update UI with new frontmatter
       // This invalidates all directory scans for this collection (root + all subdirectories)
@@ -458,6 +462,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   scheduleAutoSave: () => {
     const store = get()
+    const now = Date.now()
+
+    // Check if we should force save due to max delay
+    if (store.isDirty && store.lastSaveTimestamp) {
+      const timeSinceLastSave = now - store.lastSaveTimestamp
+      if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
+        void store.saveFile(false)
+        return
+      }
+    }
 
     // Clear existing timeout
     if (store.autoSaveTimeoutId) {
