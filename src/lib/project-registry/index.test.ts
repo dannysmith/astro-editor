@@ -5,13 +5,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Unmock the project-registry module for these tests
-vi.unmock('../lib/project-registry')
-vi.unmock('../lib/project-registry/defaults')
-vi.unmock('../lib/project-registry/persistence')
-vi.unmock('../lib/project-registry/utils')
+vi.unmock('.')
+vi.unmock('./defaults')
+vi.unmock('./persistence')
+vi.unmock('./utils')
 
-import { ProjectRegistryManager } from '../lib/project-registry'
-import { DEFAULT_PROJECT_SETTINGS } from '../lib/project-registry/defaults'
+import { ProjectRegistryManager } from '.'
+import { DEFAULT_PROJECT_SETTINGS } from './defaults'
 
 // Mock Tauri invoke for testing
 vi.mock('@tauri-apps/api/core', () => ({
