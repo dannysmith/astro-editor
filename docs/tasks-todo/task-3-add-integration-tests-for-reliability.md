@@ -1,58 +1,79 @@
 # Add Integration Tests for Reliability-Critical Paths
 
 **Priority**: CRITICAL (blocks 1.0.0)
-**Effort**: ~1 day
+**Effort**: ~4-6 hours (reduced due to existing test infrastructure)
 **Type**: Testing, reliability validation
+
+## Current Status (Updated 2025-10-25)
+
+✅ **Task #1 (Auto-save fix)**: COMPLETE (commit `f3d5749`)
+❌ **Task #4 (File watcher fix)**: NOT STARTED
+✅ **Test Infrastructure**: Tauri and Query mocks already exist
+
+**Document Updates**:
+- ✅ Scoped to Phase 1 (auto-save tests only)
+- ✅ Acknowledged existing test infrastructure (reduces effort from 8h → 4-6h)
+- ✅ Deferred file watcher tests to Phase 2 (when task #4 is implemented)
+- ✅ Focused requirements on validating task #1 fix
+- ✅ Updated implementation plan to leverage existing mocks
 
 ## Problem
 
-Tasks #1 (auto-save data loss) and #4 (file watcher race condition) fix genuine reliability risks. However, these are integration-level issues involving multiple systems working together:
+Task #1 (auto-save data loss fix) addresses a genuine reliability risk involving multiple systems:
 
-- **Auto-save cycle**: Editor changes → debounced save → file write → query invalidation → UI update
-- **File watcher cycle**: External change → watcher event → query invalidation → reload → editor update
-- **Self-save detection**: Our save → watcher event → should ignore → no unnecessary reload
+- **Auto-save cycle**: Editor changes → debounced save → force save after 10s → file write → query invalidation → UI update
 
-Without integration tests for these flows, we can't confidently verify the fixes work end-to-end.
+Without integration tests for this flow, we can't confidently verify the fix works end-to-end.
+
+**Note**: Task #4 (file watcher) is not yet implemented, so this task focuses on testing the auto-save implementation. File watcher tests can be added later when task #4 is complete.
 
 ## Current Testing Gaps
 
 **What we have**:
-- Unit tests for individual stores (editorStore, projectStore)
-- Unit tests for utility functions
+- Unit tests for individual modules (editorStore handlers, utility functions)
 - Component tests for UI elements
+- **Existing test infrastructure**: `src/test/setup.ts` with Tauri mocks, TanStack Query mocks
+- Rust unit tests in various command modules
 
 **What we're missing**:
-- Integration tests for store ↔ query interactions
-- Integration tests for file system operations
-- End-to-end tests for auto-save reliability
-- End-to-end tests for file watcher behavior
+- Integration tests for store ↔ Tauri ↔ query interactions
+- Integration tests for auto-save timing behavior (debounce + max delay)
+- Integration tests for save failure handling
+- Tests that verify the actual auto-save fix from task #1
 
 **Evidence from meta-analysis**:
 > "Before 1.0.0: Add integration tests for auto-save cycle and file watcher (your two risky areas)"
 
 ## Requirements
 
-**Must Have**:
-- [ ] Integration test: Auto-save fires during continuous typing (validates task #1 fix)
-- [ ] Integration test: File watcher ignores self-initiated saves (validates task #4 fix)
-- [ ] Integration test: File watcher detects external changes and reloads
-- [ ] Integration test: Auto-save → query invalidation → no unnecessary refetch
+**Must Have** (Phase 1 - Auto-Save):
+- [ ] Integration test: Auto-save fires within 10s during continuous typing (validates task #1 fix)
+- [ ] Integration test: Debouncing still works for normal typing (don't spam saves)
+- [ ] Integration test: Save failure shows toast notification
+- [ ] Integration test: Auto-save → Tauri command → query invalidation flow
 - [ ] Tests run reliably in CI without flakiness
 
-**Should Have**:
-- [ ] Integration test: Auto-save with slow file operations (race condition scenarios)
-- [ ] Integration test: Multiple rapid saves don't cause issues
-- [ ] Integration test: Save failure handling and retry logic
-- [ ] Clear test utilities for mocking Tauri commands
+**Should Have** (Phase 1):
+- [ ] Integration test: Multiple rapid edits don't cause race conditions
+- [ ] Integration test: Opening new file cancels pending auto-save
+- [ ] Integration test: Manual save clears auto-save timeout
 
-**Nice to Have**:
-- [ ] Performance benchmarks for auto-save cycle
-- [ ] Integration tests for crash recovery system
-- [ ] Tests for concurrent file operations
+**Future** (Phase 2 - When Task #4 is Complete):
+- [ ] Integration test: File watcher ignores self-initiated saves
+- [ ] Integration test: File watcher detects external changes and reloads
+- [ ] Integration test: Version tracking prevents reload loops
+
+**Out of Scope**:
+- E2E tests with real Tauri runtime (integration tests use mocks)
+- Performance benchmarks
+- Crash recovery tests (separate task)
+- Multi-window interaction tests
 
 ## Test Scenarios to Cover
 
-### 1. Auto-Save Reliability (Task #1 Validation)
+**Phase 1 Scope**: Auto-save and store/query integration tests only. File watcher tests deferred to Phase 2.
+
+### 1. Auto-Save Reliability (Task #1 Validation) ⭐ PRIORITY
 
 **Test: Continuous typing triggers auto-save within max delay**
 ```typescript
@@ -97,71 +118,38 @@ it('should show error toast when auto-save fails', async () => {
 })
 ```
 
-### 2. File Watcher Behavior (Task #4 Validation)
+### 2. File Watcher Behavior (Future - Phase 2)
+
+**⚠️ Note**: These tests should be added when Task #4 (file watcher race condition fix) is implemented. Keeping here for reference.
+
+<details>
+<summary>Click to expand future test scenarios</summary>
 
 **Test: Self-initiated saves don't trigger reload**
 ```typescript
 it('should not reload editor when save completes', async () => {
-  const { result: editorResult } = renderHook(() => useEditorStore())
-  const queryClient = new QueryClient()
-
-  // Edit content
-  act(() => editorResult.current.setEditorContent('changed'))
-
-  // Save
-  await act(async () => {
-    await editorResult.current.saveFile()
-  })
-
-  // Simulate file watcher event (with version tracking)
-  const fileChangedEvent = new CustomEvent('file-changed', {
-    detail: { path: 'test.md', version: 1 }
-  })
-  window.dispatchEvent(fileChangedEvent)
-
-  // Verify: Query was NOT invalidated
-  const queries = queryClient.getQueryCache().findAll()
-  expect(queries.every(q => q.state.isInvalidated === false)).toBe(true)
+  // Test version-based tracking (when implemented)
+  // This validates that self-saves are correctly ignored
 })
 ```
 
 **Test: External changes trigger reload**
 ```typescript
 it('should reload editor when external change detected', async () => {
-  // Setup: File loaded in editor
-
-  // Simulate external change (no version or mismatched version)
-  const externalChangeEvent = new CustomEvent('file-changed', {
-    detail: { path: 'test.md', version: 999 } // Different version
-  })
-  window.dispatchEvent(externalChangeEvent)
-
-  // Verify: Query was invalidated and refetched
-  await waitFor(() => {
-    expect(queryClient.getQueryCache().findAll().some(q => q.state.isInvalidated)).toBe(true)
-  })
+  // Test that changes from external editors trigger reload
+  // This validates external change detection works
 })
 ```
 
 **Test: Race condition with slow save**
 ```typescript
 it('should handle slow saves without triggering reload loop', async () => {
-  // Mock slow save (2 seconds)
-  mockInvoke.mockImplementation(() =>
-    new Promise(resolve => setTimeout(resolve, 2000))
-  )
-
-  // Trigger save
-  await act(async () => {
-    await result.current.saveFile()
-  })
-
-  // File watcher fires while save is in progress
-  // Should be ignored due to version tracking
-
-  // Verify: No infinite loop, no unnecessary reloads
+  // Test that slow saves (>1s) don't cause issues
+  // This validates the version tracking prevents race conditions
 })
 ```
+
+</details>
 
 ### 3. Store ↔ Query Integration
 
@@ -210,29 +198,27 @@ it('should reset dirty state when opening new file', async () => {
 
 ## Implementation Approach
 
-### Test Infrastructure Setup
+### Leveraging Existing Infrastructure
 
-1. **Mock Tauri Commands**
+✅ **Already Available** (`src/test/setup.ts`):
+- Tauri mocks: `mockInvoke`, `mockListen` (via `globalThis.mockTauri`)
+- Project registry mocks
+- TanStack Query mocks (`src/test/mock-hooks.ts`)
+- Vitest + jsdom environment
+
+### What Needs to Be Created
+
+1. **Integration Test Utilities** (`src/test/utils/integration-helpers.ts`)
 ```typescript
-// src/test/mocks/tauri.ts
-export const mockInvoke = vi.fn()
-export const mockListen = vi.fn()
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act } from '@testing-library/react'
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: mockInvoke
-}))
-
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: mockListen
-}))
-```
-
-2. **Test Utilities**
-```typescript
-// src/test/utils/integration-helpers.ts
 export function setupEditorIntegrationTest() {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } }
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false }
+    }
   })
 
   const wrapper = ({ children }) => (
@@ -241,93 +227,128 @@ export function setupEditorIntegrationTest() {
     </QueryClientProvider>
   )
 
+  // Reset Tauri mocks before each test
+  globalThis.mockTauri.reset()
+
   return { queryClient, wrapper }
 }
 
 export async function simulateContinuousTyping(
-  store: EditorStore,
-  duration: number,
-  interval: number
+  setContent: (content: string) => void,
+  durationMs: number,
+  intervalMs: number
 ) {
-  const iterations = duration / interval
+  const iterations = Math.floor(durationMs / intervalMs)
   for (let i = 0; i < iterations; i++) {
-    act(() => store.setEditorContent(`content ${i}`))
-    await new Promise(resolve => setTimeout(resolve, interval))
+    act(() => setContent(`content ${i}`))
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
   }
+}
+
+export function advanceTimersByTime(ms: number) {
+  vi.advanceTimersByTime(ms)
 }
 ```
 
-3. **File System Mocks**
+2. **Toast Mock** (for testing error notifications)
 ```typescript
-// src/test/mocks/filesystem.ts
-export class MockFileSystem {
-  private files = new Map<string, string>()
+// src/test/mocks/toast.ts
+import { vi } from 'vitest'
 
-  async read(path: string): Promise<string> {
-    return this.files.get(path) || ''
-  }
-
-  async write(path: string, content: string): Promise<void> {
-    this.files.set(path, content)
-    // Optionally emit file-changed event
-  }
-
-  simulateExternalChange(path: string, content: string) {
-    this.files.set(path, content)
-    window.dispatchEvent(new CustomEvent('file-changed', {
-      detail: { path, version: Date.now() }
-    }))
-  }
+export const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
 }
+
+vi.mock('../../lib/toast', () => ({
+  toast: mockToast,
+}))
 ```
 
 ### Test Organization
 
-**New test files**:
-- `src/store/__tests__/editorStore.integration.test.ts` - Auto-save integration tests
-- `src/store/__tests__/fileWatcher.integration.test.ts` - File watcher integration tests
+**New test files** (Phase 1):
+- `src/store/__tests__/editorStore.integration.test.ts` - Auto-save integration tests (PRIORITY)
 - `src/store/__tests__/storeQueryIntegration.test.ts` - Store ↔ query interaction tests
 - `src/test/utils/integration-helpers.ts` - Shared test utilities
-- `src/test/mocks/` - Tauri and file system mocks
+- `src/test/mocks/toast.ts` - Toast notification mocks
+
+**Future** (Phase 2 - when task #4 is done):
+- `src/store/__tests__/fileWatcher.integration.test.ts` - File watcher integration tests
+
+**Existing** (leverage these):
+- `src/test/setup.ts` - Tauri mocks, global setup
+- `src/test/mock-hooks.ts` - TanStack Query mocks
 
 ### Running Tests
 
 ```bash
-# Run all integration tests
-pnpm run test:integration
+# Run all tests (including new integration tests)
+pnpm run test
 
-# Run specific integration suite
+# Run integration tests only
+pnpm run test -- integration.test
+
+# Run specific suite
 pnpm run test -- editorStore.integration
 
 # Run with coverage
-pnpm run test:coverage -- --include="**/integration.test.ts"
+pnpm run test -- --coverage
 ```
 
 ## Success Criteria
 
-- [ ] Auto-save integration tests pass (continuous typing, debouncing, failure handling)
-- [ ] File watcher integration tests pass (self-save ignore, external change detection, race conditions)
-- [ ] Store ↔ query integration tests pass (invalidation, dirty state, file switching)
-- [ ] All tests run reliably without flakiness
-- [ ] Test coverage for integration paths > 80%
+**Phase 1 (Must Complete)**:
+- [ ] Auto-save integration tests pass and validate task #1 fix:
+  - [ ] Force save after 10s during continuous typing
+  - [ ] Debouncing works for normal typing (no spam)
+  - [ ] Save failure shows toast notification
+- [ ] Store ↔ query integration tests pass (query invalidation, dirty state)
+- [ ] All tests run reliably without flakiness (100% pass rate in CI)
+- [ ] Test utilities created and documented
+- [ ] Integration tests would catch regression if task #1 fix was reverted
+
+**Phase 2 (Future - when task #4 done)**:
+- [ ] File watcher integration tests pass (self-save ignore, external changes, version tracking)
+- [ ] Integration tests validate task #4 fix
+
+**Quality Metrics**:
+- [ ] Integration test coverage for auto-save paths > 80%
 - [ ] CI runs integration tests on every commit
-- [ ] Test utilities are documented and reusable
-- [ ] Integration tests catch the bugs fixed in tasks #1 and #4 (regression prevention)
+- [ ] No flaky tests (deterministic, no race conditions in tests themselves)
 
-## Testing the Tests
+## Testing the Tests (Validation)
 
-To verify integration tests actually catch the bugs:
+To verify integration tests actually catch regressions:
 
-1. **Revert fix for task #1** (remove max delay fallback)
-   - Integration test should fail with "auto-save never fired during continuous typing"
+**Phase 1 - Validate Auto-Save Tests**:
 
-2. **Revert fix for task #4** (remove version tracking)
-   - Integration test should fail with "self-save triggered unnecessary reload"
+1. **Temporarily revert task #1 fix**:
+   ```typescript
+   // In editorStore.ts, comment out the force-save logic:
+   /*
+   if (store.isDirty && store.lastSaveTimestamp) {
+     const timeSinceLastSave = now - store.lastSaveTimestamp
+     if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
+       void store.saveFile(false)
+       return
+     }
+   }
+   */
+   ```
 
-3. **Re-apply fixes**
-   - All integration tests should pass
+2. **Run integration tests**:
+   - ❌ Test should FAIL with "auto-save never fired during continuous typing"
+   - This proves the test catches the bug
 
-This validates the tests actually verify the fixes work.
+3. **Re-apply fix**:
+   - ✅ All integration tests should PASS
+   - This proves the fix works
+
+**Phase 2 - Validate File Watcher Tests** (when task #4 is done):
+- Same process: revert fix, test should fail, re-apply fix, test should pass
 
 ## Out of Scope
 
@@ -335,31 +356,36 @@ This validates the tests actually verify the fixes work.
 - Visual regression tests
 - Performance stress testing (>10k files, etc.)
 - Multi-window interaction tests
+- File watcher tests (deferred to Phase 2 when task #4 is implemented)
 
 ## References
 
+- **Task #1**: `docs/tasks-todo/task-1-fix-auto-save-data-loss-risk.md` (✅ COMPLETE - commit `f3d5749`)
+- **Task #4**: `docs/tasks-todo/task-4-fix-file-watcher-race-condition.md` (❌ NOT STARTED)
+- **Existing Infrastructure**: `src/test/setup.ts`, `src/test/mock-hooks.ts`
 - Meta-analysis: `docs/reviews/analyysis-of-reviews.md` (Week 1, item #3)
-- Staff Engineering Review: Recommended integration test coverage
-- Existing tests: `src/store/__tests__/` (unit tests to build upon)
 - Vitest docs: https://vitest.dev/guide/
 
 ## Dependencies
 
-**Blocks**: None (can start immediately)
-**Blocked by**: None (but validates fixes in tasks #1 and #4)
+**Blocks**: Nothing (tests are validation, not blockers)
+**Blocked by**: Nothing (task #1 is complete, can write tests now)
 **Related**:
-- Task #1 (auto-save fix) - this validates that fix works
-- Task #4 (file watcher fix) - this validates that fix works
-- Task #5 (Rust tests) - complementary backend testing
+- ✅ Task #1 (auto-save fix) - COMPLETE, ready to test
+- ❌ Task #4 (file watcher fix) - NOT STARTED, tests deferred to Phase 2
+- Task #2 (YAML parser) - COMPLETE (commit `ef9abfe`)
 
 ## Recommendation
 
-**Do this in Week 1 alongside tasks #1 and #2**. The integration tests serve as acceptance criteria for the reliability fixes. You can even write the tests first (TDD approach) to define expected behavior before implementing fixes.
+**Do Phase 1 now** to validate the task #1 auto-save fix before 1.0.0. This provides regression coverage and confidence in the reliability fix.
 
-**Estimated effort**:
-- Test infrastructure setup: 2 hours
+**Phased Approach**:
+- **Phase 1** (Now): Auto-save integration tests (~4-6 hours)
+- **Phase 2** (After task #4): File watcher integration tests (~2-3 hours)
+
+**Estimated effort** (Phase 1 only):
+- Test utilities creation: 1 hour (leverage existing mocks)
 - Auto-save integration tests: 2 hours
-- File watcher integration tests: 2 hours
 - Store/query integration tests: 1 hour
-- Documentation and cleanup: 1 hour
-- **Total: 1 full day**
+- Documentation and validation: 1 hour
+- **Total: 4-6 hours** (reduced from original 8 hours due to existing infrastructure)

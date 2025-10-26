@@ -490,7 +490,7 @@ fn build_ordered_frontmatter(
 
 /// Parse YAML string to IndexMap using serde_norway
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
-    serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {}", e))
+    serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
 }
 
 fn rebuild_markdown_with_frontmatter(
@@ -529,7 +529,7 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
         // Serialize to YAML using serde_norway
         result.push_str("---\n");
         let yaml = serde_norway::to_string(&normalized)
-            .map_err(|e| format!("Failed to serialize YAML: {}", e))?;
+            .map_err(|e| format!("Failed to serialize YAML: {e}"))?;
         result.push_str(&yaml);
         result.push_str("---\n");
     }
@@ -1283,8 +1283,6 @@ This is a test post with arrays."#;
 
         let result = rebuild_markdown_with_frontmatter(&frontmatter, content).unwrap();
 
-        println!("Generated YAML:\n{}", result);
-
         assert!(result.starts_with("---\n"));
         // serde_norway doesn't quote simple strings without special characters
         assert!(result.contains("title: New Title") || result.contains("title: \"New Title\""));
@@ -1333,7 +1331,10 @@ This is a test post with arrays."#;
         let saved_content = fs::read_to_string(&test_file).unwrap();
         assert!(saved_content.starts_with("---\n"));
         // serde_norway doesn't quote simple strings
-        assert!(saved_content.contains("title: Test Article") || saved_content.contains("title: \"Test Article\""));
+        assert!(
+            saved_content.contains("title: Test Article")
+                || saved_content.contains("title: \"Test Article\"")
+        );
         assert!(saved_content.contains("draft: false"));
         assert!(saved_content.contains("# Test Article"));
         assert!(saved_content.contains("This is the article content."));
@@ -1663,9 +1664,6 @@ Regular markdown content here."#;
             rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
                 .unwrap();
 
-        // Print for debugging
-        println!("Generated YAML:\n{}", result);
-
         // Verify the result contains proper YAML nested object syntax
         assert!(result.contains("metadata:"));
         assert!(result.contains("  category: Blog"));
@@ -1686,9 +1684,6 @@ Regular markdown content here."#;
         // Verify proper frontmatter structure
         assert!(result.starts_with("---\n"));
         assert!(result.contains("---\n\n# Test Content"));
-
-        // Print for manual inspection
-        println!("Generated YAML:\n{}", result);
     }
 
     #[test]
