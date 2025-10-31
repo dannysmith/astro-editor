@@ -22,18 +22,15 @@ import { useEffectiveSettings } from '../../lib/project-registry/effective-setti
 import { FileItem, getPublishedDate } from './FileItem'
 
 export const LeftSidebar: React.FC = () => {
-  const { currentFile, openFile, updateCurrentFileAfterRename } =
-    useEditorStore()
+  // Only subscribe to currentFile for selection highlighting
+  const currentFile = useEditorStore(state => state.currentFile)
 
+  // Subscribe to project state values that trigger visual updates
   const {
     selectedCollection,
     currentSubdirectory,
     projectPath,
     currentProjectSettings,
-    setProject,
-    setSelectedCollection,
-    setCurrentSubdirectory,
-    navigateUp,
   } = useProjectStore()
 
   // Get current collection's view settings
@@ -43,21 +40,28 @@ export const LeftSidebar: React.FC = () => {
 
   // Use getState() pattern for callbacks to avoid render cascades
   const handleToggleDraftsOnly = useCallback(() => {
+    const {
+      selectedCollection,
+      currentProjectSettings,
+      updateProjectSettings,
+    } = useProjectStore.getState()
+
     if (selectedCollection) {
-      const { updateProjectSettings } = useProjectStore.getState()
-      const currentSettings = useProjectStore.getState().currentProjectSettings
+      const showDraftsOnly =
+        currentProjectSettings?.collectionViewSettings?.[selectedCollection]
+          ?.showDraftsOnly || false
 
       const newSettings = {
-        ...currentSettings,
+        ...currentProjectSettings,
         collectionViewSettings: {
-          ...currentSettings?.collectionViewSettings,
+          ...currentProjectSettings?.collectionViewSettings,
           [selectedCollection]: { showDraftsOnly: !showDraftsOnly },
         },
       }
 
       void updateProjectSettings(newSettings)
     }
-  }, [selectedCollection, showDraftsOnly])
+  }, [])
 
   const [fileCounts, setFileCounts] = useState<Record<string, number>>({})
 
@@ -131,7 +135,7 @@ export const LeftSidebar: React.FC = () => {
     try {
       const result = await invoke<string | null>('select_project_folder')
       if (result) {
-        setProject(result)
+        useProjectStore.getState().setProject(result)
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -140,24 +144,23 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleCollectionClick = (collection: Collection) => {
-    setSelectedCollection(collection.name)
-    // Files will be automatically fetched by the query
+    useProjectStore.getState().setSelectedCollection(collection.name)
   }
 
   const handleBackClick = () => {
-    navigateUp()
+    useProjectStore.getState().navigateUp()
   }
 
   const handleSubdirectoryClick = (relativePath: string) => {
-    setCurrentSubdirectory(relativePath)
+    useProjectStore.getState().setCurrentSubdirectory(relativePath)
   }
 
   const handleBreadcrumbClick = (subdirectory: string | null) => {
-    setCurrentSubdirectory(subdirectory)
+    useProjectStore.getState().setCurrentSubdirectory(subdirectory)
   }
 
   const handleFileClick = (file: FileEntry) => {
-    openFile(file)
+    useEditorStore.getState().openFile(file)
   }
 
   const handleContextMenu = async (
@@ -191,6 +194,8 @@ export const LeftSidebar: React.FC = () => {
       const directory = file.path.substring(0, file.path.lastIndexOf('/'))
       const newPath = `${directory}/${newName}`
 
+      const { projectPath, selectedCollection } = useProjectStore.getState()
+
       if (projectPath && selectedCollection) {
         await renameMutation.mutateAsync({
           oldPath: file.path,
@@ -200,6 +205,8 @@ export const LeftSidebar: React.FC = () => {
         })
 
         // Update current file path if this is the current file
+        const { currentFile, updateCurrentFileAfterRename } =
+          useEditorStore.getState()
         if (currentFile && currentFile.path === file.path) {
           updateCurrentFileAfterRename(newPath)
         }
