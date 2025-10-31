@@ -1,494 +1,331 @@
-# Improve Rust Test Suite
+# Add High-Value Edge Case Tests
 
-**Priority**: HIGH (should do before 1.0.0 if time permits)
-**Effort**: ~1 day
-**Type**: Testing, code quality, reliability
+**Priority**: MEDIUM (nice to have before 1.0.0)
+**Effort**: ~3-4 hours
+**Type**: Testing, reliability, data integrity
 
-## Problem
+## Context
 
-The Rust backend handles critical operations (file I/O, YAML parsing, schema parsing) but the test suite has several weaknesses that reduce confidence in reliability:
+**Current State**: Test suite is strong with 112 passing tests running in 0.04s. Tests use temporary directories with unique names and already have good coverage of:
+- ✅ Basic file operations
+- ✅ Path traversal security
+- ✅ Frontmatter parsing (including nested objects, arrays, MDX imports)
+- ✅ Schema parsing (image/reference helpers, nested fields)
+- ✅ YAML features (anchors, block scalars, unicode)
+- ✅ serde_norway migration (task #2 completed)
 
-1. **Real filesystem dependency**: Tests create/delete actual files, making them slow, brittle, and order-dependent
-2. **Missing negative test cases**: Tests mostly verify happy paths, not error conditions or malformed input
-3. **Limited edge case coverage**: YAML parsing especially needs more comprehensive testing (relevant to task #2)
-4. **Difficult to test race conditions**: Real I/O makes timing-dependent scenarios hard to reproduce
+**What's Missing**: Focused edge case tests for scenarios that could cause data corruption or user-facing bugs.
 
-**Evidence from Rust Test Suite Review** (⭐⭐⭐⭐ rating):
-> "Correctly identifies testing anti-patterns... specific, actionable recommendations... No over-engineering"
+## Problem Statement
 
-## Current Test Coverage
+While coverage is good, we lack tests for edge cases that users WILL encounter:
+1. **Unicode edge cases** - emoji, RTL text, combining characters (users paste this into frontmatter)
+2. **Malformed YAML** - common typos that could corrupt data or crash the editor
+3. **Windows/Mac differences** - line endings, path separators, file naming
+4. **Empty/minimal content** - edge cases in minimal valid input
 
-**What we have**:
-- Basic tests for file reading/writing
-- Happy path tests for frontmatter parsing
-- Schema parsing tests with valid input
-- Command tests with real file system
+## Goals
 
-**What we're missing**:
-- Negative tests (malformed YAML, invalid paths, permission errors)
-- Edge cases (empty files, huge files, special characters)
-- Boundary conditions (max path length, unicode, etc.)
-- Isolated, fast unit tests (no file I/O)
+Add **~15 focused tests** that cover high-probability edge cases and prevent data loss. Focus on:
+- **Data integrity**: Ensure we never corrupt user files
+- **Real-world input**: Test what users actually type/paste
+- **Cross-platform**: Handle Windows vs Mac differences
+- **Parser robustness**: Gracefully handle malformed input
 
-## Requirements
+## High-Value Tests to Add
 
-**Must Have**:
-- [ ] Abstract filesystem behind trait for testing
-- [ ] In-memory filesystem implementation for tests
-- [ ] Negative test cases for YAML/frontmatter parsing
-- [ ] Edge case tests for file operations
-- [ ] All tests run without touching real filesystem
+### 1. Unicode Edge Cases (6 tests)
 
-**Should Have**:
-- [ ] Property-based tests for YAML parsing (after task #2 migration to serde_yaml)
-- [ ] Benchmark tests for performance-critical paths
-- [ ] Integration tests for end-to-end command flows
-- [ ] Test utilities for common setup/teardown
-
-**Nice to Have**:
-- [ ] Fuzzing for YAML parser
-- [ ] Concurrent access tests
-- [ ] Memory leak detection in long-running operations
-
-## Implementation Approach
-
-### 1. Abstract Filesystem Operations
-
-Create a trait to abstract file operations:
+**Why**: Users paste emoji, international text, and special characters into frontmatter daily.
 
 ```rust
-// src-tauri/src/fs/trait.rs
-use std::path::Path;
-use async_trait::async_trait;
+#[test]
+fn test_frontmatter_with_emoji_in_values() {
+    // Real-world: users type emoji in titles and descriptions
+    let content = r#"---
+title: "New Feature 🚀 Released!"
+description: "Super cool ✨ stuff"
+tags: ["🎉", "announcement"]
+---
 
-#[async_trait]
-pub trait FileSystem: Send + Sync {
-    async fn read_to_string(&self, path: &Path) -> Result<String, std::io::Error>;
-    async fn write(&self, path: &Path, content: &str) -> Result<(), std::io::Error>;
-    async fn exists(&self, path: &Path) -> bool;
-    async fn create_dir_all(&self, path: &Path) -> Result<(), std::io::Error>;
-    async fn remove_file(&self, path: &Path) -> Result<(), std::io::Error>;
-    async fn read_dir(&self, path: &Path) -> Result<Vec<PathBuf>, std::io::Error>;
+Content here"#;
+
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+    let parsed = result.unwrap();
+    assert_eq!(parsed.frontmatter.get("title").unwrap(), "New Feature 🚀 Released!");
 }
 
-// Real implementation
-pub struct RealFileSystem;
+#[test]
+fn test_frontmatter_with_rtl_text() {
+    // Right-to-left languages (Arabic, Hebrew)
+    let content = r#"---
+title: "مرحبا بك في العالم"
+author: "محمد"
+titleHebrew: "שלום עולם"
+---
 
-#[async_trait]
-impl FileSystem for RealFileSystem {
-    async fn read_to_string(&self, path: &Path) -> Result<String, std::io::Error> {
-        tokio::fs::read_to_string(path).await
-    }
+Content"#;
 
-    async fn write(&self, path: &Path, content: &str) -> Result<(), std::io::Error> {
-        tokio::fs::write(path, content).await
-    }
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+}
 
-    // ... other methods
+#[test]
+fn test_frontmatter_with_mixed_scripts() {
+    // CJK + Latin + Cyrillic
+    let content = r#"---
+title: "Hello 世界 Мир"
+author: "名前-Name-Имя"
+---
+
+Content"#;
+
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_frontmatter_with_combining_characters() {
+    // Combining diacritics (common in some languages)
+    let content = r#"---
+title: "café" # e + combining acute
+author: "José"
+---
+
+Content"#;
+
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_frontmatter_with_zero_width_characters() {
+    // Zero-width characters (can break parsing if not handled)
+    let content = "---\ntitle: \"test\u{200B}word\"\n---\n\nContent"; // zero-width space
+
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_serialize_unicode_roundtrip() {
+    // CRITICAL: Ensure unicode survives parse → serialize → parse
+    let mut frontmatter = IndexMap::new();
+    frontmatter.insert("title".to_string(), Value::String("🚀 Test 世界".to_string()));
+    frontmatter.insert("emoji".to_string(), Value::String("✨🎉🔥".to_string()));
+
+    let serialized = rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+    let reparsed = parse_frontmatter(&serialized).unwrap();
+
+    assert_eq!(reparsed.frontmatter.get("title").unwrap(), "🚀 Test 世界");
+    assert_eq!(reparsed.frontmatter.get("emoji").unwrap(), "✨🎉🔥");
 }
 ```
 
-**In-memory implementation for tests**:
+### 2. Malformed YAML (4 tests)
+
+**Why**: Users make typos. We should fail gracefully, not corrupt data.
 
 ```rust
-// src-tauri/src/fs/memory.rs
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-#[derive(Clone)]
-pub struct InMemoryFileSystem {
-    files: Arc<Mutex<HashMap<PathBuf, String>>>,
-}
-
-impl InMemoryFileSystem {
-    pub fn new() -> Self {
-        Self {
-            files: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub fn with_files(files: HashMap<PathBuf, String>) -> Self {
-        Self {
-            files: Arc::new(Mutex::new(files)),
-        }
-    }
-}
-
-#[async_trait]
-impl FileSystem for InMemoryFileSystem {
-    async fn read_to_string(&self, path: &Path) -> Result<String, std::io::Error> {
-        self.files
-            .lock()
-            .unwrap()
-            .get(path)
-            .cloned()
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("File not found: {}", path.display())
-                )
-            })
-    }
-
-    async fn write(&self, path: &Path, content: &str) -> Result<(), std::io::Error> {
-        self.files
-            .lock()
-            .unwrap()
-            .insert(path.to_path_buf(), content.to_string());
-        Ok(())
-    }
-
-    // ... other methods
-}
-```
-
-### 2. Update Commands to Use Trait
-
-**Before**:
-```rust
-#[tauri::command]
-pub async fn save_markdown_content(
-    file_path: String,
-    content: String,
-) -> Result<(), String> {
-    tokio::fs::write(&file_path, content)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-```
-
-**After**:
-```rust
-#[tauri::command]
-pub async fn save_markdown_content(
-    file_path: String,
-    content: String,
-    state: State<'_, AppFileSystem>,
-) -> Result<(), String> {
-    state
-        .write(Path::new(&file_path), &content)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-// In setup
-pub struct AppFileSystem(Arc<dyn FileSystem>);
-
-fn main() {
-    tauri::Builder::default()
-        .manage(AppFileSystem(Arc::new(RealFileSystem)))
-        .invoke_handler(tauri::generate_handler![save_markdown_content])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-```
-
-### 3. Add Negative Test Cases
-
-**YAML Parsing Negative Tests**:
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_yaml_malformed_syntax() {
-        let yaml = r#"
+#[test]
+fn test_frontmatter_unclosed_quote() {
+    // Common typo: forget closing quote
+    let content = r#"---
 title: "Unclosed quote
-description: Valid
-"#;
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("quote"));
-    }
+description: "Valid"
+---
 
-    #[test]
-    fn test_parse_yaml_invalid_nesting() {
-        let yaml = r#"
+Content"#;
+
+    let result = parse_frontmatter(content);
+    assert!(result.is_err(), "Should reject unclosed quote");
+}
+
+#[test]
+fn test_frontmatter_mixed_indentation() {
+    // Common issue: mixing tabs and spaces
+    let content = "---\ntitle: Test\n\tdescription: Mixed\n  author: Name\n---\n\nContent";
+
+    let result = parse_frontmatter(content);
+    // Should either parse correctly or fail gracefully (not corrupt)
+    if result.is_ok() {
+        let parsed = result.unwrap();
+        assert!(parsed.frontmatter.contains_key("title"));
+    }
+}
+
+#[test]
+fn test_frontmatter_missing_closing_delimiter() {
+    // Missing closing ---
+    let content = r#"---
 title: Test
-  invalid_indent: This shouldn't be here
-"#;
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_err());
-    }
+description: Missing closer
 
-    #[test]
-    fn test_parse_yaml_type_mismatch() {
-        // When schema expects number but gets string
-        let yaml = r#"
-count: "not a number"
-"#;
-        let schema = /* schema expecting count: number */;
-        let result = validate_against_schema(yaml, schema);
-        assert!(result.is_err());
-    }
+Content starts here"#;
 
-    #[test]
-    fn test_parse_yaml_reserved_keywords() {
-        let yaml = r#"
-yes: true
-no: false
-on: true
-off: false
-"#;
-        // YAML 1.1 vs 1.2 difference - should handle correctly
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_ok());
-    }
+    let result = parse_frontmatter(content);
+    assert!(result.is_err(), "Should reject missing closing delimiter");
+}
 
-    #[test]
-    fn test_parse_yaml_special_characters() {
-        let yaml = r#"
-title: "Title with emoji 🚀"
-description: "Has: colons, and, commas"
-code: "function() { return 'test'; }"
-"#;
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_ok());
-    }
+#[test]
+fn test_frontmatter_with_only_comments() {
+    // Edge case: frontmatter block with only comments
+    let content = r#"---
+# This is just a comment
+# Another comment
+---
 
-    #[test]
-    fn test_parse_yaml_unicode() {
-        let yaml = r#"
-title: "こんにちは世界"
-author: "Владимир"
-content: "مرحبا بك"
-"#;
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_ok());
-    }
+Content"#;
 
-    #[test]
-    fn test_parse_yaml_empty() {
-        let yaml = "";
-        let result = parse_yaml_to_json(yaml);
-        // Should return empty object, not error
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_parse_yaml_only_whitespace() {
-        let yaml = "   \n\n   \t  \n";
-        let result = parse_yaml_to_json(yaml);
-        assert!(result.is_ok());
-    }
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+    assert!(result.unwrap().frontmatter.is_empty());
 }
 ```
 
-**File Operation Negative Tests**:
+### 3. Line Ending Edge Cases (3 tests)
 
-```rust
-#[tokio::test]
-async fn test_read_nonexistent_file() {
-    let fs = InMemoryFileSystem::new();
-    let result = fs.read_to_string(Path::new("/fake/path.md")).await;
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::NotFound);
-}
-
-#[tokio::test]
-async fn test_write_to_invalid_path() {
-    let fs = InMemoryFileSystem::new();
-    // Path with null bytes (invalid on most systems)
-    let result = fs.write(Path::new("/path\0/file.md"), "content").await;
-    assert!(result.is_err());
-}
-
-#[tokio::test]
-async fn test_read_file_permission_denied() {
-    // Mock permission error
-    let fs = InMemoryFileSystem::new();
-    // TODO: Need to add permission simulation to InMemoryFileSystem
-}
-```
-
-### 4. Edge Case Tests
-
-**Boundary Conditions**:
+**Why**: Windows uses CRLF, Mac uses LF. Must handle both.
 
 ```rust
 #[test]
-fn test_parse_yaml_max_nesting_depth() {
-    // Generate deeply nested YAML (100+ levels)
-    let mut yaml = String::from("root:\n");
-    for i in 0..100 {
-        yaml.push_str(&format!("{}level{}:\n", "  ".repeat(i + 1), i));
-    }
-    yaml.push_str(&format!("{}value: deep", "  ".repeat(101)));
+fn test_frontmatter_with_crlf_line_endings() {
+    // Windows line endings
+    let content = "---\r\ntitle: Test\r\ndescription: Windows\r\n---\r\n\r\nContent";
 
-    let result = parse_yaml_to_json(&yaml);
-    // Should either handle gracefully or fail with clear error
-    assert!(result.is_ok() || result.unwrap_err().contains("depth"));
+    let result = parse_frontmatter(content);
+    assert!(result.is_ok());
+    let parsed = result.unwrap();
+    assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
 }
 
 #[test]
-fn test_parse_yaml_large_array() {
-    // Array with 10,000 items
-    let items: Vec<String> = (0..10000).map(|i| format!("item{}", i)).collect();
-    let yaml = format!("items:\n  - {}", items.join("\n  - "));
+fn test_frontmatter_with_mixed_line_endings() {
+    // Mixed CRLF and LF (can happen with git autocrlf)
+    let content = "---\r\ntitle: Test\ndescription: Mixed\r\n---\n\nContent";
 
-    let result = parse_yaml_to_json(&yaml);
+    let result = parse_frontmatter(content);
     assert!(result.is_ok());
 }
 
 #[test]
-fn test_parse_yaml_long_string_value() {
-    // 1MB string value
-    let long_string = "a".repeat(1024 * 1024);
-    let yaml = format!("content: \"{}\"", long_string);
+fn test_serialize_preserves_unix_line_endings() {
+    // Our output should always be LF, not CRLF
+    let mut frontmatter = IndexMap::new();
+    frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
 
-    let result = parse_yaml_to_json(&yaml);
-    assert!(result.is_ok());
+    let result = rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+
+    assert!(!result.contains("\r\n"), "Should use LF, not CRLF");
+    assert!(result.contains("\n"), "Should have LF line endings");
 }
 ```
 
-**YAML Spec Edge Cases** (for task #2 validation after serde_yaml migration):
+### 4. Empty/Minimal Input (2 tests)
+
+**Why**: Edge cases in minimal valid input can expose parser bugs.
 
 ```rust
 #[test]
-fn test_parse_yaml_anchors_and_aliases() {
-    let yaml = r#"
-defaults: &defaults
-  timeout: 30
-  retries: 3
+fn test_frontmatter_with_empty_string_values() {
+    // Empty strings should be preserved, not treated as null
+    let content = r#"---
+title: ""
+description: ""
+author: "Actual Value"
+---
 
-production:
-  <<: *defaults
-  host: prod.example.com
-"#;
-    let result = parse_yaml_to_json(yaml);
+Content"#;
+
+    let result = parse_frontmatter(content);
     assert!(result.is_ok());
-    // Verify anchors are properly expanded
+    let parsed = result.unwrap();
+    assert_eq!(parsed.frontmatter.get("title").unwrap(), "");
+    assert_eq!(parsed.frontmatter.get("description").unwrap(), "");
 }
 
 #[test]
-fn test_parse_yaml_multiline_strings() {
-    let yaml = r#"
-literal: |
-  Line 1
-  Line 2
-  Line 3
-folded: >
-  This is a long
-  line that will
-  be folded
-"#;
-    let result = parse_yaml_to_json(yaml);
-    assert!(result.is_ok());
-}
+fn test_single_character_content_after_frontmatter() {
+    // Edge case: minimal content
+    let content = r#"---
+title: Test
+---
 
-#[test]
-fn test_parse_yaml_explicit_types() {
-    let yaml = r#"
-string: !!str 123
-int: !!int "456"
-"#;
-    let result = parse_yaml_to_json(yaml);
+X"#;
+
+    let result = parse_frontmatter(content);
     assert!(result.is_ok());
+    let parsed = result.unwrap();
+    assert_eq!(parsed.content, "X");
 }
 ```
 
-### 5. Test Organization
+## Implementation Plan
 
-**New test structure**:
-```
-src-tauri/
-├── src/
-│   ├── fs/
-│   │   ├── mod.rs          # FileSystem trait
-│   │   ├── real.rs         # RealFileSystem impl
-│   │   └── memory.rs       # InMemoryFileSystem impl
-│   ├── commands/
-│   │   ├── files.rs
-│   │   └── files_test.rs   # Tests using InMemoryFileSystem
-│   └── lib.rs
-└── tests/
-    ├── integration/        # Integration tests
-    ├── negative/           # Negative test cases
-    └── edge_cases/         # Boundary and edge case tests
-```
+### Step 1: Add Unicode Tests (1 hour)
+- Add 6 unicode edge case tests to `src-tauri/src/commands/files.rs` test module
+- Run tests, fix any failures
+- Verify roundtrip serialization preserves unicode correctly
+
+### Step 2: Add Malformed YAML Tests (1 hour)
+- Add 4 malformed YAML tests
+- Ensure parser fails gracefully (returns Err, doesn't panic or corrupt)
+- Document expected error behavior
+
+### Step 3: Add Line Ending Tests (30 minutes)
+- Add 3 line ending tests
+- Verify CRLF input is handled correctly
+- Ensure serialization always outputs LF
+
+### Step 4: Add Empty/Minimal Input Tests (30 minutes)
+- Add 2 minimal input tests
+- Verify edge cases in boundary conditions
+
+### Step 5: Verify All Tests Pass (30 minutes)
+- Run full test suite: `cargo test --lib`
+- Fix any failures
+- Ensure tests still run fast (<1 second)
 
 ## Success Criteria
 
-- [ ] `FileSystem` trait defined and documented
-- [ ] `InMemoryFileSystem` implementation complete
-- [ ] All file commands refactored to use trait
-- [ ] All tests run without touching real filesystem
-- [ ] 20+ negative test cases added (malformed input, errors, etc.)
-- [ ] 10+ edge case tests added (boundaries, special chars, etc.)
-- [ ] Tests run 5-10x faster than before (no I/O)
-- [ ] Test coverage for backend > 85%
-- [ ] All tests pass reliably without flakiness
-- [ ] CI runs Rust tests on every commit
-
-## Testing Strategy
-
-**Unit Tests**: Fast, isolated, use `InMemoryFileSystem`
-```bash
-cargo test --lib
-```
-
-**Integration Tests**: Test actual Tauri commands with mocked filesystem
-```bash
-cargo test --test integration
-```
-
-**Run all tests**:
-```bash
-cargo test
-```
-
-**With coverage**:
-```bash
-cargo tarpaulin --out Html
-```
-
-## Impact on Task #2 (YAML Parser Migration)
-
-These tests directly support the YAML parser replacement:
-
-1. **Before migration**: Negative tests will likely fail with custom parser → documents current limitations
-2. **During migration**: Tests serve as regression suite to ensure serde_yaml handles all cases
-3. **After migration**: Tests validate edge cases are properly handled
-
-The edge case tests (anchors, multiline, explicit types) specifically validate that serde_yaml solves the problems identified in task #2.
+- [ ] 15 new tests added covering unicode, malformed YAML, line endings, and empty input
+- [ ] All 127+ tests pass (112 existing + 15 new)
+- [ ] Tests still run in <1 second
+- [ ] No test failures on Mac (primary dev platform)
+- [ ] Documentation updated if new edge cases discovered
 
 ## Out of Scope
 
-- Frontend/Rust integration tests (covered by task #3)
-- Performance benchmarking (separate task if needed)
-- Fuzzing (would be nice but not critical for 1.0.0)
-- Multi-threaded concurrency tests
+These are NOT high-value for a 1.0.0 editor:
+- ❌ Filesystem abstraction (tests already run in 0.04s)
+- ❌ In-memory filesystem (unnecessary complexity)
+- ❌ Extreme edge cases (100-level nesting, 10k arrays, 1MB strings)
+- ❌ Concurrent access tests (OS-dependent, flaky)
+- ❌ Permission error tests (OS-dependent, hard to mock reliably)
+- ❌ Fuzzing (nice but significant effort, not critical)
+
+## Why This Approach?
+
+**Pragmatic over Perfect**: Focus on tests that will catch real bugs users will encounter, not theoretical edge cases. The current test suite is already strong (112 tests, 0.04s). We're adding targeted coverage for high-probability scenarios.
+
+**Data Integrity First**: These tests primarily prevent data corruption - the worst outcome for a text editor. If we fail to parse something, that's okay. If we corrupt user data, that's unacceptable.
+
+**Real-World Focus**: These tests cover things users actually do (paste emoji, type in multiple languages, edit on Windows and Mac).
+
+## Estimated Effort
+
+- Unicode tests: **1 hour**
+- Malformed YAML tests: **1 hour**
+- Line ending tests: **30 minutes**
+- Empty/minimal tests: **30 minutes**
+- Verification and fixes: **30 minutes**
+- **Total: ~3.5 hours**
+
+**ROI**: High - prevents data corruption and improves robustness with minimal effort.
 
 ## References
 
-- Rust Test Suite Review: `docs/reviews/rust-test-suite-review-2025-10-24.md`
-- Meta-analysis: `docs/reviews/analyysis-of-reviews.md` (Week 2, item #5)
-- Current tests: `src-tauri/src/commands/files.rs` (inline tests)
-- Task #2: `task-2-replace-custom-yaml-parser.md` (these tests validate that migration)
-
-## Dependencies
-
-**Blocks**: None
-**Blocked by**: None (but complements task #2)
-**Related**:
-- Task #2 (YAML parser) - these tests validate the migration
-- Task #3 (integration tests) - complementary frontend testing
-
-## Recommendation
-
-**Do this in Week 2 if time permits, ideally before or alongside task #2**. The negative tests will expose limitations of the current custom YAML parser, which strengthens the case for migration. After migration to serde_yaml, the tests validate edge cases are handled correctly.
-
-**Estimated effort**:
-- FileSystem abstraction: 2 hours
-- InMemoryFileSystem implementation: 2 hours
-- Refactor commands to use trait: 1 hour
-- Negative test cases (20+): 2 hours
-- Edge case tests (10+): 2 hours
-- Documentation and cleanup: 1 hour
-- **Total: 1 full day**
-
-**ROI**: High - faster tests, better coverage, supports critical YAML migration
+- Current test suite: `src-tauri/src/commands/files.rs` (lines 912-2202)
+- YAML parser: Uses `serde_norway` (task #2 completed)
+- Test results: 112 tests passing in 0.04s (fast, not slow as originally assumed)
