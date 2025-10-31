@@ -67,7 +67,6 @@ interface FileItemProps {
   onContextMenu: (event: React.MouseEvent, file: FileEntry) => void
   onRenameSubmit: (file: FileEntry, newName: string) => Promise<void>
   isRenaming: boolean
-  onStartRename: (file: FileEntry) => void
   onCancelRename: () => void
 }
 
@@ -147,15 +146,8 @@ export const FileItem: React.FC<FileItemProps> = ({
       onContextMenu={e => void onContextMenu(e, file)}
       className={cn(
         'w-full text-left p-3 rounded-md transition-colors',
-        // Background: mutually exclusive
-        isSelected && 'bg-primary/15',
-        !isSelected && isFileDraft && 'bg-[var(--color-warning-bg)]',
-        // Hover: mutually exclusive
-        isSelected && 'hover:bg-primary/20',
-        !isSelected &&
-          isFileDraft &&
-          'hover:brightness-95 dark:hover:brightness-110',
-        !isSelected && !isFileDraft && 'hover:bg-accent'
+        isSelected && 'bg-primary/15 hover:bg-primary/20',
+        !isSelected && 'hover:bg-accent'
       )}
     >
       <div className="flex items-start justify-between w-full gap-2">

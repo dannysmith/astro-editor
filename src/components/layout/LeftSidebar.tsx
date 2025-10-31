@@ -462,7 +462,6 @@ export const LeftSidebar: React.FC = () => {
                       onContextMenu={(e, f) => void handleContextMenu(e, f)}
                       onRenameSubmit={handleRenameSubmit}
                       isRenaming={renamingFileId === file.id}
-                      onStartRename={handleRename}
                       onCancelRename={handleRenameCancel}
                     />
                   )
