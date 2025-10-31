@@ -273,7 +273,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
         imports: mockImports,
         frontmatter: { title: 'Original Title' },
         editorContent: '# Content',
-        isDirty: true, // Mark as dirty so saveFile actually saves
+        isDirty: false,
         lastSaveTimestamp: Date.now(),
         autoSaveTimeoutId: null,
       })
@@ -284,8 +284,16 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
       const store = useEditorStore.getState()
 
-      // Don't call updateFrontmatterField since it schedules auto-save
-      // Just directly call saveFile
+      // Update frontmatter - this is the operation that previously caused imports to be lost
+      store.updateFrontmatterField('title', 'New Title')
+
+      // Clear any scheduled auto-save and save manually for deterministic timing
+      const state = useEditorStore.getState()
+      if (state.autoSaveTimeoutId) {
+        clearTimeout(state.autoSaveTimeoutId)
+        useEditorStore.setState({ autoSaveTimeoutId: null })
+      }
+
       await store.saveFile(false)
 
       // Verify: imports parameter was passed to save_markdown_content
