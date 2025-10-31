@@ -204,12 +204,11 @@ interface EditorState {
 
   // Status state
   isDirty: boolean // True if changes need to be saved
-  recentlySavedFile: string | null // Track recently saved file to ignore file watcher
   autoSaveTimeoutId: number | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
 
   // Actions
-  openFile: (file: FileEntry) => Promise<void>
+  openFile: (file: FileEntry) => void
   closeCurrentFile: () => void
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
@@ -227,56 +226,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   rawFrontmatter: '',
   imports: '',
   isDirty: false,
-  recentlySavedFile: null,
   autoSaveTimeoutId: null,
   lastSaveTimestamp: null,
 
   // Actions
-  openFile: async (file: FileEntry) => {
-    // Get project path using direct store access pattern (architecture guide: performance patterns)
-    const { projectPath } = useProjectStore.getState()
+  openFile: (file: FileEntry) => {
+    set({
+      currentFile: file,
+      isDirty: false,
+    })
 
-    if (!projectPath) {
-      throw new Error('No project path available')
-    }
-
-    try {
-      const markdownContent = await invoke<MarkdownContent>(
-        'parse_markdown_content',
-        {
-          filePath: file.path,
-          projectRoot: projectPath,
-        }
-      )
-
-      set({
-        currentFile: file,
-        editorContent: markdownContent.content,
-        frontmatter: markdownContent.frontmatter,
-        rawFrontmatter: markdownContent.raw_frontmatter,
-        imports: markdownContent.imports,
-        isDirty: false,
+    // Update the selected collection to match the opened file's collection
+    // Use custom event to communicate with project store (Bridge Pattern)
+    window.dispatchEvent(
+      new CustomEvent('file-opened', {
+        detail: { collectionName: file.collection },
       })
+    )
 
-      // Update the selected collection to match the opened file's collection
-      // Use custom event to communicate with project store (Bridge Pattern)
-      window.dispatchEvent(
-        new CustomEvent('file-opened', {
-          detail: { collectionName: file.collection },
-        })
-      )
-    } catch (error) {
-      toast.error('Failed to open file', {
-        description: `Could not open ${file.name}: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-      })
-      await logError(`Failed to open file ${file.path}: ${String(error)}`)
-
-      // Save crash report for critical file parsing failures
-      await saveCrashReport(error as Error, {
-        currentFile: file.path,
-        action: 'open_file',
-      })
-    }
+    // Content will be loaded by useFileContentQuery hook
   },
 
   closeCurrentFile: () => {
@@ -357,9 +325,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }
       }
 
-      // Track this file as recently saved to ignore file watcher events
-      set({ recentlySavedFile: currentFile.path })
-
       await invoke('save_markdown_content', {
         filePath: currentFile.path,
         frontmatter,
@@ -378,28 +343,30 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       set({ isDirty: false, lastSaveTimestamp: Date.now() })
 
-      // Invalidate queries to update UI with new frontmatter
-      // This invalidates all directory scans for this collection (root + all subdirectories)
-      if (projectPath && currentFile.collection) {
+      // Invalidate queries to update UI
+      if (projectPath) {
+        // Invalidate file content query to refresh cached content
         void queryClient.invalidateQueries({
-          queryKey: [
-            ...queryKeys.all,
-            projectPath,
-            currentFile.collection,
-            'directory',
-          ],
+          queryKey: queryKeys.fileContent(projectPath, currentFile.path),
         })
+
+        // Invalidate directory scans for this collection (root + all subdirectories)
+        if (currentFile.collection) {
+          void queryClient.invalidateQueries({
+            queryKey: [
+              ...queryKeys.all,
+              projectPath,
+              currentFile.collection,
+              'directory',
+            ],
+          })
+        }
       }
 
       // Show success toast only if requested
       if (showToast) {
         toast.success('File saved successfully')
       }
-
-      // Clear the recently saved file after a delay
-      setTimeout(() => {
-        set({ recentlySavedFile: null })
-      }, 1000)
     } catch (error) {
       toast.error('Save failed', {
         description: `Could not save file: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Recovery data has been saved.`,
@@ -423,8 +390,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         action: 'save',
       })
 
-      // Keep the file marked as dirty since save failed, maintain user changes flag
-      set({ isDirty: true, recentlySavedFile: null })
+      // Keep the file marked as dirty since save failed
+      set({ isDirty: true })
     }
   },
 

@@ -451,10 +451,10 @@ function generateSearchCommands(
             description: `${collection.name}/${file.name}.${file.extension}`,
             icon: FileText,
             group: 'search',
-            execute: async () => {
+            execute: () => {
               // Open the file using the editor store
               const { openFile } = useEditorStore.getState()
-              await openFile(file)
+              openFile(file)
             },
             isAvailable: () => true,
           })

@@ -210,7 +210,7 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleFileClick = (file: FileEntry) => {
-    void openFile(file)
+    openFile(file)
   }
 
   const handleContextMenu = async (

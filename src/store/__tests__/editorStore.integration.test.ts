@@ -27,7 +27,6 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       rawFrontmatter: '',
       imports: '',
       isDirty: false,
-      recentlySavedFile: null,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
     })

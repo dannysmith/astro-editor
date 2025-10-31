@@ -26,6 +26,7 @@ declare global {
 const EditorViewComponent: React.FC = () => {
   const currentFileId = useEditorStore(state => state.currentFile?.id)
   const currentFilePath = useEditorStore(state => state.currentFile?.path)
+  const editorContent = useEditorStore(state => state.editorContent)
   const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
@@ -226,13 +227,11 @@ const EditorViewComponent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load content when file changes (not on every content update)
+  // Load content when file changes OR when content changes externally
   useEffect(() => {
     if (!viewRef.current || !currentFileId) return
 
-    // Get content directly from store when file changes
-    const { editorContent } = useEditorStore.getState()
-
+    // Check if view needs updating
     if (viewRef.current.state.doc.toString() !== editorContent) {
       // Mark this as a programmatic update to prevent triggering the update listener
       isProgrammaticUpdate.current = true
@@ -250,7 +249,7 @@ const EditorViewComponent: React.FC = () => {
         isProgrammaticUpdate.current = false
       }, 0)
     }
-  }, [currentFileId]) // Only trigger when file changes, not on content changes
+  }, [currentFileId, editorContent]) // Both dependencies
 
   // Cleanup on unmount
   useEffect(() => {

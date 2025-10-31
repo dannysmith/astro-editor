@@ -22,7 +22,6 @@ describe('Store ↔ Query Integration Tests', () => {
       rawFrontmatter: '',
       imports: '',
       isDirty: false,
-      recentlySavedFile: null,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
     })
@@ -94,7 +93,7 @@ describe('Store ↔ Query Integration Tests', () => {
       expect(updatedStore.isDirty).toBe(true)
     })
 
-    it('should reset dirty state when opening new file', async () => {
+    it('should reset dirty state when opening new file', () => {
       // Setup: Current file is dirty
       useEditorStore.setState({
         currentFile: mockFileEntry,
@@ -105,14 +104,6 @@ describe('Store ↔ Query Integration Tests', () => {
       const store = useEditorStore.getState()
       expect(store.isDirty).toBe(true)
 
-      // Mock parse_markdown_content for new file
-      globalThis.mockTauri.invoke.mockResolvedValue({
-        frontmatter: {},
-        content: 'new file content',
-        rawFrontmatter: '',
-        imports: '',
-      })
-
       // Open different file
       const newFile: FileEntry = {
         ...mockFileEntry,
@@ -121,36 +112,24 @@ describe('Store ↔ Query Integration Tests', () => {
         path: '/test/content/blog/new.md',
       }
 
-      await store.openFile(newFile)
+      store.openFile(newFile)
 
-      // Verify: Dirty state was reset
+      // Verify: Dirty state was reset and file identifier updated
       const updatedStore = useEditorStore.getState()
       expect(updatedStore.isDirty).toBe(false)
+      expect(updatedStore.currentFile).toEqual(newFile)
     })
   })
 
   describe('File Switching', () => {
-    it('should load new file content correctly', async () => {
-      const newContent = 'loaded file content'
-      const newFrontmatter = { title: 'Loaded Title', date: '2025-01-01' }
-
-      // Mock parse_markdown_content
-      globalThis.mockTauri.invoke.mockResolvedValue({
-        frontmatter: newFrontmatter,
-        content: newContent,
-        rawFrontmatter: '---\ntitle: Loaded Title\ndate: 2025-01-01\n---',
-        imports: '',
-      })
-
+    it('should update file identifier when opening file', () => {
       const store = useEditorStore.getState()
 
-      // Open file
-      await store.openFile(mockFileEntry)
+      // Open file (content loading is now handled by useFileContentQuery)
+      store.openFile(mockFileEntry)
 
-      // Verify: Content and frontmatter loaded
+      // Verify: File identifier updated and clean state set
       const updatedStore = useEditorStore.getState()
-      expect(updatedStore.editorContent).toBe(newContent)
-      expect(updatedStore.frontmatter).toEqual(newFrontmatter)
       expect(updatedStore.currentFile).toEqual(mockFileEntry)
       expect(updatedStore.isDirty).toBe(false)
     })
