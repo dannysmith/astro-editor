@@ -2199,4 +2199,256 @@ This is the main content."#;
         // Cleanup
         let _ = fs::remove_dir_all(&project_root);
     }
+
+    // ============================================================================
+    // Unicode Edge Case Tests
+    // ============================================================================
+
+    #[test]
+    fn test_frontmatter_with_emoji_in_values() {
+        // Real-world: users type emoji in titles and descriptions
+        let content = r#"---
+title: "New Feature 🚀 Released!"
+description: "Super cool ✨ stuff"
+tags: ["🎉", "announcement"]
+---
+
+Content here"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(
+            parsed.frontmatter.get("title").unwrap(),
+            "New Feature 🚀 Released!"
+        );
+        assert_eq!(
+            parsed.frontmatter.get("description").unwrap(),
+            "Super cool ✨ stuff"
+        );
+    }
+
+    #[test]
+    fn test_frontmatter_with_rtl_text() {
+        // Right-to-left languages (Arabic, Hebrew)
+        let content = r#"---
+title: "مرحبا بك في العالم"
+author: "محمد"
+titleHebrew: "שלום עולם"
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(
+            parsed.frontmatter.get("title").unwrap(),
+            "مرحبا بك في العالم"
+        );
+        assert_eq!(parsed.frontmatter.get("author").unwrap(), "محمد");
+        assert_eq!(parsed.frontmatter.get("titleHebrew").unwrap(), "שלום עולם");
+    }
+
+    #[test]
+    fn test_frontmatter_with_mixed_scripts() {
+        // CJK + Latin + Cyrillic
+        let content = r#"---
+title: "Hello 世界 Мир"
+author: "名前-Name-Имя"
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Hello 世界 Мир");
+        assert_eq!(parsed.frontmatter.get("author").unwrap(), "名前-Name-Имя");
+    }
+
+    #[test]
+    fn test_frontmatter_with_combining_characters() {
+        // Combining diacritics (common in some languages)
+        let content = r#"---
+title: "café"
+author: "José"
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "café");
+        assert_eq!(parsed.frontmatter.get("author").unwrap(), "José");
+    }
+
+    #[test]
+    fn test_frontmatter_with_zero_width_characters() {
+        // Zero-width characters (can break parsing if not handled)
+        let content = "---\ntitle: \"test\u{200B}word\"\n---\n\nContent"; // zero-width space
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "test\u{200B}word");
+    }
+
+    #[test]
+    fn test_serialize_unicode_roundtrip() {
+        // CRITICAL: Ensure unicode survives parse → serialize → parse
+        let mut frontmatter = IndexMap::new();
+        frontmatter.insert(
+            "title".to_string(),
+            Value::String("🚀 Test 世界".to_string()),
+        );
+        frontmatter.insert("emoji".to_string(), Value::String("✨🎉🔥".to_string()));
+
+        let serialized =
+            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+        let reparsed = parse_frontmatter(&serialized).unwrap();
+
+        assert_eq!(reparsed.frontmatter.get("title").unwrap(), "🚀 Test 世界");
+        assert_eq!(reparsed.frontmatter.get("emoji").unwrap(), "✨🎉🔥");
+    }
+
+    // ============================================================================
+    // Malformed YAML Tests
+    // ============================================================================
+
+    #[test]
+    fn test_frontmatter_unclosed_quote() {
+        // Common typo: forget closing quote
+        let content = r#"---
+title: "Unclosed quote
+description: "Valid"
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_err(), "Should reject unclosed quote");
+    }
+
+    #[test]
+    fn test_frontmatter_mixed_indentation() {
+        // Common issue: mixing tabs and spaces
+        let content = "---\ntitle: Test\n\tdescription: Mixed\n  author: Name\n---\n\nContent";
+
+        let result = parse_frontmatter(content);
+        // Should either parse correctly or fail gracefully (not corrupt)
+        if result.is_ok() {
+            let parsed = result.unwrap();
+            assert!(parsed.frontmatter.contains_key("title"));
+        }
+    }
+
+    #[test]
+    fn test_frontmatter_missing_closing_delimiter() {
+        // Missing closing ---
+        let content = r#"---
+title: Test
+description: Missing closer
+
+Content starts here"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_err(), "Should reject missing closing delimiter");
+    }
+
+    #[test]
+    fn test_frontmatter_with_only_comments() {
+        // Edge case: frontmatter block with only comments
+        let content = r#"---
+# This is just a comment
+# Another comment
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        assert!(result.unwrap().frontmatter.is_empty());
+    }
+
+    // ============================================================================
+    // Line Ending Edge Case Tests
+    // ============================================================================
+
+    #[test]
+    fn test_frontmatter_with_crlf_line_endings() {
+        // Windows line endings
+        let content = "---\r\ntitle: Test\r\ndescription: Windows\r\n---\r\n\r\nContent";
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
+        assert_eq!(parsed.frontmatter.get("description").unwrap(), "Windows");
+    }
+
+    #[test]
+    fn test_frontmatter_with_mixed_line_endings() {
+        // Mixed CRLF and LF (can happen with git autocrlf)
+        let content = "---\r\ntitle: Test\ndescription: Mixed\r\n---\n\nContent";
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
+        assert_eq!(parsed.frontmatter.get("description").unwrap(), "Mixed");
+    }
+
+    #[test]
+    fn test_serialize_preserves_unix_line_endings() {
+        // Our output should always be LF, not CRLF
+        let mut frontmatter = IndexMap::new();
+        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
+
+        let result =
+            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+
+        assert!(!result.contains("\r\n"), "Should use LF, not CRLF");
+        assert!(result.contains('\n'), "Should have LF line endings");
+    }
+
+    // ============================================================================
+    // Empty/Minimal Input Tests
+    // ============================================================================
+
+    #[test]
+    fn test_frontmatter_with_empty_string_values() {
+        // Empty strings should be preserved, not treated as null
+        let content = r#"---
+title: ""
+description: ""
+author: "Actual Value"
+---
+
+Content"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "");
+        assert_eq!(parsed.frontmatter.get("description").unwrap(), "");
+        assert_eq!(parsed.frontmatter.get("author").unwrap(), "Actual Value");
+    }
+
+    #[test]
+    fn test_single_character_content_after_frontmatter() {
+        // Edge case: minimal content
+        let content = r#"---
+title: Test
+---
+
+X"#;
+
+        let result = parse_frontmatter(content);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.content, "X");
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
+    }
 }

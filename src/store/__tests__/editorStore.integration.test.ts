@@ -246,7 +246,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       vi.useRealTimers()
 
       // Mock the schema field order event that saveFile waits for
-      window.addEventListener('get-schema-field-order', (event) => {
+      window.addEventListener('get-schema-field-order', _event => {
         // Immediately respond with an empty field order
         window.dispatchEvent(
           new CustomEvent('schema-field-order-response', {
