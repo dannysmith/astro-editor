@@ -19,9 +19,16 @@ Extract file button into a `FileItem` component and use CSS brightness filters f
 - ✅ Testable in isolation
 
 **Performance Considerations**:
-- FileItem will subscribe to `currentFile` from `useEditorStore` - same as current implicit behavior
+- FileItem is a **pure presentational component** - NO store subscriptions
+- Parent subscribes ONCE and passes `isSelected` and `frontmatterMappings` as props
+- Avoids N subscriptions (one per file) which would be a performance regression
 - Rename state moves to component's local `useState` - properly scoped, no global re-renders
 - CSS-only hover (brightness filter) - no JS state needed
+
+**Future Optimization** (if performance testing reveals issues):
+- Handlers passed to FileItem could be wrapped in `useCallback` with `getState()` pattern
+- FileItem could be wrapped in `React.memo` to prevent unnecessary re-renders
+- Current implementation maintains existing behavior (no regression)
 
 ## Implementation Plan
 
@@ -33,6 +40,8 @@ Extract file button into a `FileItem` component and use CSS brightness filters f
 ```typescript
 interface FileItemProps {
   file: FileEntry
+  isSelected: boolean  // Computed by parent
+  frontmatterMappings: FrontmatterMappings  // From parent's useEffectiveSettings
   onFileClick: (file: FileEntry) => void
   onContextMenu: (event: React.MouseEvent, file: FileEntry) => void
   onRenameSubmit: (file: FileEntry, newName: string) => Promise<void>
@@ -44,11 +53,10 @@ interface FileItemProps {
 
 **Internal State**:
 - `renameValue` (local useState) - the edited filename
-- Derived: `isSelected`, `isFileDraft`, `isMdx`, `title`, `publishedDate`
+- `renameInitializedRef` (local useRef) - tracks if focus/select logic has run
+- Derived: `isFileDraft`, `isMdx`, `title`, `publishedDate`
 
-**Store/Hook Access**:
-- `useEditorStore()` - get `currentFile` to determine selection
-- `useEffectiveSettings()` - get `frontmatterMappings` for title/draft/date fields
+**NO Store Subscriptions**: FileItem is purely presentational
 
 ### 2. Update LeftSidebar
 
@@ -58,7 +66,9 @@ interface FileItemProps {
 - `handleRenameSubmit` (calls mutation, clears renamingFileId)
 - `handleRenameCancel` (clears renamingFileId)
 
-**Pass to FileItem**:
+**Compute in parent and pass to FileItem**:
+- `isSelected={currentFile?.id === file.id}`
+- `frontmatterMappings` from `useEffectiveSettings(selectedCollection)`
 - `isRenaming={renamingFileId === file.id}`
 - Callback handlers
 
@@ -73,18 +83,25 @@ className={cn(
 )}
 ```
 
-**With**:
+**With (mutually exclusive conditions)**:
 ```tsx
 className={cn(
   'w-full text-left p-3 rounded-md transition-colors',
-  !isFileDraft && 'hover:bg-accent',  // Only for non-drafts
-  isFileDraft && 'bg-[var(--color-warning-bg)] hover:brightness-95 dark:hover:brightness-110',  // Works with any bg
-  isSelected && 'bg-primary/15 hover:bg-primary/20'
+  // Background: mutually exclusive
+  isSelected && 'bg-primary/15',
+  !isSelected && isFileDraft && 'bg-[var(--color-warning-bg)]',
+  // Hover: mutually exclusive
+  isSelected && 'hover:bg-primary/20',
+  !isSelected && isFileDraft && 'hover:brightness-95 dark:hover:brightness-110',
+  !isSelected && !isFileDraft && 'hover:bg-accent',
 )}
 ```
 
 **Why this works**:
-- No class conflicts - `hover:bg-accent` only applies to non-drafts
+- **Mutually exclusive conditions** prevent filter/color conflicts
+- Selected items: Always get primary colors (no brightness filter interference)
+- Draft items: Get warning background + brightness filter hover
+- Normal items: Get standard accent hover
 - `brightness-95` darkens in light mode (95% brightness = 5% darker)
 - `brightness-110` lightens in dark mode (110% brightness = 10% lighter)
 - Works regardless of the CSS variable value - operates on computed color
@@ -92,8 +109,30 @@ className={cn(
 ### 4. Component Structure
 
 ```tsx
+// Helper functions - exported for reuse
+function getTitle(file: FileEntry, titleField: string): string {
+  if (file.frontmatter?.[titleField] && typeof file.frontmatter[titleField] === 'string') {
+    return file.frontmatter[titleField]
+  }
+  const filename = file.name || file.path.split('/').pop() || 'Untitled'
+  return filename.replace(/\.(md|mdx)$/, '')
+}
+
+function formatDate(dateValue: unknown): string {
+  // ... same implementation as current
+}
+
+function getPublishedDate(
+  frontmatter: Record<string, unknown>,
+  publishedDateField: string | string[]
+): Date | null {
+  // ... same implementation as current
+}
+
 export const FileItem: React.FC<FileItemProps> = ({
   file,
+  isSelected,
+  frontmatterMappings,
   onFileClick,
   onContextMenu,
   onRenameSubmit,
@@ -102,32 +141,65 @@ export const FileItem: React.FC<FileItemProps> = ({
   onCancelRename,
 }) => {
   const [renameValue, setRenameValue] = useState('')
-  const { currentFile } = useEditorStore()
-  const { frontmatterMappings } = useEffectiveSettings(/* collection if needed */)
+  const renameInitializedRef = useRef(false)
 
-  // Derived state
-  const isSelected = currentFile?.id === file.id
+  // Derived state (NO store subscriptions)
   const isFileDraft = file.isDraft || file.frontmatter?.[frontmatterMappings.draft] === true
   const isMdx = file.extension === 'mdx'
   const title = getTitle(file, frontmatterMappings.title)
   const publishedDate = getPublishedDate(file.frontmatter || {}, frontmatterMappings.publishedDate)
 
-  // Rename logic
+  // Initialize rename value when entering rename mode
   useEffect(() => {
     if (isRenaming) {
       const fullName = file.extension ? `${file.name}.${file.extension}` : file.name
       setRenameValue(fullName || '')
+      renameInitializedRef.current = false  // Reset for new rename session
     }
   }, [isRenaming, file.name, file.extension])
 
-  // Focus and select logic for rename input
+  // Focus and select filename without extension
+  useEffect(() => {
+    if (isRenaming && !renameInitializedRef.current) {
+      renameInitializedRef.current = true
+      const timeoutId = setTimeout(() => {
+        const input = document.querySelector('input[type="text"]') as HTMLInputElement
+        if (input && renameValue) {
+          input.focus()
+          const lastDotIndex = renameValue.lastIndexOf('.')
+          if (lastDotIndex > 0) {
+            input.setSelectionRange(0, lastDotIndex)
+          } else {
+            input.select()
+          }
+        }
+      }, 10)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isRenaming, renameValue])
+
   // ... rest of component
 }
 ```
 
 ### 5. Helper Functions
 
-Keep `getTitle()` and `formatDate()` in LeftSidebar - they're used by the component but don't need to move.
+Helper functions (`getTitle`, `formatDate`, `getPublishedDate`) are **exported from FileItem.tsx** so they can be:
+- Used by FileItem internally
+- Imported by LeftSidebar if needed for other purposes
+- Tested independently
+
+## Key Gotchas Addressed
+
+1. **Store Subscriptions**: FileItem must NOT subscribe to stores to avoid N subscriptions (one per file). Parent subscribes once and passes props.
+
+2. **Hover Class Conflicts**: Brightness filters and background colors must use mutually exclusive conditions to prevent both applying simultaneously.
+
+3. **Helper Function Access**: Helpers are exported from FileItem.tsx so they're accessible to both FileItem and LeftSidebar.
+
+4. **Rename Focus Logic**: The ref-based focus/select logic moves to FileItem along with rename state to keep it self-contained.
+
+5. **Performance Testing**: Must explicitly test with React DevTools Profiler to ensure no regressions from component extraction.
 
 ## Benefits
 
