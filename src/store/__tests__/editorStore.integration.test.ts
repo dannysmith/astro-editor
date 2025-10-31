@@ -3,6 +3,13 @@ import { useEditorStore, type FileEntry } from '../editorStore'
 import { useProjectStore } from '../projectStore'
 import { resetToastMocks } from '../../test/mocks/toast'
 
+// Mock the query client to prevent hanging on invalidateQueries
+vi.mock('../../lib/query-client', () => ({
+  queryClient: {
+    invalidateQueries: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
 const mockFileEntry: FileEntry = {
   id: 'test-file',
   name: 'test.md',
@@ -230,6 +237,100 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       expect(saveFileSpy).toHaveBeenCalledWith(false)
 
       saveFileSpy.mockRestore()
+    })
+  })
+
+  describe('MDX Imports Preservation', () => {
+    beforeEach(() => {
+      // Use real timers for these tests since we don't care about auto-save timing
+      vi.useRealTimers()
+
+      // Mock the schema field order event that saveFile waits for
+      window.addEventListener('get-schema-field-order', (event) => {
+        // Immediately respond with an empty field order
+        window.dispatchEvent(
+          new CustomEvent('schema-field-order-response', {
+            detail: { fieldOrder: null },
+          })
+        )
+      })
+    })
+
+    afterEach(() => {
+      // Restore fake timers for other tests
+      vi.useFakeTimers()
+
+      // Clean up event listeners
+      window.removeEventListener('get-schema-field-order', () => {})
+    })
+
+    it('should preserve imports when updating frontmatter and saving', async () => {
+      // Setup: File with imports
+      const mockImports = "import { Component } from 'astro:components';"
+
+      useEditorStore.setState({
+        currentFile: mockFileEntry,
+        imports: mockImports,
+        frontmatter: { title: 'Original Title' },
+        editorContent: '# Content',
+        isDirty: true, // Mark as dirty so saveFile actually saves
+        lastSaveTimestamp: Date.now(),
+        autoSaveTimeoutId: null,
+      })
+
+      useProjectStore.setState({
+        projectPath: '/test',
+      })
+
+      const store = useEditorStore.getState()
+
+      // Don't call updateFrontmatterField since it schedules auto-save
+      // Just directly call saveFile
+      await store.saveFile(false)
+
+      // Verify: imports parameter was passed to save_markdown_content
+      expect(globalThis.mockTauri.invoke).toHaveBeenCalledWith(
+        'save_markdown_content',
+        expect.objectContaining({
+          imports: mockImports,
+        })
+      )
+    })
+
+    it('should preserve imports when editing content and saving', async () => {
+      // Setup: File with complex multiline imports
+      const mockImports = `import { Component } from 'astro:components';
+import {
+  Foo,
+  Bar
+} from './utils';`
+
+      useEditorStore.setState({
+        currentFile: mockFileEntry,
+        imports: mockImports,
+        frontmatter: { title: 'Test' },
+        editorContent: 'Updated content',
+        isDirty: true, // Mark as dirty so saveFile actually saves
+        lastSaveTimestamp: Date.now(),
+        autoSaveTimeoutId: null,
+      })
+
+      useProjectStore.setState({
+        projectPath: '/test',
+      })
+
+      const store = useEditorStore.getState()
+
+      // Trigger save directly
+      await store.saveFile(false)
+
+      // Verify: imports were preserved
+      expect(globalThis.mockTauri.invoke).toHaveBeenCalledWith(
+        'save_markdown_content',
+        expect.objectContaining({
+          imports: mockImports,
+        })
+      )
     })
   })
 })

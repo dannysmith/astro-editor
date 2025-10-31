@@ -344,6 +344,41 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     })
 }
 
+/// Detects if a line is the start of a Markdown block (not an import continuation)
+fn is_markdown_block_start(line: &str) -> bool {
+    let trimmed = line.trim();
+
+    // Check for common Markdown block starts
+    trimmed.starts_with('#')       // Headings
+        || trimmed.starts_with('>')    // Blockquotes
+        || trimmed.starts_with('-')    // Lists
+        || trimmed.starts_with('*')    // Lists
+        || trimmed.starts_with('+')    // Lists
+        || trimmed.starts_with("```")  // Code fences
+        || trimmed.starts_with('<')    // HTML tags/JSX
+        || is_numbered_list_start(trimmed) // Numbered lists (1., 2., etc)
+}
+
+/// Checks if a line starts with a numbered list (e.g., "1. ", "42. ")
+fn is_numbered_list_start(line: &str) -> bool {
+    let mut chars = line.chars();
+
+    // Must start with a digit
+    match chars.next() {
+        Some(c) if c.is_numeric() => {}
+        _ => return false,
+    };
+
+    // Consume any additional digits and look for a period
+    loop {
+        match chars.next() {
+            Some(c) if c.is_numeric() => continue,
+            Some('.') => return true, // Found the pattern: digit(s) followed by period
+            _ => return false,
+        }
+    }
+}
+
 fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
     let mut imports = Vec::new();
     let mut content_start_idx = 0;
@@ -365,8 +400,14 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
             // Handle multi-line imports until a trailing semicolon line
             while content_start_idx < lines.len() {
                 let current_line = lines[content_start_idx].trim();
+
                 if current_line.is_empty() {
-                    // Empty line might separate imports from content
+                    // Empty line separates imports from content
+                    break;
+                }
+
+                // Detect common Markdown block starts - these are NOT import continuations
+                if is_markdown_block_start(current_line) {
                     break;
                 }
 
@@ -1374,6 +1415,63 @@ This is a test post with arrays."#;
         assert!(imports.contains("import {"));
         assert!(imports.contains("} from './components';"));
         assert_eq!(content, "# Content starts here");
+    }
+
+    #[test]
+    fn test_extract_imports_without_semicolon_followed_by_markdown() {
+        // Regression test: import without semicolon should NOT absorb markdown content
+        let lines = vec![
+            "import Foo from './foo'", // No semicolon!
+            "# Heading starts here",   // This should be content, not import
+            "",
+            "Paragraph content.",
+        ];
+
+        let (imports, content) = extract_imports_from_content(&lines);
+
+        // The import should be captured (even without semicolon)
+        assert!(
+            imports.contains("import Foo from './foo'"),
+            "Import should be captured"
+        );
+
+        // The heading should NOT be in imports
+        assert!(
+            !imports.contains("# Heading"),
+            "Markdown heading should not be absorbed into imports"
+        );
+
+        // The heading should be in content
+        assert!(
+            content.contains("# Heading starts here"),
+            "Heading should be in content"
+        );
+        assert!(
+            content.contains("Paragraph content."),
+            "Paragraph should be in content"
+        );
+    }
+
+    #[test]
+    fn test_is_markdown_block_start() {
+        // Test various Markdown block starts
+        assert!(is_markdown_block_start("# Heading"));
+        assert!(is_markdown_block_start("## Another heading"));
+        assert!(is_markdown_block_start("> Blockquote"));
+        assert!(is_markdown_block_start("- List item"));
+        assert!(is_markdown_block_start("* Another list"));
+        assert!(is_markdown_block_start("+ Plus list"));
+        assert!(is_markdown_block_start("1. Numbered list"));
+        assert!(is_markdown_block_start("42. Another number"));
+        assert!(is_markdown_block_start("``` code fence"));
+        assert!(is_markdown_block_start("<div>HTML tag</div>"));
+        assert!(is_markdown_block_start("<Component />"));
+
+        // Test things that are NOT markdown block starts
+        assert!(!is_markdown_block_start("  Component1,"));
+        assert!(!is_markdown_block_start("} from './foo'"));
+        assert!(!is_markdown_block_start("Just regular text"));
+        assert!(!is_markdown_block_start(""));
     }
 
     #[test]
