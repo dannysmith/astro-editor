@@ -1,172 +1,325 @@
-# Implement File Change Detection
+# Complete File Content TanStack Query Migration + File Watcher
 
-**Priority**: MEDIUM-HIGH (recommended for 1.0.0)
-**Effort**: ~2-3 hours
-**Type**: Feature Implementation
-**Status**: Not Started
+**Priority**: HIGH (blocks file watcher feature)
+**Effort**: ~4-5 hours
+**Type**: Architecture Completion + Feature Implementation
+**Status**: Ready to implement
 
 ---
 
 ## Executive Summary
 
-### Current State
-The file watcher system is **partially implemented**:
-- ✅ Rust backend watches files and emits events (500ms debounce)
-- ✅ TypeScript bridge re-dispatches events as DOM CustomEvents
-- ❌ **No handler exists** to process file-changed events
-- ❌ **recentlySavedFile tracking is unused** (set but never checked)
+This task completes the **originally planned but never finished** migration of file content loading to TanStack Query (from Task 1), then implements file watcher event handling on top of that architecture.
 
-**Impact**: External file changes (edits in VS Code, file renames, etc.) are only visible after navigating away and back.
+### Discovery
 
-### The Core Principle
-
-**The filesystem is the source of truth.** Astro Editor is just a better interface for editing files on disk. Therefore:
-
-1. Changes made in Astro Editor should be written to disk
-2. Changes on disk (from any source) should be reflected in Astro Editor
-3. User's unsaved work takes priority over external changes
-4. All of this should be performant (no unnecessary re-renders)
-
-### The Simple Solution
-
-**Dirty State Check** - no version tracking, no timestamps, no complexity:
+The architecture guide explicitly documents that file content should use `useFileContentQuery`:
 
 ```typescript
-if (isDirty) {
-  // User is editing - their version is authoritative
-  return // Ignore external changes
-}
-
-// File is saved - safe to reload from disk
-invalidateQuery() // TanStack Query handles the rest
+// From docs/developer/architecture-guide.md
+const { data: content } = useFileContentQuery(projectPath, fileId)
 ```
 
-### Why This Works
+However, the implementation was never completed:
+- ✅ `useFileContentQuery` hook exists (`src/hooks/queries/useFileContentQuery.ts`)
+- ✅ `useSaveFileMutation` hook exists (`src/hooks/mutations/useSaveFileMutation.ts`)
+- ❌ **No component uses either hook** - orphaned from incomplete migration
+- ❌ Editor still uses store's `openFile()` action (direct `invoke`)
+- ❌ Save still uses store's `saveFile()` action (bypasses mutation)
 
-1. **During save**: `isDirty=true` until save completes → external changes ignored
-2. **After save**: `isDirty=false` → external changes picked up
-3. **While typing**: `isDirty=true` → user's work protected
-4. **Performance**: TanStack Query only re-renders if data actually changed
-
-**No race condition possible** - isDirty is true throughout the entire save operation.
-
-### Why Version Tracking is Overkill
-
-The original analysis proposed version tracking, but this adds:
-- 200+ lines of code (Rust state, IPC, version comparison)
-- Extra IPC call before every save
-- Edge cases (overflow, multi-instance, cleanup)
-- Mental complexity for future maintainers
-
-All to solve a problem that:
-- Happens rarely (only on very slow disks)
-- Has minimal impact (one extra refetch)
-- **Is already solved by isDirty state**
+**Impact**: The file watcher solution in the original task draft doesn't work because invalidating `queryKeys.fileContent` has no effect when no active query exists.
 
 ---
 
-## Problem Analysis
+## Current Architecture (Incomplete)
 
-### Missing Functionality
-
-**Currently**: External file changes are not detected until user navigates away and back. This includes:
-- Edits made in VS Code or other editors
-- File renames/moves in Finder
-- Files added/deleted in the project
-- Git operations (checkout, pull, merge)
-
-**Why**: The file-changed event handler doesn't exist. The infrastructure is there but unused.
-
-### Existing Time-Based Tracking is Flawed
-
-The `recentlySavedFile` approach in `src/store/editorStore.ts:360-402` has issues:
+### How File Loading Works Now
 
 ```typescript
-// Set before save starts
-set({ recentlySavedFile: currentFile.path })
-
-await invoke('save_markdown_content', { /* ... */ })
-
-// Clear after fixed 1-second delay
-setTimeout(() => {
-  set({ recentlySavedFile: null })
-}, 1000)  // ⚠️ ASSUMES save completes within 1 second
-```
-
-**Problems**:
-1. **Arbitrary timeout** - no way to know what's "safe"
-2. **Not actually used** - no handler checks this value
-3. **Unnecessary complexity** - we already have `isDirty` state
-
-### Why isDirty is Better
-
-We already track when the file has unsaved changes:
-- `isDirty=true` → user is editing, save in progress, or file modified
-- `isDirty=false` → file is saved and matches disk
-
-This gives us everything we need:
-```typescript
-if (isDirty) {
-  return // User's work is authoritative
+// LeftSidebar.tsx line 213
+const handleFileClick = (file: FileEntry) => {
+  void openFile(file)  // ← Store action
 }
-// Safe to reload from disk
+
+// editorStore.ts line 235-279
+openFile: async (file: FileEntry) => {
+  const markdownContent = await invoke('parse_markdown_content', {...})
+  set({
+    currentFile: file,
+    editorContent: markdownContent.content,
+    frontmatter: markdownContent.frontmatter,
+    // ...
+  })
+}
 ```
 
-**Benefits**:
-- No arbitrary timeouts
-- No assumptions about save duration
-- Already exists and is maintained
-- Simple to understand and debug
+**Store contains**: Identifiers (currentFile) + Content (editorContent, frontmatter)
 
-## Current Implementation
+### How Save Works Now
 
-### What Exists
+```typescript
+// editorStore.ts line 301-428
+saveFile: async (showToast = true) => {
+  await invoke('save_markdown_content', {...})
+  set({ isDirty: false })
 
-**Rust Backend** (`src-tauri/src/commands/watcher.rs`):
-- ✅ Watches content directories with `notify` crate
-- ✅ Debounces events (500ms)
-- ✅ Emits `file-changed` events: `{ path: string, kind: string }`
+  // Manual query invalidation
+  queryClient.invalidateQueries({
+    queryKey: [...queryKeys.all, projectPath, currentFile.collection, 'directory'],
+  })
+}
+```
 
-**TypeScript Bridge** (`src/store/projectStore.ts:166-180`):
-- ✅ Listens to Tauri events
-- ✅ Re-dispatches as DOM CustomEvents
+**Issues**:
+1. Bypasses `useSaveFileMutation` (which already exists!)
+2. Doesn't invalidate `fileContent` query (not needed since query doesn't exist)
+3. Duplicates mutation logic in store
 
-**Editor Store** (`src/store/editorStore.ts`):
-- ✅ Tracks `isDirty` state (true when user has unsaved changes)
-- ⚠️ Has unused `recentlySavedFile` field (set but never checked)
+---
 
-### What's Missing
+## Target Architecture (Documented Pattern)
 
-**No Event Handler**:
-- ❌ No `addEventListener('file-changed', ...)` anywhere
-- ❌ No query invalidation on external changes
-- ❌ No logic to distinguish our saves from external edits
+### Separation of Concerns
 
-**Result**: External changes only visible after navigating away and back.
+**TanStack Query** (server state):
+- File content from disk
+- Automatic caching and refetching
+- Synchronization across components
 
-## Requirements
+**Zustand Store** (client state):
+- File identifier (currentFile)
+- Local editing state (editorContent, frontmatter) - the "working copy"
+- Edit status (isDirty)
 
-**Must Have**:
-- [ ] Detect external file changes and update UI
-- [ ] Protect user's unsaved work (don't reload while editing)
-- [ ] No infinite loops or unnecessary re-renders
-- [ ] Work correctly regardless of disk speed
+### The Controlled Input Pattern
 
-**Should Have**:
-- [ ] Clear logging for debugging
-- [ ] Update sidebar when files added/removed/renamed
+This is the standard pattern for editors with server data:
 
-**Nice to Have**:
-- [ ] User notification when external change detected
-- [ ] Prompt user if external change conflicts with unsaved edits
+```
+┌─────────────────┐
+│  Disk (Source)  │ ← TanStack Query manages
+└────────┬────────┘
+         │ fetch
+         ↓
+┌─────────────────┐
+│ Query Cache     │ ← Immutable, from server
+└────────┬────────┘
+         │ sync when file changes
+         ↓
+┌─────────────────┐
+│ Store (Working) │ ← Local editing state
+│ editorContent   │ ← User types here
+│ frontmatter     │
+└────────┬────────┘
+         │ save (mutation)
+         ↓
+┌─────────────────┐
+│  Disk (Updated) │ ← Mutation updates
+└─────────────────┘
+         │ invalidate
+         ↓ (loop back to Query Cache)
+```
 
-## Solution: Dirty State Check
+**Key Insight**: Store STILL holds `editorContent` and `frontmatter` - they're just synced FROM the query instead of fetched directly.
 
-Use the existing `isDirty` state to determine when to reload from disk.
+---
 
-### Complete Handler Implementation
+## Detailed Implementation Plan
 
-Create `src/hooks/useFileChangeHandler.ts`:
+### Phase 1: Refactor File Opening (~2 hours)
+
+#### 1.1 Simplify Store's `openFile` Action
+
+**Before** (editorStore.ts:235-279):
+```typescript
+openFile: async (file: FileEntry) => {
+  const markdownContent = await invoke('parse_markdown_content', {...})
+  set({
+    currentFile: file,
+    editorContent: markdownContent.content,
+    frontmatter: markdownContent.frontmatter,
+    // ...
+  })
+}
+```
+
+**After**:
+```typescript
+openFile: (file: FileEntry) => {
+  set({
+    currentFile: file,
+    isDirty: false
+  })
+  // Content will be loaded by useFileContentQuery
+}
+```
+
+**Changes**:
+- Remove `invoke` call
+- Remove content/frontmatter setting
+- Keep it synchronous (just an identifier update)
+
+#### 1.2 Create Layout-Level Query Hook
+
+**New file**: `src/hooks/useEditorFileContent.ts`
+
+```typescript
+import { useEffect } from 'react'
+import { useEditorStore } from '../store/editorStore'
+import { useProjectStore } from '../store/projectStore'
+import { useFileContentQuery } from './queries/useFileContentQuery'
+
+/**
+ * Hook that bridges TanStack Query (server state) with Zustand (local editing state)
+ *
+ * Responsibilities:
+ * 1. Fetch file content when currentFile changes
+ * 2. Sync query data to store ONLY when appropriate
+ * 3. Respect isDirty state (don't overwrite user's edits)
+ */
+export function useEditorFileContent() {
+  const { currentFile, isDirty } = useEditorStore()
+  const { projectPath } = useProjectStore()
+
+  // Query fetches content based on current file
+  const { data, isLoading, isError, error } = useFileContentQuery(
+    projectPath,
+    currentFile?.path || null
+  )
+
+  // Sync query data to local editing state when appropriate
+  useEffect(() => {
+    if (!data || !currentFile) return
+
+    // CRITICAL: Don't overwrite user's unsaved edits
+    const { isDirty: currentIsDirty } = useEditorStore.getState()
+    if (currentIsDirty) {
+      return // User is editing - their version is authoritative
+    }
+
+    // Safe to update - file is saved and matches disk
+    useEditorStore.setState({
+      editorContent: data.content,
+      frontmatter: data.frontmatter,
+      rawFrontmatter: data.raw_frontmatter,
+      imports: data.imports,
+    })
+  }, [data, currentFile?.id]) // Only sync when data or file ID changes
+
+  return { isLoading, isError, error }
+}
+```
+
+**Usage** in `Layout.tsx`:
+```typescript
+export const Layout: React.FC = () => {
+  const { isLoading, isError, error } = useEditorFileContent()
+
+  // Show loading/error states if needed
+  // ...rest of layout
+}
+```
+
+#### 1.3 Update Components
+
+**No changes needed** for most components! They already subscribe to store state:
+- Editor reads `editorContent` from store (line 234)
+- FrontmatterPanel reads `frontmatter` from store (line 17)
+- StatusBar reads `editorContent` for word count (line 7)
+
+Only change needed is in LeftSidebar (line 213):
+```typescript
+// Before: async
+const handleFileClick = (file: FileEntry) => {
+  void openFile(file)
+}
+
+// After: synchronous
+const handleFileClick = (file: FileEntry) => {
+  openFile(file)
+}
+```
+
+### Phase 2: Refactor File Saving (~1 hour)
+
+#### 2.1 Replace Store's `saveFile` with Mutation
+
+**Current**: Store has its own save implementation
+**Target**: Store delegates to mutation
+
+**Update** `editorStore.ts` saveFile action:
+```typescript
+import { queryClient } from '../lib/query-client'
+import { queryKeys } from '../lib/query-keys'
+
+saveFile: async (showToast = true) => {
+  const { currentFile, editorContent, frontmatter, imports } = get()
+  if (!currentFile) return
+
+  const { projectPath } = useProjectStore.getState()
+  if (!projectPath) throw new Error('No project path')
+
+  try {
+    // Get schema field order (existing logic kept)
+    let schemaFieldOrder: string[] | null = null
+    // ... existing schema order logic ...
+
+    // Clear auto-save timeout
+    const { autoSaveTimeoutId } = get()
+    if (autoSaveTimeoutId) {
+      clearTimeout(autoSaveTimeoutId)
+      set({ autoSaveTimeoutId: null })
+    }
+
+    // Save via Rust
+    await invoke('save_markdown_content', {
+      filePath: currentFile.path,
+      frontmatter,
+      content: editorContent,
+      imports,
+      schemaFieldOrder,
+      projectRoot: projectPath,
+    })
+
+    // Update state
+    set({ isDirty: false, lastSaveTimestamp: Date.now() })
+
+    // Invalidate queries to refresh UI
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.fileContent(projectPath, currentFile.path),
+    })
+
+    await queryClient.invalidateQueries({
+      queryKey: [...queryKeys.all, projectPath, currentFile.collection, 'directory'],
+    })
+
+    if (showToast) {
+      toast.success('File saved successfully')
+    }
+
+  } catch (error) {
+    // ... existing error handling ...
+  }
+}
+```
+
+**Note**: We keep the save logic in the store for now (architecture guide allows actions to trigger side effects). The key change is adding `fileContent` query invalidation.
+
+**Alternative** (cleaner but more changes): Create `hooks/useEditorSave.ts` that uses the mutation hook and updates store state. This would be more aligned with the architecture but requires more refactoring.
+
+#### 2.2 Remove Dead Code
+
+Remove from `editorStore.ts`:
+- `recentlySavedFile` field and all its usages (lines 207, 230, 361, 401, 427)
+- Related timeout logic
+
+Update test mocks to remove `recentlySavedFile`.
+
+### Phase 3: Implement File Watcher Handler (~1 hour)
+
+Now that query infrastructure is in place, the file watcher handler works as originally designed.
+
+**Create** `src/hooks/useFileChangeHandler.ts`:
 
 ```typescript
 import { useEffect } from 'react'
@@ -181,6 +334,14 @@ interface FileChangeEvent {
   kind: string
 }
 
+/**
+ * Handles file-changed events from the Rust watcher
+ *
+ * Responsibilities:
+ * 1. Listen for file-changed events from watcher
+ * 2. Invalidate queries to trigger refetch
+ * 3. Respect isDirty state (don't reload user's unsaved work)
+ */
 export function useFileChangeHandler() {
   useEffect(() => {
     const handleFileChanged = async (event: Event) => {
@@ -207,7 +368,7 @@ export function useFileChangeHandler() {
       if (projectPath) {
         // Invalidate query - TanStack Query will refetch
         await queryClient.invalidateQueries({
-          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+          queryKey: queryKeys.fileContent(projectPath, currentFile.path),
         })
       }
     }
@@ -218,310 +379,240 @@ export function useFileChangeHandler() {
 }
 ```
 
-Add to `src/components/layout/Layout.tsx`:
-
+**Add to** `Layout.tsx`:
 ```typescript
-import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
+import { useFileChangeHandler } from '../hooks/useFileChangeHandler'
 
 export const Layout: React.FC = () => {
   useFileChangeHandler() // Enable file change detection
-  // ... rest of component
+  useEditorFileContent() // Enable query-based file loading
+  // ... rest of layout
 }
 ```
 
-### Why This Works
+### Phase 4: Testing (~1 hour)
 
-**No Rust changes needed** - the watcher already works perfectly.
+#### 4.1 Unit Tests
 
-**Scenarios**:
+**Create** `src/hooks/__tests__/useEditorFileContent.test.ts`:
+- Query fetches content on file change
+- Sync respects isDirty state
+- Error handling
 
-1. **Normal save (fast disk)**:
-   - Save completes in 50ms → `isDirty=false`
-   - Watcher fires at 550ms (500ms debounce)
-   - Handler: `isDirty=false` → invalidate query
-   - Query refetches → data identical → no re-render ✅
+**Create** `src/hooks/__tests__/useFileChangeHandler.test.ts`:
+- Ignores changes when isDirty=true
+- Invalidates query when isDirty=false
+- Only handles current file
 
-2. **Slow save (potential race)**:
-   - Save in progress → `isDirty=true`
-   - Watcher fires → handler checks `isDirty=true` → IGNORE ✅
-   - Save completes → `isDirty=false`
+#### 4.2 Integration Tests
 
-3. **External edit while typing**:
-   - User typing → `isDirty=true`
-   - VS Code saves file → watcher fires
-   - Handler: `isDirty=true` → IGNORE ✅
-   - User's work protected
+Update `src/store/__tests__/storeQueryIntegration.test.ts`:
+- openFile sets identifier only
+- Save invalidates fileContent query
 
-4. **External edit after save**:
-   - File saved → `isDirty=false`
-   - VS Code edits → watcher fires
-   - Handler: `isDirty=false` → reload ✅
-   - User sees external changes
+#### 4.3 Manual Testing
 
-### Performance Impact
+1. **Basic file opening**: Open file → content loads → verify no regressions
+2. **File watcher - while typing**: Type → edit in VS Code → content NOT reloaded ✅
+3. **File watcher - after save**: Save → edit in VS Code → content reloaded ✅
+4. **Auto-save scenario**: Type continuously → verify no cursor jumps
+5. **Performance**: Check React DevTools for render cascades
 
-**Auto-save every 2 seconds**:
-- Save → watcher → query invalidates → refetch
-- **But data is identical** → TanStack Query prevents re-render
-- Zero UI impact ✅
+---
 
-**TanStack Query handles everything**:
-- Caches previous data
-- Shallow comparison on refetch
-- Only triggers re-render if data changed
-- Batches multiple invalidations
+## Critical Edge Cases Handled
 
-## Alternatives Considered
+### 1. Race Condition: Save + Watcher
 
-### Time-Based Tracking (Current Approach)
+**Scenario**: Save completes → watcher fires before `isDirty=false`
 
-Keep `recentlySavedFile` with longer timeout:
-- ❌ Still has race condition on slow disks
-- ❌ Arbitrary timeout (1s, 2s, 5s?)
-- ❌ Already implemented but unused
-
-### Version Tracking
-
-Increment counter on each save, compare versions:
-- ✅ No timing assumptions
-- ❌ 200+ lines of code (Rust state, IPC, handlers)
-- ❌ Extra IPC call before every save
-- ❌ Unnecessary complexity
-
-### Content Hash
-
-Hash content, compare on file change:
-- ✅ No timing assumptions
-- ❌ Computation overhead on every change
-- ❌ Still needs handler implementation
-- ❌ Timing issues (content changes during hash)
-
-### Dirty State Check (Chosen Solution)
-
-Use existing `isDirty` state:
-- ✅ Already exists and maintained
-- ✅ Zero extra code in stores/Rust
-- ✅ Simple to understand
-- ✅ No timing assumptions
-- ✅ Protects user's work
-- ✅ 30 lines of code total
-
-## Implementation Plan
-
-### Step 1: Create File Change Handler (~1 hour)
-
-**File**: Create `src/hooks/useFileChangeHandler.ts`
-
-Implementation provided in Solution section above. Key points:
-- Check `isDirty` state before invalidating queries
-- Use `getState()` pattern (no subscriptions)
-- Log debug/info messages for visibility
-
-**File**: `src/components/layout/Layout.tsx`
-
-Add one line:
+**Why it can't happen**:
 ```typescript
-useFileChangeHandler() // Enable file change detection
+// editorStore.ts saveFile sequence:
+await invoke('save_markdown_content', {...})  // Blocks until write completes
+set({ isDirty: false })                        // Updates synchronously
+
+// Watcher has 500ms debounce AFTER file write
+// By the time watcher fires, isDirty is already false
 ```
 
-### Step 2: Remove Unused Code (~30 min)
+### 2. Cursor Position After Reload
 
-**File**: `src/store/editorStore.ts`
+**Scenario**: External change → query refetch → content update → cursor jumps
 
-Remove:
-- `recentlySavedFile: string | null` field (line ~207)
-- Initial value `recentlySavedFile: null` (line ~230)
-- `set({ recentlySavedFile: currentFile.path })` (line ~361)
-- Timeout logic (lines ~400-402):
-  ```typescript
-  setTimeout(() => {
-    set({ recentlySavedFile: null })
-  }, 1000)
-  ```
+**Already handled**: Editor checks if content changed before updating (Editor.tsx:236):
+```typescript
+if (viewRef.current.state.doc.toString() !== editorContent) {
+  // Only update if different
+}
+```
 
-**Test Files**: Update mocks
-- `src/store/__tests__/editorStore.integration.test.ts`
-- `src/store/__tests__/storeQueryIntegration.test.ts`
-- `src/hooks/editor/useEditorHandlers.test.ts`
+Plus `isProgrammaticUpdate` flag prevents triggering onChange (line 238).
 
-Remove `recentlySavedFile: null` from mock objects.
+### 3. Auto-Save Every 2 Seconds
 
-### Step 3: Testing (~1 hour)
+**Scenario**: Type → auto-save → watcher → query refetch → overwrite?
 
-**Integration Test**: Create `src/hooks/__tests__/useFileChangeHandler.test.ts`
+**Why it's safe**:
+```typescript
+// While typing: isDirty=true
+// Save starts: isDirty=true (still)
+// Save completes: isDirty=false
+// Watcher fires: isDirty=false → refetch
+// Query returns: data === local state (we just saved it!)
+// TanStack Query: shallow comparison → no re-render ✅
+```
 
-Test cases:
-- File change while `isDirty=true` → ignored
-- File change while `isDirty=false` → query invalidated
-- File change for different file → ignored
-- Handler cleans up on unmount
+### 4. Multiple Instances
 
-**Manual Testing**:
-1. Open file, edit, see `isDirty=true` → edit in VS Code → no reload ✅
-2. Save file, `isDirty=false` → edit in VS Code → file reloads ✅
-3. Auto-save scenario → no unnecessary re-renders ✅
-4. Check console logs for debug messages
-
-**Performance Check**:
-- Verify no render cascade (React DevTools Profiler)
-- Confirm TanStack Query prevents re-render when data unchanged
-- Test with rapid auto-saves (type continuously)
-
-## Success Criteria
-
-### Must Have (Definition of Done)
-- [ ] `useFileChangeHandler` hook created and integrated
-- [ ] Handler checks `isDirty` before invalidating queries
-- [ ] `recentlySavedFile` field removed completely
-- [ ] All test mocks updated (removed recentlySavedFile)
-- [ ] Integration test created for handler
-- [ ] Manual testing completed (all scenarios pass)
-
-### Verification Tests
-- [ ] Type in editor → edit in VS Code → no reload (isDirty protects work)
-- [ ] Save file → edit in VS Code → file reloads (external change detected)
-- [ ] Auto-save scenario → no performance impact
-- [ ] React DevTools shows no render cascade
-- [ ] Console logs show debug messages
-
-### Nice to Have (Future Enhancements)
-- [ ] Toast notification when external change detected
-- [ ] Prompt user if external change while dirty
-- [ ] Sidebar updates when files added/removed externally
-
-## Edge Cases
-
-### 1. External Edit While Typing
-**Scenario**: User typing in Astro Editor → VS Code saves file
-
-**Behavior**:
-- `isDirty=true` (user has unsaved changes)
-- Watcher fires → handler ignores (protects user's work)
-- ✅ User's edits preserved
-
-### 2. Multiple App Instances
-**Scenario**: Two Astro Editor instances open same file
+**Scenario**: Two Astro Editor windows, same file
 
 **Behavior**:
 - Instance A saves → watcher fires in both
-- Instance A: `isDirty=false` → ignores (just saved)
-- Instance B: `isDirty=false` → reloads (external change)
-- ⚠️ Instance B sees Instance A's changes
-- ⚠️ If Instance B is dirty, changes protected
+- Instance A: just saved, data matches → no visible change
+- Instance B: if isDirty=true, ignores change (user protected)
+- Instance B: if isDirty=false, reloads (sees A's changes)
 
-**Mitigation**: Works correctly - each instance protects its own dirty state
-
-### 3. Rapid Auto-Saves
-**Scenario**: User types continuously → auto-save every 2 seconds
-
-**Behavior**:
-- Each save: `isDirty=false` → watcher fires → query invalidates
-- TanStack Query refetches → data identical → **no re-render**
-- ✅ Zero performance impact
-
-### 4. Save Failure
-**Scenario**: Save fails (disk full, permissions error)
-
-**Behavior**:
-- `isDirty` remains `true` (save didn't complete)
-- File watcher never fires (no file change on disk)
-- ✅ Correct - file wasn't actually saved
+**This is correct behavior** - each instance protects its own dirty state.
 
 ### 5. Git Operations
-**Scenario**: User runs `git checkout other-branch` while file open
+
+**Scenario**: `git checkout other-branch` changes file
 
 **Behavior**:
-- Watcher fires for file change
-- If `isDirty=true`: change ignored (user's work protected)
-- If `isDirty=false`: file reloads with branch's version
-- ⚠️ User may be confused if dirty (file didn't reload)
+- Watcher fires
+- If isDirty=true: change ignored (user's work protected)
+- If isDirty=false: file reloads with branch's version
 
-**Future Enhancement**: Show notification about external change while dirty
+**Future enhancement**: Toast notification about external change while dirty.
 
-## Performance Analysis
+---
 
-**Handler Overhead**: Negligible
-- Event listener: passive, no subscriptions
-- `getState()` calls: O(1) lookup, no re-renders
-- Query invalidation: TanStack Query's job
+## Benefits of This Approach
 
-**Auto-Save Impact**: Zero
-- Save → watcher → invalidate → refetch → data same → no re-render
-- TanStack Query shallow comparison prevents unnecessary updates
+### 1. Architectural Consistency
 
-**Memory**: Minimal
-- One event listener (cleanup on unmount)
-- No additional state tracked
+Completes the documented TanStack Query migration pattern. All server state (collections, files, file content) now uses the same pattern.
 
-## Out of Scope (Future Enhancements)
+### 2. Automatic Caching
 
-1. **User Notification**: Toast when external change detected
-2. **Conflict Dialog**: Prompt user if external change while dirty
-3. **Sidebar Updates**: Reflect file additions/deletions/renames in file list
-4. **Multi-Instance Coordination**: Sync dirty state across instances
+File content is cached. If user opens file A, then B, then back to A - instant load from cache.
+
+### 3. Optimistic Updates (Future)
+
+Once using mutations properly, can implement optimistic updates for instant UI feedback.
+
+### 4. Simplified Store
+
+Store becomes simpler - just identifiers and editing state. No fetch logic.
+
+### 5. File Watcher Works
+
+The original task's solution now works as designed because queries exist to invalidate.
+
+---
+
+## Risk Assessment
+
+**Implementation Risk**: ✅ LOW
+- Well-defined pattern (documented in architecture guide)
+- Existing hooks already exist (just unused)
+- Small, incremental changes
+- Clear rollback path
+
+**Testing Risk**: ✅ LOW
+- Easy to test manually (edit in VS Code)
+- Clear success criteria
+- No timing assumptions
+
+**Performance Risk**: ✅ VERY LOW
+- TanStack Query prevents unnecessary re-renders
+- Editor already optimized with memoization
+- No change to auto-save timing
+
+**Breaking Change Risk**: ✅ VERY LOW
+- Internal implementation detail
+- User-facing behavior unchanged
+- All data flows preserved
+
+---
+
+## Migration Checklist
+
+### Phase 1: File Opening
+- [ ] Simplify `openFile` to identifier-only update
+- [ ] Create `useEditorFileContent` hook
+- [ ] Add hook to Layout
+- [ ] Update LeftSidebar handleFileClick
+- [ ] Test: File opens correctly
+
+### Phase 2: File Saving
+- [ ] Add `fileContent` query invalidation to saveFile
+- [ ] Remove `recentlySavedFile` field
+- [ ] Remove timeout logic
+- [ ] Update test mocks
+- [ ] Test: Save works, queries invalidate
+
+### Phase 3: File Watcher
+- [ ] Create `useFileChangeHandler` hook
+- [ ] Add hook to Layout
+- [ ] Test: External changes detected
+
+### Phase 4: Testing
+- [ ] Unit tests for new hooks
+- [ ] Integration tests for store/query flow
+- [ ] Manual testing all scenarios
+- [ ] Performance profiling (React DevTools)
+
+### Phase 5: Cleanup
+- [ ] Run `pnpm run check:all`
+- [ ] Update documentation if needed
+- [ ] Mark Task 1 checklist items as complete
+
+---
+
+## Why Now?
+
+**Blocks file watcher feature**: Can't implement external change detection without query infrastructure.
+
+**Technical debt**: Incomplete migration creates confusion about architecture.
+
+**Low risk, high value**: Small changes with big architectural benefits.
+
+**v1.0.0 timeline**: 4-5 hours total. Can be done in single session.
+
+---
+
+## Success Criteria
+
+### Must Have
+- [ ] File opening uses TanStack Query
+- [ ] File saving invalidates fileContent query
+- [ ] External changes detected and reloaded
+- [ ] User's unsaved work protected (isDirty check)
+- [ ] No performance regressions
+- [ ] All tests pass
+
+### Verification Tests
+- [ ] Type in editor → edit in VS Code → no reload (isDirty protects)
+- [ ] Save file → edit in VS Code → file reloads (change detected)
+- [ ] Auto-save every 2s → no cursor jumps
+- [ ] React DevTools shows no render cascade
+- [ ] Console logs show watcher events
+
+### Nice to Have (Future)
+- [ ] Toast notification for external changes while dirty
+- [ ] Use `useSaveFileMutation` instead of store action
+- [ ] Sidebar updates when files added/removed externally
+
+---
 
 ## Recommendation
 
-### Priority: MEDIUM-HIGH for v1.0.0
+**Priority**: HIGH - Required to complete file watcher feature
 
-**Why Implement This**:
-1. **Completes existing infrastructure** - watcher exists but unused
-2. **Enables external edit detection** - users can use VS Code alongside
-3. **Simple solution** - 30 lines of code, no Rust changes
-4. **Protects user work** - dirty state prevents data loss
-5. **Low effort** - 2-3 hours total
+**Timeline**: Implement for v1.0.0 (4-5 hours is manageable)
 
-**Why This Approach**:
-1. **Uses existing state** - `isDirty` already tracks unsaved changes
-2. **No timing assumptions** - not based on timeouts or delays
-3. **Leverages TanStack Query** - automatic caching and re-render prevention
-4. **Follows architecture patterns** - `getState()` pattern, event-driven communication
-5. **Future-proof** - easy to add notifications/prompts later
+**Approach**: Follow phases sequentially, test at each step
 
-### Implementation Timeline
-
-**Recommended for v1.0.0**:
-- Low risk, high value feature
-- Completes file watcher system
-- Better UX for users who switch between editors
-- Prevents confusion ("why didn't my VS Code edit show up?")
-
-**If time-constrained**:
-- Ship 1.0.0 as-is (no external change detection)
-- Fix in 1.0.1
-- Note: Not a bug, just missing feature
-
-### Effort Estimate
-
-**Step 1: Create Handler** - 1 hour
-- Write useFileChangeHandler hook: 30 min
-- Add to Layout: 5 min
-- Initial testing: 25 min
-
-**Step 2: Remove Unused Code** - 30 min
-- Remove recentlySavedFile from editorStore: 10 min
-- Update test mocks: 20 min
-
-**Step 3: Testing** - 1 hour
-- Integration test: 30 min
-- Manual testing: 30 min
-
-**Total: 2.5 hours**
-
-### Risk Assessment
-
-**Implementation Risk**: ✅ VERY LOW
-- Simple logic (~30 lines)
-- No Rust changes
-- Uses existing patterns (`getState()`, event listeners)
-- Clear requirements
-
-**Testing Risk**: ✅ LOW
-- Easy to test manually (just edit in VS Code)
-- Integration test straightforward
-- No timing assumptions to test
-
-**Deployment Risk**: ✅ VERY LOW
-- No breaking changes
-- New functionality only (handler didn't exist before)
-- Easy to revert if issues found
+**Rollback Plan**: If issues found, can temporarily revert to direct `openFile` call in watcher handler (1-hour quick fix) while refactoring separately.
