@@ -1,27 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useEditorStore } from '../editorStore'
+import { useEditorStore, type FileEntry } from '../editorStore'
 import { useProjectStore } from '../projectStore'
 import { resetToastMocks } from '../../test/mocks/toast'
-import type { FileEntry } from '../../types/file-entry'
 
 const mockFileEntry: FileEntry = {
   id: 'test-file',
   name: 'test.md',
   path: '/test/content/blog/test.md',
   extension: 'md',
-  isDirty: false,
+  isDraft: false,
   collection: 'blog',
 }
 
 describe('EditorStore Integration Tests - Auto-Save', () => {
-  let mockSaveFile: ReturnType<typeof vi.fn>
-
   beforeEach(() => {
     // Use fake timers for all tests
     vi.useFakeTimers()
-
-    // Create a mock for saveFile that we can spy on
-    mockSaveFile = vi.fn().mockResolvedValue(undefined)
+    // Set system time to a known baseline for deterministic tests
+    vi.setSystemTime(new Date(0))
 
     // Reset all stores
     useEditorStore.setState({
@@ -41,7 +37,23 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       globalSettings: {
         general: {
           autoSaveDelay: 2, // 2 seconds debounce
+          ideCommand: 'code',
+          theme: 'system',
+          highlights: {
+            nouns: false,
+            verbs: false,
+            adjectives: false,
+            adverbs: false,
+            conjunctions: false,
+          },
         },
+        appearance: {
+          headingColor: {
+            light: '#000000',
+            dark: '#FFFFFF',
+          },
+        },
+        version: 1,
       },
     })
 

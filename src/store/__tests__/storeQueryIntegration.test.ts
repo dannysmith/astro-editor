@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useEditorStore } from '../editorStore'
+import { useEditorStore, type FileEntry } from '../editorStore'
 import { useProjectStore } from '../projectStore'
 import { resetToastMocks } from '../../test/mocks/toast'
-import type { FileEntry } from '../../types/file-entry'
 
 const mockFileEntry: FileEntry = {
   id: 'test-file',
@@ -33,7 +32,23 @@ describe('Store ↔ Query Integration Tests', () => {
       globalSettings: {
         general: {
           autoSaveDelay: 2,
+          ideCommand: 'code',
+          theme: 'system',
+          highlights: {
+            nouns: false,
+            verbs: false,
+            adjectives: false,
+            adverbs: false,
+            conjunctions: false,
+          },
         },
+        appearance: {
+          headingColor: {
+            light: '#000000',
+            dark: '#FFFFFF',
+          },
+        },
+        version: 1,
       },
     })
 

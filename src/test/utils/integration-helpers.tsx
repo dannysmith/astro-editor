@@ -21,9 +21,7 @@ export function setupEditorIntegrationTest() {
   })
 
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
 
   // Reset Tauri mocks before each test
@@ -54,7 +52,7 @@ export async function simulateContinuousTyping(
       setContent(`content ${i}`)
     })
     // Use real timers to test actual auto-save timing
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
   }
 }
 
@@ -85,6 +83,6 @@ export async function waitForCondition(
     if (Date.now() - startTime > timeout) {
       throw new Error(`Condition not met within ${timeout}ms timeout`)
     }
-    await new Promise((resolve) => setTimeout(resolve, interval))
+    await new Promise(resolve => setTimeout(resolve, interval))
   }
 }

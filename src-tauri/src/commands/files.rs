@@ -255,7 +255,11 @@ pub async fn update_frontmatter(
         .map_err(|e| format!("Failed to read file: {e}"))?;
 
     let parsed = parse_frontmatter(&content)?;
-    let new_content = rebuild_markdown_with_frontmatter(&frontmatter, &parsed.content)?;
+    let new_content = rebuild_markdown_with_frontmatter_and_imports(
+        &frontmatter,
+        &parsed.imports,
+        &parsed.content,
+    )?;
 
     std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
 }
@@ -358,27 +362,24 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
             imports.push(lines[content_start_idx]);
             content_start_idx += 1;
 
-            // Handle multi-line imports (lines that don't end with semicolon)
-            let last_import = imports.last().unwrap_or(&"").trim();
-            while content_start_idx < lines.len()
-                && !last_import.ends_with(';')
-                && !last_import.ends_with("';")
-                && !last_import.ends_with("\";")
-            {
+            // Handle multi-line imports until a trailing semicolon line
+            while content_start_idx < lines.len() {
                 let current_line = lines[content_start_idx].trim();
                 if current_line.is_empty() {
                     // Empty line might separate imports from content
                     break;
-                } else {
-                    // This is a continuation of the previous import
-                    imports.push(lines[content_start_idx]);
-                    content_start_idx += 1;
-                    if current_line.ends_with(';')
-                        || current_line.ends_with("';")
-                        || current_line.ends_with("\";")
-                    {
-                        break;
-                    }
+                }
+
+                // This is a continuation of the previous import
+                imports.push(lines[content_start_idx]);
+                content_start_idx += 1;
+
+                // Stop if this line ends with a semicolon
+                if current_line.ends_with(';')
+                    || current_line.ends_with("';")
+                    || current_line.ends_with("\";")
+                {
+                    break;
                 }
             }
         } else if line.is_empty() {
@@ -491,13 +492,6 @@ fn build_ordered_frontmatter(
 /// Parse YAML string to IndexMap using serde_norway
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
     serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
-}
-
-fn rebuild_markdown_with_frontmatter(
-    frontmatter: &IndexMap<String, Value>,
-    content: &str,
-) -> Result<String, String> {
-    rebuild_markdown_with_frontmatter_and_imports(frontmatter, "", content)
 }
 
 fn rebuild_markdown_with_frontmatter_and_imports(
@@ -1281,7 +1275,8 @@ This is a test post with arrays."#;
 
         let content = "# Content\n\nThis is the content.";
 
-        let result = rebuild_markdown_with_frontmatter(&frontmatter, content).unwrap();
+        let result =
+            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", content).unwrap();
 
         assert!(result.starts_with("---\n"));
         // serde_norway doesn't quote simple strings without special characters
@@ -2017,5 +2012,93 @@ folded: >
         assert_eq!(keys.len(), 2);
         assert_eq!(keys[0], "title"); // Schema field that exists
         assert_eq!(keys[1], "extra"); // Non-schema field, alphabetically
+    }
+
+    #[tokio::test]
+    async fn test_update_frontmatter_preserves_mdx_imports() {
+        // Regression test for: update_frontmatter should not delete MDX imports
+        let temp_dir = std::env::temp_dir();
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let thread_id = std::thread::current().id();
+        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
+        let test_file = project_root.join("test.mdx");
+
+        // Create test file with MDX imports and frontmatter
+        let original_content = r#"---
+title: Original Title
+draft: false
+---
+
+import { Component } from './Component'
+import { AnotherComponent } from './AnotherComponent'
+
+# Content
+
+This is the main content."#;
+
+        fs::create_dir_all(&project_root).unwrap();
+        fs::write(&test_file, original_content).unwrap();
+
+        // Update frontmatter
+        let mut new_frontmatter = IndexMap::new();
+        new_frontmatter.insert(
+            "title".to_string(),
+            Value::String("Updated Title".to_string()),
+        );
+        new_frontmatter.insert("draft".to_string(), Value::Bool(true));
+
+        let result = update_frontmatter(
+            test_file.to_string_lossy().to_string(),
+            new_frontmatter,
+            project_root.to_string_lossy().to_string(),
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Failed to update frontmatter: {:?}",
+            result.err()
+        );
+
+        // Read the file back and verify imports are preserved
+        let updated_content = fs::read_to_string(&test_file).unwrap();
+
+        // Check that imports are still present
+        assert!(
+            updated_content.contains("import { Component } from './Component'"),
+            "First import was lost! Content:\n{}",
+            updated_content
+        );
+        assert!(
+            updated_content.contains("import { AnotherComponent } from './AnotherComponent'"),
+            "Second import was lost! Content:\n{}",
+            updated_content
+        );
+
+        // Check that frontmatter was updated
+        assert!(
+            updated_content.contains("title: Updated Title"),
+            "Frontmatter title was not updated! Content:\n{}",
+            updated_content
+        );
+        assert!(
+            updated_content.contains("draft: true"),
+            "Frontmatter draft was not updated! Content:\n{}",
+            updated_content
+        );
+
+        // Check that content is still present
+        assert!(
+            updated_content.contains("# Content"),
+            "Main content was lost! Content:\n{}",
+            updated_content
+        );
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&project_root);
     }
 }
