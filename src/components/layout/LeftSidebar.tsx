@@ -19,58 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
-
-// Type-safe helper functions for file handling
-function formatDate(dateValue: unknown): string {
-  if (!dateValue) return ''
-
-  try {
-    const date = new Date(dateValue as string | number | Date)
-    if (isNaN(date.getTime())) return ''
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  } catch {
-    return ''
-  }
-}
-
-function getPublishedDate(
-  frontmatter: Record<string, unknown>,
-  publishedDateField: string | string[]
-): Date | null {
-  // Handle both single string and array of field names
-  const dateFields = Array.isArray(publishedDateField)
-    ? publishedDateField
-    : [publishedDateField]
-
-  for (const field of dateFields) {
-    const value = frontmatter[field]
-    if (value) {
-      const date = new Date(value as string)
-      if (!isNaN(date.getTime())) {
-        return date
-      }
-    }
-  }
-  return null
-}
-
-function getTitle(file: FileEntry, titleField: string): string {
-  // Use frontmatter title if available, otherwise derive from filename
-  if (
-    file.frontmatter?.[titleField] &&
-    typeof file.frontmatter[titleField] === 'string'
-  ) {
-    return file.frontmatter[titleField]
-  }
-
-  // Extract filename without extension as fallback
-  const filename = file.name || file.path.split('/').pop() || 'Untitled'
-  return filename.replace(/\.(md|mdx)$/, '')
-}
+import { FileItem, getPublishedDate } from './FileItem'
 
 export const LeftSidebar: React.FC = () => {
   const { currentFile, openFile, updateCurrentFileAfterRename } =
@@ -177,8 +126,6 @@ export const LeftSidebar: React.FC = () => {
   const [renamingFileId, setRenamingFileId] = React.useState<string | null>(
     null
   )
-  const [renameValue, setRenameValue] = React.useState('')
-  const renameInitializedRef = React.useRef(false)
 
   const handleOpenProject = async () => {
     try {
@@ -232,47 +179,17 @@ export const LeftSidebar: React.FC = () => {
 
   const handleRename = (file: FileEntry) => {
     setRenamingFileId(file.id)
-    // Include extension in the edit value
-    const fullName = file.extension
-      ? `${file.name}.${file.extension}`
-      : file.name
-    setRenameValue(fullName || '')
-    renameInitializedRef.current = false // Reset for new rename session
   }
 
-  // Focus and select filename without extension when rename input is rendered
-  React.useEffect(() => {
-    if (renamingFileId && !renameInitializedRef.current) {
-      renameInitializedRef.current = true
-      const timeoutId = setTimeout(() => {
-        const input = document.querySelector(
-          'input[type="text"]'
-        ) as HTMLInputElement
-        if (input && renameValue) {
-          input.focus()
-          const lastDotIndex = renameValue.lastIndexOf('.')
-          if (lastDotIndex > 0) {
-            // Select filename without extension
-            input.setSelectionRange(0, lastDotIndex)
-          } else {
-            // Select all if no extension
-            input.select()
-          }
-        }
-      }, 10)
-      return () => clearTimeout(timeoutId)
-    }
-  }, [renamingFileId, renameValue])
-
-  const handleRenameSubmit = async (file: FileEntry) => {
-    if (!renameValue.trim() || renameValue === file.name) {
+  const handleRenameSubmit = async (file: FileEntry, newName: string) => {
+    if (!newName.trim() || newName === file.name) {
       setRenamingFileId(null)
       return
     }
 
     try {
       const directory = file.path.substring(0, file.path.lastIndexOf('/'))
-      const newPath = `${directory}/${renameValue}`
+      const newPath = `${directory}/${newName}`
 
       if (projectPath && selectedCollection) {
         await renameMutation.mutateAsync({
@@ -289,9 +206,6 @@ export const LeftSidebar: React.FC = () => {
       }
 
       setRenamingFileId(null)
-      setRenameValue('')
-
-      // Files will be automatically refreshed by the query invalidation
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to rename file:', error)
@@ -300,17 +214,6 @@ export const LeftSidebar: React.FC = () => {
 
   const handleRenameCancel = () => {
     setRenamingFileId(null)
-    setRenameValue('')
-  }
-
-  const handleRenameKeyDown = (event: React.KeyboardEvent, file: FileEntry) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      void handleRenameSubmit(file)
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      handleRenameCancel()
-    }
   }
 
   // Filter and sort files by published date (reverse chronological), files without dates first
@@ -547,79 +450,21 @@ export const LeftSidebar: React.FC = () => {
 
                 {/* Files (sorted by date) */}
                 {filteredAndSortedFiles.map(file => {
-                  const title = getTitle(file, frontmatterMappings.title)
-                  const publishedDate = getPublishedDate(
-                    file.frontmatter || {},
-                    frontmatterMappings.publishedDate
-                  )
-                  const isMdx = file.extension === 'mdx'
-                  const isFileDraft =
-                    file.isDraft ||
-                    file.frontmatter?.[frontmatterMappings.draft] === true
                   const isSelected = currentFile?.id === file.id
 
                   return (
-                    <button
+                    <FileItem
                       key={file.id}
-                      onClick={() => handleFileClick(file)}
-                      onContextMenu={e => void handleContextMenu(e, file)}
-                      className={cn(
-                        'w-full text-left p-3 rounded-md transition-colors',
-                        'hover:bg-accent',
-                        isFileDraft &&
-                          'bg-[var(--color-warning-bg)] hover:bg-[var(--color-warning-bg)]/80',
-                        isSelected && 'bg-primary/15 hover:bg-primary/20'
-                      )}
-                    >
-                      <div className="flex items-start justify-between w-full gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm leading-tight truncate text-foreground">
-                            {title}
-                          </div>
-                          {publishedDate && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatDate(publishedDate)}
-                            </div>
-                          )}
-                          <div className="text-xs font-mono text-muted-foreground mt-1">
-                            {renamingFileId === file.id ? (
-                              <input
-                                type="text"
-                                value={renameValue}
-                                onChange={e => setRenameValue(e.target.value)}
-                                onKeyDown={e => handleRenameKeyDown(e, file)}
-                                onBlur={() => void handleRenameSubmit(file)}
-                                className="bg-background border border-border rounded px-1 py-0.5 text-xs font-mono w-full text-foreground"
-                                autoFocus
-                                onClick={e => e.stopPropagation()}
-                              />
-                            ) : file.extension ? (
-                              `${file.name}.${file.extension}`
-                            ) : (
-                              file.name
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {isFileDraft && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1 py-0"
-                            >
-                              Draft
-                            </Badge>
-                          )}
-                          {isMdx && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1 py-0"
-                            >
-                              MDX
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </button>
+                      file={file}
+                      isSelected={isSelected}
+                      frontmatterMappings={frontmatterMappings}
+                      onFileClick={handleFileClick}
+                      onContextMenu={(e, f) => void handleContextMenu(e, f)}
+                      onRenameSubmit={handleRenameSubmit}
+                      isRenaming={renamingFileId === file.id}
+                      onStartRename={handleRename}
+                      onCancelRename={handleRenameCancel}
+                    />
                   )
                 })}
                 {filteredAndSortedFiles.length === 0 &&
