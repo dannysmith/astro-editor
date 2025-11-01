@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'

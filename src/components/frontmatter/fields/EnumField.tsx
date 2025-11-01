@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import {
   Select,
   SelectContent,

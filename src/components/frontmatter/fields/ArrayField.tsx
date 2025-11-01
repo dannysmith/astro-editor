@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { TagInput, type Tag } from '../../ui/tag-input'
 import { tagsToStringArray } from '../utils'
 import { FieldWrapper } from './FieldWrapper'

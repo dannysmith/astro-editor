@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
 import { ImageThumbnail } from './ImageThumbnail'
