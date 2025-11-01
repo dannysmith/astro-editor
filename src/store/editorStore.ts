@@ -214,7 +214,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Actions
   openFile: (file: FileEntry) => {
+    // CRITICAL: Clear content FIRST, then set currentFile
+    // This prevents Editor.tsx from reading stale content via getState()
     set({
+      editorContent: '',
+      frontmatter: {},
+      rawFrontmatter: '',
+      imports: '',
       currentFile: file,
       isDirty: false,
       lastSaveTimestamp: Date.now(),

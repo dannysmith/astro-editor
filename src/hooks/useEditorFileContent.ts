@@ -10,28 +10,16 @@ import { useFileContentQuery } from './queries/useFileContentQuery'
  * 1. Fetch file content when currentFile changes
  * 2. Sync query data to store ONLY when appropriate
  * 3. Respect isDirty state (don't overwrite user's edits)
- * 4. Clear stale content immediately when switching files
  */
 export function useEditorFileContent() {
   const { currentFile } = useEditorStore()
   const { projectPath } = useProjectStore()
 
-  // CRITICAL: Clear content immediately when file changes
-  // Prevents showing stale content from previous file during query loading
-  useEffect(() => {
-    if (currentFile) {
-      useEditorStore.setState({
-        editorContent: '',
-        frontmatter: {},
-        rawFrontmatter: '',
-        imports: '',
-      })
-    }
-  }, [currentFile])
-
   // Query fetches content based on current file
+  // Pass both id (for cache key) and path (for Rust command)
   const { data, isLoading, isError, error } = useFileContentQuery(
     projectPath,
+    currentFile?.id || null,
     currentFile?.path || null
   )
 
@@ -52,7 +40,7 @@ export function useEditorFileContent() {
       rawFrontmatter: data.raw_frontmatter,
       imports: data.imports,
     })
-  }, [data, currentFile]) // Only sync when data or file changes
+  }, [data, currentFile])
 
   return { isLoading, isError, error }
 }

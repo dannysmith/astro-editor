@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/projectStore'
 
 interface RenameFilePayload {
   oldPath: string
+  oldFileId: string // File ID for cache invalidation
   newPath: string
   projectPath: string
   collectionName: string
@@ -42,7 +43,7 @@ export const useRenameFileMutation = () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.fileContent(
           variables.projectPath,
-          variables.oldPath
+          variables.oldFileId
         ),
       })
 

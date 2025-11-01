@@ -217,7 +217,7 @@ export const useCreateFile = () => {
         const { frontmatterPanelVisible, toggleFrontmatterPanel } =
           useUIStore.getState()
 
-        await openFile(newFile)
+        openFile(newFile)
 
         // Open frontmatter panel if we have a title field
         if (hasTitleField && !frontmatterPanelVisible) {

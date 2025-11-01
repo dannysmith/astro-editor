@@ -200,6 +200,7 @@ export const LeftSidebar: React.FC = () => {
       if (projectPath && selectedCollection) {
         await renameMutation.mutateAsync({
           oldPath: file.path,
+          oldFileId: file.id,
           newPath: newPath,
           projectPath,
           collectionName: selectedCollection,

@@ -8,6 +8,7 @@ import { toast } from '@/lib/toast'
 // The payload for our Tauri command
 interface SaveFilePayload {
   filePath: string
+  fileId: string // File ID for cache invalidation
   frontmatter: Record<string, unknown>
   content: string
   imports: string
@@ -40,7 +41,7 @@ export const useSaveFileMutation = () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.fileContent(
           variables.projectPath,
-          variables.filePath
+          variables.fileId
         ),
       })
 

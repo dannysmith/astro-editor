@@ -46,7 +46,7 @@ export function useFileChangeHandler() {
       if (projectPath) {
         // Invalidate query - TanStack Query will refetch
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.fileContent(projectPath, currentFile.path),
+          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
         })
       }
     }
