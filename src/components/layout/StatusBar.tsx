@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
 
 export const StatusBar: React.FC = () => {
-  const { currentFile, editorContent, isDirty } = useEditorStore()
+  const currentFile = useEditorStore(state => state.currentFile)
+  const editorContent = useEditorStore(state => state.editorContent)
+  const isDirty = useEditorStore(state => state.isDirty)
 
   const {
     sidebarVisible,
@@ -13,10 +15,18 @@ export const StatusBar: React.FC = () => {
     setDistractionFreeBarsHidden,
   } = useUIStore()
 
-  const wordCount = editorContent
-    .split(/\s+/)
-    .filter(word => word.length > 0).length
-  const charCount = editorContent.length
+  const [wordCount, setWordCount] = useState(0)
+  const [charCount, setCharCount] = useState(0)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const words = editorContent.split(/\s+/).filter(w => w.length > 0).length
+      setWordCount(words)
+      setCharCount(editorContent.length)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [editorContent])
   const bothPanelsHidden = !sidebarVisible && !frontmatterPanelVisible
 
   const handleMouseEnter = () => {

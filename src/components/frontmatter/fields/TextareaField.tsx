@@ -23,8 +23,10 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
 
   return (
     <FieldWrapper

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { screen } from '@testing-library/dom'
 import { StatusBar } from './StatusBar'
 import { useEditorStore } from '../../store/editorStore'
@@ -59,7 +59,7 @@ describe('StatusBar Component', () => {
     expect(screen.getByText('•')).toBeInTheDocument()
   })
 
-  it('should display correct word and character counts', () => {
+  it('should display correct word and character counts', async () => {
     useEditorStore.setState({
       currentFile: {
         id: 'test/example',
@@ -75,11 +75,17 @@ describe('StatusBar Component', () => {
 
     render(<StatusBar />)
 
-    expect(screen.getByText('6 words')).toBeInTheDocument()
-    expect(screen.getByText('26 characters')).toBeInTheDocument()
+    // Wait for debounced word count to update (300ms delay)
+    await waitFor(
+      () => {
+        expect(screen.getByText('6 words')).toBeInTheDocument()
+        expect(screen.getByText('26 characters')).toBeInTheDocument()
+      },
+      { timeout: 500 }
+    )
   })
 
-  it('should handle empty content correctly', () => {
+  it('should handle empty content correctly', async () => {
     useEditorStore.setState({
       currentFile: {
         id: 'test/example',
@@ -95,7 +101,13 @@ describe('StatusBar Component', () => {
 
     render(<StatusBar />)
 
-    expect(screen.getByText('0 words')).toBeInTheDocument()
-    expect(screen.getByText('0 characters')).toBeInTheDocument()
+    // Wait for debounced counts to update
+    await waitFor(
+      () => {
+        expect(screen.getByText('0 words')).toBeInTheDocument()
+        expect(screen.getByText('0 characters')).toBeInTheDocument()
+      },
+      { timeout: 500 }
+    )
   })
 })

@@ -39,9 +39,11 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   field,
 }) => {
   const [open, setOpen] = React.useState(false)
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
   const { projectPath } = useProjectStore()
-  const value = getNestedValue(frontmatter, name)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference

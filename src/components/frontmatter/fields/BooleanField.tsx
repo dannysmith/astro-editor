@@ -14,8 +14,10 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
   label,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
 
   // Helper function to get boolean value considering schema defaults
   const getBooleanValue = (value: unknown) => {
