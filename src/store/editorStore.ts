@@ -332,7 +332,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (projectPath) {
         // Invalidate file content query to refresh cached content
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.fileContent(projectPath, currentFile.path),
+          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
         })
 
         // Invalidate directory scans for this collection (root + all subdirectories)
