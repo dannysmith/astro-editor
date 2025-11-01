@@ -330,20 +330,26 @@ describe('Store ↔ Query Integration Tests', () => {
   })
 
   describe('File Saving Workflow', () => {
+    // Use a stable function reference for proper cleanup
+    const schemaFieldOrderHandler = () => {
+      window.dispatchEvent(
+        new CustomEvent('schema-field-order-response', {
+          detail: { fieldOrder: null },
+        })
+      )
+    }
+
     beforeEach(() => {
       // Mock schema field order event response (saveFile waits for this)
-      window.addEventListener('get-schema-field-order', () => {
-        window.dispatchEvent(
-          new CustomEvent('schema-field-order-response', {
-            detail: { fieldOrder: null },
-          })
-        )
-      })
+      window.addEventListener('get-schema-field-order', schemaFieldOrderHandler)
     })
 
     afterEach(() => {
-      // Clean up event listeners
-      window.removeEventListener('get-schema-field-order', () => {})
+      // Clean up event listeners using the same function reference
+      window.removeEventListener(
+        'get-schema-field-order',
+        schemaFieldOrderHandler
+      )
     })
 
     it('should save file and mark clean', async () => {
