@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Badge } from '../ui/badge'
 import { cn } from '@/lib/utils'
-import type { FileEntry } from '../../store/editorStore'
+import type { FileEntry } from '@/types'
 
 type FrontmatterMappings = {
   publishedDate: string | string[]

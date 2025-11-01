@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { remove } from '@tauri-apps/plugin-fs'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
-import type { FileEntry } from '../../store'
+import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
 
 interface ContextMenuOptions {

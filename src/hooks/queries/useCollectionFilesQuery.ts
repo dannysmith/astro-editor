@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
-import { FileEntry } from '@/store' // Import type from store for now
+import type { FileEntry } from '@/types'
 
 const fetchCollectionFiles = async (
   collectionPath: string

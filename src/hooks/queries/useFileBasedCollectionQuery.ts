@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
-import { FileEntry } from '@/store'
+import type { FileEntry } from '@/types'
 
 /**
  * Query hook for loading file-based collections (JSON loader)

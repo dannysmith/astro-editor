@@ -6,6 +6,7 @@ import { saveRecoveryData, saveCrashReport } from '../lib/recovery'
 import { toast } from '../lib/toast'
 import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
+import type { FileEntry } from '../types'
 
 const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seconds)
 
@@ -172,24 +173,6 @@ function deleteNestedValue(
   }
 
   return result
-}
-
-export interface FileEntry {
-  id: string
-  path: string
-  name: string
-  extension: string
-  isDraft: boolean
-  collection: string
-  last_modified?: number
-  frontmatter?: Record<string, unknown>
-}
-
-export interface MarkdownContent {
-  frontmatter: Record<string, unknown>
-  content: string
-  raw_frontmatter: string
-  imports: string
 }
 
 interface EditorState {

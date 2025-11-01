@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useEditorStore, type FileEntry } from '../editorStore'
+import { useEditorStore } from '../editorStore'
+import type { FileEntry } from '@/types'
 import { useProjectStore } from '../projectStore'
 import { resetToastMocks } from '../../test/mocks/toast'
 

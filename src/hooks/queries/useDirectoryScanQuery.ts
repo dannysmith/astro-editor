@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
-import { DirectoryScanResult } from '@/store'
+import type { DirectoryScanResult } from '@/types'
 
 const fetchDirectoryContents = async (
   directoryPath: string,

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useEditorStore, type FileEntry } from '../store/editorStore'
+import { useEditorStore } from '../store/editorStore'
+import type { FileEntry } from '@/types'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'

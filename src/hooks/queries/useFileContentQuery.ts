@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
-import { MarkdownContent } from '@/store' // Import type from store for now
+import type { MarkdownContent } from '@/types'
 
 const fetchFileContent = async (
   filePath: string,

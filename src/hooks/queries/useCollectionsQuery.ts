@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { queryKeys } from '@/lib/query-keys'
-import { Collection } from '@/store' // Import type from store for now
+import type { Collection } from '@/types'
 import { getEffectiveContentDirectory } from '@/lib/project-registry'
 import { ASTRO_PATHS } from '@/lib/constants'
 import { ProjectSettings } from '@/lib/project-registry/types'
