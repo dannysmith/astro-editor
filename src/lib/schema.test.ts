@@ -377,7 +377,7 @@ describe('deserializeCompleteSchema', () => {
       expect(result).toBeNull()
     })
 
-    it('should handle missing collectionName gracefully', () => {
+    it('should return null when collectionName is missing', () => {
       const invalidSchema = JSON.stringify({
         // Missing collectionName
         fields: [],
@@ -385,10 +385,63 @@ describe('deserializeCompleteSchema', () => {
 
       const result = deserializeCompleteSchema(invalidSchema)
 
-      // Implementation is lenient - returns object with undefined collectionName
-      assertResult(result)
-      expect(result.collectionName).toBeUndefined()
-      expect(result.fields).toEqual([])
+      // Should reject schemas without required collectionName
+      expect(result).toBeNull()
+    })
+
+    it('should return null when collectionName is empty string', () => {
+      const invalidSchema = JSON.stringify({
+        collectionName: '',
+        fields: [],
+      })
+
+      const result = deserializeCompleteSchema(invalidSchema)
+
+      expect(result).toBeNull()
+    })
+
+    it('should return null when collectionName is whitespace only', () => {
+      const invalidSchema = JSON.stringify({
+        collectionName: '   ',
+        fields: [],
+      })
+
+      const result = deserializeCompleteSchema(invalidSchema)
+
+      expect(result).toBeNull()
+    })
+
+    it('should return null when collectionName is not a string', () => {
+      const invalidSchema = JSON.stringify({
+        collectionName: 123,
+        fields: [],
+      })
+
+      const result = deserializeCompleteSchema(invalidSchema)
+
+      expect(result).toBeNull()
+    })
+
+    it('should return null when fields is not an array', () => {
+      const invalidSchema = JSON.stringify({
+        collectionName: 'posts',
+        fields: 'not an array',
+      })
+
+      const result = deserializeCompleteSchema(invalidSchema)
+
+      expect(result).toBeNull()
+    })
+
+    it('should return null when fields is missing', () => {
+      const invalidSchema = JSON.stringify({
+        collectionName: 'posts',
+        // Missing fields
+      })
+
+      const result = deserializeCompleteSchema(invalidSchema)
+
+      expect(result).toBeNull()
     })
 
     it('should handle missing optional fields gracefully', () => {
