@@ -8,6 +8,13 @@ import {
   FieldDescription,
   FieldContent,
 } from '@/components/ui/field'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePreferences } from '../../../hooks/usePreferences'
 
 const SettingsSection: React.FC<{
@@ -26,7 +33,7 @@ const SettingsSection: React.FC<{
 )
 
 export const ProjectSettingsPane: React.FC = () => {
-  const { currentProjectSettings, updateProject, projectName } =
+  const { currentProjectSettings, updateProject, projectName, globalSettings } =
     usePreferences()
 
   const handlePathOverrideChange = (
@@ -38,6 +45,14 @@ export const ProjectSettingsPane: React.FC = () => {
         ...currentProjectSettings?.pathOverrides,
         [key]: value || undefined, // Remove empty strings
       },
+    })
+  }
+
+  const handleDefaultFileTypeChange = (value: string) => {
+    void updateProject({
+      ...currentProjectSettings,
+      defaultFileType:
+        value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
     })
   }
 
@@ -121,6 +136,37 @@ export const ProjectSettingsPane: React.FC = () => {
             <FieldDescription>
               Path to components for use in MDX files (default:
               src/components/mdx/)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      </SettingsSection>
+
+      <SettingsSection title="File Defaults">
+        <Field>
+          <FieldLabel>Default File Type for New Files</FieldLabel>
+          <FieldContent>
+            <Select
+              value={currentProjectSettings?.defaultFileType || 'inherited'}
+              onValueChange={handleDefaultFileTypeChange}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherited">
+                  <span className="text-muted-foreground">
+                    Use global default:{' '}
+                    {globalSettings?.general?.defaultFileType === 'mdx'
+                      ? 'MDX'
+                      : 'Markdown'}
+                  </span>
+                </SelectItem>
+                <SelectItem value="md">Markdown (.md)</SelectItem>
+                <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              File type used when creating new files in this project
             </FieldDescription>
           </FieldContent>
         </Field>

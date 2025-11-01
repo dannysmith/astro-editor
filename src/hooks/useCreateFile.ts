@@ -9,6 +9,7 @@ import { useCreateFileMutation } from './mutations/useCreateFileMutation'
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
+import { getDefaultFileType } from '../lib/project-registry/default-file-type'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -91,9 +92,18 @@ export const useCreateFile = () => {
         ? `${collection.path}/${currentSubdirectory}`
         : collection.path
 
+      // Get the default file extension based on settings
+      const { globalSettings, currentProjectSettings } =
+        useProjectStore.getState()
+      const fileExtension = getDefaultFileType(
+        globalSettings,
+        currentProjectSettings,
+        selectedCollection
+      )
+
       // Generate filename based on today's date
       const today = todayIsoDate()
-      let filename = `${today}.md`
+      let filename = `${today}.${fileExtension}`
       let counter = 1
 
       // Check if file exists in target directory and increment counter if needed
@@ -113,7 +123,7 @@ export const useCreateFile = () => {
       )
 
       while (existingNames.has(filename)) {
-        filename = `${today}-${counter}.md`
+        filename = `${today}-${counter}.${fileExtension}`
         counter++
       }
 

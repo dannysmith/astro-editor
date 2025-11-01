@@ -26,6 +26,8 @@ export interface ProjectSettings {
     description?: string
     draft?: string
   }
+  // Default file type for new files
+  defaultFileType?: 'md' | 'mdx'
   // Per-collection view settings
   collectionViewSettings?: {
     [collectionName: string]: {
@@ -48,6 +50,8 @@ export interface CollectionSpecificSettings {
     description?: string
     draft?: string
   }
+  // Default file type for new files in this collection
+  defaultFileType?: 'md' | 'mdx'
 }
 
 export interface CollectionSettings {
@@ -79,6 +83,7 @@ export interface GlobalSettings {
       conjunctions: boolean
     }
     autoSaveDelay: number
+    defaultFileType: 'md' | 'mdx'
   }
   appearance: {
     headingColor: {

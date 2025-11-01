@@ -50,7 +50,8 @@
       "Bash(cat:*)",
       "WebFetch(domain:docs.astro.build)",
       "WebFetch(domain:rustsec.org)",
-      "WebFetch(domain:crates.io)"
+      "WebFetch(domain:crates.io)",
+      "SlashCommand(/check)"
     ],
     "deny": []
   }

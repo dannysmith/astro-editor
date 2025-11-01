@@ -197,6 +197,7 @@ export function useLayoutEventListeners() {
             [partOfSpeech]: !currentValue,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
       }
 
@@ -231,6 +232,7 @@ export function useLayoutEventListeners() {
             conjunctions: newValue,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
       }
 

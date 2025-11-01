@@ -41,6 +41,7 @@ describe('Store ↔ Query Integration Tests', () => {
             adverbs: false,
             conjunctions: false,
           },
+          defaultFileType: 'md',
         },
         appearance: {
           headingColor: {

@@ -31,6 +31,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
       conjunctions: false,
     },
     autoSaveDelay: 2,
+    defaultFileType: 'md',
   },
   appearance: {
     headingColor: {

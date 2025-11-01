@@ -26,6 +26,7 @@ import { usePreferences } from '../../../hooks/usePreferences'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
 import { getCollectionSettings } from '../../../lib/project-registry/collection-settings'
 import { deserializeCompleteSchema, FieldType } from '../../../lib/schema'
+import { getDefaultFileType } from '../../../lib/project-registry/default-file-type'
 import type { SchemaField } from '../../../lib/schema'
 import type { CollectionSettings } from '../../../lib/project-registry/types'
 
@@ -50,6 +51,7 @@ export const CollectionSettingsPane: React.FC = () => {
     updateCollectionSettings,
     projectPath,
     projectName,
+    globalSettings,
   } = usePreferences()
 
   // Get collections from TanStack Query
@@ -156,6 +158,22 @@ export const CollectionSettingsPane: React.FC = () => {
   // Reset all overrides for a collection
   const handleResetCollection = (collectionName: string) => {
     void updateCollectionSettings(collectionName, {})
+  }
+
+  // Update a collection's default file type
+  const handleDefaultFileTypeChange = (
+    collectionName: string,
+    value: 'md' | 'mdx' | undefined
+  ) => {
+    const existing = getCollectionOverride(collectionName)
+    const newSettings: CollectionSettings = {
+      name: collectionName,
+      settings: {
+        ...existing?.settings,
+        defaultFileType: value,
+      },
+    }
+    void updateCollectionSettings(collectionName, newSettings.settings)
   }
 
   // Filter fields by type for a specific collection
@@ -270,7 +288,8 @@ export const CollectionSettingsPane: React.FC = () => {
           const collectionOverride = getCollectionOverride(collection.name)
           const hasOverrides =
             !!collectionOverride?.settings?.pathOverrides ||
-            !!collectionOverride?.settings?.frontmatterMappings
+            !!collectionOverride?.settings?.frontmatterMappings ||
+            !!collectionOverride?.settings?.defaultFileType
 
           if (!effectiveSettings) return null
 
@@ -347,6 +366,53 @@ export const CollectionSettingsPane: React.FC = () => {
                           <FieldDescription>
                             Collection-specific assets directory. Leave empty to
                             use project setting.
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+                    </SettingsSection>
+
+                    {/* File Defaults Section */}
+                    <SettingsSection title="File Defaults">
+                      <Field>
+                        <FieldLabel>Default File Type for New Files</FieldLabel>
+                        <FieldContent>
+                          <Select
+                            value={
+                              collectionOverride?.settings?.defaultFileType ||
+                              'inherited'
+                            }
+                            onValueChange={value => {
+                              handleDefaultFileTypeChange(
+                                collection.name,
+                                value === 'inherited'
+                                  ? undefined
+                                  : (value as 'md' | 'mdx')
+                              )
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inherited">
+                                <span className="text-muted-foreground">
+                                  Use default:{' '}
+                                  {getDefaultFileType(
+                                    globalSettings,
+                                    currentProjectSettings,
+                                    undefined
+                                  ) === 'mdx'
+                                    ? 'MDX'
+                                    : 'Markdown'}
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="md">Markdown (.md)</SelectItem>
+                              <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FieldDescription>
+                            File type used when creating new files in this
+                            collection
                           </FieldDescription>
                         </FieldContent>
                       </Field>
