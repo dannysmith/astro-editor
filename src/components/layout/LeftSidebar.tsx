@@ -48,15 +48,25 @@ export const LeftSidebar: React.FC = () => {
     } = useProjectStore.getState()
 
     if (selectedCollection) {
-      const showDraftsOnly =
-        currentProjectSettings?.collectionViewSettings?.[selectedCollection]
-          ?.showDraftsOnly || false
+      // Safely default to empty objects
+      const settings = currentProjectSettings || {}
+      const collectionViewSettings = settings.collectionViewSettings || {}
 
+      // Get existing settings for this collection
+      const existing = collectionViewSettings[selectedCollection] || {}
+
+      // Current value
+      const showDraftsOnly = existing.showDraftsOnly || false
+
+      // Build new settings with merged collection settings
       const newSettings = {
-        ...currentProjectSettings,
+        ...settings,
         collectionViewSettings: {
-          ...currentProjectSettings?.collectionViewSettings,
-          [selectedCollection]: { showDraftsOnly: !showDraftsOnly },
+          ...collectionViewSettings,
+          [selectedCollection]: {
+            ...existing,
+            showDraftsOnly: !showDraftsOnly,
+          },
         },
       }
 
