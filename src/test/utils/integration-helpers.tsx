@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from '@testing-library/react'
-import { vi } from 'vitest'
 import type { ReactNode } from 'react'
 
 /**
@@ -36,9 +35,24 @@ export function setupEditorIntegrationTest() {
  * Simulates continuous typing for integration tests
  * Calls setContent repeatedly with a specified interval
  *
+ * IMPORTANT: This function uses real timers (setTimeout) to test actual auto-save timing.
+ * Tests using this function must call vi.useRealTimers() before using it.
+ * Do NOT use this function in tests that use vi.useFakeTimers().
+ *
  * @param setContent - Function to set editor content
  * @param durationMs - Total duration to simulate typing (ms)
  * @param intervalMs - Interval between keystrokes (ms)
+ *
+ * @example
+ * ```ts
+ * beforeEach(() => {
+ *   vi.useRealTimers() // Required for simulateContinuousTyping
+ * })
+ *
+ * it('should handle continuous typing', async () => {
+ *   await simulateContinuousTyping(setContent, 5000, 500)
+ * })
+ * ```
  */
 export async function simulateContinuousTyping(
   setContent: (content: string) => void,
@@ -54,14 +68,6 @@ export async function simulateContinuousTyping(
     // Use real timers to test actual auto-save timing
     await new Promise(resolve => setTimeout(resolve, intervalMs))
   }
-}
-
-/**
- * Advances fake timers by the specified amount
- * Use this when tests use vi.useFakeTimers()
- */
-export function advanceTimersByTime(ms: number): void {
-  vi.advanceTimersByTime(ms)
 }
 
 /**
