@@ -21,6 +21,7 @@ import { FieldWrapper } from './FieldWrapper'
 import { FieldType } from '../../../lib/schema'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
+import { NONE_SENTINEL } from './constants'
 
 interface ReferenceFieldProps extends FieldProps {
   field?: SchemaField
@@ -226,7 +227,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                 {/* For single select, show None option */}
                 {!isMultiSelect && (
                   <CommandItem
-                    value="__NONE__"
+                    value={NONE_SENTINEL}
                     onSelect={() => {
                       updateFrontmatterField(name, undefined)
                       setOpen(false)

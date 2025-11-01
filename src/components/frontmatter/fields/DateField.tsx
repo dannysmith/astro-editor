@@ -4,6 +4,7 @@ import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
+import { formatIsoDate } from '../../../lib/dates'
 
 interface DateFieldProps extends FieldProps {
   field?: SchemaField
@@ -34,7 +35,7 @@ export const DateField: React.FC<DateFieldProps> = ({
         onChange={(date: Date | undefined) => {
           const dateValue =
             date instanceof Date && !isNaN(date.getTime())
-              ? date.toISOString().split('T')[0]
+              ? formatIsoDate(date)
               : undefined
           updateFrontmatterField(name, dateValue)
         }}

@@ -6,6 +6,8 @@ import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
+import { openInIde } from '../../lib/ide'
+import { getTitle } from '../layout/FileItem'
 
 interface ContextMenuOptions {
   file: FileEntry
@@ -60,11 +62,15 @@ export class FileContextMenu {
       // Get current IDE setting from global preferences
       const ideCommand = FileContextMenu.getIdeCommand()
 
-      // Get project path from store
-      const { projectPath } = useProjectStore.getState()
+      // Get project path and settings from store
+      const { projectPath, currentProjectSettings } = useProjectStore.getState()
       if (!projectPath) {
         throw new Error('No project path available')
       }
+
+      // Get title field from settings (defaults to 'title')
+      const titleField =
+        currentProjectSettings?.frontmatterMappings?.title || 'title'
 
       // Create menu items
       const revealItem = await MenuItem.new({
@@ -164,17 +170,7 @@ export class FileContextMenu {
             id: 'open-in-ide',
             text: `Open in ${ideCommand}`,
             action: () => {
-              void (async () => {
-                try {
-                  await invoke('open_path_in_ide', {
-                    ideCommand,
-                    filePath: file.path,
-                  })
-                } catch (error) {
-                  // eslint-disable-next-line no-console
-                  console.error('Failed to open file in IDE:', error)
-                }
-              })()
+              void openInIde(file.path, ideCommand)
             },
           })
         : null
@@ -190,9 +186,9 @@ export class FileContextMenu {
         action: () => {
           void (async () => {
             try {
-              const confirmed = await FileContextMenu.showConfirmationDialog(
-                file.name || file.path.split('/').pop() || 'file'
-              )
+              const fileName = getTitle(file, titleField)
+              const confirmed =
+                await FileContextMenu.showConfirmationDialog(fileName)
               if (confirmed) {
                 await remove(file.path)
                 // Refresh the file list if callback is provided

@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
 import { FileItem, getPublishedDate } from './FileItem'
+import { openProjectViaDialog } from '../../lib/projects/actions'
 
 export const LeftSidebar: React.FC = () => {
   // Only subscribe to currentFile for selection highlighting
@@ -130,18 +131,6 @@ export const LeftSidebar: React.FC = () => {
   const [renamingFileId, setRenamingFileId] = React.useState<string | null>(
     null
   )
-
-  const handleOpenProject = async () => {
-    try {
-      const result = await invoke<string | null>('select_project_folder')
-      if (result) {
-        useProjectStore.getState().setProject(result)
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to open project:', error)
-    }
-  }
 
   const handleCollectionClick = (collection: Collection) => {
     useProjectStore.getState().setSelectedCollection(collection.name)
@@ -294,7 +283,7 @@ export const LeftSidebar: React.FC = () => {
           )}
           {!selectedCollection && (
             <Button
-              onClick={() => void handleOpenProject()}
+              onClick={() => void openProjectViaDialog()}
               variant="ghost"
               size="sm"
               className="size-6 p-0 text-muted-foreground"

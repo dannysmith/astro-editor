@@ -2,11 +2,7 @@ import { EditorView } from '@codemirror/view'
 import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { processDroppedFiles } from './fileProcessing'
-import {
-  validateDropContext,
-  handleNoProjectFallback,
-  handleNoFileFallback,
-} from './edgeCases'
+import { validateDropContext, buildFallbackMarkdownForPaths } from './edgeCases'
 import { FileDropPayload, DropResult } from './types'
 
 /**
@@ -120,15 +116,7 @@ export const handleTauriFileDrop = async (
   const validation = validateDropContext(projectPath, currentFile)
 
   if (!validation.canProceed) {
-    let fallbackText = ''
-
-    if (validation.reason === 'no-project') {
-      fallbackText = handleNoProjectFallback(filePaths)
-    } else if (validation.reason === 'no-file') {
-      fallbackText = handleNoFileFallback(filePaths)
-    } else {
-      fallbackText = handleNoProjectFallback(filePaths)
-    }
+    const fallbackText = buildFallbackMarkdownForPaths(filePaths)
 
     // Insert fallback text
     const { state } = editorView
@@ -171,7 +159,7 @@ export const handleTauriFileDrop = async (
     return { success: true, insertText }
   } catch {
     // Handle processing errors
-    const fallbackText = handleNoProjectFallback(filePaths)
+    const fallbackText = buildFallbackMarkdownForPaths(filePaths)
 
     const { state } = editorView
     const { from } = state.selection.main

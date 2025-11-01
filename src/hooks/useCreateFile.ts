@@ -8,6 +8,7 @@ import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import { useCreateFileMutation } from './mutations/useCreateFileMutation'
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
+import { todayIsoDate } from '../lib/dates'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -38,7 +39,7 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
     case FieldType.Boolean:
       return false
     case FieldType.Date:
-      return new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      return todayIsoDate() // YYYY-MM-DD format
     case FieldType.Array:
       return []
     default:
@@ -91,7 +92,7 @@ export const useCreateFile = () => {
         : collection.path
 
       // Generate filename based on today's date
-      const today = new Date().toISOString().split('T')[0]
+      const today = todayIsoDate()
       let filename = `${today}.md`
       let counter = 1
 

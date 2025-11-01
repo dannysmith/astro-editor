@@ -30,9 +30,5 @@ export {
   extractFilename,
   formatAsMarkdown,
 } from './fileProcessing'
-export {
-  validateDropContext,
-  handleNoProjectFallback,
-  handleNoFileFallback,
-} from './edgeCases'
+export { validateDropContext, buildFallbackMarkdownForPaths } from './edgeCases'
 export type { FileDropPayload, ProcessedFile, DropResult } from './types'
