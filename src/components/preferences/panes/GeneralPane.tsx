@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -10,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
@@ -18,21 +16,7 @@ import {
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
 import { useAvailableIdes } from '../../../hooks/useAvailableIdes'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
@@ -195,7 +179,7 @@ export const GeneralPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Global Settings
         </h2>
         <p className="text-sm text-muted-foreground">

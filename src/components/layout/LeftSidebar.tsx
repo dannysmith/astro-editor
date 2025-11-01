@@ -270,7 +270,7 @@ export const LeftSidebar: React.FC = () => {
       <div
         className={cn(
           'border-b p-3',
-          showDraftsOnly ? 'bg-[var(--color-draft-bg)]' : 'bg-muted/30'
+          showDraftsOnly ? 'bg-draft' : 'bg-muted/30'
         )}
       >
         <div className="flex items-center gap-2">
@@ -279,7 +279,7 @@ export const LeftSidebar: React.FC = () => {
               onClick={handleBackClick}
               variant="ghost"
               size="sm"
-              className="size-6 p-0 text-muted-foreground"
+              className="size-7 p-0 text-muted-foreground"
               title="Back"
             >
               <ArrowLeft className="size-4" />
@@ -290,7 +290,7 @@ export const LeftSidebar: React.FC = () => {
               onClick={() => void openProjectViaDialog()}
               variant="ghost"
               size="sm"
-              className="size-6 p-0 text-muted-foreground"
+              className="size-7 p-0 text-muted-foreground"
               title="Open Project"
             >
               <FolderOpen className="size-4" />
@@ -336,7 +336,7 @@ export const LeftSidebar: React.FC = () => {
             })}
 
             {showDraftsOnly && (
-              <span className="text-xs text-[hsl(var(--color-draft))] ml-2 font-normal flex-shrink-0">
+              <span className="text-xs text-draft ml-2 font-normal flex-shrink-0">
                 (Drafts)
               </span>
             )}
@@ -349,7 +349,7 @@ export const LeftSidebar: React.FC = () => {
               className={cn(
                 'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
                 showDraftsOnly
-                  ? 'text-[hsl(var(--color-draft))] bg-[var(--color-draft-bg)] hover:bg-[var(--color-draft-bg)]/80'
+                  ? 'text-draft bg-draft hover:bg-draft/80'
                   : 'text-muted-foreground'
               )}
               title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}

@@ -1,9 +1,7 @@
 import React from 'react'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
@@ -16,21 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { usePreferences } from '../../../hooks/usePreferences'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const ProjectSettingsPane: React.FC = () => {
   const { currentProjectSettings, updateProject, projectName, globalSettings } =
@@ -59,7 +43,7 @@ export const ProjectSettingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Project Settings
           {projectName && (
             <span className="text-muted-foreground font-normal ml-2">

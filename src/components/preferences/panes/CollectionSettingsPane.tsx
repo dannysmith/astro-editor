@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -16,7 +15,6 @@ import {
 } from '@/components/ui/collapsible'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
@@ -29,21 +27,7 @@ import { deserializeCompleteSchema, FieldType } from '../../../lib/schema'
 import { getDefaultFileType } from '../../../lib/project-registry/default-file-type'
 import type { SchemaField } from '../../../lib/schema'
 import type { CollectionSettings } from '../../../lib/project-registry/types'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const CollectionSettingsPane: React.FC = () => {
   const {
@@ -238,7 +222,7 @@ export const CollectionSettingsPane: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-          <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+          <h2 className="text-base font-semibold mb-1 text-heading">
             Collection Settings
             {projectName && (
               <span className="text-muted-foreground font-normal ml-2">
@@ -263,7 +247,7 @@ export const CollectionSettingsPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Collection Settings
           {projectName && (
             <span className="text-muted-foreground font-normal ml-2">
@@ -307,7 +291,7 @@ export const CollectionSettingsPane: React.FC = () => {
                     ) : (
                       <ChevronRight className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                     )}
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-heading">
                       {collection.name}
                     </span>
                     {hasOverrides && (

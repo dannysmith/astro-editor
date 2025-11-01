@@ -1,11 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
@@ -22,21 +20,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getDiagnosticContext } from '../../../lib/diagnostics'
 import { usePreferences } from '../../../hooks/usePreferences'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const DebugPane: React.FC = () => {
   const [appVersion, setAppVersion] = useState<string>('...')
@@ -89,7 +73,7 @@ export const DebugPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Advanced Settings
         </h2>
         <p className="text-sm text-muted-foreground">

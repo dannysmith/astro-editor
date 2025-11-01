@@ -70,6 +70,9 @@
   --sidebar-border: hsl(0 0% 90%);
   --sidebar-ring: hsl(0 0% 40%);
 
+  /* Heading color - higher contrast than foreground */
+  --heading: 0 0% 5%;
+
   /* Status colors */
   --color-draft: 37 99% 25%; /* orange-600 equivalent */
   --color-draft-bg: 33 100% 96%; /* orange-50 equivalent */
@@ -106,6 +109,9 @@
   --sidebar-accent-foreground: hsl(0 0% 90%);
   --sidebar-border: hsl(0 0% 18%);
   --sidebar-ring: hsl(0 0% 50%);
+
+  /* Heading color - higher contrast than foreground */
+  --heading: 0 0% 98%;
 
   /* Status colors - dark mode */
   --color-draft: 33 100% 70%; /* Lighter orange for dark */
@@ -144,6 +150,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-heading: var(--heading);
   --color-draft: hsl(var(--color-draft));
   --color-draft-bg: hsl(var(--color-draft-bg));
   --color-required: hsl(var(--color-required));
@@ -430,6 +437,32 @@ a {
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+}
+
+@layer utilities {
+  /* Heading text color */
+  .text-heading {
+    color: hsl(var(--heading));
+  }
+
+  /* Status text colors */
+  .text-draft {
+    color: hsl(var(--color-draft));
+  }
+  .text-required {
+    color: hsl(var(--color-required));
+  }
+  .text-warning {
+    color: hsl(var(--color-warning));
+  }
+
+  /* Status background colors */
+  .bg-draft {
+    background-color: hsl(var(--color-draft-bg));
+  }
+  .bg-warning {
+    background-color: hsl(var(--color-warning-bg));
   }
 }
 
