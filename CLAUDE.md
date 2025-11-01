@@ -153,6 +153,27 @@ Use `/check` to verify work quality before completing tasks:
 
 **When to use**: Before completing significant features or refactoring work.
 
+### Task Management
+
+Use the task completion script to mark tasks as done:
+
+```bash
+# Complete a task (move from tasks-todo to tasks-done with today's date)
+pnpm task:complete <task-name>
+
+# Examples:
+pnpm task:complete frontend-performance
+pnpm task:complete 2
+```
+
+The script automatically:
+- Finds matching tasks by partial name or number
+- Strips the `task-[number]-` prefix
+- Adds completion date: `task-YYYY-MM-DD-`
+- Moves from `tasks-todo/` to `tasks-done/`
+
+**See `docs/TASKS.md` for full task management workflow.**
+
 ## Technology Stack
 
 - **Framework:** Tauri v2 (Rust + React)
