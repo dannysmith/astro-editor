@@ -154,6 +154,40 @@ describe('Store ↔ Query Integration Tests', () => {
       expect(updatedStore.currentFile).toEqual(mockFileEntry)
       expect(updatedStore.isDirty).toBe(false)
     })
+
+    it('should clear auto-save timeout when opening new file', () => {
+      const store = useEditorStore.getState()
+
+      // Setup: Open file A and make it dirty with auto-save scheduled
+      store.openFile(mockFileEntry)
+      useEditorStore.setState({
+        editorContent: 'content for file A',
+        frontmatter: { title: 'File A' },
+        isDirty: true,
+      })
+      store.scheduleAutoSave()
+
+      // Verify timeout was scheduled
+      let state = useEditorStore.getState()
+      const timeoutId = state.autoSaveTimeoutId
+      expect(timeoutId).not.toBeNull()
+
+      // Open file B (different file)
+      const fileB: FileEntry = {
+        ...mockFileEntry,
+        id: 'file-b',
+        name: 'fileB.md',
+        path: '/test/content/blog/fileB.md',
+      }
+      store.openFile(fileB)
+
+      // Verify: Timeout was cleared and reset
+      state = useEditorStore.getState()
+      expect(state.autoSaveTimeoutId).toBeNull()
+      expect(state.currentFile).toEqual(fileB)
+      expect(state.isDirty).toBe(false)
+      expect(state.editorContent).toBe('')
+    })
   })
 
   describe('Content and Frontmatter Updates', () => {

@@ -50,6 +50,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Actions
   openFile: (file: FileEntry) => {
+    // Clear auto-save timeout if it exists to prevent race condition
+    // where previous file's auto-save could fire after opening new file
+    const { autoSaveTimeoutId } = get()
+    if (autoSaveTimeoutId) {
+      clearTimeout(autoSaveTimeoutId)
+    }
+
     // CRITICAL: Clear content FIRST, then set currentFile
     // This prevents Editor.tsx from reading stale content via getState()
     set({
@@ -59,6 +66,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       imports: '',
       currentFile: file,
       isDirty: false,
+      autoSaveTimeoutId: null,
       lastSaveTimestamp: Date.now(),
     })
 
