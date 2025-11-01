@@ -16,6 +16,33 @@ Improve Rust backend code quality through focused refactorings that reduce compl
 
 ---
 
+## Before Starting Implementation
+
+**Safety Checks:**
+
+```bash
+# 1. Verify all tests pass (establishes baseline)
+cargo test --lib
+
+# 2. Create feature branch
+git checkout -b refactor/rust-code-quality
+
+# 3. Commit current state (checkpoint to return to if needed)
+git add .
+git commit -m "Checkpoint before Rust refactoring"
+
+# 4. Verify Task 2 complete
+ls docs/tasks-done/task-*-testing*.md
+```
+
+**Current Test Status:**
+- Total tests: 127 passing
+- Parser tests: 26 tests
+- Schema merger tests: 4 tests (needs expansion)
+- Import extraction tests: 2 tests
+
+---
+
 ## Item 1: Simplify Brace Matching Logic (parser.rs)
 
 **Priority:** HIGH (Foundation for other Rust refactorings)
@@ -60,6 +87,14 @@ fn find_matching_closing_brace(
 ) -> Result<usize, String>
 ```
 
+**Important Limitation:**
+This utility performs naive character counting and does NOT handle:
+- Strings containing braces (e.g., `"{"` or `"}"`)
+- Comments containing braces
+- Template literals or other JavaScript string features
+
+The current implementations also don't handle these cases, so we maintain existing behavior. Future enhancement could add context-aware parsing if needed.
+
 ### Implementation Steps
 
 1. **Create the utility function** at the top of `parser.rs` (after imports, before other functions):
@@ -88,7 +123,7 @@ fn find_matching_closing_brace(
    - Test unmatched braces: `{ { }` (should error)
    - Test empty blocks: `{}`
    - Test with content: `{ foo: "bar" }`
-   - Test with strings containing braces: `{ str: "}" }`
+   - Note: Strings with braces like `{ str: "}" }` will NOT work correctly (known limitation)
 
 ### Testing Strategy
 
@@ -133,12 +168,22 @@ fn test_find_matching_closing_brace_unmatched() {
 }
 ```
 
+### Error Handling
+
+- Return descriptive error messages: `"Unclosed braces: expected closing '}' but reached end of content"`
+- Preserve existing error context from calling functions
+- Add debug logging for the new utility function
+
 ### Expected Benefits
 
 - Single source of truth for brace matching (~30 lines saved)
 - Bug fixes benefit all call sites automatically
 - Easier to add special case handling (strings, comments) later
 - More testable in isolation
+
+### Milestone
+
+✅ **Complete when:** `cargo test parser -- --nocapture` passes with all 26+ tests
 
 ### Quality Check
 
@@ -158,71 +203,85 @@ pnpm run check:all
 
 ### Current Issues
 
-The `extract_imports_from_content` function:
-- Handles import detection, multi-line tracking, and markdown block detection in one function
-- Has complex nested control flow with multiple early exits
-- Markdown block detection is embedded within import extraction
-- Difficult to understand the complete logic flow at a glance (~85 lines, cyclomatic complexity ~12)
+The `extract_imports_from_content` function (~85 lines, cyclomatic complexity ~12):
+- Mixed concerns: import detection + empty line handling + markdown block detection
+- Nested loops for multi-line import continuation (lines 401-425)
+- Complex look-ahead logic for empty line handling (lines 427-445)
+- Difficult to understand the complete logic flow at a glance
+
+**Actual complexity drivers:**
+- Three different loop types: import extraction, multi-line continuation, and empty line look-ahead
+- Multiple termination conditions checked in different places
+- Markdown block detection interleaved with import parsing
 
 ### Proposed Solution
 
-Extract helper functions to reduce complexity:
+Extract focused helper functions that match the actual implementation:
 
 ```rust
-/// Check if a line starts an import or export statement
-fn is_import_or_export_line(line: &str) -> bool {
-    let trimmed = line.trim_start();
-    trimmed.starts_with("import ") ||
-    trimmed.starts_with("export ") ||
-    trimmed.starts_with("import{") ||
-    trimmed.starts_with("export{")
+/// Check if a trimmed line starts an import or export statement
+fn is_import_line(trimmed: &str) -> bool {
+    trimmed.starts_with("import ") || trimmed.starts_with("export ")
 }
 
-/// Check if a line should continue a multi-line import
-fn should_continue_import(line: &str, in_import: bool, last_line_ended: bool) -> bool {
-    if !in_import {
-        return false;
-    }
-
-    // Continue if last line didn't end import
-    if !last_line_ended {
-        return true;
-    }
-
-    false
+/// Check if a line is a continuation of a multi-line import
+fn is_import_continuation(line: &str) -> bool {
+    let trimmed = line.trim();
+    !trimmed.is_empty()
+        && !is_markdown_block_start(trimmed)
+        && !has_import_terminator(trimmed)
 }
 
 /// Check if a line has an import terminator (semicolon or closing quote)
-fn has_import_terminator(line: &str) -> bool {
-    line.contains(';') ||
-    line.ends_with('"') ||
-    line.ends_with('\'')
+fn has_import_terminator(trimmed: &str) -> bool {
+    trimmed.ends_with(';')
+        || trimmed.ends_with("';")
+        || trimmed.ends_with("\";")
+}
+
+/// Check if there are more imports after empty lines (look-ahead logic)
+/// Returns true if we should skip the empty line and continue collecting imports
+fn should_skip_empty_line(lines: &[&str], current_idx: usize) -> bool {
+    // Extract lines 427-445 logic into this helper
+    let mut next_idx = current_idx + 1;
+    while next_idx < lines.len() && lines[next_idx].trim().is_empty() {
+        next_idx += 1;
+    }
+
+    if next_idx < lines.len() {
+        let next_line = lines[next_idx].trim();
+        is_import_line(next_line)
+    } else {
+        false
+    }
 }
 ```
 
 ### Implementation Steps
 
 1. **Add helper functions** after `is_markdown_block_start` (around line 350):
-   - Add `is_import_or_export_line()`
-   - Add `should_continue_import()`
-   - Add `has_import_terminator()`
-   - Add doc comments explaining each function's purpose
+   - Add `is_import_line()` - simple check for import/export start
+   - Add `is_import_continuation()` - combines empty check, markdown check, and terminator check
+   - Add `has_import_terminator()` - checks for semicolon or quote endings
+   - Add `should_skip_empty_line()` - extracts the look-ahead logic (lines 427-445)
+   - Add comprehensive doc comments for each function
 
-2. **Refactor main loop** in `extract_imports_from_content`:
-   - Replace inline import detection with `is_import_or_export_line()`
-   - Use `should_continue_import()` for multi-line logic
-   - Use `has_import_terminator()` for termination checks
-   - Keep the markdown block tracking logic
+2. **Refactor main loop** in `extract_imports_from_content` (lines 392-449):
+   - Replace `line.starts_with("import ")` checks (line 396) with `is_import_line()`
+   - Replace multi-line continuation conditions (lines 401-424) with `is_import_continuation()`
+   - Replace empty line look-ahead block (lines 427-445) with `should_skip_empty_line()`
+   - Preserve the overall structure: outer loop → import detection → multi-line loop → empty line handling
 
 3. **Simplify control flow**:
-   - Reduce nesting depth where possible
-   - Use early returns more consistently
-   - Add comments explaining the state machine
+   - Reduce nesting in multi-line import loop by using the new helper
+   - Add comments documenting the three-phase logic: detection → continuation → look-ahead
+   - Keep markdown block detection in place (it's already well-separated)
 
 4. **Add unit tests for each helper**:
-   - Test `is_import_or_export_line()` with various formats
-   - Test `should_continue_import()` with different states
-   - Test `has_import_terminator()` with edge cases
+   - Test `is_import_line()` with various formats (with/without spaces, import vs export)
+   - Test `is_import_continuation()` with empty lines, markdown blocks, and terminated lines
+   - Test `has_import_terminator()` with all three ending formats
+   - Test `should_skip_empty_line()` with different scenarios (more imports, no imports, EOF)
 
 ### Testing Strategy
 
@@ -242,11 +301,32 @@ cargo test extract_imports -- --nocapture
 
 ```rust
 #[test]
-fn test_is_import_or_export_line() {
-    assert!(is_import_or_export_line("import { foo } from 'bar'"));
-    assert!(is_import_or_export_line("export const foo = 'bar'"));
-    assert!(is_import_or_export_line("  import foo from 'bar'"));
-    assert!(!is_import_or_export_line("const foo = 'import'"));
+fn test_is_import_line() {
+    // Should detect imports and exports
+    assert!(is_import_line("import { foo } from 'bar'"));
+    assert!(is_import_line("export const foo = 'bar'"));
+
+    // Should handle leading spaces (line is already trimmed)
+    assert!(is_import_line("import foo from 'bar'"));
+
+    // Should not match imports within strings
+    assert!(!is_import_line("const foo = 'import'"));
+}
+
+#[test]
+fn test_is_import_continuation() {
+    // Should continue on non-empty, non-terminated lines
+    assert!(is_import_continuation("  from 'foo'"));
+
+    // Should NOT continue on empty lines
+    assert!(!is_import_continuation(""));
+
+    // Should NOT continue on terminated lines
+    assert!(!is_import_continuation("from 'foo';"));
+    assert!(!is_import_continuation("from 'foo'"));
+
+    // Should NOT continue on markdown blocks
+    assert!(!is_import_continuation("# Heading"));
 }
 
 #[test]
@@ -256,19 +336,39 @@ fn test_has_import_terminator() {
     assert!(has_import_terminator("from \"foo\""));
     assert!(!has_import_terminator("from 'foo"));
 }
+
+#[test]
+fn test_should_skip_empty_line() {
+    let lines = vec!["import foo", "", "import bar"];
+    assert!(should_skip_empty_line(&lines, 1)); // Should skip empty line at index 1
+
+    let lines = vec!["import foo", "", "# Heading"];
+    assert!(!should_skip_empty_line(&lines, 1)); // Should NOT skip, no more imports
+}
 ```
 
 **After refactoring:**
-- All existing tests must pass
-- New helper function tests must pass
+- All existing tests must pass (2 existing tests)
+- New helper function tests must pass (4 new tests)
 - Manual test with edge cases: imports without semicolons, nested quotes, markdown after imports
+
+### Error Handling
+
+- Preserve existing behavior (no errors returned from this function)
+- Add debug logging to new helper functions for easier troubleshooting
+- Document edge cases in helper function comments
 
 ### Expected Benefits
 
 - 40% reduction in cyclomatic complexity
-- Each helper function is self-documenting
+- Each helper function is self-documenting and testable
+- Clearer separation of concerns: detection vs continuation vs look-ahead
 - Easier to add new import patterns
-- Better test coverage at granular level
+- Better test coverage at granular level (6 tests vs 2)
+
+### Milestone
+
+✅ **Complete when:** `cargo test extract_imports -- --nocapture` passes with all 6+ tests
 
 ### Quality Check
 
@@ -345,9 +445,15 @@ fn resolve_field_path(schema_text: &str, position: usize) -> Vec<String> {
 
 ### Testing Strategy
 
-**Existing test coverage** (lines 943-1083):
-- 11 focused tests for various nesting scenarios
-- Tests for complex schemas
+**Existing test coverage:**
+- 11 focused tests covering various nesting scenarios:
+  - `test_resolve_top_level_field`
+  - `test_resolve_nested_field`
+  - `test_resolve_deep_nested_field`
+  - `test_resolve_multiple_helpers`
+  - `test_resolve_multiline_nested`
+  - `test_resolve_array_of_references`
+  - And 5 more tests for complex schemas
 
 **Before refactoring:**
 ```bash
@@ -391,16 +497,29 @@ fn test_resolve_field_path_mixed_types() {
 ```
 
 **After refactoring:**
-- Run all existing tests
-- Run new edge case tests
+- Run all existing tests (11 tests must pass)
+- Run new edge case tests (2+ new tests)
 - Test with real-world complex schemas from production
+
+### Error Handling
+
+- Return `Result<String, String>` with descriptive errors
+- Preserve existing error messages for backwards compatibility
+- Add context to errors: `"Could not find field name at position 245 in schema"`
+- Add debug logging for each step of path resolution
+- Log brace levels as they're traversed for easier debugging
 
 ### Expected Benefits
 
 - Clearer separation between "finding" and "building" operations
-- Easier to debug path resolution failures
+- Easier to debug path resolution failures (can add logging to specific helpers)
 - Individual functions can be tested in isolation
-- Better error messages (can pinpoint which step failed)
+- Better error messages (can pinpoint which step failed: finding vs building)
+- Reduced cognitive load for understanding the logic
+
+### Milestone
+
+✅ **Complete when:** `cargo test resolve_field_path -- --nocapture` passes with all 13+ tests
 
 ### Quality Check
 
@@ -420,11 +539,20 @@ pnpm run check:all
 
 ### Current Issues
 
-Three mega-functions with too many responsibilities (1077 total lines):
+Three mega-functions with too many responsibilities (1077 total lines, only 4 tests):
 
 1. **`parse_entry_schema`** (lines 260-310): Combines field extraction, flattening, and result building
 2. **`parse_field`** (lines 312-387): Handles type determination, nested object recursion, and field building in one function
 3. **`determine_field_type`** (lines 398-616): 218-line function handling all JSON Schema type variations
+
+**Specific issues with `determine_field_type`:**
+- Deeply nested match statements with complex conditions
+- FieldTypeInfo constructed 11+ times with repetitive boilerplate code
+- Single point of failure - any bug affects all type determinations
+- Each type variation is 15-30 lines of nearly identical code
+- Difficult to test individual type handling in isolation
+
+**Critical gap:** Very low test coverage (4 tests for 1077 lines = ~0.4%)
 
 ### Proposed Solution
 
@@ -458,6 +586,11 @@ fn flatten_nested_object(
 
 ### Implementation Steps
 
+**IMPORTANT:** This refactoring MUST include comprehensive test expansion. Current test coverage is dangerously low (4 tests for 1077 lines). Refactoring provides an opportunity to improve this to industry standards.
+
+**Test-First Approach:**
+Before refactoring, add integration tests for existing behavior to ensure we don't break anything. Then add unit tests for each new handler function.
+
 1. **Start with `determine_field_type` refactoring**:
 
    a. **Create `handle_anyof_type`** (extract lines ~420-480):
@@ -488,20 +621,32 @@ fn flatten_nested_object(
    - Extract `flatten_nested_object` for nested object flattening
    - Simplify main function to coordinate operations
 
-3. **Update tests** (lines 938-1077):
-   - Add tests for each new handler function
-   - Ensure existing tests still pass
-   - Add edge case tests
+3. **ADD comprehensive tests** (not just update existing):
+   - **Before refactoring:** Add integration tests for current behavior (5-10 tests)
+   - **During refactoring:** Add unit tests for each new handler function (3-5 tests each)
+   - **After refactoring:** Ensure existing tests still pass (4 existing tests)
+   - **Goal:** Achieve 15-20+ total tests (vs current 4)
+   - **Coverage target:** Each handler should have dedicated tests for success and error cases
 
 ### Testing Strategy
+
+**Current state:** Only 4 tests exist for 1077 lines of code. This is insufficient.
 
 **Before refactoring:**
 ```bash
 cd src-tauri
 cargo test schema_merger -- --nocapture
+# Should see: 4 tests passing
 ```
 
-**New tests to add**:
+**Add integration tests first** (before touching implementation):
+- Test anyOf with nullable strings, numbers, dates
+- Test arrays of primitives and objects
+- Test nested objects with various structures
+- Test edge cases: empty objects, null types, unknown types
+- Goal: 5-10 integration tests to lock in current behavior
+
+**New handler-specific tests to add during refactoring:**
 
 ```rust
 #[test]
@@ -541,18 +686,33 @@ fn test_handle_array_type_string_array() {
 ```
 
 **After refactoring:**
-- Run all existing schema merger tests
-- Run new handler tests
-- Test with complex real-world schemas
+- Run all existing schema merger tests (4 existing tests must pass)
+- Run new integration tests (5-10 tests must pass)
+- Run new handler unit tests (10-15 tests must pass)
+- Test with complex real-world schemas from production
 - Validate against JSON Schema edge cases
+- **Goal:** 20+ total passing tests (5x improvement from current 4)
+
+### Error Handling
+
+- Return `Result<FieldTypeInfo, String>` with descriptive errors
+- Preserve existing error messages for backwards compatibility
+- Add context to errors indicating which handler failed: `"Failed to determine anyOf type: ..."`
+- Add debug logging for each type determination
+- Document edge cases and limitations in handler comments
 
 ### Expected Benefits
 
-- Each type handler becomes self-contained and testable
-- Easier to add support for new JSON Schema features
-- Reduced cognitive load (60-line handlers vs 218-line mega-function)
-- Individual handlers can be optimized independently
-- Clearer error messages (know which handler failed)
+- **Testability:** Each type handler becomes self-contained and testable (20+ tests vs 4)
+- **Maintainability:** Easier to add support for new JSON Schema features
+- **Readability:** Reduced cognitive load (60-line handlers vs 218-line mega-function)
+- **Performance:** Individual handlers can be optimized independently
+- **Debugging:** Clearer error messages (know which handler failed: anyOf vs array vs object)
+- **Confidence:** 5x test coverage increase ensures correctness
+
+### Milestone
+
+✅ **Complete when:** `cargo test schema_merger -- --nocapture` passes with 20+ tests (vs 4 currently)
 
 ### Quality Check
 
@@ -583,6 +743,17 @@ cargo test schema_merger -- --nocapture
 ### Before Completing Each Item
 
 ```bash
+# Code quality metrics
+cargo clippy -- -D warnings  # Fail on any warnings
+cargo fmt -- --check         # Verify formatting
+
+# Verify test count (example for Item 4)
+cargo test schema_merger -- --list | grep "test" | wc -l
+# Should see increased count
+
+# Performance check (tests should run in <1s)
+time cargo test --lib
+
 # Run all quality checks
 pnpm run check:all
 
@@ -622,10 +793,24 @@ Each refactoring item is complete when:
 
 ## Implementation Order
 
+Each item includes a completion milestone - tests must pass before moving to the next item.
+
 1. **Item 1** (Brace matching) - Foundation for other parser work
+   - **Time:** 2-3 days
+   - **Milestone:** `cargo test parser -- --nocapture` passes with 26+ tests
+
 2. **Item 2** (Import parsing) - Independent, reduces complexity
+   - **Time:** 2-3 days
+   - **Milestone:** `cargo test extract_imports -- --nocapture` passes with 6+ tests
+
 3. **Item 3** (Field path resolution) - Builds on Item 1
+   - **Time:** 2-3 days
+   - **Milestone:** `cargo test resolve_field_path -- --nocapture` passes with 13+ tests
+
 4. **Item 4** (Schema merging) - Most complex, benefits from experience with first 3
+   - **Time:** 4-5 days
+   - **Critical:** ADD comprehensive tests FIRST, then refactor
+   - **Milestone:** `cargo test schema_merger -- --nocapture` passes with 20+ tests
 
 ---
 
@@ -640,5 +825,18 @@ Each refactoring item is complete when:
 
 ---
 
+## Revision History
+
 **Created:** 2025-11-01
-**Status:** Ready for implementation (after Task 2 complete)
+**Updated:** 2025-11-01 - Pre-implementation review
+- Added "Before Starting Implementation" safety checks
+- Updated Item 1: Added limitation about string/comment handling
+- Rewrote Item 2: Corrected to match actual code implementation (fixed mismatch)
+- Updated Item 3: Fixed test coverage references (use test names not line numbers)
+- Enhanced Item 4: Emphasized adding 20+ tests (5x improvement from current 4)
+- Added error handling sections to all items
+- Added completion milestones to all items
+- Enhanced quality gates with specific metrics
+- Updated implementation order with time estimates and milestones
+
+**Status:** ✅ Ready for implementation (Task 2 complete, 127 tests passing)
