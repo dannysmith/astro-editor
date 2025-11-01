@@ -17,7 +17,7 @@ import {
 } from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
-import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
+import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { FrameworkIcon } from '../icons/FrameworkIcon'
 

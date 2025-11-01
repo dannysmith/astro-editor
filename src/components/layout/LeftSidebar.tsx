@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
-import { useEffectiveSettings } from '../../lib/project-registry/effective-settings'
+import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { FileItem, getPublishedDate } from './FileItem'
 import { openProjectViaDialog } from '../../lib/projects/actions'
 

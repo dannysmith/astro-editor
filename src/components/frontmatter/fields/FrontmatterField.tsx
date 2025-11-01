@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { useEffectiveSettings } from '../../../lib/project-registry/effective-settings'
+import { useEffectiveSettings } from '../../../hooks/settings/useEffectiveSettings'
 import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'

@@ -1,8 +1,8 @@
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
-import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { CommandContext } from './types'
+import { useCollectionsQuery } from '../queries/useCollectionsQuery'
+import { CommandContext } from '../../lib/commands/types'
 
 /**
  * Creates command context from current app state
