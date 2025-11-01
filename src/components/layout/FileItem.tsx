@@ -82,6 +82,7 @@ export const FileItem: React.FC<FileItemProps> = ({
 }) => {
   const [renameValue, setRenameValue] = useState('')
   const renameInitializedRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   // Derived state (NO store subscriptions)
   const isFileDraft =
@@ -109,9 +110,7 @@ export const FileItem: React.FC<FileItemProps> = ({
     if (isRenaming && !renameInitializedRef.current) {
       renameInitializedRef.current = true
       const timeoutId = setTimeout(() => {
-        const input = document.querySelector(
-          'input[type="text"]'
-        ) as HTMLInputElement
+        const input = inputRef.current
         if (input && renameValue) {
           input.focus()
           const lastDotIndex = renameValue.lastIndexOf('.')
@@ -163,6 +162,7 @@ export const FileItem: React.FC<FileItemProps> = ({
           <div className="text-xs font-mono text-muted-foreground mt-1">
             {isRenaming ? (
               <input
+                ref={inputRef}
                 type="text"
                 value={renameValue}
                 onChange={e => setRenameValue(e.target.value)}
