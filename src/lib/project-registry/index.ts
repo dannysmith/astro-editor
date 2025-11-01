@@ -232,14 +232,24 @@ export class ProjectRegistryManager {
       },
     }
 
-    // Update defaultFileType if provided
-    if (settings.defaultFileType !== undefined) {
-      projectData.settings.defaultFileType = settings.defaultFileType
+    // Update defaultFileType if property is present
+    if ('defaultFileType' in settings) {
+      if (settings.defaultFileType === undefined) {
+        // Remove the override to inherit from global settings
+        delete projectData.settings.defaultFileType
+      } else {
+        projectData.settings.defaultFileType = settings.defaultFileType
+      }
     }
 
-    // Update collections if provided
-    if (settings.collections !== undefined) {
-      projectData.settings.collections = settings.collections
+    // Update collections if property is present
+    if ('collections' in settings) {
+      if (settings.collections === undefined) {
+        // Remove the override
+        delete projectData.settings.collections
+      } else {
+        projectData.settings.collections = settings.collections
+      }
     }
 
     // Update cache
