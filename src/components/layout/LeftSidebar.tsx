@@ -19,8 +19,10 @@ import {
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
-import { FileItem, getPublishedDate } from './FileItem'
+import { FileItem } from './FileItem'
 import { openProjectViaDialog } from '../../lib/projects/actions'
+import { filterFilesByDraft } from '../../lib/files/filtering'
+import { sortFilesByPublishedDate } from '../../lib/files/sorting'
 
 export const LeftSidebar: React.FC = () => {
   // Only subscribe to currentFile for selection highlighting
@@ -227,41 +229,13 @@ export const LeftSidebar: React.FC = () => {
 
   // Filter and sort files by published date (reverse chronological), files without dates first
   const filteredAndSortedFiles = React.useMemo((): FileEntry[] => {
-    // Filter files if drafts-only mode is enabled
-    let filesToSort = files
-    if (showDraftsOnly) {
-      filesToSort = files.filter(file => {
-        return (
-          file.isDraft || file.frontmatter?.[frontmatterMappings.draft] === true
-        )
-      })
-    }
-
-    // Apply existing sorting logic
-    return [...filesToSort].sort((a, b) => {
-      const dateA = getPublishedDate(
-        a.frontmatter || {},
-        frontmatterMappings.publishedDate
-      )
-      const dateB = getPublishedDate(
-        b.frontmatter || {},
-        frontmatterMappings.publishedDate
-      )
-
-      // Files without dates go to top
-      if (!dateA && !dateB) return 0
-      if (!dateA) return -1
-      if (!dateB) return 1
-
-      // Sort by date descending (newest first)
-      return dateB.getTime() - dateA.getTime()
-    })
-  }, [
-    files,
-    frontmatterMappings.publishedDate,
-    frontmatterMappings.draft,
-    showDraftsOnly,
-  ])
+    const filtered = filterFilesByDraft(
+      files,
+      showDraftsOnly,
+      frontmatterMappings
+    )
+    return sortFilesByPublishedDate(filtered, frontmatterMappings)
+  }, [files, frontmatterMappings, showDraftsOnly])
 
   const headerTitle = selectedCollection
     ? selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)

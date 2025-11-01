@@ -1,7 +1,17 @@
+// File processing exports
 export { processFileToAssets } from './fileProcessing'
-export { IMAGE_EXTENSIONS, IMAGE_EXTENSIONS_WITH_DOTS } from './constants'
 export type {
   ProcessFileToAssetsOptions,
   ProcessFileToAssetsResult,
-  ImageExtension,
 } from './types'
+
+// Constants exports
+export {
+  IMAGE_EXTENSIONS,
+  IMAGE_EXTENSIONS_WITH_DOTS,
+  type ImageExtension,
+} from './constants'
+
+// Filtering and sorting exports
+export { filterFilesByDraft } from './filtering'
+export { sortFilesByPublishedDate, getPublishedDate } from './sorting'

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Badge } from '../ui/badge'
 import { cn } from '@/lib/utils'
+import { getPublishedDate } from '../../lib/files/sorting'
 import type { FileEntry } from '@/types'
 
 type FrontmatterMappings = {
@@ -37,26 +38,6 @@ export function formatDate(dateValue: unknown): string {
   } catch {
     return ''
   }
-}
-
-export function getPublishedDate(
-  frontmatter: Record<string, unknown>,
-  publishedDateField: string | string[]
-): Date | null {
-  const dateFields = Array.isArray(publishedDateField)
-    ? publishedDateField
-    : [publishedDateField]
-
-  for (const field of dateFields) {
-    const value = frontmatter[field]
-    if (value) {
-      const date = new Date(value as string)
-      if (!isNaN(date.getTime())) {
-        return date
-      }
-    }
-  }
-  return null
 }
 
 interface FileItemProps {
