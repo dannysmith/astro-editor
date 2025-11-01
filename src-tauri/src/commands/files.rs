@@ -379,6 +379,39 @@ fn is_numbered_list_start(line: &str) -> bool {
     }
 }
 
+/// Check if a trimmed line starts an import or export statement
+fn is_import_line(trimmed: &str) -> bool {
+    trimmed.starts_with("import ") || trimmed.starts_with("export ")
+}
+
+/// Check if a line has an import terminator (semicolon or closing quote)
+fn has_import_terminator(trimmed: &str) -> bool {
+    trimmed.ends_with(';') || trimmed.ends_with("';") || trimmed.ends_with("\";")
+}
+
+/// Check if a line is a continuation of a multi-line import
+#[allow(dead_code)] // Kept for documentation and potential future use
+fn is_import_continuation(line: &str) -> bool {
+    let trimmed = line.trim();
+    !trimmed.is_empty() && !is_markdown_block_start(trimmed) && !has_import_terminator(trimmed)
+}
+
+/// Check if there are more imports after empty lines (look-ahead logic)
+/// Returns true if we should skip the empty line and continue collecting imports
+fn should_skip_empty_line(lines: &[&str], current_idx: usize) -> bool {
+    let mut next_idx = current_idx + 1;
+    while next_idx < lines.len() && lines[next_idx].trim().is_empty() {
+        next_idx += 1;
+    }
+
+    if next_idx < lines.len() {
+        let next_line = lines[next_idx].trim();
+        is_import_line(next_line)
+    } else {
+        false
+    }
+}
+
 fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
     let mut imports = Vec::new();
     let mut content_start_idx = 0;
@@ -393,7 +426,7 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
         let line = lines[content_start_idx].trim();
 
         // Check if this line is an import statement
-        if line.starts_with("import ") || line.starts_with("export ") {
+        if is_import_line(line) {
             imports.push(lines[content_start_idx]);
             content_start_idx += 1;
 
@@ -401,46 +434,27 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
             while content_start_idx < lines.len() {
                 let current_line = lines[content_start_idx].trim();
 
-                if current_line.is_empty() {
-                    // Empty line separates imports from content
+                // Empty line or markdown block - stop continuation
+                if current_line.is_empty() || is_markdown_block_start(current_line) {
                     break;
                 }
 
-                // Detect common Markdown block starts - these are NOT import continuations
-                if is_markdown_block_start(current_line) {
-                    break;
-                }
-
-                // This is a continuation of the previous import
+                // This is a continuation of the previous import - add it first
                 imports.push(lines[content_start_idx]);
                 content_start_idx += 1;
 
-                // Stop if this line ends with a semicolon
-                if current_line.ends_with(';')
-                    || current_line.ends_with("';")
-                    || current_line.ends_with("\";")
-                {
+                // Stop if this line has a terminator
+                if has_import_terminator(current_line) {
                     break;
                 }
             }
         } else if line.is_empty() {
-            // Check if there are more imports after this empty line
-            let mut next_idx = content_start_idx + 1;
-            while next_idx < lines.len() && lines[next_idx].trim().is_empty() {
-                next_idx += 1;
-            }
-
-            if next_idx < lines.len() {
-                let next_line = lines[next_idx].trim();
-                if next_line.starts_with("import ") || next_line.starts_with("export ") {
-                    // More imports coming, skip empty line
-                    content_start_idx += 1;
-                } else {
-                    // No more imports, this empty line separates imports from content
-                    break;
-                }
+            // Check if there are more imports after this empty line (look-ahead)
+            if should_skip_empty_line(lines, content_start_idx) {
+                // More imports coming, skip empty line
+                content_start_idx += 1;
             } else {
-                // End of file
+                // No more imports, this empty line separates imports from content
                 break;
             }
         } else {
@@ -1473,6 +1487,68 @@ This is a test post with arrays."#;
         assert!(!is_markdown_block_start("Just regular text"));
         assert!(!is_markdown_block_start(""));
     }
+
+    // --- UNIT TESTS FOR IMPORT PARSING HELPERS ---
+
+    #[test]
+    fn test_is_import_line() {
+        // Should detect imports and exports
+        assert!(is_import_line("import { foo } from 'bar'"));
+        assert!(is_import_line("export const foo = 'bar'"));
+        assert!(is_import_line("import foo from 'bar'"));
+        assert!(is_import_line("export default Component"));
+
+        // Should not match imports within strings
+        assert!(!is_import_line("const foo = 'import'"));
+        assert!(!is_import_line("// import comment"));
+        assert!(!is_import_line("Regular text"));
+    }
+
+    #[test]
+    fn test_has_import_terminator() {
+        assert!(has_import_terminator("from 'foo';"));
+        assert!(has_import_terminator("from 'bar';"));
+        assert!(has_import_terminator("from \"baz\";"));
+        assert!(!has_import_terminator("from 'foo'"));
+        assert!(!has_import_terminator("from 'foo"));
+        assert!(!has_import_terminator("import { Component,"));
+    }
+
+    #[test]
+    fn test_is_import_continuation() {
+        // Should continue on non-empty, non-terminated lines
+        assert!(is_import_continuation("  from 'foo'"));
+        assert!(is_import_continuation("  Component1,"));
+        assert!(is_import_continuation("  Component2"));
+
+        // Should NOT continue on empty lines
+        assert!(!is_import_continuation(""));
+        assert!(!is_import_continuation("   "));
+
+        // Should NOT continue on terminated lines
+        assert!(!is_import_continuation("from 'foo';"));
+
+        // Should NOT continue on markdown blocks
+        assert!(!is_import_continuation("# Heading"));
+        assert!(!is_import_continuation("- List item"));
+    }
+
+    #[test]
+    fn test_should_skip_empty_line() {
+        let lines = vec!["import foo", "", "import bar"];
+        assert!(should_skip_empty_line(&lines, 1)); // Should skip empty line at index 1
+
+        let lines = vec!["import foo", "", "# Heading"];
+        assert!(!should_skip_empty_line(&lines, 1)); // Should NOT skip, no more imports
+
+        let lines = vec!["import foo", ""];
+        assert!(!should_skip_empty_line(&lines, 1)); // Should NOT skip, EOF
+
+        let lines = vec!["import foo", "", "", "import bar"];
+        assert!(should_skip_empty_line(&lines, 1)); // Should skip multiple empty lines
+    }
+
+    // --- END IMPORT PARSING HELPER TESTS ---
 
     #[test]
     fn test_parse_mdx_with_imports() {
