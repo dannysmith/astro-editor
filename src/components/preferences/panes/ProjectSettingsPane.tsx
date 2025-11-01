@@ -50,7 +50,6 @@ export const ProjectSettingsPane: React.FC = () => {
 
   const handleDefaultFileTypeChange = (value: string) => {
     void updateProject({
-      ...currentProjectSettings,
       defaultFileType:
         value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
     })
