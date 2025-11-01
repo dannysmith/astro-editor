@@ -8,6 +8,12 @@
 
 Simple, uncontroversial deduplication opportunities that reduce fragility and magic strings without adding architectural complexity. These are all 2-5 line changes that eliminate copy-paste patterns.
 
+**Last Reviewed**: 2025-11-01 - Task updated to reflect current codebase state. Key changes:
+- Item #3 updated: FileItem.tsx already has `getTitle()` helper; just need to use it consistently
+- Item #5 updated: Found third location for "Open Project" flow (LeftSidebar.tsx)
+- Item #7 updated: Drag/drop helpers already partially consolidated
+- All other items remain valid and unchanged
+
 ## Tasks
 
 ### 1. Consolidate Date Formatting (HIGH VALUE)
@@ -58,28 +64,24 @@ export async function openInIde(path: string, ideCmd?: string): Promise<void> {
 
 ---
 
-### 3. Unify File Display Name Logic
+### 3. Use Existing `getTitle()` Helper Consistently
 
-**Issue**: Different fallback patterns for deriving user-facing file labels
-**Locations**:
-- `src/components/layout/LeftSidebar.tsx`: `file.name || file.path.split('/').pop() || 'Untitled'`
-- `src/lib/commands/app-commands.ts`: prefers `frontmatter.title` when available
-- `src/components/frontmatter/fields/ReferenceField.tsx`: tiered fallback (title → name → slug → id → filename)
+**Issue**: File display name logic exists but isn't used everywhere
+**Current State**: `src/components/layout/FileItem.tsx` exports `getTitle(file, titleField)` helper
+**Locations not using it**:
+- `src/components/ui/context-menu.tsx:194`: Uses `file.name || file.path.split('/').pop() || 'file'`
 
-**Solution**: Create `src/lib/files/display.ts`:
+**Note**: `ReferenceField.tsx` intentionally uses a different, more comprehensive fallback (title → name → slug → id) since it's for reference lookups, not file display.
+
+**Solution**: Update context-menu.tsx to import and use the existing `getTitle()` helper:
 ```typescript
-export function getFileDisplayName(file: FileEntry): string {
-  // Comprehensive fallback chain
-  if (file.frontmatter?.title) return file.frontmatter.title
-  if (file.name) return file.name
-  if (file.frontmatter?.slug) return file.frontmatter.slug
-  if (file.id) return file.id
-  const filename = file.path.split('/').pop()
-  return filename || 'Untitled'
-}
+import { getTitle } from '../layout/FileItem'
+
+// In confirmation dialog:
+const fileName = getTitle(file, 'title') // or get titleField from settings
 ```
 
-**Why**: Inconsistent display heuristics across UI is confusing. One rule improves predictability.
+**Why**: Reuse existing tested helper instead of creating new abstraction. The `getTitle()` helper is already properly handling frontmatter title field lookups with fallbacks.
 
 ---
 
@@ -101,27 +103,30 @@ export const NONE_SENTINEL = '__NONE__'
 
 ### 5. Unify "Open Project" Flow
 
-**Issue**: Two implementations of project selection dialog
+**Issue**: Three implementations of project selection dialog
 **Locations**:
-- `src/lib/commands/app-commands.ts` (command palette)
-- `src/hooks/useLayoutEventListeners.ts` (menu event)
+- `src/lib/commands/app-commands.ts:111` (command palette - Open Project)
+- `src/hooks/useLayoutEventListeners.ts:367` (menu event - menu-open-project)
+- `src/components/layout/LeftSidebar.tsx:136` (sidebar - Open Project button)
 
 **Solution**: Extract to `src/lib/projects/actions.ts`:
 ```typescript
 export async function openProjectViaDialog(): Promise<void> {
   try {
-    const projectPath = await invoke('select_project_folder')
-    useProjectStore.getState().setProject(projectPath)
-    toast.success('Project opened')
-  } catch (error) {
-    if (error !== 'User cancelled') {
-      toast.error(`Failed to open project: ${error}`)
+    const projectPath = await invoke<string>('select_project_folder')
+    if (projectPath) {
+      useProjectStore.getState().setProject(projectPath)
+      toast.success('Project opened successfully')
     }
+  } catch (error) {
+    toast.error('Failed to open project', {
+      description: error instanceof Error ? error.message : 'Unknown error occurred'
+    })
   }
 }
 ```
 
-**Why**: Same user action shouldn't have two implementations that can drift.
+**Why**: Same user action has three implementations that can drift in error handling, messaging, and behavior. Centralizing ensures consistent UX.
 
 ---
 
@@ -148,12 +153,13 @@ useHotkeys('mod+s', handleSave, DEFAULT_HOTKEY_OPTS)
 
 ### 7. Consolidate Drag/Drop Fallback Helpers
 
-**Issue**: `handleNoProjectFallback` and `handleNoFileFallback` are identical
-**Location**: `src/lib/editor/dragdrop/edgeCases.ts`
+**Issue**: `handleNoProjectFallback` and `handleNoFileFallback` are already effectively the same
+**Location**: `src/lib/editor/dragdrop/edgeCases.ts:29-32`
+**Current State**: `handleNoFileFallback` simply calls `handleNoProjectFallback`
 
-**Solution**: Keep single `buildFallbackMarkdownForPaths(filePaths: string[])`
+**Solution**: Remove `handleNoFileFallback` entirely and rename `handleNoProjectFallback` to `buildFallbackMarkdownForPaths` for clarity. Update all call sites.
 
-**Why**: Tiny, but unnecessary duplication.
+**Why**: Having two function names for the same behavior is confusing. A single, clearly-named function better expresses the intent.
 
 ---
 
@@ -168,13 +174,13 @@ This task explicitly EXCLUDES:
 
 ## Success Criteria
 
-- [ ] Date formatting uses `lib/dates.ts` utilities
-- [ ] All IDE-opening flows use `lib/ide.ts`
-- [ ] File display names consistent via `getFileDisplayName()`
-- [ ] `NONE_SENTINEL` constant replaces all `"__NONE__"` strings
-- [ ] `openProjectViaDialog()` used by both command palette and menu
-- [ ] Hotkey options use shared constant
-- [ ] Drag/drop fallbacks consolidated
+- [ ] Date formatting uses `lib/dates.ts` utilities (useCreateFile.ts, DateField.tsx)
+- [ ] All IDE-opening flows use `lib/ide.ts` (app-commands.ts, context-menu.tsx)
+- [ ] Context menu uses existing `getTitle()` helper from FileItem.tsx
+- [ ] `NONE_SENTINEL` constant replaces all `"__NONE__"` strings (EnumField.tsx, ReferenceField.tsx)
+- [ ] `openProjectViaDialog()` used by command palette, menu, and sidebar (3 locations)
+- [ ] Hotkey options use shared constant in useLayoutEventListeners.ts
+- [ ] Drag/drop uses single `buildFallbackMarkdownForPaths()` function
 - [ ] No new architectural complexity introduced
 - [ ] All tests pass
 
