@@ -34,11 +34,18 @@ describe('Project Registry System', () => {
     manager = new ProjectRegistryManager()
   })
 
-  it('should initialize with default settings', async () => {
-    // Mock the file system calls to return default data
+  /**
+   * Helper to set up the initialization mock sequence
+   * These mocks handle the initial file system calls during manager.initialize()
+   */
+  function setupInitializationMocks(mockInvoke: ReturnType<typeof vi.fn>) {
     mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir
     mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (registry)
     mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (global settings)
+  }
+
+  it('should initialize with default settings', async () => {
+    setupInitializationMocks(mockInvoke)
 
     await manager.initialize()
 
@@ -63,9 +70,7 @@ describe('Project Registry System', () => {
 
   it('should handle project registration', async () => {
     // Initialize manager first
-    mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (registry)
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (global settings)
+    setupInitializationMocks(mockInvoke)
 
     await manager.initialize()
 
@@ -95,9 +100,7 @@ describe('Project Registry System', () => {
 
   it('should provide effective settings combining global and project settings', async () => {
     // Initialize manager
-    mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (registry)
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (global settings)
+    setupInitializationMocks(mockInvoke)
 
     await manager.initialize()
 
@@ -125,9 +128,7 @@ describe('Project Registry System', () => {
 
   it('should handle project path migration', async () => {
     // Initialize manager
-    mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (registry)
-    mockInvoke.mockRejectedValueOnce(new Error('File not found')) // read_file_content (global settings)
+    setupInitializationMocks(mockInvoke)
 
     await manager.initialize()
 
