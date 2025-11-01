@@ -66,19 +66,12 @@ export const handleTauriFileDrop = async (
   payload: unknown,
   editorView: EditorView | null
 ): Promise<DropResult> => {
-  // eslint-disable-next-line no-console
-  console.log('[DROP] Handler called, editorView:', !!editorView)
-
   if (!editorView) {
-    // eslint-disable-next-line no-console
-    console.log('[DROP] No editor view')
     return { success: false, insertText: '', error: 'No editor view available' }
   }
 
   // Parse file paths and position from payload
   const { paths: filePaths, position } = parseFileDropPayload(payload)
-  // eslint-disable-next-line no-console
-  console.log('[DROP] Files:', filePaths.length, 'Position:', position)
 
   if (filePaths.length === 0) {
     return { success: false, insertText: '', error: 'No files in drop payload' }
@@ -87,26 +80,17 @@ export const handleTauriFileDrop = async (
   // Check if drop is within editor element bounds
   // This prevents conflicts with FileUploadButton and other UI elements
   const editorElement = editorView.dom.closest('[data-editor-container]')
-  // eslint-disable-next-line no-console
-  console.log('[DROP] Element found:', !!editorElement)
 
   const isWithin = isDropWithinElement(position, editorElement)
-  // eslint-disable-next-line no-console
-  console.log('[DROP] Is within bounds:', isWithin)
 
   if (!isWithin) {
     // Drop is outside editor bounds, ignore it
-    // eslint-disable-next-line no-console
-    console.log('[DROP] Ignoring - outside bounds')
     return {
       success: false,
       insertText: '',
       error: 'Drop outside editor bounds',
     }
   }
-
-  // eslint-disable-next-line no-console
-  console.log('[DROP] Processing...')
 
   // Get current project path and file from store
   const { projectPath } = useProjectStore.getState()
