@@ -142,27 +142,30 @@ describe('Project Registry System', () => {
     mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir for save path
     mockInvoke.mockResolvedValueOnce(undefined) // write_app_data_file (save registry)
 
-    await manager.registerProject(originalPath)
+    const originalProjectId = await manager.registerProject(originalPath)
 
     // Now try to register same project at new path
     const newPath = '/new/location/test-project'
 
-    // For path migration, we need to mock the isSameProject check
-    // which reads package.json from the new path
+    // Mock the isSameProject check - it reads package.json from new path
     mockInvoke.mockResolvedValueOnce(mockPackageJson) // read_file_content (package.json) for isSameProject check
-    mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir for save
-    mockInvoke.mockResolvedValueOnce(undefined) // create_directory (preferences)
-    mockInvoke.mockResolvedValueOnce(undefined) // create_directory (projects)
-    mockInvoke.mockResolvedValueOnce('/mock/app/data') // get_app_data_dir for save path
-    mockInvoke.mockResolvedValueOnce(undefined) // write_app_data_file (save registry)
+    mockInvoke.mockResolvedValueOnce(undefined) // write_app_data_file (save registry after migration)
 
-    const newProjectId = await manager.registerProject(newPath)
+    const migratedProjectId = await manager.registerProject(newPath)
 
-    // For migration to work, the package.json must have the same name
-    // Since both paths will fall back to path-based IDs, they will be different
-    // So let's just verify the new registration worked
-    expect(newProjectId).toBeTruthy()
-    expect(manager.getRegistry().projects[newProjectId]).toBeDefined()
-    expect(manager.getRegistry().projects[newProjectId]?.path).toBe(newPath)
+    // Verify migration occurred correctly
+    // 1. Same project ID (not a new project)
+    expect(migratedProjectId).toBe(originalProjectId)
+
+    // 2. Path was updated
+    expect(manager.getRegistry().projects[originalProjectId]?.path).toBe(newPath)
+
+    // 3. Only one project exists in registry
+    expect(Object.keys(manager.getRegistry().projects)).toHaveLength(1)
+
+    // 4. Project name remains the same
+    expect(manager.getRegistry().projects[originalProjectId]?.name).toBe(
+      'test-project'
+    )
   })
 })
