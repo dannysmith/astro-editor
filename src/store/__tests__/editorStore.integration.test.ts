@@ -242,19 +242,25 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
   })
 
   describe('MDX Imports Preservation', () => {
+    let schemaFieldOrderListener: (event: Event) => void
+
     beforeEach(() => {
       // Use real timers for these tests since we don't care about auto-save timing
       vi.useRealTimers()
 
       // Mock the schema field order event that saveFile waits for
-      window.addEventListener('get-schema-field-order', _event => {
+      schemaFieldOrderListener = (_event: Event) => {
         // Immediately respond with an empty field order
         window.dispatchEvent(
           new CustomEvent('schema-field-order-response', {
             detail: { fieldOrder: null },
           })
         )
-      })
+      }
+      window.addEventListener(
+        'get-schema-field-order',
+        schemaFieldOrderListener
+      )
     })
 
     afterEach(() => {
@@ -262,7 +268,10 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       vi.useFakeTimers()
 
       // Clean up event listeners
-      window.removeEventListener('get-schema-field-order', () => {})
+      window.removeEventListener(
+        'get-schema-field-order',
+        schemaFieldOrderListener
+      )
     })
 
     it('should preserve imports when updating frontmatter and saving', async () => {
