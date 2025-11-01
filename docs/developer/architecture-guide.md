@@ -195,6 +195,46 @@ console.log(result.filename)     // 'image.png'
 - Toast notifications
 - React state management
 
+#### Other Key Utility Modules
+
+**Date Utilities (`src/lib/dates.ts`)**
+
+```typescript
+import { formatIsoDate, todayIsoDate } from '@/lib/dates'
+
+const isoDate = formatIsoDate(new Date())  // "2025-11-01"
+const today = todayIsoDate()                // Today's date in YYYY-MM-DD
+```
+
+**IDE Integration (`src/lib/ide.ts`)**
+
+```typescript
+import { openInIde } from '@/lib/ide'
+
+// Opens file in configured IDE with unified error handling
+await openInIde(filePath, ideCommand)
+```
+
+**Project Actions (`src/lib/projects/actions.ts`)**
+
+```typescript
+import { openProjectViaDialog } from '@/lib/projects/actions'
+
+// Unified project selection dialog with error handling
+await openProjectViaDialog()
+```
+
+**Field Constants (`src/components/frontmatter/fields/constants.ts`)**
+
+```typescript
+import { NONE_SENTINEL } from '@/components/frontmatter/fields/constants'
+
+// Use for "no selection" values in dropdowns
+<SelectItem value={NONE_SENTINEL}>
+  <span className="text-muted-foreground">(None)</span>
+</SelectItem>
+```
+
 ## Critical Patterns
 
 ### The `getState()` Pattern (CRITICAL)

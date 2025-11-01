@@ -296,6 +296,8 @@ const NumberField: React.FC<NumberFieldProps> = ({
 #### DateField
 
 ```typescript
+import { formatIsoDate } from '@/lib/dates'
+
 const DateField: React.FC<DateFieldProps> = ({
   name,
   label,
@@ -304,13 +306,9 @@ const DateField: React.FC<DateFieldProps> = ({
 }) => {
   const { frontmatter, updateFrontmatterField } = useEditorStore()
 
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0]
-  }
-
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
-      updateFrontmatterField(name, formatDate(date))
+      updateFrontmatterField(name, formatIsoDate(date))
     } else {
       updateFrontmatterField(name, undefined)
     }

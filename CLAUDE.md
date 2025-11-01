@@ -372,6 +372,16 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 - `src/lib/editor/` - Editor modules
 - `src/lib/schema.ts` - Zod schema parsing
 
+### Reusable Utilities
+
+Before creating new utilities, check these existing modules:
+
+- `src/lib/dates.ts` - Date formatting (`formatIsoDate()`, `todayIsoDate()`)
+- `src/lib/ide.ts` - IDE integration (`openInIde()`)
+- `src/lib/projects/actions.ts` - Project operations (`openProjectViaDialog()`)
+- `src/lib/files/` - File processing and asset management
+- `src/components/frontmatter/fields/constants.ts` - Field constants (`NONE_SENTINEL`)
+
 ### Documentation
 
 - `docs/developer/architecture-guide.md` - Comprehensive patterns
