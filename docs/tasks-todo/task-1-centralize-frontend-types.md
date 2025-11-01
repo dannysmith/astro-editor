@@ -3,6 +3,7 @@
 **Priority**: MEDIUM (if time permits before 1.0.0, otherwise post-1.0.0)
 **Effort**: ~2 hours (revised from original estimate)
 **Type**: Code organization, maintainability, type safety
+**Status**: ✅ Ready for implementation (senior engineer review completed)
 **Last updated**: October 31, 2025
 
 ---
@@ -19,7 +20,8 @@
 **What still needs work** ⚠️:
 - Move 5 domain types (FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult) from stores to `src/types/domain.ts`
 - Fix Collection type duplication in FrontmatterPanel.tsx
-- Update ~13 import statements
+- Delete `src/store/index.ts` (leftover from previous refactor, now just indirection)
+- Update 7+ import statements across query hooks and components
 
 **Key changes since task was written**:
 - Settings and schema types were already centralized
@@ -27,6 +29,27 @@
 - Collection structure completely changed (now uses `complete_schema` string from Rust)
 - New MarkdownContent type for parsed YAML from Rust backend
 - All types now mirror Rust structs for consistency
+
+---
+
+## Senior Engineer Review Notes
+
+Three key improvements made during final review:
+
+**1. No Re-exports from Other Modules**
+- ❌ DON'T: `export type { CompleteSchema } from '../lib/schema'` in types/index.ts
+- ✅ DO: Import schema types directly from `@/lib/schema` where they actually live
+- **Rationale**: Avoid import indirection; explicit imports make code easier to trace
+
+**2. Delete store/index.ts**
+- ❌ DON'T: Keep it as a barrel file re-exporting from types/
+- ✅ DO: Delete it entirely; it's leftover from a previous refactor
+- **Rationale**: After types move, this file serves no purpose; removing indirection is cleaner
+
+**3. No Unused Type Guards**
+- ❌ DON'T: Add `isFileEntry()` type guards "just in case"
+- ✅ DO: Follow YAGNI (You Aren't Gonna Need It)
+- **Rationale**: No runtime validation needed currently; add when actually required
 
 ---
 
@@ -334,34 +357,66 @@ These are already well-organized:
 
 ### Phase 1: Create `src/types/domain.ts`
 
-Create the new domain types file with:
+Create the new domain types file with the 5 core domain types:
 
 ```typescript
 // src/types/domain.ts
 
-// Move from src/store/editorStore.ts
-export interface FileEntry { /* ... */ }
-export interface MarkdownContent { /* ... */ }
+/**
+ * Domain types for Astro Editor.
+ * These types mirror Rust structs from src-tauri/src/models/
+ */
 
-// Move from src/store/index.ts
-export interface Collection { /* ... */ }
-export interface DirectoryInfo { /* ... */ }
-export interface DirectoryScanResult { /* ... */ }
+// Moved from src/store/editorStore.ts
+export interface FileEntry {
+  id: string
+  path: string
+  name: string
+  extension: string
+  isDraft: boolean
+  collection: string
+  last_modified?: number
+  frontmatter?: Record<string, unknown>
+}
 
-// Type guards
-export function isFileEntry(obj: unknown): obj is FileEntry { /* ... */ }
+export interface MarkdownContent {
+  frontmatter: Record<string, unknown>
+  content: string
+  raw_frontmatter: string
+  imports: string
+}
+
+// Moved from src/store/index.ts
+export interface Collection {
+  name: string
+  path: string
+  complete_schema?: string
+}
+
+export interface DirectoryInfo {
+  name: string
+  relative_path: string
+  full_path: string
+}
+
+export interface DirectoryScanResult {
+  subdirectories: DirectoryInfo[]
+  files: FileEntry[]
+}
 ```
 
-Update `src/types/index.ts`:
+**Note**: No type guards added (YAGNI - add them when we actually need runtime validation)
+
+Update `src/types/index.ts` to export domain types:
 
 ```typescript
 // src/types/index.ts
 export * from './common'
 export * from './domain'
 
-// Re-export frequently used types from other modules for convenience
-export type { CompleteSchema, SchemaField, FieldType } from '../lib/schema'
-export type { GlobalSettings, ProjectSettings } from '../lib/project-registry/types'
+// That's it! Don't re-export from other modules - import from their actual location
+// - For schema types → import from '@/lib/schema'
+// - For settings types → import from '@/lib/project-registry/types'
 ```
 
 ### Phase 2: Update Store Files
@@ -372,21 +427,21 @@ export type { GlobalSettings, ProjectSettings } from '../lib/project-registry/ty
 export interface FileEntry { /* ... */ }
 export interface MarkdownContent { /* ... */ }
 
-// After
+// After (add at top with other imports)
 import type { FileEntry, MarkdownContent } from '../types'
 ```
 
-**store/index.ts** - Replace with imports:
-```typescript
-// Before (lines 1-22)
-export type { FileEntry, MarkdownContent } from './editorStore'
-export interface Collection { /* ... */ }
-export interface DirectoryInfo { /* ... */ }
-export interface DirectoryScanResult { /* ... */ }
+**store/index.ts** - DELETE THIS FILE ENTIRELY
+- After moving types, this file serves no purpose
+- It was created for "backward compatibility" from a previous refactor
+- Now it's just indirection - import types from `@/types` directly
+- Stores should be imported from their individual files (`editorStore`, `projectStore`, `uiStore`)
 
-// After
-export type { FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult } from '../types'
-```
+**Why delete instead of keeping as barrel file?**
+- This is an internal app, not a library - we don't need deep encapsulation
+- The three stores are already well-named and easy to import
+- Removing indirection makes imports more explicit and easier to trace
+- Fewer files to maintain
 
 ### Phase 3: Fix Component Duplication
 
@@ -405,20 +460,35 @@ import type { Collection } from '@/types'
 
 ### Phase 4: Update Imports Across Codebase
 
-Files currently importing from store should import from types instead:
+Since we're deleting `store/index.ts`, update all files importing types from `@/store`:
 
-**Query hooks** (already importing correctly):
-- `src/hooks/queries/useCollectionFilesQuery.ts` - Update `import { FileEntry } from '@/store'` → `import type { FileEntry } from '@/types'`
-- `src/hooks/queries/useDirectoryScanQuery.ts` - Update imports
+**Files importing from `@/store`** (found 7 total):
 
-**Components**:
-- `src/components/layout/FileItem.tsx` - Already imports from store (line 4)
-- `src/components/layout/LeftSidebar.tsx` - Update imports
-- All other components using FileEntry
+1. `src/hooks/queries/useCollectionFilesQuery.ts:6`
+   - Change: `import { FileEntry } from '@/store'` → `import type { FileEntry } from '@/types'`
 
-**Command files**:
-- `src/lib/commands/app-commands.ts` - Update imports
-- `src/lib/commands/types.ts` - Update imports
+2. `src/hooks/queries/useDirectoryScanQuery.ts`
+   - Change: `import { DirectoryScanResult } from '@/store'` → `import type { DirectoryScanResult } from '@/types'`
+
+3. `src/hooks/queries/useCollectionsQuery.ts`
+   - Change: `import { Collection } from '@/store'` → `import type { Collection } from '@/types'`
+
+4. `src/hooks/queries/useFileBasedCollectionQuery.ts`
+   - Change: `import { Collection } from '@/store'` → `import type { Collection } from '@/types'`
+
+5. `src/hooks/queries/useFileContentQuery.ts`
+   - Change: `import { MarkdownContent } from '@/store'` → `import type { MarkdownContent } from '@/types'`
+
+6. `src/components/layout/FileItem.tsx:4`
+   - Change: `import type { FileEntry } from '../../store/editorStore'` → `import type { FileEntry } from '@/types'`
+
+7. Find any other files importing FileEntry, Collection, etc. from store and update them
+
+**Other components/files** to check:
+- `src/components/layout/LeftSidebar.tsx` - may import FileEntry
+- `src/lib/commands/app-commands.ts` - may import FileEntry
+- `src/lib/commands/types.ts` - may import types
+- Any test files importing these types
 
 ### Phase 5: Validation
 
@@ -443,13 +513,14 @@ Manual testing:
 ## Success Criteria
 
 **Core deliverables**:
-- [ ] `src/types/domain.ts` created with FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult
-- [ ] `src/types/index.ts` updated to export domain types
-- [ ] FileEntry and MarkdownContent removed from `src/store/editorStore.ts` (import instead)
-- [ ] Collection, DirectoryInfo, DirectoryScanResult removed from `src/store/index.ts` (import instead)
+- [ ] `src/types/domain.ts` created with 5 domain types (FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult)
+- [ ] `src/types/index.ts` updated to export from common and domain (no re-exports from other modules)
+- [ ] FileEntry and MarkdownContent removed from `src/store/editorStore.ts` (import from types instead)
+- [ ] `src/store/index.ts` DELETED entirely (no longer needed)
 - [ ] Duplicate Collection type removed from `src/components/frontmatter/FrontmatterPanel.tsx`
-- [ ] All 13 files that import FileEntry updated to use `@/types` instead of `@/store`
-- [ ] JSDoc comments on all domain types explaining their purpose and Rust mirrors
+- [ ] All 7+ files importing from `@/store` updated to import from `@/types` instead
+- [ ] JSDoc comment at top of domain.ts explaining types mirror Rust structs
+- [ ] No type guards added (following YAGNI principle)
 
 **Quality gates**:
 - [ ] TypeScript compilation succeeds: `pnpm run type-check`
@@ -536,20 +607,27 @@ Manual testing:
 **What's left**:
 - Move 5 domain types from stores to `src/types/domain.ts`
 - Fix 1 duplicate (Collection in FrontmatterPanel)
-- Update ~13 import statements
+- Delete `src/store/index.ts` (removes unnecessary indirection)
+- Update 7+ import statements
 
-**Estimated effort** (revised):
+**Estimated effort** (revised after senior review):
 - Create `src/types/domain.ts`: 30 minutes
-- Update store files (editorStore.ts, index.ts): 20 minutes
-- Fix FrontmatterPanel duplication: 10 minutes
-- Update imports across codebase: 30 minutes
-- Run validation and fix any issues: 30 minutes
+- Update editorStore.ts (import types): 10 minutes
+- Delete store/index.ts and update imports: 30 minutes
+- Fix FrontmatterPanel duplication: 5 minutes
+- Update remaining imports: 20 minutes
+- Run validation and fix any issues: 25 minutes
 - **Total: ~2 hours**
 
 **Benefits**:
-- Single source of truth for domain types
+- Single source of truth for domain types (no more duplication)
 - Clearer separation: types vs. stores vs. schemas
-- Easier to find type definitions
+- Removes import indirection (delete store/index.ts)
+- Explicit imports make code easier to trace
 - Prevents future duplication like the Collection issue
 
-**ROI**: Low-Medium - improves maintainability slightly, but codebase is already in good shape
+**Trade-offs**:
+- Slightly more verbose imports in some places
+- But: more explicit is better for maintainability
+
+**ROI**: Medium - Good cleanup that improves code organization without major disruption
