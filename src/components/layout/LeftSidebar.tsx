@@ -174,14 +174,18 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleRenameSubmit = async (file: FileEntry, newName: string) => {
-    if (!newName.trim() || newName === file.name) {
+    const trimmedName = newName.trim()
+    const originalFullName = file.extension
+      ? `${file.name}.${file.extension}`
+      : file.name
+    if (!trimmedName || trimmedName === originalFullName) {
       setRenamingFileId(null)
       return
     }
 
     try {
       const directory = file.path.substring(0, file.path.lastIndexOf('/'))
-      const newPath = `${directory}/${newName}`
+      const newPath = `${directory}/${trimmedName}`
 
       const { projectPath, selectedCollection } = useProjectStore.getState()
 

@@ -158,7 +158,9 @@ describe('Project Registry System', () => {
     expect(migratedProjectId).toBe(originalProjectId)
 
     // 2. Path was updated
-    expect(manager.getRegistry().projects[originalProjectId]?.path).toBe(newPath)
+    expect(manager.getRegistry().projects[originalProjectId]?.path).toBe(
+      newPath
+    )
 
     // 3. Only one project exists in registry
     expect(Object.keys(manager.getRegistry().projects)).toHaveLength(1)
