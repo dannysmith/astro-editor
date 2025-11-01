@@ -232,6 +232,11 @@ export class ProjectRegistryManager {
       },
     }
 
+    // Update defaultFileType if provided
+    if (settings.defaultFileType !== undefined) {
+      projectData.settings.defaultFileType = settings.defaultFileType
+    }
+
     // Update collections if provided
     if (settings.collections !== undefined) {
       projectData.settings.collections = settings.collections
@@ -292,6 +297,8 @@ export class ProjectRegistryManager {
         ...DEFAULT_PROJECT_SETTINGS.collectionViewSettings,
         ...projectData.settings.collectionViewSettings,
       },
+      // Include defaultFileType if present
+      defaultFileType: projectData.settings.defaultFileType,
       // Include collections array if present
       collections: projectData.settings.collections || [],
     }
