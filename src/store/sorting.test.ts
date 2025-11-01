@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types'
 
 // This would be a utility function that should be in the store
 function sortFilesByDate(files: FileEntry[]): FileEntry[] {

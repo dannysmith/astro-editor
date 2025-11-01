@@ -17,7 +17,7 @@ import {
   Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
-import type { Collection, FileEntry } from '../../types'
+import type { Collection, FileEntry } from '@/types'
 import { toast } from '../toast'
 import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'

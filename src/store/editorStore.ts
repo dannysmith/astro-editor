@@ -6,7 +6,7 @@ import { saveRecoveryData, saveCrashReport } from '../lib/recovery'
 import { toast } from '../lib/toast'
 import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types'
 
 const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seconds)
 

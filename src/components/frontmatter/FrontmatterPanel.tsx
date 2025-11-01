@@ -6,7 +6,7 @@ import { deserializeCompleteSchema } from '../../lib/schema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
 import { getEffectiveSettings } from '../../lib/project-registry/effective-settings'
-import type { Collection } from '../../types'
+import type { Collection } from '@/types'
 
 export const FrontmatterPanel: React.FC = () => {
   const { currentFile, frontmatter } = useEditorStore()
