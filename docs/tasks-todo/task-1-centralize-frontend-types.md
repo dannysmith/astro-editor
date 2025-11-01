@@ -1,8 +1,34 @@
 # Centralize Frontend Types
 
 **Priority**: MEDIUM (if time permits before 1.0.0, otherwise post-1.0.0)
-**Effort**: ~0.5 day
+**Effort**: ~2 hours (revised from original estimate)
 **Type**: Code organization, maintainability, type safety
+**Last updated**: October 31, 2025
+
+---
+
+## Quick Summary
+
+**Status**: Most types are already well-organized! Scope is much smaller than originally planned.
+
+**What's already centralized** ✅:
+- Settings types → `src/lib/project-registry/types.ts`
+- Schema types → `src/lib/schema.ts`
+- UI component types → `src/types/common.ts`
+
+**What still needs work** ⚠️:
+- Move 5 domain types (FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult) from stores to `src/types/domain.ts`
+- Fix Collection type duplication in FrontmatterPanel.tsx
+- Update ~13 import statements
+
+**Key changes since task was written**:
+- Settings and schema types were already centralized
+- FileEntry has new fields: `extension`, `isDraft`, `last_modified`
+- Collection structure completely changed (now uses `complete_schema` string from Rust)
+- New MarkdownContent type for parsed YAML from Rust backend
+- All types now mirror Rust structs for consistency
+
+---
 
 ## Problem
 
@@ -19,41 +45,87 @@ Domain types like `FileEntry`, `Collection`, `CollectionSchema`, `Settings`, etc
 
 ## Current State
 
-**Example: FileEntry type appears in multiple places**:
+### ✅ Already Centralized
 
+**Good news!** Several type systems are already well-organized:
+
+1. **Settings types** → `src/lib/project-registry/types.ts`:
+   - `GlobalSettings`, `ProjectSettings`, `CollectionSettings`
+   - `ProjectMetadata`, `ProjectData`, `ProjectRegistry`
+
+2. **Schema types** → `src/lib/schema.ts`:
+   - `CompleteSchema`, `SchemaField`, `FieldType`, `FieldConstraints`
+   - `deserializeCompleteSchema()` function
+
+3. **UI component types** → `src/types/common.ts`:
+   - `FieldProps`, `InputFieldProps`, `SelectFieldProps`
+   - Generic form/component helpers
+
+### ⚠️ Still Need Centralization
+
+**FileEntry** - Centralized in store but should be in types/:
 ```typescript
-// src/store/editorStore.ts
-interface FileEntry {
+// Currently: src/store/editorStore.ts (line 177)
+export interface FileEntry {
   id: string
+  path: string
+  name: string
+  extension: string
+  isDraft: boolean
+  collection: string
+  last_modified?: number
+  frontmatter?: Record<string, unknown>
+}
+```
+
+**Collection** - **DUPLICATED** (major issue!):
+```typescript
+// src/store/index.ts (lines 6-10)
+export interface Collection {
   name: string
   path: string
-  collection: string
+  complete_schema?: string // Serialized CompleteSchema from Rust
+}
+
+// src/components/frontmatter/FrontmatterPanel.tsx (lines 10-14)
+interface Collection {
+  name: string
+  path: string
+  complete_schema?: string
+}
+```
+
+**MarkdownContent** - New type for Rust YAML data:
+```typescript
+// Currently: src/store/editorStore.ts (line 188)
+export interface MarkdownContent {
   frontmatter: Record<string, unknown>
+  content: string
+  raw_frontmatter: string
+  imports: string
+}
+```
+
+**Directory navigation types**:
+```typescript
+// Currently: src/store/index.ts (lines 12-22)
+// These mirror Rust structs from src-tauri/src/models/directory_info.rs
+export interface DirectoryInfo {
+  name: string
+  relative_path: string
+  full_path: string
 }
 
-// src/components/layout/LeftSidebar.tsx
-type FileEntry = {
-  id: string
-  name: string
-  path: string
-  frontmatter?: Record<string, any>
-}
-
-// src/hooks/useCollectionFiles.ts
-interface FileEntry {
-  id: string
-  name: string
-  path: string
-  collection: string
-  // ... more fields
+export interface DirectoryScanResult {
+  subdirectories: DirectoryInfo[]
+  files: FileEntry[]
 }
 ```
 
 **Issues**:
-- Three different definitions
-- `frontmatter` is optional in one, required in others
-- Field types vary (`unknown` vs `any`)
-- Missing fields in some definitions
+- Collection defined in TWO places (exact duplication)
+- Domain types (FileEntry, MarkdownContent) living in store instead of types/
+- Directory types in store/index.ts instead of dedicated types file
 
 ## Benefits of Centralization
 
@@ -86,49 +158,42 @@ interface FileEntry {
 
 ## Core Types to Centralize
 
-### 1. FileEntry
+### 1. FileEntry (Move from store to types/)
+
+**Current location**: `src/store/editorStore.ts:177`
+**Target location**: `src/types/domain.ts`
 
 ```typescript
-// src/types/domain.ts
-
 /**
  * Represents a markdown file in an Astro content collection.
- * Files have frontmatter (parsed from YAML), content (markdown body),
- * and metadata (path, collection, etc.).
+ *
+ * This type mirrors the Rust FileEntry struct from src-tauri/src/models/file_entry.rs
+ * and is returned by Tauri commands like scan_collection_files.
  */
 export interface FileEntry {
-  /** Unique identifier (typically relative path without extension) */
+  /** Unique identifier (relative path from collection root without extension) */
   id: string
-
-  /** Display name (typically filename without extension) */
-  name: string
 
   /** Absolute file path */
   path: string
 
+  /** Display name (filename without extension) */
+  name: string
+
+  /** File extension ('md' or 'mdx') */
+  extension: string
+
+  /** Is this file marked as draft? (from frontmatter or naming convention) */
+  isDraft: boolean
+
   /** Collection this file belongs to */
   collection: string
 
-  /** Parsed frontmatter data */
-  frontmatter: Record<string, unknown>
+  /** Unix timestamp of last modification */
+  last_modified?: number
 
-  /** Markdown content (body) */
-  content?: string
-
-  /** File system metadata */
-  metadata?: {
-    created: string
-    modified: string
-    size: number
-  }
-}
-
-/**
- * Partial file entry used when not all data is available.
- * Commonly used in file lists where content isn't loaded yet.
- */
-export type PartialFileEntry = Pick<FileEntry, 'id' | 'name' | 'path' | 'collection'> & {
-  frontmatter?: Partial<FileEntry['frontmatter']>
+  /** Parsed frontmatter data (optional - not always loaded) */
+  frontmatter?: Record<string, unknown>
 }
 
 /**
@@ -141,300 +206,264 @@ export function isFileEntry(obj: unknown): obj is FileEntry {
     'id' in obj &&
     'name' in obj &&
     'path' in obj &&
+    'extension' in obj &&
     'collection' in obj
   )
 }
 ```
 
-### 2. Collection
+### 2. MarkdownContent (Move from store to types/)
+
+**Current location**: `src/store/editorStore.ts:188`
+**Target location**: `src/types/domain.ts`
 
 ```typescript
 /**
- * Represents an Astro content collection with its schema.
- * Collections are defined in src/content/config.ts and contain
- * markdown files with typed frontmatter.
+ * Markdown file content with parsed YAML frontmatter.
+ *
+ * This type mirrors the Rust MarkdownContent struct and is returned
+ * by the read_file_content Tauri command.
+ */
+export interface MarkdownContent {
+  /** Parsed frontmatter as key-value pairs */
+  frontmatter: Record<string, unknown>
+
+  /** Markdown content (body, without frontmatter) */
+  content: string
+
+  /** Raw YAML frontmatter text (between --- delimiters) */
+  raw_frontmatter: string
+
+  /** MDX imports at top of file */
+  imports: string
+}
+```
+
+### 3. Collection (Deduplicate - remove from FrontmatterPanel)
+
+**Current locations**:
+- `src/store/index.ts:6` (exported)
+- `src/components/frontmatter/FrontmatterPanel.tsx:10` (duplicate)
+
+**Target**: Keep in `src/types/domain.ts` only
+
+```typescript
+/**
+ * Represents an Astro content collection.
+ *
+ * This type mirrors the Rust Collection struct from src-tauri/src/models/collection.rs
+ * Collections are discovered from src/content/config.ts
  */
 export interface Collection {
   /** Collection name (e.g., "posts", "docs") */
   name: string
 
-  /** Human-readable label for UI */
-  label?: string
-
-  /** Parsed Zod schema for this collection's frontmatter */
-  schema: CollectionSchema
-
-  /** Number of files in this collection */
-  fileCount?: number
-}
-
-/**
- * Parsed representation of a Zod schema.
- * Generated by Rust backend from Astro config.
- */
-export interface CollectionSchema {
-  /** Field name to field definition mapping */
-  fields: Record<string, SchemaField>
-
-  /** Required field names */
-  required?: string[]
-}
-
-/**
- * Individual field in a collection schema.
- */
-export interface SchemaField {
-  /** Field type (string, number, boolean, date, array, object, enum, reference) */
-  type: FieldType
-
-  /** Is this field required? */
-  required?: boolean
-
-  /** Default value if not provided */
-  default?: unknown
-
-  /** For enum fields: allowed values */
-  enum?: string[]
-
-  /** For array fields: item type */
-  items?: SchemaField
-
-  /** For reference fields: target collection */
-  collection?: string
-
-  /** Description/help text for this field */
-  description?: string
-}
-
-export type FieldType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'date'
-  | 'datetime'
-  | 'array'
-  | 'object'
-  | 'enum'
-  | 'reference'
-  | 'image'
-  | 'markdown'
-```
-
-### 3. Settings Types
-
-```typescript
-/**
- * Application settings (three-tier system: global, project, file)
- * See docs/developer/preferences-system.md for details.
- */
-export interface Settings {
-  general?: GeneralSettings
-  editor?: EditorSettings
-  appearance?: AppearanceSettings
-}
-
-export interface GeneralSettings {
-  /** Default IDE command for "open in IDE" */
-  ideCommand?: string
-
-  /** Auto-save enabled? */
-  autoSave?: boolean
-
-  /** Auto-save delay in seconds */
-  autoSaveDelay?: number
-}
-
-export interface EditorSettings {
-  /** Font family for editor */
-  fontFamily?: string
-
-  /** Font size in pixels */
-  fontSize?: number
-
-  /** Line height multiplier */
-  lineHeight?: number
-
-  /** Show line numbers? */
-  showLineNumbers?: boolean
-
-  /** Wrap lines? */
-  wordWrap?: boolean
-
-  /** Tab size in spaces */
-  tabSize?: number
-}
-
-export interface AppearanceSettings {
-  /** Theme: light, dark, or auto */
-  theme?: 'light' | 'dark' | 'auto'
-
-  /** Sidebar position: left or right */
-  sidebarPosition?: 'left' | 'right'
-
-  /** Show drafts in file list? */
-  showDrafts?: boolean
-}
-```
-
-### 4. Project Type
-
-```typescript
-/**
- * Represents an Astro project opened in the editor.
- */
-export interface Project {
-  /** Absolute path to project root */
+  /** Absolute path to collection directory */
   path: string
 
-  /** Project name (typically directory name) */
-  name: string
-
-  /** Collections discovered in this project */
-  collections: Collection[]
-
-  /** Project-level settings (override global) */
-  settings?: Settings
+  /**
+   * Serialized CompleteSchema from Rust backend.
+   * Deserialize with deserializeCompleteSchema() from src/lib/schema.ts
+   */
+  complete_schema?: string
 }
 ```
 
-### 5. UI State Types
+### 4. Directory Navigation Types (Move from store to types/)
+
+**Current location**: `src/store/index.ts:12-22`
+**Target location**: `src/types/domain.ts`
 
 ```typescript
 /**
- * UI state types (not persisted, just runtime state)
+ * Directory information for nested collection navigation.
+ *
+ * Mirrors Rust DirectoryInfo struct from src-tauri/src/models/directory_info.rs
  */
+export interface DirectoryInfo {
+  /** Directory name only (e.g., "2024") */
+  name: string
 
-export interface EditorState {
-  /** Currently open file */
-  currentFile: FileEntry | null
+  /** Path relative to collection root (e.g., "2024/january") */
+  relative_path: string
 
-  /** Current editor content */
-  editorContent: string
-
-  /** Current frontmatter */
-  frontmatter: Record<string, unknown>
-
-  /** Has unsaved changes? */
-  isDirty: boolean
-
-  /** Save in progress? */
-  isSaving: boolean
+  /** Full filesystem path */
+  full_path: string
 }
 
-export interface UIState {
-  /** Sidebar collapsed state */
-  sidebarCollapsed: boolean
+/**
+ * Result of scanning a directory within a collection.
+ * Used for nested navigation like posts/2024/january/
+ */
+export interface DirectoryScanResult {
+  /** Subdirectories in this directory */
+  subdirectories: DirectoryInfo[]
 
-  /** Frontmatter panel collapsed state */
-  frontmatterCollapsed: boolean
-
-  /** Sidebar width in pixels */
-  sidebarWidth: number
-
-  /** Frontmatter panel width in pixels */
-  frontmatterWidth: number
-
-  /** Command palette open? */
-  commandPaletteOpen: boolean
+  /** Files in this directory */
+  files: FileEntry[]
 }
 ```
+
+### 5. Schema Types (Already centralized ✅)
+
+**Location**: `src/lib/schema.ts`
+
+These are already well-organized:
+- `CompleteSchema` - Full schema for a collection
+- `SchemaField` - Individual field definition
+- `FieldType` - Enum of supported field types
+- `FieldConstraints` - Validation constraints
+
+**No changes needed** - keep in `lib/schema.ts` as they're schema-specific logic.
+
+### 6. Settings Types (Already centralized ✅)
+
+**Location**: `src/lib/project-registry/types.ts`
+
+These are already well-organized:
+- `GlobalSettings` - App-wide settings
+- `ProjectSettings` - Project-level overrides
+- `CollectionSettings` - Collection-specific settings
+- `ProjectMetadata` - Project registry metadata
+
+**No changes needed** - keep in project-registry module.
 
 ## Implementation Plan
 
-### Phase 1: Create Central Types File
+**Scope**: Much smaller than originally planned! Most types are already well-organized.
 
-1. Create `src/types/domain.ts`
-2. Define all core types with JSDoc comments
-3. Add type guards and utility types
-4. Create `src/types/index.ts` with re-exports
+### Phase 1: Create `src/types/domain.ts`
+
+Create the new domain types file with:
+
+```typescript
+// src/types/domain.ts
+
+// Move from src/store/editorStore.ts
+export interface FileEntry { /* ... */ }
+export interface MarkdownContent { /* ... */ }
+
+// Move from src/store/index.ts
+export interface Collection { /* ... */ }
+export interface DirectoryInfo { /* ... */ }
+export interface DirectoryScanResult { /* ... */ }
+
+// Type guards
+export function isFileEntry(obj: unknown): obj is FileEntry { /* ... */ }
+```
+
+Update `src/types/index.ts`:
 
 ```typescript
 // src/types/index.ts
-export type {
-  FileEntry,
-  PartialFileEntry,
-  Collection,
-  CollectionSchema,
-  SchemaField,
-  FieldType,
-  Settings,
-  GeneralSettings,
-  EditorSettings,
-  AppearanceSettings,
-  Project,
-  EditorState,
-  UIState,
-} from './domain'
+export * from './common'
+export * from './domain'
 
-export { isFileEntry, isCollection } from './domain'
+// Re-export frequently used types from other modules for convenience
+export type { CompleteSchema, SchemaField, FieldType } from '../lib/schema'
+export type { GlobalSettings, ProjectSettings } from '../lib/project-registry/types'
 ```
 
-### Phase 2: Update Imports Gradually
+### Phase 2: Update Store Files
 
-**Strategy**: Replace type definitions file-by-file to minimize breakage
-
-1. **Start with stores** (most critical):
-   - `src/store/editorStore.ts`
-   - `src/store/projectStore.ts`
-   - `src/store/uiStore.ts`
-
-2. **Update hooks**:
-   - `src/hooks/useCollections.ts`
-   - `src/hooks/useCollectionFiles.ts`
-   - `src/hooks/useFileContent.ts`
-
-3. **Update components**:
-   - `src/components/layout/`
-   - `src/components/frontmatter/`
-   - `src/components/editor/`
-
-4. **Update lib/**:
-   - `src/lib/query-keys.ts`
-   - `src/lib/schema.ts`
-   - `src/lib/commands/`
-
-### Phase 3: Remove Duplicate Definitions
-
-Use TypeScript compiler to find remaining inline definitions:
-
-```bash
-# Search for inline type definitions
-pnpm run tsc --noEmit --listFiles | grep -E "(interface|type) (FileEntry|Collection)"
-```
-
-Remove duplicates and replace with imports:
-
+**editorStore.ts** - Replace type definitions with imports:
 ```typescript
-// Before
-interface FileEntry {
-  id: string
-  name: string
-  // ...
-}
+// Before (lines 177-193)
+export interface FileEntry { /* ... */ }
+export interface MarkdownContent { /* ... */ }
 
 // After
-import type { FileEntry } from '@/types'
+import type { FileEntry, MarkdownContent } from '../types'
 ```
 
-### Phase 4: Validation
+**store/index.ts** - Replace with imports:
+```typescript
+// Before (lines 1-22)
+export type { FileEntry, MarkdownContent } from './editorStore'
+export interface Collection { /* ... */ }
+export interface DirectoryInfo { /* ... */ }
+export interface DirectoryScanResult { /* ... */ }
 
-1. Run TypeScript compiler: `pnpm run type-check`
-2. Run all tests: `pnpm run test`
-3. Run linter: `pnpm run lint`
-4. Manual smoke test: Open project, edit file, save
+// After
+export type { FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult } from '../types'
+```
+
+### Phase 3: Fix Component Duplication
+
+**FrontmatterPanel.tsx** - Remove duplicate Collection type:
+```typescript
+// Before (lines 10-14)
+interface Collection {
+  name: string
+  path: string
+  complete_schema?: string
+}
+
+// After (line 10)
+import type { Collection } from '@/types'
+```
+
+### Phase 4: Update Imports Across Codebase
+
+Files currently importing from store should import from types instead:
+
+**Query hooks** (already importing correctly):
+- `src/hooks/queries/useCollectionFilesQuery.ts` - Update `import { FileEntry } from '@/store'` → `import type { FileEntry } from '@/types'`
+- `src/hooks/queries/useDirectoryScanQuery.ts` - Update imports
+
+**Components**:
+- `src/components/layout/FileItem.tsx` - Already imports from store (line 4)
+- `src/components/layout/LeftSidebar.tsx` - Update imports
+- All other components using FileEntry
+
+**Command files**:
+- `src/lib/commands/app-commands.ts` - Update imports
+- `src/lib/commands/types.ts` - Update imports
+
+### Phase 5: Validation
+
+```bash
+# Check TypeScript compilation
+pnpm run type-check
+
+# Run tests
+pnpm run test:run
+
+# Full check (includes linting, Rust checks, etc.)
+pnpm run check:all
+```
+
+Manual testing:
+1. Open a project
+2. Navigate through collections
+3. Open/edit/save a file
+4. Switch between files
+5. Use frontmatter panel
 
 ## Success Criteria
 
-- [ ] `src/types/domain.ts` created with all core types
-- [ ] `src/types/index.ts` created with clean exports
-- [ ] All stores import types from central location
-- [ ] All hooks import types from central location
-- [ ] All components import types from central location
-- [ ] No inline type definitions for core domain types
-- [ ] TypeScript compilation succeeds with no errors
-- [ ] All tests pass
-- [ ] No functionality broken
-- [ ] JSDoc comments on all exported types
+**Core deliverables**:
+- [ ] `src/types/domain.ts` created with FileEntry, MarkdownContent, Collection, DirectoryInfo, DirectoryScanResult
+- [ ] `src/types/index.ts` updated to export domain types
+- [ ] FileEntry and MarkdownContent removed from `src/store/editorStore.ts` (import instead)
+- [ ] Collection, DirectoryInfo, DirectoryScanResult removed from `src/store/index.ts` (import instead)
+- [ ] Duplicate Collection type removed from `src/components/frontmatter/FrontmatterPanel.tsx`
+- [ ] All 13 files that import FileEntry updated to use `@/types` instead of `@/store`
+- [ ] JSDoc comments on all domain types explaining their purpose and Rust mirrors
+
+**Quality gates**:
+- [ ] TypeScript compilation succeeds: `pnpm run type-check`
+- [ ] All tests pass: `pnpm run test:run`
+- [ ] Linting passes: `pnpm run lint`
+- [ ] Rust checks pass: `cd src-tauri && cargo check`
+- [ ] Full validation: `pnpm run check:all`
+
+**Manual testing**:
+- [ ] Can open a project
+- [ ] Can navigate collections
+- [ ] Can open/edit/save files
+- [ ] Frontmatter panel works correctly
+- [ ] No console errors
 
 ## Risks and Mitigations
 
@@ -468,10 +497,22 @@ import type { FileEntry } from '@/types'
 
 ## Out of Scope
 
-- Runtime validation (Zod schemas) - could be added later
-- API response types - keep in query hooks for now
-- Component prop types - those are fine inline
-- Tauri command types - those mirror Rust types
+**Already well-organized (don't move)**:
+- Settings types in `src/lib/project-registry/types.ts`
+- Schema types in `src/lib/schema.ts`
+- UI component types in `src/types/common.ts`
+
+**Intentionally left inline**:
+- Component prop interfaces (fine to define locally)
+- Query hook return types (keep with hooks)
+- Local state types (component-specific)
+- Internal store state types (implementation details)
+
+**Future enhancements** (not this task):
+- Runtime validation with Zod
+- Type guards for all domain types
+- Utility types for common patterns
+- Auto-generated types from Rust structs
 
 ## References
 
@@ -488,13 +529,27 @@ import type { FileEntry } from '@/types'
 
 ## Recommendation
 
-**Do this in Week 2 if time permits, or defer to 1.1.0**. This is pure code organization with no user-facing impact. It improves maintainability but doesn't fix any bugs or risks.
+**Priority: MEDIUM** - Do this when you have time, but not critical for 1.0.0.
 
-**Estimated effort**:
-- Create central types file: 1 hour
-- Update stores and hooks: 1 hour
-- Update components: 1.5 hours
-- Remove duplicates and validate: 0.5 hours
-- **Total: 4 hours (half day)**
+**Good news**: The scope is much smaller than originally planned! Most types are already well-organized.
 
-**ROI**: Medium - improves maintainability and onboarding, but not critical for 1.0.0
+**What's left**:
+- Move 5 domain types from stores to `src/types/domain.ts`
+- Fix 1 duplicate (Collection in FrontmatterPanel)
+- Update ~13 import statements
+
+**Estimated effort** (revised):
+- Create `src/types/domain.ts`: 30 minutes
+- Update store files (editorStore.ts, index.ts): 20 minutes
+- Fix FrontmatterPanel duplication: 10 minutes
+- Update imports across codebase: 30 minutes
+- Run validation and fix any issues: 30 minutes
+- **Total: ~2 hours**
+
+**Benefits**:
+- Single source of truth for domain types
+- Clearer separation: types vs. stores vs. schemas
+- Easier to find type definitions
+- Prevents future duplication like the Collection issue
+
+**ROI**: Low-Medium - improves maintainability slightly, but codebase is already in good shape
