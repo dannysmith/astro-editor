@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { useProjectStore } from '../../../store/projectStore'
 import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
 import { useCollectionFilesQuery } from '../../../hooks/queries/useCollectionFilesQuery'
@@ -21,6 +22,7 @@ import { FieldWrapper } from './FieldWrapper'
 import { FieldType } from '../../../lib/schema'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
+import { NONE_SENTINEL } from './constants'
 
 interface ReferenceFieldProps extends FieldProps {
   field?: SchemaField
@@ -38,9 +40,11 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   field,
 }) => {
   const [open, setOpen] = React.useState(false)
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
   const { projectPath } = useProjectStore()
-  const value = getNestedValue(frontmatter, name)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference
@@ -226,7 +230,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                 {/* For single select, show None option */}
                 {!isMultiSelect && (
                   <CommandItem
-                    value="__NONE__"
+                    value={NONE_SENTINEL}
                     onSelect={() => {
                       updateFrontmatterField(name, undefined)
                       setOpen(false)

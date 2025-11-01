@@ -1,9 +1,11 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
+import { formatIsoDate } from '../../../lib/dates'
 
 interface DateFieldProps extends FieldProps {
   field?: SchemaField
@@ -15,8 +17,10 @@ export const DateField: React.FC<DateFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
 
   return (
     <FieldWrapper
@@ -34,7 +38,7 @@ export const DateField: React.FC<DateFieldProps> = ({
         onChange={(date: Date | undefined) => {
           const dateValue =
             date instanceof Date && !isNaN(date.getTime())
-              ? date.toISOString().split('T')[0]
+              ? formatIsoDate(date)
               : undefined
           updateFrontmatterField(name, dateValue)
         }}

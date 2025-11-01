@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { useEffectiveSettings } from '../../../lib/project-registry/effective-settings'
+import { useEffectiveSettings } from '../../../hooks/settings/useEffectiveSettings'
 import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
@@ -26,7 +26,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   field,
   collectionName,
 }) => {
-  const { frontmatter } = useEditorStore()
+  const fieldValue = useEditorStore(state => state.frontmatter?.[name])
   const { frontmatterMappings } = useEffectiveSettings(collectionName)
 
   // Determine field properties from SchemaField
@@ -58,14 +58,17 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     field.subType !== FieldType.Integer
 
   // Check if this field should be treated as an array based on schema or frontmatter value
-  const shouldUseArrayField =
-    !isArrayReference &&
-    !isComplexArray &&
-    (fieldType === (FieldType.Array as string) ||
-      fieldType === 'Array' ||
-      (!field &&
-        Array.isArray(frontmatter[name]) &&
-        frontmatter[name].every((item: unknown) => typeof item === 'string')))
+  const shouldUseArrayField = React.useMemo(() => {
+    return (
+      !isArrayReference &&
+      !isComplexArray &&
+      (fieldType === (FieldType.Array as string) ||
+        fieldType === 'Array' ||
+        (!field &&
+          Array.isArray(fieldValue) &&
+          fieldValue.every((item: unknown) => typeof item === 'string')))
+    )
+  }, [isArrayReference, isComplexArray, fieldType, field, fieldValue])
 
   // Handle boolean fields
   if (
@@ -203,7 +206,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
       <TextareaField
         name={name}
         label={label}
-        className="text-lg font-bold text-gray-900 dark:text-white"
+        className="text-lg font-bold text-heading"
         minRows={1}
         maxRows={3}
         required={required}

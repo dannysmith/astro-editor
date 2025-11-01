@@ -1,32 +1,23 @@
 import React from 'react'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
 } from '@/components/ui/field'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePreferences } from '../../../hooks/usePreferences'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const ProjectSettingsPane: React.FC = () => {
-  const { currentProjectSettings, updateProject, projectName } =
+  const { currentProjectSettings, updateProject, projectName, globalSettings } =
     usePreferences()
 
   const handlePathOverrideChange = (
@@ -41,10 +32,18 @@ export const ProjectSettingsPane: React.FC = () => {
     })
   }
 
+  const handleDefaultFileTypeChange = (value: string) => {
+    void updateProject({
+      ...currentProjectSettings,
+      defaultFileType:
+        value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Project Settings
           {projectName && (
             <span className="text-muted-foreground font-normal ml-2">
@@ -121,6 +120,37 @@ export const ProjectSettingsPane: React.FC = () => {
             <FieldDescription>
               Path to components for use in MDX files (default:
               src/components/mdx/)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      </SettingsSection>
+
+      <SettingsSection title="File Defaults">
+        <Field>
+          <FieldLabel>Default File Type for New Files</FieldLabel>
+          <FieldContent>
+            <Select
+              value={currentProjectSettings?.defaultFileType || 'inherited'}
+              onValueChange={handleDefaultFileTypeChange}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherited">
+                  <span className="text-muted-foreground">
+                    Use global default:{' '}
+                    {globalSettings?.general?.defaultFileType === 'mdx'
+                      ? 'MDX'
+                      : 'Markdown'}
+                  </span>
+                </SelectItem>
+                <SelectItem value="md">Markdown (.md)</SelectItem>
+                <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              File type used when creating new files in this project
             </FieldDescription>
           </FieldContent>
         </Field>

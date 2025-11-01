@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useCommandContext } from '../lib/commands/command-context'
+import { useCommandContext } from './commands/useCommandContext'
 import { getAllCommands } from '../lib/commands/app-commands'
 import { AppCommand, CommandGroup } from '../lib/commands/types'
 import { useUIStore } from '../store/uiStore'

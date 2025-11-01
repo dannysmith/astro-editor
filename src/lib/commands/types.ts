@@ -1,5 +1,5 @@
-import { type FileEntry, type Collection } from '../../store'
-import { type GlobalSettings } from '../project-registry'
+import type { FileEntry, Collection } from '@/types'
+import type { GlobalSettings } from '../project-registry'
 
 /**
  * Command system types for the application command palette

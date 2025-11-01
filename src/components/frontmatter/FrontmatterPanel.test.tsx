@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { screen, fireEvent } from '@testing-library/dom'
 import { FrontmatterPanel } from './FrontmatterPanel'
 import { useEditorStore } from '../../store/editorStore'
-import { type Collection } from '../../store'
+import type { Collection } from '@/types'
 import { renderWithProviders } from '../../test/test-utils'
 
 // Mock the query hook - will be configured per test

@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -10,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldContent,
@@ -18,21 +16,7 @@ import {
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
 import { useAvailableIdes } from '../../../hooks/useAvailableIdes'
-
-const SettingsSection: React.FC<{
-  title: string
-  children: React.ReactNode
-}> = ({ title, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
-      <Separator className="mt-2" />
-    </div>
-    <FieldGroup>{children}</FieldGroup>
-  </div>
-)
+import { SettingsSection } from '../SettingsSection'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
@@ -53,6 +37,7 @@ export const GeneralPane: React.FC = () => {
             conjunctions: true,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
         appearance: globalSettings?.appearance || {
           headingColor: {
@@ -83,6 +68,7 @@ export const GeneralPane: React.FC = () => {
             conjunctions: true,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
         appearance: globalSettings?.appearance || {
           headingColor: {
@@ -100,6 +86,33 @@ export const GeneralPane: React.FC = () => {
     ]
   )
 
+  const handleDefaultFileTypeChange = useCallback(
+    (value: string) => {
+      void updateGlobal({
+        general: {
+          ideCommand: globalSettings?.general?.ideCommand || '',
+          theme: globalSettings?.general?.theme || 'system',
+          highlights: globalSettings?.general?.highlights || {
+            nouns: true,
+            verbs: true,
+            adjectives: true,
+            adverbs: true,
+            conjunctions: true,
+          },
+          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: value as 'md' | 'mdx',
+        },
+        appearance: globalSettings?.appearance || {
+          headingColor: {
+            light: '#191919',
+            dark: '#cccccc',
+          },
+        },
+      })
+    },
+    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+  )
+
   const handleHeadingColorChange = useCallback(
     (mode: 'light' | 'dark', color: string) => {
       void updateGlobal({
@@ -114,6 +127,7 @@ export const GeneralPane: React.FC = () => {
             conjunctions: true,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
         appearance: {
           headingColor: {
@@ -149,6 +163,7 @@ export const GeneralPane: React.FC = () => {
             conjunctions: true,
           },
           autoSaveDelay: parseInt(value, 10),
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
         appearance: globalSettings?.appearance || {
           headingColor: {
@@ -164,7 +179,7 @@ export const GeneralPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold mb-1 text-heading">
           Global Settings
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -235,6 +250,27 @@ export const GeneralPane: React.FC = () => {
             </Select>
             <FieldDescription>
               Choose your preferred color theme
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel>Default File Type for New Files</FieldLabel>
+          <FieldContent>
+            <Select
+              value={globalSettings?.general?.defaultFileType || 'md'}
+              onValueChange={handleDefaultFileTypeChange}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="md">Markdown (.md)</SelectItem>
+                <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              File type used when creating new files across all projects
             </FieldDescription>
           </FieldContent>
         </Field>

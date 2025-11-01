@@ -33,8 +33,8 @@ describe('useEditorHandlers', () => {
     closeCurrentFile: ReturnType<typeof vi.fn>
     updateFrontmatterField: ReturnType<typeof vi.fn>
     scheduleAutoSave: ReturnType<typeof vi.fn>
-    recentlySavedFile: string | null
     autoSaveTimeoutId: number | null
+    lastSaveTimestamp: number | null
     updateFrontmatter: ReturnType<typeof vi.fn>
     updateCurrentFileAfterRename: ReturnType<typeof vi.fn>
   }
@@ -62,8 +62,8 @@ describe('useEditorHandlers', () => {
       closeCurrentFile: vi.fn(),
       updateFrontmatterField: vi.fn(),
       scheduleAutoSave: vi.fn(),
-      recentlySavedFile: null,
       autoSaveTimeoutId: null,
+      lastSaveTimestamp: null,
       updateFrontmatter: vi.fn(),
       updateCurrentFileAfterRename: vi.fn(),
     }

@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
 import {
   FileText,
   FolderOpen,
@@ -17,11 +16,13 @@ import {
   Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
-import { Collection, FileEntry } from '../../store'
+import type { Collection, FileEntry } from '@/types'
 import { toast } from '../toast'
 import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'
 import { useEditorStore } from '../../store/editorStore'
+import { openInIde } from '../ide'
+import { openProjectViaDialog } from '../projects/actions'
 
 /**
  * File-related commands
@@ -106,19 +107,8 @@ export const projectCommands: AppCommand[] = [
     description: 'Select a new project folder',
     icon: FolderOpen,
     group: 'project',
-    execute: async (context: CommandContext) => {
-      try {
-        const projectPath = await invoke<string>('select_project_folder')
-        if (projectPath) {
-          context.setProject(projectPath)
-          toast.success('Project opened successfully')
-        }
-      } catch (error) {
-        toast.error('Failed to open project', {
-          description:
-            error instanceof Error ? error.message : 'Unknown error occurred',
-        })
-      }
+    execute: async () => {
+      await openProjectViaDialog()
     },
     isAvailable: () => true,
   },
@@ -316,35 +306,6 @@ export const ALLOWED_IDES = [
 ] as const
 
 /**
- * Helper function to execute IDE commands using secure Rust backend
- */
-async function executeIdeCommand(ideCommand: string, path: string) {
-  try {
-    // Call the secure Rust command handler
-    await invoke<string>('open_path_in_ide', {
-      ideCommand,
-      filePath: path,
-    })
-
-    toast.success(`Opened in ${ideCommand}`)
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error occurred'
-    // eslint-disable-next-line no-console
-    console.error('Failed to execute IDE command:', {
-      ideCommand,
-      path,
-      error: errorMessage,
-      fullError: error,
-    })
-
-    toast.error('Failed to open in IDE', {
-      description: errorMessage,
-    })
-  }
-}
-
-/**
  * IDE-related commands
  */
 export const ideCommands: AppCommand[] = [
@@ -357,7 +318,7 @@ export const ideCommands: AppCommand[] = [
     execute: async (context: CommandContext) => {
       const ideCommand = context.globalSettings?.general?.ideCommand
       if (ideCommand && context.projectPath) {
-        await executeIdeCommand(ideCommand, context.projectPath)
+        await openInIde(context.projectPath, ideCommand)
       }
     },
     isAvailable: (context: CommandContext) => {
@@ -380,7 +341,7 @@ export const ideCommands: AppCommand[] = [
           c => c.name === context.selectedCollection
         )
         if (collection) {
-          await executeIdeCommand(ideCommand, collection.path)
+          await openInIde(collection.path, ideCommand)
         }
       }
     },
@@ -401,7 +362,7 @@ export const ideCommands: AppCommand[] = [
     execute: async (context: CommandContext) => {
       const ideCommand = context.globalSettings?.general?.ideCommand
       if (ideCommand && context.currentFile) {
-        await executeIdeCommand(ideCommand, context.currentFile.path)
+        await openInIde(context.currentFile.path, ideCommand)
       }
     },
     isAvailable: (context: CommandContext) => {
@@ -451,10 +412,10 @@ function generateSearchCommands(
             description: `${collection.name}/${file.name}.${file.extension}`,
             icon: FileText,
             group: 'search',
-            execute: async () => {
+            execute: () => {
               // Open the file using the editor store
               const { openFile } = useEditorStore.getState()
-              await openFile(file)
+              openFile(file)
             },
             isAvailable: () => true,
           })

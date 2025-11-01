@@ -5,11 +5,11 @@ import {
 } from './fileProcessing'
 
 /**
- * Handle edge case when no project is open
+ * Build fallback markdown for file paths when project context is unavailable
  * @param filePaths - Array of file paths
  * @returns Fallback markdown text
  */
-export const handleNoProjectFallback = (filePaths: string[]): string => {
+export const buildFallbackMarkdownForPaths = (filePaths: string[]): string => {
   const fallbackText = filePaths
     .map(filePath => {
       const filename = extractFilename(filePath)
@@ -19,16 +19,6 @@ export const handleNoProjectFallback = (filePaths: string[]): string => {
     .join('\n')
 
   return fallbackText
-}
-
-/**
- * Handle edge case when no file is currently open
- * @param filePaths - Array of file paths
- * @returns Fallback markdown text
- */
-export const handleNoFileFallback = (filePaths: string[]): string => {
-  // Same logic as no project fallback
-  return handleNoProjectFallback(filePaths)
 }
 
 /**

@@ -47,6 +47,13 @@
 10. **Documentation**: Update `docs/developer/` guides for new patterns
 11. **Removing files**: Always use `rm -f`
 
+#### Directory Boundaries
+
+- **Hooks belong in `/hooks/`**: If it exports a `use*` function, it goes in `/hooks/`
+- **Pure functions in `/lib/`**: Business logic, utilities, classes
+- **getState() is allowed**: One-way calls from lib to store using `getState()` are acceptable
+- See `docs/developer/architecture-guide.md` for complete rules
+
 ### Documentation Structure
 
 **Core Guides** (read for daily development):
@@ -152,6 +159,27 @@ Use `/check` to verify work quality before completing tasks:
 - Cleans up leftover code from failed approaches
 
 **When to use**: Before completing significant features or refactoring work.
+
+### Task Management
+
+Use the task completion script to mark tasks as done:
+
+```bash
+# Complete a task (move from tasks-todo to tasks-done with today's date)
+pnpm task:complete <task-name>
+
+# Examples:
+pnpm task:complete frontend-performance
+pnpm task:complete 2
+```
+
+The script automatically:
+- Finds matching tasks by partial name or number
+- Strips the `task-[number]-` prefix
+- Adds completion date: `task-YYYY-MM-DD-`
+- Moves from `tasks-todo/` to `tasks-done/`
+
+**See `docs/TASKS.md` for full task management workflow.**
 
 ## Technology Stack
 
@@ -371,6 +399,16 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 - `src/components/layout/Layout.tsx` - Main orchestrator
 - `src/lib/editor/` - Editor modules
 - `src/lib/schema.ts` - Zod schema parsing
+
+### Reusable Utilities
+
+Before creating new utilities, check these existing modules:
+
+- `src/lib/dates.ts` - Date formatting (`formatIsoDate()`, `todayIsoDate()`)
+- `src/lib/ide.ts` - IDE integration (`openInIde()`)
+- `src/lib/projects/actions.ts` - Project operations (`openProjectViaDialog()`)
+- `src/lib/files/` - File processing and asset management
+- `src/components/frontmatter/fields/constants.ts` - Field constants (`NONE_SENTINEL`)
 
 ### Documentation
 

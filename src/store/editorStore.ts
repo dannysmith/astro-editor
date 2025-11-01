@@ -6,189 +6,10 @@ import { saveRecoveryData, saveCrashReport } from '../lib/recovery'
 import { toast } from '../lib/toast'
 import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
+import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
+import type { FileEntry } from '@/types'
 
-/**
- * Set a nested value in an object using dot notation
- * Example: setNestedValue(obj, 'author.name', 'John') → { author: { name: 'John' } }
- */
-function setNestedValue(
-  obj: Record<string, unknown>,
-  path: string,
-  value: unknown
-): Record<string, unknown> {
-  const keys = path.split('.')
-  if (keys.length === 1) {
-    // Protect against prototype pollution on simple keys
-    if (
-      path === '__proto__' ||
-      path === 'constructor' ||
-      path === 'prototype'
-    ) {
-      throw new Error(
-        `Unsafe key "${path}" in path "${path}", prototype pollution prevented.`
-      )
-    }
-    // Simple key, no nesting
-    return { ...obj, [path]: value }
-  }
-
-  // Create nested structure
-  const result = { ...obj }
-  let current: Record<string, unknown> = result
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i]!
-    // Protect against prototype pollution in nested paths
-    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-      throw new Error(
-        `Unsafe key "${key}" in path "${path}", prototype pollution prevented.`
-      )
-    }
-    if (typeof current[key] !== 'object' || current[key] === null) {
-      current[key] = {}
-    } else {
-      // Clone existing nested object
-      current[key] = { ...(current[key] as Record<string, unknown>) }
-    }
-    current = current[key] as Record<string, unknown>
-  }
-
-  // Set the final value
-  const lastKey = keys[keys.length - 1]!
-  // Protect against prototype pollution on final key
-  if (
-    lastKey === '__proto__' ||
-    lastKey === 'constructor' ||
-    lastKey === 'prototype'
-  ) {
-    throw new Error(
-      `Unsafe key "${lastKey}" in path "${path}", prototype pollution prevented.`
-    )
-  }
-  current[lastKey] = value
-
-  return result
-}
-
-/**
- * Get a nested value from an object using dot notation
- * Example: getNestedValue(obj, 'author.name') → 'John'
- */
-export function getNestedValue(
-  obj: Record<string, unknown>,
-  path: string
-): unknown {
-  const keys = path.split('.')
-  let current: unknown = obj
-
-  for (const key of keys) {
-    if (current === null || current === undefined) {
-      return undefined
-    }
-    if (typeof current !== 'object') {
-      return undefined
-    }
-    current = (current as Record<string, unknown>)[key]
-  }
-
-  return current
-}
-
-/**
- * Delete a nested value in an object using dot notation
- * Also cleans up empty parent objects
- */
-function deleteNestedValue(
-  obj: Record<string, unknown>,
-  path: string
-): Record<string, unknown> {
-  const keys = path.split('.')
-  if (keys.length === 1) {
-    // Protect against prototype pollution on simple keys
-    if (
-      path === '__proto__' ||
-      path === 'constructor' ||
-      path === 'prototype'
-    ) {
-      throw new Error(
-        `Unsafe key "${path}" in path "${path}", prototype pollution prevented.`
-      )
-    }
-    // Simple key
-    const result = { ...obj }
-    delete result[path]
-    return result
-  }
-
-  // Navigate to parent and delete
-  const result = { ...obj }
-  let current: Record<string, unknown> = result
-  const parents: Array<{ obj: Record<string, unknown>; key: string }> = []
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i]!
-    // Protect against prototype pollution in nested paths
-    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-      throw new Error(
-        `Unsafe key "${key}" in path "${path}", prototype pollution prevented.`
-      )
-    }
-    if (typeof current[key] !== 'object' || current[key] === null) {
-      // Path doesn't exist, nothing to delete
-      return result
-    }
-    // Clone nested object
-    current[key] = { ...(current[key] as Record<string, unknown>) }
-    parents.push({ obj: current, key })
-    current = current[key] as Record<string, unknown>
-  }
-
-  // Delete the final key
-  const lastKey = keys[keys.length - 1]!
-  // Protect against prototype pollution on final key
-  if (
-    lastKey === '__proto__' ||
-    lastKey === 'constructor' ||
-    lastKey === 'prototype'
-  ) {
-    throw new Error(
-      `Unsafe key "${lastKey}" in path "${path}", prototype pollution prevented.`
-    )
-  }
-  delete current[lastKey]
-
-  // Clean up empty parent objects (bottom-up)
-  for (let i = parents.length - 1; i >= 0; i--) {
-    const parent = parents[i]!
-    const { obj, key } = parent
-    const nested = obj[key] as Record<string, unknown>
-    if (Object.keys(nested).length === 0) {
-      delete obj[key]
-    } else {
-      break // Stop cleaning if parent is not empty
-    }
-  }
-
-  return result
-}
-
-export interface FileEntry {
-  id: string
-  path: string
-  name: string
-  extension: string
-  isDraft: boolean
-  collection: string
-  last_modified?: number
-  frontmatter?: Record<string, unknown>
-}
-
-export interface MarkdownContent {
-  frontmatter: Record<string, unknown>
-  content: string
-  raw_frontmatter: string
-  imports: string
-}
+const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seconds)
 
 interface EditorState {
   // File state
@@ -202,11 +23,11 @@ interface EditorState {
 
   // Status state
   isDirty: boolean // True if changes need to be saved
-  recentlySavedFile: string | null // Track recently saved file to ignore file watcher
   autoSaveTimeoutId: number | null // Auto-save timeout ID
+  lastSaveTimestamp: number | null // Timestamp of last successful save
 
   // Actions
-  openFile: (file: FileEntry) => Promise<void>
+  openFile: (file: FileEntry) => void
   closeCurrentFile: () => void
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
@@ -224,55 +45,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   rawFrontmatter: '',
   imports: '',
   isDirty: false,
-  recentlySavedFile: null,
   autoSaveTimeoutId: null,
+  lastSaveTimestamp: null,
 
   // Actions
-  openFile: async (file: FileEntry) => {
-    // Get project path using direct store access pattern (architecture guide: performance patterns)
-    const { projectPath } = useProjectStore.getState()
-
-    if (!projectPath) {
-      throw new Error('No project path available')
+  openFile: (file: FileEntry) => {
+    // Clear auto-save timeout if it exists to prevent race condition
+    // where previous file's auto-save could fire after opening new file
+    const { autoSaveTimeoutId } = get()
+    if (autoSaveTimeoutId) {
+      clearTimeout(autoSaveTimeoutId)
     }
 
-    try {
-      const markdownContent = await invoke<MarkdownContent>(
-        'parse_markdown_content',
-        {
-          filePath: file.path,
-          projectRoot: projectPath,
-        }
-      )
+    // CRITICAL: Clear content FIRST, then set currentFile
+    // This prevents Editor.tsx from reading stale content via getState()
+    set({
+      editorContent: '',
+      frontmatter: {},
+      rawFrontmatter: '',
+      imports: '',
+      currentFile: file,
+      isDirty: false,
+      autoSaveTimeoutId: null,
+      lastSaveTimestamp: Date.now(),
+    })
 
-      set({
-        currentFile: file,
-        editorContent: markdownContent.content,
-        frontmatter: markdownContent.frontmatter,
-        rawFrontmatter: markdownContent.raw_frontmatter,
-        imports: markdownContent.imports,
-        isDirty: false,
+    // Update the selected collection to match the opened file's collection
+    // Use custom event to communicate with project store (Bridge Pattern)
+    window.dispatchEvent(
+      new CustomEvent('file-opened', {
+        detail: { collectionName: file.collection },
       })
+    )
 
-      // Update the selected collection to match the opened file's collection
-      // Use custom event to communicate with project store (Bridge Pattern)
-      window.dispatchEvent(
-        new CustomEvent('file-opened', {
-          detail: { collectionName: file.collection },
-        })
-      )
-    } catch (error) {
-      toast.error('Failed to open file', {
-        description: `Could not open ${file.name}: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-      })
-      await logError(`Failed to open file ${file.path}: ${String(error)}`)
-
-      // Save crash report for critical file parsing failures
-      await saveCrashReport(error as Error, {
-        currentFile: file.path,
-        action: 'open_file',
-      })
-    }
+    // Content will be loaded by useFileContentQuery hook
   },
 
   closeCurrentFile: () => {
@@ -291,6 +97,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       imports: '',
       isDirty: false,
       autoSaveTimeoutId: null,
+      lastSaveTimestamp: null,
     })
   },
 
@@ -353,9 +160,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }
       }
 
-      // Track this file as recently saved to ignore file watcher events
-      set({ recentlySavedFile: currentFile.path })
-
       await invoke('save_markdown_content', {
         filePath: currentFile.path,
         frontmatter,
@@ -372,30 +176,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         set({ autoSaveTimeoutId: null })
       }
 
-      set({ isDirty: false })
+      set({ isDirty: false, lastSaveTimestamp: Date.now() })
 
-      // Invalidate queries to update UI with new frontmatter
-      // This invalidates all directory scans for this collection (root + all subdirectories)
-      if (projectPath && currentFile.collection) {
+      // Invalidate queries to update UI
+      if (projectPath) {
+        // Invalidate file content query to refresh cached content
         void queryClient.invalidateQueries({
-          queryKey: [
-            ...queryKeys.all,
-            projectPath,
-            currentFile.collection,
-            'directory',
-          ],
+          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
         })
+
+        // Invalidate directory scans for this collection (root + all subdirectories)
+        if (currentFile.collection) {
+          void queryClient.invalidateQueries({
+            queryKey: [
+              ...queryKeys.all,
+              projectPath,
+              currentFile.collection,
+              'directory',
+            ],
+          })
+        }
       }
 
       // Show success toast only if requested
       if (showToast) {
         toast.success('File saved successfully')
       }
-
-      // Clear the recently saved file after a delay
-      setTimeout(() => {
-        set({ recentlySavedFile: null })
-      }, 1000)
     } catch (error) {
       toast.error('Save failed', {
         description: `Could not save file: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Recovery data has been saved.`,
@@ -419,8 +225,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         action: 'save',
       })
 
-      // Keep the file marked as dirty since save failed, maintain user changes flag
-      set({ isDirty: true, recentlySavedFile: null })
+      // Keep the file marked as dirty since save failed
+      set({ isDirty: true })
     }
   },
 
@@ -458,6 +264,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   scheduleAutoSave: () => {
     const store = get()
+    const now = Date.now()
+
+    // Check if we should force save due to max delay
+    if (store.isDirty && store.lastSaveTimestamp) {
+      const timeSinceLastSave = now - store.lastSaveTimestamp
+      if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
+        void store.saveFile(false)
+        return
+      }
+    }
 
     // Clear existing timeout
     if (store.autoSaveTimeoutId) {

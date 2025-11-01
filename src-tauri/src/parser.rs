@@ -2,6 +2,51 @@ use crate::models::Collection;
 use regex::Regex;
 use std::path::Path;
 
+/// Finds the position of the matching closing brace for an opening brace
+///
+/// # Arguments
+/// * `content` - The string to search
+/// * `start_pos` - Position of the opening brace
+/// * `open_char` - The opening character (e.g., '{', '[', '(')
+/// * `close_char` - The closing character (e.g., '}', ']', ')')
+///
+/// # Returns
+/// * `Ok(usize)` - Position of the matching closing brace (inclusive)
+/// * `Err(String)` - Error if no matching brace found
+///
+/// # Limitations
+/// This utility performs naive character counting and does NOT handle:
+/// - Strings containing braces (e.g., `"{"` or `"}"`)
+/// - Comments containing braces
+/// - Template literals or other JavaScript string features
+///
+/// The current implementations also don't handle these cases, so we maintain existing behavior.
+fn find_matching_closing_brace(
+    content: &str,
+    start_pos: usize,
+    open_char: char,
+    close_char: char,
+) -> Result<usize, String> {
+    let mut brace_count = 0;
+
+    for (i, ch) in content[start_pos..].char_indices() {
+        match ch {
+            c if c == open_char => brace_count += 1,
+            c if c == close_char => {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    return Ok(start_pos + i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Err(format!(
+        "Unclosed braces: expected closing '{close_char}' but reached end of content"
+    ))
+}
+
 /// Helper type for pattern matching approach
 #[derive(Debug, Clone, PartialEq)]
 enum HelperType {
@@ -151,24 +196,7 @@ fn extract_collections_block(content: &str) -> Option<String> {
         let start = start_match.end() - 1; // Include the opening brace
 
         // Find matching closing brace
-        let mut brace_count = 0;
-        let mut end = start;
-
-        for (i, ch) in content[start..].char_indices() {
-            match ch {
-                '{' => brace_count += 1,
-                '}' => {
-                    brace_count -= 1;
-                    if brace_count == 0 {
-                        end = start + i + 1;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if brace_count == 0 {
+        if let Ok(end) = find_matching_closing_brace(content, start, '{', '}') {
             return Some(content[start..end].to_string());
         }
     }
@@ -180,24 +208,7 @@ fn extract_collections_block(content: &str) -> Option<String> {
         let start = start_match.end() - 1; // Include the opening brace
 
         // Find matching closing brace
-        let mut brace_count = 0;
-        let mut end = start;
-
-        for (i, ch) in content[start..].char_indices() {
-            match ch {
-                '{' => brace_count += 1,
-                '}' => {
-                    brace_count -= 1;
-                    if brace_count == 0 {
-                        end = start + i + 1;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if brace_count == 0 {
+        if let Ok(end) = find_matching_closing_brace(content, start, '{', '}') {
             return Some(content[start..end].to_string());
         }
     }
@@ -306,24 +317,8 @@ fn extract_basic_schema(content: &str, collection_name: &str) -> Option<String> 
     if let Some(start_match) = start_match {
         // Find the matching closing parenthesis for defineCollection(...)
         let start = start_match.end() - 1; // Position of the opening parenthesis
-        let mut paren_count = 0;
-        let mut end = start;
 
-        for (i, ch) in content[start..].char_indices() {
-            match ch {
-                '(' => paren_count += 1,
-                ')' => {
-                    paren_count -= 1;
-                    if paren_count == 0 {
-                        end = start + i + 1;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if paren_count == 0 {
+        if let Ok(end) = find_matching_closing_brace(content, start, '(', ')') {
             let collection_block = &content[start_match.start()..end];
 
             // Now extract schema from within this block
@@ -341,25 +336,9 @@ fn extract_schema_from_collection_block(collection_block: &str) -> Option<String
     if let Some(start_match) = schema_start_re.find(collection_block) {
         // Find the matching closing brace for the object
         let start = start_match.end() - 1; // Position of the opening brace
-        let mut brace_count = 0;
-        let mut end = start;
 
-        for (i, ch) in collection_block[start..].char_indices() {
-            match ch {
-                '{' => brace_count += 1,
-                '}' => {
-                    brace_count -= 1;
-                    if brace_count == 0 {
-                        end = start + i;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if brace_count == 0 {
-            let schema_text = &collection_block[start + 1..end].trim(); // +1 to skip opening brace
+        if let Ok(end) = find_matching_closing_brace(collection_block, start, '{', '}') {
+            let schema_text = &collection_block[start + 1..end - 1].trim(); // +1 to skip opening brace, -1 to skip closing brace
             return parse_schema_fields(schema_text);
         }
     }
@@ -457,6 +436,56 @@ fn is_inside_array(schema_text: &str, helper_position: usize) -> bool {
     false
 }
 
+/// Find the field name at the current position by scanning backwards
+///
+/// Returns the field name if found, or None if no field name exists at this position
+fn find_immediate_field_name(schema_text: &str, position: usize) -> Option<String> {
+    find_field_name_backwards(schema_text, position)
+}
+
+/// Build the parent path by traversing up through nested braces
+///
+/// Returns a vector of parent field names (in reverse order - innermost to outermost)
+fn build_parent_path(schema_text: &str, start_position: usize, chars: &[char]) -> Vec<String> {
+    let mut path_components = Vec::new();
+    let mut brace_level = 0;
+    let mut current_pos = start_position;
+
+    while current_pos > 0 {
+        current_pos -= 1;
+        let ch = chars[current_pos];
+
+        match ch {
+            '}' => {
+                brace_level += 1;
+            }
+            '{' => {
+                brace_level -= 1;
+
+                // When we exit to a parent level (brace_level becomes negative)
+                if brace_level < 0 {
+                    // Look for a parent field name before this '{'
+                    if let Some(parent_field) = find_field_name_backwards(schema_text, current_pos)
+                    {
+                        // Make sure we haven't already added this field (avoid duplicates)
+                        if path_components.last() != Some(&parent_field) {
+                            path_components.push(parent_field);
+                        }
+                        // Reset brace level for the next parent
+                        brace_level = 0;
+                    } else {
+                        // No parent field found, we've reached the top level
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    path_components
+}
+
 /// Trace backwards from helper position to build dotted field path
 ///
 /// Examples:
@@ -465,59 +494,24 @@ fn is_inside_array(schema_text: &str, helper_position: usize) -> bool {
 /// - Deep: "meta: { author: { avatar: image() } }" → "meta.author.avatar"
 fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<String, String> {
     let chars: Vec<char> = schema_text.chars().collect();
-    let mut path_components = Vec::new();
-    let mut current_pos = helper_position;
 
     // First, find the immediate field name for this helper
-    if let Some(field_name) = find_field_name_backwards(schema_text, current_pos) {
-        path_components.push(field_name.clone());
+    if let Some(field_name) = find_immediate_field_name(schema_text, helper_position) {
+        let mut path_components = vec![field_name];
 
         // Now trace backwards through brace levels to find parent fields
-        let mut brace_level = 0;
-        current_pos = helper_position;
+        let parent_fields = build_parent_path(schema_text, helper_position, &chars);
+        path_components.extend(parent_fields);
 
-        while current_pos > 0 {
-            current_pos -= 1;
-            let ch = chars[current_pos];
-
-            match ch {
-                '}' => {
-                    brace_level += 1;
-                }
-                '{' => {
-                    brace_level -= 1;
-
-                    // When we exit to a parent level (brace_level becomes negative)
-                    if brace_level < 0 {
-                        // Look for a parent field name before this '{'
-                        if let Some(parent_field) =
-                            find_field_name_backwards(schema_text, current_pos)
-                        {
-                            // Make sure we haven't already added this field (avoid duplicates)
-                            if path_components.last() != Some(&parent_field) {
-                                path_components.push(parent_field.clone());
-                            }
-                            // Reset brace level for the next parent
-                            brace_level = 0;
-                        } else {
-                            // No parent field found, we've reached the top level
-                            break;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
+        // Reverse to get the path from outermost to innermost
+        path_components.reverse();
+        let path = path_components.join(".");
+        Ok(path)
     } else {
-        return Err(format!(
+        Err(format!(
             "Could not find field name for helper at position {helper_position}"
-        ));
+        ))
     }
-
-    // Reverse to get the path from outermost to innermost
-    path_components.reverse();
-    let path = path_components.join(".");
-    Ok(path)
 }
 
 /// Extract special fields (image and reference helpers) using pattern matching
@@ -618,6 +612,122 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::PathBuf;
+
+    // --- UNIT TESTS FOR BRACE MATCHING UTILITY ---
+
+    #[test]
+    fn test_find_matching_closing_brace_simple() {
+        let content = "{ foo }";
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(result.is_ok(), "Should find matching brace");
+        assert_eq!(
+            result.unwrap(),
+            7,
+            "Should point to position after closing brace"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_nested() {
+        let content = "{ { } }";
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(
+            result.is_ok(),
+            "Should find matching brace for nested structure"
+        );
+        assert_eq!(
+            result.unwrap(),
+            7,
+            "Should point to outermost closing brace"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_deep_nested() {
+        let content = "{ { { } } }";
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(
+            result.is_ok(),
+            "Should find matching brace for deeply nested structure"
+        );
+        assert_eq!(
+            result.unwrap(),
+            11,
+            "Should point to outermost closing brace"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_with_content() {
+        let content = r#"{ foo: "bar", baz: 123 }"#;
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(result.is_ok(), "Should find matching brace with content");
+        assert_eq!(
+            result.unwrap(),
+            24,
+            "Should point to position after closing brace"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_empty() {
+        let content = "{}";
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(result.is_ok(), "Should find matching brace for empty block");
+        assert_eq!(
+            result.unwrap(),
+            2,
+            "Should point to position after closing brace"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_unmatched() {
+        let content = "{ { }";
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(result.is_err(), "Should return error for unmatched braces");
+        assert!(
+            result.unwrap_err().contains("Unclosed braces"),
+            "Error message should mention unclosed braces"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_parentheses() {
+        let content = "( foo ( bar ) )";
+        let result = find_matching_closing_brace(content, 0, '(', ')');
+        assert!(result.is_ok(), "Should work with parentheses");
+        assert_eq!(
+            result.unwrap(),
+            15,
+            "Should point to position after closing parenthesis"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_brackets() {
+        let content = "[ [ 1, 2 ], [ 3, 4 ] ]";
+        let result = find_matching_closing_brace(content, 0, '[', ']');
+        assert!(result.is_ok(), "Should work with square brackets");
+        assert_eq!(
+            result.unwrap(),
+            22,
+            "Should point to position after closing bracket"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_closing_brace_real_world_example() {
+        let content = r#"{ blog: defineCollection({ schema: z.object({ title: z.string() }) }) }"#;
+        let result = find_matching_closing_brace(content, 0, '{', '}');
+        assert!(
+            result.is_ok(),
+            "Should work with real-world nested structure"
+        );
+        assert_eq!(result.unwrap(), 71, "Should find outermost closing brace");
+    }
+
+    // --- END BRACE MATCHING UTILITY TESTS ---
 
     #[test]
     fn test_parse_simple_config() {

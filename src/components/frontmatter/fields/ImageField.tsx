@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
 import { ImageThumbnail } from './ImageThumbnail'
@@ -25,8 +26,10 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')

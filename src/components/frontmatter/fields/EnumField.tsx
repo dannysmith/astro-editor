@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
+import { NONE_SENTINEL } from './constants'
 
 interface EnumFieldProps extends FieldProps {
   options: string[]
@@ -23,8 +25,10 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
 
   return (
     <FieldWrapper
@@ -38,10 +42,10 @@ export const EnumField: React.FC<EnumFieldProps> = ({
       currentValue={value}
     >
       <Select
-        value={value && typeof value === 'string' ? value : '__NONE__'}
+        value={value && typeof value === 'string' ? value : NONE_SENTINEL}
         onValueChange={value => {
           // Special sentinel value means clear the field
-          const finalValue = value === '__NONE__' ? undefined : value
+          const finalValue = value === NONE_SENTINEL ? undefined : value
           updateFrontmatterField(name, finalValue)
         }}
       >
@@ -49,7 +53,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
           <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__NONE__">
+          <SelectItem value={NONE_SENTINEL}>
             <span className="text-muted-foreground">(None)</span>
           </SelectItem>
           {options.map(option => (

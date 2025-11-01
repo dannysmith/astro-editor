@@ -83,7 +83,8 @@ export const usePreferences = () => {
                 key as keyof typeof c.settings.frontmatterMappings
               ] !== undefined
           )
-        return hasPathOverrides || hasFrontmatterMappings
+        const hasDefaultFileType = c.settings.defaultFileType !== undefined
+        return hasPathOverrides || hasFrontmatterMappings || hasDefaultFileType
       })
 
       return updateProjectSettings({

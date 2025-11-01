@@ -48,7 +48,10 @@
       "Bash(git log:*)",
       "Bash(yes)",
       "Bash(cat:*)",
-      "WebFetch(domain:docs.astro.build)"
+      "WebFetch(domain:docs.astro.build)",
+      "WebFetch(domain:rustsec.org)",
+      "WebFetch(domain:crates.io)",
+      "SlashCommand(/check)"
     ],
     "deny": []
   }

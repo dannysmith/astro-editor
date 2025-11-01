@@ -16,12 +16,12 @@ scheduleAutoSave: () => {
 
   // Clear existing timeout
   if (store.autoSaveTimeoutId) {
-    clearTimeout(store.autoSaveTimeoutId)  // ⚠️ Resets on every keystroke
+    clearTimeout(store.autoSaveTimeoutId) // ⚠️ Resets on every keystroke
   }
 
   const timeoutId = setTimeout(() => {
     void store.saveFile(false)
-  }, autoSaveDelay * 1000)  // 2 seconds
+  }, autoSaveDelay * 1000) // 2 seconds
 
   set({ autoSaveTimeoutId: timeoutId })
 }
@@ -38,44 +38,101 @@ scheduleAutoSave: () => {
 ## Requirements
 
 **Must Have**:
+
 - [ ] Auto-save MUST fire within a maximum time window (e.g., 10 seconds) regardless of continuous typing
 - [ ] Current debounced behavior should remain (don't save on every keystroke)
 - [ ] No breaking changes to existing auto-save UX
 
-**Should Have**:
-- [ ] Visual indicator when file has unsaved changes
-- [ ] Toast notification on auto-save failure (not just success)
-- [ ] Verification that auto-save actually works during continuous typing
-
 **Nice to Have**:
+
 - [ ] Persist dirty state to localStorage as backup
-- [ ] "Unsaved changes" dialog on app close/quit
 
-## Options for Implementation
+## Implementation Plan
 
-### Option A: Force Save After Max Delay (Recommended)
-Track time since last save. If it exceeds max delay (10s), force save immediately instead of debouncing.
+**Approach**: Option A (Force Save After Max Delay) - simplest solution that meets requirements
 
-**Pros**: Simple, handles continuous typing
-**Cons**: Slight complexity in tracking last save time
+### Changes Required
 
-### Option B: Periodic Save + Debounced Save
-Run two timers: one for debouncing (2s), one for periodic backup (10s).
+**File**: `src/store/editorStore.ts`
 
-**Pros**: Clear separation of concerns
-**Cons**: Two timers to manage
+1. **Add state field** to `EditorState` interface:
+   ```typescript
+   lastSaveTimestamp: number | null  // Timestamp of last successful save
+   ```
 
-### Option C: Remove Debouncing Entirely
-Just save every N seconds while content is dirty, period.
+2. **Update initial state**:
+   ```typescript
+   lastSaveTimestamp: null,
+   ```
 
-**Pros**: Simplest possible implementation
-**Cons**: More disk I/O, might feel laggy on slow systems
+3. **Modify `scheduleAutoSave()` method**:
+   ```typescript
+   scheduleAutoSave: () => {
+     const store = get()
+     const now = Date.now()
+     const maxDelay = 10000 // 10 seconds in milliseconds
+
+     // Check if we should force save due to max delay
+     if (store.isDirty && store.lastSaveTimestamp) {
+       const timeSinceLastSave = now - store.lastSaveTimestamp
+       if (timeSinceLastSave >= maxDelay) {
+         // Force save immediately, don't debounce
+         void store.saveFile(false)
+         return
+       }
+     }
+
+     // Normal debounced behavior (existing code)
+     if (store.autoSaveTimeoutId) {
+       clearTimeout(store.autoSaveTimeoutId)
+     }
+
+     const globalSettings = useProjectStore.getState().globalSettings
+     const autoSaveDelay = globalSettings?.general?.autoSaveDelay || 2
+
+     const timeoutId = setTimeout(() => {
+       void store.saveFile(false)
+     }, autoSaveDelay * 1000)
+
+     set({ autoSaveTimeoutId: timeoutId })
+   },
+   ```
+
+4. **Update `saveFile()` method** to set timestamp after successful save:
+   ```typescript
+   // Add after successful save (after isDirty: false)
+   set({ lastSaveTimestamp: Date.now() })
+   ```
+
+### How It Works
+
+1. User types → `scheduleAutoSave()` is called
+2. Check: Has it been ≥10s since last save?
+   - **Yes**: Force save immediately, skip debouncing
+   - **No**: Use normal 2s debounce behavior
+3. On successful save, record timestamp
+4. Repeat
+
+### What This Achieves
+
+- ✅ Saves within 10s max during continuous typing
+- ✅ Preserves 2s debounce for normal typing (no save spam)
+- ✅ No additional timers or complexity
+- ✅ No localStorage or recovery changes needed
+- ✅ Works with existing save button and unsaved indicator
+
+### Testing
+
+Manual test: Type continuously for 15 minutes
+- Expected: File saves every ~10 seconds
+- Verify: Check file modification time or console logs
 
 ## Context from Review
 
 From staff engineering review:
 
 > **Issues:**
+>
 > 1. **Continuous typing prevents save**: If user types for 10 minutes straight (e.g., during flow state), auto-save never fires
 > 2. **No save queue**: If save fails, there's no retry mechanism
 > 3. **Silent failures**: Failed auto-saves just log; user may not notice until data is lost
@@ -86,11 +143,13 @@ From staff engineering review:
 ## Implementation Notes
 
 Current auto-save config:
-- Delay: 2 seconds (defined in `editorStore.ts`)
+
+- Delay: 2 seconds (defined in `editorStore.ts`) an configurable in preferences.
 - Triggered on content/frontmatter changes
-- Success toast shown, failures logged to console
+- Failures logged to console
 
 Key files:
+
 - `src/store/editorStore.ts` - `scheduleAutoSave()` function
 - `src/store/editorStore.ts` - `saveFile()` function
 - Auto-save scheduled from: `setEditorContent()`, `updateFrontmatterField()`, etc.
@@ -99,7 +158,6 @@ Key files:
 
 - [ ] User can type continuously for 15+ minutes and auto-save still fires within max delay
 - [ ] Debounced behavior preserved (no save on every keystroke during normal typing)
-- [ ] Visual indicator shows when file is dirty/unsaved
 - [ ] Failed auto-saves show toast notification to user
 - [ ] Manual testing: type continuously for 15min, verify multiple auto-saves occurred
 - [ ] Manual testing: kill app while dirty, verify recovery data exists or changes were saved

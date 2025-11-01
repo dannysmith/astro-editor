@@ -100,3 +100,10 @@ pnpm install
 pnpm reset:testdata  # Creates test Astro project
 pnpm run tauri:dev   # Starts dev server
 ```
+
+**Development commands:**
+```bash
+pnpm run check:all       # Run all checks (TypeScript, Rust, tests)
+pnpm run fix:all         # Auto-fix linting/formatting issues
+pnpm task:complete <name> # Mark a task as complete (see docs/TASKS.md)
+```

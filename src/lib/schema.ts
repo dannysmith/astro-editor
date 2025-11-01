@@ -89,6 +89,31 @@ export function deserializeCompleteSchema(
   try {
     const parsed = JSON.parse(schemaJson) as RawCompleteSchema
 
+    // Validate required fields
+    if (
+      !parsed.collectionName ||
+      typeof parsed.collectionName !== 'string' ||
+      parsed.collectionName.trim() === ''
+    ) {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.error(
+          'Failed to deserialize complete schema: collectionName is required and must be a non-empty string'
+        )
+      }
+      return null
+    }
+
+    if (!Array.isArray(parsed.fields)) {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.error(
+          'Failed to deserialize complete schema: fields must be an array'
+        )
+      }
+      return null
+    }
+
     // Map Rust field types to FieldType enum
     const fields = parsed.fields.map(field => ({
       name: field.name,

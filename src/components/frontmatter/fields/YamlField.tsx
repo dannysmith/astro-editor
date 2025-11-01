@@ -1,5 +1,6 @@
 import React from 'react'
-import { useEditorStore, getNestedValue } from '../../../store/editorStore'
+import { useEditorStore } from '../../../store/editorStore'
+import { getNestedValue } from '../../../lib/object-utils'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
@@ -22,8 +23,10 @@ export const YamlField: React.FC<YamlFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
-  const value = getNestedValue(frontmatter, name)
+  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const updateFrontmatterField = useEditorStore(
+    state => state.updateFrontmatterField
+  )
   const [error, setError] = React.useState<string | null>(null)
 
   // Convert value to YAML-like string for display

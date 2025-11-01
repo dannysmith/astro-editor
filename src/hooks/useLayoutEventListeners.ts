@@ -6,11 +6,17 @@ import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { globalCommandRegistry } from '../lib/editor/commands'
-import { toast } from '../lib/toast'
 import { initializeRustToastBridge } from '../lib/rust-toast-bridge'
 import { focusEditor } from '../lib/focus-utils'
 import { useCreateFile } from './useCreateFile'
 import { updateCopyeditModePartsOfSpeech } from '../lib/editor/extensions/copyedit-mode'
+import { openProjectViaDialog } from '../lib/projects/actions'
+
+const DEFAULT_HOTKEY_OPTS = {
+  preventDefault: true,
+  enableOnFormTags: true,
+  enableOnContentEditable: true,
+}
 
 export function useLayoutEventListeners() {
   const [preferencesOpen, setPreferencesOpen] = useState(false)
@@ -65,7 +71,7 @@ export function useLayoutEventListeners() {
         void saveFile()
       }
     },
-    { preventDefault: true }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -74,11 +80,7 @@ export function useLayoutEventListeners() {
       // Cmd+1: Toggle Sidebar
       useUIStore.getState().toggleSidebar()
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: ['input', 'textarea', 'select'],
-      enableOnContentEditable: true, // Enable in contenteditable elements like CodeMirror
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -87,11 +89,7 @@ export function useLayoutEventListeners() {
       // Cmd+2: Toggle Frontmatter Panel
       useUIStore.getState().toggleFrontmatterPanel()
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: ['input', 'textarea', 'select'],
-      enableOnContentEditable: true, // Enable in contenteditable elements like CodeMirror
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -108,11 +106,7 @@ export function useLayoutEventListeners() {
         void document.body.offsetHeight
       }
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: true,
-      enableOnContentEditable: true,
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -124,11 +118,7 @@ export function useLayoutEventListeners() {
         closeCurrentFile()
       }
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: ['input', 'textarea', 'select'],
-      enableOnContentEditable: true, // Enable in contenteditable elements like CodeMirror
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -137,11 +127,7 @@ export function useLayoutEventListeners() {
       // Cmd+,: Open Preferences
       handleSetPreferencesOpen(true)
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: ['input', 'textarea', 'select'],
-      enableOnContentEditable: true, // Enable in contenteditable elements like CodeMirror
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
@@ -150,11 +136,7 @@ export function useLayoutEventListeners() {
       // Cmd+0: Focus main editor
       focusEditor()
     },
-    {
-      preventDefault: true,
-      enableOnFormTags: ['input', 'textarea', 'select'],
-      enableOnContentEditable: true, // Enable in all contexts
-    }
+    DEFAULT_HOTKEY_OPTS
   )
 
   // DOM event listeners for menu actions
@@ -215,6 +197,7 @@ export function useLayoutEventListeners() {
             [partOfSpeech]: !currentValue,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
       }
 
@@ -249,6 +232,7 @@ export function useLayoutEventListeners() {
             conjunctions: newValue,
           },
           autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
       }
 
@@ -362,25 +346,6 @@ export function useLayoutEventListeners() {
 
   // Tauri event listeners for menu actions
   useEffect(() => {
-    const handleOpenProject = async () => {
-      try {
-        const projectPath = await invoke<string>('select_project_folder')
-        if (projectPath) {
-          useProjectStore.getState().setProject(projectPath)
-          toast.success('Project opened successfully')
-        }
-      } catch (error) {
-        toast.error('Failed to open project', {
-          description:
-            error instanceof Error ? error.message : 'Unknown error occurred',
-        })
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.error('Failed to open project:', error)
-        }
-      }
-    }
-
     // Store all unlisten functions for cleanup
     const unlistenFunctions: Array<() => void> = []
 
@@ -388,7 +353,7 @@ export function useLayoutEventListeners() {
     const setupListeners = async () => {
       const unlisteners = await Promise.all([
         listen('menu-open-project', () => {
-          void handleOpenProject()
+          void openProjectViaDialog()
         }),
         listen('menu-save', () => {
           const { currentFile, isDirty, saveFile } = useEditorStore.getState()

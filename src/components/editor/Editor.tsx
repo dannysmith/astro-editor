@@ -226,13 +226,14 @@ const EditorViewComponent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load content when file changes (not on every content update)
+  // Load content when file changes (initial empty content from openFile)
   useEffect(() => {
     if (!viewRef.current || !currentFileId) return
 
-    // Get content directly from store when file changes
+    // Get current content from store using getState() pattern (architecture guide: performance patterns)
     const { editorContent } = useEditorStore.getState()
 
+    // Check if view needs updating
     if (viewRef.current.state.doc.toString() !== editorContent) {
       // Mark this as a programmatic update to prevent triggering the update listener
       isProgrammaticUpdate.current = true
@@ -250,7 +251,42 @@ const EditorViewComponent: React.FC = () => {
         isProgrammaticUpdate.current = false
       }, 0)
     }
-  }, [currentFileId]) // Only trigger when file changes, not on content changes
+  }, [currentFileId]) // Only depend on file changes to avoid unnecessary re-renders
+
+  // Subscribe to editorContent changes without causing re-renders
+  useEffect(() => {
+    let previousContent = useEditorStore.getState().editorContent
+
+    const unsubscribe = useEditorStore.subscribe(state => {
+      const newContent = state.editorContent
+
+      // Only update if content actually changed
+      if (newContent !== previousContent) {
+        previousContent = newContent
+
+        if (!viewRef.current || !currentFileId) return
+
+        // Only update CodeMirror if content differs (e.g., loaded from file, not from typing)
+        if (viewRef.current.state.doc.toString() !== newContent) {
+          isProgrammaticUpdate.current = true
+
+          viewRef.current.dispatch({
+            changes: {
+              from: 0,
+              to: viewRef.current.state.doc.length,
+              insert: newContent,
+            },
+          })
+
+          setTimeout(() => {
+            isProgrammaticUpdate.current = false
+          }, 0)
+        }
+      }
+    })
+
+    return unsubscribe
+  }, [currentFileId])
 
   // Cleanup on unmount
   useEffect(() => {

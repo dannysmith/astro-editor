@@ -1,12 +1,15 @@
 import { useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useEditorStore, type FileEntry } from '../store/editorStore'
+import { useEditorStore } from '../store/editorStore'
+import type { FileEntry } from '@/types'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import { useCreateFileMutation } from './mutations/useCreateFileMutation'
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
+import { todayIsoDate } from '../lib/dates'
+import { getDefaultFileType } from '../lib/project-registry/default-file-type'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -37,7 +40,7 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
     case FieldType.Boolean:
       return false
     case FieldType.Date:
-      return new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      return todayIsoDate() // YYYY-MM-DD format
     case FieldType.Array:
       return []
     default:
@@ -89,9 +92,18 @@ export const useCreateFile = () => {
         ? `${collection.path}/${currentSubdirectory}`
         : collection.path
 
+      // Get the default file extension based on settings
+      const { globalSettings, currentProjectSettings } =
+        useProjectStore.getState()
+      const fileExtension = getDefaultFileType(
+        globalSettings,
+        currentProjectSettings,
+        selectedCollection
+      )
+
       // Generate filename based on today's date
-      const today = new Date().toISOString().split('T')[0]
-      let filename = `${today}.md`
+      const today = todayIsoDate()
+      let filename = `${today}.${fileExtension}`
       let counter = 1
 
       // Check if file exists in target directory and increment counter if needed
@@ -111,7 +123,7 @@ export const useCreateFile = () => {
       )
 
       while (existingNames.has(filename)) {
-        filename = `${today}-${counter}.md`
+        filename = `${today}-${counter}.${fileExtension}`
         counter++
       }
 
@@ -205,7 +217,7 @@ export const useCreateFile = () => {
         const { frontmatterPanelVisible, toggleFrontmatterPanel } =
           useUIStore.getState()
 
-        await openFile(newFile)
+        openFile(newFile)
 
         // Open frontmatter panel if we have a title field
         if (hasTitleField && !frontmatterPanelVisible) {

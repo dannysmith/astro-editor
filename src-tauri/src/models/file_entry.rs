@@ -1,6 +1,6 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct FileEntry {
     pub is_draft: bool,
     pub collection: String,
     pub last_modified: Option<u64>,
-    pub frontmatter: Option<HashMap<String, Value>>, // Basic frontmatter for display
+    pub frontmatter: Option<IndexMap<String, Value>>, // Basic frontmatter for display
 }
 
 impl FileEntry {
@@ -69,7 +69,7 @@ impl FileEntry {
         }
     }
 
-    pub fn with_frontmatter(mut self, frontmatter: HashMap<String, Value>) -> Self {
+    pub fn with_frontmatter(mut self, frontmatter: IndexMap<String, Value>) -> Self {
         // Check if this file is a draft based on frontmatter
         self.is_draft = frontmatter
             .get("draft")
@@ -156,7 +156,7 @@ mod tests {
         let path = PathBuf::from("/test/posts/draft-post.md");
         let collection = "posts".to_string();
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert("draft".to_string(), serde_json::Value::Bool(true));
         frontmatter.insert(
             "title".to_string(),
@@ -178,7 +178,7 @@ mod tests {
         let path = PathBuf::from("/test/posts/published-post.md");
         let collection = "posts".to_string();
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert(
             "title".to_string(),
             serde_json::Value::String("Published Post".to_string()),
@@ -195,7 +195,7 @@ mod tests {
         let path = PathBuf::from("/test/posts/published-post.md");
         let collection = "posts".to_string();
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert("draft".to_string(), serde_json::Value::Bool(false));
         frontmatter.insert(
             "title".to_string(),
@@ -213,7 +213,7 @@ mod tests {
         let path = PathBuf::from("/test/posts/weird-draft.md");
         let collection = "posts".to_string();
 
-        let mut frontmatter = HashMap::new();
+        let mut frontmatter = IndexMap::new();
         frontmatter.insert(
             "draft".to_string(),
             serde_json::Value::String("true".to_string()),

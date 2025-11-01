@@ -395,30 +395,90 @@ struct FieldTypeInfo {
     array_reference_collection: Option<String>,
 }
 
-/// Determine field type from JSON schema property
-fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo, String> {
-    // Handle anyOf (dates, references, unions)
-    if let Some(any_of) = &field_schema.any_of {
-        if is_date_field(any_of) {
+/// Handle anyOf types (dates, references, nullable unions)
+fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, String> {
+    if is_date_field(any_of) {
+        return Ok(FieldTypeInfo {
+            field_type: "date".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
+    if is_reference_field(any_of) {
+        return Ok(FieldTypeInfo {
+            field_type: "reference".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
+    // Other unions - treat as string for now
+    Ok(FieldTypeInfo {
+        field_type: "string".to_string(),
+        sub_type: None,
+        enum_values: None,
+        reference_collection: None,
+        array_reference_collection: None,
+    })
+}
+
+/// Handle array types
+fn handle_array_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo, String> {
+    if let Some(items) = &field_schema.items {
+        let item_type_info = match &**items {
+            ItemsType::Single(item_schema) => determine_field_type(item_schema)?,
+            ItemsType::Tuple(_) => {
+                // Tuple - treat as JSON string for now
+                return Ok(FieldTypeInfo {
+                    field_type: "string".to_string(),
+                    sub_type: None,
+                    enum_values: None,
+                    reference_collection: None,
+                    array_reference_collection: None,
+                });
+            }
+        };
+
+        // If array items are references
+        if item_type_info.field_type == "reference" {
             return Ok(FieldTypeInfo {
-                field_type: "date".to_string(),
-                sub_type: None,
+                field_type: "array".to_string(),
+                sub_type: Some(item_type_info.field_type),
                 enum_values: None,
                 reference_collection: None,
                 array_reference_collection: None,
             });
         }
-        if is_reference_field(any_of) {
-            // Reference detected, collection name will be added from Zod schema
-            return Ok(FieldTypeInfo {
-                field_type: "reference".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            });
-        }
-        // Other unions - treat as string for now
+
+        return Ok(FieldTypeInfo {
+            field_type: "array".to_string(),
+            sub_type: Some(item_type_info.field_type),
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
+    Ok(FieldTypeInfo {
+        field_type: "array".to_string(),
+        sub_type: Some("string".to_string()),
+        enum_values: None,
+        reference_collection: None,
+        array_reference_collection: None,
+    })
+}
+
+/// Handle object types
+fn handle_object_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo, String> {
+    // Records (with additionalProperties: true or schema) - treat as JSON string
+    // Note: additionalProperties: false means "strict object", not a dynamic record
+    if matches!(
+        &field_schema.additional_properties,
+        Some(PropertyAdditionalProperties::Boolean(true))
+            | Some(PropertyAdditionalProperties::Schema(_))
+    ) {
         return Ok(FieldTypeInfo {
             field_type: "string".to_string(),
             sub_type: None,
@@ -426,6 +486,75 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
             reference_collection: None,
             array_reference_collection: None,
         });
+    }
+    // Nested objects (including those with additionalProperties: false) will be flattened by parse_field
+    Ok(FieldTypeInfo {
+        field_type: "unknown".to_string(),
+        sub_type: None,
+        enum_values: None,
+        reference_collection: None,
+        array_reference_collection: None,
+    })
+}
+
+/// Handle primitive types (string, integer, number, boolean)
+fn handle_primitive_type(type_: &StringOrArray) -> Result<FieldTypeInfo, String> {
+    match type_ {
+        StringOrArray::String(s) => match s.as_str() {
+            "string" => Ok(FieldTypeInfo {
+                field_type: "string".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            }),
+            "integer" => Ok(FieldTypeInfo {
+                field_type: "integer".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            }),
+            "number" => Ok(FieldTypeInfo {
+                field_type: "number".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            }),
+            "boolean" => Ok(FieldTypeInfo {
+                field_type: "boolean".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            }),
+            _ => Ok(FieldTypeInfo {
+                field_type: "unknown".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            }),
+        },
+        StringOrArray::Array(_) => {
+            // Multiple types - treat as string for now
+            Ok(FieldTypeInfo {
+                field_type: "string".to_string(),
+                sub_type: None,
+                enum_values: None,
+                reference_collection: None,
+                array_reference_collection: None,
+            })
+        }
+    }
+}
+
+/// Determine field type from JSON schema property
+fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo, String> {
+    // Handle anyOf (dates, references, unions)
+    if let Some(any_of) = &field_schema.any_of {
+        return handle_anyof_type(any_of);
     }
 
     // Handle enum
@@ -455,47 +584,7 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         &field_schema.type_,
         Some(StringOrArray::String(s)) if s == "array"
     ) {
-        if let Some(items) = &field_schema.items {
-            let item_type_info = match &**items {
-                ItemsType::Single(item_schema) => determine_field_type(item_schema)?,
-                ItemsType::Tuple(_) => {
-                    // Tuple - treat as JSON string for now
-                    return Ok(FieldTypeInfo {
-                        field_type: "string".to_string(),
-                        sub_type: None,
-                        enum_values: None,
-                        reference_collection: None,
-                        array_reference_collection: None,
-                    });
-                }
-            };
-
-            // If array items are references
-            if item_type_info.field_type == "reference" {
-                return Ok(FieldTypeInfo {
-                    field_type: "array".to_string(),
-                    sub_type: Some(item_type_info.field_type),
-                    enum_values: None,
-                    reference_collection: None,
-                    array_reference_collection: None, // Will be set by Zod enhancement
-                });
-            }
-
-            return Ok(FieldTypeInfo {
-                field_type: "array".to_string(),
-                sub_type: Some(item_type_info.field_type),
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            });
-        }
-        return Ok(FieldTypeInfo {
-            field_type: "array".to_string(),
-            sub_type: Some("string".to_string()),
-            enum_values: None,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+        return handle_array_type(field_schema);
     }
 
     // Handle objects
@@ -503,107 +592,39 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         &field_schema.type_,
         Some(StringOrArray::String(s)) if s == "object"
     ) {
-        // Records (with additionalProperties: true or schema) - treat as JSON string
-        // Note: additionalProperties: false means "strict object", not a dynamic record
-        if matches!(
-            &field_schema.additional_properties,
-            Some(PropertyAdditionalProperties::Boolean(true))
-                | Some(PropertyAdditionalProperties::Schema(_))
-        ) {
-            return Ok(FieldTypeInfo {
-                field_type: "string".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            });
-        }
-        // Nested objects (including those with additionalProperties: false) will be flattened by parse_field
-        return Ok(FieldTypeInfo {
-            field_type: "unknown".to_string(),
-            sub_type: None,
-            enum_values: None,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+        return handle_object_type(field_schema);
     }
 
-    // Handle primitives
+    // Handle primitives with special formats (email, url)
     if let Some(type_) = &field_schema.type_ {
-        match type_ {
-            StringOrArray::String(s) => match s.as_str() {
-                "string" => {
-                    if let Some(format) = &field_schema.format {
-                        match format.as_str() {
-                            "email" => {
-                                return Ok(FieldTypeInfo {
-                                    field_type: "email".to_string(),
-                                    sub_type: None,
-                                    enum_values: None,
-                                    reference_collection: None,
-                                    array_reference_collection: None,
-                                })
-                            }
-                            "uri" => {
-                                return Ok(FieldTypeInfo {
-                                    field_type: "url".to_string(),
-                                    sub_type: None,
-                                    enum_values: None,
-                                    reference_collection: None,
-                                    array_reference_collection: None,
-                                })
-                            }
-                            _ => {}
+        if let StringOrArray::String(s) = type_ {
+            if s == "string" {
+                if let Some(format) = &field_schema.format {
+                    match format.as_str() {
+                        "email" => {
+                            return Ok(FieldTypeInfo {
+                                field_type: "email".to_string(),
+                                sub_type: None,
+                                enum_values: None,
+                                reference_collection: None,
+                                array_reference_collection: None,
+                            })
                         }
+                        "uri" => {
+                            return Ok(FieldTypeInfo {
+                                field_type: "url".to_string(),
+                                sub_type: None,
+                                enum_values: None,
+                                reference_collection: None,
+                                array_reference_collection: None,
+                            })
+                        }
+                        _ => {}
                     }
-                    return Ok(FieldTypeInfo {
-                        field_type: "string".to_string(),
-                        sub_type: None,
-                        enum_values: None,
-                        reference_collection: None,
-                        array_reference_collection: None,
-                    });
                 }
-                "integer" => {
-                    return Ok(FieldTypeInfo {
-                        field_type: "integer".to_string(),
-                        sub_type: None,
-                        enum_values: None,
-                        reference_collection: None,
-                        array_reference_collection: None,
-                    })
-                }
-                "number" => {
-                    return Ok(FieldTypeInfo {
-                        field_type: "number".to_string(),
-                        sub_type: None,
-                        enum_values: None,
-                        reference_collection: None,
-                        array_reference_collection: None,
-                    })
-                }
-                "boolean" => {
-                    return Ok(FieldTypeInfo {
-                        field_type: "boolean".to_string(),
-                        sub_type: None,
-                        enum_values: None,
-                        reference_collection: None,
-                        array_reference_collection: None,
-                    })
-                }
-                _ => {}
-            },
-            StringOrArray::Array(_) => {
-                // Multiple types - treat as string for now
-                return Ok(FieldTypeInfo {
-                    field_type: "string".to_string(),
-                    sub_type: None,
-                    enum_values: None,
-                    reference_collection: None,
-                    array_reference_collection: None,
-                });
             }
         }
+        return handle_primitive_type(type_);
     }
 
     Ok(FieldTypeInfo {
@@ -1074,4 +1095,344 @@ mod tests {
         // Ensure NO field named "metadata" was created
         assert!(!schema.fields.iter().any(|f| f.name == "metadata"));
     }
+
+    // --- INTEGRATION TESTS FOR EXISTING BEHAVIOR (BEFORE REFACTORING) ---
+
+    #[test]
+    fn test_parse_anyof_nullable_string() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "anyOf": [
+                                { "type": "string" },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let desc_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "description")
+            .unwrap();
+        assert_eq!(desc_field.field_type, "string");
+        assert!(!desc_field.required);
+    }
+
+    #[test]
+    fn test_parse_array_of_strings() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let tags_field = schema.fields.iter().find(|f| f.name == "tags").unwrap();
+        assert_eq!(tags_field.field_type, "array");
+        assert_eq!(tags_field.sub_type, Some("string".to_string()));
+    }
+
+    #[test]
+    fn test_parse_array_of_numbers() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/data",
+            "definitions": {
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "scores": {
+                            "type": "array",
+                            "items": { "type": "number" }
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("data", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let scores_field = schema.fields.iter().find(|f| f.name == "scores").unwrap();
+        assert_eq!(scores_field.field_type, "array");
+        assert_eq!(scores_field.sub_type, Some("number".to_string()));
+    }
+
+    #[test]
+    fn test_parse_enum_field() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "enum": ["draft", "published", "archived"]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let status_field = schema.fields.iter().find(|f| f.name == "status").unwrap();
+        assert_eq!(status_field.field_type, "enum");
+        assert_eq!(
+            status_field.enum_values,
+            Some(vec![
+                "draft".to_string(),
+                "published".to_string(),
+                "archived".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_email_format() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/users",
+            "definitions": {
+                "users": {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "format": "email"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("users", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let email_field = schema.fields.iter().find(|f| f.name == "email").unwrap();
+        assert_eq!(email_field.field_type, "email");
+    }
+
+    #[test]
+    fn test_parse_url_format() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/links",
+            "definitions": {
+                "links": {
+                    "type": "object",
+                    "properties": {
+                        "website": {
+                            "type": "string",
+                            "format": "uri"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("links", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let website_field = schema.fields.iter().find(|f| f.name == "website").unwrap();
+        assert_eq!(website_field.field_type, "url");
+    }
+
+    #[test]
+    fn test_parse_boolean_field() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "published": { "type": "boolean" }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let published_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "published")
+            .unwrap();
+        assert_eq!(published_field.field_type, "boolean");
+    }
+
+    #[test]
+    fn test_parse_integer_field() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "views": { "type": "integer" }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let views_field = schema.fields.iter().find(|f| f.name == "views").unwrap();
+        assert_eq!(views_field.field_type, "integer");
+    }
+
+    #[test]
+    fn test_parse_multiple_field_types() {
+        // Complex schema with multiple field types
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "published": { "type": "boolean" },
+                        "views": { "type": "integer" },
+                        "rating": { "type": "number" },
+                        "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "status": {
+                            "enum": ["draft", "published"]
+                        }
+                    },
+                    "required": ["title", "published"]
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        assert_eq!(schema.fields.len(), 6);
+
+        // Verify each field type
+        let title_field = schema.fields.iter().find(|f| f.name == "title").unwrap();
+        assert_eq!(title_field.field_type, "string");
+        assert!(title_field.required);
+
+        let published_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "published")
+            .unwrap();
+        assert_eq!(published_field.field_type, "boolean");
+        assert!(published_field.required);
+
+        let views_field = schema.fields.iter().find(|f| f.name == "views").unwrap();
+        assert_eq!(views_field.field_type, "integer");
+
+        let rating_field = schema.fields.iter().find(|f| f.name == "rating").unwrap();
+        assert_eq!(rating_field.field_type, "number");
+
+        let tags_field = schema.fields.iter().find(|f| f.name == "tags").unwrap();
+        assert_eq!(tags_field.field_type, "array");
+        assert_eq!(tags_field.sub_type, Some("string".to_string()));
+
+        let status_field = schema.fields.iter().find(|f| f.name == "status").unwrap();
+        assert_eq!(status_field.field_type, "enum");
+    }
+
+    #[test]
+    fn test_parse_deeply_nested_objects() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/articles",
+            "definitions": {
+                "articles": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "meta": {
+                            "type": "object",
+                            "properties": {
+                                "author": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": { "type": "string" },
+                                        "email": { "type": "string", "format": "email" }
+                                    },
+                                    "required": ["name"]
+                                }
+                            },
+                            "required": []
+                        }
+                    },
+                    "required": ["title"]
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("articles", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+
+        // Should have 3 fields: title, meta.author.name, meta.author.email
+        assert_eq!(schema.fields.len(), 3);
+
+        let name_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "meta.author.name")
+            .unwrap();
+        assert_eq!(name_field.field_type, "string");
+        assert!(name_field.required);
+        assert_eq!(name_field.is_nested, Some(true));
+
+        let email_field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "meta.author.email")
+            .unwrap();
+        assert_eq!(email_field.field_type, "email");
+        assert!(!email_field.required);
+    }
+
+    // --- END INTEGRATION TESTS ---
 }

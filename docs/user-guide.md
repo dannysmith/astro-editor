@@ -530,9 +530,11 @@ Access global preferences through `Cmd+,` or the application menu. These setting
 
 **Auto-save Delay**: Configure how frequently Astro Editor automatically saves your work (default is 2 seconds).
 
+**Default File Type for New Files**: Choose whether newly created files use Markdown (`.md`) or MDX (`.mdx`) format. Applies across all projects unless overridden at the project or collection level.
+
 **Copyedit Highlighting**: Choose which parts of speech to highlight in copyedit mode.
 
-**Important**: Global settings contain ONLY truly global preferences (theme, IDE command, copyedit highlights, auto-save delay). There are no global defaults for project or collection settings.
+**Important**: Global settings contain ONLY truly global preferences (theme, IDE command, copyedit highlights, auto-save delay, default file type). There are no global defaults for project or collection settings.
 
 ### Project Settings
 
@@ -545,6 +547,10 @@ Each project has its own settings that apply to the entire project. Access proje
 - **MDX Components Directory**: Default is `src/components/mdx/`, can be changed if your components are elsewhere
 
 Project-level path overrides apply to all collections unless a collection has its own override.
+
+**File Defaults**:
+
+- **Default File Type for New Files**: Override the global default for newly created files in this project. Choose between Markdown (`.md`) or MDX (`.mdx`), or inherit the global setting.
 
 **Field Mappings**: Configure which fields Astro Editor should use for common purposes:
 
@@ -573,6 +579,11 @@ You can configure settings for individual collections, allowing different collec
   - Example: `public/blog-images/` for blog, `public/docs-images/` for docs
 - **MDX Components Directory**: Where this collection's MDX components are located
   - Example: `src/components/blog/` for blog-specific components
+
+**File Defaults** (per collection):
+
+- **Default File Type for New Files**: Override the project/global default for newly created files in this collection. Useful when one collection uses MDX while others use Markdown.
+  - Example: Blog collection uses `.mdx` for interactive components, docs collection uses `.md` for simple content
 
 **Frontmatter Field Mappings** (per collection):
 

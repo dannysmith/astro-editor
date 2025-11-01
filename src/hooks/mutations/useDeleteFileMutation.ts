@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/projectStore'
 
 interface DeleteFilePayload {
   filePath: string
+  fileId: string // File ID for cache removal
   projectPath: string
   collectionName: string
 }
@@ -43,7 +44,7 @@ export const useDeleteFileMutation = () => {
       queryClient.removeQueries({
         queryKey: queryKeys.fileContent(
           variables.projectPath,
-          variables.filePath
+          variables.fileId
         ),
       })
 

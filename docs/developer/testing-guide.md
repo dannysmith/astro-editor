@@ -4,6 +4,7 @@ Comprehensive testing strategies for the Astro Editor codebase.
 
 ## Table of Contents
 
+- [Test File Organization](#test-file-organization)
 - [Testing Philosophy](#testing-philosophy)
 - [Testing Stack](#testing-stack)
 - [Test Types](#test-types)
@@ -13,6 +14,114 @@ Comprehensive testing strategies for the Astro Editor codebase.
 - [Testing Frontmatter Field Components](#testing-frontmatter-field-components)
 - [Testing Patterns](#testing-patterns)
 - [Running Tests](#running-tests)
+
+## Test File Organization
+
+We use a **three-tier approach** for organizing test files:
+
+### 1. Unit Tests: Collocated with Source Code
+
+**Pattern**: `*.test.ts` or `*.test.tsx` next to the file being tested
+
+```
+src/lib/editor/markdown/
+  ├── formatting.ts
+  ├── formatting.test.ts          ← Unit test collocated
+  ├── headings.ts
+  └── headings.test.ts             ← Unit test collocated
+
+src/components/frontmatter/fields/
+  ├── BooleanField.tsx
+  ├── BooleanField.test.tsx        ← Component test collocated
+  ├── ArrayField.tsx
+  └── ArrayField.test.tsx          ← Component test collocated
+```
+
+**Use for**:
+- Testing a single file/module in isolation
+- Pure functions and utility modules
+- Individual React components
+- Single hooks
+
+**Why**: Easy to find, clear 1:1 relationship, industry standard (React Testing Library, Vitest, Next.js)
+
+### 2. Integration Tests: `__tests__/` Subdirectories
+
+**Pattern**: `module/__tests__/*.integration.test.ts`
+
+```
+src/store/
+  ├── editorStore.ts
+  ├── projectStore.ts
+  └── __tests__/
+      ├── editorStore.integration.test.ts    ← Tests store + Tauri + queries
+      └── storeQueryIntegration.test.ts      ← Tests store ↔ query interactions
+
+src/lib/project-registry/
+  ├── index.ts
+  ├── index.test.ts                          ← Unit tests for main module
+  ├── migrations.ts
+  ├── migrations.test.ts                     ← Unit tests
+  └── __tests__/                             ← Integration tests (if needed)
+```
+
+**Use for**:
+- Testing multiple files/systems working together
+- Store + TanStack Query + Tauri interactions
+- Multi-component workflows
+- Feature-level integration tests
+- Cross-cutting behaviors
+
+**Why**:
+- Clearly signals "this tests multiple things, not just one file"
+- Keeps integration tests organized together
+- Separates concerns (unit vs integration)
+- Prevents cluttering the main directory
+
+### 3. Test Infrastructure: `src/test/`
+
+**Pattern**: Shared utilities, mocks, and setup only
+
+```
+src/test/
+  ├── setup.ts                     ← Global Vitest configuration
+  ├── mock-hooks.ts                ← Shared TanStack Query mocks
+  ├── types.ts                     ← Test type definitions
+  ├── utils/
+  │   └── integration-helpers.ts   ← Shared test utilities
+  └── mocks/
+      └── toast.ts                 ← Shared mocks
+```
+
+**Use for**:
+- Global test setup and configuration
+- Shared mocks used across multiple tests
+- Test utilities and helper functions
+- Test type definitions
+
+**Why**: Central location for test infrastructure, not actual tests
+
+### Decision Tree
+
+**"Where should I put this test?"**
+
+1. **Does it test a single file in isolation?**
+   - ✅ Yes → Collocate it: `myModule.test.ts`
+   - ❌ No → Continue...
+
+2. **Does it test multiple systems working together?**
+   - ✅ Yes → Integration test: `module/__tests__/feature.integration.test.ts`
+   - ❌ No → Continue...
+
+3. **Is it shared test infrastructure (mocks, utils, setup)?**
+   - ✅ Yes → Put in `src/test/`
+   - ❌ No → You probably want option 1 or 2
+
+### Anti-Patterns to Avoid
+
+❌ **Don't put actual tests in `src/test/`** - That directory is for infrastructure only
+❌ **Don't create `__tests__/` for single-file tests** - Just collocate them
+❌ **Don't mix unit and integration tests** - Keep them separate for clarity
 
 ## Testing Philosophy
 
@@ -57,36 +166,39 @@ Comprehensive testing strategies for the Astro Editor codebase.
 
 **Purpose**: Test individual functions and modules in isolation
 
-**Location**: Alongside implementation or in `__tests__/` directories
+**Location**: Collocated with source code (`*.test.ts` next to `*.ts`)
 
 **When to Write:**
 - Pure functions with complex logic
 - Utility functions used across the codebase
 - Business logic that can be tested independently
+- Individual React components
+- Single hooks
 
 ### 2. Integration Tests
 
 **Purpose**: Test how multiple units work together
 
-**Location**:
-- Frontend: `src/__tests__/integration/`
-- Rust: `src-tauri/tests/`
+**Location**: `module/__tests__/*.integration.test.ts`
 
 **When to Write:**
 - Testing interactions between stores and queries
 - Verifying data flow through multiple layers
 - Testing Tauri command integration
+- Multi-component workflows
+- Feature-level behaviors
 
 ### 3. Component Tests
 
 **Purpose**: Test React components with user interactions
 
-**Location**: Next to component files or in `__tests__/` directories
+**Location**: Collocated with components (`Component.test.tsx` next to `Component.tsx`)
 
 **When to Write:**
 - Components with complex user interactions
 - Form components with validation
-- Components that integrate multiple systems
+- Components with business logic
+- Components that manage complex state
 
 ## Unit Tests
 
