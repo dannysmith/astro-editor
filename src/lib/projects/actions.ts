@@ -4,7 +4,7 @@ import { toast } from '../toast'
 
 export async function openProjectViaDialog(): Promise<void> {
   try {
-    const projectPath = await invoke<string>('select_project_folder')
+    const projectPath = await invoke<string | null>('select_project_folder')
     if (projectPath) {
       useProjectStore.getState().setProject(projectPath)
       toast.success('Project opened successfully')

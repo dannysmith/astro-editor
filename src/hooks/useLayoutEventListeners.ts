@@ -71,7 +71,7 @@ export function useLayoutEventListeners() {
         void saveFile()
       }
     },
-    { preventDefault: true }
+    DEFAULT_HOTKEY_OPTS
   )
 
   useHotkeys(
