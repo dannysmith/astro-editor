@@ -217,6 +217,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       currentFile: file,
       isDirty: false,
+      lastSaveTimestamp: Date.now(),
     })
 
     // Update the selected collection to match the opened file's collection
@@ -246,6 +247,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       imports: '',
       isDirty: false,
       autoSaveTimeoutId: null,
+      lastSaveTimestamp: null,
     })
   },
 
