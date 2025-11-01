@@ -19,6 +19,38 @@ The codebase maintains clear boundaries between different types of concerns:
   - `src/components/ui/`: shadcn/ui components
   - `src/components/tauri/`: Tauri-specific shared components
 
+#### Directory Purpose and Boundaries
+
+The codebase enforces clear boundaries between different directory types to maintain separation of concerns:
+
+| Directory | Purpose | Can Import From | Cannot Import From | Exports |
+|-----------|---------|-----------------|-------------------|---------|
+| `lib/` | Pure business logic, utilities, classes | Other lib modules | store (except getState), hooks | Functions, classes, types |
+| `hooks/` | React hooks, lifecycle logic | lib, store | - | Hooks |
+| `store/` | Zustand state management | lib (for utilities) | hooks | Stores (which are hooks) |
+
+**Rule:** If a module exports a React hook (`use*`), it belongs in `hooks/`, not `lib/`.
+
+**Exception:** Context providers (ThemeProvider, QueryClientProvider) can live in lib/ if they're framework integrations.
+
+**Example of getState() pattern (acceptable):**
+```typescript
+// lib/ide.ts - This is OK
+export async function openInIde(filePath: string) {
+  const ideCommand = useProjectStore.getState().globalSettings?.general?.ideCommand
+  // One-way call, no React coupling
+}
+```
+
+**Example of hook in lib (violation):**
+```typescript
+// lib/commands/command-context.ts - WRONG
+export function useCommandContext() {
+  const { currentFile } = useEditorStore() // This is a React hook!
+  // Should be in hooks/commands/useCommandContext.ts
+}
+```
+
 ### 2. State Management Philosophy
 
 We use a **hybrid approach** with clear responsibilities based on data source and persistence needs.

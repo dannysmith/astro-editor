@@ -47,6 +47,13 @@
 10. **Documentation**: Update `docs/developer/` guides for new patterns
 11. **Removing files**: Always use `rm -f`
 
+#### Directory Boundaries
+
+- **Hooks belong in `/hooks/`**: If it exports a `use*` function, it goes in `/hooks/`
+- **Pure functions in `/lib/`**: Business logic, utilities, classes
+- **getState() is allowed**: One-way calls from lib to store using `getState()` are acceptable
+- See `docs/developer/architecture-guide.md` for complete rules
+
 ### Documentation Structure
 
 **Core Guides** (read for daily development):
