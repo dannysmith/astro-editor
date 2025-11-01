@@ -1,4 +1,6 @@
-# Task: Event Bridge Refactor
+# Refactor: Replace event bridge pattern with Hybrid Action Hooks
+
+https://github.com/dannysmith/astro-editor/issues/49
 
 ## Overview
 

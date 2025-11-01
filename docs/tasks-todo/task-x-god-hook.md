@@ -1,4 +1,6 @@
-# Task: Refactor God Hook
+# Refactor: Decompose useLayoutEventListeners god hook
+
+https://github.com/dannysmith/astro-editor/issues/50
 
 **Hook:** `src/hooks/useLayoutEventListeners.ts` (486 lines)
 
@@ -7,6 +9,7 @@
 This hook has grown into a monolith that violates the Single Responsibility Principle by handling too many disparate concerns. Multiple code reviews identified this as a maintainability issue requiring decomposition.
 
 **Source Reviews:**
+
 - `docs/reviews/2025-staff-engineering-review.md:345-420` (Staff Engineer Review)
 - `docs/reviews/code-review-2025-10-24.md:15-28` (Code Review)
 - `docs/reviews/2025-10-24-duplication-review.md:48-51, 106-108, 123-126` (Duplication Review)
@@ -66,22 +69,29 @@ The hook currently manages 8 distinct concerns:
 ## Problems
 
 ### 1. Single Responsibility Principle Violation
+
 One hook manages 8+ unrelated concerns, making it difficult to understand what it does.
 
 ### 2. Hard to Test
+
 Cannot test keyboard shortcuts in isolation from menu events or DOM events. Any test requires setting up all dependencies.
 
 ### 3. High Coupling
+
 Changes to one concern (e.g., shortcuts) require touching code adjacent to completely unrelated concerns (e.g., toast bridge initialization).
 
 ### 4. Performance Impact
+
 The giant hook re-runs whenever any dependency changes. Currently has dependencies on `createNewFileWithQuery` and `handleSetPreferencesOpen`.
 
 ### 5. Hard to Maintain
+
 487 lines of deeply nested `useEffect` calls with complex cleanup logic. Difficult to trace which effect does what.
 
 ### 6. Code Duplication
+
 Several patterns are repeated unnecessarily:
+
 - Menu format listeners (bold/italic/link/h1-h4/paragraph) all have nearly identical structure
 - Hotkey options (`preventDefault`, `enableOnFormTags`, `enableOnContentEditable`) duplicated across 5 shortcuts
 - Part-of-speech highlight toggles create 5 wrapper functions that all call the same base function
@@ -178,11 +188,12 @@ function Layout() {
 ### Current State Verification
 
 Before implementing, verify that the issues identified in reviews still apply:
+
 - ✅ Hook is still 486 lines (was 487 in review)
 - ✅ Still manages keyboard shortcuts, menu events, and DOM events
 - ✅ Still has the duplication issues mentioned in reviews
-- ⚠️  Check if parts-of-speech highlighting approach has changed
-- ⚠️  Check if event bridge pattern has evolved
+- ⚠️ Check if parts-of-speech highlighting approach has changed
+- ⚠️ Check if event bridge pattern has evolved
 
 ### Related Work
 
@@ -195,6 +206,7 @@ This task is related to the **Event Bridge Refactor** (see `task-x-event-bridge-
 While decomposing, address these duplication issues identified in reviews:
 
 1. **Menu format event map** (`docs/reviews/2025-10-24-duplication-review.md:48-51`):
+
    ```typescript
    const formatEventMap = {
      'menu-format-bold': 'toggleBold',

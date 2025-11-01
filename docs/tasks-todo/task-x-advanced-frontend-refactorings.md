@@ -1,4 +1,6 @@
-# Advanced Frontend Refactorings
+# Refactor: Decompose createPosDecorations in copyedit-mode.ts
+
+https://github.com/dannysmith/astro-editor/issues/48
 
 ## Overview
 
@@ -7,12 +9,14 @@ Refactor complex frontend code to improve maintainability, performance, and test
 **Total Time:** 1 week
 
 **Impact:**
+
 - 50%+ reduction in code duplication
 - Easier to add new highlight types
 - Improved debugging when highlighting fails
 - Better separation of concerns
 
 **Dependencies:**
+
 - Task 1 (Foundation established)
 - Task 2 (Test coverage for safety)
 - Task 3 (Rust improvements complete)
@@ -31,6 +35,7 @@ Refactor complex frontend code to improve maintainability, performance, and test
 ### Current Issues
 
 The `createPosDecorations` function:
+
 - Processes nouns, verbs, adjectives, adverbs, and conjunctions in one massive function
 - Nearly identical logic repeated for each part of speech (5x duplication)
 - Hard to add new highlight types
@@ -68,7 +73,8 @@ function createDecorationsForMatches(
 ### Implementation Steps
 
 1. **Extract common validation logic**:
-   ```typescript
+
+   ````typescript
    // Near top of file, after imports
    function validateMatch(
      match: { text: string; offset: number },
@@ -102,9 +108,10 @@ function createDecorationsForMatches(
        lineText.startsWith('---')
      )
    }
-   ```
+   ````
 
 2. **Create shared decoration builder**:
+
    ```typescript
    function createDecorationsForMatches(
      doc: Text,
@@ -139,6 +146,7 @@ function createDecorationsForMatches(
    ```
 
 3. **Extract noun processor**:
+
    ```typescript
    function processNounDecorations(
      doc: Text,
@@ -156,21 +164,33 @@ function createDecorationsForMatches(
      )
    }
 
-   function findNounMatches(text: string): Array<{ text: string; offset: number }> {
+   function findNounMatches(
+     text: string
+   ): Array<{ text: string; offset: number }> {
      // Use compromise.js or regex to find nouns
      // Return matches with offsets
    }
    ```
 
 4. **Extract verb, adjective, adverb, conjunction processors** (similar pattern):
+
    ```typescript
-   function processVerbDecorations(/* ... */) { /* ... */ }
-   function processAdjectiveDecorations(/* ... */) { /* ... */ }
-   function processAdverbDecorations(/* ... */) { /* ... */ }
-   function processConjunctionDecorations(/* ... */) { /* ... */ }
+   function processVerbDecorations(/* ... */) {
+     /* ... */
+   }
+   function processAdjectiveDecorations(/* ... */) {
+     /* ... */
+   }
+   function processAdverbDecorations(/* ... */) {
+     /* ... */
+   }
+   function processConjunctionDecorations(/* ... */) {
+     /* ... */
+   }
    ```
 
 5. **Refactor main `createPosDecorations`**:
+
    ```typescript
    function createPosDecorations(
      doc: Text,
@@ -183,23 +203,33 @@ function createDecorationsForMatches(
 
      // Process each POS type based on settings
      if (settings.highlightNouns) {
-       decorations.push(...processNounDecorations(doc, text, cursor, processedRanges))
+       decorations.push(
+         ...processNounDecorations(doc, text, cursor, processedRanges)
+       )
      }
 
      if (settings.highlightVerbs) {
-       decorations.push(...processVerbDecorations(doc, text, cursor, processedRanges))
+       decorations.push(
+         ...processVerbDecorations(doc, text, cursor, processedRanges)
+       )
      }
 
      if (settings.highlightAdjectives) {
-       decorations.push(...processAdjectiveDecorations(doc, text, cursor, processedRanges))
+       decorations.push(
+         ...processAdjectiveDecorations(doc, text, cursor, processedRanges)
+       )
      }
 
      if (settings.highlightAdverbs) {
-       decorations.push(...processAdverbDecorations(doc, text, cursor, processedRanges))
+       decorations.push(
+         ...processAdverbDecorations(doc, text, cursor, processedRanges)
+       )
      }
 
      if (settings.highlightConjunctions) {
-       decorations.push(...processConjunctionDecorations(doc, text, cursor, processedRanges))
+       decorations.push(
+         ...processConjunctionDecorations(doc, text, cursor, processedRanges)
+       )
      }
 
      return Decoration.set(decorations.sort((a, b) => a.from - b.from))
@@ -209,6 +239,7 @@ function createDecorationsForMatches(
 ### Testing Strategy
 
 **Before refactoring** - Benchmark performance:
+
 ```typescript
 // Add temporary performance logging
 const start = performance.now()
@@ -218,6 +249,7 @@ console.log(`POS decorations took ${end - start}ms`)
 ```
 
 Test with:
+
 - Small document (100 words)
 - Medium document (500 words)
 - Large document (1000+ words)
@@ -225,6 +257,7 @@ Test with:
 Record baseline numbers.
 
 **After refactoring** - Performance testing:
+
 ```bash
 # Run the same benchmarks
 pnpm test copyedit-mode
@@ -233,6 +266,7 @@ pnpm test copyedit-mode
 Compare numbers - should be within 10% of baseline.
 
 **Manual testing checklist**:
+
 - [ ] All POS types still highlight correctly
 - [ ] No highlighting in code blocks
 - [ ] No highlighting in links
@@ -242,6 +276,7 @@ Compare numbers - should be within 10% of baseline.
 - [ ] Performance is acceptable on large documents
 
 **Edge cases to test**:
+
 - Document with many code blocks
 - Document with many links
 - Document with long frontmatter
