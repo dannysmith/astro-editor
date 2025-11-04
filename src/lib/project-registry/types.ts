@@ -28,12 +28,6 @@ export interface ProjectSettings {
   }
   // Default file type for new files
   defaultFileType?: 'md' | 'mdx'
-  // Per-collection view settings
-  collectionViewSettings?: {
-    [collectionName: string]: {
-      showDraftsOnly?: boolean
-    }
-  }
   // Collection-specific settings overrides
   collections?: CollectionSettings[]
 }

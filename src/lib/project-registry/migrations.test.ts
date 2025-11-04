@@ -234,9 +234,6 @@ describe('Project Data Migration', () => {
             description: 'summary',
             draft: 'published',
           },
-          collectionViewSettings: {
-            blog: { showDraftsOnly: true },
-          },
         },
       }
 

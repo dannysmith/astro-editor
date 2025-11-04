@@ -226,10 +226,6 @@ export class ProjectRegistryManager {
         ...projectData.settings.frontmatterMappings,
         ...settings.frontmatterMappings,
       },
-      collectionViewSettings: {
-        ...projectData.settings.collectionViewSettings,
-        ...settings.collectionViewSettings,
-      },
     }
 
     // Update defaultFileType if property is present
@@ -302,10 +298,6 @@ export class ProjectRegistryManager {
       frontmatterMappings: {
         ...DEFAULT_PROJECT_SETTINGS.frontmatterMappings,
         ...projectData.settings.frontmatterMappings,
-      },
-      collectionViewSettings: {
-        ...DEFAULT_PROJECT_SETTINGS.collectionViewSettings,
-        ...projectData.settings.collectionViewSettings,
       },
       // Include defaultFileType if present
       defaultFileType: projectData.settings.defaultFileType,

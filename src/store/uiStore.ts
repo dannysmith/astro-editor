@@ -8,6 +8,9 @@ interface UIState {
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
 
+  // View filters (per-collection state, ephemeral)
+  draftFilterByCollection: Record<string, boolean>
+
   // Actions
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
@@ -15,6 +18,7 @@ interface UIState {
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   handleTypingInEditor: () => void
+  toggleDraftFilter: (collectionName: string) => void
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -24,6 +28,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
+  draftFilterByCollection: {},
 
   // Actions
   toggleSidebar: () => {
@@ -59,6 +64,15 @@ export const useUIStore = create<UIState>((set, get) => ({
     if (!sidebarVisible && !frontmatterPanelVisible) {
       set({ distractionFreeBarsHidden: true })
     }
+  },
+
+  toggleDraftFilter: (collectionName: string) => {
+    set(state => ({
+      draftFilterByCollection: {
+        ...state.draftFilterByCollection,
+        [collectionName]: !state.draftFilterByCollection[collectionName],
+      },
+    }))
   },
 }))
 

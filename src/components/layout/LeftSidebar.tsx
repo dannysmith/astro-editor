@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
+import { useUIStore } from '../../store/uiStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { useDirectoryScanQuery } from '../../hooks/queries/useDirectoryScanQuery'
 import type { FileEntry, Collection } from '@/types'
@@ -36,41 +37,17 @@ export const LeftSidebar: React.FC = () => {
     currentProjectSettings,
   } = useProjectStore()
 
-  // Get current collection's view settings
-  const collectionViewSettings =
-    currentProjectSettings?.collectionViewSettings?.[selectedCollection || '']
-  const showDraftsOnly = collectionViewSettings?.showDraftsOnly || false
+  // Get draft filter state from UI store (ephemeral, per-collection)
+  const showDraftsOnly =
+    useUIStore(
+      state => state.draftFilterByCollection[selectedCollection || '']
+    ) || false
 
   // Use getState() pattern for callbacks to avoid render cascades
   const handleToggleDraftsOnly = useCallback(() => {
-    const {
-      selectedCollection,
-      currentProjectSettings,
-      updateProjectSettings,
-    } = useProjectStore.getState()
-
+    const { selectedCollection } = useProjectStore.getState()
     if (selectedCollection) {
-      // Get existing settings for this collection
-      const existing =
-        currentProjectSettings?.collectionViewSettings?.[selectedCollection] ||
-        {}
-
-      // Current value
-      const showDraftsOnly = existing.showDraftsOnly || false
-
-      // Build new settings with merged collection settings
-      const newSettings = {
-        ...currentProjectSettings,
-        collectionViewSettings: {
-          ...currentProjectSettings?.collectionViewSettings,
-          [selectedCollection]: {
-            ...existing,
-            showDraftsOnly: !showDraftsOnly,
-          },
-        },
-      }
-
-      void updateProjectSettings(newSettings)
+      useUIStore.getState().toggleDraftFilter(selectedCollection)
     }
   }, [])
 
