@@ -253,27 +253,63 @@ Benefits: Decouples UI from logic, enables shortcuts/menus/palette to share comm
 4. **Zustand Subscriptions**: Store changes
 5. **Toast Events**: Rust-to-frontend notifications
 
-#### Bridge Pattern for Store/Query Data
+#### Hybrid Action Hooks Pattern
+
+**Problem**: Zustand stores can't use React hooks, but user-triggered actions need query data.
+
+**Solution**: User-triggered actions live in hooks with direct query access; state-triggered actions (auto-save) live in stores and call registered callbacks.
 
 ```typescript
-// In store (no React hooks)
-createNewFile: async () => {
-  window.dispatchEvent(new CustomEvent('create-new-file'))
+// 1. Hook with direct query access (user-triggered actions)
+export function useEditorActions() {
+  const queryClient = useQueryClient()
+
+  const saveFile = useCallback(async (showToast = true) => {
+    // Direct access to stores via getState() - no subscription
+    const { currentFile, editorContent, frontmatter } = useEditorStore.getState()
+    const { projectPath } = useProjectStore.getState()
+
+    // Direct access to query data - NO EVENTS!
+    const collections = queryClient.getQueryData(queryKeys.collections(projectPath))
+    const schema = collections?.find(c => c.name === currentFile.collection)?.complete_schema
+
+    await invoke('save_markdown_content', { /* ... */ })
+    useEditorStore.getState().markAsSaved()
+  }, [queryClient])
+
+  return { saveFile }
 }
 
-// In Layout (has hooks)
-useEffect(() => {
-  const handleCreateNewFile = () => {
-    const collections = queryClient.getQueryData(
-      queryKeys.collections(projectPath)
-    )
-    // Use collections data
-  }
-  window.addEventListener('create-new-file', handleCreateNewFile)
-  return () =>
-    window.removeEventListener('create-new-file', handleCreateNewFile)
-}, [])
+// 2. Store with state-triggered logic
+const useEditorStore = create((set, get) => ({
+  autoSaveCallback: null,
+  setAutoSaveCallback: callback => set({ autoSaveCallback: callback }),
+
+  // State mutation triggers auto-save
+  setEditorContent: content => {
+    set({ editorContent: content, isDirty: true })
+    get().scheduleAutoSave() // State-triggered
+  },
+
+  scheduleAutoSave: () => {
+    const { autoSaveCallback } = get()
+    if (autoSaveCallback) {
+      setTimeout(() => void autoSaveCallback(), 2000)
+    }
+  },
+}))
+
+// 3. Layout wires them together
+export function Layout() {
+  const { saveFile } = useEditorActions()
+
+  useEffect(() => {
+    useEditorStore.getState().setAutoSaveCallback(() => saveFile(false))
+  }, [saveFile])
+}
 ```
+
+**Benefits**: No polling, type-safe, synchronous data access, easy to test
 
 ### TanStack Query Patterns
 

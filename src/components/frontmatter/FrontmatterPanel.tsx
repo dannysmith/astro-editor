@@ -39,43 +39,6 @@ export const FrontmatterPanel: React.FC = () => {
     return parsed
   }, [currentCollection])
 
-  // Listen for schema field order requests from editorStore
-  React.useEffect(() => {
-    const handleSchemaFieldOrderRequest = (event: Event) => {
-      const customEvent = event as CustomEvent<{ collectionName: string }>
-      const { collectionName } = customEvent.detail
-
-      // Find the requested collection
-      const requestedCollection = collections.find(
-        c => c.name === collectionName
-      )
-      const requestedSchema = requestedCollection?.complete_schema
-        ? deserializeCompleteSchema(requestedCollection.complete_schema)
-        : null
-
-      // Extract field order from schema
-      const fieldOrder =
-        requestedSchema?.fields.map(field => field.name) || null
-
-      // Send response
-      window.dispatchEvent(
-        new CustomEvent('schema-field-order-response', {
-          detail: { fieldOrder },
-        })
-      )
-    }
-
-    window.addEventListener(
-      'get-schema-field-order',
-      handleSchemaFieldOrderRequest
-    )
-    return () =>
-      window.removeEventListener(
-        'get-schema-field-order',
-        handleSchemaFieldOrderRequest
-      )
-  }, [collections])
-
   // Get all fields to display
   const allFields = React.useMemo(() => {
     if (schema) {
@@ -159,16 +122,19 @@ export const FrontmatterPanel: React.FC = () => {
         {currentFile ? (
           allFields.length > 0 ? (
             <div className="space-y-6">
-              {/* Render top-level fields */}
-              {groupedFields.get(null)?.map(({ fieldName, schemaField }) => (
-                <FrontmatterField
-                  key={fieldName}
-                  name={fieldName}
-                  label={camelCaseToTitleCase(fieldName)}
-                  field={schemaField}
-                  collectionName={currentFile.collection}
-                />
-              ))}
+              {/* Render top-level SCHEMA fields only */}
+              {groupedFields
+                .get(null)
+                ?.filter(({ schemaField }) => schemaField !== undefined)
+                .map(({ fieldName, schemaField }) => (
+                  <FrontmatterField
+                    key={fieldName}
+                    name={fieldName}
+                    label={camelCaseToTitleCase(fieldName)}
+                    field={schemaField}
+                    collectionName={currentFile.collection}
+                  />
+                ))}
 
               {/* Render nested field groups */}
               {Array.from(groupedFields.entries())
@@ -200,6 +166,20 @@ export const FrontmatterPanel: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                ))}
+
+              {/* Render extra fields (not in schema) at the very end, alphabetically */}
+              {groupedFields
+                .get(null)
+                ?.filter(({ schemaField }) => schemaField === undefined)
+                .map(({ fieldName, schemaField }) => (
+                  <FrontmatterField
+                    key={fieldName}
+                    name={fieldName}
+                    label={camelCaseToTitleCase(fieldName)}
+                    field={schemaField}
+                    collectionName={currentFile.collection}
+                  />
                 ))}
             </div>
           ) : (

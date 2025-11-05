@@ -330,26 +330,47 @@ describe('Store ↔ Query Integration Tests', () => {
   })
 
   describe('File Saving Workflow', () => {
-    // Use a stable function reference for proper cleanup
-    const schemaFieldOrderHandler = () => {
-      window.dispatchEvent(
-        new CustomEvent('schema-field-order-response', {
-          detail: { fieldOrder: null },
-        })
-      )
-    }
+    let mockSaveCallback: (showToast?: boolean) => Promise<void>
 
     beforeEach(() => {
-      // Mock schema field order event response (saveFile waits for this)
-      window.addEventListener('get-schema-field-order', schemaFieldOrderHandler)
+      // Mock the saveFile callback (Hybrid Action Hooks pattern)
+      mockSaveCallback = vi.fn(async () => {
+        // Simulate the real saveFile logic (including error handling)
+        const state = useEditorStore.getState()
+        if (state.currentFile) {
+          try {
+            await globalThis.mockTauri.invoke('save_markdown_content', {
+              filePath: state.currentFile.path,
+              frontmatter: state.frontmatter,
+              content: state.editorContent,
+              imports: state.imports,
+              schemaFieldOrder: null,
+              projectRoot: '/test',
+            })
+            useEditorStore.setState({
+              isDirty: false,
+              lastSaveTimestamp: Date.now(),
+            })
+          } catch (error) {
+            // On error, keep isDirty as true (don't change it)
+            // Real implementation saves recovery data and doesn't throw
+            // eslint-disable-next-line no-console
+            console.error('Save failed:', error)
+          }
+        }
+      })
+
+      // Register the mock callback
+      useEditorStore.setState({
+        autoSaveCallback: mockSaveCallback,
+      })
     })
 
     afterEach(() => {
-      // Clean up event listeners using the same function reference
-      window.removeEventListener(
-        'get-schema-field-order',
-        schemaFieldOrderHandler
-      )
+      // Clear the callback
+      useEditorStore.setState({
+        autoSaveCallback: null,
+      })
     })
 
     it('should save file and mark clean', async () => {

@@ -2,6 +2,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
 import { useCollectionsQuery } from '../queries/useCollectionsQuery'
+import { useEditorActions } from '../editor/useEditorActions'
 import { CommandContext } from '../../lib/commands/types'
 
 /**
@@ -9,7 +10,7 @@ import { CommandContext } from '../../lib/commands/types'
  * This provides all the information and actions commands need
  */
 export function useCommandContext(): CommandContext {
-  const { currentFile, isDirty, saveFile, closeCurrentFile } = useEditorStore()
+  const { currentFile, isDirty, closeCurrentFile } = useEditorStore()
 
   const {
     selectedCollection,
@@ -21,6 +22,9 @@ export function useCommandContext(): CommandContext {
   } = useProjectStore()
 
   const { toggleSidebar, toggleFrontmatterPanel } = useUIStore()
+
+  // Get editor actions (Hybrid Action Hooks pattern)
+  const { saveFile } = useEditorActions()
 
   // Get collections data from TanStack Query
   const { data: collections = [] } = useCollectionsQuery(

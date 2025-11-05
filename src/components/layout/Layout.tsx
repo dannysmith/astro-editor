@@ -15,6 +15,8 @@ import { PreferencesDialog } from '../preferences'
 import { useLayoutEventListeners } from '../../hooks/useLayoutEventListeners'
 import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
+import { useEditorActions } from '../../hooks/editor/useEditorActions'
+import { useEditorStore } from '../../store/editorStore'
 import { LAYOUT_SIZES } from '../../lib/layout-constants'
 import {
   ResizablePanelGroup,
@@ -28,6 +30,14 @@ export const Layout: React.FC = () => {
   const { globalSettings } = useProjectStore()
 
   const { preferencesOpen, setPreferencesOpen } = useLayoutEventListeners()
+
+  // Get editor actions (Hybrid Action Hooks pattern)
+  const { saveFile } = useEditorActions()
+
+  // Register auto-save callback with store
+  useEffect(() => {
+    useEditorStore.getState().setAutoSaveCallback(saveFile)
+  }, [saveFile])
 
   // Enable query-based file loading
   useEditorFileContent()
