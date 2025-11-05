@@ -61,7 +61,7 @@ We use a **hybrid approach** with clear responsibilities based on data source an
 2. **Zustand** (middle): Application state that needs to persist across components
 3. **useState** (innermost): Transient UI state local to a component
 
-**How to Choose**:
+**Decision Rules**:
 
 ```
 Is the data from filesystem/server? → TanStack Query
@@ -71,75 +71,13 @@ Does it need to persist across components? → Zustand
 Is it just UI presentation state? → useState (local)
 ```
 
-#### Server State (TanStack Query)
+**Quick Overview**:
 
-Use TanStack Query for state that:
-- Comes from the server/filesystem (collections, files, file content)
-- Benefits from caching and automatic refetching
-- Needs to be synchronized across components
+- **TanStack Query**: Collections, files, file content from filesystem
+- **Zustand**: Three decomposed stores (editorStore, projectStore, uiStore) for performance
+- **Local useState**: Hover states, temporary UI flags, derived values
 
-```typescript
-const { data: collections } = useCollectionsQuery(projectPath)
-const { data: files } = useCollectionFilesQuery(projectPath, collectionName)
-const { data: content } = useFileContentQuery(projectPath, fileId)
-```
-
-#### Client State (Zustand) - Decomposed Stores
-
-**Three focused stores** for different volatility levels:
-
-```typescript
-// 1. Editor Store (most volatile - every keystroke)
-const useEditorStore = create<EditorState>((set) => ({
-  currentFile: null,
-  editorContent: '',
-  frontmatter: {},
-  isDirty: false,
-  // Actions: openFile, saveFile, setEditorContent, updateFrontmatterField
-}))
-
-// 2. Project Store (rarely changes)
-const useProjectStore = create<ProjectState>((set) => ({
-  projectPath: null,
-  selectedCollection: null,
-  currentProjectSettings: null,
-  // Actions: setProject, setSelectedCollection, updateProjectSettings
-}))
-
-// 3. UI Store (occasional changes)
-const useUIStore = create<UIState>((set) => ({
-  sidebarVisible: true,
-  frontmatterPanelVisible: true,
-  // Actions: toggleSidebar, toggleFrontmatterPanel
-}))
-```
-
-**Why decomposed?**
-- **Performance**: Only relevant components re-render when specific state changes
-- **Clarity**: Each store has a single, focused responsibility
-- **Maintainability**: Easier to reason about and modify individual concerns
-
-#### Local State (React useState)
-
-Keep state local when it:
-- Only affects UI presentation (hover states, temporary UI flags)
-- Is derived from props or global state
-- Doesn't need persistence across components
-- Is tightly coupled to component lifecycle
-
-```typescript
-// Examples of local state
-const [isHovered, setIsHovered] = useState(false) // UI-only
-const [windowWidth, setWindowWidth] = useState(window.innerWidth) // Derived
-const [showTooltip, setShowTooltip] = useState(false) // Transient
-```
-
-**Why This Split?**
-
-- **Performance**: Local state changes don't trigger global re-renders
-- **Clarity**: Clear ownership - data source determines state location
-- **Testability**: Business logic (Zustand) can be tested independently of UI (useState)
-- **Caching**: TanStack Query handles server state synchronization automatically
+📖 **For comprehensive coverage of state management including store decomposition strategy, getState() pattern, bridge pattern details, and extensive examples, see [state-management.md](./state-management.md)**
 
 ### 3. Module Organization
 
@@ -300,7 +238,7 @@ const handleSave = useCallback(() => {
 - In `useEffect` with empty dependencies
 - In async operations when state might change during execution
 
-📖 **See [performance-guide.md](./performance-guide.md) for comprehensive performance patterns**
+📖 **See [performance-patterns.md](./performance-patterns.md) for comprehensive performance patterns**
 
 ### Direct Store Pattern (CRITICAL)
 
@@ -340,24 +278,31 @@ const BadField: React.FC<{ onChange: (value: string) => void }> = ({
 
 ### Command Pattern
 
-The editor uses a command registry pattern for operations:
+The editor uses a command registry pattern to centralize all user-triggered actions:
 
 ```typescript
 // Global registry instance
 export const globalCommandRegistry = new CommandRegistry()
 
-// Type-safe command execution
-globalCommandRegistry.execute('toggleBold')
-globalCommandRegistry.execute('formatHeading', 1)
+// Execute commands from anywhere
+globalCommandRegistry.execute('save-file')
+globalCommandRegistry.execute('toggle-bold')
+globalCommandRegistry.execute('format-heading', 1)
 ```
 
-**Benefits**:
-- Decouples command definition from UI triggers
-- Enables keyboard shortcuts, menus, and buttons to share logic
-- Central place for command state management
-- Facilitates testing and extensibility
+**Why Commands?**
+- **Single source of truth**: Logic defined once, used by keyboard shortcuts, menus, buttons, and command palette
+- **Consistency**: Same behavior from all triggers
+- **Discoverability**: Command palette shows all available actions
+- **getState() pattern**: Commands can't use hooks, so they use `getState()` to access stores
 
-📖 **See [keyboard-shortcuts.md](./keyboard-shortcuts.md) for shortcut implementation**
+**Basic Integration**:
+- Keyboard shortcuts execute commands via `react-hotkeys-hook`
+- Native menus emit Tauri events → Layout listens → Executes commands
+- Command palette (Cmd+K) lists and executes commands
+- UI buttons call commands directly
+
+📖 **For detailed command implementation including registration, integration with keyboard shortcuts and menus, command structure, and examples, see [command-system.md](./command-system.md)**
 
 ### TanStack Query Patterns
 
@@ -466,7 +411,7 @@ For stateful components (like ResizablePanel), use CSS visibility to preserve st
 - [ ] Avoid object destructuring for frequently-changing state
 - [ ] Debounce expensive operations (auto-save uses 2s)
 
-📖 **See [performance-guide.md](./performance-guide.md) for detailed patterns and optimization strategies**
+📖 **See [performance-patterns.md](./performance-patterns.md) for detailed patterns and optimization strategies**
 
 ## Component Organization
 
@@ -522,7 +467,7 @@ export type { FileUploadButtonProps } from './FileUploadButton'
 2. **Integration Tests**: How multiple units work together (hooks, stores)
 3. **Component Tests**: User interactions and workflows
 
-📖 **See [testing-guide.md](./testing-guide.md) for comprehensive testing strategies**
+📖 **See [testing.md](./testing.md) for comprehensive testing strategies**
 
 ## Common Pitfalls
 
@@ -586,16 +531,25 @@ App
 
 For in-depth coverage of specific topics, see these guides:
 
-- **[performance-guide.md](./performance-guide.md)**: Comprehensive performance optimization patterns
-- **[testing-guide.md](./testing-guide.md)**: Testing strategies and patterns
+**Core Architecture**:
+- **[state-management.md](./state-management.md)**: Deep dive into the "Onion" pattern, store decomposition, and getState() usage
+- **[command-system.md](./command-system.md)**: Command pattern implementation, registration, and integration
+- **[ui-patterns.md](./ui-patterns.md)**: Common UI patterns and shadcn/ui best practices
+- **[performance-patterns.md](./performance-patterns.md)**: Comprehensive performance optimization patterns
+- **[testing.md](./testing.md)**: Testing strategies and patterns
+- **[optimization.md](./optimization.md)**: Bundle optimization and performance budgets
+
+**System Documentation**:
 - **[form-patterns.md](./form-patterns.md)**: Frontmatter fields and settings forms
 - **[schema-system.md](./schema-system.md)**: Rust-based schema parsing and merging
 - **[keyboard-shortcuts.md](./keyboard-shortcuts.md)**: Keyboard shortcut implementation
-- **[decisions.md](./decisions.md)**: Architectural decisions and trade-offs
 - **[preferences-system.md](./preferences-system.md)**: Settings hierarchy and management
 - **[color-system.md](./color-system.md)**: Color tokens and theming
-- **[toast-system.md](./toast-system.md)**: Notification system
+- **[notifications.md](./notifications.md)**: Notification system
 - **[editor-styles.md](./editor-styles.md)**: Custom syntax highlighting
+
+**Reference**:
+- **[decisions.md](./decisions.md)**: Architectural decisions and trade-offs
 
 ## Quick Start for New Sessions
 

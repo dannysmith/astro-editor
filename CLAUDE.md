@@ -57,31 +57,35 @@
 ### Documentation Structure
 
 **Core Guides** (read for daily development):
-- `docs/developer/architecture-guide.md` - Essential patterns (START HERE)
-- `docs/developer/performance-guide.md` - Performance optimization (getState, memoization)
-- `docs/developer/testing-guide.md` - Testing strategies
+- `docs/developer/architecture-guide.md` - Essential patterns and overview (START HERE)
+- `docs/developer/state-management.md` - Deep dive into the "Onion" pattern and store decomposition
+- `docs/developer/command-system.md` - Command pattern implementation and integration
+- `docs/developer/ui-patterns.md` - Common UI patterns and shadcn/ui best practices
+- `docs/developer/performance-patterns.md` - Performance optimization (getState, memoization)
+- `docs/developer/testing.md` - Testing strategies and patterns
 
-**Feature Implementation** (consult when implementing specific features):
+**System Documentation** (reference for system features):
 - `docs/developer/form-patterns.md` - Frontmatter fields and settings forms
 - `docs/developer/schema-system.md` - Schema parsing and merging (Rust)
 - `docs/developer/keyboard-shortcuts.md` - Implementing shortcuts
-- `docs/developer/decisions.md` - Architectural choices and trade-offs
-
-**System Documentation** (reference for system features):
 - `docs/developer/preferences-system.md` - Three-tier settings hierarchy
 - `docs/developer/color-system.md` - Color tokens and dark mode
-- `docs/developer/toast-system.md` - Notification system
+- `docs/developer/notifications.md` - Toast notification system
 - `docs/developer/editor-styles.md` - CodeMirror syntax highlighting
 - `docs/developer/recovery-system.md` - Crash recovery
+- `docs/developer/logging.md` - Logging system
 
-**Component/Reference** (specific implementations):
-- `docs/developer/unified-title-bar.md` - Main toolbar component
-- `docs/developer/image-preview-implementation.md` - Image field preview
+**Implementation** (optimization and build):
+- `docs/developer/optimization.md` - Bundle optimization and performance budgets
+- `docs/developer/releases.md` - Release workflow and process
+
+**Feature Examples** (specific implementations):
+- `docs/developer/feature-image-preview.md` - Image field preview implementation
 - `docs/developer/astro-generated-contentcollection-schemas.md` - Astro JSON Schema reference
 
-**Operations** (for releases and setup):
-- `docs/developer/release-process.md` - Release workflow
-- `docs/developer/apple-signing-setup.md` - Code signing
+**Reference** (decisions and setup):
+- `docs/developer/decisions.md` - Architectural decisions and trade-offs
+- `docs/developer/apple-signing-setup.md` - Code signing and deployment
 
 See `docs/README.md` for the complete categorized list.
 
@@ -388,7 +392,7 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 - **Auto-save:** Verify 2s interval and `scheduleAutoSave()`
 - **Schema parsing:** Check `src/content/config.ts` syntax
 - **Version conflicts:** Use v2/v4 docs only
-- **Toast/Theme issues:** See `docs/developer/toast-system.md`
+- **Toast/Theme issues:** See `docs/developer/notifications.md`
 
 ## Key Files Reference
 
@@ -413,7 +417,7 @@ Before creating new utilities, check these existing modules:
 ### Documentation
 
 - `docs/developer/architecture-guide.md` - Comprehensive patterns
-- `docs/developer/toast-system.md` - Notifications
+- `docs/developer/notifications.md` - Toast notification system
 - `docs/developer/editor-styles.md` - CSS theming
 - `docs/developer/preferences-system.md` - Settings
 - `docs/developer/recovery-system.md` - Error handling

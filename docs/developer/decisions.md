@@ -379,7 +379,7 @@ See [form-patterns.md](./form-patterns.md) for implementation details.
 
 **Context**: Critical for preventing performance issues in editor. One keystroke shouldn't trigger 10+ component re-renders.
 
-See [performance-guide.md](./performance-guide.md) for detailed patterns.
+See [performance-patterns.md](./performance-patterns.md) for detailed patterns.
 
 ---
 
