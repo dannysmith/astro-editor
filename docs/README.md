@@ -49,11 +49,14 @@ The docs in `docs/developer` are evergreen reference for humans and AI Agents wo
 
 ### Core Guides (Start Here)
 
-The most important developer docs.
+The most important developer docs - foundational patterns for daily development.
 
-- **[developer/architecture-guide.md](developer/architecture-guide.md)** - ESSENTIAL architectural patterns used in Astro Editor.
-- **[developer/performance-guide.md](developer/performance-guide.md)** - Important patterns & guidance for maintaining performance.
-- **[developer/testing-guide.md](developer/testing-guide.md)** - Testing strategies and patterns
+- **[developer/architecture-guide.md](developer/architecture-guide.md)** - ESSENTIAL architectural patterns and overview (START HERE)
+- **[developer/state-management.md](developer/state-management.md)** - Deep dive into the "Onion" pattern and store decomposition
+- **[developer/command-system.md](developer/command-system.md)** - Command pattern implementation and integration
+- **[developer/ui-patterns.md](developer/ui-patterns.md)** - Common UI patterns and shadcn/ui best practices
+- **[developer/performance-patterns.md](developer/performance-patterns.md)** - Performance optimization (getState, memoization)
+- **[developer/testing.md](developer/testing.md)** - Testing strategies and patterns
 
 ### System Documentation
 
@@ -64,25 +67,30 @@ Other fundamenal developer documentation.
 - **[developer/keyboard-shortcuts.md](developer/keyboard-shortcuts.md)** - Implementing keyboard shortcuts with react-hotkeys-hook
 - **[developer/preferences-system.md](developer/preferences-system.md)** - Three-tier settings hierarchy and management
 - **[developer/color-system.md](developer/color-system.md)** - Color tokens, CSS variables, and dark mode
-- **[developer/toast-system.md](developer/toast-system.md)** - Notification system (Rust ↔ TypeScript)
+- **[developer/notifications.md](developer/notifications.md)** - Toast notification system (Rust ↔ TypeScript)
 - **[developer/editor-styles.md](developer/editor-styles.md)** - Custom CodeMirror syntax highlighting and typography
 - **[developer/recovery-system.md](developer/recovery-system.md)** - Crash recovery and auto-save resilience
 - **[developer/logging.md](developer/logging.md)** - Logging system
-- **[developer/release-process.md](developer/release-process.md)** - Release workflow and versioning
+
+### Implementation & Operations
+
+Build optimization and release management.
+
+- **[developer/optimization.md](developer/optimization.md)** - Bundle optimization and performance budgets
+- **[developer/releases.md](developer/releases.md)** - Release workflow and versioning
+- **[developer/apple-signing-setup.md](developer/apple-signing-setup.md)** - macOS code signing and notarization
 
 ### Reference Documentation
 
 Very detailed background context which may occasonally be needed and is difficult to get via web searches and fetches.
 
 - **[developer/astro-generated-contentcollection-schemas.md](developer/astro-generated-contentcollection-schemas.md)** - Comprehensive Astro JSON Schema generation reference
-- **[developer/apple-signing-setup.md](developer/apple-signing-setup.md)** - macOS code signing and notarization
 
-### Feature & Component Documentation
+### Feature Implementation Examples
 
-Feature or component-specific docs which experience has proven important for AI Agents working in these areas. Keep these to a minimum.
+Specific feature implementations that serve as references for similar work.
 
-- **[developer/unified-title-bar.md](developer/unified-title-bar.md)** - Main toolbar component implementation
-- **[developer/image-preview-implementation.md](developer/image-preview-implementation.md)** - Image field preview and path resolution
+- **[developer/feature-image-preview.md](developer/feature-image-preview.md)** - Image field preview and path resolution
 
 ### Historical Context
 

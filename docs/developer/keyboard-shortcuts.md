@@ -184,6 +184,8 @@ const Editor = () => {
 }
 ```
 
+📖 **For comprehensive coverage of the command system including command registration, structure, and integration with menus and command palette, see [command-system.md](./command-system.md)**
+
 ## Current Shortcuts
 
 ### Global Shortcuts
