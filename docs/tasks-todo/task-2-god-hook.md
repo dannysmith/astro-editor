@@ -2,7 +2,7 @@
 
 https://github.com/dannysmith/astro-editor/issues/50
 
-**Hook:** `src/hooks/useLayoutEventListeners.ts` (486 lines)
+**Hook:** `src/hooks/useLayoutEventListeners.ts` (451 lines)
 
 ## Context
 
@@ -217,33 +217,54 @@ function Layout() {
 
 ### Current State Verification
 
-Before implementing, verify that the issues identified in reviews still apply:
+✅ **Task 1 (Event Bridge Refactor) is COMPLETE** (2025-11-05)
 
-- ✅ Hook is still 486 lines (was 487 in review)
+Before implementing, verified current state:
+
+- ✅ Hook is now 451 lines (reduced from 486 due to cleanup)
 - ✅ Still manages keyboard shortcuts, menu events, and DOM events
 - ✅ Still has the duplication issues mentioned in reviews
-- ⚠️ Check if parts-of-speech highlighting approach has changed
-- ✅ **VERIFIED**: Event bridge pattern is being addressed by Task 1
-- ✅ **VERIFIED**: Task 1 creates `useEditorActions()` which reduces scope of this refactor
+- ✅ Parts-of-speech highlighting unchanged (lines 164-327)
+- ✅ **COMPLETE**: Event bridge pattern eliminated by Task 1
+- ✅ **COMPLETE**: Task 1 created `useEditorActions()` - ready to use
+- ✅ **VERIFIED**: No `get-schema-field-order` polling remains in codebase
+- ✅ **VERIFIED**: FrontmatterPanel uses direct query access
 
 ### Related Work
 
-**CRITICAL DEPENDENCY**: This task is directly related to **Task 1 (Event Bridge Refactor)** (`task-1-event-bridge-refactor.md`).
+✅ **Task 1 (Event Bridge Refactor) COMPLETED** - Foundation is ready.
 
-**Task 1 creates decomposed action hooks**, which directly reduces the scope of this refactor:
+**Task 1 has created:**
 
-| Task 1 Creates | Impact on This Task |
-|----------------|---------------------|
-| `useEditorActions()` with `saveFile` | ✅ Removes saveFile logic from useLayoutEventListeners |
-| Hook-based pattern for actions | ✅ Eliminates several DOM event listeners (`create-new-file` becomes a hook call) |
-| Documentation for Hybrid Action Hooks | ✅ Provides clear pattern for other decompositions |
+| Created | Status | Available For Use |
+|---------|--------|-------------------|
+| `useEditorActions()` with `saveFile` | ✅ Complete | `src/hooks/editor/useEditorActions.ts` |
+| Direct query access pattern | ✅ Complete | Eliminates polling completely |
+| Hybrid Action Hooks documentation | ✅ Complete | Pattern documented in completed task |
 
-**Current State After Task 1**:
-- DOM event listeners will be reduced (no more `get-schema-field-order` polling)
-- Keyboard shortcuts can call `useEditorActions()` directly instead of dispatching events
-- `useLayoutEventListeners` will have ~50-100 fewer lines to manage
+**Current State (post-Task 1):**
+- ✅ DOM event polling eliminated entirely
+- ✅ Keyboard shortcuts ready to use `useEditorActions()` directly
+- ✅ Store uses callback delegation pattern correctly
+- ⚠️ **DECISION NEEDED**: Should keyboard shortcuts call hooks directly or use store delegation?
 
-**Recommendation:** **Complete Task 1 first**. It creates the foundation (decomposed action hooks) that makes this decomposition cleaner and more consistent. Task 1 is the architectural pattern; Task 2 applies it everywhere.
+### Pattern Decision: Direct Hook Calls vs Store Delegation
+
+**Current pattern** (lines 69-71 of useLayoutEventListeners):
+```typescript
+const { saveFile } = useEditorStore.getState()
+void saveFile() // Calls store's delegated saveFile
+```
+
+**Alternative pattern** (Task 2 proposal):
+```typescript
+const { saveFile } = useEditorActions() // Direct hook
+void saveFile() // Direct hook call
+```
+
+**Both work correctly.** Question: Should we switch for consistency?
+
+**Recommendation**: Use direct hook calls in keyboard shortcuts for explicit clarity and consistency with Task 1's pattern.
 
 ### Duplication to Address
 
@@ -284,12 +305,12 @@ While decomposing, address these duplication issues identified in reviews:
 
 ## Implementation Order
 
-**RECOMMENDED**: Complete Task 1 (Event Bridge Refactor) first, then this task.
+✅ **Task 1 (Event Bridge Refactor) COMPLETE** - Ready to proceed.
 
-**Rationale**:
-1. Task 1 establishes the Hybrid Action Hooks pattern
-2. Task 1 creates `useEditorActions()` which this task will use
-3. Task 1 removes polling and some event listeners, reducing scope
-4. This task can then apply the established pattern consistently
+**Recommended decomposition order:**
 
-**Alternative**: If done first, coordinate with Task 1 to ensure consistent patterns.
+1. **Easy wins first** (Project init, toast bridge, focus tracking) - establish pattern
+2. **Keyboard shortcuts** (With pattern decision on direct hook calls)
+3. **Tauri menu events** (Format menu map refactor)
+4. **DOM event listeners** (Eliminate `create-new-file` event, keep necessary UI events)
+5. **Testing & verification** (All functionality works, no regressions)
