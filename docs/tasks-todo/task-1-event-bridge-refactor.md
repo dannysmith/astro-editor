@@ -10,13 +10,40 @@ The application currently uses a "Bridge Pattern" where Zustand stores dispatch 
 
 **Priority**: Post-1.0.0 architectural improvement (not a critical bug)
 
+**IMPORTANT FINDING**: The Hybrid Action Hooks pattern proposed in this document **already exists** in production with `useCreateFile` hook (`src/hooks/useCreateFile.ts`). This refactor extends that proven pattern to `saveFile` for consistency. The codebase currently has **mixed patterns** - some actions use hooks (createFile), others use store actions (saveFile), creating architectural inconsistency.
+
 ## Current Implementation
 
-### Pattern 1: Schema Field Order (Save File Flow)
+### Mixed Architectural Patterns
 
-**Location**: `src/store/editorStore.ts` (lines 264-309) ↔ `src/components/frontmatter/FrontmatterPanel.tsx` (lines 42-77)
+The codebase currently uses **both** approaches inconsistently:
 
-When saving a file, the store needs schema field order from TanStack Query:
+| Action | Current Pattern | Implementation | Query Access |
+|--------|----------------|----------------|--------------|
+| `createNewFile` | ✅ **Hybrid Action Hook** | `useCreateFile` hook (260 lines) | Direct via `useCollectionsQuery()` |
+| `saveFile` | ❌ **Event Bridge + Polling** | Store action with polling | Via `get-schema-field-order` event |
+
+This inconsistency creates confusion. `useCommandContext.ts` demonstrates this:
+```typescript
+export function useCommandContext(): CommandContext {
+  const { saveFile } = useEditorStore()  // Direct store access
+
+  return {
+    saveFile, // Pass through directly
+    createNewFile: () => {
+      window.dispatchEvent(new CustomEvent('create-new-file')) // Event!
+    },
+  }
+}
+```
+
+**The refactor unifies these into a single, consistent pattern.**
+
+### Pattern 1: Schema Field Order (Save File Flow) - **THE PROBLEM**
+
+**Location**: `src/store/editorStore.ts` (lines 115-161) ↔ `src/components/frontmatter/FrontmatterPanel.tsx` (lines 42-77)
+
+When saving a file, the store needs schema field order from TanStack Query. **This uses polling**, which is the real technical debt:
 
 ```typescript
 // Store dispatches request event
@@ -56,21 +83,45 @@ useEffect(() => {
 }, [collections])
 ```
 
-### Pattern 2: Create New File
+### Pattern 2: Create New File - **ALREADY USES HYBRID ACTION HOOKS!**
 
-**Location**: `src/lib/commands/command-context.ts`, `src/hooks/useLayoutEventListeners.ts` (lines 104, 176-178)
+**Location**: `src/hooks/useCreateFile.ts` (260 lines), `src/hooks/useLayoutEventListeners.ts` (lines 154-161)
 
-Commands and shortcuts dispatch `create-new-file` event, which is handled by useLayoutEventListeners that has access to TanStack Query data.
+**This already implements the pattern we're proposing!** The hook:
+- ✅ Has direct access to `useCollectionsQuery()` (no events needed)
+- ✅ Uses `getState()` to access stores without subscriptions
+- ✅ Contains complex business logic (file creation, schema handling, frontmatter generation)
+- ✅ Is consumed by Layout via `useLayoutEventListeners`
+
+```typescript
+export const useCreateFile = () => {
+  const { data: collections = [] } = useCollectionsQuery(...) // Direct query access
+
+  const createNewFile = useCallback(async () => {
+    const { selectedCollection } = useProjectStore.getState() // getState pattern
+    // ... 200+ lines of business logic
+  }, [collections, createFileMutation])
+
+  return { createNewFile }
+}
+```
+
+**Some places still dispatch `create-new-file` events** (keyboard shortcuts, command context), but this is for convenience - the actual implementation is already a hook.
 
 ## Technical Problems
 
-1. **Polling**: Checking every 10ms is wasteful and fragile
+**PRIMARY ISSUE**: The `saveFile` polling pattern (not all events!)
+
+1. **Polling**: Checking every 10ms is wasteful and fragile (lines 142-151 of editorStore.ts)
 2. **No type safety**: `CustomEvent<any>` - TypeScript can't help
 3. **Debugging nightmare**: Must trace flow across multiple files via global events
 4. **Race conditions**: Event listeners might not be registered when events fire
-5. **Testing complexity**: Can't easily test event chains
+5. **Testing complexity**: Can't easily test event chains (see test mocks at storeQueryIntegration.test.ts:334-352)
 6. **Memory leaks**: Easy to forget event cleanup
 7. **Invisible coupling**: No clear dependency relationship in code
+8. **Inconsistent patterns**: Some actions use hooks (createFile), others use events (saveFile)
+
+**IMPORTANT DISTINCTION**: Not all DOM events are problematic. Simple event dispatch/listen patterns (like `create-new-file`) work fine. The **polling** in `get-schema-field-order` is the real technical debt.
 
 ## Why This Pattern Exists
 
@@ -213,34 +264,136 @@ Still adds indirection, but at least it's type-safe and synchronous (no polling)
 
 ## Migration Path
 
-### Phase 1: Extract `saveFile` to Hook
+**COORDINATION NOTE**: This refactor creates decomposed action hooks, which directly supports Task 2 (God Hook Decomposition). The hooks created here reduce what `useLayoutEventListeners` needs to manage.
 
-1. Create `hooks/editor/useEditorActions.ts`
-2. Implement `saveFile` in hook with direct queryClient access
-3. Update store to accept auto-save callback
-4. Wire in Layout component
-5. Update all call sites (keyboard shortcuts, buttons)
-6. Remove event bridge code for schema-field-order
+### Phase 0: Acknowledge Existing Pattern
 
-**Effort**: 2-3 hours
+**Before starting**, recognize that:
+- `useCreateFile` already implements Hybrid Action Hooks successfully in production (260 lines)
+- This refactor extends the proven pattern to `saveFile` for consistency
+- We're not introducing a new pattern—we're making an existing pattern consistent
 
-### Phase 2: Apply Pattern to Other Actions
+### Phase 1: Create Decomposed Action Hooks
 
-1. `createNewFile` → Move to hook
-2. `deleteFile` → Move to hook
-3. Other orchestration actions
+**Create focused hooks to avoid god hook anti-pattern** (coordinates with Task 2):
 
-**Effort**: 1-2 hours each
+1. **Create `src/hooks/editor/useEditorActions.ts`**
+   ```typescript
+   export function useEditorActions() {
+     const queryClient = useQueryClient()
 
-### Phase 3: Clean Up
+     const saveFile = useCallback(async (showToast = true) => {
+       const { currentFile, editorContent, frontmatter, imports } = useEditorStore.getState()
+       const { projectPath } = useProjectStore.getState()
 
-1. Remove all event bridge infrastructure
-2. Update architecture guide with new pattern
-3. Add tests for hooks and store interactions
+       // Direct access to query data - no events!
+       const collections = queryClient.getQueryData(queryKeys.collections(projectPath))
+       const schema = collections?.find(c => c.name === currentFile.collection)?.complete_schema
+       const schemaFieldOrder = schema ? deserializeCompleteSchema(schema).fields.map(f => f.name) : null
+
+       await invoke('save_markdown_content', {
+         filePath: currentFile.path,
+         frontmatter,
+         content: editorContent,
+         imports,
+         schemaFieldOrder,
+         projectRoot: projectPath,
+       })
+
+       useEditorStore.getState().markAsSaved()
+       if (showToast) toast.success('File saved')
+     }, [queryClient])
+
+     return { saveFile }
+   }
+   ```
+
+2. **Move file operations to `src/hooks/file/useFileActions.ts`** (future: for deleteFile, renameFile)
+
+3. **Keep `useLayoutEventListeners` for wiring only** (reduces its scope for Task 2)
+
+**Effort**: 3-4 hours
+
+### Phase 2: Update Store for Auto-Save
+
+1. Update `editorStore` to accept auto-save callback:
+   ```typescript
+   autoSaveCallback: null as (() => Promise<void>) | null,
+   setAutoSaveCallback: callback => set({ autoSaveCallback: callback }),
+   scheduleAutoSave: () => {
+     const { autoSaveCallback } = get()
+     if (autoSaveCallback) {
+       setTimeout(() => void autoSaveCallback(), 2000)
+     }
+   },
+   ```
+
+2. Wire in Layout:
+   ```typescript
+   const { saveFile } = useEditorActions()
+
+   useEffect(() => {
+     useEditorStore.getState().setAutoSaveCallback(() => saveFile(false))
+   }, [saveFile])
+   ```
+
+3. Remove polling code from `editorStore.ts` (lines 115-161)
 
 **Effort**: 1-2 hours
 
-**Total**: ~1 day
+### Phase 3: Update Call Sites
+
+1. Update `useCommandContext.ts` to use new hook
+2. Update keyboard shortcuts in `useLayoutEventListeners.ts`
+3. Update any direct store calls to `saveFile`
+4. Remove event bridge code from `FrontmatterPanel.tsx` (lines 42-77)
+
+**Effort**: 1-2 hours
+
+### Phase 4: Documentation & Testing
+
+1. **Update documentation** to remove bridge pattern as acceptable:
+   - `CLAUDE.md` (lines 256-276): Remove bridge pattern example
+   - `docs/developer/state-management.md` (lines 450-493): Update to show Hybrid Actions as preferred
+   - `docs/developer/architecture-guide.md` (lines 360-369): Document new pattern as standard
+
+2. **Add testing strategy**:
+   ```typescript
+   import { renderHook } from '@testing-library/react'
+   import { QueryClientProvider } from '@tanstack/react-query'
+   import { useEditorActions } from '@/hooks/editor/useEditorActions'
+
+   test('saveFile calls invoke with correct params', async () => {
+     const { result } = renderHook(() => useEditorActions(), {
+       wrapper: ({ children }) => (
+         <QueryClientProvider client={queryClient}>
+           {children}
+         </QueryClientProvider>
+       ),
+     })
+
+     await result.current.saveFile()
+
+     expect(invoke).toHaveBeenCalledWith('save_markdown_content', ...)
+   })
+   ```
+
+3. **Update tests** that currently mock events:
+   - `src/store/__tests__/editorStore.integration.test.ts` (lines 253-275)
+   - `src/store/__tests__/storeQueryIntegration.test.ts` (lines 334-352)
+
+**Effort**: 2-3 hours
+
+### Phase 5: Clean Up
+
+1. Remove all event bridge infrastructure
+2. Verify no `get-schema-field-order` events remain
+3. Update architecture guide with new pattern
+4. Team review and demo
+
+**Effort**: 1 hour
+
+**Total**: ~1-1.5 days (slightly longer due to documentation and decomposition strategy, but reduces work for Task 2)
 
 ## Assessment
 
@@ -253,9 +406,15 @@ Still adds indirection, but at least it's type-safe and synchronous (no polling)
 - Full analysis: `docs/reviews/event-bridge-refactor-analysis.md` (572 lines)
 - Original review: `docs/reviews/staff-engineer-review-2025-10-24.md` (section 1)
 - Current implementation:
-  - `src/store/editorStore.ts:264-309` (save file + event bridge)
-  - `src/components/frontmatter/FrontmatterPanel.tsx:42-77` (event listener)
-  - `src/hooks/useLayoutEventListeners.ts:104,176-178` (create-new-file event)
+  - **Polling pattern (THE PROBLEM)**: `src/store/editorStore.ts:115-161` (save file + polling event bridge)
+  - **Event listener**: `src/components/frontmatter/FrontmatterPanel.tsx:42-77` (responds to get-schema-field-order)
+  - **Hybrid Action Hook (ALREADY DONE)**: `src/hooks/useCreateFile.ts:1-260` (proven pattern in production)
+  - **Event dispatch**: `src/hooks/useLayoutEventListeners.ts:102,158` (create-new-file convenience events)
+  - **Mixed usage**: `src/hooks/commands/useCommandContext.ts:12,38-40` (saveFile direct, createNewFile event)
+
+## Related Tasks
+
+- **Task 2 (God Hook Decomposition)**: This refactor creates decomposed action hooks (`useEditorActions`), directly supporting Task 2's goal of breaking up `useLayoutEventListeners`. Completing this first makes Task 2 easier.
 
 ---
 

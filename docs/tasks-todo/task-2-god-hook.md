@@ -111,41 +111,70 @@ Decompose the monolithic hook into focused, single-responsibility hooks:
 
 ### Proposed Hook Structure
 
+**NOTE**: Task 1 creates `useEditorActions()` and establishes the decomposed hooks pattern. This structure builds on that foundation.
+
 ```typescript
+// ✅ CREATED BY TASK 1
+// hooks/editor/useEditorActions.ts
+export function useEditorActions() {
+  const queryClient = useQueryClient()
+
+  const saveFile = useCallback(async (showToast = true) => {
+    // Direct access to query data, no events
+  }, [queryClient])
+
+  return { saveFile }
+}
+
+// ✅ ALREADY EXISTS
+// hooks/useCreateFile.ts (260 lines)
+// Already implements Hybrid Action Hooks pattern
+
+// NEW HOOKS TO CREATE IN THIS TASK:
+
 // hooks/useKeyboardShortcuts.ts
 export function useKeyboardShortcuts() {
-  // All useHotkeys calls with shared options
+  const { saveFile } = useEditorActions() // ← Use Task 1's hook
+
   const defaultOpts = {
     preventDefault: true,
     enableOnFormTags: ['input', 'textarea', 'select'],
     enableOnContentEditable: true
   }
 
-  useHotkeys('mod+s', () => {...}, { preventDefault: true })
+  useHotkeys('mod+s', () => {
+    const { currentFile, isDirty } = useEditorStore.getState()
+    if (currentFile && isDirty) {
+      void saveFile() // ← Direct hook call, no event!
+    }
+  }, { preventDefault: true })
+
   useHotkeys('mod+1', () => {...}, defaultOpts)
   // ... etc
 }
 
 // hooks/useMenuEvents.ts
 export function useMenuEvents() {
+  const { saveFile } = useEditorActions() // ← Use Task 1's hook
+
   // All Tauri menu listeners via listen()
-  // Could use map-based approach for format menu events
+  // Format menu events use map-based approach
 }
 
-// hooks/useDOMEventListeners.ts (or split further)
+// hooks/useDOMEventListeners.ts
 export function useDOMEventListeners() {
-  // All window.addEventListener calls
-  // Or split into useHighlightEvents, useFileEvents, etc.
+  // REDUCED SCOPE after Task 1:
+  // - No more 'create-new-file' (becomes direct hook call)
+  // - No more 'get-schema-field-order' (eliminated by Task 1)
+  // Only need:
+  // - 'open-preferences'
+  // - Highlight toggle events (could be further decomposed)
+  // - Focus mode events
 }
 
 // hooks/useEditorFocusTracking.ts
 export function useEditorFocusTracking() {
   // Format menu state management based on editor focus
-}
-
-// hooks/useThemeSync.ts (already suggested in review)
-export function useThemeSync(globalSettings) {
-  // Theme synchronization
 }
 
 // hooks/useProjectInitialization.ts
@@ -160,14 +189,14 @@ export function useRustToastBridge() {
 
 // Layout.tsx - compose the hooks
 function Layout() {
-  useKeyboardShortcuts()
-  useMenuEvents()
-  useDOMEventListeners()
+  useKeyboardShortcuts()      // Uses useEditorActions internally
+  useMenuEvents()             // Uses useEditorActions internally
+  useDOMEventListeners()      // Reduced scope after Task 1
   useEditorFocusTracking()
   useProjectInitialization()
   useRustToastBridge()
 
-  // Preferences state might stay in Layout as it returns values
+  // Preferences state stays in Layout
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   // ... rest of layout
@@ -182,6 +211,7 @@ function Layout() {
 4. **Feature Toggles**: Can disable/enable features by commenting out hooks
 5. **Performance**: Smaller hooks re-run less frequently
 6. **Reduced Duplication**: Easier to extract common patterns in focused contexts
+7. **Consistency with Task 1**: Uses the same Hybrid Action Hooks pattern established by Task 1
 
 ## Implementation Considerations
 
@@ -193,13 +223,27 @@ Before implementing, verify that the issues identified in reviews still apply:
 - ✅ Still manages keyboard shortcuts, menu events, and DOM events
 - ✅ Still has the duplication issues mentioned in reviews
 - ⚠️ Check if parts-of-speech highlighting approach has changed
-- ⚠️ Check if event bridge pattern has evolved
+- ✅ **VERIFIED**: Event bridge pattern is being addressed by Task 1
+- ✅ **VERIFIED**: Task 1 creates `useEditorActions()` which reduces scope of this refactor
 
 ### Related Work
 
-This task is related to the **Event Bridge Refactor** (see `task-x-event-bridge-refactor.md` and `docs/reviews/event-bridge-refactor-analysis.md`). The Event Bridge refactor proposes replacing DOM custom events with a callback registry pattern. If that refactor happens first, this decomposition will be easier. If this decomposition happens first, it will make the event bridge refactor easier.
+**CRITICAL DEPENDENCY**: This task is directly related to **Task 1 (Event Bridge Refactor)** (`task-1-event-bridge-refactor.md`).
 
-**Recommendation:** Consider whether these should be tackled together or in sequence.
+**Task 1 creates decomposed action hooks**, which directly reduces the scope of this refactor:
+
+| Task 1 Creates | Impact on This Task |
+|----------------|---------------------|
+| `useEditorActions()` with `saveFile` | ✅ Removes saveFile logic from useLayoutEventListeners |
+| Hook-based pattern for actions | ✅ Eliminates several DOM event listeners (`create-new-file` becomes a hook call) |
+| Documentation for Hybrid Action Hooks | ✅ Provides clear pattern for other decompositions |
+
+**Current State After Task 1**:
+- DOM event listeners will be reduced (no more `get-schema-field-order` polling)
+- Keyboard shortcuts can call `useEditorActions()` directly instead of dispatching events
+- `useLayoutEventListeners` will have ~50-100 fewer lines to manage
+
+**Recommendation:** **Complete Task 1 first**. It creates the foundation (decomposed action hooks) that makes this decomposition cleaner and more consistent. Task 1 is the architectural pattern; Task 2 applies it everywhere.
 
 ### Duplication to Address
 
@@ -235,3 +279,17 @@ While decomposing, address these duplication issues identified in reviews:
 - [ ] Duplication issues are addressed
 - [ ] Each new hook could theoretically be tested in isolation
 - [ ] Code is easier to navigate and understand
+- [ ] **Uses Task 1's `useEditorActions()` consistently** (no mixed patterns)
+- [ ] **Reduced scope after Task 1**: Fewer DOM event listeners to manage
+
+## Implementation Order
+
+**RECOMMENDED**: Complete Task 1 (Event Bridge Refactor) first, then this task.
+
+**Rationale**:
+1. Task 1 establishes the Hybrid Action Hooks pattern
+2. Task 1 creates `useEditorActions()` which this task will use
+3. Task 1 removes polling and some event listeners, reducing scope
+4. This task can then apply the established pattern consistently
+
+**Alternative**: If done first, coordinate with Task 1 to ensure consistent patterns.
