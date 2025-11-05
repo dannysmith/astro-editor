@@ -18,6 +18,7 @@ export default tseslint.config(
       'vite.config.ts',
       'tailwind.config.js',
       'scripts/**',
+      'telemetry-worker/**',
     ],
   },
   js.configs.recommended,

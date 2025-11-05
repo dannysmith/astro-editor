@@ -1,0 +1,19 @@
+name = "astro-telemetry"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# D1 Database Configuration
+# After creating the database with `wrangler d1 create astro-telemetry`,
+# copy the database_id from the output and paste it below
+[[d1_databases]]
+binding = "DB"
+database_name = "astro-telemetry"
+database_id = "376f0dcd-b4d6-48dd-bb8a-e9c5b21c0cd3"
+
+# Production environment configuration
+[env.production]
+name = "astro-telemetry"
+
+# Development environment (optional)
+[env.staging]
+name = "astro-telemetry-staging"

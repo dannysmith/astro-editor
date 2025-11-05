@@ -698,7 +698,6 @@ pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
 fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf, String> {
     use log::info;
 
-    let file_path = Path::new(file_path);
     let app_data_dir = Path::new(app_data_dir);
 
     // Create app data directory if it doesn't exist
@@ -712,6 +711,13 @@ fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf
         info!("Astro Editor [PROJECT_REGISTRY] App data directory created successfully");
     }
 
+    // If file_path is relative (just a filename), join it with app_data_dir
+    let file_path = if Path::new(file_path).is_absolute() {
+        Path::new(file_path).to_path_buf()
+    } else {
+        app_data_dir.join(file_path)
+    };
+
     // Resolve canonical paths to handle symlinks and .. traversal
     let canonical_file = file_path
         .canonicalize()
@@ -719,7 +725,7 @@ fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf
             // If file doesn't exist, try to canonicalize parent and append filename
             if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
                 // Ensure parent directory exists
-                if !parent.exists() {
+                if !parent.as_os_str().is_empty() && !parent.exists() {
                     info!(
                         "Astro Editor [PROJECT_REGISTRY] Creating parent directory: {}",
                         parent.display()
@@ -2244,32 +2250,27 @@ This is the main content."#;
         // Check that imports are still present
         assert!(
             updated_content.contains("import { Component } from './Component'"),
-            "First import was lost! Content:\n{}",
-            updated_content
+            "First import was lost! Content:\n{updated_content}"
         );
         assert!(
             updated_content.contains("import { AnotherComponent } from './AnotherComponent'"),
-            "Second import was lost! Content:\n{}",
-            updated_content
+            "Second import was lost! Content:\n{updated_content}"
         );
 
         // Check that frontmatter was updated
         assert!(
             updated_content.contains("title: Updated Title"),
-            "Frontmatter title was not updated! Content:\n{}",
-            updated_content
+            "Frontmatter title was not updated! Content:\n{updated_content}"
         );
         assert!(
             updated_content.contains("draft: true"),
-            "Frontmatter draft was not updated! Content:\n{}",
-            updated_content
+            "Frontmatter draft was not updated! Content:\n{updated_content}"
         );
 
         // Check that content is still present
         assert!(
             updated_content.contains("# Content"),
-            "Main content was lost! Content:\n{}",
-            updated_content
+            "Main content was lost! Content:\n{updated_content}"
         );
 
         // Cleanup

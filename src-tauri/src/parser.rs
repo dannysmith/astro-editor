@@ -1181,8 +1181,7 @@ export const test = defineCollection({
                 HelperType::Image => {
                     assert!(
                         path_str == "hero" || path_str == "coverImage.image",
-                        "Image path should be 'hero' or 'coverImage.image', got '{}'",
-                        path_str
+                        "Image path should be 'hero' or 'coverImage.image', got '{path_str}'"
                     );
                 }
                 HelperType::Reference => {

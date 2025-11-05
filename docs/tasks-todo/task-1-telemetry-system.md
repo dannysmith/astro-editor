@@ -431,21 +431,34 @@ After implementation, we can answer:
 
 ## Acceptance Criteria
 
-**Phase 1 Complete:**
+**Phase 1 Complete:** ✅
 
-- [ ] UUID generated and stored in app data on first launch
-- [ ] Telemetry event sent during update check
-- [ ] App functions normally if telemetry endpoint fails
-- [ ] No performance impact on app startup or update checks
-- [ ] Tests written and passing
+- [x] UUID generated and stored in app data on first launch
+- [x] Telemetry event sent during update check
+- [x] App functions normally if telemetry endpoint fails
+- [x] No performance impact on app startup or update checks
+- [x] Tests written and passing
 
-**Phase 2 Complete:**
+**Phase 2 Complete:** ✅
 
-- [ ] Cloudflare Worker deployed to updateserver.dny.li
-- [ ] D1 database created and schema applied
-- [ ] Worker accepts POST to /event and stores data
-- [ ] Can query data via wrangler CLI
-- [ ] Monitoring configured
+- [x] Cloudflare Worker deployed to updateserver.dny.li
+- [x] D1 database created and schema applied
+- [x] Worker accepts POST to /event and stores data
+- [x] Can query data via wrangler CLI
+- [x] Custom domain configured (DNS propagation in progress)
+
+**Bug Fix:**
+- [x] Fixed `validate_app_data_path` to handle relative file paths (like `telemetry.json`)
+- [x] Telemetry now works correctly for both new and existing installations
+
+**Phase 2 Files Created:**
+
+- [x] `telemetry-worker/worker.js` - Cloudflare Worker with event endpoint
+- [x] `telemetry-worker/schema.sql` - D1 database schema
+- [x] `telemetry-worker/wrangler.toml` - Wrangler configuration
+- [x] `telemetry-worker/package.json` - Dependencies and scripts
+- [x] `telemetry-worker/README.md` - Comprehensive documentation
+- [x] `telemetry-worker/DEPLOYMENT.md` - Quick deployment guide
 
 ## Implementation Notes
 

@@ -1,0 +1,19 @@
+{
+  "name": "astro-telemetry-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker for Astro Editor telemetry",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "tail": "wrangler tail",
+    "d1:create": "wrangler d1 create astro-telemetry",
+    "d1:migrate": "wrangler d1 execute astro-telemetry --file=schema.sql",
+    "d1:query": "wrangler d1 execute astro-telemetry --command",
+    "test:local": "curl -X POST http://localhost:8787/event -H 'Content-Type: application/json' -d '{\"appId\":\"astro-editor\",\"uuid\":\"550e8400-e29b-41d4-a716-446655440000\",\"version\":\"0.1.32\",\"event\":\"update_check\",\"platform\":\"macos\",\"timestamp\":\"2025-11-05T12:00:00.000Z\"}'"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.4"
+  }
+}

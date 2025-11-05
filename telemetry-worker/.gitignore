@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnpm-debug.log
+
+# Wrangler
+.wrangler/
+.dev.vars
+.mf/
+
+# Output
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local D1 database
+.wrangler/state/
+
+# Logs
+*.log
