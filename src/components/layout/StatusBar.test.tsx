@@ -40,7 +40,7 @@ describe('StatusBar Component', () => {
     expect(screen.getByText('example.md')).toBeInTheDocument()
   })
 
-  it('should show dirty indicator when file has unsaved changes', () => {
+  it('should show dirty indicator when file has unsaved changes', async () => {
     useEditorStore.setState({
       currentFile: {
         id: 'test/example',
@@ -56,7 +56,13 @@ describe('StatusBar Component', () => {
 
     render(<StatusBar />)
 
-    expect(screen.getByText('•')).toBeInTheDocument()
+    // Wait for the polling interval to pick up isDirty state
+    await waitFor(
+      () => {
+        expect(screen.getByText('•')).toBeInTheDocument()
+      },
+      { timeout: 600 }
+    )
   })
 
   it('should display correct word and character counts', async () => {
@@ -75,13 +81,13 @@ describe('StatusBar Component', () => {
 
     render(<StatusBar />)
 
-    // Wait for debounced word count to update (300ms delay)
+    // Wait for polling interval to update word count (500ms interval)
     await waitFor(
       () => {
         expect(screen.getByText('6 words')).toBeInTheDocument()
         expect(screen.getByText('26 characters')).toBeInTheDocument()
       },
-      { timeout: 500 }
+      { timeout: 600 }
     )
   })
 
@@ -101,13 +107,13 @@ describe('StatusBar Component', () => {
 
     render(<StatusBar />)
 
-    // Wait for debounced counts to update
+    // Wait for polling interval to update counts
     await waitFor(
       () => {
         expect(screen.getByText('0 words')).toBeInTheDocument()
         expect(screen.getByText('0 characters')).toBeInTheDocument()
       },
-      { timeout: 500 }
+      { timeout: 600 }
     )
   })
 })

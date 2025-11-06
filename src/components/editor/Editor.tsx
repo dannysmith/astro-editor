@@ -169,7 +169,7 @@ const EditorViewComponent: React.FC = () => {
               typingCharCount.current = 0
             }, 500)
 
-            // Hide bars after 4 characters using getState() pattern
+            // Hide bars after 4 characters
             if (typingCharCount.current >= 4) {
               useUIStore.getState().handleTypingInEditor()
               typingCharCount.current = 0
