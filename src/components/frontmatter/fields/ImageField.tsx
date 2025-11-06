@@ -12,6 +12,7 @@ import {
   InputGroupInput,
 } from '../../ui/input-group'
 import { processFileToAssets, IMAGE_EXTENSIONS } from '../../../lib/files'
+import { getCollectionSettings } from '../../../lib/project-registry'
 import { X, Loader2, Edit3, Check } from 'lucide-react'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
@@ -51,6 +52,13 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         throw new Error('No project or collection context available')
       }
 
+      // Get path preference (defaults to true if not set)
+      const effectiveSettings = getCollectionSettings(
+        currentProjectSettings,
+        collection
+      )
+      const useRelativePaths = effectiveSettings.useRelativeAssetPaths
+
       // Use shared utility with 'only-if-outside-project' strategy
       const result = await processFileToAssets({
         sourcePath: filePath,
@@ -58,9 +66,11 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         collection,
         projectSettings: currentProjectSettings,
         copyStrategy: 'only-if-outside-project',
+        currentFilePath: currentFile.path,
+        useRelativePaths,
       })
 
-      // Update frontmatter with normalized path
+      // Update frontmatter with path
       updateFrontmatterField(name, result.relativePath)
     } catch (error) {
       // Show error toast (component-specific UI concern)

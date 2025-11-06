@@ -22,6 +22,18 @@ vi.mock('../../../store/projectStore', () => ({
   },
 }))
 
+// Mock editor store
+vi.mock('../../../store/editorStore', () => ({
+  useEditorStore: {
+    getState: vi.fn(() => ({
+      currentFile: {
+        path: '/project/path/src/content/blog/post.md',
+        collection: 'blog',
+      },
+    })),
+  },
+}))
+
 // Mock the shared files module
 vi.mock('../../files', async () => {
   const actual =
@@ -29,6 +41,30 @@ vi.mock('../../files', async () => {
   return {
     ...actual,
     processFileToAssets: vi.fn(),
+  }
+})
+
+// Mock project registry
+vi.mock('../../project-registry', async () => {
+  const actual = await vi.importActual<typeof import('../../project-registry')>(
+    '../../project-registry'
+  )
+  return {
+    ...actual,
+    getCollectionSettings: vi.fn(() => ({
+      pathOverrides: {
+        contentDirectory: 'src/content/',
+        assetsDirectory: 'src/assets/',
+        mdxComponentsDirectory: 'src/components/mdx/',
+      },
+      frontmatterMappings: {
+        publishedDate: 'date',
+        title: 'title',
+        description: 'description',
+        draft: 'draft',
+      },
+      useRelativeAssetPaths: true,
+    })),
   }
 })
 
@@ -205,6 +241,8 @@ describe('File Processing', () => {
         collection: 'collection',
         projectSettings: null,
         copyStrategy: 'always',
+        currentFilePath: '/project/path/src/content/blog/post.md',
+        useRelativePaths: true,
       })
     })
 

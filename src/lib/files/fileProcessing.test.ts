@@ -35,6 +35,8 @@ describe('processFileToAssets', () => {
     collection: 'blog',
     projectSettings: mockProjectSettings,
     copyStrategy: 'always',
+    currentFilePath: '/Users/test/project/src/content/blog/post.md',
+    useRelativePaths: true,
   }
 
   beforeEach(() => {
@@ -56,9 +58,11 @@ describe('processFileToAssets', () => {
         sourcePath: '/Users/test/Downloads/image.png',
         projectPath: '/Users/test/project',
         collection: 'blog',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(result).toEqual({
-        relativePath: '/src/assets/2024-01-15-image.png',
+        relativePath: 'src/assets/2024-01-15-image.png',
         wasCopied: true,
         filename: 'image.png',
       })
@@ -78,9 +82,11 @@ describe('processFileToAssets', () => {
         projectPath: '/Users/test/project',
         collection: 'blog',
         assetsDirectory: 'custom/assets',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(result).toEqual({
-        relativePath: '/custom/assets/2024-01-15-image.png',
+        relativePath: 'custom/assets/2024-01-15-image.png',
         wasCopied: true,
         filename: 'image.png',
       })
@@ -102,6 +108,8 @@ describe('processFileToAssets', () => {
         sourcePath: '/Users/test/project/images/existing.png',
         projectPath: '/Users/test/project',
         collection: 'blog',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(invoke).not.toHaveBeenCalledWith(
         'is_path_in_project',
@@ -131,9 +139,11 @@ describe('processFileToAssets', () => {
         sourcePath: '/Users/test/Downloads/image.png',
         projectPath: '/Users/test/project',
         collection: 'blog',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(result).toEqual({
-        relativePath: '/src/assets/2024-01-15-image.png',
+        relativePath: 'src/assets/2024-01-15-image.png',
         wasCopied: true,
         filename: 'image.png',
       })
@@ -158,13 +168,15 @@ describe('processFileToAssets', () => {
       expect(invoke).toHaveBeenNthCalledWith(2, 'get_relative_path', {
         filePath: '/Users/test/project/images/existing.png',
         projectPath: '/Users/test/project',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(invoke).not.toHaveBeenCalledWith(
         'copy_file_to_assets',
         expect.anything()
       )
       expect(result).toEqual({
-        relativePath: '/images/existing.png',
+        relativePath: 'images/existing.png',
         wasCopied: false,
         filename: 'existing.png',
       })
@@ -186,30 +198,34 @@ describe('processFileToAssets', () => {
         projectPath: '/Users/test/project',
         collection: 'blog',
         assetsDirectory: 'custom/assets',
+        currentFilePath: '/Users/test/project/src/content/blog/post.md',
+        useRelativePaths: true,
       })
       expect(result.wasCopied).toBe(true)
     })
   })
 
-  describe('path normalization', () => {
-    it('should add leading slash when missing', async () => {
-      vi.mocked(invoke).mockResolvedValue('src/assets/2024-01-15-image.png')
+  describe('path formatting', () => {
+    it('should return path in format provided by Rust (relative)', async () => {
+      vi.mocked(invoke).mockResolvedValue('../../assets/2024-01-15-image.png')
       vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
+        useRelativePaths: true,
         copyStrategy: 'always',
       })
 
-      expect(result.relativePath).toBe('/src/assets/2024-01-15-image.png')
+      expect(result.relativePath).toBe('../../assets/2024-01-15-image.png')
     })
 
-    it('should preserve leading slash when present', async () => {
+    it('should return path in format provided by Rust (absolute)', async () => {
       vi.mocked(invoke).mockResolvedValue('/src/assets/2024-01-15-image.png')
       vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
+        useRelativePaths: false,
         copyStrategy: 'always',
       })
 

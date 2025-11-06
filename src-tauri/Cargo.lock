@@ -181,6 +181,7 @@ dependencies = [
  "indexmap 2.11.4",
  "log",
  "notify",
+ "pathdiff",
  "regex",
  "rfd",
  "serde",

@@ -16,6 +16,7 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
     description: 'description',
     draft: 'draft',
   },
+  // useAbsoluteAssetPaths: undefined by default (uses relative paths, matching Astro conventions)
 }
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {

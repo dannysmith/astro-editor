@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -160,6 +161,22 @@ export const CollectionSettingsPane: React.FC = () => {
     void updateCollectionSettings(collectionName, newSettings.settings)
   }
 
+  // Update a collection's absolute paths setting
+  const handleAbsolutePathsChange = (
+    collectionName: string,
+    checked: boolean
+  ) => {
+    const existing = getCollectionOverride(collectionName)
+    const newSettings: CollectionSettings = {
+      name: collectionName,
+      settings: {
+        ...existing?.settings,
+        useAbsoluteAssetPaths: checked,
+      },
+    }
+    void updateCollectionSettings(collectionName, newSettings.settings)
+  }
+
   // Filter fields by type for a specific collection
   const getFieldsByType = (
     collectionName: string,
@@ -273,7 +290,8 @@ export const CollectionSettingsPane: React.FC = () => {
           const hasOverrides =
             !!collectionOverride?.settings?.pathOverrides ||
             !!collectionOverride?.settings?.frontmatterMappings ||
-            !!collectionOverride?.settings?.defaultFileType
+            !!collectionOverride?.settings?.defaultFileType ||
+            collectionOverride?.settings?.useAbsoluteAssetPaths !== undefined
 
           if (!effectiveSettings) return null
 
@@ -352,6 +370,35 @@ export const CollectionSettingsPane: React.FC = () => {
                             use project setting.
                           </FieldDescription>
                         </FieldContent>
+                      </Field>
+
+                      <Field>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <FieldLabel>Use Absolute Paths for Images</FieldLabel>
+                            <FieldDescription>
+                              Override to use absolute paths from project root
+                              (e.g.,{' '}
+                              <code className="text-xs">
+                                /src/assets/image.png
+                              </code>
+                              ) instead of the default relative paths (e.g.,{' '}
+                              <code className="text-xs">
+                                ../../assets/image.png
+                              </code>
+                              ).
+                            </FieldDescription>
+                          </div>
+                          <Switch
+                            checked={
+                              collectionOverride?.settings
+                                ?.useAbsoluteAssetPaths ?? false
+                            }
+                            onCheckedChange={checked =>
+                              handleAbsolutePathsChange(collection.name, checked)
+                            }
+                          />
+                        </div>
                       </Field>
                     </SettingsSection>
 

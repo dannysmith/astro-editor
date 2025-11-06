@@ -15,10 +15,10 @@ import { ASTRO_PATHS } from '../constants'
  *
  * @param projectSettings - Current project settings (may include collections array)
  * @param collectionName - Name of the collection to get settings for
- * @returns Fully resolved settings with all values populated
+ * @returns Fully resolved settings with all values populated including useRelativeAssetPaths
  */
 export function getCollectionSettings(
-  projectSettings: ProjectSettings,
+  projectSettings: ProjectSettings | null | undefined,
   collectionName: string
 ): {
   pathOverrides: {
@@ -32,7 +32,25 @@ export function getCollectionSettings(
     description: string
     draft: string
   }
+  useRelativeAssetPaths: boolean
 } {
+  // Handle null/undefined projectSettings
+  if (!projectSettings) {
+    return {
+      pathOverrides: {
+        contentDirectory: ASTRO_PATHS.CONTENT_DIR,
+        assetsDirectory: ASTRO_PATHS.ASSETS_DIR,
+        mdxComponentsDirectory: ASTRO_PATHS.MDX_COMPONENTS_DIR,
+      },
+      frontmatterMappings: {
+        publishedDate: ['pubDate', 'date', 'publishedDate'],
+        title: 'title',
+        description: 'description',
+        draft: 'draft',
+      },
+      useRelativeAssetPaths: true,
+    }
+  }
   // Find collection-specific settings
   const collectionSettings = projectSettings.collections?.find(
     c => c.name === collectionName
@@ -88,8 +106,17 @@ export function getCollectionSettings(
       defaults.frontmatterMappings.draft,
   }
 
+  // Three-tier fallback for useAbsoluteAssetPaths (inverted to useRelativeAssetPaths)
+  // undefined or false → use relative paths (true)
+  // true → use absolute paths (false)
+  const useAbsolutePaths =
+    collectionSettings?.useAbsoluteAssetPaths ??
+    projectSettings.useAbsoluteAssetPaths ??
+    false // Default to false (use relative paths, Astro convention)
+
   return {
     pathOverrides: effectivePathOverrides,
     frontmatterMappings: effectiveFrontmatterMappings,
+    useRelativeAssetPaths: !useAbsolutePaths, // Invert: absolute=false means relative=true
   }
 }

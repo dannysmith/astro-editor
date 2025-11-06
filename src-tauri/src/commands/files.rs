@@ -1,5 +1,6 @@
 use chrono::Local;
 use indexmap::IndexMap;
+use pathdiff::diff_paths;
 use serde_json::Value;
 use serde_norway;
 use std::path::{Path, PathBuf};
@@ -39,6 +40,44 @@ fn validate_project_path(file_path: &str, project_root: &str) -> Result<PathBuf,
         .map_err(|_| "File outside project directory".to_string())?;
 
     Ok(canonical_file)
+}
+
+/// Calculates the relative path from the current file to an asset
+///
+/// # Arguments
+/// * `current_file_path` - Absolute path to the current markdown file
+/// * `project_path` - Absolute path to the project root
+/// * `project_relative_asset_path` - Path to the asset relative to project root (e.g., "src/assets/image.png")
+///
+/// # Returns
+/// Relative path from the file's directory to the asset (e.g., "../../assets/image.png")
+fn calculate_relative_path(
+    current_file_path: &str,
+    project_path: &str,
+    project_relative_asset_path: &str,
+) -> Result<String, String> {
+    // Get directory containing the current markdown file
+    let current_file = Path::new(current_file_path);
+    let current_file_dir = current_file.parent().ok_or("Invalid current file path")?;
+
+    // Get the asset's full path
+    let asset_full_path = Path::new(project_path).join(project_relative_asset_path);
+
+    // Calculate relative path from file directory to asset
+    let relative_path = diff_paths(&asset_full_path, current_file_dir)
+        .ok_or("Could not calculate relative path")?;
+
+    // Convert to string with forward slashes (Markdown convention)
+    let path_string = relative_path.to_string_lossy().replace('\\', "/");
+
+    // Ensure ./ prefix for same-directory files (clearer than bare filename)
+    let final_path = if path_string.starts_with("../") {
+        path_string
+    } else {
+        format!("./{path_string}")
+    };
+
+    Ok(final_path)
 }
 
 #[tauri::command]
@@ -136,8 +175,18 @@ pub async fn copy_file_to_assets(
     source_path: String,
     project_path: String,
     collection: String,
+    current_file_path: String,
+    use_relative_paths: bool,
 ) -> Result<String, String> {
-    copy_file_to_assets_with_override(source_path, project_path, collection, None).await
+    copy_file_to_assets_with_override(
+        source_path,
+        project_path,
+        collection,
+        None,
+        current_file_path,
+        use_relative_paths,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -146,6 +195,8 @@ pub async fn copy_file_to_assets_with_override(
     project_path: String,
     collection: String,
     assets_directory: Option<String>,
+    current_file_path: String,
+    use_relative_paths: bool,
 ) -> Result<String, String> {
     use std::fs;
 
@@ -213,15 +264,22 @@ pub async fn copy_file_to_assets_with_override(
     fs::copy(&source_path, &validated_final_path)
         .map_err(|e| format!("Failed to copy file: {e}"))?;
 
-    // Return the relative path from the project root (for markdown)
-    let relative_path = validated_final_path
+    // Get the path relative to project root
+    let project_relative_path = validated_final_path
         .strip_prefix(&validated_project_root)
         .map_err(|_| "Failed to create relative path")?
         .to_string_lossy()
         .to_string();
 
-    // Convert to forward slashes for markdown compatibility
-    Ok(relative_path.replace('\\', "/"))
+    // Convert to appropriate path style based on setting
+    let final_path = if use_relative_paths {
+        calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
+    } else {
+        // Absolute path from project root (legacy behavior)
+        format!("/{}", project_relative_path.replace('\\', "/"))
+    };
+
+    Ok(final_path)
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -859,7 +917,12 @@ pub async fn is_path_in_project(file_path: String, project_path: String) -> bool
 /// # Returns
 /// The relative path from project root, or an error if the file is not in the project
 #[tauri::command]
-pub async fn get_relative_path(file_path: String, project_path: String) -> Result<String, String> {
+pub async fn get_relative_path(
+    file_path: String,
+    project_path: String,
+    current_file_path: String,
+    use_relative_paths: bool,
+) -> Result<String, String> {
     let file = Path::new(&file_path)
         .canonicalize()
         .map_err(|e| format!("Invalid file path: {e}"))?;
@@ -867,9 +930,20 @@ pub async fn get_relative_path(file_path: String, project_path: String) -> Resul
         .canonicalize()
         .map_err(|e| format!("Invalid project path: {e}"))?;
 
-    file.strip_prefix(&project)
+    let project_relative_path = file
+        .strip_prefix(&project)
         .map(|p| p.to_string_lossy().to_string())
-        .map_err(|_| "Path not in project".to_string())
+        .map_err(|_| "Path not in project".to_string())?;
+
+    // Convert to appropriate path style based on setting
+    let final_path = if use_relative_paths {
+        calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
+    } else {
+        // Absolute path from project root (legacy behavior)
+        format!("/{}", project_relative_path.replace('\\', "/"))
+    };
+
+    Ok(final_path)
 }
 
 /// Resolves an image path from markdown to an absolute filesystem path
@@ -1720,18 +1794,27 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "blog".to_string(),
+            project_dir
+                .path()
+                .join("src/content/blog/post.md")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            false, // Use absolute paths for test assertions
         )
         .await;
 
         assert!(result.is_ok(), "Failed with error: {:?}", result.err());
         let relative_path = result.unwrap();
 
-        // Check the returned path format
-        assert!(relative_path.starts_with("src/assets/blog/"));
+        // Check the returned path format (absolute from project root with leading /)
+        assert!(relative_path.starts_with("/src/assets/blog/"));
         assert!(relative_path.contains("-test-image.png"));
 
-        // Check file was actually copied
-        let dest_path = project_dir.path().join(&relative_path);
+        // Check file was actually copied (strip leading / for path construction)
+        let dest_path = project_dir
+            .path()
+            .join(&relative_path.trim_start_matches('/'));
         assert!(dest_path.exists());
 
         let content = fs::read(&dest_path).unwrap();
@@ -1766,6 +1849,13 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "posts".to_string(),
+            project_dir
+                .path()
+                .join("src/content/posts/post.md")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            false, // Use absolute paths for test assertions
         )
         .await;
 
@@ -1777,7 +1867,9 @@ Regular markdown content here."#;
 
         // Both files should exist
         assert!(existing_file.exists());
-        let new_file = project_dir.path().join(&relative_path);
+        let new_file = project_dir
+            .path()
+            .join(&relative_path.trim_start_matches('/'));
         assert!(new_file.exists());
     }
 
@@ -1803,6 +1895,13 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "newsletters".to_string(),
+            project_dir
+                .path()
+                .join("src/content/newsletters/post.md")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            false, // Use absolute paths for test assertions
         )
         .await;
 
@@ -1811,9 +1910,11 @@ Regular markdown content here."#;
         // Directory should now exist
         assert!(assets_dir.exists());
 
-        // File should be copied
+        // File should be copied (strip leading / for path construction)
         let relative_path = result.unwrap();
-        let dest_path = project_dir.path().join(&relative_path);
+        let dest_path = project_dir
+            .path()
+            .join(&relative_path.trim_start_matches('/'));
         assert!(dest_path.exists());
     }
 

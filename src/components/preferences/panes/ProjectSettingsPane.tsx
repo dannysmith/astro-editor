@@ -1,5 +1,6 @@
 import React from 'react'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Field,
   FieldLabel,
@@ -37,6 +38,12 @@ export const ProjectSettingsPane: React.FC = () => {
       ...currentProjectSettings,
       defaultFileType:
         value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
+    })
+  }
+
+  const handleAbsolutePathsChange = (checked: boolean) => {
+    void updateProject({
+      useAbsoluteAssetPaths: checked,
     })
   }
 
@@ -122,6 +129,25 @@ export const ProjectSettingsPane: React.FC = () => {
               src/components/mdx/)
             </FieldDescription>
           </FieldContent>
+        </Field>
+
+        <Field>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <FieldLabel>Use Absolute Paths for Images</FieldLabel>
+              <FieldDescription>
+                By default, images use paths relative to the current file (e.g.,{' '}
+                <code className="text-xs">../../assets/image.png</code>),
+                matching Astro's conventions. Enable this to override and use
+                absolute paths from project root instead (e.g.,{' '}
+                <code className="text-xs">/src/assets/image.png</code>).
+              </FieldDescription>
+            </div>
+            <Switch
+              checked={currentProjectSettings?.useAbsoluteAssetPaths ?? false}
+              onCheckedChange={handleAbsolutePathsChange}
+            />
+          </div>
         </Field>
       </SettingsSection>
 

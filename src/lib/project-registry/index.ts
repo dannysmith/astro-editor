@@ -238,6 +238,17 @@ export class ProjectRegistryManager {
       }
     }
 
+    // Update useAbsoluteAssetPaths if property is present
+    if ('useAbsoluteAssetPaths' in settings) {
+      if (settings.useAbsoluteAssetPaths === undefined) {
+        // Remove the override to use default (relative paths)
+        delete projectData.settings.useAbsoluteAssetPaths
+      } else {
+        projectData.settings.useAbsoluteAssetPaths =
+          settings.useAbsoluteAssetPaths
+      }
+    }
+
     // Update collections if property is present
     if ('collections' in settings) {
       if (settings.collections === undefined) {
@@ -301,6 +312,8 @@ export class ProjectRegistryManager {
       },
       // Include defaultFileType if present
       defaultFileType: projectData.settings.defaultFileType,
+      // Include useAbsoluteAssetPaths (undefined by default, meaning use relative paths)
+      useAbsoluteAssetPaths: projectData.settings.useAbsoluteAssetPaths,
       // Include collections array if present
       collections: projectData.settings.collections || [],
     }

@@ -28,6 +28,8 @@ export interface ProjectSettings {
   }
   // Default file type for new files
   defaultFileType?: 'md' | 'mdx'
+  // Override to use absolute paths for images (defaults to relative paths, matching Astro conventions)
+  useAbsoluteAssetPaths?: boolean
   // Collection-specific settings overrides
   collections?: CollectionSettings[]
 }
@@ -46,6 +48,8 @@ export interface CollectionSpecificSettings {
   }
   // Default file type for new files in this collection
   defaultFileType?: 'md' | 'mdx'
+  // Override to use absolute paths for images (collection-level override)
+  useAbsoluteAssetPaths?: boolean
 }
 
 export interface CollectionSettings {

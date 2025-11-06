@@ -20,8 +20,15 @@ import type {
 export async function processFileToAssets(
   options: ProcessFileToAssetsOptions
 ): Promise<ProcessFileToAssetsResult> {
-  const { sourcePath, projectPath, collection, projectSettings, copyStrategy } =
-    options
+  const {
+    sourcePath,
+    projectPath,
+    collection,
+    projectSettings,
+    copyStrategy,
+    currentFilePath,
+    useRelativePaths,
+  } = options
 
   // Extract filename for result
   const filename = extractFilename(sourcePath)
@@ -54,6 +61,8 @@ export async function processFileToAssets(
         projectPath: projectPath,
         collection: collection,
         assetsDirectory: assetsDirectory,
+        currentFilePath: currentFilePath,
+        useRelativePaths: useRelativePaths,
       })
     } else {
       // Use default assets directory
@@ -61,6 +70,8 @@ export async function processFileToAssets(
         sourcePath: sourcePath,
         projectPath: projectPath,
         collection: collection,
+        currentFilePath: currentFilePath,
+        useRelativePaths: useRelativePaths,
       })
     }
 
@@ -70,17 +81,15 @@ export async function processFileToAssets(
     relativePath = await invoke<string>('get_relative_path', {
       filePath: sourcePath,
       projectPath: projectPath,
+      currentFilePath: currentFilePath,
+      useRelativePaths: useRelativePaths,
     })
     wasCopied = false
   }
 
-  // Normalize path to have leading slash
-  const normalizedPath = relativePath.startsWith('/')
-    ? relativePath
-    : `/${relativePath}`
-
+  // Path is already in final format from Rust - no normalization needed
   return {
-    relativePath: normalizedPath,
+    relativePath,
     wasCopied,
     filename,
   }
