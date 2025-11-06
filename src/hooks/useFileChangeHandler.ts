@@ -17,6 +17,7 @@ interface FileChangeEvent {
  * 1. Listen for file-changed events from watcher
  * 2. Invalidate queries to trigger refetch
  * 3. Respect isDirty state (don't reload user's unsaved work)
+ * 4. Ignore events that occur immediately after our own save (race condition protection)
  */
 export function useFileChangeHandler() {
   useEffect(() => {
@@ -24,7 +25,8 @@ export function useFileChangeHandler() {
       const customEvent = event as CustomEvent<FileChangeEvent>
       const { path } = customEvent.detail
 
-      const { currentFile, isDirty } = useEditorStore.getState()
+      const { currentFile, isDirty, lastSaveTimestamp } =
+        useEditorStore.getState()
       const { projectPath } = useProjectStore.getState()
 
       // Only care about currently open file
@@ -40,7 +42,20 @@ export function useFileChangeHandler() {
         return
       }
 
-      // File is saved - safe to reload from disk
+      // Ignore events that occur within 3 seconds of our own save
+      // This prevents race conditions where the file watcher emits multiple events
+      // for a single save operation, and some events arrive after isDirty is cleared
+      if (lastSaveTimestamp) {
+        const timeSinceLastSave = Date.now() - lastSaveTimestamp
+        if (timeSinceLastSave < 3000) {
+          void debug(
+            `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
+          )
+          return
+        }
+      }
+
+      // File is saved and not recently modified by us - safe to reload from disk
       void info(`External change detected on ${path} - reloading`)
 
       if (projectPath) {
