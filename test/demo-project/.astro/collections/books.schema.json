@@ -1,0 +1,123 @@
+{
+  "$ref": "#/definitions/books",
+  "definitions": {
+    "books": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Title of the book",
+          "markdownDescription": "Title of the book"
+        },
+        "author": {
+          "type": "string",
+          "description": "Book author name",
+          "markdownDescription": "Book author name"
+        },
+        "isbn": {
+          "type": "string",
+          "description": "ISBN-13 number",
+          "markdownDescription": "ISBN-13 number"
+        },
+        "cover": {
+          "type": "string",
+          "description": "Book cover image",
+          "markdownDescription": "Book cover image"
+        },
+        "publicationYear": {
+          "type": "number",
+          "minimum": 1800,
+          "maximum": 2030
+        },
+        "rating": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Rating out of 5 stars",
+          "markdownDescription": "Rating out of 5 stars"
+        },
+        "dateRead": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "integer",
+              "format": "unix-time"
+            }
+          ],
+          "description": "Date finished reading",
+          "markdownDescription": "Date finished reading"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Genres or themes",
+          "markdownDescription": "Genres or themes"
+        },
+        "draftBookReview": {
+          "type": "boolean",
+          "default": false
+        },
+        "reviewer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "collection": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "collection"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "collection": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slug",
+                "collection"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "$schema": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "author",
+        "rating"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
