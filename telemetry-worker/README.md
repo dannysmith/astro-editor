@@ -1,36 +1,6 @@
 # Astro Editor Telemetry Worker
 
-Cloudflare Worker for collecting anonymous telemetry from Astro Editor.
-
-**Privacy-focused**: Only collects anonymous UUIDs with minimal metadata (version, event type, platform).
-
-## Quick Start
-
-```bash
-cd telemetry-worker
-pnpm install
-
-# Create database and copy the database_id to wrangler.toml
-pnpm run d1:create
-
-# Run migrations
-pnpm run d1:migrate
-
-# Test locally (in separate terminals)
-pnpm run dev
-pnpm run test:local
-
-# Deploy
-pnpm run deploy
-```
-
-**Configure custom domain**: In Cloudflare dashboard → Workers & Pages → astro-telemetry → Settings → Domains & Routes → Add `updateserver.dny.li`
-
-## Prerequisites
-
-- Cloudflare account (free tier sufficient)
-- `wrangler` installed: `pnpm install -D wrangler`
-- Authenticated: `pnpm wrangler login`
+Cloudflare Worker for collecting anonymous telemetry from Astro Editor. Only collects anonymous UUIDs with minimal metadata (version, event type, platform).
 
 ## Data Format
 
@@ -58,10 +28,16 @@ pnpm run d1:migrate       # Run database migrations
 
 ## Common Queries
 
+### Get all telemetry
+
+```bash
+pnpm wrangler d1 execute astro-telemetry --remote --command " SELECT * FROM telemetry_events WHERE app_id = 'astro-editor' ORDER BY created_at DESC"
+```
+
 ### Total unique users
 
 ```bash
-wrangler d1 execute astro-telemetry --command "
+pnpm wrangler d1 execute astro-telemetry --remote --command "
   SELECT COUNT(DISTINCT uuid) as total_users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -71,7 +47,7 @@ wrangler d1 execute astro-telemetry --command "
 ### Users per version
 
 ```bash
-wrangler d1 execute astro-telemetry --command "
+pnpm wrangler d1 execute astro-telemetry --remote --command "
   SELECT version, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -83,7 +59,7 @@ wrangler d1 execute astro-telemetry --command "
 ### Daily active users (last 30 days)
 
 ```bash
-wrangler d1 execute astro-telemetry --command "
+pnpm wrangler d1 execute astro-telemetry --remote --command "
   SELECT DATE(created_at) as date, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -97,7 +73,7 @@ wrangler d1 execute astro-telemetry --command "
 ### New users this week
 
 ```bash
-wrangler d1 execute astro-telemetry --command "
+pnpm wrangler d1 execute astro-telemetry --remote --command "
   SELECT COUNT(DISTINCT uuid) as new_users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -112,7 +88,7 @@ wrangler d1 execute astro-telemetry --command "
 ### Export data
 
 ```bash
-wrangler d1 execute astro-telemetry --command "SELECT * FROM telemetry_events" --json > export.json
+pnpm wrangler d1 execute astro-telemetry --remote --command "SELECT * FROM telemetry_events" --json > export.json
 ```
 
 ## Testing Production
@@ -130,61 +106,12 @@ curl -X POST https://updateserver.dny.li/event \
   }'
 ```
 
-Expected: `OK`
-
-Verify:
-
-```bash
-wrangler d1 execute astro-telemetry --command "SELECT * FROM telemetry_events ORDER BY created_at DESC LIMIT 1"
-```
-
-## Cost Analysis
-
-**Free tier limits:**
-- Workers: 100k requests/day
-- D1: 5GB storage, 5M reads/day, 100k writes/day
-
-**Expected usage (~100 users):**
-- Requests: ~100/day
-- D1 writes: ~100/day
-- Storage: ~1MB/year
-
-**Total cost: $0**
-
-## Troubleshooting
-
-### Database not found
-
-Ensure you've:
-1. Created database: `pnpm run d1:create`
-2. Updated `wrangler.toml` with correct `database_id`
-3. Run migrations: `pnpm run d1:migrate`
-
-### Custom domain not working
-
-1. Verify `dny.li` is in your Cloudflare account
-2. Wait 2-3 minutes for DNS propagation
-3. Check logs: `pnpm run tail`
-
-### No data in queries
-
-1. Check logs: `pnpm run tail`
-2. Verify app is sending events
-3. Test with curl
-
-## Monitoring
-
-Set up alerts in Cloudflare dashboard → Notifications for:
-- Worker errors
-- High error rate
-- D1 issues
-
 ## Maintenance
 
 ### Cleanup old data
 
 ```bash
-wrangler d1 execute astro-telemetry --command "
+wrangler d1 execute astro-telemetry --remote --command "
   DELETE FROM telemetry_events
   WHERE created_at < datetime('now', '-1 year')
 "
@@ -193,7 +120,7 @@ wrangler d1 execute astro-telemetry --command "
 ### Backup
 
 ```bash
-wrangler d1 execute astro-telemetry --command "SELECT * FROM telemetry_events" --json > backup-$(date +%Y%m%d).json
+wrangler d1 execute astro-telemetry --remote --command "SELECT * FROM telemetry_events" --json > backup-$(date +%Y%m%d).json
 ```
 
 ## Documentation
