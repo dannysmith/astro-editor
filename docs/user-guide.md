@@ -63,20 +63,6 @@ The paths to the _Assets_, _Content_, and _MDX Components_ directories (relative
 
 For security reasons, Astro Editor cannot open projects located in certain system directories. If you attempt to open a project in one of these locations, you'll see an error message asking you to choose a different location.
 
-**Restricted directories:**
-
-- `/System/` - macOS system files
-- `/usr/` - Unix system resources
-- `/etc/` - System configuration files
-- `/bin/` and `/sbin/` - System binaries
-- `/Library/Frameworks/` and `/Library/Extensions/` - System frameworks
-- `~/Library/Keychains/` - Keychain data
-- `~/.ssh/` - SSH keys and configuration
-- `~/.aws/` - AWS credentials
-- `~/.docker/` - Docker configuration
-
-These restrictions help protect sensitive system files while still allowing you to open Astro projects stored in typical development locations like `~/Documents/`, `~/Desktop/`, `~/Projects/`, or anywhere else outside the restricted areas.
-
 ### Quick Start
 
 Getting started with Astro Editor takes just a few steps. The application is designed to work with existing Astro projects that use content collections.
@@ -188,18 +174,18 @@ If JSON schema files aren't found, Astro Editor falls back to parsing your Zod s
 
 Astro Editor converts schema definitions into appropriate form controls. The mapping works as follows:
 
-| Zod Schema Type           | Form Control      | Behavior                                      |
-| ------------------------- | ----------------- | --------------------------------------------- |
-| `z.string()`              | Single-line input | Standard text input                           |
-| `z.string().optional()`   | Single-line input | Empty field allowed, no validation            |
-| `z.enum(['a', 'b', 'c'])` | Dropdown select   | Shows all enum options                        |
-| `z.boolean()`             | Toggle switch     | True/false with visual switch                 |
-| `z.date()`                | Date picker       | Native date selection widget                  |
-| `z.number()`              | Number input      | Numeric validation and steppers               |
-| `z.array(z.string())`     | Tag input         | Add/remove tags with keyboard                 |
-| `z.reference('authors')`  | Dropdown select   | Select from another collection (see below)    |
-| `image()`                 | Image picker      | File picker with preview (see below)          |
-| `z.object({ ... })`       | Grouped fields    | Nested fields in a fieldset (see below)       |
+| Zod Schema Type           | Form Control      | Behavior                                   |
+| ------------------------- | ----------------- | ------------------------------------------ |
+| `z.string()`              | Single-line input | Standard text input                        |
+| `z.string().optional()`   | Single-line input | Empty field allowed, no validation         |
+| `z.enum(['a', 'b', 'c'])` | Dropdown select   | Shows all enum options                     |
+| `z.boolean()`             | Toggle switch     | True/false with visual switch              |
+| `z.date()`                | Date picker       | Native date selection widget               |
+| `z.number()`              | Number input      | Numeric validation and steppers            |
+| `z.array(z.string())`     | Tag input         | Add/remove tags with keyboard              |
+| `z.reference('authors')`  | Dropdown select   | Select from another collection (see below) |
+| `image()`                 | Image picker      | File picker with preview (see below)       |
+| `z.object({ ... })`       | Grouped fields    | Nested fields in a fieldset (see below)    |
 
 ### Field Descriptions and Constraints
 
