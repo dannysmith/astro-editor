@@ -204,10 +204,13 @@
           "Cross-collection references",
           "MDX component insertion (Astro, React, Vue, Svelte)",
           "Smart image fields with live previews",
+          "Image preview on hover",
+          "Customizable heading colors",
           "Focus and typewriter modes",
           "Command palette",
           "Auto-save and crash recovery",
-          "Subfolder support"
+          "Subfolder support with breadcrumb navigation",
+          "Three-tier configuration system"
         ]
       }
     </script>
@@ -336,6 +339,9 @@
                 </div>
               </a>
             </div>
+            <p class="mt-4 text-sm text-white/60">
+              Or install via Homebrew: <code class="px-2 py-1 rounded bg-white/10 text-white/90 font-mono text-xs">brew install --cask astro-editor</code>
+            </p>
           </div>
         </div>
       </section>
@@ -494,7 +500,7 @@
                 <p class="text-lg text-white/70 mb-4">
                   Inspired by iA Writer's clean aesthetics. Custom syntax
                   highlighting makes your markdown beautiful without
-                  overwhelming your content.
+                  overwhelming your content. Customize heading colors to match your style.
                 </p>
                 <p class="text-white/60">
                   Light and dark themes with thoughtful typography designed for
@@ -519,16 +525,40 @@
                   Smart image fields
                 </h3>
                 <p class="text-lg text-white/70 mb-4">
-                  Image fields with live previews and drag-and-drop support. Images are automatically copied to your assets directory with web-safe names.
+                  Image fields with live previews and drag-and-drop support. Images are automatically copied to your assets directory with web-safe names using relative paths by default for portable content.
                 </p>
                 <p class="text-white/60">
-                  Edit paths manually or clear images with a click. Works with Astro's image() helper for type-safe frontmatter.
+                  Edit paths manually or clear images with a click. Configure absolute paths per project or collection when needed. Works with Astro's image() helper for type-safe frontmatter.
                 </p>
               </div>
               <div class="glass rounded-2xl p-3 lg:order-1">
                 <img
                   src="./image-field-in-sidebar.png"
                   alt="Image field in frontmatter sidebar showing preview and path editing"
+                  class="w-full rounded-xl"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Image Preview on Hover -->
+            <div class="grid gap-8 lg:grid-cols-2 items-center">
+              <div>
+                <h3 class="text-2xl font-semibold mb-4">
+                  Image preview on hover
+                </h3>
+                <p class="text-lg text-white/70 mb-4">
+                  Hold Option/Alt and hover over any image path or URL in your markdown to see an instant preview in the bottom right corner.
+                </p>
+                <p class="text-white/60">
+                  Works with remote images (URLs), absolute paths relative to your project root, and relative paths. Perfect for quickly checking your images without leaving the editor.
+                </p>
+              </div>
+              <div class="glass rounded-2xl p-3">
+                <img
+                  src="./image-preview-hover.png"
+                  alt="Image preview appearing when hovering over an image path in the editor"
                   class="w-full rounded-xl"
                   loading="lazy"
                   decoding="async"
@@ -597,7 +627,7 @@
               </div>
               <h3 class="text-lg font-semibold">Smart image handling</h3>
               <p class="mt-2 text-sm text-white/70">
-                Image fields with live previews. Drag images to automatically copy, rename, and link them. Hover over any image path with Option to preview it instantly.
+                Image fields with live previews. Drag images to automatically copy, rename, and link them with relative paths for portability. Hover over any image path with Option to preview it instantly.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
@@ -699,8 +729,89 @@
               </div>
               <h3 class="text-lg font-semibold">Auto-save & crash recovery</h3>
               <p class="mt-2 text-sm text-white/70">
-                Saves every 2 seconds while you write. Full crash recovery means
-                you never lose work, even if the app quits unexpectedly.
+                Automatically saves as you write with configurable delay, plus backup saves every 10 seconds during flow state. Full crash recovery means you never lose work, even if the app quits unexpectedly.
+              </p>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div
+                class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M9 5l7 7-7 7"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold">Navigate deep hierarchies</h3>
+              <p class="mt-2 text-sm text-white/70">
+                Full support for nested subdirectories with breadcrumb navigation. Files and folders sorted intelligently, with draft filtering across all levels.
+              </p>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div
+                class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 2v6m0 0l2-2m-2 2l-2-2M2 12h6m0 0l-2-2m2 2l-2 2m8-2h6m0 0l-2-2m2 2l-2 2m-8 2v6m0 0l2-2m-2 2l-2-2"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold">Adapt to any project structure</h3>
+              <p class="mt-2 text-sm text-white/70">
+                Three-tier preferences system lets you override paths and field mappings globally, per project, or per collection. Works with unusual Astro setups without compromise.
+              </p>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div
+                class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold">Image preview on hover</h3>
+              <p class="mt-2 text-sm text-white/70">
+                Hold Option/Alt and hover over any image path or URL in the editor for an instant preview. Works with remote images, absolute paths, and relative paths.
               </p>
             </div>
           </div>

@@ -103,7 +103,12 @@ The editor window shows the entire contents of your markdown or MDX files with t
 
 ### Auto-Save
 
-Astro Editor automatically saves your work while you're editing (configurable in preferences, default is 2 seconds). You'll see a brief "Saved" notification in the status bar when auto-save occurs. You can also manually save at any time using `Cmd+S`.
+Astro Editor automatically saves your work with two complementary mechanisms:
+
+1. **Pause-based save**: Automatically saves your changes after you stop typing (configurable in preferences, default is 2 seconds)
+2. **Flow-state backup**: An additional save occurs every 10 seconds while you're actively typing, ensuring content is written to disk during extended writing sessions
+
+You'll see a brief "Saved" notification in the status bar when auto-save occurs. You can also manually save at any time using `Cmd+S`.
 
 ### Image Preview on Hover
 
@@ -257,7 +262,7 @@ When you have an image field, you'll see:
 - **Current image preview**: A small thumbnail of the current image (if one is set)
 - **Current path**: The path to the image file, displayed as text
 - **File picker button**: Click to browse and select an image, or drag and drop an image directly onto the button
-- **Edit button**: Switch to manual text input if you need to type or paste a path directly
+- **Edit button**: Click to switch to a text input field where you can manually type or paste a path directly
 - **Clear button**: Remove the current image
 
 **How image copying works:**
@@ -266,13 +271,19 @@ When you select or drag an image into an image field, Astro Editor:
 
 1. Copies the image to your collection's configured assets directory
 2. Renames it following the same pattern as the current file (YYYY-MM-DD-name.ext)
-3. Updates the frontmatter with the path to the copied image
+3. Updates the frontmatter with a **relative path** to the copied image (default behavior)
 4. Shows a preview immediately
+
+**Path configuration:**
+
+- **Default behavior**: Images use relative paths (e.g., `./image.png`), making your content more portable
+- **Override option**: Configure absolute paths (relative to project root) on a per-project or per-collection basis in preferences
+- This applies to both image fields in frontmatter and images dragged into the editor
 
 **Special cases:**
 
-- If the image is already inside your Astro project's directory structure, it's not copied - Astro Editor just uses the absolute path as-is
-- Manual path editing allows you to reference images that are already in place
+- If the image is already inside your Astro project's directory structure, it's not copied - Astro Editor uses the path as-is
+- Manual path editing (via the edit button) allows you to reference images that are already in place
 - Image paths are validated - you'll see an error if the path doesn't exist or is outside your project
 
 **Known limitation**: Image fields nested inside object fields (like `metadata.image: image()`) currently show as text fields. This is a known issue that will be fixed in a future release.
@@ -508,6 +519,8 @@ Access global preferences through `Cmd+,` or the application menu. These setting
 
 **Theme**: Choose between light mode, dark mode, or system theme (follows macOS setting).
 
+**Heading Colors**: Customize the color of markdown headings in the editor. Separate color pickers for dark theme and light theme allow you to personalize your writing environment while maintaining good contrast in both modes.
+
 **IDE Command**: Configure the command used for "Open in IDE" functionality. Common values:
 
 - `code` for Visual Studio Code
@@ -570,6 +583,12 @@ You can configure settings for individual collections, allowing different collec
 
 - **Default File Type for New Files**: Override the project/global default for newly created files in this collection. Useful when one collection uses MDX while others use Markdown.
   - Example: Blog collection uses `.mdx` for interactive components, docs collection uses `.md` for simple content
+
+**Image Path Strategy** (per collection):
+
+- **Use Relative Paths for Images**: By default, images dragged into the editor or added to image fields use relative paths (e.g., `./image.png`), making content more portable. Disable this option to use absolute paths (relative to project root, e.g., `/src/assets/image.png`) instead.
+  - Can be configured at project level (applies to all collections) or per collection (overrides project setting)
+  - Useful when different collections have different portability requirements
 
 **Frontmatter Field Mappings** (per collection):
 

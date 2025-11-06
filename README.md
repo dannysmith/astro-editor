@@ -12,15 +12,16 @@ https://github.com/user-attachments/assets/89b87f98-88c0-4845-a020-284201464b86
 
 - Clean markdown/MDX editor with syntax highlighting. Frontmatter and imports are hidden while editing, shown in a dedicated sidebar.
 - Focus mode (highlights current sentence), typewriter mode (cursor stays centered), and copyedit mode (highlights parts of speech).
+- Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.
-- Auto-save every 2 seconds with crash recovery.
+- Smart auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing. Crash recovery included.
 
 **Frontmatter & Schema Integration**
 
 - Generates editing forms from your Astro collection schemas with proper validation.
 - Supports all Zod types: strings, numbers, dates, booleans, enums, arrays, nested objects, references, and image fields.
-- Image fields provide drag-and-drop with automatic copying to your assets directory.
+- Image fields provide drag-and-drop with automatic copying to your assets directory using relative paths by default (configurable per project/collection).
 - Field constraints (min/max, character limits) enforced in the UI.
 
 **MDX Components**
