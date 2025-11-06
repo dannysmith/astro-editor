@@ -1,5 +1,8 @@
 packages:
   - .
+  - test/*
+
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - esbuild
+  - sharp
