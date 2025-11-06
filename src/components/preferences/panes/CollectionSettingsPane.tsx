@@ -375,7 +375,9 @@ export const CollectionSettingsPane: React.FC = () => {
                       <Field>
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <FieldLabel>Use Absolute Paths for Images</FieldLabel>
+                            <FieldLabel>
+                              Use Absolute Paths for Images
+                            </FieldLabel>
                             <FieldDescription>
                               Override to use absolute paths from project root
                               (e.g.,{' '}
@@ -395,7 +397,10 @@ export const CollectionSettingsPane: React.FC = () => {
                                 ?.useAbsoluteAssetPaths ?? false
                             }
                             onCheckedChange={checked =>
-                              handleAbsolutePathsChange(collection.name, checked)
+                              handleAbsolutePathsChange(
+                                collection.name,
+                                checked
+                              )
                             }
                           />
                         </div>

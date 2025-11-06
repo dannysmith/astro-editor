@@ -1814,7 +1814,7 @@ Regular markdown content here."#;
         // Check file was actually copied (strip leading / for path construction)
         let dest_path = project_dir
             .path()
-            .join(&relative_path.trim_start_matches('/'));
+            .join(relative_path.trim_start_matches('/'));
         assert!(dest_path.exists());
 
         let content = fs::read(&dest_path).unwrap();
@@ -1869,7 +1869,7 @@ Regular markdown content here."#;
         assert!(existing_file.exists());
         let new_file = project_dir
             .path()
-            .join(&relative_path.trim_start_matches('/'));
+            .join(relative_path.trim_start_matches('/'));
         assert!(new_file.exists());
     }
 
@@ -1914,7 +1914,7 @@ Regular markdown content here."#;
         let relative_path = result.unwrap();
         let dest_path = project_dir
             .path()
-            .join(&relative_path.trim_start_matches('/'));
+            .join(relative_path.trim_start_matches('/'));
         assert!(dest_path.exists());
     }
 
