@@ -1,0 +1,20 @@
+[
+  {
+    "id": "danny-smith",
+    "name": "Danny Smith",
+    "email": "danny@example.com",
+    "bio": "Software engineer and writer"
+  },
+  {
+    "id": "jane-doe",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "bio": "Technical writer and documentation specialist"
+  },
+  {
+    "id": "john-developer",
+    "name": "John Developer",
+    "email": "john@example.com",
+    "bio": "Full-stack developer with a passion for clean code"
+  }
+]

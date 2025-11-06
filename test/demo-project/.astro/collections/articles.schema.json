@@ -1,0 +1,174 @@
+{
+  "$ref": "#/definitions/articles",
+  "definitions": {
+    "articles": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100,
+          "description": "This is the title of the article",
+          "markdownDescription": "This is the title of the article"
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "draft": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "A brief description of the article",
+          "markdownDescription": "A brief description of the article"
+        },
+        "pubDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "integer",
+              "format": "unix-time"
+            }
+          ]
+        },
+        "updatedDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "integer",
+              "format": "unix-time"
+            }
+          ]
+        },
+        "cover": {
+          "type": "string"
+        },
+        "coverAlt": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "medium",
+            "external"
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "collection": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "collection"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "collection": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slug",
+                "collection"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "relatedArticles": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "collection": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "collection"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "collection": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "collection"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxItems": 3
+        },
+        "$schema": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "pubDate"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

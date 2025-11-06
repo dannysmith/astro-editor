@@ -1,0 +1,74 @@
+---
+import { YouTube, Tweet, Vimeo } from 'astro-embed';
+import BookmarkCard from './BookmarkCard.astro';
+import Loom from './Loom.astro';
+
+export interface Props {
+  url: string;
+  className?: string;
+}
+
+const { url, className = '' } = Astro.props;
+
+function getYouTubeId(url: string) {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  return match ? match[1] : null;
+}
+
+function getTweetId(url: string) {
+  const match = url.match(/twitter\.com\/[\w]+\/status\/([0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getVimeoId(url: string) {
+  const match = url.match(/vimeo\.com\/([0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getLoomId(url: string) {
+  const match = url.match(/loom\.com\/(?:share|embed)\/([a-f0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getGistId(url: string) {
+  // Match both anonymous gists (gist.github.com/id) and user gists (gist.github.com/username/id)
+  const match = url.match(/gist\.github\.com\/(?:([\w-]+)\/)?([a-zA-Z0-9]+)/);
+  return match ? (match[1] ? `${match[1]}/${match[2]}` : match[2]) : null;
+}
+
+type EmbedType =
+  | { type: 'youtube'; id: string }
+  | { type: 'tweet'; id: string }
+  | { type: 'vimeo'; id: string }
+  | { type: 'loom'; id: string }
+  | { type: 'gist'; id: string }
+  | { type: 'bookmark'; url: string };
+
+function resolveEmbedType(url: string): EmbedType {
+  const youtubeId = getYouTubeId(url);
+  if (youtubeId) return { type: 'youtube', id: youtubeId };
+
+  const tweetId = getTweetId(url);
+  if (tweetId) return { type: 'tweet', id: tweetId };
+
+  const vimeoId = getVimeoId(url);
+  if (vimeoId) return { type: 'vimeo', id: vimeoId };
+
+  const loomId = getLoomId(url);
+  if (loomId) return { type: 'loom', id: loomId };
+
+  const gistId = getGistId(url);
+  if (gistId) return { type: 'gist', id: gistId };
+
+  return { type: 'bookmark', url };
+}
+
+const embed = resolveEmbedType(url);
+---
+
+{embed.type === 'youtube' && <YouTube id={embed.id} />}
+{embed.type === 'tweet' && <Tweet id={embed.id} />}
+{embed.type === 'vimeo' && <Vimeo id={embed.id} />}
+{embed.type === 'loom' && <Loom id={embed.id} />}
+{embed.type === 'gist' && <script src={`https://gist.github.com/${embed.id}.js`} />}
+{embed.type === 'bookmark' && <BookmarkCard url={embed.url} className={className} />}

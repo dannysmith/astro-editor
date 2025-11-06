@@ -1,0 +1,220 @@
+---
+title: Understanding Async/Await in JavaScript
+description: A practical guide to asynchronous JavaScript with real-world examples
+pubDate: 2024-10-10
+updatedDate: 2024-10-12
+tags: [javascript, programming, web-development, tutorial]
+cover: ./javascript-cover.jpg
+coverAlt: JavaScript code on a computer screen
+draft: false
+author: jane-doe
+---
+
+import { Callout } from '@/components/mdx'
+
+# Understanding Async/Await in JavaScript
+
+If you've ever been confused by promises, callbacks, or asynchronous JavaScript, you're not alone. The `async/await` syntax makes asynchronous code much easier to read and write—once you understand how it works.
+
+## What Problem Does Async/Await Solve?
+
+JavaScript is **single-threaded**, meaning it can only do one thing at a time. But web applications need to do things that take time: fetching data from APIs, reading files, waiting for user input.
+
+Without async/await, we'd be stuck with callback hell[^1]:
+
+```javascript
+fetchUser(userId, (user) => {
+  fetchPosts(user.id, (posts) => {
+    fetchComments(posts[0].id, (comments) => {
+      // Finally do something with the comments
+      console.log(comments);
+    });
+  });
+});
+```
+
+That's hard to read and harder to maintain. Async/await makes this code *linear* and *readable*.
+
+<Callout type="info">
+**Key concept:** `async/await` is syntactic sugar over Promises. Under the hood, it's still using Promises, but with cleaner syntax.
+</Callout>
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+## Basic Syntax
+
+Here's the fundamental pattern:
+
+```javascript
+async function fetchData() {
+  const response = await fetch('https://api.example.com/data');
+  const data = await response.json();
+  return data;
+}
+```
+
+Two key parts:
+
+1. **`async`** keyword before the function declaration
+2. **`await`** keyword before asynchronous operations
+
+### Rules to Remember:
+
+- You can only use `await` inside an `async` function
+- `async` functions always return a Promise
+- `await` pauses execution until the Promise resolves
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore.
+
+## Real-World Example
+
+Let's fetch user data from an API and display it:
+
+```javascript
+async function getUserProfile(userId) {
+  try {
+    // Fetch user data
+    const userResponse = await fetch(`https://api.example.com/users/${userId}`);
+    const user = await userResponse.json();
+
+    // Fetch user's posts
+    const postsResponse = await fetch(`https://api.example.com/users/${userId}/posts`);
+    const posts = await postsResponse.json();
+
+    // Return combined data
+    return {
+      ...user,
+      posts: posts,
+      postCount: posts.length
+    };
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    throw error;
+  }
+}
+
+// Usage
+getUserProfile(123).then(profile => {
+  console.log(profile);
+});
+```
+
+<Callout type="warning">
+Always wrap `await` calls in `try/catch` blocks to handle errors properly. Unhandled promise rejections can crash your application.
+</Callout>
+
+## Error Handling
+
+Error handling with async/await uses familiar `try/catch` syntax:
+
+```javascript
+async function fetchWithErrorHandling() {
+  try {
+    const response = await fetch('https://api.example.com/data');
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Fetch failed:', error);
+    return null; // Return fallback value
+  }
+}
+```
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+## Parallel vs Sequential
+
+One common mistake: running operations sequentially when they could run in parallel.
+
+#### Sequential (slower):
+
+```javascript
+async function fetchSequential() {
+  const users = await fetchUsers();      // Wait for this
+  const posts = await fetchPosts();      // Then wait for this
+  const comments = await fetchComments(); // Then wait for this
+  return { users, posts, comments };
+}
+```
+
+#### Parallel (faster):
+
+```javascript
+async function fetchParallel() {
+  const [users, posts, comments] = await Promise.all([
+    fetchUsers(),
+    fetchPosts(),
+    fetchComments()
+  ]);
+  return { users, posts, comments };
+}
+```
+
+Use `Promise.all()` when operations don't depend on each other!
+
+## Common Patterns
+
+### Pattern 1: Async IIFE
+
+Sometimes you need to use `await` at the top level:
+
+```javascript
+(async () => {
+  const data = await fetchData();
+  console.log(data);
+})();
+```
+
+### Pattern 2: Async Array Methods
+
+Be careful with array methods—`forEach` doesn't work with async:
+
+```javascript
+// ❌ Wrong - won't wait for async operations
+userIds.forEach(async (id) => {
+  const user = await fetchUser(id);
+  console.log(user);
+});
+
+// ✅ Correct - sequential processing
+for (const id of userIds) {
+  const user = await fetchUser(id);
+  console.log(user);
+}
+
+// ✅ Correct - parallel processing
+const users = await Promise.all(
+  userIds.map(id => fetchUser(id))
+);
+```
+
+<Callout type="success">
+For parallel operations on arrays, use `Promise.all()` with `map()`. For sequential operations, use `for...of` loops.
+</Callout>
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Excepteur sint occaecat cupidatat non proident.
+
+## Summary
+
+Async/await makes asynchronous JavaScript:
+
+- **Readable** - looks like synchronous code
+- **Maintainable** - easier to debug and modify
+- **Composable** - easy to combine async operations
+
+### Quick Reference:
+
+- Add `async` before function declaration
+- Use `await` before Promise-returning operations
+- Wrap in `try/catch` for error handling
+- Use `Promise.all()` for parallel operations
+- Use `for...of` for sequential array processing
+
+Once you understand these patterns, async/await becomes second nature. Practice with real API calls and you'll never want to go back to callback hell.
+
+[^1]: "Callback hell" refers to deeply nested callbacks that are hard to read and maintain. It's also called the "pyramid of doom" due to the indentation pattern.

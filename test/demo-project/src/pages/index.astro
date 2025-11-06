@@ -1,0 +1,126 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+
+const articles = await getCollection('articles');
+const notes = await getCollection('notes');
+const books = await getCollection('books');
+
+// Sort articles by date
+const sortedArticles = articles.sort((a, b) =>
+  b.data.pubDate.getTime() - a.data.pubDate.getTime()
+);
+
+// Sort books by rating
+const sortedBooks = books.sort((a, b) => b.data.rating - a.data.rating);
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Demo Project - Astro Editor</title>
+		<style>
+			body {
+				font-family: system-ui, -apple-system, sans-serif;
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 2rem;
+				line-height: 1.6;
+			}
+			h1 {
+				color: #333;
+				border-bottom: 3px solid #4a5568;
+				padding-bottom: 0.5rem;
+			}
+			h2 {
+				color: #4a5568;
+				margin-top: 2rem;
+				border-bottom: 1px solid #e2e8f0;
+				padding-bottom: 0.25rem;
+			}
+			ul {
+				list-style: none;
+				padding: 0;
+			}
+			li {
+				padding: 0.5rem 0;
+				border-bottom: 1px solid #f7fafc;
+			}
+			.badge {
+				display: inline-block;
+				padding: 0.25rem 0.5rem;
+				border-radius: 0.25rem;
+				font-size: 0.875rem;
+				font-weight: 500;
+				margin-left: 0.5rem;
+			}
+			.draft { background: #fed7d7; color: #9b2c2c; }
+			.mdx { background: #bee3f8; color: #2c5282; }
+			.rating { color: #d69e2e; }
+			.meta { color: #718096; font-size: 0.875rem; }
+		</style>
+	</head>
+	<body>
+		<h1>Astro Editor Demo Project</h1>
+		<p>This project contains sample content to demonstrate Astro Editor features.</p>
+
+		<h2>📚 Book Reviews ({books.length})</h2>
+		<ul>
+			{sortedBooks.map(book => (
+				<li>
+					<strong>{book.data.title}</strong> by {book.data.author}
+					<span class="badge rating">{'⭐'.repeat(book.data.rating)}</span>
+					{book.data.draftBookReview && <span class="badge draft">Draft</span>}
+					{book.id.endsWith('.mdx') && <span class="badge mdx">MDX</span>}
+					<br />
+					<span class="meta">
+						{book.data.publicationYear && `Published: ${book.data.publicationYear}`}
+						{book.data.dateRead && ` • Read: ${book.data.dateRead.toDateString()}`}
+						{book.data.isbn && ` • ISBN: ${book.data.isbn}`}
+					</span>
+				</li>
+			))}
+		</ul>
+
+		<h2>📝 Articles ({articles.length})</h2>
+		<ul>
+			{sortedArticles.map(async (article) => {
+				const author = article.data.author ? await getEntry(article.data.author) : null;
+				const subfolder = article.id.includes('/') ? article.id.split('/')[0] + '/' : '';
+				return (
+					<li>
+						<strong>{article.data.title}</strong>
+						{article.data.draft && <span class="badge draft">Draft</span>}
+						{article.id.endsWith('.mdx') && <span class="badge mdx">MDX</span>}
+						<br />
+						<span class="meta">
+							{subfolder && `📁 ${subfolder} • `}
+							{article.data.pubDate.toDateString()}
+							{author && ` • ${author.data.name}`}
+							{article.data.tags && ` • ${article.data.tags.join(', ')}`}
+						</span>
+					</li>
+				);
+			})}
+		</ul>
+
+		<h2>📌 Notes ({notes.length})</h2>
+		<ul>
+			{notes.map(note => (
+				<li>
+					<strong>{note.data.title}</strong>
+					{note.data.draft && <span class="badge draft">Draft</span>}
+					{note.id.endsWith('.mdx') && <span class="badge mdx">MDX</span>}
+					<br />
+					<span class="meta">
+						{note.data.pubDate.toDateString()}
+						{note.data.sourceURL && ` • Link: ${note.data.sourceURL}`}
+						{note.data.metadata?.category && ` • ${note.data.metadata.category}`}
+					</span>
+				</li>
+			))}
+		</ul>
+	</body>
+</html>

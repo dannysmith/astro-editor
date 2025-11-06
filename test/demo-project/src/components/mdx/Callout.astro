@@ -1,0 +1,99 @@
+---
+export interface Props {
+  title?: string;
+  type?: 'default' | 'red' | 'blue' | 'green' | 'orange' | 'yellow' | 'purple';
+  icon?: string;
+}
+
+const { title, icon, type = 'default' } = Astro.props;
+---
+
+<aside aria-label={title} class="callout" data-callout-color={type}>
+  {
+    icon && (
+      <div class="icon-wrapper">
+        <div class="icon">{icon}</div>
+      </div>
+    )
+  }
+  <div class="content-wrapper">
+    {title && <h3 class="title">{title}</h3>}
+    <div class="prose content">
+      <slot />
+    </div>
+  </div>
+</aside>
+
+<style>
+  .callout {
+    display: flex;
+    background: var(--color-callout-default-bg);
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+  }
+
+  .icon-wrapper {
+    flex-shrink: 0;
+    margin-right: 0.75rem;
+  }
+
+  .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    line-height: 1;
+    margin-top: 0.35rem;
+  }
+
+  .content-wrapper {
+    flex-grow: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .content {
+    margin: 0;
+  }
+
+  .content > :first-child {
+    margin-top: 0;
+  }
+
+  .content > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* Color variants using semantic color system */
+  [data-callout-color='red'] {
+    background: var(--color-callout-red-bg);
+  }
+
+  [data-callout-color='blue'] {
+    background: var(--color-callout-blue-bg);
+  }
+
+  [data-callout-color='green'] {
+    background: var(--color-callout-green-bg);
+  }
+
+  [data-callout-color='orange'] {
+    background: var(--color-callout-orange-bg);
+  }
+
+  [data-callout-color='yellow'] {
+    background: var(--color-callout-yellow-bg);
+  }
+
+  [data-callout-color='purple'] {
+    background: var(--color-callout-purple-bg);
+  }
+</style>
