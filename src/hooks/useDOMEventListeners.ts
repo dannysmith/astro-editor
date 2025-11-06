@@ -21,11 +21,8 @@ const PARTS_OF_SPEECH: PartOfSpeech[] = [
 /**
  * Handles custom DOM events for UI interactions.
  *
- * This has reduced scope after Task 1:
- * - No more 'create-new-file' (now uses direct hook call)
- * - No more 'get-schema-field-order' (eliminated by Task 1)
- *
- * Remaining events:
+ * Events handled:
+ * - 'create-new-file': Creates a new file (still needed for keyboard shortcuts)
  * - 'open-preferences': Opens the preferences dialog
  * - Parts-of-speech highlight toggles for copyedit mode
  * - 'toggle-all-highlights': Toggles all highlights on/off

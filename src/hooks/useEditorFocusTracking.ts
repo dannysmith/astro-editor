@@ -9,33 +9,46 @@ import { useEditorStore } from '../store/editorStore'
  * 1. A file is currently open
  * 2. The editor has focus
  *
- * This hook listens to the 'editor-focus-changed' event and updates the
- * native menu state accordingly.
+ * This hook listens to the 'editor-focus-changed' event and currentFile changes,
+ * updating the native menu state accordingly.
  */
 export function useEditorFocusTracking() {
-  // Update format menu state based on editor focus and file presence
-  useEffect(() => {
-    const { currentFile } = useEditorStore.getState()
-    const shouldEnableMenu = Boolean(currentFile && window.isEditorFocused)
-    void invoke('update_format_menu_state', { enabled: shouldEnableMenu })
-  })
-
   // Initialize focus state and listen for changes
   useEffect(() => {
     window.isEditorFocused = false
     void invoke('update_format_menu_state', { enabled: false })
 
-    const handleEditorFocusChange = () => {
+    const updateMenuState = () => {
       const { currentFile } = useEditorStore.getState()
       const shouldEnableMenu = Boolean(currentFile && window.isEditorFocused)
       void invoke('update_format_menu_state', { enabled: shouldEnableMenu })
     }
 
+    // Listen to focus changes
+    const handleEditorFocusChange = () => {
+      updateMenuState()
+    }
+
     window.addEventListener('editor-focus-changed', handleEditorFocusChange)
-    return () =>
+
+    // Subscribe to currentFile changes in the store
+    let previousFile = useEditorStore.getState().currentFile
+
+    const unsubscribe = useEditorStore.subscribe(state => {
+      const newFile = state.currentFile
+      // Only update if currentFile actually changed
+      if (newFile !== previousFile) {
+        previousFile = newFile
+        updateMenuState()
+      }
+    })
+
+    return () => {
       window.removeEventListener(
         'editor-focus-changed',
         handleEditorFocusChange
       )
+      unsubscribe()
+    }
   }, [])
 }

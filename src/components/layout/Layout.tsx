@@ -55,6 +55,9 @@ export const Layout: React.FC = () => {
   // Register auto-save callback with store
   useEffect(() => {
     useEditorStore.getState().setAutoSaveCallback(saveFile)
+    return () => {
+      useEditorStore.getState().setAutoSaveCallback(null)
+    }
   }, [saveFile])
 
   // Compose all decomposed hooks
