@@ -1,10 +1,4 @@
 import { create } from 'zustand'
-import { invoke } from '@tauri-apps/api/core'
-import { info, error as logError } from '@tauri-apps/plugin-log'
-import { queryClient } from '../lib/query-client'
-import { saveRecoveryData, saveCrashReport } from '../lib/recovery'
-import { toast } from '../lib/toast'
-import { queryKeys } from '../lib/query-keys'
 import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
@@ -25,6 +19,7 @@ interface EditorState {
   isDirty: boolean // True if changes need to be saved
   autoSaveTimeoutId: number | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
+  autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
 
   // Actions
   openFile: (file: FileEntry) => void
@@ -34,6 +29,9 @@ interface EditorState {
   updateFrontmatter: (frontmatter: Record<string, unknown>) => void
   updateFrontmatterField: (key: string, value: unknown) => void
   scheduleAutoSave: () => void
+  setAutoSaveCallback: (
+    callback: ((showToast?: boolean) => Promise<void>) | null
+  ) => void
   updateCurrentFileAfterRename: (newPath: string) => void
 }
 
@@ -47,6 +45,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   autoSaveTimeoutId: null,
   lastSaveTimestamp: null,
+  autoSaveCallback: null,
 
   // Actions
   openFile: (file: FileEntry) => {
@@ -102,131 +101,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   saveFile: async (showToast = true) => {
-    const { currentFile, editorContent, frontmatter, imports } = get()
-    if (!currentFile) return
-
-    // Get project path using direct store access pattern (architecture guide: performance patterns)
-    const { projectPath } = useProjectStore.getState()
-
-    if (!projectPath) {
-      throw new Error('No project path available')
-    }
-
-    try {
-      // Get schema field order from collections data via custom event
-      let schemaFieldOrder: string[] | null = null
-      if (currentFile) {
-        try {
-          // Dispatch event to get schema field order for current collection
-          const schemaEvent = new CustomEvent('get-schema-field-order', {
-            detail: { collectionName: currentFile.collection },
-          })
-
-          // Set up a listener for the response
-          let responseReceived = false
-          const handleSchemaResponse = (event: Event) => {
-            const customEvent = event as CustomEvent<{
-              fieldOrder: string[] | null
-            }>
-            schemaFieldOrder = customEvent.detail.fieldOrder || null
-            responseReceived = true
-          }
-
-          window.addEventListener(
-            'schema-field-order-response',
-            handleSchemaResponse
-          )
-          window.dispatchEvent(schemaEvent)
-
-          // Wait a short time for the response (synchronous-style with events)
-          await new Promise(resolve => {
-            const checkResponse = () => {
-              if (responseReceived) {
-                resolve(null)
-              } else {
-                setTimeout(checkResponse, 10)
-              }
-            }
-            checkResponse()
-          })
-
-          window.removeEventListener(
-            'schema-field-order-response',
-            handleSchemaResponse
-          )
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn('Could not get schema field order:', error)
-        }
-      }
-
-      await invoke('save_markdown_content', {
-        filePath: currentFile.path,
-        frontmatter,
-        content: editorContent,
-        imports,
-        schemaFieldOrder,
-        projectRoot: projectPath,
-      })
-
-      // Clear auto-save timeout since we just saved
-      const { autoSaveTimeoutId } = get()
-      if (autoSaveTimeoutId) {
-        clearTimeout(autoSaveTimeoutId)
-        set({ autoSaveTimeoutId: null })
-      }
-
-      set({ isDirty: false, lastSaveTimestamp: Date.now() })
-
-      // Invalidate queries to update UI
-      if (projectPath) {
-        // Invalidate file content query to refresh cached content
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
-        })
-
-        // Invalidate directory scans for this collection (root + all subdirectories)
-        if (currentFile.collection) {
-          void queryClient.invalidateQueries({
-            queryKey: [
-              ...queryKeys.all,
-              projectPath,
-              currentFile.collection,
-              'directory',
-            ],
-          })
-        }
-      }
-
-      // Show success toast only if requested
-      if (showToast) {
-        toast.success('File saved successfully')
-      }
-    } catch (error) {
-      toast.error('Save failed', {
-        description: `Could not save file: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Recovery data has been saved.`,
-      })
-      await logError(`Save failed: ${String(error)}`)
-      await info('Attempting to save recovery data...')
-
-      // Save recovery data
-      const state = get()
-      await saveRecoveryData({
-        currentFile: state.currentFile,
-        projectPath,
-        editorContent: state.editorContent,
-        frontmatter: state.frontmatter,
-      })
-
-      // Save crash report
-      await saveCrashReport(error as Error, {
-        currentFile: state.currentFile?.path,
-        projectPath: projectPath || undefined,
-        action: 'save',
-      })
-
-      // Keep the file marked as dirty since save failed
-      set({ isDirty: true })
+    // Delegate to hook-provided callback (Hybrid Action Hooks pattern)
+    // This allows stores to trigger saves without having direct access to React hooks
+    const { autoSaveCallback } = get()
+    if (autoSaveCallback) {
+      await autoSaveCallback(showToast)
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('saveFile called but no callback registered')
     }
   },
 
@@ -270,7 +152,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (store.isDirty && store.lastSaveTimestamp) {
       const timeSinceLastSave = now - store.lastSaveTimestamp
       if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
-        void store.saveFile(false)
+        const { autoSaveCallback } = store
+        if (autoSaveCallback) {
+          void autoSaveCallback(false) // Auto-save without toast
+        }
         return
       }
     }
@@ -286,10 +171,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Schedule new auto-save (without toast)
     const timeoutId = setTimeout(() => {
-      void store.saveFile(false)
+      const { autoSaveCallback } = get()
+      if (autoSaveCallback) {
+        void autoSaveCallback(false) // Auto-save without toast
+      }
     }, autoSaveDelay * 1000) // Convert from seconds to milliseconds
 
     set({ autoSaveTimeoutId: timeoutId })
+  },
+
+  setAutoSaveCallback: (
+    callback: ((showToast?: boolean) => Promise<void>) | null
+  ) => {
+    set({ autoSaveCallback: callback })
   },
 
   updateCurrentFileAfterRename: (newPath: string) => {

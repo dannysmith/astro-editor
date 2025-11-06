@@ -78,8 +78,11 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
   describe('Force Save After Max Delay (Task #1 Fix Validation)', () => {
     it('should trigger force save check during continuous typing', () => {
-      // Spy on the saveFile method
-      const saveFileSpy = vi.spyOn(useEditorStore.getState(), 'saveFile')
+      // Mock the auto-save callback
+      const mockAutoSaveCallback = vi.fn()
+      useEditorStore.setState({
+        autoSaveCallback: mockAutoSaveCallback,
+      })
 
       // Setup: Open a file with save timestamp from 5 seconds ago
       useEditorStore.setState({
@@ -96,9 +99,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       store.setEditorContent('content after 10s')
 
       // Verify: Force save should have been triggered because 10s elapsed
-      expect(saveFileSpy).toHaveBeenCalledWith(false)
-
-      saveFileSpy.mockRestore()
+      expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
     })
 
     it('should schedule debounced save when typing with pauses', () => {
@@ -200,7 +201,11 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
   describe('Max Delay Force Save Logic', () => {
     it('should not force save if less than 10s since last save', () => {
-      const saveFileSpy = vi.spyOn(useEditorStore.getState(), 'saveFile')
+      // Mock the auto-save callback
+      const mockAutoSaveCallback = vi.fn()
+      useEditorStore.setState({
+        autoSaveCallback: mockAutoSaveCallback,
+      })
 
       // Setup: Last save was only 3 seconds ago
       useEditorStore.setState({
@@ -215,13 +220,15 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       store.setEditorContent('content')
 
       // Verify: Force save was NOT triggered
-      expect(saveFileSpy).not.toHaveBeenCalled()
-
-      saveFileSpy.mockRestore()
+      expect(mockAutoSaveCallback).not.toHaveBeenCalled()
     })
 
     it('should force save if more than 10s since last save', () => {
-      const saveFileSpy = vi.spyOn(useEditorStore.getState(), 'saveFile')
+      // Mock the auto-save callback
+      const mockAutoSaveCallback = vi.fn()
+      useEditorStore.setState({
+        autoSaveCallback: mockAutoSaveCallback,
+      })
 
       // Setup: Last save was 11 seconds ago
       useEditorStore.setState({
@@ -236,43 +243,51 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       store.setEditorContent('content')
 
       // Verify: Force save WAS triggered
-      expect(saveFileSpy).toHaveBeenCalledWith(false)
-
-      saveFileSpy.mockRestore()
+      expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
     })
   })
 
   describe('MDX Imports Preservation', () => {
-    let schemaFieldOrderListener: (event: Event) => void
+    let mockSaveCallback: (showToast?: boolean) => Promise<void>
 
     beforeEach(() => {
       // Use real timers for these tests since we don't care about auto-save timing
       vi.useRealTimers()
 
-      // Mock the schema field order event that saveFile waits for
-      schemaFieldOrderListener = (_event: Event) => {
-        // Immediately respond with an empty field order
-        window.dispatchEvent(
-          new CustomEvent('schema-field-order-response', {
-            detail: { fieldOrder: null },
+      // Mock the saveFile callback (Hybrid Action Hooks pattern)
+      mockSaveCallback = vi.fn(async () => {
+        // Simulate successful save
+        const state = useEditorStore.getState()
+        if (state.currentFile) {
+          await globalThis.mockTauri.invoke('save_markdown_content', {
+            filePath: state.currentFile.path,
+            frontmatter: state.frontmatter,
+            content: state.editorContent,
+            imports: state.imports,
+            schemaFieldOrder: null,
+            projectRoot: '/test',
           })
-        )
-      }
-      window.addEventListener(
-        'get-schema-field-order',
-        schemaFieldOrderListener
-      )
+          useEditorStore.setState({
+            isDirty: false,
+            lastSaveTimestamp: Date.now(),
+          })
+        }
+      })
+
+      // Register the mock callback
+      useEditorStore.setState({
+        autoSaveCallback: mockSaveCallback,
+      })
     })
 
     afterEach(() => {
       // Restore fake timers for other tests
       vi.useFakeTimers()
 
-      // Clean up event listeners
-      window.removeEventListener(
-        'get-schema-field-order',
-        schemaFieldOrderListener
-      )
+      // Clear the callback
+      useEditorStore.setState({
+        autoSaveCallback: null,
+      })
     })
 
     it('should preserve imports when updating frontmatter and saving', async () => {

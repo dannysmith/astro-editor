@@ -37,6 +37,8 @@ describe('useEditorHandlers', () => {
     lastSaveTimestamp: number | null
     updateFrontmatter: ReturnType<typeof vi.fn>
     updateCurrentFileAfterRename: ReturnType<typeof vi.fn>
+    autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null
+    setAutoSaveCallback: ReturnType<typeof vi.fn>
   }
 
   beforeEach(() => {
@@ -66,6 +68,8 @@ describe('useEditorHandlers', () => {
       lastSaveTimestamp: null,
       updateFrontmatter: vi.fn(),
       updateCurrentFileAfterRename: vi.fn(),
+      autoSaveCallback: null,
+      setAutoSaveCallback: vi.fn(),
     }
 
     mockGetState.mockReturnValue(mockStoreState)

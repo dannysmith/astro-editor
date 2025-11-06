@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
 import { useProjectStore } from '../../store/projectStore'
@@ -12,9 +12,18 @@ import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
 import { Toaster } from '../ui/sonner'
 import { PreferencesDialog } from '../preferences'
-import { useLayoutEventListeners } from '../../hooks/useLayoutEventListeners'
+import { useProjectInitialization } from '../../hooks/useProjectInitialization'
+import { useRustToastBridge } from '../../hooks/useRustToastBridge'
+import { useEditorFocusTracking } from '../../hooks/useEditorFocusTracking'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
+import { useMenuEvents } from '../../hooks/useMenuEvents'
+import { useDOMEventListeners } from '../../hooks/useDOMEventListeners'
 import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
+import { useEditorActions } from '../../hooks/editor/useEditorActions'
+import { useCreateFile } from '../../hooks/useCreateFile'
+import { useEditorStore } from '../../store/editorStore'
+import { focusEditor } from '../../lib/focus-utils'
 import { LAYOUT_SIZES } from '../../lib/layout-constants'
 import {
   ResizablePanelGroup,
@@ -27,7 +36,37 @@ export const Layout: React.FC = () => {
   const { setTheme } = useTheme()
   const { globalSettings } = useProjectStore()
 
-  const { preferencesOpen, setPreferencesOpen } = useLayoutEventListeners()
+  // Preferences state management
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
+
+  const handleSetPreferencesOpen = useCallback((open: boolean) => {
+    setPreferencesOpen(open)
+    if (!open) {
+      setTimeout(() => {
+        focusEditor()
+      }, 100)
+    }
+  }, [])
+
+  // Get editor actions (Hybrid Action Hooks pattern)
+  const { saveFile } = useEditorActions()
+  const { createNewFile: createNewFileWithQuery } = useCreateFile()
+
+  // Register auto-save callback with store
+  useEffect(() => {
+    useEditorStore.getState().setAutoSaveCallback(saveFile)
+    return () => {
+      useEditorStore.getState().setAutoSaveCallback(null)
+    }
+  }, [saveFile])
+
+  // Compose all decomposed hooks
+  useProjectInitialization()
+  useRustToastBridge()
+  useEditorFocusTracking()
+  useKeyboardShortcuts(handleSetPreferencesOpen)
+  useMenuEvents(createNewFileWithQuery, handleSetPreferencesOpen)
+  useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
 
   // Enable query-based file loading
   useEditorFileContent()
@@ -136,7 +175,7 @@ export const Layout: React.FC = () => {
       <ComponentBuilderDialog />
       <PreferencesDialog
         open={preferencesOpen}
-        onOpenChange={setPreferencesOpen}
+        onOpenChange={handleSetPreferencesOpen}
       />
       <Toaster />
     </div>

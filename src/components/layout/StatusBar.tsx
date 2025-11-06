@@ -5,35 +5,34 @@ import { cn } from '../../lib/utils'
 
 export const StatusBar: React.FC = () => {
   const currentFile = useEditorStore(state => state.currentFile)
-  const editorContent = useEditorStore(state => state.editorContent)
-  const isDirty = useEditorStore(state => state.isDirty)
 
   const {
     sidebarVisible,
     frontmatterPanelVisible,
     distractionFreeBarsHidden,
-    setDistractionFreeBarsHidden,
+    showBars,
   } = useUIStore()
 
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
+  const [isDirty, setIsDirty] = useState(false)
 
+  // Poll for word/char count and isDirty using getState() to avoid subscribing
+  // to editorContent/isDirty which would cause re-renders that interrupt CSS transitions
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const interval = setInterval(() => {
+      const { editorContent, isDirty: currentIsDirty } =
+        useEditorStore.getState()
       const words = editorContent.split(/\s+/).filter(w => w.length > 0).length
       setWordCount(words)
       setCharCount(editorContent.length)
-    }, 300)
+      setIsDirty(currentIsDirty)
+    }, 500)
 
-    return () => clearTimeout(timer)
-  }, [editorContent])
+    return () => clearInterval(interval)
+  }, [])
+
   const bothPanelsHidden = !sidebarVisible && !frontmatterPanelVisible
-
-  const handleMouseEnter = () => {
-    if (distractionFreeBarsHidden) {
-      setDistractionFreeBarsHidden(false)
-    }
-  }
 
   return (
     <div
@@ -46,13 +45,13 @@ export const StatusBar: React.FC = () => {
           bothPanelsHidden &&
           'opacity-0 transition-opacity duration-300'
       )}
-      onMouseEnter={handleMouseEnter}
+      onMouseEnter={showBars}
     >
       <div className="flex items-center">
         {currentFile && (
           <span>
             {currentFile.name}.{currentFile.extension}
-            {isDirty && <span className="text-primary font-bold"> •</span>}
+            {isDirty && <span> •</span>}
           </span>
         )}
       </div>

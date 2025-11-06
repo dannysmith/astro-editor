@@ -443,53 +443,121 @@ const { theme, setTheme } = useUIStore()
 
 ## Integration Patterns Between Layers
 
-### Bridge Pattern: Store → Query Communication
+### Hybrid Action Hooks Pattern (RECOMMENDED)
 
-**Problem**: Zustand stores can't use React hooks, but sometimes need query data.
+**Problem**: Zustand stores can't use React hooks, but user-triggered actions need query data.
 
-**Solution**: Use custom DOM events to bridge from store (no hooks) to components (has hooks).
+**Solution**: Split responsibilities:
+- **User-triggered actions** (save button, keyboard shortcuts) → Live in **hooks** with direct query access
+- **State-triggered actions** (auto-save, dirty tracking) → Live in **stores** with registered callbacks
 
 #### Implementation Example
 
 ```typescript
-// 1. Store action dispatches event (no hooks needed)
-// In editorStore.ts
-createNewFile: async () => {
-  // Can't use useCollectionsQuery here!
-  // Dispatch event to component that has hook access
-  window.dispatchEvent(new CustomEvent('create-new-file'))
+// 1. Hook with direct query access (user-triggered actions)
+// In src/hooks/editor/useEditorActions.ts
+export function useEditorActions() {
+  const queryClient = useQueryClient()
+
+  const saveFile = useCallback(async (showToast = true) => {
+    // Direct access to stores via getState() - no subscription, no re-renders
+    const { currentFile, editorContent, frontmatter, imports } = useEditorStore.getState()
+    const { projectPath } = useProjectStore.getState()
+
+    // Direct synchronous access to query data - NO EVENTS, NO POLLING!
+    const collections = queryClient.getQueryData<Collection[]>(
+      queryKeys.collections(projectPath)
+    )
+    const collection = collections?.find(c => c.name === currentFile.collection)
+    const schema = collection?.complete_schema
+      ? deserializeCompleteSchema(collection.complete_schema)
+      : null
+    const schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
+
+    await invoke('save_markdown_content', {
+      filePath: currentFile.path,
+      frontmatter,
+      content: editorContent,
+      imports,
+      schemaFieldOrder,
+      projectRoot: projectPath,
+    })
+
+    useEditorStore.getState().markAsSaved()
+    if (showToast) toast.success('File saved')
+  }, [queryClient])
+
+  return { saveFile }
 }
 ```
 
 ```typescript
-// 2. Component with hook access listens for event
-// In Layout.tsx
-const queryClient = useQueryClient()
-const { projectPath, selectedCollection } = useProjectStore()
+// 2. Store with state-triggered logic and callback registration
+// In src/store/editorStore.ts
+export const useEditorStore = create<EditorState>((set, get) => ({
+  // State
+  editorContent: '',
+  isDirty: false,
+  autoSaveCallback: null,
 
-const handleCreateNewFile = useCallback(() => {
-  // Component has hook access, can get query data
-  const collections = queryClient.getQueryData(
-    queryKeys.collections(projectPath)
-  )
+  // Register callback from hook
+  setAutoSaveCallback: callback => set({ autoSaveCallback: callback }),
 
-  if (selectedCollection && collections) {
-    const collection = collections.find(c => c.name === selectedCollection)
-    // Use collection data to create file
-  }
-}, [projectPath, selectedCollection])
+  // State mutations trigger auto-save via callback
+  setEditorContent: content => {
+    set({ editorContent: content, isDirty: true })
+    get().scheduleAutoSave() // State-triggered
+  },
 
-useEffect(() => {
-  window.addEventListener('create-new-file', handleCreateNewFile)
-  return () => window.removeEventListener('create-new-file', handleCreateNewFile)
-}, [handleCreateNewFile])
+  // Auto-save scheduling (state logic only, delegates to callback)
+  scheduleAutoSave: () => {
+    const { autoSaveCallback, autoSaveTimeoutId } = get()
+
+    if (autoSaveTimeoutId) {
+      clearTimeout(autoSaveTimeoutId)
+    }
+
+    const timeoutId = setTimeout(() => {
+      if (autoSaveCallback) {
+        void autoSaveCallback() // Calls hook-provided saveFile
+      }
+    }, 2000)
+
+    set({ autoSaveTimeoutId: timeoutId })
+  },
+
+  markAsSaved: () => set({ isDirty: false }),
+}))
+```
+
+```typescript
+// 3. Layout wires them together
+// In src/components/layout/Layout.tsx
+export function Layout() {
+  const { saveFile } = useEditorActions()
+
+  // Register auto-save callback with store (runs once)
+  useEffect(() => {
+    useEditorStore.getState().setAutoSaveCallback(() => saveFile(false))
+  }, [saveFile]) // saveFile is stable (queryClient never changes)
+
+  // Rest of layout...
+}
 ```
 
 **Why This Works**:
-- Store remains pure (no React dependencies)
-- Component orchestrates data flow
-- Type-safe with TypeScript
-- Testable in isolation
+- ✅ **No polling** - Synchronous data access via `queryClient.getQueryData()`
+- ✅ **Type-safe** - Full TypeScript inference through the entire chain
+- ✅ **No race conditions** - Standard React lifecycle, no event timing issues
+- ✅ **Easy to test** - Test hooks and stores independently, integration tests for wiring
+- ✅ **Easy to debug** - Clear call paths, stack traces work, explicit imports
+- ✅ **Follows React patterns** - Hook composition is idiomatic React
+- ✅ **Performance** - Stable callbacks (`queryClient` singleton), no subscriptions via `getState()`
+
+**When to Use**:
+- User-triggered actions that need query data → **Use hooks**
+- State-triggered actions (auto-save, derived updates) → **Use stores with callbacks**
+- Pure state mutations (no external data) → **Use stores directly**
 
 ### Store → Store Communication
 

@@ -344,29 +344,52 @@ export const useSaveFileMutation = () => {
 }
 ```
 
-#### Bridge Pattern for Store/Query Integration
+#### Hybrid Action Hooks Pattern (Standard)
 
-When Zustand store actions need query data:
+When actions need both store state and query data, use the Hybrid Action Hooks pattern:
+
+**Pattern**: User-triggered actions in hooks, state-triggered actions in stores with callbacks.
 
 ```typescript
-// In store (no React hooks available)
-createNewFile: async () => {
-  window.dispatchEvent(new CustomEvent('create-new-file'))
+// 1. Hook (user-triggered actions with direct query access)
+export function useEditorActions() {
+  const queryClient = useQueryClient()
+
+  const saveFile = useCallback(async () => {
+    const { currentFile, editorContent } = useEditorStore.getState() // Store access
+    const collections = queryClient.getQueryData(queryKeys.collections()) // Query access
+    // ... save logic
+  }, [queryClient])
+
+  return { saveFile }
 }
 
-// In component with hook access
-const handleCreateNewFile = useCallback(() => {
-  const collections = queryClient.getQueryData(
-    queryKeys.collections(projectPath)
-  )
-  // Use collections data
-}, [projectPath])
+// 2. Store (state-triggered actions via registered callbacks)
+const useEditorStore = create((set, get) => ({
+  autoSaveCallback: null,
+  setAutoSaveCallback: callback => set({ autoSaveCallback: callback }),
 
+  setEditorContent: content => {
+    set({ editorContent: content, isDirty: true })
+    get().scheduleAutoSave() // State-triggered
+  },
+
+  scheduleAutoSave: () => {
+    const { autoSaveCallback } = get()
+    if (autoSaveCallback) {
+      setTimeout(() => void autoSaveCallback(), 2000)
+    }
+  },
+}))
+
+// 3. Layout (wires them together)
+const { saveFile } = useEditorActions()
 useEffect(() => {
-  window.addEventListener('create-new-file', handleCreateNewFile)
-  return () => window.removeEventListener('create-new-file', handleCreateNewFile)
-}, [handleCreateNewFile])
+  useEditorStore.getState().setAutoSaveCallback(() => saveFile(false))
+}, [saveFile])
 ```
+
+**Benefits**: Synchronous data access (no polling), type-safe, easy to test and debug.
 
 ### Event-Driven Communication
 

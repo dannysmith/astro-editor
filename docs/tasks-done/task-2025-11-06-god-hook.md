@@ -2,7 +2,7 @@
 
 https://github.com/dannysmith/astro-editor/issues/50
 
-**Hook:** `src/hooks/useLayoutEventListeners.ts` (486 lines)
+**Hook:** `src/hooks/useLayoutEventListeners.ts` (451 lines)
 
 ## Context
 
@@ -111,41 +111,70 @@ Decompose the monolithic hook into focused, single-responsibility hooks:
 
 ### Proposed Hook Structure
 
+**NOTE**: Task 1 creates `useEditorActions()` and establishes the decomposed hooks pattern. This structure builds on that foundation.
+
 ```typescript
+// ✅ CREATED BY TASK 1
+// hooks/editor/useEditorActions.ts
+export function useEditorActions() {
+  const queryClient = useQueryClient()
+
+  const saveFile = useCallback(async (showToast = true) => {
+    // Direct access to query data, no events
+  }, [queryClient])
+
+  return { saveFile }
+}
+
+// ✅ ALREADY EXISTS
+// hooks/useCreateFile.ts (260 lines)
+// Already implements Hybrid Action Hooks pattern
+
+// NEW HOOKS TO CREATE IN THIS TASK:
+
 // hooks/useKeyboardShortcuts.ts
 export function useKeyboardShortcuts() {
-  // All useHotkeys calls with shared options
+  const { saveFile } = useEditorActions() // ← Use Task 1's hook
+
   const defaultOpts = {
     preventDefault: true,
     enableOnFormTags: ['input', 'textarea', 'select'],
     enableOnContentEditable: true
   }
 
-  useHotkeys('mod+s', () => {...}, { preventDefault: true })
+  useHotkeys('mod+s', () => {
+    const { currentFile, isDirty } = useEditorStore.getState()
+    if (currentFile && isDirty) {
+      void saveFile() // ← Direct hook call, no event!
+    }
+  }, { preventDefault: true })
+
   useHotkeys('mod+1', () => {...}, defaultOpts)
   // ... etc
 }
 
 // hooks/useMenuEvents.ts
 export function useMenuEvents() {
+  const { saveFile } = useEditorActions() // ← Use Task 1's hook
+
   // All Tauri menu listeners via listen()
-  // Could use map-based approach for format menu events
+  // Format menu events use map-based approach
 }
 
-// hooks/useDOMEventListeners.ts (or split further)
+// hooks/useDOMEventListeners.ts
 export function useDOMEventListeners() {
-  // All window.addEventListener calls
-  // Or split into useHighlightEvents, useFileEvents, etc.
+  // REDUCED SCOPE after Task 1:
+  // - No more 'create-new-file' (becomes direct hook call)
+  // - No more 'get-schema-field-order' (eliminated by Task 1)
+  // Only need:
+  // - 'open-preferences'
+  // - Highlight toggle events (could be further decomposed)
+  // - Focus mode events
 }
 
 // hooks/useEditorFocusTracking.ts
 export function useEditorFocusTracking() {
   // Format menu state management based on editor focus
-}
-
-// hooks/useThemeSync.ts (already suggested in review)
-export function useThemeSync(globalSettings) {
-  // Theme synchronization
 }
 
 // hooks/useProjectInitialization.ts
@@ -160,14 +189,14 @@ export function useRustToastBridge() {
 
 // Layout.tsx - compose the hooks
 function Layout() {
-  useKeyboardShortcuts()
-  useMenuEvents()
-  useDOMEventListeners()
+  useKeyboardShortcuts()      // Uses useEditorActions internally
+  useMenuEvents()             // Uses useEditorActions internally
+  useDOMEventListeners()      // Reduced scope after Task 1
   useEditorFocusTracking()
   useProjectInitialization()
   useRustToastBridge()
 
-  // Preferences state might stay in Layout as it returns values
+  // Preferences state stays in Layout
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   // ... rest of layout
@@ -182,24 +211,60 @@ function Layout() {
 4. **Feature Toggles**: Can disable/enable features by commenting out hooks
 5. **Performance**: Smaller hooks re-run less frequently
 6. **Reduced Duplication**: Easier to extract common patterns in focused contexts
+7. **Consistency with Task 1**: Uses the same Hybrid Action Hooks pattern established by Task 1
 
 ## Implementation Considerations
 
 ### Current State Verification
 
-Before implementing, verify that the issues identified in reviews still apply:
+✅ **Task 1 (Event Bridge Refactor) is COMPLETE** (2025-11-05)
 
-- ✅ Hook is still 486 lines (was 487 in review)
+Before implementing, verified current state:
+
+- ✅ Hook is now 451 lines (reduced from 486 due to cleanup)
 - ✅ Still manages keyboard shortcuts, menu events, and DOM events
 - ✅ Still has the duplication issues mentioned in reviews
-- ⚠️ Check if parts-of-speech highlighting approach has changed
-- ⚠️ Check if event bridge pattern has evolved
+- ✅ Parts-of-speech highlighting unchanged (lines 164-327)
+- ✅ **COMPLETE**: Event bridge pattern eliminated by Task 1
+- ✅ **COMPLETE**: Task 1 created `useEditorActions()` - ready to use
+- ✅ **VERIFIED**: No `get-schema-field-order` polling remains in codebase
+- ✅ **VERIFIED**: FrontmatterPanel uses direct query access
 
 ### Related Work
 
-This task is related to the **Event Bridge Refactor** (see `task-x-event-bridge-refactor.md` and `docs/reviews/event-bridge-refactor-analysis.md`). The Event Bridge refactor proposes replacing DOM custom events with a callback registry pattern. If that refactor happens first, this decomposition will be easier. If this decomposition happens first, it will make the event bridge refactor easier.
+✅ **Task 1 (Event Bridge Refactor) COMPLETED** - Foundation is ready.
 
-**Recommendation:** Consider whether these should be tackled together or in sequence.
+**Task 1 has created:**
+
+| Created | Status | Available For Use |
+|---------|--------|-------------------|
+| `useEditorActions()` with `saveFile` | ✅ Complete | `src/hooks/editor/useEditorActions.ts` |
+| Direct query access pattern | ✅ Complete | Eliminates polling completely |
+| Hybrid Action Hooks documentation | ✅ Complete | Pattern documented in completed task |
+
+**Current State (post-Task 1):**
+- ✅ DOM event polling eliminated entirely
+- ✅ Keyboard shortcuts ready to use `useEditorActions()` directly
+- ✅ Store uses callback delegation pattern correctly
+- ⚠️ **DECISION NEEDED**: Should keyboard shortcuts call hooks directly or use store delegation?
+
+### Pattern Decision: Direct Hook Calls vs Store Delegation
+
+**Current pattern** (lines 69-71 of useLayoutEventListeners):
+```typescript
+const { saveFile } = useEditorStore.getState()
+void saveFile() // Calls store's delegated saveFile
+```
+
+**Alternative pattern** (Task 2 proposal):
+```typescript
+const { saveFile } = useEditorActions() // Direct hook
+void saveFile() // Direct hook call
+```
+
+**Both work correctly.** Question: Should we switch for consistency?
+
+**Recommendation**: Use direct hook calls in keyboard shortcuts for explicit clarity and consistency with Task 1's pattern.
 
 ### Duplication to Address
 
@@ -235,3 +300,17 @@ While decomposing, address these duplication issues identified in reviews:
 - [ ] Duplication issues are addressed
 - [ ] Each new hook could theoretically be tested in isolation
 - [ ] Code is easier to navigate and understand
+- [ ] **Uses Task 1's `useEditorActions()` consistently** (no mixed patterns)
+- [ ] **Reduced scope after Task 1**: Fewer DOM event listeners to manage
+
+## Implementation Order
+
+✅ **Task 1 (Event Bridge Refactor) COMPLETE** - Ready to proceed.
+
+**Recommended decomposition order:**
+
+1. **Easy wins first** (Project init, toast bridge, focus tracking) - establish pattern
+2. **Keyboard shortcuts** (With pattern decision on direct hook calls)
+3. **Tauri menu events** (Format menu map refactor)
+4. **DOM event listeners** (Eliminate `create-new-file` event, keep necessary UI events)
+5. **Testing & verification** (All functionality works, no regressions)

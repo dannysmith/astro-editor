@@ -18,6 +18,7 @@ interface UIState {
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   handleTypingInEditor: () => void
+  showBars: () => void
   toggleDraftFilter: (collectionName: string) => void
 }
 
@@ -59,8 +60,13 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ distractionFreeBarsHidden: hidden })
   },
 
+  showBars: () => {
+    set({ distractionFreeBarsHidden: false })
+  },
+
   handleTypingInEditor: () => {
     const { sidebarVisible, frontmatterPanelVisible } = get()
+    // Immediately hide bars if both panels are hidden
     if (!sidebarVisible && !frontmatterPanelVisible) {
       set({ distractionFreeBarsHidden: true })
     }
