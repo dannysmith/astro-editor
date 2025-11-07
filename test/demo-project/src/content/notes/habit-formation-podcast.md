@@ -1,10 +1,13 @@
 ---
 title: Great Podcast on Habit Formation
 sourceURL: https://example.com/podcast/habits-episode-42
-pubDate: 2024-10-20
-tags: [habits, productivity, podcast]
 draft: false
 description: Episode about the psychology of building sustainable habits
+pubDate: 2024-10-20
+tags:
+- habits
+- productivity
+- podcast
 metadata:
   category: Learning Resources
   priority: 4

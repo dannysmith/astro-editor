@@ -1,7 +1,10 @@
 ---
 title: Quote from 'Atomic Habits'
+draft: true
 pubDate: 2024-09-30
-tags: [quotes, habits]
+tags:
+- quotes
+- habits
 ---
 
 # Quote from Atomic Habits

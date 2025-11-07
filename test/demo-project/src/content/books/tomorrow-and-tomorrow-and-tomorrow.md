@@ -1,9 +1,13 @@
 ---
 title: Tomorrow, and Tomorrow, and Tomorrow
 author: Gabrielle Zevin
-rating: 4
+cover: ../../assets/books/2025-11-07-tomorrow-and-tomorrow-and-tomorrow-6.jpg
 publicationYear: 2022
-tags: [fiction, gaming, friendship]
+rating: 4
+tags:
+- fiction
+- gaming
+- friendship
 ---
 
 # Tomorrow, and Tomorrow, and Tomorrow
