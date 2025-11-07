@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
 import { useProjectStore } from '../../store/projectStore'
@@ -32,11 +33,22 @@ import {
 } from '../ui/resizable'
 
 export const Layout: React.FC = () => {
+  // eslint-disable-next-line no-console
   console.log('[PERF] Layout RENDER')
 
-  const { sidebarVisible, frontmatterPanelVisible } = useUIStore()
+  // UI state - use selector syntax for consistency
+  const sidebarVisible = useUIStore(state => state.sidebarVisible)
+  const frontmatterPanelVisible = useUIStore(
+    state => state.frontmatterPanelVisible
+  )
+
   const { setTheme } = useTheme()
-  const { globalSettings } = useProjectStore()
+
+  // Extract specific nested values for useEffect dependencies
+  const theme = useProjectStore(state => state.globalSettings?.general?.theme)
+  const headingColor = useProjectStore(
+    useShallow(state => state.globalSettings?.appearance?.headingColor) // headingColor is an object with .light and .dark
+  )
 
   // Preferences state management
   const [preferencesOpen, setPreferencesOpen] = useState(false)
@@ -78,33 +90,30 @@ export const Layout: React.FC = () => {
 
   // Sync stored theme preference with theme provider on app load
   useEffect(() => {
-    const storedTheme = globalSettings?.general?.theme
-    if (storedTheme) {
-      setTheme(storedTheme)
+    if (theme) {
+      setTheme(theme)
     }
-  }, [globalSettings?.general?.theme, setTheme])
+  }, [theme, setTheme])
 
   // Update heading color CSS variables when appearance settings change
   useEffect(() => {
     const root = window.document.documentElement
     const isDark = root.classList.contains('dark')
-    const headingColors = globalSettings?.appearance?.headingColor
 
-    if (headingColors) {
-      const color = isDark ? headingColors.dark : headingColors.light
+    if (headingColor) {
+      const color = isDark ? headingColor.dark : headingColor.light
       root.style.setProperty('--editor-color-heading', color)
     }
-  }, [globalSettings?.appearance?.headingColor])
+  }, [headingColor])
 
   // Also update heading color when theme changes (system theme changes)
   useEffect(() => {
     const root = window.document.documentElement
-    const headingColors = globalSettings?.appearance?.headingColor
 
-    if (headingColors) {
+    if (headingColor) {
       const observer = new MutationObserver(() => {
         const isDark = root.classList.contains('dark')
-        const color = isDark ? headingColors.dark : headingColors.light
+        const color = isDark ? headingColor.dark : headingColor.light
         root.style.setProperty('--editor-color-heading', color)
       })
 
@@ -112,7 +121,7 @@ export const Layout: React.FC = () => {
 
       return () => observer.disconnect()
     }
-  }, [globalSettings?.appearance?.headingColor])
+  }, [headingColor])
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">

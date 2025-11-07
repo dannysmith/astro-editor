@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -26,23 +27,29 @@ import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFilesByPublishedDate } from '../../lib/files/sorting'
 
 export const LeftSidebar: React.FC = () => {
+  // eslint-disable-next-line no-console
   console.log('[PERF] LeftSidebar RENDER')
 
-  // Only subscribe to currentFile for selection highlighting
-  const currentFile = useEditorStore(state => state.currentFile)
+  // Object subscription needs shallow
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
 
-  // Subscribe to project state values that trigger visual updates
-  const {
-    selectedCollection,
-    currentSubdirectory,
-    projectPath,
-    currentProjectSettings,
-  } = useProjectStore()
+  // Primitive subscriptions - selector syntax for consistency
+  const selectedCollection = useProjectStore(state => state.selectedCollection)
+  const currentSubdirectory = useProjectStore(
+    state => state.currentSubdirectory
+  )
+  const projectPath = useProjectStore(state => state.projectPath)
+  const currentProjectSettings = useProjectStore(
+    useShallow(state => state.currentProjectSettings)
+  )
 
   // Get draft filter state from UI store (ephemeral, per-collection)
+  // Object property access with shallow
   const showDraftsOnly =
     useUIStore(
-      state => state.draftFilterByCollection[selectedCollection || '']
+      useShallow(
+        state => state.draftFilterByCollection[selectedCollection || '']
+      )
     ) || false
 
   // Use getState() pattern for callbacks to avoid render cascades

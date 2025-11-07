@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorStore } from '../store/editorStore'
 import type { FileEntry } from '@/types'
@@ -49,11 +50,14 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
 }
 
 export const useCreateFile = () => {
+  // eslint-disable-next-line no-console
   console.log('[PERF] useCreateFile HOOK EXECUTE')
 
-  // PERFORMANCE FIX: Only subscribe to data needed for TanStack Query
-  // Get other values via getState() to avoid frequent re-renders
-  const { projectPath, currentProjectSettings } = useProjectStore()
+  // PERFORMANCE FIX: Use selector syntax to avoid entire store subscriptions
+  const projectPath = useProjectStore(state => state.projectPath)
+  const currentProjectSettings = useProjectStore(
+    useShallow(state => state.currentProjectSettings)
+  )
 
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
@@ -61,6 +65,12 @@ export const useCreateFile = () => {
   )
 
   const createFileMutation = useCreateFileMutation()
+
+  // Use ref to avoid recreating callback on every query update
+  const collectionsRef = useRef(collections)
+  useEffect(() => {
+    collectionsRef.current = collections
+  }, [collections])
 
   // React ref for concurrency guard (doesn't trigger re-renders)
   const isCreatingRef = useRef(false)
@@ -73,6 +83,9 @@ export const useCreateFile = () => {
     isCreatingRef.current = true
 
     try {
+      // Access fresh collections via ref
+      const collections = collectionsRef.current
+
       // Get current values from store state
       const { selectedCollection, currentSubdirectory } =
         useProjectStore.getState()
@@ -256,7 +269,7 @@ export const useCreateFile = () => {
     } finally {
       isCreatingRef.current = false
     }
-  }, [collections, createFileMutation]) // PERFORMANCE FIX: Only include stable dependencies, get other values via getState()
+  }, [createFileMutation]) // PERFORMANCE FIX: Use ref for collections, stable dependency array
 
   return { createNewFile }
 }

@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
 
 export const StatusBar: React.FC = () => {
+  // eslint-disable-next-line no-console
   console.log('[PERF] StatusBar RENDER')
 
-  const currentFile = useEditorStore(state => state.currentFile)
+  // Object subscription needs shallow
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
 
-  const {
-    sidebarVisible,
-    frontmatterPanelVisible,
-    distractionFreeBarsHidden,
-    showBars,
-  } = useUIStore()
+  // Primitives/functions - selector syntax for consistency
+  const sidebarVisible = useUIStore(state => state.sidebarVisible)
+  const frontmatterPanelVisible = useUIStore(
+    state => state.frontmatterPanelVisible
+  )
+  const distractionFreeBarsHidden = useUIStore(
+    state => state.distractionFreeBarsHidden
+  )
+  const showBars = useUIStore(state => state.showBars)
 
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)

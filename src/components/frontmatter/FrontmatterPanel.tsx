@@ -1,4 +1,5 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
@@ -9,10 +10,16 @@ import { getEffectiveSettings } from '../../lib/project-registry/effective-setti
 import type { Collection } from '@/types'
 
 export const FrontmatterPanel: React.FC = () => {
+  // eslint-disable-next-line no-console
   console.log('[PERF] FrontmatterPanel RENDER')
 
-  const { currentFile, frontmatter } = useEditorStore()
-  const { projectPath, currentProjectSettings } = useProjectStore()
+  // Object subscriptions need shallow to prevent re-renders on reference changes
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
+  const frontmatter = useEditorStore(useShallow(state => state.frontmatter))
+  const projectPath = useProjectStore(state => state.projectPath)
+  const currentProjectSettings = useProjectStore(
+    useShallow(state => state.currentProjectSettings)
+  )
 
   // Use TanStack Query to fetch collections
   const { data: collections = [] } = useCollectionsQuery(

@@ -2,6 +2,7 @@
  * Hook for getting effective project settings with collection-scoped overrides
  */
 
+import { useShallow } from 'zustand/react/shallow'
 import { useProjectStore } from '../../store/projectStore'
 import { getEffectiveSettings } from '../../lib/project-registry/effective-settings'
 
@@ -12,6 +13,9 @@ import { getEffectiveSettings } from '../../lib/project-registry/effective-setti
  * @returns Effective settings with three-tier fallback (collection → project → defaults)
  */
 export const useEffectiveSettings = (collectionName?: string) => {
-  const { currentProjectSettings } = useProjectStore()
+  // Object subscription needs shallow
+  const currentProjectSettings = useProjectStore(
+    useShallow(state => state.currentProjectSettings)
+  )
   return getEffectiveSettings(currentProjectSettings, collectionName)
 }

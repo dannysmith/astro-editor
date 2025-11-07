@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
@@ -10,20 +11,33 @@ import { CommandContext } from '../../lib/commands/types'
  * This provides all the information and actions commands need
  */
 export function useCommandContext(): CommandContext {
+  // eslint-disable-next-line no-console
   console.log('[PERF] useCommandContext HOOK EXECUTE')
 
-  const { currentFile, isDirty, closeCurrentFile } = useEditorStore()
+  // Object subscriptions need shallow
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
+  const globalSettings = useProjectStore(
+    useShallow(state => state.globalSettings)
+  )
+  const currentProjectSettings = useProjectStore(
+    useShallow(state => state.currentProjectSettings)
+  )
 
-  const {
-    selectedCollection,
-    projectPath,
-    globalSettings,
-    currentProjectSettings,
-    setSelectedCollection,
-    setProject,
-  } = useProjectStore()
+  // Primitive subscriptions
+  const isDirty = useEditorStore(state => state.isDirty)
+  const closeCurrentFile = useEditorStore(state => state.closeCurrentFile)
 
-  const { toggleSidebar, toggleFrontmatterPanel } = useUIStore()
+  const selectedCollection = useProjectStore(state => state.selectedCollection)
+  const projectPath = useProjectStore(state => state.projectPath)
+  const setSelectedCollection = useProjectStore(
+    state => state.setSelectedCollection
+  )
+  const setProject = useProjectStore(state => state.setProject)
+
+  const toggleSidebar = useUIStore(state => state.toggleSidebar)
+  const toggleFrontmatterPanel = useUIStore(
+    state => state.toggleFrontmatterPanel
+  )
 
   // Get editor actions (Hybrid Action Hooks pattern)
   const { saveFile } = useEditorActions()
