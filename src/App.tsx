@@ -5,18 +5,13 @@ import { relaunch } from '@tauri-apps/plugin-process'
 import { info, error } from '@tauri-apps/plugin-log'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
-import { getVersion } from '@tauri-apps/api/app'
 import { useEffect } from 'react'
-import { sendTelemetryEvent } from './lib/telemetry'
 import './App.css'
 
 function App() {
   useEffect(() => {
     const checkForUpdates = async (): Promise<boolean> => {
       try {
-        const version = await getVersion()
-        sendTelemetryEvent(version).catch(() => {})
-
         const update = await check()
         if (update) {
           await info(`Update available: ${update.version}`)
