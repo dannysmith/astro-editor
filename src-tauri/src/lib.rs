@@ -86,7 +86,7 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Ok(app_data_dir) = app_handle.path().app_local_data_dir() {
                     if let Err(e) = telemetry::send_telemetry_event(app_data_dir, version).await {
-                        log::warn!("Telemetry event failed (this is expected and safe to ignore): {}", e);
+                        log::warn!("Telemetry event failed (this is expected and safe to ignore): {e}");
                     }
                 }
             });
