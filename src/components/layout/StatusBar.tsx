@@ -4,6 +4,8 @@ import { useUIStore } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
 
 export const StatusBar: React.FC = () => {
+  console.log('[PERF] StatusBar RENDER')
+
   const currentFile = useEditorStore(state => state.currentFile)
 
   const {

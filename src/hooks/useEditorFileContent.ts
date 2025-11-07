@@ -12,6 +12,8 @@ import { useFileContentQuery } from './queries/useFileContentQuery'
  * 3. Respect isDirty state (don't overwrite user's edits)
  */
 export function useEditorFileContent() {
+  console.log('[PERF] useEditorFileContent HOOK EXECUTE')
+
   const { currentFile } = useEditorStore()
   const { projectPath } = useProjectStore()
 

@@ -49,6 +49,8 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
 }
 
 export const useCreateFile = () => {
+  console.log('[PERF] useCreateFile HOOK EXECUTE')
+
   // PERFORMANCE FIX: Only subscribe to data needed for TanStack Query
   // Get other values via getState() to avoid frequent re-renders
   const { projectPath, currentProjectSettings } = useProjectStore()

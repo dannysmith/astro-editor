@@ -10,6 +10,8 @@ import { CommandContext } from '../../lib/commands/types'
  * This provides all the information and actions commands need
  */
 export function useCommandContext(): CommandContext {
+  console.log('[PERF] useCommandContext HOOK EXECUTE')
+
   const { currentFile, isDirty, closeCurrentFile } = useEditorStore()
 
   const {

@@ -9,6 +9,8 @@ import { getEffectiveSettings } from '../../lib/project-registry/effective-setti
 import type { Collection } from '@/types'
 
 export const FrontmatterPanel: React.FC = () => {
+  console.log('[PERF] FrontmatterPanel RENDER')
+
   const { currentFile, frontmatter } = useEditorStore()
   const { projectPath, currentProjectSettings } = useProjectStore()
 

@@ -18,6 +18,8 @@ import {
 import { cn } from '../../lib/utils'
 
 export const UnifiedTitleBar: React.FC = () => {
+  console.log('[PERF] UnifiedTitleBar RENDER')
+
   const { saveFile, isDirty, currentFile } = useEditorStore()
   const [isWindowFocused, setIsWindowFocused] = useState(true)
 

@@ -26,6 +26,8 @@ import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFilesByPublishedDate } from '../../lib/files/sorting'
 
 export const LeftSidebar: React.FC = () => {
+  console.log('[PERF] LeftSidebar RENDER')
+
   // Only subscribe to currentFile for selection highlighting
   const currentFile = useEditorStore(state => state.currentFile)
 

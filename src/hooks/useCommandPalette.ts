@@ -9,6 +9,8 @@ import { focusEditorDelayed } from '../lib/focus-utils'
  * Hook for managing command palette state and commands
  */
 export function useCommandPalette(searchValue = '') {
+  console.log('[PERF] useCommandPalette HOOK EXECUTE')
+
   const [open, setOpen] = useState(false)
   const context = useCommandContext()
   const { setDistractionFreeBarsHidden } = useUIStore()

@@ -32,6 +32,8 @@ import {
 } from '../ui/resizable'
 
 export const Layout: React.FC = () => {
+  console.log('[PERF] Layout RENDER')
+
   const { sidebarVisible, frontmatterPanelVisible } = useUIStore()
   const { setTheme } = useTheme()
   const { globalSettings } = useProjectStore()
