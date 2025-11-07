@@ -17,7 +17,7 @@ interface EditorState {
 
   // Status state
   isDirty: boolean // True if changes need to be saved
-  autoSaveTimeoutId: number | null // Auto-save timeout ID
+  autoSaveTimeoutId: ReturnType<typeof setTimeout> | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
 

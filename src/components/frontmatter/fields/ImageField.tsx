@@ -46,6 +46,9 @@ export const ImageField: React.FC<ImageFieldProps> = ({
     const { currentFile } = useEditorStore.getState()
     const collection = currentFile?.collection
 
+    // Capture the starting file ID to detect file switches during async operation
+    const startingFileId = currentFile?.id
+
     try {
       // Validate context
       if (!projectPath || !currentFile || !collection) {
@@ -69,6 +72,19 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         currentFilePath: currentFile.path,
         useRelativePaths,
       })
+
+      // CRITICAL: Check if the user switched files during the async operation
+      // If they did, DO NOT update frontmatter (would corrupt the new file)
+      const { currentFile: currentFileNow } = useEditorStore.getState()
+      if (currentFileNow?.id !== startingFileId) {
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[ImageField] File switched during image processing - aborting frontmatter update to prevent data corruption'
+          )
+        }
+        return
+      }
 
       // Update frontmatter with path
       updateFrontmatterField(name, result.relativePath)

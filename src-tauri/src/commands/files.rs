@@ -242,27 +242,54 @@ pub async fn copy_file_to_assets_with_override(
         base_name.push_str(extension);
     }
 
-    // Handle conflicts by appending -1, -2, etc.
+    // Atomically find available filename and copy file
+    // This prevents TOCTOU race conditions where multiple simultaneous calls
+    // could all check existence and decide to use the same filename
     let mut final_path = assets_dir.join(&base_name);
     let mut counter = 1;
+    const MAX_ATTEMPTS: u32 = 100;
 
-    while final_path.exists() {
-        let name_with_counter = if extension.is_empty() {
-            format!("{date_prefix}-{kebab_name}-{counter}")
-        } else {
-            format!("{date_prefix}-{kebab_name}-{counter}.{extension}")
-        };
-        final_path = assets_dir.join(name_with_counter);
-        counter += 1;
-    }
+    let validated_final_path = loop {
+        // Validate the candidate path is within project bounds
+        let final_path_str = final_path.to_string_lossy().to_string();
+        let validated_path = validate_project_path(&final_path_str, &project_path)?;
 
-    // Validate the final destination is within project bounds
-    let final_path_str = final_path.to_string_lossy().to_string();
-    let validated_final_path = validate_project_path(&final_path_str, &project_path)?;
+        // Try to create the destination file atomically using create_new()
+        // This fails if the file already exists, preventing race conditions
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&validated_path)
+        {
+            Ok(_) => {
+                // File created successfully, now copy the content
+                // Note: We created an empty file, so we need to copy over it
+                fs::copy(&source_path, &validated_path)
+                    .map_err(|e| format!("Failed to copy file content: {e}"))?;
+                break validated_path;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                // File exists, try with counter suffix
+                if counter > MAX_ATTEMPTS {
+                    return Err(format!(
+                        "Could not find available filename after {MAX_ATTEMPTS} attempts"
+                    ));
+                }
 
-    // Copy the file
-    fs::copy(&source_path, &validated_final_path)
-        .map_err(|e| format!("Failed to copy file: {e}"))?;
+                let name_with_counter = if extension.is_empty() {
+                    format!("{date_prefix}-{kebab_name}-{counter}")
+                } else {
+                    format!("{date_prefix}-{kebab_name}-{counter}.{extension}")
+                };
+                final_path = assets_dir.join(name_with_counter);
+                counter += 1; // Increment for next iteration
+            }
+            Err(e) => {
+                // Other error (permissions, disk full, etc.)
+                return Err(format!("Failed to create file: {e}"));
+            }
+        }
+    };
 
     // Get the path relative to project root
     let project_relative_path = validated_final_path

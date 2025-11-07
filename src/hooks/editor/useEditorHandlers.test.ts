@@ -33,7 +33,7 @@ describe('useEditorHandlers', () => {
     closeCurrentFile: ReturnType<typeof vi.fn>
     updateFrontmatterField: ReturnType<typeof vi.fn>
     scheduleAutoSave: ReturnType<typeof vi.fn>
-    autoSaveTimeoutId: number | null
+    autoSaveTimeoutId: ReturnType<typeof setTimeout> | null
     lastSaveTimestamp: number | null
     updateFrontmatter: ReturnType<typeof vi.fn>
     updateCurrentFileAfterRename: ReturnType<typeof vi.fn>

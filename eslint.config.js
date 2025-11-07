@@ -11,6 +11,7 @@ export default tseslint.config(
       'dist/**',
       'src-tauri/target/**',
       'test/dummy-astro-project/**',
+      'test/demo-project/**',
       'test/starlight-minimal/**',
       'temp-dummy-astro-project/**',
       'src-tauri/src/test_fixtures/**',

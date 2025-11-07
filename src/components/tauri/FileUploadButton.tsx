@@ -5,6 +5,14 @@ import { Button } from '../ui/button'
 import type { VariantProps } from 'class-variance-authority'
 import { buttonVariants } from '../ui/button'
 
+// GLOBAL deduplication tracker for drag-drop events
+// This prevents Tauri's duplicate event firing from affecting ANY FileUploadButton
+const globalDragDropTracker = {
+  lastFile: null as string | null,
+  lastTime: 0,
+  THRESHOLD_MS: 100,
+}
+
 interface FileDropPayload {
   paths?: string[]
   position?: {
@@ -141,8 +149,12 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
         const unlisten = await listen<FileDropPayload>(
           'tauri://drag-drop',
           event => {
-            // Prevent concurrent operations
-            if (disabledRef.current || isProcessingRef.current) return
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[FileUploadButton] Drag-drop event received, disabled: ${disabledRef.current}, isProcessing: ${isProcessingRef.current}`
+              )
+            }
 
             const payload = event.payload
             const paths = payload.paths || []
@@ -165,6 +177,45 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
             // Take the first file
             const filePath = paths[0]
             if (!filePath) return
+
+            // CRITICAL: GLOBAL deduplication - Tauri fires drag-drop events multiple times
+            // This must happen BEFORE any other checks to catch all duplicates
+            const now = Date.now()
+            if (
+              globalDragDropTracker.lastFile === filePath &&
+              now - globalDragDropTracker.lastTime <
+                globalDragDropTracker.THRESHOLD_MS
+            ) {
+              if (import.meta.env.DEV) {
+                // eslint-disable-next-line no-console
+                console.log(
+                  `[FileUploadButton] BLOCKED duplicate drag-drop event for: ${filePath} (${now - globalDragDropTracker.lastTime}ms ago)`
+                )
+              }
+              return
+            }
+
+            // Update GLOBAL deduplication tracking IMMEDIATELY
+            globalDragDropTracker.lastFile = filePath
+            globalDragDropTracker.lastTime = now
+
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[FileUploadButton] Processing file drop: ${filePath}`
+              )
+            }
+
+            // Prevent concurrent operations on THIS button
+            if (disabledRef.current || isProcessingRef.current) {
+              if (import.meta.env.DEV) {
+                // eslint-disable-next-line no-console
+                console.log(
+                  '[FileUploadButton] Ignoring event - button disabled or processing'
+                )
+              }
+              return
+            }
 
             // Validate file extension
             if (!isExtensionAccepted(filePath, accept)) {
