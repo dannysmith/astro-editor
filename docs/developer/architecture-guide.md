@@ -526,6 +526,16 @@ export type { FileUploadButtonProps } from './FileUploadButton'
 - [ ] Pure UI in components
 - [ ] Tests alongside implementation
 
+## External API Requests
+
+**When adding `fetch()` calls to external domains from frontend code**, add the domain to the `connect-src` CSP directive in `src-tauri/tauri.conf.json`:
+
+```json
+"csp": "... connect-src 'self' https://api.example.com; ..."
+```
+
+Use origin only (not full paths). Rust backend requests are not affected by CSP.
+
 ## Module Dependencies (Simplified)
 
 ```
