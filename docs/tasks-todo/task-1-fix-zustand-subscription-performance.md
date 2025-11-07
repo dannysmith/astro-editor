@@ -2,14 +2,15 @@
 
 ## Overview
 
-The application has excessive re-renders caused by subscribing to object/array references from Zustand stores without shallow equality checks. Components are re-rendering on every keystroke because object references change even when their values haven't, triggering unnecessary React reconciliation.
+The application has excessive re-renders caused by two critical Zustand subscription issues: (1) destructuring from stores which subscribes to the entire store, and (2) object/array subscriptions without shallow equality checks. Components are re-rendering on every keystroke from both unrelated store updates AND object reference changes, triggering unnecessary React reconciliation.
 
 **Impact**: Every keystroke triggers 15-20 component re-renders, wasting CPU cycles and creating potential lag on slower devices.
 
 **Root Causes**:
-1. **Object reference subscriptions without `shallow` equality** (90% of problem)
-2. **Subscribing to frequently-changing values** that components don't display
-3. **TanStack Query array references** used as direct dependencies in useCallback/useMemo
+1. **Destructuring from stores** - subscribes to entire store, causing re-renders on any state change (50% of problem)
+2. **Object reference subscriptions without `shallow` equality** - causes re-renders even when object values unchanged (40% of problem)
+3. **Subscribing to frequently-changing values** that components don't display (5% of problem)
+4. **TanStack Query array references** used as direct dependencies in useCallback/useMemo (5% of problem)
 
 ## Success Criteria
 
@@ -103,9 +104,11 @@ useEffect(() => {
 
 ---
 
-## Phase 1: Object Reference Fixes (PRIMARY FIX - 90% of problem)
+## Phase 1: Subscription Pattern Fixes (PRIMARY FIX - 90% of problem)
 
-These fixes add `shallow` equality to object/array subscriptions, preventing re-renders when object references change but values don't.
+These fixes convert destructuring to selector syntax AND add `shallow` equality for object/array subscriptions. This addresses BOTH major issues:
+1. Selector syntax prevents re-renders from unrelated store updates
+2. Shallow equality prevents re-renders when object references change but values don't
 
 ### 1.1 Fix FrontmatterPanel.tsx (CRITICAL)
 
@@ -118,9 +121,11 @@ const { currentFile, frontmatter } = useEditorStore()
 const { projectPath, currentProjectSettings } = useProjectStore()
 ```
 
-**Problem**: `currentFile` and `frontmatter` are objects. When Zustand updates these (even with same values), new object references trigger re-renders.
+**Problems**:
+1. Destructuring subscribes to entire store → re-renders on ANY editorStore/projectStore change
+2. `currentFile` and `frontmatter` are objects → re-renders even when object values unchanged
 
-**Fix with shallow equality** (REQUIRED):
+**Fix with selector syntax + shallow equality** (REQUIRED):
 ```typescript
 import { shallow } from 'zustand/shallow'
 
@@ -130,7 +135,9 @@ const projectPath = useProjectStore(state => state.projectPath)
 const currentProjectSettings = useProjectStore(state => state.currentProjectSettings, shallow)
 ```
 
-**Why this works**: `shallow` compares object properties, not references. Re-renders only when actual values change.
+**Why this works**:
+1. Selector syntax creates granular subscriptions → only re-renders when these specific values change
+2. `shallow` compares object properties, not references → re-renders only when actual values change
 
 **Even better** (extract primitives):
 ```typescript
@@ -350,7 +357,7 @@ Fix hooks that have unstable return values or problematic dependencies.
 **Lines**: 15-24
 
 **Current Issues**:
-- Destructures from three stores (but this is NOT the problem - selector syntax is equivalent)
+- Destructures from three stores (subscribes to entire stores - needs selector syntax)
 - Returns new object on every render (no memoization)
 - Complex memoization would be fragile
 
@@ -457,7 +464,9 @@ const { data: collections = [] } = useCollectionsQuery(
 )
 ```
 
-**Problem**: The destructuring is NOT the issue. The issue is if `collections` array is used in a useCallback dependency.
+**Problems**:
+1. Destructuring subscribes to entire projectStore
+2. If `collections` array is used in a useCallback dependency, it recreates on every query update
 
 **Fix** (Use ref to track collections):
 ```typescript
@@ -645,17 +654,20 @@ Add comprehensive section on Zustand subscription patterns:
 ```markdown
 ## Zustand Subscription Patterns (CRITICAL)
 
-### Object Reference Subscriptions
+### Subscription Anti-Patterns
 
-The #1 performance issue: subscribing to objects/arrays without shallow equality.
+Two critical performance issues with Zustand:
 
-**The Problem**:
+**Two Problems**:
 ```typescript
-// ❌ WRONG: Re-renders when object reference changes (even if values unchanged)
-const currentFile = useEditorStore(state => state.currentFile)
-```
+// ❌ WRONG: Destructuring subscribes to entire store
+const { currentFile } = useEditorStore()
+// Re-renders on ANY editorStore change
 
-Zustand creates new object references even when properties haven't changed. This triggers React re-renders.
+// ❌ WRONG: Object subscription without shallow
+const currentFile = useEditorStore(state => state.currentFile)
+// Re-renders when object reference changes (even if values unchanged)
+```
 
 **The Solution**:
 ```typescript
@@ -725,19 +737,21 @@ When reviewing a component with store subscriptions:
 4. [ ] Could primitives be extracted instead of objects? → Use `state => state.obj.property`
 5. [ ] Is React.memo preventing parent cascade? → Verify props are stable
 
-### Common Myths
+### Understanding Zustand Subscriptions
 
-**MYTH**: "Destructuring from Zustand stores subscribes to the entire store"
+**CRITICAL**: Destructuring subscribes to the entire store:
 ```typescript
-// These are IDENTICAL in behavior:
+// ❌ WRONG: Subscribes to ENTIRE store - re-renders on ANY state change
 const { value1, value2 } = useStore()
-// vs
+
+// ✅ CORRECT: Granular subscriptions - re-render only when specific values change
 const value1 = useStore(state => state.value1)
 const value2 = useStore(state => state.value2)
 ```
-Both create 2 subscriptions. Destructuring is NOT the problem.
 
-**REALITY**: The problem is object references without shallow comparison.
+**Two Problems to Fix**:
+1. Destructuring causes re-renders from unrelated store updates
+2. Object references without shallow cause re-renders even when values unchanged
 
 ### TanStack Query Array Dependencies
 
@@ -787,15 +801,18 @@ Update the "Key Patterns" section:
 ```markdown
 ### Zustand Subscription Patterns (CRITICAL)
 
-**Always use `shallow` for object/array subscriptions.**
+**CRITICAL: Never destructure from Zustand stores. Always use selector syntax.**
 
 ```typescript
 import { shallow } from 'zustand/shallow'
 
-// ❌ WRONG: Re-renders on object reference changes (even if values same)
+// ❌ WRONG: Destructuring subscribes to entire store
+const { currentFile } = useEditorStore()
+
+// ❌ WRONG: Object subscription without shallow
 const currentFile = useEditorStore(state => state.currentFile)
 
-// ✅ CORRECT: Only re-renders when object properties change
+// ✅ CORRECT: Selector syntax + shallow for objects
 const currentFile = useEditorStore(state => state.currentFile, shallow)
 
 // ✅ BEST: Extract primitives instead of objects
@@ -808,9 +825,11 @@ const handleClick = useCallback(() => {
 }, []) // Stable deps
 ```
 
-**Why**: Object references change on every store update, even when values haven't. This triggers render cascades. A single keystroke was causing 15+ component re-renders.
+**Why**: Two problems cause excessive re-renders:
+1. Destructuring subscribes to entire store → re-renders on ANY change
+2. Object references change on every update → re-renders even when values unchanged
 
-**Common Myth**: "Destructuring subscribes to entire store" - FALSE. Destructuring and selector syntax are identical. The issue is object references without `shallow`.
+A single keystroke was causing 15+ component re-renders.
 
 See `docs/developer/performance-patterns.md` for comprehensive patterns.
 ```
@@ -828,24 +847,27 @@ Add prominent section in State Management:
 
 ### Zustand Stores (CRITICAL PATTERN)
 
-**⚠️ ALWAYS USE SHALLOW FOR OBJECT/ARRAY SUBSCRIPTIONS**
+**⚠️ NEVER DESTRUCTURE. ALWAYS USE SELECTOR SYNTAX + SHALLOW FOR OBJECTS**
 
-This is the #1 performance issue in React + Zustand applications.
+Two critical issues in React + Zustand:
 
 ```typescript
 import { shallow } from 'zustand/shallow'
 
-// ❌ WRONG: Re-renders on every object reference change
+// ❌ WRONG: Destructuring subscribes to entire store
+const { currentFile } = useEditorStore()
+
+// ❌ WRONG: Object subscription without shallow
 const currentFile = useEditorStore(state => state.currentFile)
 
-// ✅ CORRECT: Only re-renders when properties change
+// ✅ CORRECT: Selector syntax + shallow for objects
 const currentFile = useEditorStore(state => state.currentFile, shallow)
 
 // ✅ BEST: Extract primitives
 const fileName = useEditorStore(state => state.currentFile?.name)
 ```
 
-**Impact**: Without `shallow`, every keystroke triggered 15+ component re-renders (Layout, StatusBar, TitleBar, FrontmatterPanel, and all children).
+**Impact**: Without these patterns, every keystroke triggered 15+ component re-renders (Layout, StatusBar, TitleBar, FrontmatterPanel, and all children).
 
 **Subscription Escalation**:
 1. Try primitive selectors first
@@ -869,35 +891,45 @@ Create a new guide documenting this migration:
 
 ## Background
 
-In November 2024, we discovered a significant performance issue: components were re-rendering on every keystroke due to object reference subscriptions without shallow equality checks.
+In November 2024, we discovered a significant performance issue: components were re-rendering on every keystroke due to two subscription problems.
 
-**Root Cause**: Subscribing to objects/arrays from Zustand stores without `shallow` comparison. Object references changed on every store update, even when values hadn't.
+**Root Causes**:
+1. Destructuring from Zustand stores (subscribes to entire store)
+2. Object reference subscriptions without `shallow` equality
 
 **Impact**: Every keystroke triggered ~15 component re-renders instead of ~2.
 
-## The Problem
+## The Problems
 
 ```typescript
-// ❌ PROBLEM: Object reference subscription
+// ❌ PROBLEM 1: Destructuring subscribes to entire store
+const { currentFile } = useEditorStore()
+// Re-renders on ANY editorStore change
+
+// ❌ PROBLEM 2: Object reference without shallow
 const currentFile = useEditorStore(state => state.currentFile)
+// Re-renders when reference changes (even if values unchanged)
 ```
 
 **What happens**:
 1. User types → `editorContent` changes in store
 2. Zustand creates new store state object
-3. `currentFile` gets new object reference (even if values unchanged)
-4. Component re-renders
-5. Cascade to all child components
+3. Problem 1: Components with destructuring re-render (entire store subscription)
+4. Problem 2: `currentFile` gets new object reference (even if values unchanged)
+5. Component re-renders
+6. Cascade to all child components
 
-## The Solution
+## The Solutions
 
 ```typescript
-// ✅ SOLUTION: Shallow equality comparison
+// ✅ SOLUTION: Selector syntax + shallow equality
 import { shallow } from 'zustand/shallow'
 const currentFile = useEditorStore(state => state.currentFile, shallow)
 ```
 
-**How it works**: `shallow` compares object properties, not references. Re-renders only when actual values change.
+**How it works**:
+1. Selector syntax creates granular subscription → only re-renders when currentFile changes
+2. `shallow` compares object properties, not references → re-renders only when actual values change
 
 ```typescript
 // ✅ EVEN BETTER: Extract primitives
@@ -920,12 +952,13 @@ const fileId = useEditorStore(state => state.currentFile?.id)
 
 ## Lessons Learned
 
-1. **Always use `shallow` for object/array subscriptions** from Zustand stores
-2. **Extract primitive selectors** where possible (best performance)
-3. **Use `getState()` in callbacks** to avoid subscriptions entirely
-4. **Destructuring vs selectors doesn't matter** - they're equivalent (common myth)
-5. **Test with React DevTools Profiler** to catch performance issues early
-6. **Add render logging during development** to verify optimization
+1. **Never destructure from Zustand stores** - always use selector syntax
+2. **Always use `shallow` for object/array subscriptions** from Zustand stores
+3. **Extract primitive selectors** where possible (best performance)
+4. **Use `getState()` in callbacks** to avoid subscriptions entirely
+5. **Destructuring IS different from selectors** - destructuring subscribes to entire store
+6. **Test with React DevTools Profiler** to catch performance issues early
+7. **Add render logging during development** to verify optimization
 
 ## Subscription Patterns Reference
 
@@ -1007,37 +1040,42 @@ Before marking this task complete:
 
 ## Appendix: Technical Analysis
 
-### The Myth: Destructuring vs Selectors
+### Understanding Zustand Subscription Behavior
 
-**IMPORTANT CLARIFICATION**: The original performance issue document incorrectly claimed that destructuring subscribes to the entire store. This is FALSE.
+**CRITICAL FACT**: Destructuring subscribes to the entire store:
 
 ```typescript
-// These are IDENTICAL:
+// ❌ Subscribes to ENTIRE store - re-renders on ANY change
 const { value1, value2 } = useStore()
-// vs
+
+// ✅ Creates 2 granular subscriptions - only re-renders when these specific values change
 const value1 = useStore(state => state.value1)
 const value2 = useStore(state => state.value2)
 ```
 
-Both create exactly 2 subscriptions. The syntax doesn't matter.
-
-**The REAL issue**: Object reference comparisons without shallow equality.
+These are NOT equivalent. This is fundamental to Zustand's API design.
 
 ### What Actually Causes Re-renders
 
-1. **Object references** (90% of problem)
+1. **Destructuring subscriptions** (50% of problem)
+   - Subscribes to entire store state
+   - Component re-renders on ANY state change
+   - Even unrelated updates trigger re-renders
+   - **Fix**: Use selector syntax
+
+2. **Object references without shallow** (40% of problem)
    - Zustand creates new state objects on every update
    - Object properties may be identical, but reference differs
    - React sees different reference → re-render
-   - **Fix**: Use `shallow` comparison
+   - **Fix**: Add `shallow` comparison
 
-2. **Subscribing to frequently-changing values** (5% of problem)
+3. **Subscribing to frequently-changing values** (5% of problem)
    - Component subscribes to `editorContent` but doesn't display it
    - Every keystroke changes `editorContent`
    - Component re-renders unnecessarily
    - **Fix**: Use `getState()` or don't subscribe
 
-3. **TanStack Query array dependencies** (5% of problem)
+4. **TanStack Query array dependencies** (5% of problem)
    - Query returns new array reference on every refetch
    - Used in `useCallback([queryData])`
    - Callback recreates unnecessarily
@@ -1080,17 +1118,19 @@ Total: ~2 component re-renders (Editor + maybe one subscriber)
 
 **Conclusion**: Store architecture is excellent. The issue was subscription patterns, not store design.
 
-### Files with Object Subscriptions Fixed
+### Files with Subscription Patterns Fixed
 
-1. `src/components/frontmatter/FrontmatterPanel.tsx` - Added `shallow` to currentFile, frontmatter
-2. `src/components/layout/UnifiedTitleBar.tsx` - Added `shallow` to currentFile
-3. `src/components/layout/LeftSidebar.tsx` - Added `shallow` to currentFile, settings, draftFilter
-4. `src/components/layout/Layout.tsx` - Added `shallow` to globalSettings
-5. `src/components/layout/StatusBar.tsx` - Added `shallow` to currentFile
-6. `src/hooks/commands/useCommandContext.ts` - Added `shallow` to all object subscriptions
-7. `src/hooks/useCreateFile.ts` - Added `shallow` to currentProjectSettings, added ref pattern
-8. `src/hooks/useEditorFileContent.ts` - Added `shallow` to currentFile
-9. `src/hooks/settings/useEffectiveSettings.ts` - Added `shallow` to currentProjectSettings
+All files converted from destructuring to selector syntax + added `shallow` for objects:
+
+1. `src/components/frontmatter/FrontmatterPanel.tsx` - Selector syntax + `shallow` for currentFile, frontmatter
+2. `src/components/layout/UnifiedTitleBar.tsx` - Selector syntax + `shallow` for currentFile
+3. `src/components/layout/LeftSidebar.tsx` - Selector syntax + `shallow` for currentFile, settings, draftFilter
+4. `src/components/layout/Layout.tsx` - Selector syntax + `shallow` for globalSettings
+5. `src/components/layout/StatusBar.tsx` - Selector syntax + `shallow` for currentFile
+6. `src/hooks/commands/useCommandContext.ts` - Selector syntax + `shallow` for all object subscriptions
+7. `src/hooks/useCreateFile.ts` - Selector syntax + `shallow` for currentProjectSettings, added ref pattern
+8. `src/hooks/useEditorFileContent.ts` - Selector syntax + `shallow` for currentFile
+9. `src/hooks/settings/useEffectiveSettings.ts` - Selector syntax + `shallow` for currentProjectSettings
 
 ### Performance Impact
 
