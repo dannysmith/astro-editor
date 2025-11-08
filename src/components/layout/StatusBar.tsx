@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
@@ -8,8 +7,10 @@ export const StatusBar: React.FC = () => {
   // eslint-disable-next-line no-console
   console.log('[PERF] StatusBar RENDER')
 
-  // Object subscription needs shallow
-  const currentFile = useEditorStore(useShallow(state => state.currentFile))
+  // Extract primitives instead of object to avoid re-renders during typing
+  const currentFileName = useEditorStore(state => state.currentFile?.name)
+  const currentFileExt = useEditorStore(state => state.currentFile?.extension)
+  const hasCurrentFile = useEditorStore(state => !!state.currentFile)
 
   // Primitives/functions - selector syntax for consistency
   const sidebarVisible = useUIStore(state => state.sidebarVisible)
@@ -56,16 +57,16 @@ export const StatusBar: React.FC = () => {
       onMouseEnter={showBars}
     >
       <div className="flex items-center">
-        {currentFile && (
+        {hasCurrentFile && (
           <span>
-            {currentFile.name}.{currentFile.extension}
+            {currentFileName}.{currentFileExt}
             {isDirty && <span> •</span>}
           </span>
         )}
       </div>
 
       <div className="flex gap-4">
-        {currentFile && (
+        {hasCurrentFile && (
           <>
             <span>{wordCount} words</span>
             <span>{charCount} characters</span>
