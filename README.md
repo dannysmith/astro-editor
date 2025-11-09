@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/89b87f98-88c0-4845-a020-284201464b86
 - Full support for subdirectories within collections.
 - Files sorted by publication date (configurable field name) with draft indicators.
 - Context menu for rename, duplicate, reveal in Finder, copy path.
-- Command palette (`Cmd + K`) for quick file switching and command access.
+- Command palette (`Cmd + P`) for quick file switching and command access.
 
 **Project Configuration**
 
