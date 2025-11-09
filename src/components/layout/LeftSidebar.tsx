@@ -41,12 +41,9 @@ export const LeftSidebar: React.FC = () => {
   )
 
   // Get draft filter state from UI store (ephemeral, per-collection)
-  // Object property access with shallow
   const showDraftsOnly =
     useUIStore(
-      useShallow(
-        state => state.draftFilterByCollection[selectedCollection || '']
-      )
+      state => state.draftFilterByCollection[selectedCollection || '']
     ) || false
 
   // Use getState() pattern for callbacks to avoid render cascades
