@@ -214,16 +214,17 @@ The script automatically:
 ### Direct Store Pattern (CRITICAL)
 
 **Problem:** React Hook Form + Zustand causes infinite loops
-**Solution:** Components access store directly
+**Solution:** Components access store directly using selector syntax
 
 ```tsx
-// ✅ CORRECT: Direct store pattern
+// ✅ CORRECT: Direct store pattern with selector syntax
 const StringField = ({ name, label, required }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   return (
     <Input
-      value={frontmatter[name] || ''}
+      value={value || ''}
       onChange={e => updateFrontmatterField(name, e.target.value)}
     />
   )
@@ -234,6 +235,8 @@ const BadField = ({ name, onChange }) => {
   /* Don't do this */
 }
 ```
+
+**Note:** Always use selector syntax (`useStore(state => state.value)`) instead of destructuring (`const { value } = useStore()`) to create granular subscriptions. For objects/arrays, use `useShallow` to prevent re-renders from reference changes. See performance-patterns.md for details.
 
 ### Command Pattern
 

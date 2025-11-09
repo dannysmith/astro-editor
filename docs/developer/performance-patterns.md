@@ -37,7 +37,7 @@ When you destructure store values in a component, you create a subscription. Eve
 ### Pattern Implementation
 
 ```typescript
-// ❌ BAD: Causes render cascade
+// ❌ BAD: Causes render cascade (destructuring subscribes to entire store)
 const { currentFile, isDirty, saveFile } = useEditorStore()
 
 const handleSave = useCallback(() => {
@@ -46,8 +46,8 @@ const handleSave = useCallback(() => {
   }
 }, [currentFile, isDirty, saveFile]) // ← Re-creates on every keystroke!
 
-// ✅ GOOD: No cascade
-const { setEditorContent } = useEditorStore() // Only subscribe to what triggers re-renders
+// ✅ GOOD: No cascade (getState pattern)
+const setEditorContent = useEditorStore(state => state.setEditorContent)
 
 const handleSave = useCallback(() => {
   const { currentFile, isDirty, saveFile } = useEditorStore.getState()
@@ -93,21 +93,43 @@ const Editor = () => {
 ### Specific Selectors vs Object Destructuring
 
 ```typescript
-// ❌ BAD: Object recreation triggers re-renders
+// ❌ BAD: Destructuring subscribes to entire store
 const { currentFile } = useEditorStore()
 
-// ✅ GOOD: Primitive selectors only change when needed
+// ✅ BETTER: Selector syntax creates granular subscription
+const currentFile = useEditorStore(state => state.currentFile)
+
+// ✅ BEST: Primitive selectors for even finer control
 const hasCurrentFile = useEditorStore(state => !!state.currentFile)
 const currentFileName = useEditorStore(state => state.currentFile?.name)
 const fileCount = useEditorStore(state => state.files.length)
 ```
 
-### Why This Works
+### Why Selector Syntax Matters
 
-- Zustand uses shallow comparison by default
-- When you destructure an object, a new object is created on every render
-- Primitive values (strings, numbers, booleans) only trigger re-renders when they actually change
-- Selector functions let you derive exactly the data shape you need
+**CRITICAL**: Destructuring vs selector syntax are NOT equivalent in Zustand:
+
+```typescript
+// ❌ Subscribes to ENTIRE store - re-renders on ANY state change
+const { currentFile } = useEditorStore()
+
+// ✅ Creates granular subscription - re-renders only when currentFile changes
+const currentFile = useEditorStore(state => state.currentFile)
+```
+
+**However**, subscribing to objects/arrays can still cause unnecessary re-renders:
+
+```typescript
+// ⚠️ PROBLEM: Object reference changes even when values don't
+const currentFile = useEditorStore(state => state.currentFile)
+// Re-renders whenever currentFile object is recreated, even if properties unchanged
+
+// ✅ SOLUTION: Use useShallow for object/array subscriptions
+import { useShallow } from 'zustand/react/shallow'
+
+const currentFile = useEditorStore(useShallow(state => state.currentFile))
+// Only re-renders when currentFile properties actually change
+```
 
 ### Advanced Selectors
 
@@ -120,25 +142,25 @@ const sortedFileNames = useEditorStore(state =>
     .sort()
 )
 
-// Use shallow comparison for stable arrays
-import { shallow } from 'zustand/shallow'
+// Use useShallow for stable arrays/objects (Zustand v5)
+import { useShallow } from 'zustand/react/shallow'
 
 const fileNames = useEditorStore(
-  state => state.files.map(f => f.name),
-  shallow // Only re-render if array contents change
+  useShallow(state => state.files.map(f => f.name))
 )
+// Only re-renders if array contents change, not reference
 ```
 
 ### Function Dependencies in useEffect
 
 ```typescript
-// ❌ BAD: Function dependencies cause re-render loops
+// ❌ BAD: Destructuring subscribes to entire store
 const { loadProject } = useProjectStore()
 useEffect(() => {
   void loadProject()
 }, [loadProject])
 
-// ✅ GOOD: Direct getState() calls
+// ✅ GOOD: Direct getState() calls (no subscription)
 useEffect(() => {
   void useProjectStore.getState().loadProject()
 }, [])
@@ -478,13 +500,20 @@ const Sidebar = () => {
 ### 2. Object Dependencies
 
 ```typescript
-// ❌ BAD: Object changes every render
+// ❌ BAD: Object reference changes trigger unnecessary re-renders
 const file = useEditorStore(state => state.currentFile)
 useEffect(() => {
   console.log(file?.name)
-}, [file]) // Triggers on every file object change
+}, [file]) // Triggers on every file object change, even if values unchanged
 
-// ✅ GOOD: Subscribe to specific property
+// ✅ BETTER: Use useShallow for objects
+import { useShallow } from 'zustand/react/shallow'
+const file = useEditorStore(useShallow(state => state.currentFile))
+useEffect(() => {
+  console.log(file?.name)
+}, [file]) // Only triggers when file properties change
+
+// ✅ BEST: Subscribe to specific property
 const fileName = useEditorStore(state => state.currentFile?.name)
 useEffect(() => {
   console.log(fileName)
@@ -504,28 +533,42 @@ useEffect(() => {
 ### 4. Function Dependencies in useEffect
 
 ```typescript
-// ❌ BAD: Unstable function reference
+// ❌ BAD: Destructuring subscribes to entire store
 const { saveFile } = useEditorStore()
 useEffect(() => {
   void saveFile()
 }, [saveFile])
 
-// ✅ GOOD: Direct getState() call
+// ✅ GOOD: Direct getState() call (no subscription)
 useEffect(() => {
   void useEditorStore.getState().saveFile()
 }, [])
+
+// ✅ ALSO GOOD: Selector for stable reference
+const saveFile = useEditorStore(state => state.saveFile)
+useEffect(() => {
+  void saveFile()
+}, [saveFile]) // Store actions are stable
 ```
 
-### 5. Object Destructuring for Frequently-Changing Data
+### 5. Destructuring Subscribes to Entire Store
 
 ```typescript
-// ❌ BAD: Creates new object every render
+// ❌ BAD: Destructuring subscribes to ENTIRE store
 const { files, currentFile, isDirty } = useEditorStore()
+// Component re-renders on ANY editorStore change
 
-// ✅ GOOD: Separate selectors
+// ✅ GOOD: Selector syntax creates granular subscriptions
 const files = useEditorStore(state => state.files)
 const currentFile = useEditorStore(state => state.currentFile)
 const isDirty = useEditorStore(state => state.isDirty)
+// Component only re-renders when these specific values change
+
+// ✅ BEST: Add useShallow for objects/arrays
+import { useShallow } from 'zustand/react/shallow'
+const files = useEditorStore(useShallow(state => state.files))
+const currentFile = useEditorStore(useShallow(state => state.currentFile))
+const isDirty = useEditorStore(state => state.isDirty) // Primitive, no shallow needed
 ```
 
 ## Performance Testing
