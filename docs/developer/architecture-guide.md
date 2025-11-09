@@ -289,7 +289,7 @@ const BadField: React.FC<{ onChange: (value: string) => void }> = ({
 
 **Note:** Always use selector syntax instead of destructuring to create granular subscriptions. For objects/arrays, use `useShallow` from 'zustand/react/shallow' to prevent re-renders from reference changes.
 
-📖 **See [form-patterns.md](./form-patterns.md) for complete form component patterns**
+📖 **See [form-patterns.md](./form-patterns.md) for complete form component patterns and [performance-patterns.md](./performance-patterns.md) for detailed performance optimization techniques**
 
 ### Command Pattern
 
