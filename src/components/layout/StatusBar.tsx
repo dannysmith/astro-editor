@@ -24,18 +24,15 @@ export const StatusBar: React.FC = () => {
 
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
-  const [isDirty, setIsDirty] = useState(false)
 
-  // Poll for word/char count and isDirty using getState() to avoid subscribing
-  // to editorContent/isDirty which would cause re-renders that interrupt CSS transitions
+  // Poll for word/char count using getState() to avoid subscribing to editorContent
+  // which would cause re-renders that interrupt CSS transitions
   useEffect(() => {
     const interval = setInterval(() => {
-      const { editorContent, isDirty: currentIsDirty } =
-        useEditorStore.getState()
+      const { editorContent } = useEditorStore.getState()
       const words = editorContent.split(/\s+/).filter(w => w.length > 0).length
       setWordCount(words)
       setCharCount(editorContent.length)
-      setIsDirty(currentIsDirty)
     }, 500)
 
     return () => clearInterval(interval)
@@ -60,7 +57,6 @@ export const StatusBar: React.FC = () => {
         {hasCurrentFile && (
           <span>
             {currentFileName}.{currentFileExt}
-            {isDirty && <span> •</span>}
           </span>
         )}
       </div>
