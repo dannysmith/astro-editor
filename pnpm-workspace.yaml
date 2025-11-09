@@ -1,6 +1,7 @@
 packages:
   - .
   - test/*
+  - '!telemetry-worker'
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
