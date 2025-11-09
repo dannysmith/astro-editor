@@ -546,10 +546,9 @@ App
 │       │   ├── useCollectionsQuery (server state)
 │       │   └── useProjectStore (client state)
 │       ├── MainEditor
-│       │   ├── Editor
-│       │   │   ├── useEditorStore (client state)
-│       │   │   └── lib/editor/* (business logic)
-│       │   └── StatusBar
+│       │   └── Editor
+│       │       ├── useEditorStore (client state)
+│       │       └── lib/editor/* (business logic)
 │       └── FrontmatterPanel
 │           ├── useCollectionsQuery (server state)
 │           └── useEditorStore (client state)

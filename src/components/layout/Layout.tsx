@@ -7,7 +7,6 @@ import { UnifiedTitleBar } from './UnifiedTitleBar'
 import { LeftSidebar } from './LeftSidebar'
 import { MainEditor } from './MainEditor'
 import { RightSidebar } from './RightSidebar'
-import { StatusBar } from './StatusBar'
 import { FrontmatterPanel } from '../frontmatter'
 import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
@@ -177,9 +176,6 @@ export const Layout: React.FC = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
-
-      {/* Status Bar - fixed at bottom */}
-      <StatusBar />
 
       {/* Floating components */}
       <CommandPalette />

@@ -33,9 +33,4 @@ export const UI_SIZES = {
   titleBar: {
     paddingY: 1.5, // py-1.5 = 6px
   },
-  statusBar: {
-    minHeight: 6, // min-h-6 = 24px
-    paddingX: 4, // px-4 = 16px
-    paddingY: 1, // py-1 = 4px
-  },
 } as const
