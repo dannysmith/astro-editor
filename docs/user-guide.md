@@ -393,7 +393,7 @@ Articles / 2024 / January
 
 The command palette provides quick access to all major functions in Astro Editor. It's designed for keyboard-driven workflows and fast file switching.
 
-**Opening the Palette**: Press `Cmd+K` from anywhere in the application to open the command palette. Start typing immediately to search.
+**Opening the Palette**: Press `Cmd+P` from anywhere in the application to open the command palette. Start typing immediately to search.
 
 **Fuzzy Search**: The palette uses intelligent fuzzy matching, so you can type partial words or abbreviations. For example, typing "foc" will find "Toggle Focus Mode".
 
@@ -668,7 +668,7 @@ These work anywhere in the application
 | `Cmd+S`  | Save File                | Save the currently open file                            |
 | `Cmd+N`  | New File                 | Create a new file in the selected collection            |
 | `Cmd+W`  | Close File               | Close the currently open file                           |
-| `Cmd+K`  | Command Palette          | Open the command palette to search and execute commands |
+| `Cmd+P`  | Command Palette          | Open the command palette to search and execute commands |
 | `Cmd+,`  | Preferences              | Open application preferences                            |
 | `Cmd+0`  | Focus Editor             | Focus the main editor from anywhere in the app          |
 | `Cmd+1`  | Toggle Sidebar           | Show/hide the left sidebar (file browser)               |

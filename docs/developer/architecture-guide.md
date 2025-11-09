@@ -314,7 +314,7 @@ globalCommandRegistry.execute('format-heading', 1)
 **Basic Integration**:
 - Keyboard shortcuts execute commands via `react-hotkeys-hook`
 - Native menus emit Tauri events → Layout listens → Executes commands
-- Command palette (Cmd+K) lists and executes commands
+- Command palette (Cmd+P) lists and executes commands
 - UI buttons call commands directly
 
 📖 **For detailed command implementation including registration, integration with keyboard shortcuts and menus, command structure, and examples, see [command-system.md](./command-system.md)**
