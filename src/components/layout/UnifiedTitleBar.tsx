@@ -19,9 +19,6 @@ import {
 import { cn } from '../../lib/utils'
 
 export const UnifiedTitleBar: React.FC = () => {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] UnifiedTitleBar RENDER')
-
   // Object subscription needs shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
 

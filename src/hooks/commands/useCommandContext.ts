@@ -11,9 +11,6 @@ import { CommandContext } from '../../lib/commands/types'
  * This provides all the information and actions commands need
  */
 export function useCommandContext(): CommandContext {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] useCommandContext HOOK EXECUTE')
-
   // Object subscriptions need shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
   const globalSettings = useProjectStore(

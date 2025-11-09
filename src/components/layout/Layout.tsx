@@ -32,9 +32,6 @@ import {
 } from '../ui/resizable'
 
 export const Layout: React.FC = () => {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] Layout RENDER')
-
   // UI state - use selector syntax for consistency
   const sidebarVisible = useUIStore(state => state.sidebarVisible)
   const frontmatterPanelVisible = useUIStore(

@@ -10,9 +10,6 @@ import { getEffectiveSettings } from '../../lib/project-registry/effective-setti
 import type { Collection } from '@/types'
 
 export const FrontmatterPanel: React.FC = () => {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] FrontmatterPanel RENDER')
-
   // Object subscriptions need shallow to prevent re-renders on reference changes
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
   const frontmatter = useEditorStore(useShallow(state => state.frontmatter))

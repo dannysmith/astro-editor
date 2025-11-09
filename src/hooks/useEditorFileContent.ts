@@ -13,9 +13,6 @@ import { useFileContentQuery } from './queries/useFileContentQuery'
  * 3. Respect isDirty state (don't overwrite user's edits)
  */
 export function useEditorFileContent() {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] useEditorFileContent HOOK EXECUTE')
-
   // Object subscription needs shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
   const projectPath = useProjectStore(state => state.projectPath)

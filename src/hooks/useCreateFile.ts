@@ -50,9 +50,6 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
 }
 
 export const useCreateFile = () => {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] useCreateFile HOOK EXECUTE')
-
   // PERFORMANCE FIX: Use selector syntax to avoid entire store subscriptions
   const projectPath = useProjectStore(state => state.projectPath)
   const currentProjectSettings = useProjectStore(

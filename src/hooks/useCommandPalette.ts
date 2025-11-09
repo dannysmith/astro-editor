@@ -9,9 +9,6 @@ import { focusEditorDelayed } from '../lib/focus-utils'
  * Hook for managing command palette state and commands
  */
 export function useCommandPalette(searchValue = '') {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] useCommandPalette HOOK EXECUTE')
-
   const [open, setOpen] = useState(false)
   const context = useCommandContext()
   // Use selector syntax for consistency

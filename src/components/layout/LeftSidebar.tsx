@@ -27,9 +27,6 @@ import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFilesByPublishedDate } from '../../lib/files/sorting'
 
 export const LeftSidebar: React.FC = () => {
-  // eslint-disable-next-line no-console
-  console.log('[PERF] LeftSidebar RENDER')
-
   // Object subscription needs shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
 
