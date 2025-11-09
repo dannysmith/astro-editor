@@ -2,6 +2,8 @@
 
 This guide covers performance optimization patterns critical for maintaining optimal application responsiveness.
 
+> **⚠️ CRITICAL: Before continuing, read the [Zustand Subscription Patterns](./state-management.md#️-critical-zustand-subscription-patterns) section in state-management.md. Violating these patterns causes severe performance degradation (15+ re-renders per keystroke). This is the #1 performance issue in the codebase.**
+
 ## Table of Contents
 
 - [Core Principles](#core-principles)

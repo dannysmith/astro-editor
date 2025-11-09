@@ -413,9 +413,10 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 ### Component Development
 
 - **NEVER** use React Hook Form (infinite loops)
-- **ALWAYS** use Direct Store Pattern
+- **NEVER** destructure from Zustand stores (`const { ... } = useStore()`)
+- **ALWAYS** use Direct Store Pattern with selector syntax
+- **ALWAYS** use `useShallow` for object/array subscriptions
 - **EXTRACT** helper components for repeated JSX (3+ times)
-- **TYPE** store destructuring explicitly
 
 ### Module Development
 
@@ -427,11 +428,20 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 
 ## Troubleshooting
 
-- **Infinite loops:** Check Direct Store Pattern
+### Performance Issues
+
+- **Excessive re-renders:** Check for destructuring from Zustand stores - use selector syntax instead
+- **Components re-render on every keystroke:** Add `useShallow` to object/array subscriptions
+- **Infinite loops:** Check Direct Store Pattern - ensure using selector syntax, not destructuring
+
+### Common Issues
+
 - **Auto-save:** Verify 2s interval and `scheduleAutoSave()`
 - **Schema parsing:** Check `src/content/config.ts` syntax
 - **Version conflicts:** Use v2/v4 docs only
 - **Toast/Theme issues:** See `docs/developer/notifications.md`
+
+**Quick Fix for Performance**: Search codebase for `const { .* } = use.*Store\(\)` and replace with selector syntax. See state-management.md for patterns.
 
 ## Key Files Reference
 

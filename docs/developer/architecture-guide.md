@@ -207,6 +207,18 @@ import { NONE_SENTINEL } from '@/components/frontmatter/fields/constants'
 
 ## Critical Patterns
 
+> **⚠️ CRITICAL: Zustand Subscription Rules**
+>
+> **NEVER destructure from Zustand stores.** Always use selector syntax: `useStore(state => state.value)`
+>
+> For objects/arrays, use `useShallow`: `useStore(useShallow(state => state.object))`
+>
+> **Why**: Destructuring subscribes to the entire store, causing massive performance problems (15+ re-renders per keystroke).
+>
+> See [state-management.md: Zustand Subscription Patterns](./state-management.md#️-critical-zustand-subscription-patterns) for complete details.
+
+---
+
 ### The `getState()` Pattern (CRITICAL)
 
 **Problem**: Subscribing to store values in callbacks creates render cascades.

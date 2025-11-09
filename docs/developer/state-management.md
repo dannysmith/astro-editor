@@ -4,6 +4,105 @@
 
 Astro Editor uses a **hybrid state management approach** with three distinct layers, each handling different types of state based on data source, persistence needs, and update frequency. This guide provides comprehensive coverage of when and how to use each layer.
 
+## ⚠️ CRITICAL: Zustand Subscription Patterns
+
+**Before reading further, understand these critical rules. Violating them causes severe performance issues.**
+
+### The Two Problems
+
+Zustand subscriptions have two critical performance pitfalls that, when combined, cause render cascades:
+
+#### Problem 1: Destructuring Subscribes to Entire Store
+
+```typescript
+// ❌ WRONG: Subscribes to ENTIRE store
+const { currentFile, isDirty } = useEditorStore()
+// Component re-renders on ANY editorStore change, even unrelated ones
+
+// ✅ CORRECT: Creates granular subscriptions
+const currentFile = useEditorStore(state => state.currentFile)
+const isDirty = useEditorStore(state => state.isDirty)
+// Component only re-renders when these specific values change
+```
+
+**Impact**: A single keystroke was causing 15+ component re-renders because destructuring subscribed components to every store update.
+
+#### Problem 2: Object References Change Even When Values Don't
+
+```typescript
+// ⚠️ PROBLEM: Object reference changes trigger re-renders
+const currentFile = useEditorStore(state => state.currentFile)
+// Re-renders whenever currentFile object is recreated, even if properties unchanged
+
+// ✅ SOLUTION: Use useShallow for object/array subscriptions
+import { useShallow } from 'zustand/react/shallow'
+const currentFile = useEditorStore(useShallow(state => state.currentFile))
+// Only re-renders when currentFile properties actually change
+```
+
+**Impact**: Even with selector syntax, object subscriptions caused unnecessary re-renders because Zustand creates new state objects on every update.
+
+### The Solution: Selector Syntax + useShallow
+
+**The Pattern Hierarchy** (from best to worst):
+
+```typescript
+import { useShallow } from 'zustand/react/shallow'
+
+// 1️⃣ BEST: Primitive selectors (strings, numbers, booleans)
+const isDirty = useEditorStore(state => state.isDirty)
+const fileName = useEditorStore(state => state.currentFile?.name)
+// Only re-renders when the specific primitive value changes
+
+// 2️⃣ BETTER: Object/array selectors with useShallow
+const currentFile = useEditorStore(useShallow(state => state.currentFile))
+const files = useEditorStore(useShallow(state => state.files))
+// Only re-renders when object/array contents change, not references
+
+// 3️⃣ ACCEPTABLE: Functions/actions (always stable)
+const updateField = useEditorStore(state => state.updateFrontmatterField)
+const saveFile = useEditorStore(state => state.saveFile)
+// Store actions are stable references, no useShallow needed
+
+// ❌ NEVER: Destructuring
+const { currentFile, isDirty } = useEditorStore()
+// Subscribes to entire store - massive performance problem
+```
+
+### Quick Reference: When to Use Each Pattern
+
+| What You're Subscribing To | Pattern | Example |
+|----------------------------|---------|---------|
+| Primitive value (string, number, boolean) | Direct selector | `useStore(state => state.isDirty)` |
+| Nested primitive | Direct selector | `useStore(state => state.file?.name)` |
+| Object | Selector + `useShallow` | `useStore(useShallow(state => state.currentFile))` |
+| Array | Selector + `useShallow` | `useStore(useShallow(state => state.files))` |
+| Function/action | Direct selector | `useStore(state => state.saveFile)` |
+| Multiple values | Multiple selectors | See "Never destructure" above |
+
+### Code Review Checklist
+
+Before committing code that uses Zustand stores, verify:
+
+- [ ] ✅ **NO destructuring** - No `const { ... } = useStore()` patterns
+- [ ] ✅ **Selector syntax** - All subscriptions use `useStore(state => state.value)`
+- [ ] ✅ **useShallow for objects/arrays** - Import from `'zustand/react/shallow'`
+- [ ] ✅ **Primitive selectors preferred** - Extract specific properties when possible
+- [ ] ✅ **getState() in callbacks** - Use for accessing state without subscribing
+
+### Real-World Impact
+
+From our November 2024 refactoring:
+- **Before**: ~15 component re-renders per keystroke
+- **After**: ~2 component re-renders per keystroke
+- **Reduction**: 87% fewer wasted CPU cycles
+
+Files fixed: 10 (5 components + 5 hooks)
+
+For complete details, see `docs/tasks-done/task-2025-11-07-fix-zustand-subscription-performance.md`
+
+---
+
 ## The "Onion" Pattern
 
 State management in Astro Editor follows a layered "Onion" pattern, from outermost to innermost:
@@ -206,12 +305,15 @@ interface EditorState {
 **Real Example**:
 ```typescript
 // In Editor.tsx
-const { editorContent, setEditorContent } = useEditorStore()
+const editorContent = useEditorStore(state => state.editorContent)
+const setEditorContent = useEditorStore(state => state.setEditorContent)
 
-// In FrontmatterPanel.tsx
-const { frontmatter, updateFrontmatterField } = useEditorStore()
+// In FrontmatterPanel.tsx (with useShallow for objects)
+import { useShallow } from 'zustand/react/shallow'
+const frontmatter = useEditorStore(useShallow(state => state.frontmatter))
+const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
-// Both subscribe to different slices - minimal re-renders
+// Selector syntax creates granular subscriptions - minimal re-renders
 ```
 
 ### Store 2: Project Store (Low Volatility)
@@ -241,11 +343,13 @@ interface ProjectState {
 **Real Example**:
 ```typescript
 // In Sidebar.tsx
-const { selectedCollection, setSelectedCollection } = useProjectStore()
+const selectedCollection = useProjectStore(state => state.selectedCollection)
+const setSelectedCollection = useProjectStore(state => state.setSelectedCollection)
 
-// In FileList.tsx
-const { currentProjectSettings } = useProjectStore()
-// Only re-renders when project settings change (rare)
+// In FileList.tsx (with useShallow for settings object)
+import { useShallow } from 'zustand/react/shallow'
+const currentProjectSettings = useProjectStore(useShallow(state => state.currentProjectSettings))
+// Only re-renders when project settings values change (rare)
 ```
 
 ### Store 3: UI Store (Medium Volatility)
@@ -277,10 +381,11 @@ interface UIState {
 **Real Example**:
 ```typescript
 // In UnifiedTitleBar.tsx
-const { sidebarVisible, toggleSidebar } = useUIStore()
+const sidebarVisible = useUIStore(state => state.sidebarVisible)
+const toggleSidebar = useUIStore(state => state.toggleSidebar)
 
 // In Layout.tsx
-const { frontmatterPanelVisible } = useUIStore()
+const frontmatterPanelVisible = useUIStore(state => state.frontmatterPanelVisible)
 // Only re-renders when panel visibility changes
 ```
 
@@ -293,6 +398,7 @@ const { frontmatterPanelVisible } = useUIStore()
 #### ❌ BAD: Causes Render Cascade
 
 ```typescript
+// WRONG: Destructuring subscribes to entire store
 const { currentFile, isDirty, saveFile } = useEditorStore()
 
 const handleSave = useCallback(() => {
@@ -302,7 +408,8 @@ const handleSave = useCallback(() => {
 }, [currentFile, isDirty, saveFile]) // Re-creates on EVERY keystroke!
 
 // Problem:
-// - Every character typed updates isDirty
+// - Destructuring subscribes component to ENTIRE editorStore
+// - Every character typed triggers re-render (isDirty changes)
 // - Callback recreates, causing all consumers to re-render
 // - Cascade effect throughout component tree
 ```
@@ -365,7 +472,7 @@ const MyComponent = () => {
 
 // ✅ CORRECT: Component re-renders on changes
 const MyComponent = () => {
-  const { editorContent } = useEditorStore() // Subscribes to updates
+  const editorContent = useEditorStore(state => state.editorContent) // Subscribes to updates
   return <div>{editorContent}</div> // Updates on every change
 }
 ```
@@ -411,7 +518,7 @@ useEffect(() => {
 }, [editorContent])
 
 // ✅ GOOD: Use global state directly
-const { editorContent } = useEditorStore()
+const editorContent = useEditorStore(state => state.editorContent)
 ```
 
 #### 2. Don't Lift State Too Early
@@ -438,7 +545,8 @@ const Child = () => {
 const [userPreference, setUserPreference] = useState('light')
 
 // ✅ GOOD: Use Zustand for persistence
-const { theme, setTheme } = useUIStore()
+const theme = useUIStore(state => state.theme)
+const setTheme = useUIStore(state => state.setTheme)
 ```
 
 ## Integration Patterns Between Layers
