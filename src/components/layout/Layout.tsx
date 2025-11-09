@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
 import { useProjectStore } from '../../store/projectStore'
@@ -6,7 +7,6 @@ import { UnifiedTitleBar } from './UnifiedTitleBar'
 import { LeftSidebar } from './LeftSidebar'
 import { MainEditor } from './MainEditor'
 import { RightSidebar } from './RightSidebar'
-import { StatusBar } from './StatusBar'
 import { FrontmatterPanel } from '../frontmatter'
 import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
@@ -32,11 +32,20 @@ import {
 } from '../ui/resizable'
 
 export const Layout: React.FC = () => {
-  const { sidebarVisible, frontmatterPanelVisible } = useUIStore()
-  const { setTheme } = useTheme()
-  const { globalSettings } = useProjectStore()
+  // UI state - use selector syntax for consistency
+  const sidebarVisible = useUIStore(state => state.sidebarVisible)
+  const frontmatterPanelVisible = useUIStore(
+    state => state.frontmatterPanelVisible
+  )
 
-  // Preferences state management
+  const { setTheme } = useTheme()
+
+  // Extract specific nested values for useEffect dependencies
+  const theme = useProjectStore(state => state.globalSettings?.general?.theme)
+  const headingColor = useProjectStore(
+    useShallow(state => state.globalSettings?.appearance?.headingColor) // headingColor is an object with .light and .dark
+  )
+
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   const handleSetPreferencesOpen = useCallback((open: boolean) => {
@@ -76,33 +85,30 @@ export const Layout: React.FC = () => {
 
   // Sync stored theme preference with theme provider on app load
   useEffect(() => {
-    const storedTheme = globalSettings?.general?.theme
-    if (storedTheme) {
-      setTheme(storedTheme)
+    if (theme) {
+      setTheme(theme)
     }
-  }, [globalSettings?.general?.theme, setTheme])
+  }, [theme, setTheme])
 
   // Update heading color CSS variables when appearance settings change
   useEffect(() => {
     const root = window.document.documentElement
     const isDark = root.classList.contains('dark')
-    const headingColors = globalSettings?.appearance?.headingColor
 
-    if (headingColors) {
-      const color = isDark ? headingColors.dark : headingColors.light
+    if (headingColor) {
+      const color = isDark ? headingColor.dark : headingColor.light
       root.style.setProperty('--editor-color-heading', color)
     }
-  }, [globalSettings?.appearance?.headingColor])
+  }, [headingColor])
 
   // Also update heading color when theme changes (system theme changes)
   useEffect(() => {
     const root = window.document.documentElement
-    const headingColors = globalSettings?.appearance?.headingColor
 
-    if (headingColors) {
+    if (headingColor) {
       const observer = new MutationObserver(() => {
         const isDark = root.classList.contains('dark')
-        const color = isDark ? headingColors.dark : headingColors.light
+        const color = isDark ? headingColor.dark : headingColor.light
         root.style.setProperty('--editor-color-heading', color)
       })
 
@@ -110,17 +116,14 @@ export const Layout: React.FC = () => {
 
       return () => observer.disconnect()
     }
-  }, [globalSettings?.appearance?.headingColor])
+  }, [headingColor])
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">
-      {/* Unified titlebar */}
       <UnifiedTitleBar />
 
-      {/* Main content area with three-panel layout */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Sidebar */}
           <ResizablePanel
             defaultSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.default : 0}
             minSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.min : 0}
@@ -133,7 +136,6 @@ export const Layout: React.FC = () => {
             className={`!cursor-col-resize ${sidebarVisible ? '' : 'hidden'}`}
           />
 
-          {/* Main Editor */}
           <ResizablePanel
             defaultSize={LAYOUT_SIZES.mainEditor.getDefault(
               sidebarVisible,
@@ -144,7 +146,6 @@ export const Layout: React.FC = () => {
             <MainEditor />
           </ResizablePanel>
 
-          {/* Right Sidebar */}
           <ResizableHandle
             className={`!cursor-col-resize ${frontmatterPanelVisible ? '' : 'hidden'}`}
           />
@@ -166,9 +167,6 @@ export const Layout: React.FC = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
-
-      {/* Status Bar - fixed at bottom */}
-      <StatusBar />
 
       {/* Floating components */}
       <CommandPalette />

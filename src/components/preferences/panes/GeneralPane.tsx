@@ -219,11 +219,6 @@ export const GeneralPane: React.FC = () => {
                     </SelectItem>
                   )
                 })}
-                {availableIdes.length === 0 && !ideLoading && (
-                  <SelectItem value="" disabled>
-                    No IDEs detected
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
             <FieldDescription>

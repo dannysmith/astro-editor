@@ -206,7 +206,7 @@ useHotkeys('mod+2', toggleFrontmatter) // Toggle frontmatter panel
 useHotkeys('mod+comma', openPreferences) // Open preferences
 
 // Command palette
-useHotkeys('mod+k', openCommandPalette) // Open command palette
+useHotkeys('mod+p', openCommandPalette) // Open command palette
 ```
 
 ### Editor Shortcuts

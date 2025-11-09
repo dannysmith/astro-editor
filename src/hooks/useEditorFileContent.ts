@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useFileContentQuery } from './queries/useFileContentQuery'
@@ -12,8 +13,9 @@ import { useFileContentQuery } from './queries/useFileContentQuery'
  * 3. Respect isDirty state (don't overwrite user's edits)
  */
 export function useEditorFileContent() {
-  const { currentFile } = useEditorStore()
-  const { projectPath } = useProjectStore()
+  // Object subscription needs shallow
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
+  const projectPath = useProjectStore(state => state.projectPath)
 
   // Query fetches content based on current file
   // Pass both id (for cache key) and path (for Rust command)

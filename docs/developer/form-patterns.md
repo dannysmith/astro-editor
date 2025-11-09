@@ -70,14 +70,15 @@ For toggles, switches, and checkboxes:
 **Solution**: Components access store directly without callback props.
 
 ```typescript
-// ✅ CORRECT: Direct store pattern
+// ✅ CORRECT: Direct store pattern with selector syntax
 const StringField: React.FC<StringFieldProps> = ({
   name,
   label,
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   return (
     <FieldWrapper
@@ -86,10 +87,10 @@ const StringField: React.FC<StringFieldProps> = ({
       description={field?.description}
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Input
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
       />
     </FieldWrapper>
@@ -158,7 +159,8 @@ const StringField: React.FC<StringFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   return (
     <FieldWrapper
@@ -167,10 +169,10 @@ const StringField: React.FC<StringFieldProps> = ({
       description={field?.description}
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Input
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
         placeholder={field?.default ? String(field.default) : ''}
       />
@@ -188,7 +190,8 @@ const TextareaField: React.FC<TextareaFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   return (
     <FieldWrapper
@@ -197,10 +200,10 @@ const TextareaField: React.FC<TextareaFieldProps> = ({
       description={field?.description}
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <AutoExpandingTextarea
-        value={valueToString(frontmatter[name])}
+        value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
         placeholder={field?.default ? String(field.default) : ''}
         minRows={3}
@@ -219,11 +222,11 @@ const BooleanField: React.FC<BooleanFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   // Get value with schema default fallback
   const getBooleanValue = (): boolean => {
-    const value = frontmatter[name]
     if (value === undefined && field?.default !== undefined) {
       return Boolean(field.default)
     }
@@ -236,7 +239,7 @@ const BooleanField: React.FC<BooleanFieldProps> = ({
       required={required}
       description={field?.description}
       defaultValue={field?.default}
-      currentValue={frontmatter[name]}
+      currentValue={value}
       layout="horizontal" // Horizontal layout for switches
     >
       <Switch
@@ -257,7 +260,8 @@ const NumberField: React.FC<NumberFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -279,11 +283,11 @@ const NumberField: React.FC<NumberFieldProps> = ({
       description={field?.description}
       defaultValue={field?.default}
       constraints={field?.constraints}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Input
         type="number"
-        value={frontmatter[name] ?? ''}
+        value={value ?? ''}
         onChange={handleChange}
         min={field?.constraints?.min}
         max={field?.constraints?.max}
@@ -304,7 +308,8 @@ const DateField: React.FC<DateFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
@@ -320,10 +325,10 @@ const DateField: React.FC<DateFieldProps> = ({
       required={required}
       description={field?.description}
       defaultValue={field?.default}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <DatePicker
-        date={frontmatter[name] ? new Date(frontmatter[name]) : undefined}
+        date={value ? new Date(value) : undefined}
         onSelect={handleDateChange}
       />
     </FieldWrapper>
@@ -340,7 +345,8 @@ const EnumField: React.FC<EnumFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   if (!field?.enum) {
     return null
@@ -352,11 +358,11 @@ const EnumField: React.FC<EnumFieldProps> = ({
       required={required}
       description={field?.description}
       defaultValue={field?.default}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <Select
-        value={valueToString(frontmatter[name])}
-        onValueChange={value => updateFrontmatterField(name, value)}
+        value={valueToString(value)}
+        onValueChange={val => updateFrontmatterField(name, val)}
       >
         <SelectTrigger>
           <SelectValue placeholder="Select an option..." />
@@ -383,11 +389,11 @@ const ArrayField: React.FC<ArrayFieldProps> = ({
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   // Convert any value to string array
   const getArrayValue = (): string[] => {
-    const value = frontmatter[name]
     if (!value) return []
     if (Array.isArray(value)) {
       return value.map(v => String(v))
@@ -405,7 +411,7 @@ const ArrayField: React.FC<ArrayFieldProps> = ({
       required={required}
       description={field?.description}
       defaultValue={field?.default}
-      currentValue={frontmatter[name]}
+      currentValue={value}
     >
       <TagInput
         tags={getArrayValue()}

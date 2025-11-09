@@ -207,6 +207,18 @@ import { NONE_SENTINEL } from '@/components/frontmatter/fields/constants'
 
 ## Critical Patterns
 
+> **⚠️ CRITICAL: Zustand Subscription Rules**
+>
+> **NEVER destructure from Zustand stores.** Always use selector syntax: `useStore(state => state.value)`
+>
+> For objects/arrays, use `useShallow`: `useStore(useShallow(state => state.object))`
+>
+> **Why**: Destructuring subscribes to the entire store, causing massive performance problems (15+ re-renders per keystroke).
+>
+> See [state-management.md: Zustand Subscription Patterns](./state-management.md#️-critical-zustand-subscription-patterns) for complete details.
+
+---
+
 ### The `getState()` Pattern (CRITICAL)
 
 **Problem**: Subscribing to store values in callbacks creates render cascades.
@@ -214,7 +226,7 @@ import { NONE_SENTINEL } from '@/components/frontmatter/fields/constants'
 **Solution**: Use `getState()` to access current values without subscribing.
 
 ```typescript
-// ❌ BAD: Causes render cascade
+// ❌ BAD: Causes render cascade (destructuring subscribes to entire store)
 const { currentFile, isDirty, saveFile } = useEditorStore()
 
 const handleSave = useCallback(() => {
@@ -223,7 +235,7 @@ const handleSave = useCallback(() => {
   }
 }, [currentFile, isDirty, saveFile]) // Re-creates on every keystroke!
 
-// ✅ GOOD: No cascade
+// ✅ GOOD: No cascade (getState pattern - no subscription)
 const handleSave = useCallback(() => {
   const { currentFile, isDirty, saveFile } = useEditorStore.getState()
   if (currentFile && isDirty) {
@@ -247,19 +259,20 @@ const handleSave = useCallback(() => {
 **Solution**: Components access store directly without callback props.
 
 ```typescript
-// ✅ CORRECT: Direct store pattern
+// ✅ CORRECT: Direct store pattern with selector syntax
 const StringField: React.FC<StringFieldProps> = ({
   name,
   label,
   required,
   field,
 }) => {
-  const { frontmatter, updateFrontmatterField } = useEditorStore()
+  const value = useEditorStore(state => state.frontmatter[name])
+  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
 
   return (
     <FieldWrapper label={label} required={required}>
       <Input
-        value={frontmatter[name] || ''}
+        value={value || ''}
         onChange={e => updateFrontmatterField(name, e.target.value)}
       />
     </FieldWrapper>
@@ -274,7 +287,9 @@ const BadField: React.FC<{ onChange: (value: string) => void }> = ({
 }
 ```
 
-📖 **See [form-patterns.md](./form-patterns.md) for complete form component patterns**
+**Note:** Always use selector syntax instead of destructuring to create granular subscriptions. For objects/arrays, use `useShallow` from 'zustand/react/shallow' to prevent re-renders from reference changes.
+
+📖 **See [form-patterns.md](./form-patterns.md) for complete form component patterns and [performance-patterns.md](./performance-patterns.md) for detailed performance optimization techniques**
 
 ### Command Pattern
 
@@ -299,7 +314,7 @@ globalCommandRegistry.execute('format-heading', 1)
 **Basic Integration**:
 - Keyboard shortcuts execute commands via `react-hotkeys-hook`
 - Native menus emit Tauri events → Layout listens → Executes commands
-- Command palette (Cmd+K) lists and executes commands
+- Command palette (Cmd+P) lists and executes commands
 - UI buttons call commands directly
 
 📖 **For detailed command implementation including registration, integration with keyboard shortcuts and menus, command structure, and examples, see [command-system.md](./command-system.md)**
@@ -546,10 +561,9 @@ App
 │       │   ├── useCollectionsQuery (server state)
 │       │   └── useProjectStore (client state)
 │       ├── MainEditor
-│       │   ├── Editor
-│       │   │   ├── useEditorStore (client state)
-│       │   │   └── lib/editor/* (business logic)
-│       │   └── StatusBar
+│       │   └── Editor
+│       │       ├── useEditorStore (client state)
+│       │       └── lib/editor/* (business logic)
 │       └── FrontmatterPanel
 │           ├── useCollectionsQuery (server state)
 │           └── useEditorStore (client state)

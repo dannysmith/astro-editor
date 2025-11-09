@@ -1,6 +1,5 @@
 export { Layout } from './Layout'
 export { UnifiedTitleBar } from './UnifiedTitleBar'
-export { StatusBar } from './StatusBar'
 export { MainEditor } from './MainEditor'
 export { LeftSidebar } from './LeftSidebar'
 export { RightSidebar } from './RightSidebar'

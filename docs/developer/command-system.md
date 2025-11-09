@@ -22,7 +22,7 @@ const saveCommand: Command = {
 // Executed from multiple places:
 // 1. Keyboard shortcut (Cmd+S)
 // 2. Native menu (File → Save)
-// 3. Command palette (Cmd+K → "Save File")
+// 3. Command palette (Cmd+P → "Save File")
 // 4. Toolbar button
 ```
 

@@ -11,7 +11,10 @@ import { focusEditorDelayed } from '../lib/focus-utils'
 export function useCommandPalette(searchValue = '') {
   const [open, setOpen] = useState(false)
   const context = useCommandContext()
-  const { setDistractionFreeBarsHidden } = useUIStore()
+  // Use selector syntax for consistency
+  const setDistractionFreeBarsHidden = useUIStore(
+    state => state.setDistractionFreeBarsHidden
+  )
 
   // Custom setOpen that shows bars when command palette opens and returns focus when closed
   const handleSetOpen = useCallback(

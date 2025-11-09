@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -18,21 +19,33 @@ import {
 import { cn } from '../../lib/utils'
 
 export const UnifiedTitleBar: React.FC = () => {
-  const { saveFile, isDirty, currentFile } = useEditorStore()
+  // Object subscription needs shallow
+  const currentFile = useEditorStore(useShallow(state => state.currentFile))
+
+  // Primitive subscriptions - selector syntax for consistency
+  const saveFile = useEditorStore(state => state.saveFile)
+  const isDirty = useEditorStore(state => state.isDirty)
+
   const [isWindowFocused, setIsWindowFocused] = useState(true)
 
-  const { projectPath, selectedCollection } = useProjectStore()
+  const projectPath = useProjectStore(state => state.projectPath)
+  const selectedCollection = useProjectStore(state => state.selectedCollection)
 
-  const {
-    toggleFrontmatterPanel,
-    frontmatterPanelVisible,
-    toggleSidebar,
-    sidebarVisible,
-    focusModeEnabled,
-    toggleFocusMode,
-    distractionFreeBarsHidden,
-    showBars,
-  } = useUIStore()
+  // UI store values (all already primitives or functions)
+  const toggleFrontmatterPanel = useUIStore(
+    state => state.toggleFrontmatterPanel
+  )
+  const frontmatterPanelVisible = useUIStore(
+    state => state.frontmatterPanelVisible
+  )
+  const toggleSidebar = useUIStore(state => state.toggleSidebar)
+  const sidebarVisible = useUIStore(state => state.sidebarVisible)
+  const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
+  const toggleFocusMode = useUIStore(state => state.toggleFocusMode)
+  const distractionFreeBarsHidden = useUIStore(
+    state => state.distractionFreeBarsHidden
+  )
+  const showBars = useUIStore(state => state.showBars)
 
   const { createNewFile } = useCreateFile()
 

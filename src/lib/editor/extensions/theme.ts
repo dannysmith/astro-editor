@@ -24,7 +24,7 @@ export const createEditorTheme = () => {
     },
     '.cm-content': {
       lineHeight: 'var(--editor-line-height)',
-      minHeight: 'calc(100vh - 68px)', // Subtract titlebar (44px) + statusbar (24px)
+      minHeight: 'calc(100vh - 44px)', // Subtract titlebar (44px)
       maxWidth: 'var(--editor-content-max-width)',
       margin: '0 auto',
       padding: '40px 0',
@@ -42,13 +42,11 @@ export const createEditorTheme = () => {
     '.cm-line': {
       padding: '0',
     },
-    // Cursor styling
     '.cm-cursor': {
       borderLeftColor: 'var(--editor-color-carat)',
       borderLeftWidth: '3px',
       height: '1.1em',
     },
-    // Selection styling
     '.cm-selectionBackground': {
       backgroundColor: 'var(--editor-color-selectedtext-background) !important',
     },
@@ -59,8 +57,6 @@ export const createEditorTheme = () => {
     '&.alt-pressed .cm-content': {
       cursor: 'default',
     },
-
-    // Snippet field styling
     '.cm-snippetField': {
       border: '1px solid rgba(0, 0, 0, 0.05)',
       backgroundColor: 'var(--editor-color-background)',
