@@ -46,7 +46,6 @@ export const Layout: React.FC = () => {
     useShallow(state => state.globalSettings?.appearance?.headingColor) // headingColor is an object with .light and .dark
   )
 
-  // Preferences state management
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   const handleSetPreferencesOpen = useCallback((open: boolean) => {
@@ -121,13 +120,10 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">
-      {/* Unified titlebar */}
       <UnifiedTitleBar />
 
-      {/* Main content area with three-panel layout */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Sidebar */}
           <ResizablePanel
             defaultSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.default : 0}
             minSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.min : 0}
@@ -140,7 +136,6 @@ export const Layout: React.FC = () => {
             className={`!cursor-col-resize ${sidebarVisible ? '' : 'hidden'}`}
           />
 
-          {/* Main Editor */}
           <ResizablePanel
             defaultSize={LAYOUT_SIZES.mainEditor.getDefault(
               sidebarVisible,
@@ -151,7 +146,6 @@ export const Layout: React.FC = () => {
             <MainEditor />
           </ResizablePanel>
 
-          {/* Right Sidebar */}
           <ResizableHandle
             className={`!cursor-col-resize ${frontmatterPanelVisible ? '' : 'hidden'}`}
           />

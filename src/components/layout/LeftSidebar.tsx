@@ -64,7 +64,6 @@ export const LeftSidebar: React.FC = () => {
     currentProjectSettings
   )
 
-  // Get the current collection
   const currentCollection = collections.find(c => c.name === selectedCollection)
 
   const {
