@@ -10,14 +10,18 @@ import {
  * Custom hook for managing preferences with easy read/write access
  */
 export const usePreferences = () => {
-  const {
-    globalSettings,
-    currentProjectSettings,
-    updateGlobalSettings,
-    updateProjectSettings,
-    currentProjectId,
-    projectPath,
-  } = useProjectStore()
+  const globalSettings = useProjectStore(state => state.globalSettings)
+  const currentProjectSettings = useProjectStore(
+    state => state.currentProjectSettings
+  )
+  const updateGlobalSettings = useProjectStore(
+    state => state.updateGlobalSettings
+  )
+  const updateProjectSettings = useProjectStore(
+    state => state.updateProjectSettings
+  )
+  const currentProjectId = useProjectStore(state => state.currentProjectId)
+  const projectPath = useProjectStore(state => state.projectPath)
 
   const updateGlobal = useCallback(
     (settings: Partial<GlobalSettings>) => {
