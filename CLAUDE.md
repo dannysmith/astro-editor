@@ -164,6 +164,18 @@ Use `/check` to verify work quality before completing tasks:
 
 **When to use**: Before completing significant features or refactoring work.
 
+### /knip-cleanup - Intelligent Unused Code Cleanup
+
+Use `/knip-cleanup` to clean up unused dependencies, files, and exports:
+- Runs knip to detect unused items
+- Preserves shadcn/ui components (future use)
+- Keeps Radix dependencies used by shadcn components
+- Protects Tauri/Rust-called exports
+- Auto-removes safe items
+- Asks user about ambiguous items
+
+**When to use**: Periodically during refactoring sessions to keep codebase clean.
+
 ### Task Management
 
 Use the task completion script to mark tasks as done:

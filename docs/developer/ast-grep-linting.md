@@ -270,3 +270,44 @@ When working with this codebase:
 6. **Test rules** before committing to ensure they work as intended
 
 ast-grep output is designed to be machine-readable (JSON mode available with `--format json`) for programmatic checking in agent workflows.
+
+## Complementary Tool: Knip
+
+While ast-grep enforces **architectural patterns**, [knip](https://knip.dev/) finds **unused code and dependencies**.
+
+### Knip Configuration
+
+The project includes `knip.json` configured to:
+- Scan only `src/` directory (excludes test fixtures, build output)
+- Detect unused files, dependencies, and exports
+- Ignore false positives (shadcn/ui future components, Tauri integrations)
+
+### Running Knip
+
+```bash
+# Run knip manually
+pnpm run knip
+
+# Intelligent cleanup (recommended)
+/knip-cleanup
+```
+
+### The /knip-cleanup Command
+
+Use the `/knip-cleanup` slash command for intelligent cleanup:
+- Preserves shadcn/ui components (future use)
+- Keeps Radix dependencies used by shadcn components
+- Protects Tauri/Rust-called exports
+- Auto-removes safe items
+- Asks user about ambiguous items
+
+**Note**: knip is NOT included in `check:all` to prevent accidental removal of intentionally unused code. Run it periodically during refactoring sessions via `/knip-cleanup`.
+
+### Knip vs ast-grep
+
+| Tool | Purpose | When to Run | Auto-fixes |
+|------|---------|-------------|------------|
+| **ast-grep** | Enforce architectural patterns | Always (in check:all) | Some patterns |
+| **knip** | Find unused code/deps | Periodically (refactoring) | Via /knip-cleanup |
+
+Both tools are complementary and serve different purposes in maintaining code quality.

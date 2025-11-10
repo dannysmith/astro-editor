@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/main.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "dist/**",
+    "build/**",
+    "test/**",
+    "temp-dummy-astro-project/**",
+    "website/**",
+    "telemetry-worker/**",
+    "src/test/**",
+    "**/*.test.{ts,tsx}",
+    "**/*.spec.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "@tauri-apps/cli",
+    "zod",
+    "@hookform/resolvers",
+    "react-hook-form",
+    "next-themes",
+    "date-fns",
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "autoprefixer",
+    "postcss",
+    "eslint-plugin-prettier",
+    "@testing-library/user-event"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "includeEntryExports": true
+}
