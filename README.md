@@ -4,7 +4,7 @@
 
 A native macOS markdown editor for Astro content collections. Clean writing interface with automatic frontmatter editing based on your collection schemas.
 
-https://github.com/user-attachments/assets/89b87f98-88c0-4845-a020-284201464b86
+https://github.com/user-attachments/assets/dc32dd12-2094-47c4-ab90-620ecd11ba48
 
 ## Features
 
