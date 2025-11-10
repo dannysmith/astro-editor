@@ -159,7 +159,7 @@ The project has six specialized agents to help with complex implementation chall
 Use `/check` to verify work quality before completing tasks:
 - Checks adherence to architecture-guide.md patterns
 - Removes unnecessary comments and console.logs
-- Runs `pnpm run check:all` and fixes errors
+- Runs `pnpm run check:all` (includes ast-grep architectural linting) and fixes errors
 - Cleans up leftover code from failed approaches
 
 **When to use**: Before completing significant features or refactoring work.
@@ -367,8 +367,10 @@ useHotkeys(
 ```bash
 pnpm run dev              # Start dev server
 pnpm run tauri:build      # Build app
-pnpm run check:all        # All checks (TS + Rust + tests) - RUN BEFORE COMMITS
+pnpm run check:all        # All checks (TS + Rust + ast-grep + tests) - RUN BEFORE COMMITS
 pnpm run fix:all          # Auto-fix all issues
+pnpm run ast:lint         # Run ast-grep architectural linting
+pnpm run ast:fix          # Auto-fix ast-grep violations (where possible)
 pnpm run test             # Watch mode
 pnpm run test:run         # Run once
 ```

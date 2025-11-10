@@ -1,0 +1,28 @@
+id: hooks-in-hooks-dir
+message: |
+  React hooks (functions starting with 'use') must be in the hooks/ directory, not lib/.
+
+  ❌ BAD: lib/commands/command-context.ts exporting useCommandContext()
+  ✅ GOOD: hooks/commands/useCommandContext.ts
+
+  The lib/ directory is for pure business logic, utilities, and classes.
+  React hooks belong in hooks/ directory.
+severity: error
+language: typescript
+files:
+  - "src/lib/**/*.ts"
+  - "src/lib/**/*.tsx"
+rule:
+  pattern: export function $HOOK($$$) { $$$ }
+  kind: function_declaration
+constraints:
+  HOOK:
+    regex: ^use[A-Z]\w+$
+note: |
+  This enforces the Directory Boundaries rule from architecture-guide.md:
+
+  - lib/: Pure business logic, utilities, classes (no React hooks)
+  - hooks/: React hooks, lifecycle logic
+
+  Exception: Context providers can live in lib/ if they're framework integrations.
+url: docs/developer/architecture-guide.md#directory-purpose-and-boundaries

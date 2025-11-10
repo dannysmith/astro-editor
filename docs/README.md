@@ -74,8 +74,9 @@ Other fundamenal developer documentation.
 
 ### Implementation & Operations
 
-Build optimization and release management.
+Build optimization, quality control, and release management.
 
+- **[developer/ast-grep-linting.md](developer/ast-grep-linting.md)** - Architectural linting with ast-grep (enforces patterns ESLint can't)
 - **[developer/optimization.md](developer/optimization.md)** - Bundle optimization and performance budgets
 - **[developer/releases.md](developer/releases.md)** - Release workflow and versioning
 - **[developer/apple-signing-setup.md](developer/apple-signing-setup.md)** - macOS code signing and notarization

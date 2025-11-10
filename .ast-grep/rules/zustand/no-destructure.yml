@@ -1,0 +1,25 @@
+id: no-destructure-zustand
+message: |
+  Never destructure from Zustand stores. Use selector syntax instead.
+
+  ❌ BAD: const { currentFile } = useEditorStore()
+  ✅ GOOD: const currentFile = useEditorStore(state => state.currentFile)
+
+  For multiple values, use multiple selectors or useShallow for objects/arrays.
+severity: error
+language: typescript
+rule:
+  any:
+    # Match destructuring from any Zustand store
+    - pattern: const { $$$PROPS } = useEditorStore($$$)
+    - pattern: const { $$$PROPS } = useProjectStore($$$)
+    - pattern: const { $$$PROPS } = useUIStore($$$)
+    - pattern: const { $$$PROPS } = useMdxComponentsStore($$$)
+    - pattern: const { $$$PROPS } = useComponentBuilderStore($$$)
+note: |
+  This is a CRITICAL architecture rule. Destructuring from Zustand stores causes
+  render cascades and performance issues.
+
+  See: docs/developer/architecture-guide.md (Performance Patterns)
+  See: docs/developer/state-management.md (Selector Syntax)
+url: https://github.com/pmndrs/zustand#selecting-multiple-state-slices

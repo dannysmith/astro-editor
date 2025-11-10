@@ -1,0 +1,12 @@
+ruleDirs:
+  - ./.ast-grep/rules
+
+languageGlobs:
+  typescript:
+    - "src/**/*.ts"
+    - "src/**/*.tsx"
+
+# Configure output format
+output:
+  style: rich
+  color: auto
