@@ -176,6 +176,18 @@ Use `/knip-cleanup` to clean up unused dependencies, files, and exports:
 
 **When to use**: Periodically during refactoring sessions to keep codebase clean.
 
+### /review-duplicates - Intelligent Duplicate Code Review
+
+Use `/review-duplicates` to find and review duplicated code:
+- Runs jscpd to detect code duplication
+- Categorizes duplicates by type (business logic, patterns, utilities)
+- Assesses risk level (high/medium/low)
+- Distinguishes intentional from problematic duplication
+- Provides refactoring recommendations
+- All refactoring is manual and user-approved
+
+**When to use**: Periodically during refactoring sessions to identify extraction opportunities.
+
 ### Task Management
 
 Use the task completion script to mark tasks as done:

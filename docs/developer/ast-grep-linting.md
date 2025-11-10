@@ -303,11 +303,59 @@ Use the `/knip-cleanup` slash command for intelligent cleanup:
 
 **Note**: knip is NOT included in `check:all` to prevent accidental removal of intentionally unused code. Run it periodically during refactoring sessions via `/knip-cleanup`.
 
-### Knip vs ast-grep
+### Code Quality Tool Comparison
 
 | Tool | Purpose | When to Run | Auto-fixes |
 |------|---------|-------------|------------|
 | **ast-grep** | Enforce architectural patterns | Always (in check:all) | Some patterns |
 | **knip** | Find unused code/deps | Periodically (refactoring) | Via /knip-cleanup |
+| **jscpd** | Find duplicate code | Periodically (refactoring) | Via /review-duplicates |
 
-Both tools are complementary and serve different purposes in maintaining code quality.
+All three tools are complementary and serve different purposes in maintaining code quality.
+
+## Complementary Tool: jscpd
+
+While ast-grep enforces **patterns** and knip finds **unused code**, [jscpd](https://github.com/kucherenko/jscpd) detects **code duplication**.
+
+### jscpd Configuration
+
+The project includes `.jscpd.json` configured to:
+- Scan `src/` and `src-tauri/src/` (TypeScript and Rust)
+- Conservative thresholds (10+ lines, 50+ tokens)
+- Exclude test files, shadcn/ui components, build outputs
+- Generate JSON reports for programmatic analysis
+
+### Running jscpd
+
+```bash
+# Run jscpd manually
+pnpm run jscpd
+
+# Intelligent review (recommended)
+/review-duplicates
+```
+
+### The /review-duplicates Command
+
+Use the `/review-duplicates` slash command for intelligent analysis:
+- Categorizes by type (business logic, patterns, utilities, types)
+- Assesses risk level (high/medium/low)
+- Distinguishes intentional from problematic duplication
+- Provides context and refactoring recommendations
+- All refactoring is manual and user-approved
+
+**When to Keep Duplicates**:
+- shadcn/ui component patterns (consistency)
+- Test setup code (test isolation)
+- Type definitions for decoupling
+- Simple patterns (<10 lines)
+- Language-specific idioms
+
+**When to Extract**:
+- Business logic (>15 lines)
+- Appears in 3+ locations
+- Complex algorithms
+- Data transformations
+- Validation logic
+
+**Note**: jscpd is NOT included in `check:all` because duplicate code requires human judgment. Many patterns are intentionally duplicated for good architectural reasons. Run periodically via `/review-duplicates`.

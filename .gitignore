@@ -30,3 +30,6 @@ dist-ssr
 
 # Test data (temporary project for manual testing)
 temp-dummy-astro-project/
+
+# Code quality reports
+jscpd-report/

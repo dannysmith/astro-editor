@@ -1,0 +1,29 @@
+{
+  "threshold": 30,
+  "reporters": ["json", "console"],
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "src/test/**",
+    "src/components/ui/**",
+    "dist/**",
+    "build/**",
+    "test/**",
+    "temp-dummy-astro-project/**",
+    "website/**",
+    "telemetry-worker/**",
+    "node_modules/**",
+    ".git/**",
+    "src-tauri/target/**",
+    "src-tauri/Cargo.lock"
+  ],
+  "format": ["typescript", "javascript", "rust"],
+  "min-lines": 10,
+  "min-tokens": 50,
+  "max-lines": 500,
+  "mode": "mild",
+  "absolute": true,
+  "output": "./jscpd-report"
+}
