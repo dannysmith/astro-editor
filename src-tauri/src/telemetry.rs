@@ -32,13 +32,18 @@ pub async fn send_telemetry_event(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let uuid = get_or_create_uuid(&app_data_dir)?;
 
+    // Format timestamp to match worker's strict ISO8601 regex: YYYY-MM-DDTHH:MM:SS.SSSZ
+    // Worker requires exactly 3 decimal places for milliseconds
+    let now = chrono::Utc::now();
+    let timestamp = now.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
     let payload = TelemetryPayload {
         app_id: "astro-editor".to_string(),
         uuid: uuid.clone(),
         version: version.clone(),
         event: "update_check".to_string(),
         platform: std::env::consts::OS.to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339(),
+        timestamp,
     };
 
     log::info!("Sending telemetry event (UUID: {uuid}, version: {version})");
@@ -47,13 +52,25 @@ pub async fn send_telemetry_event(
         .timeout(std::time::Duration::from_secs(5))
         .build()?;
 
-    client
+    let response = client
         .post("https://updateserver.dny.li/event")
         .json(&payload)
         .send()
         .await?;
 
-    log::info!("Telemetry event sent successfully");
+    // Check response status and log details for debugging
+    if response.status().is_success() {
+        log::info!("Telemetry event sent successfully");
+    } else {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unable to read response".to_string());
+        log::error!("Telemetry event failed: HTTP {status} - {body}");
+        return Err(format!("HTTP {status}: {body}").into());
+    }
+
     Ok(())
 }
 
