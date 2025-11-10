@@ -36,7 +36,7 @@ const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
  * Allows users to select and configure MDX components for insertion into the editor
  */
 export function ComponentBuilderDialog() {
-  const { projectPath } = useProjectStore()
+  const projectPath = useProjectStore(state => state.projectPath)
   const { pathOverrides } = useEffectiveSettings()
   const {
     isOpen,

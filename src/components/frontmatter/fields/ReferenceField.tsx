@@ -44,7 +44,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
-  const { projectPath } = useProjectStore()
+  const projectPath = useProjectStore(state => state.projectPath)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference
@@ -54,7 +54,9 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     ? field?.subReference
     : field?.reference || field?.referenceCollection
 
-  const { currentProjectSettings } = useProjectStore()
+  const currentProjectSettings = useProjectStore(
+    state => state.currentProjectSettings
+  )
 
   // Get collections to find the collection path
   const { data: collections = [] } = useCollectionsQuery(
