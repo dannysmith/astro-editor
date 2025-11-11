@@ -160,6 +160,9 @@ useEffect(() => {
 ```
 
 ### 5. Strategic Memoization
+
+> **Note**: With React Compiler, this memoization is now optional - the compiler handles it automatically. Retained for explicit optimization.
+
 ```typescript
 export const ImagePreview = React.memo(ImagePreviewComponent)
 ```

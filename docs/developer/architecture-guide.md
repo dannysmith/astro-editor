@@ -417,6 +417,8 @@ The app uses multiple event systems for different purposes:
 
 ## Performance Essentials
 
+**React Compiler**: As of React 19 with React Compiler v1.0, most component-level memoization happens automatically. The patterns below focus on areas the compiler doesn't optimize: **Zustand store subscriptions, external state management, and effect cleanup patterns**. See [performance-patterns.md](./performance-patterns.md) for comprehensive React Compiler guidance.
+
 ### Critical Anti-Patterns to Avoid
 
 1. ❌ **Subscribing to frequently-changing data** in components that don't need to re-render

@@ -6,16 +6,134 @@ This guide covers performance optimization patterns critical for maintaining opt
 
 ## Table of Contents
 
+- [React Compiler (Automatic Memoization)](#react-compiler-automatic-memoization)
 - [Core Principles](#core-principles)
 - [The `getState()` Pattern](#the-getstate-pattern)
 - [Store Subscription Optimization](#store-subscription-optimization)
 - [CSS Visibility vs Conditional Rendering](#css-visibility-vs-conditional-rendering)
 - [Strategic React.memo Placement](#strategic-reactmemo-placement)
-- [Memoization](#memoization)
+- [Memoization (Manual)](#memoization-manual)
 - [Lazy Loading](#lazy-loading)
 - [Debouncing](#debouncing)
+- [React Compiler Patterns](#react-compiler-patterns)
 - [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
 - [Performance Testing](#performance-testing)
+
+## React Compiler (Automatic Memoization)
+
+**As of October 2025, we use React Compiler v1.0** which automatically optimizes React components and hooks through intelligent memoization. This eliminates the need for manual `useMemo`, `useCallback`, and `React.memo` in most cases.
+
+### What React Compiler Does
+
+The compiler automatically:
+- **Memoizes components and hooks** based on their dependencies
+- **Optimizes granularly** - can memoize values conditionally (better than manual memoization)
+- **Enforces Rules of React** through stricter ESLint rules
+- **Prevents unnecessary re-renders** without manual intervention
+
+### What Compiler Does NOT Optimize
+
+**CRITICAL**: React Compiler only memoizes React components and hooks. It does NOT optimize:
+- **Zustand store subscriptions** - Selector syntax and `getState()` patterns remain essential
+- **Regular JavaScript functions** - Only functions named like components/hooks
+- **External state management** - Store patterns unchanged
+- **TanStack Query usage** - Query optimization patterns still apply
+
+### When to Use Manual Memoization
+
+Use manual `useMemo`/`useCallback` only when:
+- **Profiling shows a need** - Measure first, optimize second
+- **Expensive computations** the compiler can't detect (e.g., heavy calculations, large data transformations)
+- **Explicit control required** - Third-party library integration or debugging
+- **Escape hatch** - Temporary workaround for compiler issues (use `"use no memo"` directive)
+
+```typescript
+// ✅ Let compiler handle simple cases
+function MyComponent({ data }) {
+  // Compiler automatically memoizes this
+  const filtered = data.filter(item => item.active)
+  return <List items={filtered} />
+}
+
+// ✅ Manual memoization for expensive operations (after profiling)
+function ComplexComponent({ largeDataset }) {
+  // Expensive operation - manual memoization justified
+  const processed = useMemo(() => {
+    return largeDataset.map(item =>
+      expensiveTransformation(item) // Heavy calculation
+    ).sort(complexSort)
+  }, [largeDataset])
+
+  return <DataGrid data={processed} />
+}
+```
+
+### React Compiler ESLint Rules
+
+The compiler enforces React's Rules through new ESLint rules:
+
+```typescript
+// ❌ set-state-in-effect - Warns about setState in effects
+useEffect(() => {
+  // Avoid: Can cause cascading renders
+  setState(computeValue())
+}, [dependency])
+
+// ✅ Prefer derived state
+const value = computeValue()
+
+// ❌ preserve-manual-memoization - Requires complete dependencies
+const value = useMemo(() => compute(a, b), [a]) // Missing 'b'
+
+// ✅ Complete dependencies
+const value = useMemo(() => compute(a, b), [a, b])
+
+// ❌ exhaustive-deps - Stricter dependency checking
+useEffect(() => {
+  doSomething(prop)
+}, []) // Missing 'prop'
+
+// ✅ Include all dependencies
+useEffect(() => {
+  doSomething(prop)
+}, [prop])
+```
+
+### Opting Out with "use no memo"
+
+Use the `"use no memo"` directive to prevent compiler optimization:
+
+```typescript
+// Opt-out specific component
+function ComponentWithSideEffects() {
+  "use no memo" // Directive must be first statement
+
+  // Component has side effects compiler might optimize incorrectly
+  logToAnalytics('component_rendered')
+
+  return <div>Content</div>
+}
+
+// ✅ Always document why
+function ProblematicComponent() {
+  "use no memo" // TODO: Remove after fixing dynamic height issue (ISSUE-123)
+  // Implementation
+}
+
+// ❌ Don't use without explanation
+function Mystery() {
+  "use no memo" // Why? No one knows!
+  // ...
+}
+```
+
+### Key Takeaways
+
+1. **Default to compiler optimization** - Don't add manual memoization unless profiling shows a need
+2. **Zustand patterns still critical** - Compiler doesn't optimize store subscriptions
+3. **Measure before optimizing** - Use React DevTools Profiler
+4. **Document opt-outs** - Always explain `"use no memo"` usage
+5. **Effect cleanup required** - Use `cancelled` flags (see [React Compiler Patterns](#react-compiler-patterns))
 
 ## Core Principles
 
@@ -239,6 +357,8 @@ For stateful UI components (like `react-resizable-panels`), use CSS visibility i
 
 ## Strategic React.memo Placement
 
+**Note**: React Compiler automatically prevents most unnecessary re-renders. Use `React.memo` only when profiling shows a specific need or for components with expensive render logic.
+
 Use React.memo to break render cascades at component boundaries.
 
 ### How It Works
@@ -290,9 +410,11 @@ const MemoizedComponent = React.memo(
 )
 ```
 
-## Memoization
+## Memoization (Manual)
 
-Use memoization strategically for expensive computations.
+**Note**: React Compiler handles most memoization automatically. Use manual memoization only when profiling shows a specific need.
+
+Use memoization strategically for expensive computations that the compiler cannot optimize.
 
 ### useMemo for Expensive Computations
 
@@ -477,6 +599,160 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
 
   return debouncedValue
 }
+```
+
+## React Compiler Patterns
+
+Specific patterns required when using React Compiler.
+
+### Effect Cleanup with Cancelled Flags
+
+**CRITICAL**: Async effects must use `cancelled` flags to prevent stale state updates.
+
+```typescript
+// ✅ CORRECT: Cancelled flag prevents stale updates
+useEffect(() => {
+  let cancelled = false
+
+  const loadData = async () => {
+    const data = await fetchData()
+
+    if (!cancelled) {
+      setData(data)
+    }
+  }
+
+  void loadData()
+
+  // Only set cancelled flag - keep state for smooth UX
+  return () => {
+    cancelled = true
+  }
+}, [dependency])
+
+// ❌ WRONG: No cancelled flag allows stale updates
+useEffect(() => {
+  const loadData = async () => {
+    const data = await fetchData()
+    setData(data) // May update after unmount!
+  }
+
+  void loadData()
+}, [dependency])
+```
+
+### Cleanup Without State Reset
+
+For optimal UX, cleanup should only set the `cancelled` flag, not reset state:
+
+```typescript
+// ✅ GOOD: Preserves state for smooth transitions
+useEffect(() => {
+  const url = hoveredImage?.url
+  if (!url) return
+
+  let cancelled = false
+
+  const loadImage = async () => {
+    const imageUrl = await resolveImagePath(url)
+    if (!cancelled) {
+      setImageUrl(imageUrl)
+    }
+  }
+
+  void loadImage()
+
+  // Only cancel - keep imageUrl cached to prevent flicker
+  return () => {
+    cancelled = true
+  }
+}, [hoveredImage?.url])
+
+// ❌ BAD: Resetting state causes flicker
+useEffect(() => {
+  // ... load logic ...
+
+  return () => {
+    cancelled = true
+    setImageUrl(null) // ❌ Breaks caching, causes flicker
+  }
+}, [dependency])
+```
+
+### useState for Impure Functions
+
+Use `useState` with initializer function for values from impure functions (e.g., `Math.random()`):
+
+```typescript
+// ❌ WRONG: useMemo with impure function
+const width = useMemo(() => {
+  return `${Math.floor(Math.random() * 40) + 50}%`
+}, [])
+
+// ✅ CORRECT: useState with initializer
+const [width] = useState(
+  () => `${Math.floor(Math.random() * 40) + 50}%`
+)
+```
+
+### Derived State Over useEffect
+
+Prefer computing values during render instead of `useEffect` + `setState`:
+
+```typescript
+// ❌ WRONG: useEffect to derive state
+const [preferencesVersion, setPreferencesVersion] = useState('...')
+
+useEffect(() => {
+  if (globalSettings?.version) {
+    setPreferencesVersion(String(globalSettings.version))
+  }
+}, [globalSettings?.version])
+
+// ✅ CORRECT: Derive directly
+const preferencesVersion = globalSettings?.version
+  ? String(globalSettings.version)
+  : '...'
+```
+
+### Transition-Based State Synchronization
+
+For legitimate transition-based state updates in effects, document why and use proper guards:
+
+```typescript
+// ✅ CORRECT: Documented transition-based setState
+const previousIsRenamingRef = useRef(isRenaming)
+
+useEffect(() => {
+  // Only run on false -> true transition
+  if (isRenaming && !previousIsRenamingRef.current) {
+    // Safe to setState here: guarded condition ensures this only runs on the
+    // false->true transition, preventing cascading renders. This is a standard
+    // React pattern for synchronizing derived state on mode transitions.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRenameValue(fullName)
+    renameInitializedRef.current = false
+  }
+  previousIsRenamingRef.current = isRenaming
+}, [isRenaming, fullName])
+```
+
+### Moving Logic from Effects to Return
+
+When possible, move conditional logic from effects to return statements:
+
+```typescript
+// ❌ LESS OPTIMAL: Clearing state in effect
+useEffect(() => {
+  if (!isAltPressed) {
+    setHoveredImage(null)
+  }
+}, [isAltPressed])
+
+return hoveredImage
+
+// ✅ BETTER: Conditional logic in return
+return isAltPressed ? hoveredImage : null
 ```
 
 ## Anti-Patterns to Avoid
