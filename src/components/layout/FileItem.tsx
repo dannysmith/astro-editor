@@ -85,7 +85,9 @@ export const FileItem: React.FC<FileItemProps> = ({
   useEffect(() => {
     if (isRenaming && !previousIsRenamingRef.current) {
       // Just transitioned into rename mode - reset the value
-      // This setState only happens on transition (not every render), which is acceptable
+      // Safe to setState here: guarded condition ensures this only runs on the
+      // false->true transition, preventing cascading renders. This is a standard
+      // React pattern for synchronizing derived state on mode transitions.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRenameValue(fullName)
       renameInitializedRef.current = false

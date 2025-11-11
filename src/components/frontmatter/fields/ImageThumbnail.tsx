@@ -58,11 +58,10 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
 
     void loadImage()
 
-    // Cleanup: reset state when effect re-runs or component unmounts
+    // Cleanup: only set cancelled flag to prevent stale updates
+    // Keep cached state to prevent flicker during transitions
     return () => {
       cancelled = true
-      setImageUrl(null)
-      setLoadingState('idle')
     }
   }, [path, projectPath, currentFile?.path])
 

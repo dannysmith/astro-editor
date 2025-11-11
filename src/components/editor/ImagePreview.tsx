@@ -21,23 +21,24 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
   const prevUrlRef = React.useRef<string | null>(null)
 
   useEffect(() => {
-    if (!hoveredImage) {
+    const url = hoveredImage?.url
+    if (!url) {
       return
     }
 
     // If we're hovering over the same URL, don't reload (just position changed)
-    if (hoveredImage.url === prevUrlRef.current) {
+    if (url === prevUrlRef.current) {
       return
     }
 
-    prevUrlRef.current = hoveredImage.url
+    prevUrlRef.current = url
     let cancelled = false
 
     const loadImage = async () => {
       setLoadingState('loading')
 
       try {
-        const path = hoveredImage.url
+        const path = url
 
         // Check if it's a remote URL
         if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -71,14 +72,12 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
 
     void loadImage()
 
-    // Cleanup: reset state when effect re-runs or component unmounts
+    // Cleanup: only set cancelled flag to prevent stale updates
+    // Keep cached state (imageUrl, loadingState, prevUrlRef) to prevent flicker
     return () => {
       cancelled = true
-      setImageUrl(null)
-      setLoadingState('idle')
-      prevUrlRef.current = null
     }
-  }, [hoveredImage?.url, projectPath, currentFilePath, hoveredImage])
+  }, [hoveredImage?.url, projectPath, currentFilePath])
 
   // Don't render anything if no hovered image or if error state (fail silently)
   if (!hoveredImage || loadingState === 'error') {
