@@ -451,9 +451,11 @@ Manage focus for dialogs and modals:
 
 ## Performance Patterns
 
+> **React Compiler Note**: React Compiler (v1.0) automatically memoizes most components. Use manual memoization only when profiling shows a specific need. See [performance-patterns.md](./performance-patterns.md) for comprehensive guidance.
+
 ### Memoization
 
-Use React.memo for expensive components:
+Use React.memo only for expensive components after profiling:
 
 ```tsx
 import { memo } from 'react'

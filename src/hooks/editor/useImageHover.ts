@@ -85,15 +85,10 @@ export const useImageHover = (
     // Add mouse move listener
     editorDom.addEventListener('mousemove', handleMouseMove)
 
-    // Clear hovered image when Alt is released
-    if (!isAltPressed) {
-      setHoveredImage(null)
-    }
-
     return () => {
       editorDom.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [view, isAltPressed, handleMouseMove])
+  }, [view, handleMouseMove])
 
   // Clear on mouse leave
   useEffect(() => {
@@ -112,5 +107,7 @@ export const useImageHover = (
     }
   }, [view])
 
-  return hoveredImage
+  // Return null if Alt is not pressed, otherwise return the hovered image
+  // This ensures the image preview disappears immediately when Alt is released
+  return isAltPressed ? hoveredImage : null
 }

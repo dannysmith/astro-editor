@@ -212,16 +212,26 @@ The script automatically:
 ## Technology Stack
 
 - **Framework:** Tauri v2 (Rust + React)
-- **Frontend:** React 19 + TypeScript (strict)
+- **Frontend:** React 19 + TypeScript (strict) with React Compiler
 - **State:** Hybrid approach:
   - **Server State:** TanStack Query v5 for data fetching/caching
   - **Client State:** Zustand for UI state and editing state
 - **Styling:** Tailwind v4 + shadcn/ui
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
 - **Testing:** Vitest + React Testing Library, Cargo
-- **Quality:** ESLint, Prettier, Clippy
+- **Quality:** ESLint (with React Compiler rules), Prettier, Clippy
 
 **CRITICAL:** Use Tauri v2 docs only. Always use modern Rust formatting: `format!("{variable}")`
+
+### React Compiler
+
+**Automatic Optimization**: React Compiler (v1.0) automatically memoizes components and hooks, eliminating the need for manual `useMemo`, `useCallback`, and `React.memo` in most cases. See `docs/developer/performance-patterns.md` for comprehensive guidance.
+
+**Key Points**:
+- Compiler handles memoization automatically - don't add manual memoization unless profiling shows a need
+- Enforces Rules of React through stricter ESLint rules
+- **"use no memo" directive**: Opt-out specific components if needed (document why)
+- **Zustand patterns unchanged**: Selector syntax and `getState()` remain critical for performance
 
 ## Architecture Overview
 
@@ -432,7 +442,13 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 
 **Testing Strategy**: Unit tests for `lib/` modules, integration tests for hooks/workflows, component tests for user interactions. **See `docs/developer/architecture-guide.md` for detailed testing patterns.**
 
-**Performance**: Use memoization, debouncing (2s auto-save), and the `getState()` pattern for callback dependencies. **See architecture guide for comprehensive performance patterns including render cascade prevention.**
+**Performance**: React Compiler handles most memoization automatically. Focus on:
+- **Zustand patterns**: Selector syntax and `getState()` (compiler doesn't optimize these)
+- **Debouncing**: 2s auto-save prevents excessive operations
+- **Effect cleanup**: Use `cancelled` flags in async effects
+- **Measurement first**: Profile before adding manual memoization
+
+**See `docs/developer/performance-patterns.md` for comprehensive React Compiler guidance and when manual optimization is still needed.**
 
 ## Best Practices
 
@@ -443,6 +459,8 @@ export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
 - **ALWAYS** use Direct Store Pattern with selector syntax
 - **ALWAYS** use `useShallow` for object/array subscriptions
 - **EXTRACT** helper components for repeated JSX (3+ times)
+- **MEMOIZATION**: React Compiler handles automatically - avoid manual `useMemo`/`useCallback` unless profiling shows a need
+- **EFFECT CLEANUP**: Use `cancelled` flags in async effects to prevent stale updates
 
 ### Module Development
 

@@ -57,6 +57,9 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     field.subType !== FieldType.Number &&
     field.subType !== FieldType.Integer
 
+  // Check if field schema exists (stable boolean, not mutable object)
+  const hasFieldSchema = !!field
+
   // Check if this field should be treated as an array based on schema or frontmatter value
   const shouldUseArrayField = React.useMemo(() => {
     return (
@@ -64,11 +67,15 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
       !isComplexArray &&
       (fieldType === (FieldType.Array as string) ||
         fieldType === 'Array' ||
-        (!field &&
+        (!hasFieldSchema &&
           Array.isArray(fieldValue) &&
           fieldValue.every((item: unknown) => typeof item === 'string')))
     )
-  }, [isArrayReference, isComplexArray, fieldType, field, fieldValue])
+    // fieldValue comes from Zustand store - while we use selector syntax correctly,
+    // the compiler flags it as potentially mutable. This memoization is valid to
+    // avoid expensive .every() calls on re-renders.
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  }, [isArrayReference, isComplexArray, fieldType, hasFieldSchema, fieldValue])
 
   // Handle boolean fields
   if (

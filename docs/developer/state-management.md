@@ -4,6 +4,8 @@
 
 Astro Editor uses a **hybrid state management approach** with three distinct layers, each handling different types of state based on data source, persistence needs, and update frequency. This guide provides comprehensive coverage of when and how to use each layer.
 
+> **React Compiler Note**: While React Compiler (v1.0) automatically handles most component-level memoization, **it does not optimize Zustand store subscriptions**. All patterns in this document remain critical for performance. The compiler optimizes React components and hooks, but external state management like Zustand requires manual optimization through selector syntax and `useShallow`.
+
 ## ⚠️ CRITICAL: Zustand Subscription Patterns
 
 **Before reading further, understand these critical rules. Violating them causes severe performance issues.**

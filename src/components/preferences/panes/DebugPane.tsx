@@ -24,22 +24,22 @@ import { SettingsSection } from '../SettingsSection'
 
 export const DebugPane: React.FC = () => {
   const [appVersion, setAppVersion] = useState<string>('...')
-  const [preferencesVersion, setPreferencesVersion] = useState<string>('...')
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetConfirmed, setResetConfirmed] = useState(false)
   const [resetting, setResetting] = useState(false)
   const { globalSettings } = usePreferences()
+
+  // Derive preferences version directly from globalSettings
+  const preferencesVersion = globalSettings?.version
+    ? String(globalSettings.version)
+    : '...'
 
   // Load diagnostic information on mount
   useEffect(() => {
     void getDiagnosticContext().then(context => {
       setAppVersion(context.appVersion)
     })
-
-    if (globalSettings?.version) {
-      setPreferencesVersion(String(globalSettings.version))
-    }
-  }, [globalSettings?.version])
+  }, [])
 
   const handleOpenPreferencesFolder = useCallback(() => {
     void (async () => {
