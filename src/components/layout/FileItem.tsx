@@ -61,9 +61,9 @@ export const FileItem: React.FC<FileItemProps> = ({
   isRenaming,
   onCancelRename,
 }) => {
-  const [renameValue, setRenameValue] = useState('')
-  const renameInitializedRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const renameInitializedRef = useRef(false)
+  const previousIsRenamingRef = useRef(isRenaming)
 
   // Derived state (NO store subscriptions)
   const isFileDraft =
@@ -75,16 +75,23 @@ export const FileItem: React.FC<FileItemProps> = ({
     frontmatterMappings.publishedDate
   )
 
-  // Initialize rename value when entering rename mode
+  // Compute the full name for rename
+  const fullName = file.extension ? `${file.name}.${file.extension}` : file.name
+
+  // Initialize rename value state
+  const [renameValue, setRenameValue] = useState(fullName)
+
+  // Reset rename value when entering rename mode (only on transition)
   useEffect(() => {
-    if (isRenaming) {
-      const fullName = file.extension
-        ? `${file.name}.${file.extension}`
-        : file.name
-      setRenameValue(fullName || '')
+    if (isRenaming && !previousIsRenamingRef.current) {
+      // Just transitioned into rename mode - reset the value
+      // This setState only happens on transition (not every render), which is acceptable
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRenameValue(fullName)
       renameInitializedRef.current = false
     }
-  }, [isRenaming, file.name, file.extension])
+    previousIsRenamingRef.current = isRenaming
+  }, [isRenaming, fullName])
 
   // Focus and select filename without extension
   useEffect(() => {

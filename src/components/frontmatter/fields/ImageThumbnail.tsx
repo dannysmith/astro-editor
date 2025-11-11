@@ -17,10 +17,10 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
 
   useEffect(() => {
     if (!path || !projectPath) {
-      setImageUrl(null)
-      setLoadingState('idle')
       return
     }
+
+    let cancelled = false
 
     const loadImage = async () => {
       setLoadingState('loading')
@@ -28,8 +28,10 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
       try {
         // Check if it's a remote URL
         if (path.startsWith('http://') || path.startsWith('https://')) {
-          setImageUrl(path)
-          setLoadingState('success')
+          if (!cancelled) {
+            setImageUrl(path)
+            setLoadingState('success')
+          }
           return
         }
 
@@ -40,17 +42,28 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
           currentFilePath: currentFile?.path || null,
         })
 
-        // Convert to asset protocol URL
-        const assetUrl = convertFileSrc(absolutePath)
-        setImageUrl(assetUrl)
-        setLoadingState('success')
+        if (!cancelled) {
+          // Convert to asset protocol URL
+          const assetUrl = convertFileSrc(absolutePath)
+          setImageUrl(assetUrl)
+          setLoadingState('success')
+        }
       } catch {
         // Fail silently - don't show error state
-        setLoadingState('error')
+        if (!cancelled) {
+          setLoadingState('error')
+        }
       }
     }
 
     void loadImage()
+
+    // Cleanup: reset state when effect re-runs or component unmounts
+    return () => {
+      cancelled = true
+      setImageUrl(null)
+      setLoadingState('idle')
+    }
   }, [path, projectPath, currentFile?.path])
 
   // Don't render anything if no path or if error state (fail silently)

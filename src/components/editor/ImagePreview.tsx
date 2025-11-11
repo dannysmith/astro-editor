@@ -22,9 +22,6 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
 
   useEffect(() => {
     if (!hoveredImage) {
-      setImageUrl(null)
-      setLoadingState('idle')
-      prevUrlRef.current = null
       return
     }
 
@@ -34,6 +31,7 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
     }
 
     prevUrlRef.current = hoveredImage.url
+    let cancelled = false
 
     const loadImage = async () => {
       setLoadingState('loading')
@@ -43,8 +41,10 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
 
         // Check if it's a remote URL
         if (path.startsWith('http://') || path.startsWith('https://')) {
-          setImageUrl(path)
-          setLoadingState('success')
+          if (!cancelled) {
+            setImageUrl(path)
+            setLoadingState('success')
+          }
           return
         }
 
@@ -55,17 +55,29 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
           currentFilePath,
         })
 
-        // Convert to asset protocol URL
-        const assetUrl = convertFileSrc(absolutePath)
-        setImageUrl(assetUrl)
-        setLoadingState('success')
+        if (!cancelled) {
+          // Convert to asset protocol URL
+          const assetUrl = convertFileSrc(absolutePath)
+          setImageUrl(assetUrl)
+          setLoadingState('success')
+        }
       } catch {
         // Fail silently - don't show error state
-        setLoadingState('error')
+        if (!cancelled) {
+          setLoadingState('error')
+        }
       }
     }
 
     void loadImage()
+
+    // Cleanup: reset state when effect re-runs or component unmounts
+    return () => {
+      cancelled = true
+      setImageUrl(null)
+      setLoadingState('idle')
+      prevUrlRef.current = null
+    }
   }, [hoveredImage?.url, projectPath, currentFilePath, hoveredImage])
 
   // Don't render anything if no hovered image or if error state (fail silently)

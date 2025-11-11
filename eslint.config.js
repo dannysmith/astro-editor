@@ -45,8 +45,9 @@ export default tseslint.config(
       // React specific rules
       'react/react-in-jsx-scope': 'off', // Not needed with React 17+
       'react/prop-types': 'off', // Using TypeScript for prop validation
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+
+      // React Hooks rules (includes React Compiler rules)
+      ...reactHooks.configs['recommended-latest'].rules,
 
       // TypeScript specific rules
       '@typescript-eslint/no-unused-vars': [
