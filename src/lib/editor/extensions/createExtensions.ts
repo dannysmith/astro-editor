@@ -12,6 +12,7 @@ import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createTypewriterModeExtension } from './typewriter-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
+import { hangingHeadersExtension } from './hanging-headers'
 
 /**
  * Configuration for creating editor extensions
@@ -74,6 +75,9 @@ export const createExtensions = (config: ExtensionConfig) => {
     ...createFocusModeExtension(),
     ...createTypewriterModeExtension(),
     ...createCopyeditModeExtension(),
+
+    // Visual enhancements
+    hangingHeadersExtension,
 
     // Theme and styling
     createEditorTheme(),

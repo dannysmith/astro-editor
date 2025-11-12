@@ -219,3 +219,30 @@
     --editor-content-max-width: 980px;
   }
 }
+
+/* Hanging Headers - iA Writer style */
+/* Hash marks appear in left margin, heading text aligns with body text */
+/* Only enabled when editor container is wide enough (875px+) */
+@supports (container-type: inline-size) {
+  @container editor (min-width: 875px) {
+    /* Adjust indent per heading level - hash marks hang into left margin */
+    .cm-line.cm-hanging-header-1 {
+      text-indent: -1.2em;
+    } /* # + space */
+    .cm-line.cm-hanging-header-2 {
+      text-indent: -1.8em;
+    } /* ## + space */
+    .cm-line.cm-hanging-header-3 {
+      text-indent: -2.4em;
+    } /* ### + space */
+    .cm-line.cm-hanging-header-4 {
+      text-indent: -3em;
+    } /* #### + space */
+    .cm-line.cm-hanging-header-5 {
+      text-indent: -3.6em;
+    } /* ##### + space */
+    .cm-line.cm-hanging-header-6 {
+      text-indent: -4.2em;
+    } /* ###### + space */
+  }
+}
