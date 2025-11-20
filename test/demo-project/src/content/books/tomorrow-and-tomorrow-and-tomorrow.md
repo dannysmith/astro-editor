@@ -1,13 +1,12 @@
 ---
 title: Tomorrow, and Tomorrow, and Tomorrow
 author: Gabrielle Zevin
-cover: ../../assets/books/2025-11-07-tomorrow-and-tomorrow-and-tomorrow-6.jpg
 publicationYear: 2022
 rating: 4
 tags:
-- fiction
-- gaming
-- friendship
+  - fiction
+  - gaming
+  - friendship
 ---
 
 # Tomorrow, and Tomorrow, and Tomorrow
@@ -20,7 +19,7 @@ Sam and Sadie meet as children in a hospital and bond over gaming. Years later, 
 
 ### What I Appreciated
 
-The friendship at the center is complex and *real*. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+The friendship at the center is complex and _real_. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 
 **The gaming world** is rendered with authenticity—from the creative process to the business realities. You don't need to be a gamer to appreciate this, but it helps.
 
