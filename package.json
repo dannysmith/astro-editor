@@ -44,7 +44,8 @@
     "task:complete": "node scripts/complete-task.js",
     "task:rename-done": "node scripts/complete-task.js --rename-existing",
     "knip": "knip",
-    "jscpd": "jscpd src src-tauri/src"
+    "jscpd": "jscpd src src-tauri/src",
+    "stats": "cd telemetry-worker && pnpm run stats && cd .."
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.0",
