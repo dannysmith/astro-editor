@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Field,
   FieldLabel,
@@ -176,6 +177,46 @@ export const GeneralPane: React.FC = () => {
     [updateGlobal, globalSettings?.general, globalSettings?.appearance]
   )
 
+  const DEFAULT_EDITOR_BASE_FONT_SIZE = 18
+
+  const handleEditorBaseFontSizeChange = useCallback(
+    (value: string) => {
+      const parsed = parseInt(value, 10)
+      // Guard: ignore empty or invalid input
+      if (isNaN(parsed)) return
+      // Clamp to valid range
+      const size = Math.max(1, Math.min(30, parsed))
+
+      void updateGlobal({
+        general: {
+          ideCommand: globalSettings?.general?.ideCommand || '',
+          theme: globalSettings?.general?.theme || 'system',
+          highlights: globalSettings?.general?.highlights || {
+            nouns: true,
+            verbs: true,
+            adjectives: true,
+            adverbs: true,
+            conjunctions: true,
+          },
+          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
+          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
+        },
+        appearance: {
+          headingColor: {
+            light: globalSettings?.appearance?.headingColor?.light || '#191919',
+            dark: globalSettings?.appearance?.headingColor?.dark || '#cccccc',
+          },
+          editorBaseFontSize: size,
+        },
+      })
+    },
+    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+  )
+
+  const handleResetEditorBaseFontSize = useCallback(() => {
+    handleEditorBaseFontSizeChange(String(DEFAULT_EDITOR_BASE_FONT_SIZE))
+  }, [handleEditorBaseFontSizeChange])
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-muted/50 p-4 mb-6">
@@ -322,6 +363,36 @@ export const GeneralPane: React.FC = () => {
             </div>
             <FieldDescription>
               Choose the color for markdown headings in dark mode
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel>Editor Font Size</FieldLabel>
+          <FieldContent>
+            <div className="flex items-center gap-2 w-fit">
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={
+                  globalSettings?.appearance?.editorBaseFontSize ??
+                  DEFAULT_EDITOR_BASE_FONT_SIZE
+                }
+                onChange={e => handleEditorBaseFontSizeChange(e.target.value)}
+                className="w-20"
+              />
+              <span className="text-sm text-muted-foreground">px</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetEditorBaseFontSize}
+              >
+                Reset
+              </Button>
+            </div>
+            <FieldDescription>
+              Base font size for editor text (default: 18)
             </FieldDescription>
           </FieldContent>
         </Field>

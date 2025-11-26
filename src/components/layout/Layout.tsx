@@ -45,6 +45,9 @@ export const Layout: React.FC = () => {
   const headingColor = useProjectStore(
     useShallow(state => state.globalSettings?.appearance?.headingColor) // headingColor is an object with .light and .dark
   )
+  const editorBaseFontSize = useProjectStore(
+    state => state.globalSettings?.appearance?.editorBaseFontSize
+  )
 
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
@@ -117,6 +120,13 @@ export const Layout: React.FC = () => {
       return () => observer.disconnect()
     }
   }, [headingColor])
+
+  // Apply editor base font size CSS variable
+  useEffect(() => {
+    const root = window.document.documentElement
+    const size = editorBaseFontSize ?? 18
+    root.style.setProperty('--editor-base-font-size', `${size}px`)
+  }, [editorBaseFontSize])
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">

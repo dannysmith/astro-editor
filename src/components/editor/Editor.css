@@ -162,13 +162,15 @@
   --editor-font-weight-normal: 490;
   --editor-font-weight-bold: 700;
 
-  /* Type Scale - Easy to experiment with */
+  /* Base font size - set dynamically from preferences */
+  --editor-base-font-size: 18px;
 
-  --editor-type-scale-tiny: 16.5px;
-  --editor-type-scale-small: 18px;
-  --editor-type-scale-medium: 18px;
-  --editor-type-scale-large: 21px;
-  --editor-type-scale-huge: 24px;
+  /* Type Scale - derived from base using exact fractions */
+  --editor-type-scale-tiny: calc(var(--editor-base-font-size) * 11 / 12);
+  --editor-type-scale-small: var(--editor-base-font-size);
+  --editor-type-scale-medium: var(--editor-base-font-size);
+  --editor-type-scale-large: calc(var(--editor-base-font-size) * 7 / 6);
+  --editor-type-scale-huge: calc(var(--editor-base-font-size) * 4 / 3);
 
   /* Responsive Typography - Tiny Width (default) */
   --editor-font-size: var(--editor-type-scale-tiny);

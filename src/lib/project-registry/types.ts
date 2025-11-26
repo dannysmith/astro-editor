@@ -88,6 +88,7 @@ export interface GlobalSettings {
       light: string
       dark: string
     }
+    editorBaseFontSize?: number // 1-30, default 18
   }
   version: number
 }
