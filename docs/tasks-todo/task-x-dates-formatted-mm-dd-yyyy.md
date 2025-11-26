@@ -120,6 +120,96 @@ Let the YAML serializer decide quoting. Both `'value'` and `value` are semantica
 | Field-level preservation | Hard (per-field tracking)              |
 | Surgical YAML editing    | Very Hard (not recommended)            |
 
+## Research Findings
+
+### Zod Date Handling
+
+- `z.date()` - expects actual JavaScript Date objects (strict)
+- `z.coerce.date()` - calls `new Date(input)` on the input (flexible)
+- Astro recommends `z.coerce.date()` for frontmatter dates
+
+### JavaScript Date Parsing
+
+Reliably supported formats ([MDN Reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse)):
+
+- ISO 8601: `2024-01-15`, `2024-01-15T12:30:00Z`, `2024-01-15T12:30:00+05:00`
+- `toString()`/`toUTCString()` formats
+
+Implementation-specific (may not work everywhere):
+
+- US slash format: `1/15/2024` (works in most browsers)
+- **Dash format with US order: `01-15-2024` is NOT standard** - JavaScript sees dashes and tries to parse as ISO (YYYY-MM-DD), which fails
+
+### YAML Date Handling
+
+- YAML 1.1 had timestamp type (ISO 8601 based) - [YAML Timestamp Spec](https://yaml.org/type/timestamp.html)
+- YAML 1.2 dropped built-in timestamp support
+- Most parsers (including serde_norway) return dates as strings
+
+### Current Implementation Issue
+
+```tsx
+// DateField.tsx line 37
+value={value && typeof value === 'string' ? new Date(value) : undefined}
+```
+
+This passes the string directly to `new Date()`, which fails for non-ISO formats like `01-15-2024`.
+
+### The Core Problem
+
+The format `01-15-2024` (MM-DD-YYYY with dashes) is problematic because:
+
+1. JavaScript's Date constructor sees dashes and assumes ISO format (YYYY-MM-DD)
+2. It tries to parse as year=01, month=15, day=2024 → Invalid Date
+3. The format `1/15/2024` (with slashes) would actually work, but dashes break it
+
+## Open Questions
+
+These need decisions before implementation can proceed:
+
+### Q1: Ambiguous Date Formats
+
+How should we handle dates like `01-02-2024`? This could be:
+
+- January 2nd (US: MM-DD-YYYY)
+- February 1st (European: DD-MM-YYYY)
+
+Options:
+
+- A) Assume US format (MM-DD-YYYY) for ambiguous dash-separated dates
+- B) Assume European format (DD-MM-YYYY)
+- C) Only support ISO format for dashes (YYYY-MM-DD), reject others with error
+- D) Use system locale to decide
+
+### Q2: Time Component When Editing
+
+When a user edits a date that originally had a time component (e.g., `2025-11-23T18:55:24.118+00:00`), what should happen?
+
+Options:
+
+- A) Preserve the original time (show same date in picker, save with original time)
+- B) Reset to midnight UTC (`2025-11-23T00:00:00Z`)
+- C) Strip time entirely, save as date-only (`2025-11-23`)
+
+### Q3: Format Preservation Scope
+
+For "preserve original format" - how far should we go?
+
+Options:
+
+- A) Only preserve if the field wasn't touched at all
+- B) Preserve format even if date changed (e.g., if original was `01/15/2024`, new date saved as `02/20/2024`)
+- C) Always normalize to ISO when any change is made
+
+### Q4: Slash vs Dash Handling
+
+Should we support both `01/15/2024` and `01-15-2024` (assuming US format)?
+
+Options:
+
+- A) Yes, support both (more permissive)
+- B) Only support slashes for US format, dashes only for ISO (clearer semantics)
+
 ## Appendix: Original Issue Details
 
 ### Issue #67: Dates formatted as mm-dd-yyyy not recognized
