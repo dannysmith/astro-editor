@@ -2,7 +2,7 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
 import { Switch } from '../../ui/switch'
-import { FieldWrapper } from './FieldWrapper'
+import { FieldLabel, FieldDescription } from '../../ui/field'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
@@ -43,25 +43,23 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
     return false
   }
 
-  // Check if field is required
   const isRequired = field ? field.required : false
+  const description =
+    field && 'description' in field ? field.description : undefined
 
   return (
-    <FieldWrapper
-      label={label}
-      required={isRequired}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      currentValue={value}
-      layout="horizontal"
-      hideDefaultValue={true}
-    >
-      <Switch
-        checked={getBooleanValue(value)}
-        onCheckedChange={checked => updateFrontmatterField(name, checked)}
-      />
-    </FieldWrapper>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <FieldLabel>
+          {label}
+          {isRequired && <span className="text-required ml-1">*</span>}
+        </FieldLabel>
+        <Switch
+          checked={getBooleanValue(value)}
+          onCheckedChange={checked => updateFrontmatterField(name, checked)}
+        />
+      </div>
+      {description && <FieldDescription>{description}</FieldDescription>}
+    </div>
   )
 }
