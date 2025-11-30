@@ -34,23 +34,28 @@ pnpm run d1:migrate       # Run database migrations
 pnpm wrangler d1 execute astro-telemetry --remote --command " SELECT * FROM telemetry_events WHERE app_id = 'astro-editor' ORDER BY created_at DESC"
 ```
 
-### Total unique users
+### Total installs
 
 ```bash
 pnpm wrangler d1 execute astro-telemetry --remote --command "
-  SELECT COUNT(DISTINCT uuid) as total_users
+  SELECT COUNT(DISTINCT uuid) as total_installs
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
 "
 ```
 
-### Users per version
+### Users per current version
 
 ```bash
 pnpm wrangler d1 execute astro-telemetry --remote --command "
-  SELECT version, COUNT(DISTINCT uuid) as users
-  FROM telemetry_events
-  WHERE app_id = 'astro-editor'
+  SELECT version, COUNT(*) as users
+  FROM (
+    SELECT uuid, version
+    FROM telemetry_events
+    WHERE app_id = 'astro-editor'
+    GROUP BY uuid
+    HAVING created_at = MAX(created_at)
+  )
   GROUP BY version
   ORDER BY version DESC
 "

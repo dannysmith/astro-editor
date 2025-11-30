@@ -39,10 +39,10 @@ printf "   ${BOLD}${GREEN}%-6s${RESET} ${DIM}365 days${RESET}\n" "${d365:-0}"
 
 header "📊 TELEMETRY USERS"
 total=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
-  SELECT COUNT(DISTINCT uuid) as total_users
+  SELECT COUNT(DISTINCT uuid) as total_installs
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
-" 2>/dev/null | jq -r '.[0].results[0].total_users')
+" 2>/dev/null | jq -r '.[0].results[0].total_installs')
 new_users=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT COUNT(DISTINCT uuid) as new_users
   FROM telemetry_events
@@ -53,14 +53,19 @@ new_users=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
       HAVING MIN(created_at) >= datetime('now', '-7 days')
     )
 " 2>/dev/null | jq -r '.[0].results[0].new_users')
-printf "   ${BOLD}${GREEN}%-6s${RESET} total users\n" "$total"
+printf "   ${BOLD}${GREEN}%-6s${RESET} total installs\n" "$total"
 printf "   ${BOLD}${YELLOW}%-6s${RESET} new this week\n" "$new_users"
 
-header "📦 BY VERSION"
+header "📦 CURRENT VERSION"
 pnpm wrangler d1 execute astro-telemetry --remote --json --command "
-  SELECT version, COUNT(DISTINCT uuid) as users
-  FROM telemetry_events
-  WHERE app_id = 'astro-editor'
+  SELECT version, COUNT(*) as users
+  FROM (
+    SELECT uuid, version
+    FROM telemetry_events
+    WHERE app_id = 'astro-editor'
+    GROUP BY uuid
+    HAVING created_at = MAX(created_at)
+  )
   GROUP BY version
   ORDER BY version DESC
 " 2>/dev/null | jq -r '.[0].results[] | "\(.version)|\(.users)"' | while IFS='|' read -r ver count; do
@@ -79,6 +84,23 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
 " 2>/dev/null | jq -r '.[0].results[] | "\(.date)|\(.users)"' | while IFS='|' read -r date count; do
   bar=$(printf '%*s' "$count" '' | tr ' ' '█')
   printf "   ${DIM}%s${RESET}  ${GREEN}%-10s${RESET} ${BOLD}%s${RESET}\n" "$date" "$bar" "$count"
+done
+
+header "🏆 POWER USERS (by days active)"
+pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+  SELECT
+    uuid,
+    COUNT(DISTINCT DATE(created_at)) as days_active,
+    MAX(version) as current_version
+  FROM telemetry_events
+  WHERE app_id = 'astro-editor'
+    AND event = 'update_check'
+  GROUP BY uuid
+  ORDER BY days_active DESC
+  LIMIT 10
+" 2>/dev/null | jq -r '.[0].results[] | "\(.uuid)|\(.days_active)|\(.current_version)"' | while IFS='|' read -r uuid days ver; do
+  short_uuid="${uuid:0:8}..."
+  printf "   ${DIM}%s${RESET}  ${BOLD}${GREEN}%3s${RESET} days  ${MAGENTA}(v%s)${RESET}\n" "$short_uuid" "$days" "$ver"
 done
 
 echo ""
