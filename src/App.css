@@ -41,6 +41,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: hsl(0 0% 100%);
   --foreground: hsl(0 0% 10%);
   --card: hsl(0 0% 100%);
@@ -82,6 +83,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: hsl(0 0% 7%);
   --foreground: hsl(0 0% 90%);
   --card: hsl(0 0% 9%);
