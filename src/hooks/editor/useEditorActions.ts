@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { info, error as logError } from '@tauri-apps/plugin-log'
 import { useQueryClient } from '@tanstack/react-query'
-import { commands, type Collection, type JsonValue } from '@/lib/bindings'
+import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'

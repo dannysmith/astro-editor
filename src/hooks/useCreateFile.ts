@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { commands, type DirectoryScanResult } from '@/lib/bindings'
+import { commands, type DirectoryScanResult } from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'

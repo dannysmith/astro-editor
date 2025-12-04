@@ -1,7 +1,7 @@
 // src/hooks/mutations/useSaveFileMutation.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { commands, type JsonValue } from '@/lib/bindings'
+import { commands, type JsonValue } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 

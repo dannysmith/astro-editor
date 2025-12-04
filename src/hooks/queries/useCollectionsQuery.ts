@@ -1,7 +1,7 @@
 // src/hooks/queries/useCollectionsQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { commands, type Collection } from '@/lib/bindings'
+import { commands, type Collection } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 import { getEffectiveContentDirectory } from '@/lib/project-registry'
 import { ASTRO_PATHS } from '@/lib/constants'

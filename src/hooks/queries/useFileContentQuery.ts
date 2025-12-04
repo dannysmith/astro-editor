@@ -1,7 +1,7 @@
 // src/hooks/queries/useFileContentQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { commands, type MarkdownContent } from '@/lib/bindings'
+import { commands, type MarkdownContent } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
 const fetchFileContent = async (

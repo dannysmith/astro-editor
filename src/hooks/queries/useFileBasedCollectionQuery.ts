@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { commands, type FileEntry } from '@/lib/bindings'
+import { commands, type FileEntry } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
 /**

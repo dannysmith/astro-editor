@@ -2,12 +2,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { screen, fireEvent } from '@testing-library/dom'
 import { FrontmatterPanel } from './FrontmatterPanel'
 import { useEditorStore } from '../../store/editorStore'
-import type { Collection } from '@/types'
+import type { Collection, FileEntry } from '@/types'
 import { renderWithProviders } from '../../test/test-utils'
 
 // Mock the query hook - will be configured per test
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 vi.mock('../../hooks/queries/useCollectionsQuery')
+
+// Helper to create mock file entries with all required fields
+const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
+  id: 'posts/test',
+  path: '/project/posts/test.md',
+  name: 'test',
+  extension: 'md',
+  isDraft: false,
+  collection: 'posts',
+  last_modified: null,
+  frontmatter: null,
+  ...overrides,
+})
 
 describe('FrontmatterPanel Component', () => {
   // Helper to set up collections mock
@@ -62,14 +75,7 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should show frontmatter fields when file is selected', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
+    const mockFile = createMockFile()
 
     const mockFrontmatter = {
       title: 'Test Post',
@@ -131,17 +137,8 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle text input changes', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { title: 'Original Title' },
     })
 
@@ -154,15 +151,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle boolean input changes', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -182,7 +170,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { draft: false },
     })
 
@@ -197,15 +185,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle number input changes', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -225,7 +204,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { rating: 3 },
     })
 
@@ -238,17 +217,8 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should show message when no frontmatter fields exist', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: {},
     })
 
@@ -258,15 +228,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use schema information when available', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -299,7 +260,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { title: 'Test Post' },
     })
 
@@ -315,15 +276,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should show all schema fields even when not in frontmatter', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -355,7 +307,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { title: 'Test Post' }, // Only has title, missing description and publishDate
     })
 
@@ -374,17 +326,8 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should remove field from frontmatter when emptied', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { title: 'Test Post', description: 'Some description' },
     })
 
@@ -400,15 +343,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use TagInput for array fields defined in schema', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -423,7 +357,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: { tags: ['react', 'typescript'] },
     })
 
@@ -439,15 +373,6 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use TagInput for array fields not in schema but present in frontmatter', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     const mockCollection = {
       name: 'posts',
       path: '/project/posts',
@@ -467,7 +392,7 @@ describe('FrontmatterPanel Component', () => {
     mockCollectionsQuery([mockCollection])
 
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: {
         title: 'Test Post',
         categories: ['tech', 'programming'], // Not in schema but is array of strings
@@ -487,17 +412,8 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should not use TagInput for non-string arrays in frontmatter', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: {
         numbers: [1, 2, 3], // Array but not strings
         mixed: ['string', 123], // Mixed array
@@ -515,17 +431,8 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle proper arrays from backend parsing', () => {
-    const mockFile = {
-      id: 'posts/test',
-      path: '/project/posts/test.md',
-      name: 'test',
-      extension: 'md',
-      isDraft: false,
-      collection: 'posts',
-    }
-
     useEditorStore.setState({
-      currentFile: mockFile,
+      currentFile: createMockFile(),
       frontmatter: {
         title: 'Test Post',
         tags: ['javascript', 'typescript', 'react'], // Proper array from backend

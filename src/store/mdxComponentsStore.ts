@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { commands, type MdxComponent } from '@/lib/bindings'
+import { commands, type MdxComponent } from '@/types'
 
 interface MdxComponentsState {
   components: MdxComponent[]

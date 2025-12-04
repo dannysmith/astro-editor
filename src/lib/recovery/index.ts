@@ -1,5 +1,5 @@
 import { info, error as logError } from '@tauri-apps/plugin-log'
-import { commands, type JsonValue } from '@/lib/bindings'
+import { commands, type JsonValue } from '@/types'
 import type { RecoveryData, CrashReport } from './types'
 
 export type { RecoveryData, CrashReport }
