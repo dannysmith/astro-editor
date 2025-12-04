@@ -29,8 +29,14 @@ export function useEditorActions() {
 
   const saveFile = useCallback(
     async (showToast = true) => {
-      const { currentFile, editorContent, frontmatter, imports } =
-        useEditorStore.getState()
+      const {
+        currentFile,
+        editorContent,
+        frontmatter,
+        rawFrontmatter,
+        isFrontmatterDirty,
+        imports,
+      } = useEditorStore.getState()
       if (!currentFile) return
 
       // Get project path using direct store access pattern
@@ -64,9 +70,11 @@ export function useEditorActions() {
           }
         }
 
+        // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
         await invoke('save_markdown_content', {
           filePath: currentFile.path,
-          frontmatter,
+          frontmatter: isFrontmatterDirty ? frontmatter : null,
+          rawFrontmatter: isFrontmatterDirty ? null : rawFrontmatter,
           content: editorContent,
           imports,
           schemaFieldOrder,
@@ -82,6 +90,7 @@ export function useEditorActions() {
 
         useEditorStore.setState({
           isDirty: false,
+          isFrontmatterDirty: false,
           lastSaveTimestamp: Date.now(),
         })
 
