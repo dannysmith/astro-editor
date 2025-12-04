@@ -45,6 +45,10 @@ const notes = defineCollection({
       description: z.string().optional(),
       pubDate: z.coerce.date(),
       tags: z.array(z.string()).optional(),
+      // Nullable schema types for testing (Issue #68 follow-up)
+      status: z.enum(['draft', 'review', 'published']).nullish(),
+      keywords: z.array(z.string()).nullish(),
+      scores: z.array(z.number()).nullish(),
       metadata: z
         .object({
           category: z.string().describe('Category for organizing notes'),
