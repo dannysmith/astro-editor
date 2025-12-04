@@ -5,6 +5,15 @@ import type { RecoveryData, CrashReport } from './types'
 export type { RecoveryData, CrashReport }
 
 /**
+ * Type-safe conversion for recovery data objects that are structurally valid JSON.
+ * RecoveryData and CrashReport are JSON-serializable but TypeScript can't verify
+ * this automatically because interfaces lack index signatures.
+ */
+function asJsonValue(value: RecoveryData | CrashReport): JsonValue {
+  return value as unknown as JsonValue
+}
+
+/**
  * Save recovery data when a save operation fails
  */
 export const saveRecoveryData = async (data: {
@@ -20,15 +29,13 @@ export const saveRecoveryData = async (data: {
     originalFilePath: data.currentFile.path,
     projectPath: data.projectPath || '',
     editorContent: data.editorContent,
-    frontmatter: data.frontmatter,
+    frontmatter: data.frontmatter as Record<string, JsonValue>,
     fileName: data.currentFile.name,
     collection: data.currentFile.collection,
   }
 
   try {
-    const result = await commands.saveRecoveryData(
-      recoveryData as unknown as JsonValue
-    )
+    const result = await commands.saveRecoveryData(asJsonValue(recoveryData))
     if (result.status === 'error') {
       await logError(`Failed to save recovery data: ${result.error}`)
       return
@@ -59,9 +66,7 @@ export const saveCrashReport = async (
   }
 
   try {
-    const result = await commands.saveCrashReport(
-      report as unknown as JsonValue
-    )
+    const result = await commands.saveCrashReport(asJsonValue(report))
     if (result.status === 'error') {
       await logError(`Failed to save crash report: ${result.error}`)
       return
