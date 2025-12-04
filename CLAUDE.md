@@ -230,8 +230,8 @@ Commands use **tauri-specta** for end-to-end type safety. TypeScript bindings ar
 **Adding a new command:**
 1. Define in Rust with `#[tauri::command]` and `#[specta::specta]`
 2. Add to `src-tauri/src/bindings.rs` `collect_commands![]`
-3. Run `pnpm run rust:test` to regenerate `src/lib/bindings.ts`
-4. Commit the updated bindings file
+3. Run `pnpm tauri dev` briefly - bindings regenerate automatically in debug mode
+4. Commit the updated `src/lib/bindings.ts`
 5. Add JSDoc to `src/types/domain.ts` if exposing a new type
 
 **Usage:** Import from `@/lib/bindings`, handle `Result` types:
