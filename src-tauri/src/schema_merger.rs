@@ -415,6 +415,16 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
             array_reference_collection: None,
         });
     }
+    // Handle nullable primitives (e.g., z.number().nullish() → anyOf: [number, null])
+    if let Some(primitive_type) = extract_nullable_primitive_type(any_of) {
+        return Ok(FieldTypeInfo {
+            field_type: primitive_type,
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
     // Other unions - treat as string for now
     Ok(FieldTypeInfo {
         field_type: "string".to_string(),
@@ -423,6 +433,41 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
         reference_collection: None,
         array_reference_collection: None,
     })
+}
+
+/// Extract primitive type from a nullable anyOf (e.g., [number, null] → "number")
+/// Returns None if not a simple nullable primitive pattern
+fn extract_nullable_primitive_type(any_of: &[JsonSchemaProperty]) -> Option<String> {
+    // Only handle simple two-element nullable unions: [primitive, null]
+    if any_of.len() != 2 {
+        return None;
+    }
+
+    let mut primitive_type = None;
+    let mut has_null = false;
+
+    for schema in any_of {
+        match &schema.type_ {
+            Some(StringOrArray::String(t)) if t == "null" => {
+                has_null = true;
+            }
+            Some(StringOrArray::String(t)) => {
+                match t.as_str() {
+                    "number" | "integer" | "boolean" | "string" => {
+                        primitive_type = Some(t.clone());
+                    }
+                    _ => return None, // Not a simple primitive
+                }
+            }
+            _ => return None, // Array type or missing type
+        }
+    }
+
+    if has_null {
+        primitive_type
+    } else {
+        None
+    }
 }
 
 /// Handle array types
@@ -1129,6 +1174,104 @@ mod tests {
             .unwrap();
         assert_eq!(desc_field.field_type, "string");
         assert!(!desc_field.required);
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_number() {
+        // Regression test for GitHub issue #68: z.number().nullish() was incorrectly
+        // typed as "string" instead of "number", causing values to be stringified on save
+        let json_schema = r##"{
+            "$ref": "#/definitions/locations",
+            "definitions": {
+                "locations": {
+                    "type": "object",
+                    "properties": {
+                        "lat": {
+                            "anyOf": [
+                                { "type": "number" },
+                                { "type": "null" }
+                            ]
+                        },
+                        "lng": {
+                            "anyOf": [
+                                { "type": "null" },
+                                { "type": "number" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("locations", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+
+        let lat_field = schema.fields.iter().find(|f| f.name == "lat").unwrap();
+        assert_eq!(lat_field.field_type, "number");
+        assert!(!lat_field.required);
+
+        // Also test with null first (order shouldn't matter)
+        let lng_field = schema.fields.iter().find(|f| f.name == "lng").unwrap();
+        assert_eq!(lng_field.field_type, "number");
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_integer() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "priority": {
+                            "anyOf": [
+                                { "type": "integer" },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "priority").unwrap();
+        assert_eq!(field.field_type, "integer");
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_boolean() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "featured": {
+                            "anyOf": [
+                                { "type": "boolean" },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "featured").unwrap();
+        assert_eq!(field.field_type, "boolean");
     }
 
     #[test]
