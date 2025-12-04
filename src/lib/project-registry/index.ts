@@ -5,6 +5,7 @@
  */
 
 import { safeLog } from '../diagnostics'
+import { commands } from '@/lib/bindings'
 import {
   ProjectRegistry,
   GlobalSettings,
@@ -39,17 +40,23 @@ export class ProjectRegistryManager {
       )
 
       // This will trigger directory creation through validate_app_data_path
-      const { invoke } = await import('@tauri-apps/api/core')
-      const appDataDir = await invoke<string>('get_app_data_dir')
+      const appDataDirResult = await commands.getAppDataDir()
+      if (appDataDirResult.status === 'error') {
+        throw new Error(appDataDirResult.error)
+      }
+      const appDataDir = appDataDirResult.data
       await safeLog.debug(
         `Astro Editor [PROJECT_REGISTRY] App data directory: ${appDataDir}`
       )
 
       // Trigger directory creation by attempting to create a test file structure
-      await invoke('write_app_data_file', {
-        filePath: `${appDataDir}/preferences/.ensure-dirs`,
-        content: 'initialization check',
-      })
+      const writeResult = await commands.writeAppDataFile(
+        `${appDataDir}/preferences/.ensure-dirs`,
+        'initialization check'
+      )
+      if (writeResult.status === 'error') {
+        throw new Error(writeResult.error)
+      }
 
       await safeLog.info(
         'Astro Editor [PROJECT_REGISTRY] App data directories verified'
