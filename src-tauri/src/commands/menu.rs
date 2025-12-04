@@ -5,12 +5,6 @@ use crate::MenuState;
 
 #[tauri::command]
 #[specta::specta]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn update_format_menu_state(
     app_handle: tauri::AppHandle,
     enabled: bool,
@@ -21,7 +15,11 @@ pub async fn update_format_menu_state(
             for item in state.format_items.values() {
                 let _ = item.set_enabled(enabled);
             }
+        } else {
+            log::debug!("Failed to lock menu state");
         }
+    } else {
+        log::debug!("Menu state not available");
     }
 
     Ok(())

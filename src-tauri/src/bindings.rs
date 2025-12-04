@@ -15,7 +15,6 @@ pub fn export_bindings() {
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new().commands(collect_commands![
         // menu.rs commands
-        crate::commands::menu::greet,
         crate::commands::menu::update_format_menu_state,
         // files.rs commands
         crate::commands::files::read_file,
