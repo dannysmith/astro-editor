@@ -359,9 +359,10 @@ export function deserializeCompleteSchema(schemaJson: string): CompleteSchema {
 
 ```typescript
 // In React Query hook
-const collections = await invoke<CollectionInfo[]>('get_collections', { projectPath })
+const result = await commands.scanProject(projectPath)
+if (result.status === 'error') throw new Error(result.error)
 
-return collections.map(col => ({
+return result.data.map(col => ({
   ...col,
   schema: deserializeCompleteSchema(col.complete_schema),
 }))

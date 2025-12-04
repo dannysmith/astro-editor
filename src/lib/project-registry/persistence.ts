@@ -55,14 +55,6 @@ async function ensurePreferencesDir() {
     if (projResult.status === 'error') {
       throw new Error(projResult.error)
     }
-
-    // Clean up the init files
-    try {
-      await commands.readAppDataFile(`${preferencesDir}/.init`)
-      await commands.readAppDataFile(`${projectsDir}/.init`)
-    } catch {
-      // Files might not exist, that's fine
-    }
   } catch (err) {
     await error(`Failed to ensure preferences directories: ${String(err)}`)
     throw err

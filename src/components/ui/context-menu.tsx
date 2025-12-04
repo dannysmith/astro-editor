@@ -99,7 +99,10 @@ export class FileContextMenu {
         action: () => {
           void (async () => {
             try {
-              await commands.copyTextToClipboard(file.path)
+              const result = await commands.copyTextToClipboard(file.path)
+              if (result.status === 'error') {
+                throw new Error(result.error)
+              }
             } catch (error) {
               // eslint-disable-next-line no-console
               console.error('Failed to copy path:', error)
