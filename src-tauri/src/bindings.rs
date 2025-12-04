@@ -72,8 +72,11 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
 mod tests {
     use super::*;
 
+    /// Exports TypeScript bindings to src/lib/bindings.ts.
+    /// Run this test to regenerate bindings after changing Rust commands.
+    /// Note: This writes to the filesystem on every test run.
     #[test]
-    fn generate_typescript_bindings() {
+    fn export_typescript_bindings_to_file() {
         export_bindings();
     }
 }
