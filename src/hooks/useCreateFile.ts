@@ -1,8 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type DirectoryScanResult } from '@/lib/bindings'
 import { useEditorStore } from '../store/editorStore'
-import type { FileEntry } from '@/types'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'
@@ -119,14 +118,15 @@ export const useCreateFile = () => {
       let counter = 1
 
       // Check if file exists in target directory and increment counter if needed
-      const existingDirContents = await invoke<{
-        files: FileEntry[]
-        subdirectories: unknown[]
-      }>('scan_directory', {
-        directoryPath: targetDirectory,
-        collectionName: selectedCollection,
-        collectionRoot: collection.path,
-      })
+      const existingResult = await commands.scanDirectory(
+        targetDirectory,
+        selectedCollection,
+        collection.path
+      )
+      if (existingResult.status === 'error') {
+        throw new Error(existingResult.error)
+      }
+      const existingDirContents: DirectoryScanResult = existingResult.data
 
       const existingNames = new Set(
         existingDirContents.files.map(f =>
@@ -210,14 +210,15 @@ export const useCreateFile = () => {
       })
 
       // Find and open the newly created file
-      const updatedDirContents = await invoke<{
-        files: FileEntry[]
-        subdirectories: unknown[]
-      }>('scan_directory', {
-        directoryPath: targetDirectory,
-        collectionName: selectedCollection,
-        collectionRoot: collection.path,
-      })
+      const updatedResult = await commands.scanDirectory(
+        targetDirectory,
+        selectedCollection,
+        collection.path
+      )
+      if (updatedResult.status === 'error') {
+        throw new Error(updatedResult.error)
+      }
+      const updatedDirContents: DirectoryScanResult = updatedResult.data
 
       const newFile = updatedDirContents.files.find(
         f => (f.extension ? `${f.name}.${f.extension}` : f.name) === filename

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../store/editorStore'
 
 /**
@@ -16,12 +16,12 @@ export function useEditorFocusTracking() {
   // Initialize focus state and listen for changes
   useEffect(() => {
     window.isEditorFocused = false
-    void invoke('update_format_menu_state', { enabled: false })
+    void commands.updateFormatMenuState(false)
 
     const updateMenuState = () => {
       const { currentFile } = useEditorStore.getState()
       const shouldEnableMenu = Boolean(currentFile && window.isEditorFocused)
-      void invoke('update_format_menu_state', { enabled: shouldEnableMenu })
+      void commands.updateFormatMenuState(shouldEnableMenu)
     }
 
     // Listen to focus changes

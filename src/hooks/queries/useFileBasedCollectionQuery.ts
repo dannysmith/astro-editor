@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type FileEntry } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
-import type { FileEntry } from '@/types'
 
 /**
  * Query hook for loading file-based collections (JSON loader)
@@ -16,26 +15,25 @@ export function useFileBasedCollectionQuery(
       projectPath || '',
       collectionName || ''
     ),
-    queryFn: async () => {
+    queryFn: async (): Promise<FileEntry[] | null> => {
       if (!projectPath || !collectionName) {
         return null
       }
 
-      try {
-        const files = await invoke<FileEntry[]>('load_file_based_collection', {
-          projectPath,
-          collectionName,
-        })
-        return files
-      } catch (error) {
+      const result = await commands.loadFileBasedCollection(
+        projectPath,
+        collectionName
+      )
+      if (result.status === 'error') {
         // Collection might not be file-based or doesn't exist
         // eslint-disable-next-line no-console
         console.debug(
           `[FileBasedCollection] Could not load ${collectionName}:`,
-          error
+          result.error
         )
         return null
       }
+      return result.data
     },
     enabled: !!projectPath && !!collectionName,
     staleTime: 5 * 60 * 1000, // 5 minutes - file-based collections don't change often

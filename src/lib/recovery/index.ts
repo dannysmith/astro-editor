@@ -1,5 +1,5 @@
-import { invoke } from '@tauri-apps/api/core'
 import { info, error as logError } from '@tauri-apps/plugin-log'
+import { commands, type JsonValue } from '@/lib/bindings'
 import type { RecoveryData, CrashReport } from './types'
 
 export type { RecoveryData, CrashReport }
@@ -26,7 +26,13 @@ export const saveRecoveryData = async (data: {
   }
 
   try {
-    await invoke('save_recovery_data', { data: recoveryData })
+    const result = await commands.saveRecoveryData(
+      recoveryData as unknown as JsonValue
+    )
+    if (result.status === 'error') {
+      await logError(`Failed to save recovery data: ${result.error}`)
+      return
+    }
     await info(`Recovery data saved for ${recoveryData.fileName}`)
   } catch (err) {
     await logError(`Failed to save recovery data: ${String(err)}`)
@@ -53,7 +59,13 @@ export const saveCrashReport = async (
   }
 
   try {
-    await invoke('save_crash_report', { report })
+    const result = await commands.saveCrashReport(
+      report as unknown as JsonValue
+    )
+    if (result.status === 'error') {
+      await logError(`Failed to save crash report: ${result.error}`)
+      return
+    }
     await info('Crash report saved')
   } catch (err) {
     await logError(`Failed to save crash report: ${String(err)}`)

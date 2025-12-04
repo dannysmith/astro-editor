@@ -43,6 +43,7 @@ fn detect_framework(path: &Path) -> ComponentFramework {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_mdx_components(
     project_path: String,
     mdx_directory: Option<String>,

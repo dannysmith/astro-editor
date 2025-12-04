@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { getEffectiveAssetsDirectory } from '../project-registry'
 import { ASTRO_PATHS } from '../constants'
 import type {
@@ -37,10 +37,7 @@ export async function processFileToAssets(
   let shouldCopy = copyStrategy === 'always'
 
   if (copyStrategy === 'only-if-outside-project') {
-    const isInProject = await invoke<boolean>('is_path_in_project', {
-      filePath: sourcePath,
-      projectPath: projectPath,
-    })
+    const isInProject = await commands.isPathInProject(sourcePath, projectPath)
     shouldCopy = !isInProject
   }
 
@@ -54,36 +51,46 @@ export async function processFileToAssets(
       collection
     )
 
+    let result
     if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
       // Use collection-specific or project-level override
-      relativePath = await invoke<string>('copy_file_to_assets_with_override', {
-        sourcePath: sourcePath,
-        projectPath: projectPath,
-        collection: collection,
-        assetsDirectory: assetsDirectory,
-        currentFilePath: currentFilePath,
-        useRelativePaths: useRelativePaths,
-      })
+      result = await commands.copyFileToAssetsWithOverride(
+        sourcePath,
+        projectPath,
+        collection,
+        assetsDirectory,
+        currentFilePath,
+        useRelativePaths
+      )
     } else {
       // Use default assets directory
-      relativePath = await invoke<string>('copy_file_to_assets', {
-        sourcePath: sourcePath,
-        projectPath: projectPath,
-        collection: collection,
-        currentFilePath: currentFilePath,
-        useRelativePaths: useRelativePaths,
-      })
+      result = await commands.copyFileToAssets(
+        sourcePath,
+        projectPath,
+        collection,
+        currentFilePath,
+        useRelativePaths
+      )
     }
+
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    relativePath = result.data
 
     wasCopied = true
   } else {
     // File is already in project - reuse existing path
-    relativePath = await invoke<string>('get_relative_path', {
-      filePath: sourcePath,
-      projectPath: projectPath,
-      currentFilePath: currentFilePath,
-      useRelativePaths: useRelativePaths,
-    })
+    const result = await commands.getRelativePath(
+      sourcePath,
+      projectPath,
+      currentFilePath,
+      useRelativePaths
+    )
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    relativePath = result.data
     wasCopied = false
   }
 

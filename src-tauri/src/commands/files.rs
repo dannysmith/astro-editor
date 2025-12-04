@@ -81,12 +81,14 @@ fn calculate_relative_path(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn read_file(file_path: String, project_root: String) -> Result<String, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn write_file(
     file_path: String,
     content: String,
@@ -97,6 +99,7 @@ pub async fn write_file(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn create_file(
     directory: String,
     filename: String,
@@ -122,12 +125,14 @@ pub async fn create_file(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_file(file_path: String, project_root: String) -> Result<(), String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
     std::fs::remove_file(&validated_path).map_err(|e| format!("Failed to delete file: {e}"))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn rename_file(
     old_path: String,
     new_path: String,
@@ -171,6 +176,7 @@ fn to_kebab_case(s: &str) -> String {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn copy_file_to_assets(
     source_path: String,
     project_path: String,
@@ -190,6 +196,7 @@ pub async fn copy_file_to_assets(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn copy_file_to_assets_with_override(
     source_path: String,
     project_path: String,
@@ -309,7 +316,7 @@ pub async fn copy_file_to_assets_with_override(
     Ok(final_path)
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, specta::Type)]
 pub struct MarkdownContent {
     pub frontmatter: IndexMap<String, Value>,
     pub content: String,
@@ -318,6 +325,7 @@ pub struct MarkdownContent {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn parse_markdown_content(
     file_path: String,
     project_root: String,
@@ -330,6 +338,7 @@ pub async fn parse_markdown_content(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn update_frontmatter(
     file_path: String,
     frontmatter: IndexMap<String, Value>,
@@ -350,6 +359,7 @@ pub async fn update_frontmatter(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn save_markdown_content(
     file_path: String,
     frontmatter: Option<IndexMap<String, Value>>,
@@ -786,6 +796,7 @@ fn rebuild_markdown_content_only(imports: &str, content: &str) -> Result<String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn save_recovery_data(app: tauri::AppHandle, data: Value) -> Result<(), String> {
     let timestamp = Local::now().format("%Y%m%d-%H%M%S").to_string();
     let filename = data
@@ -826,6 +837,7 @@ pub async fn save_recovery_data(app: tauri::AppHandle, data: Value) -> Result<()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn save_crash_report(app: tauri::AppHandle, report: Value) -> Result<(), String> {
     let timestamp = Local::now().format("%Y%m%d-%H%M%S").to_string();
 
@@ -851,6 +863,7 @@ pub async fn save_crash_report(app: tauri::AppHandle, report: Value) -> Result<(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
     let app_data_dir = app
         .path()
@@ -930,6 +943,7 @@ fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn write_app_data_file(
     app: tauri::AppHandle,
     file_path: String,
@@ -955,6 +969,7 @@ pub async fn write_app_data_file(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn read_app_data_file(
     app: tauri::AppHandle,
     file_path: String,
@@ -973,12 +988,14 @@ pub async fn read_app_data_file(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn read_file_content(file_path: String, project_root: String) -> Result<String, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn write_file_content(
     file_path: String,
     content: String,
@@ -996,6 +1013,7 @@ pub async fn write_file_content(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn create_directory(path: String, project_root: String) -> Result<(), String> {
     let validated_path = validate_project_path(&path, &project_root)?;
     std::fs::create_dir_all(&validated_path).map_err(|e| format!("Failed to create directory: {e}"))
@@ -1010,6 +1028,7 @@ pub async fn create_directory(path: String, project_root: String) -> Result<(), 
 /// # Returns
 /// True if the file is within the project, false otherwise
 #[tauri::command]
+#[specta::specta]
 pub async fn is_path_in_project(file_path: String, project_path: String) -> bool {
     let file = Path::new(&file_path);
     let project = Path::new(&project_path);
@@ -1029,6 +1048,7 @@ pub async fn is_path_in_project(file_path: String, project_path: String) -> bool
 /// # Returns
 /// The relative path from project root, or an error if the file is not in the project
 #[tauri::command]
+#[specta::specta]
 pub async fn get_relative_path(
     file_path: String,
     project_path: String,
@@ -1072,6 +1092,7 @@ pub async fn get_relative_path(
 /// # Returns
 /// The validated absolute filesystem path that can be used with convertFileSrc
 #[tauri::command]
+#[specta::specta]
 pub async fn resolve_image_path(
     image_path: String,
     project_root: String,

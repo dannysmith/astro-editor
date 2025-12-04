@@ -1,14 +1,13 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { info, error as logError } from '@tauri-apps/plugin-log'
 import { useQueryClient } from '@tanstack/react-query'
+import { commands, type Collection, type JsonValue } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'
 import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
 import { deserializeCompleteSchema } from '../../lib/schema'
-import type { Collection } from '@/types'
 
 /**
  * Editor action hooks following the Hybrid Action Hooks pattern.
@@ -71,15 +70,20 @@ export function useEditorActions() {
         }
 
         // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
-        await invoke('save_markdown_content', {
-          filePath: currentFile.path,
-          frontmatter: isFrontmatterDirty ? frontmatter : null,
-          rawFrontmatter: isFrontmatterDirty ? null : rawFrontmatter,
-          content: editorContent,
+        const result = await commands.saveMarkdownContent(
+          currentFile.path,
+          isFrontmatterDirty
+            ? (frontmatter as Partial<Record<string, JsonValue>>)
+            : null,
+          isFrontmatterDirty ? null : rawFrontmatter,
+          editorContent,
           imports,
           schemaFieldOrder,
-          projectRoot: projectPath,
-        })
+          projectPath
+        )
+        if (result.status === 'error') {
+          throw new Error(result.error)
+        }
 
         // Clear auto-save timeout since we just saved
         const { autoSaveTimeoutId } = useEditorStore.getState()

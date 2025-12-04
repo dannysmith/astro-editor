@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { error as logError, info, debug } from '@tauri-apps/plugin-log'
 import { toast } from '../lib/toast'
@@ -155,12 +155,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         currentProjectSettings?.pathOverrides?.contentDirectory
 
       if (contentDirectory && contentDirectory !== ASTRO_PATHS.CONTENT_DIR) {
-        await invoke('start_watching_project_with_content_dir', {
+        const result = await commands.startWatchingProjectWithContentDir(
           projectPath,
-          contentDirectory,
-        })
+          contentDirectory
+        )
+        if (result.status === 'error') {
+          throw new Error(result.error)
+        }
       } else {
-        await invoke('start_watching_project', { projectPath })
+        const result = await commands.startWatchingProject(projectPath)
+        if (result.status === 'error') {
+          throw new Error(result.error)
+        }
       }
 
       // Listen for file change events
@@ -223,7 +229,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         _unlistenSchemaChanged: null,
       })
 
-      await invoke('stop_watching_project', { projectPath })
+      const result = await commands.stopWatchingProject(projectPath)
+      if (result.status === 'error') {
+        throw new Error(result.error)
+      }
     } catch (error) {
       const errorMsg = formatErrorForLogging(
         'PROJECT_SETUP',
@@ -252,9 +261,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (projectMetadata) {
           try {
             // Verify the project path still exists before setting it
-            await invoke('scan_project', {
-              projectPath: projectMetadata.path,
-            })
+            const result = await commands.scanProject(projectMetadata.path)
+            if (result.status === 'error') {
+              throw new Error(result.error)
+            }
             // If no error, the project path is valid, so restore it
             get().setProject(projectMetadata.path)
           } catch (error) {

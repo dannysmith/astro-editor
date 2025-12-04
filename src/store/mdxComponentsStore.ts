@@ -1,20 +1,5 @@
 import { create } from 'zustand'
-import { invoke } from '@tauri-apps/api/core'
-
-interface PropInfo {
-  name: string
-  prop_type: string
-  is_optional: boolean
-  default_value?: string | null
-}
-
-interface MdxComponent {
-  name: string
-  file_path: string
-  props: PropInfo[]
-  has_slot: boolean
-  description?: string | null
-}
+import { commands, type MdxComponent } from '@/lib/bindings'
 
 interface MdxComponentsState {
   components: MdxComponent[]
@@ -33,12 +18,15 @@ export const useMdxComponentsStore = create<MdxComponentsState>(set => ({
     set({ isLoading: true, error: null })
 
     try {
-      const components = await invoke<MdxComponent[]>('scan_mdx_components', {
+      const result = await commands.scanMdxComponents(
         projectPath,
-        mdxDirectory,
-      })
+        mdxDirectory ?? null
+      )
+      if (result.status === 'error') {
+        throw new Error(result.error)
+      }
 
-      set({ components, isLoading: false })
+      set({ components: result.data, isLoading: false })
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to load MDX components:', error)

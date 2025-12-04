@@ -1,14 +1,13 @@
 // src/hooks/queries/useCollectionsQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type Collection } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
-import type { Collection } from '@/types'
 import { getEffectiveContentDirectory } from '@/lib/project-registry'
 import { ASTRO_PATHS } from '@/lib/constants'
 import { ProjectSettings } from '@/lib/project-registry/types'
 
-// This is our actual data-fetching function. It's just a wrapper around invoke.
+// This is our actual data-fetching function using typed Tauri commands.
 const fetchCollections = async (
   projectPath: string,
   contentDirectory: string
@@ -18,14 +17,15 @@ const fetchCollections = async (
     throw new Error('Project path is required to fetch collections.')
   }
 
-  if (contentDirectory !== ASTRO_PATHS.CONTENT_DIR) {
-    return invoke('scan_project_with_content_dir', {
-      projectPath,
-      contentDirectory,
-    })
-  } else {
-    return invoke('scan_project', { projectPath })
+  const result =
+    contentDirectory !== ASTRO_PATHS.CONTENT_DIR
+      ? await commands.scanProjectWithContentDir(projectPath, contentDirectory)
+      : await commands.scanProject(projectPath)
+
+  if (result.status === 'error') {
+    throw new Error(result.error)
   }
+  return result.data
 }
 
 export const useCollectionsQuery = (

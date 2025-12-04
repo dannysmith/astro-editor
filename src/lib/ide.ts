@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useProjectStore } from '../store/projectStore'
 import { toast } from './toast'
 
@@ -16,16 +16,14 @@ export async function openInIde(
     return
   }
 
-  try {
-    await invoke('open_path_in_ide', { ideCommand, filePath })
-    toast.success(`Opened in ${ideCommand}`)
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error occurred'
+  const result = await commands.openPathInIde(ideCommand, filePath)
+  if (result.status === 'error') {
     toast.error('Failed to open in IDE', {
-      description: errorMessage,
+      description: result.error,
     })
     // eslint-disable-next-line no-console
-    console.error('IDE open failed:', error)
+    console.error('IDE open failed:', result.error)
+    return
   }
+  toast.success(`Opened in ${ideCommand}`)
 }

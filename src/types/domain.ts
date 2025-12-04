@@ -30,11 +30,11 @@ export interface FileEntry {
   /** Collection this file belongs to */
   collection: string
 
-  /** Unix timestamp of last modification */
-  last_modified?: number
+  /** Unix timestamp of last modification (null when not available) */
+  last_modified?: number | null
 
   /** Parsed frontmatter data (optional - not always loaded) */
-  frontmatter?: Record<string, unknown>
+  frontmatter?: Record<string, unknown> | null
 }
 
 /**
@@ -74,7 +74,7 @@ export interface Collection {
    * Serialized CompleteSchema from Rust backend.
    * Deserialize with deserializeCompleteSchema() from src/lib/schema.ts
    */
-  complete_schema?: string
+  complete_schema?: string | null
 }
 
 /**

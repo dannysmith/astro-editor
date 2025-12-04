@@ -1,10 +1,10 @@
+mod bindings;
 mod commands;
 mod models;
 mod parser;
 mod schema_merger;
 mod telemetry;
 
-use commands::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{
@@ -32,31 +32,14 @@ impl MenuState {
     }
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
-}
-
-#[tauri::command]
-async fn update_format_menu_state(
-    app_handle: tauri::AppHandle,
-    enabled: bool,
-) -> Result<(), String> {
-    // Try to enable/disable menu items using stored references
-    if let Some(menu_state) = app_handle.try_state::<Mutex<MenuState>>() {
-        if let Ok(state) = menu_state.lock() {
-            for item in state.format_items.values() {
-                let _ = item.set_enabled(enabled);
-            }
-        }
-    }
-
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Export TypeScript bindings in debug mode
+    #[cfg(debug_assertions)]
+    bindings::export_bindings();
+
+    let builder = bindings::generate_bindings();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -344,51 +327,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            select_project_folder,
-            scan_project,
-            scan_project_with_content_dir,
-            scan_collection_files,
-            scan_directory,
-            count_collection_files_recursive,
-            load_file_based_collection,
-            read_json_schema,
-            read_file,
-            write_file,
-            create_file,
-            delete_file,
-            rename_file,
-            parse_markdown_content,
-            update_frontmatter,
-            save_markdown_content,
-            start_watching_project,
-            start_watching_project_with_content_dir,
-            stop_watching_project,
-            copy_text_to_clipboard,
-            update_format_menu_state,
-            copy_file_to_assets,
-            copy_file_to_assets_with_override,
-            scan_mdx_components,
-            save_recovery_data,
-            save_crash_report,
-            get_app_data_dir,
-            write_app_data_file,
-            read_app_data_file,
-            read_file_content,
-            write_file_content,
-            create_directory,
-            resolve_image_path,
-            is_path_in_project,
-            get_relative_path,
-            open_path_in_ide,
-            get_app_version,
-            get_platform_info,
-            get_app_info,
-            get_available_ides,
-            open_preferences_folder,
-            reset_all_preferences
-        ])
+        .invoke_handler(builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

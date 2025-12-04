@@ -2,7 +2,7 @@
  * Project registry utilities for identification and path management
  */
 
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { ProjectMetadata } from './types'
 import { safeLog } from '../diagnostics'
 
@@ -56,10 +56,11 @@ export async function discoverProject(
       `Astro Editor [PROJECT_DISCOVERY] Reading package.json: ${packageJsonPath}`
     )
 
-    const packageJsonContent = await invoke<string>('read_file_content', {
-      filePath: packageJsonPath,
-      projectRoot: projectPath,
-    })
+    const result = await commands.readFileContent(packageJsonPath, projectPath)
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    const packageJsonContent = result.data
 
     const packageJson = JSON.parse(packageJsonContent) as { name?: string }
     const name =
@@ -114,10 +115,11 @@ export async function isSameProject(
 ): Promise<boolean> {
   try {
     const packageJsonPath = `${newPath}/package.json`
-    const packageJsonContent = await invoke<string>('read_file_content', {
-      filePath: packageJsonPath,
-      projectRoot: newPath,
-    })
+    const result = await commands.readFileContent(packageJsonPath, newPath)
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    const packageJsonContent = result.data
 
     const packageJson = JSON.parse(packageJsonContent) as { name?: string }
     return packageJson.name === projectMetadata.name

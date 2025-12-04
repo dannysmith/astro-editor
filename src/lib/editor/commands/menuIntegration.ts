@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { globalCommandRegistry } from './CommandRegistry'
 import { HeadingLevel } from '../markdown/types'
 
@@ -39,7 +39,7 @@ export const updateFormatMenuState = async (
   enabled: boolean
 ): Promise<void> => {
   try {
-    await invoke('update_format_menu_state', { enabled })
+    await commands.updateFormatMenuState(enabled)
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to update format menu state:', error)

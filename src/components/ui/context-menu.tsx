@@ -1,6 +1,6 @@
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { remove } from '@tauri-apps/plugin-fs'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
@@ -99,7 +99,7 @@ export class FileContextMenu {
         action: () => {
           void (async () => {
             try {
-              await invoke('copy_text_to_clipboard', { text: file.path })
+              await commands.copyTextToClipboard(file.path)
             } catch (error) {
               // eslint-disable-next-line no-console
               console.error('Failed to copy path:', error)
@@ -119,10 +119,10 @@ export class FileContextMenu {
               )
 
               // Read the original file content
-              const content = await invoke('read_file', {
-                filePath: file.path,
-                projectRoot: projectPath,
-              })
+              const readResult = await commands.readFile(file.path, projectPath)
+              if (readResult.status === 'error') {
+                throw new Error(readResult.error)
+              }
 
               // Parse the duplicate path into directory and filename
               const lastSlashIndex = duplicatePath.lastIndexOf('/')
@@ -130,12 +130,15 @@ export class FileContextMenu {
               const filename = duplicatePath.substring(lastSlashIndex + 1)
 
               // Create the duplicate file
-              await invoke('create_file', {
+              const createResult = await commands.createFile(
                 directory,
                 filename,
-                content,
-                projectRoot: projectPath,
-              })
+                readResult.data,
+                projectPath
+              )
+              if (createResult.status === 'error') {
+                throw new Error(createResult.error)
+              }
 
               // Refresh the file list if callback is provided
               if (onRefresh) {

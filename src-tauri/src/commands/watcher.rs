@@ -10,11 +10,13 @@ use tauri::{AppHandle, Emitter, Manager, State};
 type WatcherMap = Arc<Mutex<HashMap<String, RecommendedWatcher>>>;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
     start_watching_project_with_content_dir(app, project_path, None).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_watching_project_with_content_dir(
     app: AppHandle,
     project_path: String,
@@ -98,6 +100,7 @@ pub async fn start_watching_project_with_content_dir(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn stop_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
     let watcher_map: State<WatcherMap> = app.state();
     let mut watchers = watcher_map.lock().unwrap();

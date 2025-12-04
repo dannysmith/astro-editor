@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { convertFileSrc } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import type { HoveredImage } from '../../hooks/editor/useImageHover'
 
 interface ImagePreviewProps {
@@ -50,15 +50,18 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
         }
 
         // For local paths, resolve to absolute path
-        const absolutePath = await invoke<string>('resolve_image_path', {
-          imagePath: path,
-          projectRoot: projectPath,
-          currentFilePath,
-        })
+        const result = await commands.resolveImagePath(
+          path,
+          projectPath,
+          currentFilePath ?? null
+        )
+        if (result.status === 'error') {
+          throw new Error(result.error)
+        }
 
         if (!cancelled) {
           // Convert to asset protocol URL
-          const assetUrl = convertFileSrc(absolutePath)
+          const assetUrl = convertFileSrc(result.data)
           setImageUrl(assetUrl)
           setLoadingState('success')
         }

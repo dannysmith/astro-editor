@@ -1,9 +1,8 @@
 // src/hooks/queries/useCollectionFilesQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type FileEntry } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
-import type { FileEntry } from '@/types'
 
 const fetchCollectionFiles = async (
   collectionPath: string
@@ -11,9 +10,11 @@ const fetchCollectionFiles = async (
   if (!collectionPath) {
     throw new Error('Collection path is required to fetch files.')
   }
-  return invoke('scan_collection_files', {
-    collectionPath,
-  })
+  const result = await commands.scanCollectionFiles(collectionPath)
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useCollectionFilesQuery = (

@@ -1,18 +1,22 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Collection {
     pub name: String,
+    #[specta(type = String)]
     pub path: PathBuf,
 
     // Internal use only - for schema merging in Rust
     // These fields are loaded by parse_astro_config() and used by generate_complete_schema()
     // We don't send them to frontend (skip_serializing) but need them in Rust
     #[serde(skip_serializing)]
+    #[specta(skip)]
     pub schema: Option<String>, // Zod schema JSON from parse_astro_config()
 
     #[serde(skip_serializing)]
+    #[specta(skip)]
     pub json_schema: Option<String>, // Astro JSON schema from .astro/collections/*.json
 
     // Complete merged schema - ONLY this goes to frontend

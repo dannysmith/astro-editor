@@ -1,7 +1,7 @@
 // src/hooks/mutations/useRenameFileMutation.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 import { useProjectStore } from '@/store/projectStore'
@@ -14,12 +14,16 @@ interface RenameFilePayload {
   collectionName: string
 }
 
-const renameFile = (payload: RenameFilePayload) => {
-  return invoke('rename_file', {
-    oldPath: payload.oldPath,
-    newPath: payload.newPath,
-    projectRoot: payload.projectPath,
-  })
+const renameFile = async (payload: RenameFilePayload) => {
+  const result = await commands.renameFile(
+    payload.oldPath,
+    payload.newPath,
+    payload.projectPath
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useRenameFileMutation = () => {

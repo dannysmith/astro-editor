@@ -74,6 +74,7 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<String, String> {
     info!("Attempting to open path in IDE: {ide_command} -> {file_path}");
 
@@ -145,6 +146,7 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_available_ides() -> Result<Vec<String>, String> {
     debug!("Checking available IDEs");
 
