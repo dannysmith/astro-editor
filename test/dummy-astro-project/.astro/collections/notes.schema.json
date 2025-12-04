@@ -47,6 +47,47 @@
             "type": "string"
           }
         },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "draft",
+                "review",
+                "published"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keywords": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scores": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "metadata": {
           "type": "object",
           "properties": {

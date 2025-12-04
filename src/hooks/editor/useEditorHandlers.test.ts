@@ -25,6 +25,7 @@ describe('useEditorHandlers', () => {
     } | null
     saveFile: ReturnType<typeof vi.fn>
     isDirty: boolean
+    isFrontmatterDirty: boolean
     editorContent: string
     frontmatter: Record<string, unknown>
     rawFrontmatter: string
@@ -70,6 +71,7 @@ describe('useEditorHandlers', () => {
       updateCurrentFileAfterRename: vi.fn(),
       autoSaveCallback: null,
       setAutoSaveCallback: vi.fn(),
+      isFrontmatterDirty: false,
     }
 
     mockGetState.mockReturnValue(mockStoreState)

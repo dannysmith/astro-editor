@@ -16,7 +16,8 @@ interface EditorState {
   imports: string // MDX imports (hidden from editor)
 
   // Status state
-  isDirty: boolean // True if changes need to be saved
+  isDirty: boolean // True if ANY changes need to be saved
+  isFrontmatterDirty: boolean // True if frontmatter was modified (vs content-only edits)
   autoSaveTimeoutId: ReturnType<typeof setTimeout> | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
@@ -43,6 +44,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   rawFrontmatter: '',
   imports: '',
   isDirty: false,
+  isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
   lastSaveTimestamp: null,
   autoSaveCallback: null,
@@ -65,6 +67,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       imports: '',
       currentFile: file,
       isDirty: false,
+      isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: Date.now(),
     })
@@ -95,6 +98,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       rawFrontmatter: '',
       imports: '',
       isDirty: false,
+      isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
     })
@@ -118,7 +122,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateFrontmatter: (frontmatter: Record<string, unknown>) => {
-    set({ frontmatter, isDirty: true })
+    set({ frontmatter, isDirty: true, isFrontmatterDirty: true })
     get().scheduleAutoSave()
   },
 
@@ -140,6 +144,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       frontmatter: newFrontmatter,
       isDirty: true,
+      isFrontmatterDirty: true,
     })
     get().scheduleAutoSave()
   },

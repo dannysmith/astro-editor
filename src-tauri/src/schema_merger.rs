@@ -415,6 +415,24 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
             array_reference_collection: None,
         });
     }
+    // Handle nullable primitives (e.g., z.number().nullish() → anyOf: [number, null])
+    if let Some(primitive_type) = extract_nullable_primitive_type(any_of) {
+        return Ok(FieldTypeInfo {
+            field_type: primitive_type,
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
+    // Handle nullable arrays (e.g., z.array(z.string()).nullish() → anyOf: [array, null])
+    if let Some(array_type) = extract_nullable_array_type(any_of) {
+        return Ok(array_type);
+    }
+    // Handle nullable enums (e.g., z.enum([...]).nullish() → anyOf: [enum, null])
+    if let Some(enum_type) = extract_nullable_enum_type(any_of) {
+        return Ok(enum_type);
+    }
     // Other unions - treat as string for now
     Ok(FieldTypeInfo {
         field_type: "string".to_string(),
@@ -423,6 +441,118 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
         reference_collection: None,
         array_reference_collection: None,
     })
+}
+
+/// Extract primitive type from a nullable anyOf (e.g., [number, null] → "number")
+/// Returns None if not a simple nullable primitive pattern
+fn extract_nullable_primitive_type(any_of: &[JsonSchemaProperty]) -> Option<String> {
+    // Only handle simple two-element nullable unions: [primitive, null]
+    if any_of.len() != 2 {
+        return None;
+    }
+
+    let mut primitive_type = None;
+    let mut has_null = false;
+
+    for schema in any_of {
+        match &schema.type_ {
+            Some(StringOrArray::String(t)) if t == "null" => {
+                has_null = true;
+            }
+            Some(StringOrArray::String(t)) => {
+                match t.as_str() {
+                    "number" | "integer" | "boolean" => {
+                        primitive_type = Some(t.clone());
+                    }
+                    "string" => {
+                        // Skip strings with enum values - they should be handled as enums
+                        if schema.enum_.is_some() {
+                            return None;
+                        }
+                        primitive_type = Some(t.clone());
+                    }
+                    _ => return None, // Not a simple primitive
+                }
+            }
+            _ => return None, // Array type or missing type
+        }
+    }
+
+    if has_null {
+        primitive_type
+    } else {
+        None
+    }
+}
+
+/// Extract array type from a nullable anyOf (e.g., [array, null] → array info)
+/// Returns None if not a nullable array pattern
+fn extract_nullable_array_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
+    // Only handle simple two-element nullable unions: [array, null]
+    if any_of.len() != 2 {
+        return None;
+    }
+
+    let mut array_schema = None;
+    let mut has_null = false;
+
+    for schema in any_of {
+        match &schema.type_ {
+            Some(StringOrArray::String(t)) if t == "null" => {
+                has_null = true;
+            }
+            Some(StringOrArray::String(t)) if t == "array" => {
+                array_schema = Some(schema);
+            }
+            _ => return None, // Not a simple nullable array pattern
+        }
+    }
+
+    if has_null {
+        if let Some(schema) = array_schema {
+            // Delegate to existing handle_array_type logic
+            return handle_array_type(schema).ok();
+        }
+    }
+    None
+}
+
+/// Extract enum type from a nullable anyOf (e.g., [enum, null] → enum info)
+/// Returns None if not a nullable enum pattern
+fn extract_nullable_enum_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
+    // Only handle simple two-element nullable unions: [enum, null]
+    if any_of.len() != 2 {
+        return None;
+    }
+
+    let mut enum_values = None;
+    let mut has_null = false;
+
+    for schema in any_of {
+        match &schema.type_ {
+            Some(StringOrArray::String(t)) if t == "null" => {
+                has_null = true;
+            }
+            Some(StringOrArray::String(t)) if t == "string" => {
+                // Check if this string type has enum values
+                if let Some(values) = &schema.enum_ {
+                    enum_values = Some(values.clone());
+                }
+            }
+            _ => {} // Continue checking other schemas
+        }
+    }
+
+    if has_null && enum_values.is_some() {
+        return Some(FieldTypeInfo {
+            field_type: "enum".to_string(),
+            sub_type: None,
+            enum_values,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
+    }
+    None
 }
 
 /// Handle array types
@@ -1132,6 +1262,104 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_anyof_nullable_number() {
+        // Regression test for GitHub issue #68: z.number().nullish() was incorrectly
+        // typed as "string" instead of "number", causing values to be stringified on save
+        let json_schema = r##"{
+            "$ref": "#/definitions/locations",
+            "definitions": {
+                "locations": {
+                    "type": "object",
+                    "properties": {
+                        "lat": {
+                            "anyOf": [
+                                { "type": "number" },
+                                { "type": "null" }
+                            ]
+                        },
+                        "lng": {
+                            "anyOf": [
+                                { "type": "null" },
+                                { "type": "number" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("locations", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+
+        let lat_field = schema.fields.iter().find(|f| f.name == "lat").unwrap();
+        assert_eq!(lat_field.field_type, "number");
+        assert!(!lat_field.required);
+
+        // Also test with null first (order shouldn't matter)
+        let lng_field = schema.fields.iter().find(|f| f.name == "lng").unwrap();
+        assert_eq!(lng_field.field_type, "number");
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_integer() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "priority": {
+                            "anyOf": [
+                                { "type": "integer" },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "priority").unwrap();
+        assert_eq!(field.field_type, "integer");
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_boolean() {
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "featured": {
+                            "anyOf": [
+                                { "type": "boolean" },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "featured").unwrap();
+        assert_eq!(field.field_type, "boolean");
+    }
+
+    #[test]
     fn test_parse_array_of_strings() {
         let json_schema = r##"{
             "$ref": "#/definitions/posts",
@@ -1432,6 +1660,209 @@ mod tests {
             .unwrap();
         assert_eq!(email_field.field_type, "email");
         assert!(!email_field.required);
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_array_of_strings() {
+        // Test z.array(z.string()).nullish()
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "tags": {
+                            "anyOf": [
+                                { "type": "array", "items": { "type": "string" } },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "tags").unwrap();
+        assert_eq!(field.field_type, "array");
+        assert_eq!(field.sub_type, Some("string".to_string()));
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_array_of_numbers() {
+        // Test z.array(z.number()).nullish() - verify sub_type is correct
+        let json_schema = r##"{
+            "$ref": "#/definitions/data",
+            "definitions": {
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "scores": {
+                            "anyOf": [
+                                { "type": "array", "items": { "type": "number" } },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("data", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "scores").unwrap();
+        assert_eq!(field.field_type, "array");
+        assert_eq!(field.sub_type, Some("number".to_string()));
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_array_null_first() {
+        // Test with null first in the anyOf array (order shouldn't matter)
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "categories": {
+                            "anyOf": [
+                                { "type": "null" },
+                                { "type": "array", "items": { "type": "string" } }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "categories")
+            .unwrap();
+        assert_eq!(field.field_type, "array");
+        assert_eq!(field.sub_type, Some("string".to_string()));
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_enum() {
+        // Test z.enum(['draft', 'published']).nullish()
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "anyOf": [
+                                { "type": "string", "enum": ["draft", "published"] },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "status").unwrap();
+        assert_eq!(field.field_type, "enum");
+        assert_eq!(
+            field.enum_values,
+            Some(vec!["draft".to_string(), "published".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_enum_null_first() {
+        // Test with null first in the anyOf array (order shouldn't matter)
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "priority": {
+                            "anyOf": [
+                                { "type": "null" },
+                                { "type": "string", "enum": ["low", "medium", "high"] }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "priority").unwrap();
+        assert_eq!(field.field_type, "enum");
+        assert_eq!(
+            field.enum_values,
+            Some(vec![
+                "low".to_string(),
+                "medium".to_string(),
+                "high".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_anyof_nullable_enum_with_many_values() {
+        // Test enum with more values
+        let json_schema = r##"{
+            "$ref": "#/definitions/posts",
+            "definitions": {
+                "posts": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "anyOf": [
+                                { "type": "string", "enum": ["news", "blog", "tutorial", "review", "opinion"] },
+                                { "type": "null" }
+                            ]
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("posts", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let field = schema.fields.iter().find(|f| f.name == "category").unwrap();
+        assert_eq!(field.field_type, "enum");
+        assert_eq!(
+            field.enum_values,
+            Some(vec![
+                "news".to_string(),
+                "blog".to_string(),
+                "tutorial".to_string(),
+                "review".to_string(),
+                "opinion".to_string()
+            ])
+        );
     }
 
     // --- END INTEGRATION TESTS ---

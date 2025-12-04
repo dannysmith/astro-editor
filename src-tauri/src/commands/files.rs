@@ -352,19 +352,31 @@ pub async fn update_frontmatter(
 #[tauri::command]
 pub async fn save_markdown_content(
     file_path: String,
-    frontmatter: IndexMap<String, Value>,
+    frontmatter: Option<IndexMap<String, Value>>,
+    raw_frontmatter: Option<String>,
     content: String,
     imports: String,
     schema_field_order: Option<Vec<String>>,
     project_root: String,
 ) -> Result<(), String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
-    let new_content = rebuild_markdown_with_frontmatter_and_imports_ordered(
-        &frontmatter,
-        &imports,
-        &content,
-        schema_field_order,
-    )?;
+
+    let new_content = match (frontmatter, raw_frontmatter) {
+        // Frontmatter was edited - reorder and normalize
+        (Some(fm), _) => rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &fm,
+            &imports,
+            &content,
+            schema_field_order,
+        )?,
+        // Frontmatter unchanged - preserve original (non-empty)
+        (None, Some(ref raw)) if !raw.trim().is_empty() => {
+            rebuild_markdown_with_raw_frontmatter(raw, &imports, &content)?
+        }
+        // No frontmatter at all (None, None, or empty string)
+        _ => rebuild_markdown_content_only(&imports, &content)?,
+    };
+
     std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
@@ -694,6 +706,79 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
             result.pop();
         }
         // Add exactly one newline
+        result.push('\n');
+    }
+
+    Ok(result)
+}
+
+/// Rebuild markdown file preserving original raw frontmatter (no normalization)
+fn rebuild_markdown_with_raw_frontmatter(
+    raw_frontmatter: &str,
+    imports: &str,
+    content: &str,
+) -> Result<String, String> {
+    let mut result = String::new();
+
+    // Add frontmatter with raw content (preserves original formatting)
+    result.push_str("---\n");
+    result.push_str(raw_frontmatter);
+    if !raw_frontmatter.ends_with('\n') {
+        result.push('\n');
+    }
+    result.push_str("---\n");
+
+    // Add imports if present
+    if !imports.trim().is_empty() {
+        result.push('\n');
+        result.push_str(imports);
+        if !imports.ends_with('\n') {
+            result.push('\n');
+        }
+    }
+
+    // Add content if present
+    if !content.is_empty() {
+        result.push('\n');
+        result.push_str(content);
+    }
+
+    // Ensure file always ends with exactly one newline
+    if !result.is_empty() {
+        while result.ends_with('\n') {
+            result.pop();
+        }
+        result.push('\n');
+    }
+
+    Ok(result)
+}
+
+/// Rebuild markdown file with no frontmatter (content only)
+fn rebuild_markdown_content_only(imports: &str, content: &str) -> Result<String, String> {
+    let mut result = String::new();
+
+    // Add imports if present
+    if !imports.trim().is_empty() {
+        result.push_str(imports);
+        if !imports.ends_with('\n') {
+            result.push('\n');
+        }
+    }
+
+    // Add content if present
+    if !content.is_empty() {
+        if !imports.trim().is_empty() {
+            result.push('\n');
+        }
+        result.push_str(content);
+    }
+
+    // Ensure file always ends with exactly one newline
+    if !result.is_empty() {
+        while result.ends_with('\n') {
+            result.pop();
+        }
         result.push('\n');
     }
 
@@ -1474,7 +1559,8 @@ This is a test post with arrays."#;
 
         let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
-            frontmatter,
+            Some(frontmatter), // Frontmatter was edited
+            None,              // No raw frontmatter (frontmatter was edited)
             content.to_string(),
             String::new(), // No imports for this test
             None,          // No schema field order for this test
@@ -1498,6 +1584,68 @@ This is a test post with arrays."#;
 
         // Clean up
         let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[test]
+    fn test_rebuild_with_raw_frontmatter() {
+        // Test that raw frontmatter is preserved exactly as-is
+        let raw_frontmatter = "title: My Title\ndate: 2024-01-15T12:30:00Z\ncustom_field: value";
+        let content = "# Heading\n\nSome content.";
+        let imports = "";
+
+        let result = rebuild_markdown_with_raw_frontmatter(raw_frontmatter, imports, content);
+        assert!(result.is_ok());
+
+        let output = result.unwrap();
+        // Should preserve the exact raw frontmatter including the datetime format
+        assert!(output.contains("date: 2024-01-15T12:30:00Z"));
+        assert!(output.starts_with("---\n"));
+        assert!(output.contains("---\n\n# Heading"));
+        assert!(output.contains("Some content."));
+    }
+
+    #[test]
+    fn test_rebuild_with_raw_frontmatter_and_imports() {
+        let raw_frontmatter = "title: Test";
+        let content = "# Heading";
+        let imports = "import Component from './Component';";
+
+        let result = rebuild_markdown_with_raw_frontmatter(raw_frontmatter, imports, content);
+        assert!(result.is_ok());
+
+        let output = result.unwrap();
+        assert!(output.contains("---\ntitle: Test\n---"));
+        assert!(output.contains("import Component from './Component';"));
+        assert!(output.contains("# Heading"));
+    }
+
+    #[test]
+    fn test_rebuild_content_only() {
+        // Test when there's no frontmatter at all
+        let content = "# Just Content\n\nNo frontmatter here.";
+        let imports = "";
+
+        let result = rebuild_markdown_content_only(imports, content);
+        assert!(result.is_ok());
+
+        let output = result.unwrap();
+        assert!(!output.contains("---"));
+        assert!(output.starts_with("# Just Content"));
+        assert!(output.contains("No frontmatter here."));
+    }
+
+    #[test]
+    fn test_rebuild_content_only_with_imports() {
+        let content = "# Content";
+        let imports = "import React from 'react';";
+
+        let result = rebuild_markdown_content_only(imports, content);
+        assert!(result.is_ok());
+
+        let output = result.unwrap();
+        assert!(!output.contains("---"));
+        assert!(output.starts_with("import React from 'react';"));
+        assert!(output.contains("# Content"));
     }
 
     #[test]

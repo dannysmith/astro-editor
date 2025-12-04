@@ -41,6 +41,7 @@ export function useEditorFileContent() {
       frontmatter: data.frontmatter,
       rawFrontmatter: data.raw_frontmatter,
       imports: data.imports,
+      isFrontmatterDirty: false, // Reset when loading from disk
     })
   }, [data, currentFile])
 
