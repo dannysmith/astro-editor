@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DirectoryInfo {
     pub name: String,          // Just the directory name
     pub relative_path: String, // Path from collection root
-    pub full_path: PathBuf,    // Full filesystem path
+    #[specta(type = String)]
+    pub full_path: PathBuf, // Full filesystem path
 }
 
 impl DirectoryInfo {

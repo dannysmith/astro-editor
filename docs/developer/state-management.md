@@ -584,14 +584,15 @@ export function useEditorActions() {
       : null
     const schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
 
-    await invoke('save_markdown_content', {
-      filePath: currentFile.path,
+    const result = await commands.saveMarkdownContent(
+      currentFile.path,
       frontmatter,
-      content: editorContent,
+      editorContent,
       imports,
       schemaFieldOrder,
-      projectRoot: projectPath,
-    })
+      projectPath
+    )
+    if (result.status === 'error') throw new Error(result.error)
 
     useEditorStore.getState().markAsSaved()
     if (showToast) toast.success('File saved')

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -44,7 +44,7 @@ export const DebugPane: React.FC = () => {
   const handleOpenPreferencesFolder = useCallback(() => {
     void (async () => {
       try {
-        await invoke('open_preferences_folder')
+        await commands.openPreferencesFolder()
       } catch {
         // Silent failure - user will see folder doesn't open
       }
@@ -59,7 +59,7 @@ export const DebugPane: React.FC = () => {
     setResetting(true)
     void (async () => {
       try {
-        await invoke('reset_all_preferences')
+        await commands.resetAllPreferences()
         setResetDialogOpen(false)
         setResetConfirmed(false)
         // The app should reload automatically after reset

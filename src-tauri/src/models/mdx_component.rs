@@ -1,6 +1,7 @@
 use serde::Serialize;
+use specta::Type;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum ComponentFramework {
     Astro,
@@ -9,7 +10,7 @@ pub enum ComponentFramework {
     Svelte,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, Type)]
 pub struct PropInfo {
     pub name: String,
     pub prop_type: String, // e.g., "'warning' | 'info'", "string", "boolean"
@@ -17,7 +18,7 @@ pub struct PropInfo {
     pub default_value: Option<String>, // For optional props with defaults
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, Type)]
 pub struct MdxComponent {
     pub name: String,      // e.g., "Callout"
     pub file_path: String, // Relative path from project root

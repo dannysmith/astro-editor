@@ -1,7 +1,7 @@
 // src/hooks/mutations/useCreateFileMutation.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 import { useProjectStore } from '@/store/projectStore'
@@ -14,13 +14,17 @@ interface CreateFilePayload {
   collectionName: string
 }
 
-const createFile = (payload: CreateFilePayload) => {
-  return invoke('create_file', {
-    directory: payload.directory,
-    filename: payload.filename,
-    content: payload.content,
-    projectRoot: payload.projectPath,
-  })
+const createFile = async (payload: CreateFilePayload) => {
+  const result = await commands.createFile(
+    payload.directory,
+    payload.filename,
+    payload.content,
+    payload.projectPath
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useCreateFileMutation = () => {

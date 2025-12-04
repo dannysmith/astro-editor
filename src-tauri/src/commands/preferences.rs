@@ -2,6 +2,7 @@ use tauri::{path::BaseDirectory, Manager};
 
 /// Opens the preferences folder in the system's default file manager
 #[tauri::command]
+#[specta::specta]
 pub async fn open_preferences_folder(app: tauri::AppHandle) -> Result<(), String> {
     let app_data_dir = app
         .path()
@@ -47,6 +48,7 @@ pub async fn open_preferences_folder(app: tauri::AppHandle) -> Result<(), String
 
 /// Resets all preferences by deleting the app data directory and restarting the app
 #[tauri::command]
+#[specta::specta]
 #[allow(unreachable_code)]
 pub async fn reset_all_preferences(
     app: tauri::AppHandle,

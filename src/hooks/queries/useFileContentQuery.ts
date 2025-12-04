@@ -1,9 +1,8 @@
 // src/hooks/queries/useFileContentQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type MarkdownContent } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
-import type { MarkdownContent } from '@/types'
 
 const fetchFileContent = async (
   filePath: string,
@@ -16,10 +15,11 @@ const fetchFileContent = async (
     throw new Error('Project path is required to fetch content.')
   }
   // Note: filePath must be absolute path for Rust command
-  return invoke('parse_markdown_content', {
-    filePath,
-    projectRoot: projectPath,
-  })
+  const result = await commands.parseMarkdownContent(filePath, projectPath)
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useFileContentQuery = (

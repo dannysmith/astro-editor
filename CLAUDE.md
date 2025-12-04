@@ -223,6 +223,24 @@ The script automatically:
 
 **CRITICAL:** Use Tauri v2 docs only. Always use modern Rust formatting: `format!("{variable}")`
 
+### Tauri Commands (tauri-specta)
+
+Commands use **tauri-specta** for end-to-end type safety. TypeScript bindings are auto-generated.
+
+**Adding a new command:**
+1. Define in Rust with `#[tauri::command]` and `#[specta::specta]`
+2. Add to `src-tauri/src/bindings.rs` `collect_commands![]`
+3. Run `pnpm tauri dev` briefly - bindings regenerate automatically in debug mode
+4. Commit the updated `src/lib/bindings.ts`
+5. Add JSDoc to `src/types/domain.ts` if exposing a new type
+
+**Usage:** Import from `@/lib/bindings`, handle `Result` types:
+```typescript
+import { commands } from '@/lib/bindings'
+const result = await commands.scanProject(path)
+if (result.status === 'error') throw new Error(result.error)
+```
+
 ### React Compiler
 
 **Automatic Optimization**: React Compiler (v1.0) automatically memoizes components and hooks, eliminating the need for manual `useMemo`, `useCallback`, and `React.memo` in most cases. See `docs/developer/performance-patterns.md` for comprehensive guidance.
@@ -310,7 +328,7 @@ export function useEditorActions() {
     const collections = queryClient.getQueryData(queryKeys.collections(projectPath))
     const schema = collections?.find(c => c.name === currentFile.collection)?.complete_schema
 
-    await invoke('save_markdown_content', { /* ... */ })
+    await commands.saveMarkdownContent(/* ... */)
     useEditorStore.getState().markAsSaved()
   }, [queryClient])
 

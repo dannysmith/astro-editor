@@ -2,7 +2,7 @@
  * Diagnostic utilities for logging and error reporting
  */
 
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 
 export interface DiagnosticContext {
   appVersion: string
@@ -22,8 +22,13 @@ export async function getDiagnosticContext(): Promise<DiagnosticContext> {
 
   try {
     // Get app version from package.json via Tauri
-    const appVersion = await invoke<string>('get_app_version')
-    const platform = await invoke<string>('get_platform_info')
+    const versionResult = await commands.getAppVersion()
+    const platformResult = await commands.getPlatformInfo()
+
+    const appVersion =
+      versionResult.status === 'ok' ? versionResult.data : 'unknown'
+    const platform =
+      platformResult.status === 'ok' ? platformResult.data : 'unknown'
 
     cachedContext = {
       appVersion,

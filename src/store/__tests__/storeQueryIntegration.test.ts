@@ -23,14 +23,22 @@ vi.mock('../../lib/recovery', () => ({
   saveCrashReport: vi.fn().mockResolvedValue(undefined),
 }))
 
-const mockFileEntry: FileEntry = {
+// Helper to create mock file entries with all required fields
+const createMockFileEntry = (
+  overrides: Partial<FileEntry> = {}
+): FileEntry => ({
   id: 'test-file',
   name: 'test.md',
   path: '/test/content/blog/test.md',
   extension: 'md',
   isDraft: false,
   collection: 'blog',
-}
+  last_modified: null,
+  frontmatter: null,
+  ...overrides,
+})
+
+const mockFileEntry: FileEntry = createMockFileEntry()
 
 describe('Store ↔ Query Integration Tests', () => {
   beforeEach(() => {
@@ -522,14 +530,11 @@ describe('Store ↔ Query Integration Tests', () => {
       const store = useEditorStore.getState()
 
       // Open file B
-      const fileB: FileEntry = {
+      const fileB = createMockFileEntry({
         id: 'file-b',
         name: 'b.md',
         path: '/test/content/blog/b.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'blog',
-      }
+      })
 
       store.openFile(fileB)
 
@@ -559,14 +564,11 @@ describe('Store ↔ Query Integration Tests', () => {
       expect(store.isDirty).toBe(true)
 
       // Open file B
-      const fileB: FileEntry = {
+      const fileB = createMockFileEntry({
         id: 'file-b',
         name: 'b.md',
         path: '/test/content/blog/b.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'blog',
-      }
+      })
 
       store.openFile(fileB)
 
@@ -583,14 +585,11 @@ describe('Store ↔ Query Integration Tests', () => {
       const store = useEditorStore.getState()
 
       // Open file B
-      const fileB: FileEntry = {
+      const fileB = createMockFileEntry({
         id: 'file-b',
         name: 'b.md',
         path: '/test/content/blog/b.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'blog',
-      }
+      })
 
       store.openFile(fileB)
 
@@ -626,14 +625,12 @@ describe('Store ↔ Query Integration Tests', () => {
       const store = useEditorStore.getState()
 
       // Open file with specific metadata
-      const fileWithMetadata: FileEntry = {
+      const fileWithMetadata = createMockFileEntry({
         id: 'file-with-meta',
         name: 'post.md',
         path: '/test/content/blog/post.md',
-        extension: 'md',
         isDraft: true,
-        collection: 'blog',
-      }
+      })
 
       store.openFile(fileWithMetadata)
 

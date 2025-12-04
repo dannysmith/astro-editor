@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useEditorHandlers } from './useEditorHandlers'
+import type { FileEntry } from '@/types'
 
 // Mock the store
 vi.mock('../../store/editorStore', () => ({
@@ -12,17 +13,23 @@ vi.mock('../../store/editorStore', () => ({
 const { useEditorStore } = await import('../../store/editorStore')
 const mockGetState = vi.mocked(useEditorStore.getState)
 
+// Helper to create mock file entries
+const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
+  id: 'test',
+  name: 'test.md',
+  path: '/test/test.md',
+  extension: 'md',
+  isDraft: false,
+  collection: 'test-collection',
+  last_modified: null,
+  frontmatter: null,
+  ...overrides,
+})
+
 describe('useEditorHandlers', () => {
   let mockStoreState: {
     setEditorContent: ReturnType<typeof vi.fn>
-    currentFile: {
-      id: string
-      name: string
-      path: string
-      extension: string
-      isDraft: boolean
-      collection: string
-    } | null
+    currentFile: FileEntry | null
     saveFile: ReturnType<typeof vi.fn>
     isDirty: boolean
     isFrontmatterDirty: boolean
@@ -47,14 +54,7 @@ describe('useEditorHandlers', () => {
 
     mockStoreState = {
       setEditorContent: vi.fn(),
-      currentFile: {
-        id: 'test',
-        name: 'test.md',
-        path: '/test/test.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'test-collection',
-      },
+      currentFile: createMockFile(),
       saveFile: vi.fn(),
       isDirty: false,
       editorContent: '',
@@ -212,14 +212,11 @@ describe('useEditorHandlers', () => {
       const firstHandler = result.current.handleBlur
 
       // Change store state - handler should remain stable
-      mockStoreState.currentFile = {
+      mockStoreState.currentFile = createMockFile({
         id: 'new',
         name: 'new.md',
         path: '/test/new.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'test-collection',
-      }
+      })
       mockStoreState.isDirty = true
       mockStoreState.saveFile = vi.fn()
       mockGetState.mockReturnValue(mockStoreState)
@@ -274,14 +271,11 @@ describe('useEditorHandlers', () => {
       const firstHandler = result.current.handleSave
 
       // Change store state - handler should remain stable
-      mockStoreState.currentFile = {
+      mockStoreState.currentFile = createMockFile({
         id: 'new',
         name: 'new.md',
         path: '/test/new.md',
-        extension: 'md',
-        isDraft: false,
-        collection: 'test-collection',
-      }
+      })
       mockStoreState.isDirty = true
       mockStoreState.saveFile = vi.fn()
       mockGetState.mockReturnValue(mockStoreState)

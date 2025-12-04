@@ -631,15 +631,34 @@ describe('BooleanField Component', () => {
 
 ### Mocking Tauri Commands
 
+Commands are typed via tauri-specta. Mock the `commands` object from `@/lib/bindings`:
+
 ```typescript
-// __mocks__/@tauri-apps/api/core.ts
-export const invoke = vi.fn()
+// Mock setup
+vi.mock('@/lib/bindings', () => ({
+  commands: {
+    scanProject: vi.fn(),
+    readFile: vi.fn(),
+    // ... other commands as needed
+  },
+}))
 
-// In tests
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 
-vi.mocked(invoke).mockResolvedValue({ collections: [...] })
+// In tests - commands return Result types
+vi.mocked(commands.scanProject).mockResolvedValue({
+  status: 'ok',
+  data: [{ name: 'posts', path: '/path/to/posts' }],
+})
+
+// For error cases
+vi.mocked(commands.readFile).mockResolvedValue({
+  status: 'error',
+  error: 'File not found',
+})
 ```
+
+**Note:** Commands return `Result<T, E>` types (`{ status: 'ok', data: T }` or `{ status: 'error', error: E }`), not raw values or thrown errors.
 
 ### Testing with TanStack Query
 
@@ -683,7 +702,10 @@ it('should load data asynchronously', async () => {
 
 ```typescript
 it('should display error message on failure', async () => {
-  vi.mocked(invoke).mockRejectedValue(new Error('Failed to load'))
+  vi.mocked(commands.loadData).mockResolvedValue({
+    status: 'error',
+    error: 'Failed to load',
+  })
 
   render(<DataComponent />)
 

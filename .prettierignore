@@ -8,3 +8,4 @@ src-tauri/target
 test/dummy-astro-project
 temp-dummy-astro-project
 src-tauri/src/test_fixtures/enhanced_config.ts
+src/lib/bindings.ts

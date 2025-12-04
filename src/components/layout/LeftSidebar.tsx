@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
@@ -91,13 +91,14 @@ export const LeftSidebar: React.FC = () => {
 
       for (const collection of collections) {
         try {
-          const count = await invoke<number>(
-            'count_collection_files_recursive',
-            {
-              collectionPath: collection.path,
-            }
+          const result = await commands.countCollectionFilesRecursive(
+            collection.path
           )
-          counts[collection.name] = count
+          if (result.status === 'error') {
+            counts[collection.name] = 0
+          } else {
+            counts[collection.name] = result.data
+          }
         } catch {
           counts[collection.name] = 0
         }

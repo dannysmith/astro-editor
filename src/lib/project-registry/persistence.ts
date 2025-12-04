@@ -4,7 +4,7 @@
  * Handles saving and loading project data using the application support directory
  */
 
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { error, info } from '@tauri-apps/plugin-log'
 import { ProjectRegistry, GlobalSettings, ProjectData } from './types'
 import { DEFAULT_PROJECT_REGISTRY, DEFAULT_GLOBAL_SETTINGS } from './defaults'
@@ -19,7 +19,11 @@ import {
  * Get the application support directory paths
  */
 async function getAppSupportPaths() {
-  const appDataDir = await invoke<string>('get_app_data_dir')
+  const result = await commands.getAppDataDir()
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  const appDataDir = result.data
   return {
     preferencesDir: `${appDataDir}/preferences`,
     projectsDir: `${appDataDir}/preferences/projects`,
@@ -36,23 +40,20 @@ async function ensurePreferencesDir() {
 
   try {
     // Use the safer app data file operations that create directories as needed
-    await invoke('write_app_data_file', {
-      filePath: `${preferencesDir}/.init`,
-      content: 'directory initialized',
-    })
-    await invoke('write_app_data_file', {
-      filePath: `${projectsDir}/.init`,
-      content: 'directory initialized',
-    })
+    const prefResult = await commands.writeAppDataFile(
+      `${preferencesDir}/.init`,
+      'directory initialized'
+    )
+    if (prefResult.status === 'error') {
+      throw new Error(prefResult.error)
+    }
 
-    // Clean up the init files
-    try {
-      await invoke('read_app_data_file', {
-        filePath: `${preferencesDir}/.init`,
-      })
-      await invoke('read_app_data_file', { filePath: `${projectsDir}/.init` })
-    } catch {
-      // Files might not exist, that's fine
+    const projResult = await commands.writeAppDataFile(
+      `${projectsDir}/.init`,
+      'directory initialized'
+    )
+    if (projResult.status === 'error') {
+      throw new Error(projResult.error)
     }
   } catch (err) {
     await error(`Failed to ensure preferences directories: ${String(err)}`)
@@ -66,9 +67,11 @@ async function ensurePreferencesDir() {
 export async function loadProjectRegistry(): Promise<ProjectRegistry> {
   try {
     const { projectRegistryPath } = await getAppSupportPaths()
-    const content = await invoke<string>('read_app_data_file', {
-      filePath: projectRegistryPath,
-    })
+    const result = await commands.readAppDataFile(projectRegistryPath)
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    const content = result.data
 
     const registry = JSON.parse(content) as ProjectRegistry
 
@@ -95,10 +98,13 @@ export async function saveProjectRegistry(
     await ensurePreferencesDir()
     const { projectRegistryPath } = await getAppSupportPaths()
 
-    await invoke('write_app_data_file', {
-      filePath: projectRegistryPath,
-      content: JSON.stringify(registry, null, 2),
-    })
+    const result = await commands.writeAppDataFile(
+      projectRegistryPath,
+      JSON.stringify(registry, null, 2)
+    )
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
   } catch (err) {
     await error(`Failed to save project registry: ${String(err)}`)
     throw err
@@ -111,9 +117,11 @@ export async function saveProjectRegistry(
 export async function loadGlobalSettings(): Promise<GlobalSettings> {
   try {
     const { globalSettingsPath } = await getAppSupportPaths()
-    const content = await invoke<string>('read_app_data_file', {
-      filePath: globalSettingsPath,
-    })
+    const result = await commands.readAppDataFile(globalSettingsPath)
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    const content = result.data
 
     const rawSettings = JSON.parse(content) as Record<string, unknown>
 
@@ -177,10 +185,13 @@ export async function saveGlobalSettings(
     await ensurePreferencesDir()
     const { globalSettingsPath } = await getAppSupportPaths()
 
-    await invoke('write_app_data_file', {
-      filePath: globalSettingsPath,
-      content: JSON.stringify(settings, null, 2),
-    })
+    const result = await commands.writeAppDataFile(
+      globalSettingsPath,
+      JSON.stringify(settings, null, 2)
+    )
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
   } catch (err) {
     await error(`Failed to save global settings: ${String(err)}`)
     throw err
@@ -197,9 +208,11 @@ export async function loadProjectData(
     const { projectsDir } = await getAppSupportPaths()
     const projectFilePath = `${projectsDir}/${projectId}.json`
 
-    const content = await invoke<string>('read_app_data_file', {
-      filePath: projectFilePath,
-    })
+    const result = await commands.readAppDataFile(projectFilePath)
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+    const content = result.data
 
     const rawData = JSON.parse(content) as Record<string, unknown>
 
@@ -244,10 +257,13 @@ export async function saveProjectData(
     const { projectsDir } = await getAppSupportPaths()
     const projectFilePath = `${projectsDir}/${projectId}.json`
 
-    await invoke('write_app_data_file', {
-      filePath: projectFilePath,
-      content: JSON.stringify(data, null, 2),
-    })
+    const result = await commands.writeAppDataFile(
+      projectFilePath,
+      JSON.stringify(data, null, 2)
+    )
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
   } catch (err) {
     await error(`Failed to save project data: ${String(err)}`)
     throw err

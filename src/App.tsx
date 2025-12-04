@@ -4,7 +4,7 @@ import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { info, error } from '@tauri-apps/plugin-log'
 import { listen } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useEffect } from 'react'
 import './App.css'
 
@@ -74,9 +74,12 @@ function App() {
         if (!updateFound) {
           // Only show dialog when manually checking and no update is available
           try {
-            const version = await invoke<string>('get_app_version')
+            const result = await commands.getAppVersion()
+            if (result.status === 'error') {
+              throw new Error(result.error)
+            }
             alert(
-              `No updates available.\n\nYou are running the latest version (${version}).`
+              `No updates available.\n\nYou are running the latest version (${result.data}).`
             )
           } catch {
             alert(

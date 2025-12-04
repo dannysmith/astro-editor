@@ -1,9 +1,8 @@
 // src/hooks/queries/useDirectoryScanQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type DirectoryScanResult } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
-import type { DirectoryScanResult } from '@/types'
 
 const fetchDirectoryContents = async (
   directoryPath: string,
@@ -15,11 +14,15 @@ const fetchDirectoryContents = async (
       'Directory path, collection name, and collection root are required.'
     )
   }
-  return invoke('scan_directory', {
+  const result = await commands.scanDirectory(
     directoryPath,
     collectionName,
-    collectionRoot,
-  })
+    collectionRoot
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useDirectoryScanQuery = (

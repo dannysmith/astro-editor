@@ -18,6 +18,8 @@ const mockFileEntry: FileEntry = {
   extension: 'md',
   isDraft: false,
   collection: 'blog',
+  last_modified: null,
+  frontmatter: null,
 }
 
 describe('EditorStore Integration Tests - Auto-Save', () => {

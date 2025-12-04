@@ -1,19 +1,22 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use specta::Type;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct FileEntry {
     pub id: String,
+    #[specta(type = String)]
     pub path: PathBuf,
     pub name: String,
     pub extension: String,
     #[serde(rename = "isDraft")]
     pub is_draft: bool,
     pub collection: String,
+    #[specta(type = Option<f64>)]
     pub last_modified: Option<u64>,
-    pub frontmatter: Option<IndexMap<String, Value>>, // Basic frontmatter for display
+    pub frontmatter: Option<IndexMap<String, Value>>, // Basic frontmatter for display → Record<string, unknown>
 }
 
 impl FileEntry {

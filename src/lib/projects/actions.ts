@@ -1,18 +1,17 @@
-import { invoke } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useProjectStore } from '../../store/projectStore'
 import { toast } from '../toast'
 
 export async function openProjectViaDialog(): Promise<void> {
-  try {
-    const projectPath = await invoke<string | null>('select_project_folder')
-    if (projectPath) {
-      useProjectStore.getState().setProject(projectPath)
-      toast.success('Project opened successfully')
-    }
-  } catch (error) {
+  const result = await commands.selectProjectFolder()
+  if (result.status === 'error') {
     toast.error('Failed to open project', {
-      description:
-        error instanceof Error ? error.message : 'Unknown error occurred',
+      description: result.error,
     })
+    return
+  }
+  if (result.data) {
+    useProjectStore.getState().setProject(result.data)
+    toast.success('Project opened successfully')
   }
 }

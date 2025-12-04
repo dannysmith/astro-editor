@@ -3,10 +3,11 @@ use crate::parser::parse_astro_config;
 use crate::schema_merger;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DirectoryScanResult {
     pub subdirectories: Vec<DirectoryInfo>,
     pub files: Vec<FileEntry>,
@@ -84,6 +85,7 @@ fn is_blocked_directory(path: &Path) -> bool {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let file_dialog = rfd::AsyncFileDialog::new()
         .set_title("Select Astro Project Folder")
@@ -119,12 +121,14 @@ pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<Strin
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_project(project_path: String) -> Result<Vec<Collection>, String> {
     info!("Astro Editor [PROJECT_SCAN] Scanning project at path: {project_path}");
     scan_project_with_content_dir(project_path, None).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_project_with_content_dir(
     project_path: String,
     content_directory: Option<String>,
@@ -323,6 +327,7 @@ fn scan_content_directories_with_override(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEntry>, String> {
     let path = PathBuf::from(&collection_path);
     let mut files = Vec::new();
@@ -372,6 +377,7 @@ pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEn
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn load_file_based_collection(
     project_path: String,
     collection_name: String,
@@ -488,6 +494,7 @@ pub async fn load_file_based_collection(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn read_json_schema(
     project_path: String,
     collection_name: String,
@@ -517,6 +524,7 @@ pub async fn read_json_schema(
 
 /// Scan a single directory (non-recursive) for subdirectories and markdown/mdx files
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_directory(
     directory_path: String,
     collection_name: String,
@@ -598,7 +606,8 @@ pub async fn scan_directory(
 
 /// Count all markdown/mdx files recursively in a collection
 #[tauri::command]
-pub async fn count_collection_files_recursive(collection_path: String) -> Result<usize, String> {
+#[specta::specta]
+pub async fn count_collection_files_recursive(collection_path: String) -> Result<u32, String> {
     let path = PathBuf::from(&collection_path);
 
     if !path.exists() {
@@ -609,8 +618,8 @@ pub async fn count_collection_files_recursive(collection_path: String) -> Result
         return Err(format!("Path is not a directory: {}", path.display()));
     }
 
-    fn count_files_recursive(dir_path: &Path) -> Result<usize, String> {
-        let mut count = 0;
+    fn count_files_recursive(dir_path: &Path) -> Result<u32, String> {
+        let mut count: u32 = 0;
 
         for entry in
             std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {e}"))?

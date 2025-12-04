@@ -1,8 +1,17 @@
-import { invoke } from '@tauri-apps/api/core'
 import { info, error as logError } from '@tauri-apps/plugin-log'
+import { commands, type JsonValue } from '@/types'
 import type { RecoveryData, CrashReport } from './types'
 
 export type { RecoveryData, CrashReport }
+
+/**
+ * Type-safe conversion for recovery data objects that are structurally valid JSON.
+ * RecoveryData and CrashReport are JSON-serializable but TypeScript can't verify
+ * this automatically because interfaces lack index signatures.
+ */
+function asJsonValue(value: RecoveryData | CrashReport): JsonValue {
+  return value as unknown as JsonValue
+}
 
 /**
  * Save recovery data when a save operation fails
@@ -20,13 +29,17 @@ export const saveRecoveryData = async (data: {
     originalFilePath: data.currentFile.path,
     projectPath: data.projectPath || '',
     editorContent: data.editorContent,
-    frontmatter: data.frontmatter,
+    frontmatter: data.frontmatter as Record<string, JsonValue>,
     fileName: data.currentFile.name,
     collection: data.currentFile.collection,
   }
 
   try {
-    await invoke('save_recovery_data', { data: recoveryData })
+    const result = await commands.saveRecoveryData(asJsonValue(recoveryData))
+    if (result.status === 'error') {
+      await logError(`Failed to save recovery data: ${result.error}`)
+      return
+    }
     await info(`Recovery data saved for ${recoveryData.fileName}`)
   } catch (err) {
     await logError(`Failed to save recovery data: ${String(err)}`)
@@ -53,7 +66,11 @@ export const saveCrashReport = async (
   }
 
   try {
-    await invoke('save_crash_report', { report })
+    const result = await commands.saveCrashReport(asJsonValue(report))
+    if (result.status === 'error') {
+      await logError(`Failed to save crash report: ${result.error}`)
+      return
+    }
     await info('Crash report saved')
   } catch (err) {
     await logError(`Failed to save crash report: ${String(err)}`)

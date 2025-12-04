@@ -1,7 +1,7 @@
 // src/hooks/mutations/useSaveFileMutation.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
+import { commands, type JsonValue } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 
@@ -17,15 +17,20 @@ interface SaveFilePayload {
   collectionName: string // Need this to invalidate collection files query
 }
 
-const saveFile = (payload: SaveFilePayload) => {
-  return invoke('save_markdown_content', {
-    filePath: payload.filePath,
-    frontmatter: payload.frontmatter,
-    content: payload.content,
-    imports: payload.imports,
-    schemaFieldOrder: payload.schemaFieldOrder,
-    projectRoot: payload.projectPath,
-  })
+const saveFile = async (payload: SaveFilePayload) => {
+  const result = await commands.saveMarkdownContent(
+    payload.filePath,
+    payload.frontmatter as Partial<Record<string, JsonValue>>,
+    null, // rawFrontmatter
+    payload.content,
+    payload.imports,
+    payload.schemaFieldOrder,
+    payload.projectPath
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  return result.data
 }
 
 export const useSaveFileMutation = () => {

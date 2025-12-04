@@ -19,6 +19,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
+
+# Type-safe Tauri commands with auto-generated TypeScript bindings
+specta = { version = "=2.0.0-rc.22", features = ["indexmap", "serde_json"] }
+specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 tauri-plugin-opener = "2"
 window-vibrancy = "0.5"
 serde = { version = "1", features = ["derive"] }

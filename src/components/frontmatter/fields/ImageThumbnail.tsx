@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { commands } from '@/lib/bindings'
 import { useProjectStore } from '../../../store/projectStore'
 import { useEditorStore } from '../../../store/editorStore'
 
@@ -36,15 +37,18 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
         }
 
         // For local paths, resolve to absolute path
-        const absolutePath = await invoke<string>('resolve_image_path', {
-          imagePath: path,
-          projectRoot: projectPath,
-          currentFilePath: currentFile?.path || null,
-        })
+        const result = await commands.resolveImagePath(
+          path,
+          projectPath,
+          currentFile?.path ?? null
+        )
+        if (result.status === 'error') {
+          throw new Error(result.error)
+        }
 
         if (!cancelled) {
           // Convert to asset protocol URL
-          const assetUrl = convertFileSrc(absolutePath)
+          const assetUrl = convertFileSrc(result.data)
           setImageUrl(assetUrl)
           setLoadingState('success')
         }
