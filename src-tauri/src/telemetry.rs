@@ -46,7 +46,7 @@ pub async fn send_telemetry_event(
         timestamp,
     };
 
-    log::info!("Sending telemetry event (UUID: {uuid}, version: {version})");
+    log::info!("Sending telemetry event");
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
