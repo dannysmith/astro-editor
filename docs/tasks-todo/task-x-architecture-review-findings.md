@@ -9,10 +9,24 @@ Expert review of Tauri/React codebase for performance, maintainability, and unne
 This document contains actionable implementation details for 8 tasks identified during architecture review. Tasks are ordered by complexity and dependency.
 
 **Execution Order:**
+
 1. Quick Fixes (1-5): Independent, can be done in any order
 2. Settings Object Duplication (6): Standalone cleanup, includes doc update
 3. Consolidate Logging (7): Requires audit and documentation update
 4. Remove Typewriter Mode (8): Multi-file removal, do last
+
+## Instructions for Claude Code doing this work!
+
+- Do each task in order, one at a time.
+- After completing a task:
+  1. Think back over your work and check you've done nothing stupid.
+  2. Check your work conforms with the guidance in `docs/developer/architecture-guide.md` (where relevant)
+  3. Run `check:all` and address any issues intelligently
+  4. If you've done anything unusual or learned anything important or made non-trivial decisions while working on the task, update the relevant part of the task doc as needed.
+  5. Ask the user to run the dev server and manually smoke test things work. If relevant, provide guidance on anywhere specific they should focus there testing.
+  6. If there are no issues reported by the user, update the task doc to check off the task and provide a short one-line commit message sothe user can commit these changes.
+- Be careful not to break existing functionality - this is mostly a refactor.
+- When in doubt, ask the user.
 
 ---
 
@@ -25,6 +39,7 @@ This document contains actionable implementation details for 8 tasks identified 
 **Problem:** Async effect at lines 88-113 lacks cleanup. If the component unmounts during `loadFileCounts()`, it updates unmounted state.
 
 **Current Code (lines 88-113):**
+
 ```typescript
 useEffect(() => {
   const loadFileCounts = async () => {
@@ -55,6 +70,7 @@ useEffect(() => {
 ```
 
 **Fix:** Add cancelled flag pattern:
+
 ```typescript
 useEffect(() => {
   let cancelled = false
@@ -103,6 +119,7 @@ useEffect(() => {
 **Problem:** Lines 246-248 have double panic potential via `.unwrap()` and `.expect()`.
 
 **Current Code (lines 246-248):**
+
 ```rust
 #[cfg(target_os = "macos")]
 {
@@ -113,6 +130,7 @@ useEffect(() => {
 ```
 
 **Fix:** Use idiomatic optional pattern:
+
 ```rust
 #[cfg(target_os = "macos")]
 {
@@ -135,18 +153,22 @@ useEffect(() => {
 **Problem:** Lines 93-135 have `isAltPressed` in dependencies, causing listener re-registration on every Alt key toggle.
 
 **Constraint:** We CANNOT simply replace `useState` with `useRef` because `useImageHover` at line 67 depends on `isAltPressed` state:
+
 ```typescript
 const hoveredImage = useImageHover(viewRef.current, isAltPressed)
 ```
+
 If we used a ref, the hook wouldn't re-render when Alt state changes, breaking image preview.
 
 **Current Code (lines 34 and 93-135):**
+
 ```typescript
 const [isAltPressed, setIsAltPressed] = useState(false)
 
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.altKey && !isAltPressed) {      // <-- Uses closure variable
+    if (e.altKey && !isAltPressed) {
+      // <-- Uses closure variable
       setIsAltPressed(true)
       if (viewRef.current) {
         viewRef.current.dispatch({
@@ -158,15 +180,14 @@ useEffect(() => {
   // ... keyup, blur handlers similar
 
   // ... addEventListener calls
-
-}, [isAltPressed])  // <-- Re-registers on every alt toggle!
+}, [isAltPressed]) // <-- Re-registers on every alt toggle!
 ```
 
 **Fix:** Keep `useState` for component reactivity, add a separate ref to track dispatch state. This allows empty dependencies while preserving the state for `useImageHover`:
 
 ```typescript
 const [isAltPressed, setIsAltPressed] = useState(false)
-const altDispatchedRef = useRef(false)  // NEW: Track whether we've dispatched
+const altDispatchedRef = useRef(false) // NEW: Track whether we've dispatched
 
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -214,12 +235,13 @@ useEffect(() => {
     document.removeEventListener('keyup', handleKeyUp)
     window.removeEventListener('blur', handleBlur)
   }
-}, [])  // <-- Now stable! No isAltPressed dependency
+}, []) // <-- Now stable! No isAltPressed dependency
 ```
 
 **Key insight:** The ref tracks "have we dispatched the CodeMirror effect?" while state tracks "is Alt pressed?" for React components. They serve different purposes.
 
 **Testing:**
+
 1. Open editor, hold Alt key - URLs should highlight
 2. Hover over image URL while holding Alt - image preview should appear
 3. Release Alt - highlights disappear, preview disappears
@@ -234,6 +256,7 @@ useEffect(() => {
 **Problem:** Line 4 has a TODO comment that's no longer relevant.
 
 **Current Code (lines 1-7):**
+
 ```typescript
 /**
  * Preference structure migrations
@@ -245,6 +268,7 @@ useEffect(() => {
 ```
 
 **Fix:** Remove only the TODO line, keep the module:
+
 ```typescript
 /**
  * Preference structure migrations
@@ -266,12 +290,14 @@ useEffect(() => {
 **Problem:** Line 161 has `React.memo(ImagePreviewComponent)` which is redundant with React Compiler.
 
 **Current Code (lines 160-161):**
+
 ```typescript
 // Memoize to prevent unnecessary re-renders when parent re-renders
 export const ImagePreview = React.memo(ImagePreviewComponent)
 ```
 
 **Fix:** Export the component directly:
+
 ```typescript
 export const ImagePreview = ImagePreviewComponent
 ```
@@ -289,6 +315,7 @@ export const ImagePreview = ImagePreviewComponent
 ### 6. Settings Object Duplication
 
 **Files:**
+
 - `src/components/preferences/panes/GeneralPane.tsx` (7 handlers)
 - `src/hooks/useDOMEventListeners.ts` (2 handlers)
 
@@ -315,6 +342,7 @@ async updateGlobalSettings(settings: Partial<GlobalSettings>): Promise<void> {
 **Understanding the Deep Merge:**
 
 The registry merges ONE level deep for `general` and `appearance`:
+
 ```typescript
 general: {
   ...this.globalSettings.general,   // preserves all existing fields
@@ -323,6 +351,7 @@ general: {
 ```
 
 This means:
+
 - **Top-level properties** (like `ideCommand`, `theme`): Just pass the new value, other fields are preserved
 - **Nested objects** (like `highlights`, `headingColor`): Must spread the nested object yourself, or you'll overwrite the entire nested object
 
@@ -331,6 +360,7 @@ This means:
 Replace each handler with minimal updates. Example transformations:
 
 **handleIdeCommandChange (lines 27-52):**
+
 ```typescript
 // Before (20+ lines)
 const handleIdeCommandChange = useCallback(
@@ -359,6 +389,7 @@ const handleIdeCommandChange = useCallback(
 ```
 
 **handleThemeChange (lines 54-88):**
+
 ```typescript
 // After
 const handleThemeChange = useCallback(
@@ -371,6 +402,7 @@ const handleThemeChange = useCallback(
 ```
 
 **handleDefaultFileTypeChange (lines 90-115):**
+
 ```typescript
 // After
 const handleDefaultFileTypeChange = useCallback(
@@ -382,6 +414,7 @@ const handleDefaultFileTypeChange = useCallback(
 ```
 
 **handleHeadingColorChange (lines 117-143):**
+
 ```typescript
 // After - still needs to spread headingColor since it's nested
 const handleHeadingColorChange = useCallback(
@@ -400,6 +433,7 @@ const handleHeadingColorChange = useCallback(
 ```
 
 **handleAutoSaveDelayChange (lines 153-178):**
+
 ```typescript
 // After
 const handleAutoSaveDelayChange = useCallback(
@@ -411,6 +445,7 @@ const handleAutoSaveDelayChange = useCallback(
 ```
 
 **handleEditorBaseFontSizeChange (lines 182-214):**
+
 ```typescript
 // After
 const handleEditorBaseFontSizeChange = useCallback(
@@ -427,11 +462,13 @@ const handleEditorBaseFontSizeChange = useCallback(
 **Fix for useDOMEventListeners.ts:**
 
 **handleToggleHighlight (lines 79-108):**
+
 ```typescript
 // Before
 const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
   const { globalSettings, updateGlobalSettings } = useProjectStore.getState()
-  const currentValue = globalSettings?.general?.highlights?.[partOfSpeech] ?? true
+  const currentValue =
+    globalSettings?.general?.highlights?.[partOfSpeech] ?? true
 
   const newSettings = {
     general: {
@@ -452,7 +489,8 @@ const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
 // After - still spread highlights since it's nested
 const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
   const { globalSettings, updateGlobalSettings } = useProjectStore.getState()
-  const currentValue = globalSettings?.general?.highlights?.[partOfSpeech] ?? true
+  const currentValue =
+    globalSettings?.general?.highlights?.[partOfSpeech] ?? true
 
   void updateGlobalSettings({
     general: {
@@ -470,6 +508,7 @@ const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
 ```
 
 **handleToggleAllHighlights (lines 110-139):**
+
 ```typescript
 // After
 const handleToggleAllHighlights = () => {
@@ -500,7 +539,7 @@ const handleToggleAllHighlights = () => {
 
 **Documentation Update:** Add a note to `docs/developer/preferences-system.md` explaining the merge behavior:
 
-```markdown
+````markdown
 ## Updating Global Settings
 
 The `updateGlobalSettings` method in `ProjectRegistryManager` performs a **one-level deep merge** for `general` and `appearance` objects:
@@ -527,11 +566,13 @@ void updateGlobal({
 // ❌ WRONG: This overwrites the entire headingColor object!
 void updateGlobal({
   appearance: {
-    headingColor: { light: '#ff0000' },  // dark value is now lost!
+    headingColor: { light: '#ff0000' }, // dark value is now lost!
   },
 })
 ```
-```
+````
+
+````
 
 ---
 
@@ -548,9 +589,10 @@ void updateGlobal({
 Run this to get a complete list:
 ```bash
 grep -rn "console\.\(log\|warn\|error\|info\|debug\)" src/ --include="*.ts" --include="*.tsx" | grep -v "node_modules" | grep -v ".test."
-```
+````
 
 Categorize each as:
+
 - **Dev-only:** Debug statements that should be removed or wrapped in dev checks
 - **Production-worthy:** Important info that should go to Tauri logger
 - **Scripts:** Build/release scripts (keep console for CLI output)
@@ -563,21 +605,25 @@ Add to `docs/developer/logging.md` a decision tree:
 ## When to Use Which
 
 ### Use Tauri Logger (`@tauri-apps/plugin-log`)
+
 - User-facing errors that might need support investigation
 - Important lifecycle events (project open, file save failures)
 - Security-relevant operations
 - Anything you'd want in the macOS Console.app
 
-### Use console.* (Development Only)
+### Use console.\* (Development Only)
+
 - Temporary debugging (remove before commit)
 - Performance timing in development
 - Test output
 
-### Use console.* (Production OK)
+### Use console.\* (Production OK)
+
 - Build scripts and CLI tools (e.g., `scripts/*.js`)
 - Node.js scripts that run outside Tauri
 
 ### Never Use
+
 - `console.log` for production error reporting (use logger)
 - Sensitive information in any log
 ```
@@ -585,6 +631,7 @@ Add to `docs/developer/logging.md` a decision tree:
 **Step 3: Categorize from grep results**
 
 Run the grep command and categorize each result. Key areas to check:
+
 - Store files (`src/store/*.ts`) - persistence warnings should use Tauri logger
 - Editor files - dev-only debugging can stay but should be wrapped in `import.meta.env.DEV`
 - Error handlers - should use Tauri logger for production visibility
@@ -592,6 +639,7 @@ Run the grep command and categorize each result. Key areas to check:
 **Step 4: Refactor**
 
 For production-worthy logging, replace with Tauri logger:
+
 ```typescript
 // Before
 console.error('Failed to load MDX components:', error)
@@ -602,10 +650,12 @@ void logError(`Astro Editor [MDX] Failed to load components: ${String(error)}`)
 ```
 
 **AI Instructions Addition to logging.md:**
+
 ```markdown
 ## AI Assistant Instructions
 
 When writing new code:
+
 1. Default to Tauri logger for any error or warning
 2. Never commit `console.log` for debugging
 3. Use the `[TAG]` format: `Astro Editor [COMPONENT_NAME] message`
@@ -629,6 +679,7 @@ When writing new code:
 **Files to Modify (in order):**
 
 #### Step 1: Delete the extension file
+
 ```bash
 rm -f src/lib/editor/extensions/typewriter-mode.ts
 ```
@@ -638,11 +689,13 @@ rm -f src/lib/editor/extensions/typewriter-mode.ts
 **File:** `src/lib/editor/extensions/createExtensions.ts`
 
 Remove import (line 13):
+
 ```typescript
 // DELETE: import { createTypewriterModeExtension } from './typewriter-mode'
 ```
 
 Remove from extensions array (line 76):
+
 ```typescript
 // DELETE: ...createTypewriterModeExtension(),
 ```
@@ -652,6 +705,7 @@ Remove from extensions array (line 76):
 **File:** `src/lib/editor/extensions/keymap.ts`
 
 Remove keyboard shortcut (lines 82-87):
+
 ```typescript
 // DELETE this block:
 {
@@ -668,6 +722,7 @@ Remove keyboard shortcut (lines 82-87):
 **File:** `src/lib/editor/commands/editorCommands.ts`
 
 Remove the command function (lines 60-66):
+
 ```typescript
 // DELETE:
 export const createTypewriterModeCommand = (): EditorCommand => {
@@ -680,6 +735,7 @@ export const createTypewriterModeCommand = (): EditorCommand => {
 ```
 
 Remove from registry (line 81):
+
 ```typescript
 // DELETE: toggleTypewriterMode: createTypewriterModeCommand(),
 ```
@@ -689,6 +745,7 @@ Remove from registry (line 81):
 **File:** `src/lib/editor/commands/types.ts`
 
 Remove from interface (line 19):
+
 ```typescript
 // DELETE: toggleTypewriterMode: EditorCommand
 ```
@@ -698,6 +755,7 @@ Remove from interface (line 19):
 **File:** `src/lib/commands/app-commands.ts`
 
 Remove the command definition (lines 163-173):
+
 ```typescript
 // DELETE this entire object from viewModeCommands array:
 {
@@ -718,6 +776,7 @@ Remove the command definition (lines 163-173):
 **File:** `src/lib/commands/types.ts`
 
 Remove from interface (line 29):
+
 ```typescript
 // DELETE: toggleTypewriterMode: () => void
 ```
@@ -727,21 +786,25 @@ Remove from interface (line 29):
 **File:** `src/store/uiStore.ts`
 
 Remove from interface (line 8):
+
 ```typescript
 // DELETE: typewriterModeEnabled: boolean
 ```
 
 Remove from interface (line 18):
+
 ```typescript
 // DELETE: toggleTypewriterMode: () => void
 ```
 
 Remove from initial state (line 30):
+
 ```typescript
 // DELETE: typewriterModeEnabled: false,
 ```
 
 Remove the action (lines 55-57):
+
 ```typescript
 // DELETE:
 toggleTypewriterMode: () => {
@@ -754,29 +817,32 @@ toggleTypewriterMode: () => {
 **File:** `src/components/editor/Editor.tsx`
 
 Remove import (line 15):
+
 ```typescript
 // DELETE: import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 ```
 
 Remove state subscription (line 31):
+
 ```typescript
 // DELETE: const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
 ```
 
 Update handleModeChange callback (lines 70-85). Remove typewriter-related code:
+
 ```typescript
 // BEFORE (lines 70-85):
 const handleModeChange = useCallback(() => {
   const {
     focusModeEnabled: currentFocusMode,
-    typewriterModeEnabled: currentTypewriterMode,  // DELETE
+    typewriterModeEnabled: currentTypewriterMode, // DELETE
   } = useUIStore.getState()
 
   if (viewRef.current) {
     viewRef.current.dispatch({
       effects: [
         toggleFocusMode.of(currentFocusMode),
-        toggleTypewriterMode.of(currentTypewriterMode),  // DELETE
+        toggleTypewriterMode.of(currentTypewriterMode), // DELETE
       ],
     })
   }
@@ -795,6 +861,7 @@ const handleModeChange = useCallback(() => {
 ```
 
 Remove from mode change effect dependency (line 90):
+
 ```typescript
 // CHANGE FROM:
 }, [handleModeChange, focusModeEnabled, typewriterModeEnabled])
@@ -803,6 +870,7 @@ Remove from mode change effect dependency (line 90):
 ```
 
 Remove typewriter class from className (line 302):
+
 ```typescript
 // CHANGE FROM:
 className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''} ${typewriterModeEnabled ? 'typewriter-mode' : ''}`}
@@ -815,6 +883,7 @@ className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''}`}
 **File:** `src/hooks/commands/useCommandContext.ts`
 
 Remove the event dispatcher (lines 80-82):
+
 ```typescript
 // DELETE:
 toggleTypewriterMode: () => {
@@ -827,11 +896,13 @@ toggleTypewriterMode: () => {
 **File:** `src/hooks/useDOMEventListeners.ts`
 
 Remove reference in docstring (line 30):
+
 ```typescript
 // DELETE: * - 'toggle-typewriter-mode': Toggles typewriter mode
 ```
 
 Remove handler (lines 75-77):
+
 ```typescript
 // DELETE:
 const handleToggleTypewriterMode = () => {
@@ -840,21 +911,17 @@ const handleToggleTypewriterMode = () => {
 ```
 
 Remove event listener registration (lines 153-156):
+
 ```typescript
 // DELETE:
-window.addEventListener(
-  'toggle-typewriter-mode',
-  handleToggleTypewriterMode
-)
+window.addEventListener('toggle-typewriter-mode', handleToggleTypewriterMode)
 ```
 
 Remove from cleanup (lines 170-173):
+
 ```typescript
 // DELETE:
-window.removeEventListener(
-  'toggle-typewriter-mode',
-  handleToggleTypewriterMode
-)
+window.removeEventListener('toggle-typewriter-mode', handleToggleTypewriterMode)
 ```
 
 #### Step 12: Update test files
@@ -862,6 +929,7 @@ window.removeEventListener(
 **File:** `src/hooks/editor/useEditorSetup.test.ts`
 
 Remove from mock (line 65):
+
 ```typescript
 // DELETE: toggleTypewriterMode: vi.fn(),
 ```
@@ -869,6 +937,7 @@ Remove from mock (line 65):
 **File:** `src/lib/editor/commands/CommandRegistry.test.ts`
 
 Remove from mock (line 35):
+
 ```typescript
 // DELETE: toggleTypewriterMode: vi.fn(() => true),
 ```
@@ -876,6 +945,7 @@ Remove from mock (line 35):
 **File:** `src/components/editor/__tests__/focus-typewriter-modes.test.tsx`
 
 Rename to `focus-mode.test.tsx` and remove only typewriter-related tests:
+
 - Keep all focus mode tests intact
 - Remove tests that reference `toggleTypewriterMode` or `typewriterModeEnabled`
 - Update file name and any test descriptions that mention typewriter mode
@@ -885,6 +955,7 @@ Rename to `focus-mode.test.tsx` and remove only typewriter-related tests:
 **File:** `src/components/editor/Editor.css`
 
 Remove typewriter mode styles (lines 45-86):
+
 ```css
 /* DELETE lines 45-86: */
 
@@ -937,11 +1008,12 @@ Remove typewriter mode styles (lines 45-86):
 **File:** `src/lib/commands/app-commands.ts`
 
 After removing the typewriter mode command, check if the `Edit` icon is still used elsewhere in the file. If not, remove it from the import:
+
 ```typescript
 // Check this import - Edit may no longer be needed:
 import {
   // ...
-  Edit,  // <-- Remove if unused
+  Edit, // <-- Remove if unused
   // ...
 } from 'lucide-react'
 ```
@@ -951,19 +1023,24 @@ import {
 **File:** `README.md`
 
 Update line 14 to remove typewriter mode reference:
+
 ```markdown
 // BEFORE:
+
 - Focus mode (highlights current sentence), typewriter mode (cursor stays centered), and copyedit mode (highlights parts of speech).
 
 // AFTER:
+
 - Focus mode (highlights current sentence) and copyedit mode (highlights parts of speech).
 ```
 
 **File:** `docs/user-guide.md`
 
 Remove the Typewriter Mode section entirely (around lines 448-453):
+
 ```markdown
 // DELETE this entire section:
+
 ### Typewriter Mode
 
 > [!WARNING]
@@ -977,22 +1054,20 @@ Also update keyboard shortcuts documentation in the user guide if it mentions `C
 **File:** `website/index.html`
 
 Update line 216 to remove typewriter mode reference:
-```html
-// BEFORE:
-"Focus and typewriter modes",
 
-// AFTER:
-"Focus mode",
+```html
+// BEFORE: "Focus and typewriter modes", // AFTER: "Focus mode",
 ```
 
 **Testing:**
 
 Automated:
-1. Run `pnpm run check:all` - should pass with no TypeScript errors
-2. Run `pnpm test` - all tests should pass
-3. Search codebase for `typewriter` - should only find this task doc and completed task history
+
+1. Run `pnpm run check:all` - should pass with no errors
+2. Search codebase for `typewriter` - should only find this task doc and completed task history
 
 Manual - verify these features still work:
+
 1. **Focus Mode**: `Cmd+Shift+F` should dim all text except current sentence
 2. **Copyedit Mode**: Command palette → Toggle highlight commands should work
 3. **Parts of Speech**: Each highlight toggle (nouns, verbs, etc.) should work independently
@@ -1016,6 +1091,7 @@ grep -r "typewriter" src/ --include="*.ts" --include="*.tsx" --include="*.css"
 ```
 
 Manual verification:
+
 1. Open a project
 2. Change settings in preferences - verify they persist after restart
 3. Toggle focus mode (`Cmd+Shift+F`) - verify it works
