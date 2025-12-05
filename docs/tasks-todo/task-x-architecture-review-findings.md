@@ -32,6 +32,27 @@ useEffect(() => {
 ```
 **Problem:** No cleanup for in-flight async operations. If component unmounts during `loadFileCounts()`, `setFileCounts()` updates unmounted state.
 
+**Decision:** DO IT - Simple fix, low risk.
+
+**Fix:** Add cancelled flag pattern:
+```typescript
+useEffect(() => {
+  let cancelled = false
+  const loadFileCounts = async () => {
+    // ... existing loop ...
+    if (!cancelled) {
+      setFileCounts(counts)
+    }
+  }
+  if (collections.length > 0) {
+    void loadFileCounts()
+  }
+  return () => { cancelled = true }
+}, [collections])
+```
+
+**Notes:** This only affects the file count loading effect. All store/query subscriptions that drive sidebar re-renders are separate and unaffected.
+
 ---
 
 ### 2. Panic-Prone Window Acquisition (Rust)
@@ -44,19 +65,20 @@ apply_vibrancy(&window, ...).expect("Unsupported platform!");
 ```
 **Problem:** Double panic potential in critical startup code. App crashes if window doesn't exist or vibrancy fails.
 
----
+**Decision:** DO IT - Simple fix, zero risk. Already handled correctly elsewhere in the same file (line 269).
 
-### 3. Unbounded Event Buffer in File Watcher
-
-**File:** `src-tauri/src/commands/watcher.rs:84-97`
-
+**Fix:** Use the idiomatic Tauri pattern already present in the codebase:
 ```rust
-while let Ok(event) = rx.recv() {
-    event_buffer.push(event);  // No size limit
-    if last_event_time.elapsed() > Duration::from_millis(500) { ... }
+#[cfg(target_os = "macos")]
+{
+    if let Some(window) = app.get_webview_window("main") {
+        // Vibrancy is cosmetic - ignore failure gracefully
+        let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0));
+    }
 }
 ```
-**Problem:** Buffer grows indefinitely during rapid file changes. Large file operations could consume significant memory.
+
+**Notes:** Vibrancy is purely cosmetic (frosted glass effect). Graceful failure means app works fine, just without the visual polish.
 
 ---
 
@@ -66,55 +88,90 @@ while let Ok(event) = rx.recv() {
 
 Using `std::sync::mpsc::Receiver::recv()` (blocking) inside a `tokio::spawn()`. Should use `tokio::sync::mpsc` with async `recv().await`.
 
----
+**Decision:** DO IT - Standard Tauri/Tokio best practice.
 
-### 5. Asset Protocol Wildcard Scope (Security)
+**Fix:** Swap to tokio's async channel:
+```rust
+// Change from std::sync::mpsc to tokio::sync::mpsc
+let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-**File:** `src-tauri/tauri.conf.json:34-39`
-
-```json
-"assetProtocol": { "scope": ["**"] }
+// In the tokio::spawn, use async recv
+while let Some(event) = rx.recv().await {
+    // ... existing logic
+}
 ```
-**Problem:** Allows frontend to access any file via `asset://` protocol. A malicious project could expose sensitive files like `~/.ssh/id_rsa` through crafted image paths.
 
-**Recommendation:** Restrict to specific directories like `"$HOME/Documents/**"`.
-
----
-
-### 6. Extension Recreation on Every Render (CodeMirror)
-
-**File:** `src/hooks/editor/useEditorSetup.ts:20-25`
-
-Extensions (keymaps, themes, focus mode, etc.) are created fresh on every call to `useEditorSetup()`. These complex objects should be created once and reused.
+**Notes:** The unbounded sender's `.send()` is sync (works in notify callback), receiver's `.recv().await` properly yields to tokio runtime. Same semantics, just async-aware.
 
 ---
 
-### 7. Settings Object Duplication (14 locations)
+### ~~5. Asset Protocol Wildcard Scope (Security)~~ SKIPPED
+
+Used for image previews (ImageThumbnail.tsx, ImagePreview.tsx). Paths go through `commands.resolveImagePath()` in Rust before reaching `convertFileSrc()`. Real security control is in Rust path validation, not the protocol scope. Frontend doesn't talk to internet, user opens projects they trust. Wildcard scope is fine.
+
+---
+
+### ~~6. Extension Recreation on Every Render (CodeMirror)~~ SKIPPED
+
+Editor creation effect has `[]` dependencies (line 227) - runs once. Subsequent `useEditorSetup` calls create arrays that are never used (guard on line 139). Component only re-renders on file switch / mode toggle (infrequent). Trivial GC'd allocations, not a performance issue.
+
+---
+
+### 7. Settings Object Duplication (8 locations)
 
 **Files:**
 - `src/components/preferences/panes/GeneralPane.tsx` (6 callback functions)
 - `src/hooks/useDOMEventListeners.ts` (2 handlers)
 
-Every settings update manually reconstructs the entire `GlobalSettings` object with hardcoded defaults. Adding a new setting requires updating 14 locations.
+Every settings update manually reconstructs the entire `GlobalSettings` object with hardcoded defaults.
 
-**Example (repeated 14 times):**
+**Decision:** DO IT - The registry manager already does deep merging. This is unnecessary code.
+
+**Root cause:** The registry's `updateGlobalSettings()` already merges 2 levels deep:
 ```typescript
+general: { ...this.globalSettings.general, ...settings.general }
+```
+So you can just pass `{ general: { ideCommand: 'code' } }` and it merges correctly.
+
+**Fix:**
+
+1. **GeneralPane handlers (6 locations)** - Remove ~90% of code, just pass the field:
+```typescript
+// Before (wrong assumption - 20 lines)
 void updateGlobal({
   general: {
-    ideCommand: globalSettings?.general?.ideCommand || '',
+    ideCommand: value,
     theme: globalSettings?.general?.theme || 'system',
-    // ... 15+ more fields
-  }
+    highlights: globalSettings?.general?.highlights || { ... },
+    // ... all other fields
+  },
+  appearance: globalSettings?.appearance || { ... },
+})
+
+// After (correct - 1 line)
+void updateGlobal({ general: { ideCommand: value } })
+```
+
+2. **Highlight handlers (2 locations)** - Still need to spread `highlights` (nested object), but remove everything else:
+```typescript
+void updateGlobalSettings({
+  general: {
+    highlights: {
+      ...globalSettings?.general?.highlights,
+      [partOfSpeech]: !currentValue,
+    },
+  },
 })
 ```
 
+**Risk:** Low - registry merge already works, just removing redundancy.
+**Effort:** ~30 mins cleanup.
+
 ---
 
-### 8. 196-Line File Creation Callback
+### ~~8. 196-Line File Creation Callback~~ SKIPPED
 
-**File:** `src/hooks/useCreateFile.ts:74-270`
-
-Single function handles: concurrency guards, collection validation, path resolution, collision detection, schema parsing, YAML serialization, file mutation, focus management. Impossible to test individual pieces.
+Single coherent workflow only used in one place. File duplication (context-menu.tsx) is a different operation (just copy content). Extracting into 5 utilities would scatter logic without reuse benefit. The "complexity" is inherent to what creating a new file from schema requires.
 
 ---
 
@@ -129,28 +186,36 @@ const MemoizedEditor = React.memo(EditorViewComponent, () => true)
 ```
 Forces the component to **never re-render**. Works now due to internal subscriptions, but extremely fragile. React Compiler already handles this.
 
+**Decision:** PARTIAL - Remove the `React.memo` in `ImagePreview.tsx:161` (standard memo, Compiler handles it). Keep the Editor one - the `() => true` is a hard guarantee that prevents keystroke-triggered re-renders; removing it risks regression if Compiler doesn't infer stability correctly.
+
 ---
 
-### 10. Missing useShallow on Array Dependencies
+### ~~10. Missing useShallow on Array Dependencies~~ SKIPPED
 
 - `src/components/preferences/panes/CollectionSettingsPane.tsx:65-82` - `collections` array triggers expensive schema deserialization on every query update
 - `src/components/frontmatter/fields/ArrayField.tsx:32-54` - array values trigger re-computation unnecessarily
 
+**Decision:** SKIP - Analysis was incorrect. `collections` comes from TanStack Query (not Zustand), so `useShallow` doesn't apply. `ArrayField.value` is a prop, not a store subscription. Both already use `useMemo` to guard expensive operations.
+
 ---
 
-### 11. Regex Recompilation in Hot Path (CodeMirror)
+### ~~11. Regex Recompilation in Hot Path (CodeMirror)~~ SKIPPED
 
 **File:** `src/lib/editor/extensions/copyedit-mode/pos-matching.ts:16-64`
 
 `isExcludedContent()` recompiles 3-4 regex patterns on every call, and it's called for hundreds of POS matches on every copyedit analysis.
 
+**Decision:** SKIP - When highlights are disabled (the default, and most users), this code never runs. When enabled, it's debounced to 3 seconds of inactivity. Moving regexes to module level risks subtle global regex state bugs (`lastIndex`) for a micro-optimization. Not worth it.
+
 ---
 
-### 12. Unbounded Sentence Cache
+### ~~12. Unbounded Sentence Cache~~ SKIPPED
 
 **File:** `src/lib/editor/sentence-detection.ts:6-60`
 
 Cache deletes only ONE entry when reaching MAX_CACHE_SIZE (1000). With focus mode calling this on every cursor movement, cache grows beyond limit.
+
+**Decision:** SKIP - Finding was incorrect. The cache IS bounded: when size >= 1000, it deletes 1, adds 1, stays at 1000. FIFO vs LRU might affect hit rate but not memory.
 
 ---
 
@@ -160,9 +225,11 @@ Cache deletes only ONE entry when reaching MAX_CACHE_SIZE (1000). With focus mod
 
 Creates two massive decorations spanning potentially 99% of the document, rebuilt from scratch on every cursor movement.
 
+**Decision:** CONSIDER FOR FUTURE - A better approach exists: instead of decorating "everything except sentence" (O(doc_size)), flip it - dim all content via base CSS class, then apply ONE small decoration to "undim" the current sentence (O(sentence_size)). Requires careful CSS specificity work and testing. Not urgent - current approach works, just not optimal.
+
 ---
 
-### 14. Mutex Panic Risk (Rust)
+### ~~14. Mutex Panic Risk (Rust)~~ SKIPPED
 
 **File:** `src-tauri/src/commands/watcher.rs:77, 106`
 
@@ -171,13 +238,17 @@ let mut watchers = watcher_map.lock().unwrap();
 ```
 If a panic occurs while mutex is held, subsequent calls find poisoned mutex and panic.
 
+**Decision:** SKIP - Theoretical concern. The code inside the lock is trivial (`HashMap.insert/remove`) and can't panic. In a desktop app, if something panics badly enough to poison a mutex, you have bigger problems. Defensive `.unwrap_or_else()` adds noise without practical benefit.
+
 ---
 
-### 15. 447-Line Sidebar Component
+### ~~15. 447-Line Sidebar Component~~ SKIPPED
 
 **File:** `src/components/layout/LeftSidebar.tsx`
 
 Handles file listing, filtering, breadcrumbs, rename state, draft filtering, collections view, subdirectories. Should be decomposed into focused sub-components.
+
+**Decision:** SKIP - Splitting would require significant props drilling (8+ props for header alone) or duplicate store subscriptions. Sub-components wouldn't be reused elsewhere. Component already has clear section comments, business logic extracted to `lib/` (`filterFilesByDraft`, `sortFilesByPublishedDate`), and reusable `FileItem` extracted. Organizational benefit doesn't outweigh coordination complexity.
 
 ---
 
@@ -185,13 +256,19 @@ Handles file listing, filtering, breadcrumbs, rename state, draft filtering, col
 
 Logging is inconsistent across the codebase. Some use Tauri logger, others use console. Should consolidate to centralized logger.
 
+**Decision:** DO IT - Create as separate task. Current docs (`docs/developer/logging.md`) cover Tauri logger but lack guidance on when to use `console.*` vs Tauri logger.
+
+**Required work:**
+1. Audit 38 console calls across 23 files - categorize as dev-only vs production-worthy
+2. Define clear conventions: decision tree for console.* vs Tauri logger
+3. Update logging.md with AI-specific instructions
+4. Refactor inconsistent usages to match conventions
+
 ---
 
 ### 17. Migration Code Still Present
 
-**File:** `src/lib/project-registry/migrations.ts`
-
-TODO comment says "Remove after v2.5.0" - scheduled deletion not executed.
+**Decision:** DO IT - Remove the "TODO: Remove after v2.5.0" comment from `src/lib/project-registry/migrations.ts`. Keep the migration code as a safety net for late upgraders.
 
 ---
 
@@ -199,17 +276,31 @@ TODO comment says "Remove after v2.5.0" - scheduled deletion not executed.
 
 ### 18. Typewriter Mode Race Conditions
 
-**File:** `src/lib/editor/extensions/typewriter-mode.ts:28-54`
-
-Multiple `setTimeout(..., 0)` callbacks queue during rapid cursor movements with no cancellation.
+**Decision:** DO IT - Remove typewriter mode entirely. Feature is not marketed, not explained, and current implementation is problematic. Delete from 14 files:
+- `src/lib/editor/extensions/typewriter-mode.ts` (delete file)
+- `src/lib/editor/extensions/createExtensions.ts`
+- `src/lib/editor/extensions/keymap.ts`
+- `src/lib/editor/commands/editorCommands.ts`
+- `src/lib/editor/commands/types.ts`
+- `src/lib/commands/app-commands.ts`
+- `src/lib/commands/types.ts`
+- `src/store/uiStore.ts`
+- `src/components/editor/Editor.tsx`
+- `src/hooks/commands/useCommandContext.ts`
+- `src/hooks/useDOMEventListeners.ts`
+- `src/hooks/editor/useEditorSetup.test.ts`
+- `src/lib/editor/commands/CommandRegistry.test.ts`
+- `src/components/editor/__tests__/focus-typewriter-modes.test.tsx` (delete or update)
 
 ---
 
-### 19. Global Mutable State in Copyedit
+### ~~19. Global Mutable State in Copyedit~~ SKIPPED
 
 **File:** `src/lib/editor/extensions/copyedit-mode/extension.ts:24-25`
 
 Global `currentEditorView` variable breaks with multiple editor instances or React Strict Mode.
+
+**Decision:** SKIP - Theoretical concern. App only has one editor, no split-view or multi-tab. React Strict Mode double-mounts sequentially (not parallel) so it doesn't actually break. If split-view editing is ever added, this would need redesigning anyway.
 
 ---
 
@@ -218,6 +309,8 @@ Global `currentEditorView` variable breaks with multiple editor instances or Rea
 **File:** `src/components/editor/Editor.tsx:92-135`
 
 Effect has `isAltPressed` in dependencies, causing listener re-registration on every Alt key toggle.
+
+**Decision:** DO IT - Simple fix: replace `useState` with `useRef` for `isAltPressed`. Use `isAltPressedRef.current` in handlers, effect dependencies become `[]`. ~5 line change, zero risk.
 
 ---
 
