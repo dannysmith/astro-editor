@@ -6,13 +6,13 @@ Expert review of Tauri/React codebase for performance, maintainability, and unne
 
 ## Overview
 
-This document contains actionable implementation details for 9 tasks identified during architecture review. Tasks are ordered by complexity and dependency.
+This document contains actionable implementation details for 8 tasks identified during architecture review. Tasks are ordered by complexity and dependency.
 
 **Execution Order:**
-1. Quick Fixes (1-6): Independent, can be done in any order
-2. Settings Object Duplication (7): Standalone cleanup
-3. Consolidate Logging (8): Requires audit and documentation update
-4. Remove Typewriter Mode (9): Multi-file removal, do last
+1. Quick Fixes (1-5): Independent, can be done in any order
+2. Settings Object Duplication (6): Standalone cleanup, includes doc update
+3. Consolidate Logging (7): Requires audit and documentation update
+4. Remove Typewriter Mode (8): Multi-file removal, do last
 
 ---
 
@@ -128,105 +128,7 @@ useEffect(() => {
 
 ---
 
-### 3. Blocking recv() in Async Context (Rust)
-
-**File:** `src-tauri/src/commands/watcher.rs`
-
-**Problem:** Lines 83-97 use `std::sync::mpsc::Receiver::recv()` (blocking) inside `tokio::spawn()`. This blocks a tokio worker thread while waiting for events.
-
-**Current Code (lines 25 and 83-97):**
-```rust
-// Line 25: Channel creation
-let (tx, rx) = mpsc::channel();
-
-// The tx is passed to notify::recommended_watcher which REQUIRES std::sync::mpsc::Sender
-let mut watcher = notify::recommended_watcher(move |result| match result {
-    Ok(event) => {
-        if let Err(e) = tx.send(event) { ... }
-    }
-    ...
-});
-
-// Lines 83-97: The problematic loop
-tokio::spawn(async move {
-    while let Ok(event) = rx.recv() {  // <-- BLOCKING inside async!
-        // ...
-    }
-});
-```
-
-**Constraint:** The `notify` library requires `std::sync::mpsc::Sender` for its callback. We cannot simply swap to a tokio channel.
-
-**Fix Options (choose one):**
-
-**Option A: Bridge Pattern (Recommended)**
-
-Keep the std channel for notify, bridge to tokio channel inside the async task:
-```rust
-let (tx, rx) = mpsc::channel();
-
-// ... watcher setup with tx (unchanged) ...
-
-// Bridge in the spawned task
-let app_handle = app.clone();
-tokio::spawn(async move {
-    let (async_tx, mut async_rx) = tokio::sync::mpsc::unbounded_channel();
-
-    // Spawn blocking bridge in background
-    std::thread::spawn(move || {
-        while let Ok(event) = rx.recv() {
-            if async_tx.send(event).is_err() {
-                break; // Receiver dropped
-            }
-        }
-    });
-
-    // Now use async receive
-    let mut event_buffer = Vec::new();
-    let mut last_event_time = std::time::Instant::now();
-
-    while let Some(event) = async_rx.recv().await {
-        event_buffer.push(event);
-
-        if last_event_time.elapsed() > Duration::from_millis(500) {
-            process_events(&app_handle, &mut event_buffer).await;
-            event_buffer.clear();
-        }
-        last_event_time = std::time::Instant::now();
-    }
-});
-```
-
-**Option B: Use spawn_blocking for recv**
-
-Wrap just the blocking recv in spawn_blocking:
-```rust
-tokio::spawn(async move {
-    let mut event_buffer = Vec::new();
-    let mut last_event_time = std::time::Instant::now();
-
-    loop {
-        // Move blocking recv to blocking thread pool
-        let event = tokio::task::spawn_blocking({
-            let rx = rx.clone(); // Won't work - rx isn't Clone
-            move || rx.recv()
-        }).await;
-
-        // ... This approach has issues with rx ownership
-    }
-});
-```
-Note: Option B is tricky because `Receiver` isn't `Clone`. Option A is cleaner.
-
-**Option C: Accept Current Behavior**
-
-The current implementation blocks one tokio worker thread while waiting. In Tauri's multi-threaded runtime, this is suboptimal but functional. File events are infrequent, so impact is minimal. Consider this a known limitation if the bridge adds too much complexity.
-
-**Testing:** Run `cargo check`. Test file watching by modifying files in the project. Verify events still trigger UI updates.
-
----
-
-### 4. Alt Key Listener Re-registration
+### 3. Alt Key Listener Re-registration
 
 **File:** `src/components/editor/Editor.tsx`
 
@@ -325,7 +227,7 @@ useEffect(() => {
 
 ---
 
-### 5. Remove Migration TODO Comment
+### 4. Remove Migration TODO Comment
 
 **File:** `src/lib/project-registry/migrations.ts`
 
@@ -357,7 +259,7 @@ useEffect(() => {
 
 ---
 
-### 6. Remove Redundant React.memo
+### 5. Remove Redundant React.memo
 
 **File:** `src/components/editor/ImagePreview.tsx`
 
@@ -384,7 +286,7 @@ export const ImagePreview = ImagePreviewComponent
 
 ## Cleanup Tasks
 
-### 7. Settings Object Duplication
+### 6. Settings Object Duplication
 
 **Files:**
 - `src/components/preferences/panes/GeneralPane.tsx` (7 handlers)
@@ -596,9 +498,44 @@ const handleToggleAllHighlights = () => {
 
 **Testing:** Open preferences, change each setting. Verify settings persist after app restart. Toggle parts-of-speech highlights via command palette.
 
+**Documentation Update:** Add a note to `docs/developer/preferences-system.md` explaining the merge behavior:
+
+```markdown
+## Updating Global Settings
+
+The `updateGlobalSettings` method in `ProjectRegistryManager` performs a **one-level deep merge** for `general` and `appearance` objects:
+
+- **Top-level fields** (e.g., `ideCommand`, `theme`): Pass only the field you're changing. Other fields are preserved automatically.
+- **Nested objects** (e.g., `highlights`, `headingColor`): You must spread the existing object, or it will be completely overwritten.
+
+### Examples
+
+```typescript
+// ✅ CORRECT: Top-level field - just pass the new value
+void updateGlobal({ general: { theme: 'dark' } })
+
+// ✅ CORRECT: Nested object - spread existing values
+void updateGlobal({
+  appearance: {
+    headingColor: {
+      ...globalSettings?.appearance?.headingColor,
+      light: '#ff0000',
+    },
+  },
+})
+
+// ❌ WRONG: This overwrites the entire headingColor object!
+void updateGlobal({
+  appearance: {
+    headingColor: { light: '#ff0000' },  // dark value is now lost!
+  },
+})
+```
+```
+
 ---
 
-### 8. Consolidate Logging
+### 7. Consolidate Logging
 
 **Scope:** 38+ console calls across 23+ files
 
@@ -645,12 +582,12 @@ Add to `docs/developer/logging.md` a decision tree:
 - Sensitive information in any log
 ```
 
-**Step 3: Identify current violations**
+**Step 3: Categorize from grep results**
 
-From the grep results, these are the main source files with console usage:
-- `src/store/mdxComponentsStore.ts:32` - `console.error` (keep, but consider logger)
-- `src/store/editorStore.ts:115` - `console.warn` (appropriate for dev warning)
-- `src/store/projectStore.ts:275,293` - `console.warn` (should use logger for persistence issues)
+Run the grep command and categorize each result. Key areas to check:
+- Store files (`src/store/*.ts`) - persistence warnings should use Tauri logger
+- Editor files - dev-only debugging can stay but should be wrapped in `import.meta.env.DEV`
+- Error handlers - should use Tauri logger for production visibility
 
 **Step 4: Refactor**
 
@@ -681,11 +618,13 @@ When writing new code:
 
 ## Removal Tasks
 
-### 9. Remove Typewriter Mode
+### 8. Remove Typewriter Mode
 
 **Scope:** 15 steps across 14 source files + 1 CSS file + 3 doc/marketing files. Delete 1 source file.
 
 **Why Remove:** Feature is undocumented, unmarketable, and implementation is problematic (uses setTimeout for scrolling).
+
+**Important:** This removal must NOT affect Focus Mode or Copyedit Mode highlighting. These are separate features that should continue working.
 
 **Files to Modify (in order):**
 
@@ -863,6 +802,14 @@ Remove from mode change effect dependency (line 90):
 }, [handleModeChange, focusModeEnabled])
 ```
 
+Remove typewriter class from className (line 302):
+```typescript
+// CHANGE FROM:
+className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''} ${typewriterModeEnabled ? 'typewriter-mode' : ''}`}
+// TO:
+className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''}`}
+```
+
 #### Step 10: Remove from useCommandContext.ts
 
 **File:** `src/hooks/commands/useCommandContext.ts`
@@ -928,14 +875,10 @@ Remove from mock (line 35):
 
 **File:** `src/components/editor/__tests__/focus-typewriter-modes.test.tsx`
 
-This test file tests both focus and typewriter modes. Options:
-1. **Rename and refactor:** Rename to `focus-mode.test.tsx` and remove all typewriter tests
-2. **Delete entirely:** If focus mode tests are covered elsewhere
-
-Recommended: Rename to `focus-mode.test.tsx` and remove all typewriter-related tests:
-- Remove all `toggleTypewriterMode` references
-- Remove all `typewriterModeEnabled` assertions
-- Update test descriptions
+Rename to `focus-mode.test.tsx` and remove only typewriter-related tests:
+- Keep all focus mode tests intact
+- Remove tests that reference `toggleTypewriterMode` or `typewriterModeEnabled`
+- Update file name and any test descriptions that mention typewriter mode
 
 #### Step 13: Remove CSS
 
@@ -1043,44 +986,39 @@ Update line 216 to remove typewriter mode reference:
 ```
 
 **Testing:**
+
+Automated:
 1. Run `pnpm run check:all` - should pass with no TypeScript errors
 2. Run `pnpm test` - all tests should pass
-3. Open editor, verify focus mode still works
-4. Verify `Cmd+Shift+F` toggles focus mode
-5. Verify `Cmd+Shift+T` does nothing (or falls through to system)
-6. Open command palette, verify "Toggle Typewriter Mode" is gone
+3. Search codebase for `typewriter` - should only find this task doc and completed task history
 
----
-
-## Future Considerations (Not Urgent)
-
-### Focus Mode Decoration Inefficiency
-
-**File:** `src/lib/editor/extensions/focus-mode.ts:56-107`
-
-**Current Approach:** Creates two massive decorations spanning 99% of the document, rebuilt on every cursor movement (O(doc_size)).
-
-**Better Approach:** Dim all content via base CSS class, apply ONE small decoration to "undim" the current sentence (O(sentence_size)).
-
-**Why Not Now:** Current approach works. The optimization requires careful CSS specificity work and comprehensive testing. File for future performance optimization if focus mode becomes noticeably slow on large documents.
+Manual - verify these features still work:
+1. **Focus Mode**: `Cmd+Shift+F` should dim all text except current sentence
+2. **Copyedit Mode**: Command palette → Toggle highlight commands should work
+3. **Parts of Speech**: Each highlight toggle (nouns, verbs, etc.) should work independently
+4. **Command Palette**: Should NOT show "Toggle Typewriter Mode"
+5. **Keyboard**: `Cmd+Shift+T` should do nothing (or fall through to system)
 
 ---
 
 ## Verification Checklist
 
-After completing all tasks, run:
+After completing all tasks:
 
 ```bash
-# TypeScript and Rust checks
+# Automated checks
 pnpm run check:all
-
-# All tests
 pnpm test
 
-# Manual testing
-# 1. Open a project
-# 2. Change settings in preferences
-# 3. Toggle focus mode (Cmd+Shift+F)
-# 4. Hold Alt key for URL highlighting
-# 5. Verify typewriter mode is completely gone
+# Verify typewriter removal is complete
+grep -r "typewriter" src/ --include="*.ts" --include="*.tsx" --include="*.css"
+# Should return no results
 ```
+
+Manual verification:
+1. Open a project
+2. Change settings in preferences - verify they persist after restart
+3. Toggle focus mode (`Cmd+Shift+F`) - verify it works
+4. Hold Alt key over URLs - verify highlighting works
+5. Open command palette - verify "Toggle Typewriter Mode" is gone
+6. Toggle copyedit highlighting via command palette - verify each part of speech works
