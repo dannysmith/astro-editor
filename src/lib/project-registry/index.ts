@@ -12,6 +12,7 @@ import {
   ProjectData,
   ProjectMetadata,
   ProjectSettings,
+  DeepPartial,
 } from './types'
 import {
   loadProjectRegistry,
@@ -274,9 +275,15 @@ export class ProjectRegistryManager {
   }
 
   /**
-   * Update global settings
+   * Update global settings (deep merge - only pass changed fields)
+   *
+   * Merging depth:
+   * - Level 1: general, appearance (spreads existing + updates)
+   * - Level 2: highlights, headingColor (spreads existing + updates)
    */
-  async updateGlobalSettings(settings: Partial<GlobalSettings>): Promise<void> {
+  async updateGlobalSettings(
+    settings: DeepPartial<GlobalSettings>
+  ): Promise<void> {
     if (!this.globalSettings) {
       throw new Error('Global settings not initialized')
     }
@@ -287,10 +294,20 @@ export class ProjectRegistryManager {
       general: {
         ...this.globalSettings.general,
         ...settings.general,
+        // Two-level deep merge for highlights
+        highlights: {
+          ...this.globalSettings.general.highlights,
+          ...settings.general?.highlights,
+        },
       },
       appearance: {
         ...this.globalSettings.appearance,
         ...settings.appearance,
+        // Two-level deep merge for headingColor
+        headingColor: {
+          ...this.globalSettings.appearance.headingColor,
+          ...settings.appearance?.headingColor,
+        },
       },
     }
 

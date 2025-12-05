@@ -209,6 +209,37 @@ await updateProjectSettings({
 })
 ```
 
+### Deep Merge Behavior for Global Settings
+
+The `updateGlobalSettings` method performs **two-level deep merging**. You only need to pass the fields you're changing:
+
+**Merge Levels:**
+- **Level 1**: `general`, `appearance` - spreads existing + updates
+- **Level 2**: `highlights`, `headingColor` - spreads existing + updates
+
+**Examples:**
+
+```typescript
+// ✅ CORRECT: Just pass the field you're changing
+void updateGlobal({ general: { theme: 'dark' } })
+// Result: theme updated, all other general fields preserved
+
+// ✅ CORRECT: Nested objects are also merged
+void updateGlobal({ general: { highlights: { nouns: false } } })
+// Result: nouns=false, other highlights (verbs, adjectives, etc.) preserved
+
+void updateGlobal({ appearance: { headingColor: { light: '#ff0000' } } })
+// Result: light color updated, dark color preserved
+
+// ✅ CORRECT: Multiple fields at once
+void updateGlobal({
+  general: { theme: 'dark', autoSaveDelay: 5 },
+  appearance: { editorBaseFontSize: 16 }
+})
+```
+
+**Note:** The `DeepPartial<GlobalSettings>` type allows partial nested objects. This eliminates the need to manually spread existing values when updating settings.
+
 ### Settings Resolution Pattern
 
 The `useEffectiveSettings` hook implements the three-tier fallback:

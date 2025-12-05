@@ -86,6 +86,8 @@ export const LeftSidebar: React.FC = () => {
 
   // Load file counts for all collections (recursive)
   useEffect(() => {
+    let cancelled = false
+
     const loadFileCounts = async () => {
       const counts: Record<string, number> = {}
 
@@ -104,11 +106,17 @@ export const LeftSidebar: React.FC = () => {
         }
       }
 
-      setFileCounts(counts)
+      if (!cancelled) {
+        setFileCounts(counts)
+      }
     }
 
     if (collections.length > 0) {
       void loadFileCounts()
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [collections])
 

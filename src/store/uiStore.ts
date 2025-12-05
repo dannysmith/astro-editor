@@ -5,7 +5,6 @@ interface UIState {
   sidebarVisible: boolean
   frontmatterPanelVisible: boolean
   focusModeEnabled: boolean
-  typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
 
   // View filters (per-collection state, ephemeral)
@@ -15,7 +14,6 @@ interface UIState {
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
   toggleFocusMode: () => void
-  toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   handleTypingInEditor: () => void
   showBars: () => void
@@ -27,7 +25,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   sidebarVisible: true,
   frontmatterPanelVisible: true,
   focusModeEnabled: false,
-  typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
   draftFilterByCollection: {},
 
@@ -50,10 +47,6 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   toggleFocusMode: () => {
     set(state => ({ focusModeEnabled: !state.focusModeEnabled }))
-  },
-
-  toggleTypewriterMode: () => {
-    set(state => ({ typewriterModeEnabled: !state.typewriterModeEnabled }))
   },
 
   setDistractionFreeBarsHidden: (hidden: boolean) => {

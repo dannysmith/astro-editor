@@ -77,9 +77,6 @@ export function useCommandContext(): CommandContext {
     toggleFocusMode: () => {
       window.dispatchEvent(new CustomEvent('toggle-focus-mode'))
     },
-    toggleTypewriterMode: () => {
-      window.dispatchEvent(new CustomEvent('toggle-typewriter-mode'))
-    },
     toggleHighlightNouns: () => {
       window.dispatchEvent(new CustomEvent('toggle-highlight-nouns'))
     },

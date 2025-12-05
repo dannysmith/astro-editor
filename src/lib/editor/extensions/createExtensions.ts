@@ -10,7 +10,6 @@ import { handlePaste } from '../paste'
 import { createKeymapExtensions } from './keymap'
 import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
-import { createTypewriterModeExtension } from './typewriter-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
 import { hangingHeadersExtension } from './hanging-headers'
 
@@ -73,7 +72,6 @@ export const createExtensions = (config: ExtensionConfig) => {
 
     // Writing modes - Always include extensions, toggle via state
     ...createFocusModeExtension(),
-    ...createTypewriterModeExtension(),
     ...createCopyeditModeExtension(),
 
     // Visual enhancements

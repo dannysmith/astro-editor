@@ -4,6 +4,7 @@ import {
   GlobalSettings,
   ProjectSettings,
   CollectionSpecificSettings,
+  DeepPartial,
 } from '../lib/project-registry'
 
 /**
@@ -24,7 +25,7 @@ export const usePreferences = () => {
   const projectPath = useProjectStore(state => state.projectPath)
 
   const updateGlobal = useCallback(
-    (settings: Partial<GlobalSettings>) => {
+    (settings: DeepPartial<GlobalSettings>) => {
       return updateGlobalSettings(settings)
     },
     [updateGlobalSettings]
