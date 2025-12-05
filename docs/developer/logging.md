@@ -64,6 +64,7 @@ import { safeLog } from '@/lib/diagnostics'
 // Safe in both production and test environments
 await safeLog.info('General information')
 await safeLog.debug('Development debugging info')
+await safeLog.warn('Warning messages')
 await safeLog.error('Error messages')
 ```
 
