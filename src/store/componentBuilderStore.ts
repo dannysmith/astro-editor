@@ -97,9 +97,8 @@ export const useComponentBuilderStore = create<
     // Import the snippet builder and insert command dynamically to avoid circular dependencies
     void (async () => {
       const { buildSnippet } = await import('../lib/editor/snippet-builder')
-      const { insertSnippet } = await import(
-        '../lib/editor/commands/insertSnippet'
-      )
+      const { insertSnippet } =
+        await import('../lib/editor/commands/insertSnippet')
 
       const snippetString = buildSnippet(
         selectedComponent,
