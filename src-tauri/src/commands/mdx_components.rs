@@ -709,7 +709,7 @@ fn type_to_string(ts_type: &TsType) -> String {
             _ => "unknown".to_string(),
         },
         TsType::TsLitType(lit) => match &lit.lit {
-            TsLit::Str(s) => format!("'{}'", s.value),
+            TsLit::Str(s) => format!("'{}'", s.value.to_string_lossy()),
             TsLit::Number(n) => n.value.to_string(),
             TsLit::Bool(b) => b.value.to_string(),
             _ => "literal".to_string(),
