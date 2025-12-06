@@ -243,9 +243,9 @@ pub fn run() {
             // Apply window vibrancy with rounded corners on macOS
             #[cfg(target_os = "macos")]
             {
-                let window = app.get_webview_window("main").unwrap();
-                apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0))
-                    .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0));
+                }
             }
 
             // Handle menu events

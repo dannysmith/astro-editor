@@ -52,16 +52,55 @@ grep "[PROJECT_SETUP]" "~/Library/Logs/is.danny.astroeditor/Astro Editor.log"
 log stream --predicate 'process == "astro-editor"'
 ```
 
-## Available Log Levels
+## TypeScript Logging Patterns
+
+### Pattern 1: safeLog Helper (Recommended for testable code)
+
+Use `safeLog` for utility code, hooks, and modules that have tests:
 
 ```typescript
-import { trace, debug, info, warn, error } from '@tauri-apps/plugin-log'
+import { safeLog } from '@/lib/diagnostics'
 
-await trace('Very detailed debugging info')
-await debug('Development debugging info')
-await info('General information')
-await warn('Warning messages')
-await error('Error messages')
+// Safe in both production and test environments
+await safeLog.info('General information')
+await safeLog.debug('Development debugging info')
+await safeLog.warn('Warning messages')
+await safeLog.error('Error messages')
+```
+
+**Benefits**: Works in test environments (silently fails when Tauri unavailable)
+**Trade-off**: Uses dynamic import, slightly slower at runtime
+
+### Pattern 2: Direct Plugin Import (For entry points only)
+
+Only use direct imports in entry points that never run in tests (App.tsx, main.tsx):
+
+```typescript
+import { info, error } from '@tauri-apps/plugin-log'
+
+await info('App started')
+await error('Fatal error occurred')
+```
+
+**Benefits**: Faster (static import)
+**Trade-off**: Throws in test environment
+
+### When to Use Each
+
+| Location | Pattern | Reason |
+|----------|---------|--------|
+| `App.tsx`, `main.tsx` | Direct import | Entry points, never tested |
+| Stores, hooks | `safeLog` | Often have unit tests |
+| Utility modules (`lib/`) | `safeLog` | Should be testable |
+| One-off error logging | `safeLog` | Safer default |
+
+### Available Log Levels
+
+```typescript
+await safeLog.debug('Development debugging info')
+await safeLog.info('General information')
+await safeLog.warn('Warning messages')
+await safeLog.error('Error messages')
 ```
 
 ### Rust Backend Logging

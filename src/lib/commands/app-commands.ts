@@ -12,7 +12,6 @@ import {
   Folder,
   Settings,
   Eye,
-  Edit,
   Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
@@ -157,17 +156,6 @@ export const viewModeCommands: AppCommand[] = [
     group: 'settings',
     execute: (context: CommandContext) => {
       context.toggleFocusMode()
-    },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-typewriter-mode',
-    label: 'Toggle Typewriter Mode',
-    description: 'Keep current line centered while typing',
-    icon: Edit,
-    group: 'settings',
-    execute: (context: CommandContext) => {
-      context.toggleTypewriterMode()
     },
     isAvailable: () => true,
   },

@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/dc32dd12-2094-47c4-ab90-620ecd11ba48
 **Writing Environment**
 
 - Clean markdown/MDX editor with syntax highlighting. Frontmatter and imports are hidden while editing, shown in a dedicated sidebar.
-- Focus mode (highlights current sentence), typewriter mode (cursor stays centered), and copyedit mode (highlights parts of speech).
+- Focus mode (highlights current sentence) and copyedit mode (highlights parts of speech).
 - Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.

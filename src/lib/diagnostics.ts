@@ -70,6 +70,14 @@ export const safeLog = {
       // Silently fail in test environment
     }
   },
+  warn: async (message: string) => {
+    try {
+      const { warn } = await import('@tauri-apps/plugin-log')
+      await warn(message)
+    } catch {
+      // Silently fail in test environment
+    }
+  },
   error: async (message: string) => {
     try {
       const { error } = await import('@tauri-apps/plugin-log')

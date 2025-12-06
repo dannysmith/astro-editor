@@ -27,119 +27,32 @@ export const GeneralPane: React.FC = () => {
   const handleIdeCommandChange = useCallback(
     (value: string) => {
       void updateGlobal({
-        general: {
-          ideCommand: value === 'none' ? '' : value,
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-        appearance: globalSettings?.appearance || {
-          headingColor: {
-            light: '#191919',
-            dark: '#cccccc',
-          },
-        },
+        general: { ideCommand: value === 'none' ? '' : value },
       })
     },
-    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+    [updateGlobal]
   )
 
   const handleThemeChange = useCallback(
     (value: 'light' | 'dark' | 'system') => {
-      // Update the theme provider immediately for live preview
       setTheme(value)
-
-      // Also save to global settings for persistence
-      void updateGlobal({
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: value,
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-        appearance: globalSettings?.appearance || {
-          headingColor: {
-            light: '#191919',
-            dark: '#cccccc',
-          },
-        },
-      })
+      void updateGlobal({ general: { theme: value } })
     },
-    [
-      setTheme,
-      updateGlobal,
-      globalSettings?.general,
-      globalSettings?.appearance,
-    ]
+    [setTheme, updateGlobal]
   )
 
   const handleDefaultFileTypeChange = useCallback(
     (value: string) => {
-      void updateGlobal({
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: value as 'md' | 'mdx',
-        },
-        appearance: globalSettings?.appearance || {
-          headingColor: {
-            light: '#191919',
-            dark: '#cccccc',
-          },
-        },
-      })
+      void updateGlobal({ general: { defaultFileType: value as 'md' | 'mdx' } })
     },
-    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+    [updateGlobal]
   )
 
   const handleHeadingColorChange = useCallback(
     (mode: 'light' | 'dark', color: string) => {
-      void updateGlobal({
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-        appearance: {
-          headingColor: {
-            light: globalSettings?.appearance?.headingColor?.light || '#191919',
-            dark: globalSettings?.appearance?.headingColor?.dark || '#cccccc',
-            [mode]: color,
-          },
-        },
-      })
+      void updateGlobal({ appearance: { headingColor: { [mode]: color } } })
     },
-    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+    [updateGlobal]
   )
 
   const handleResetHeadingColor = useCallback(
@@ -152,29 +65,9 @@ export const GeneralPane: React.FC = () => {
 
   const handleAutoSaveDelayChange = useCallback(
     (value: string) => {
-      void updateGlobal({
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: parseInt(value, 10),
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-        appearance: globalSettings?.appearance || {
-          headingColor: {
-            light: '#191919',
-            dark: '#cccccc',
-          },
-        },
-      })
+      void updateGlobal({ general: { autoSaveDelay: parseInt(value, 10) } })
     },
-    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+    [updateGlobal]
   )
 
   const DEFAULT_EDITOR_BASE_FONT_SIZE = 18
@@ -182,35 +75,11 @@ export const GeneralPane: React.FC = () => {
   const handleEditorBaseFontSizeChange = useCallback(
     (value: string) => {
       const parsed = parseInt(value, 10)
-      // Guard: ignore empty or invalid input
       if (isNaN(parsed)) return
-      // Clamp to valid range
       const size = Math.max(1, Math.min(30, parsed))
-
-      void updateGlobal({
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: globalSettings?.general?.highlights || {
-            nouns: true,
-            verbs: true,
-            adjectives: true,
-            adverbs: true,
-            conjunctions: true,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-        appearance: {
-          headingColor: {
-            light: globalSettings?.appearance?.headingColor?.light || '#191919',
-            dark: globalSettings?.appearance?.headingColor?.dark || '#cccccc',
-          },
-          editorBaseFontSize: size,
-        },
-      })
+      void updateGlobal({ appearance: { editorBaseFontSize: size } })
     },
-    [updateGlobal, globalSettings?.general, globalSettings?.appearance]
+    [updateGlobal]
   )
 
   const handleResetEditorBaseFontSize = useCallback(() => {

@@ -1,8 +1,6 @@
 /**
  * Preference structure migrations
  *
- * TODO: Remove this entire file after v2.5.0 when most users have upgraded
- *
  * This module handles migration from v1 to v2 preference structure.
  */
 

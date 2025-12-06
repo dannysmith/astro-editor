@@ -62,8 +62,6 @@ describe('useEditorSetup', () => {
       formatHeading: vi.fn(),
       save: vi.fn(),
       toggleFocusMode: vi.fn(),
-      toggleTypewriterMode: vi.fn(),
-      toggleCopyeditMode: vi.fn(),
     } as EditorCommandRegistry
 
     mockCreateExtensions.mockReturnValue([])

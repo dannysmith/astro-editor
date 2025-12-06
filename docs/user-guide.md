@@ -445,13 +445,6 @@ A number of "modes" can be toggled while writing/editing, which alter how the ed
 
 Dims everything but the current sentence (or line for lists). Can be toggled with the 👁️ icon in the toolbar.
 
-### Typewriter Mode
-
-> [!WARNING]
-> This is currently unreliable and could cause the editor window to behave in unexpected ways.
-
-Keeps the editor cursor centered vertically in the window and scrolls the document – much like a typewriter.
-
 ### Copyedit Highlighting
 
 ![with highlights enabled](assets/Editor-mode.png)

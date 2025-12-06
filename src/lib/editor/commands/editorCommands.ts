@@ -55,17 +55,6 @@ export const createFocusModeCommand = (): EditorCommand => {
 }
 
 /**
- * Create a typewriter mode toggle command
- */
-export const createTypewriterModeCommand = (): EditorCommand => {
-  return () => {
-    const toggleTypewriterMode = useUIStore.getState().toggleTypewriterMode
-    toggleTypewriterMode()
-    return true
-  }
-}
-
-/**
  * Create a complete editor command registry
  */
 export const createEditorCommandRegistry = (
@@ -78,6 +67,5 @@ export const createEditorCommandRegistry = (
     formatHeading: (level: HeadingLevel) => createHeadingCommand(level),
     save: createSaveCommand(onSave),
     toggleFocusMode: createFocusModeCommand(),
-    toggleTypewriterMode: createTypewriterModeCommand(),
   }
 }

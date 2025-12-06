@@ -12,7 +12,6 @@ import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
-import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
 import '../../lib/editor/extensions/copyedit-mode.css'
 
@@ -28,10 +27,10 @@ const EditorViewComponent: React.FC = () => {
   const currentFilePath = useEditorStore(state => state.currentFile?.path)
   const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
-  const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
+  const altDispatchedRef = useRef(false) // Track whether we've dispatched Alt effect
   const isProgrammaticUpdate = useRef(false)
 
   // Typing detection for distraction-free mode
@@ -69,17 +68,11 @@ const EditorViewComponent: React.FC = () => {
   // Handle mode changes - use stable callback with getState() pattern
   const handleModeChange = useCallback(() => {
     // Get fresh values from store using getState() pattern per architecture guide
-    const {
-      focusModeEnabled: currentFocusMode,
-      typewriterModeEnabled: currentTypewriterMode,
-    } = useUIStore.getState()
+    const { focusModeEnabled: currentFocusMode } = useUIStore.getState()
 
     if (viewRef.current) {
       viewRef.current.dispatch({
-        effects: [
-          toggleFocusMode.of(currentFocusMode),
-          toggleTypewriterMode.of(currentTypewriterMode),
-        ],
+        effects: [toggleFocusMode.of(currentFocusMode)],
       })
     }
   }, []) // Stable dependency array per architecture guide
@@ -87,13 +80,15 @@ const EditorViewComponent: React.FC = () => {
   // Subscribe to mode changes using the stable callback
   useEffect(() => {
     handleModeChange()
-  }, [handleModeChange, focusModeEnabled, typewriterModeEnabled])
+  }, [handleModeChange, focusModeEnabled])
 
   // Track Alt key state for URL highlighting - moved back to component for timing
+  // Uses ref for dispatch tracking (stable listener) + state for React rendering (useImageHover)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && !isAltPressed) {
+      if (e.altKey && !altDispatchedRef.current) {
         setIsAltPressed(true)
+        altDispatchedRef.current = true
         if (viewRef.current) {
           viewRef.current.dispatch({
             effects: altKeyEffect.of(true),
@@ -103,8 +98,9 @@ const EditorViewComponent: React.FC = () => {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (!e.altKey && isAltPressed) {
+      if (!e.altKey && altDispatchedRef.current) {
         setIsAltPressed(false)
+        altDispatchedRef.current = false
         if (viewRef.current) {
           viewRef.current.dispatch({
             effects: altKeyEffect.of(false),
@@ -115,11 +111,14 @@ const EditorViewComponent: React.FC = () => {
 
     // Handle window blur to reset Alt state
     const handleBlur = () => {
-      setIsAltPressed(false)
-      if (viewRef.current) {
-        viewRef.current.dispatch({
-          effects: altKeyEffect.of(false),
-        })
+      if (altDispatchedRef.current) {
+        setIsAltPressed(false)
+        altDispatchedRef.current = false
+        if (viewRef.current) {
+          viewRef.current.dispatch({
+            effects: altKeyEffect.of(false),
+          })
+        }
       }
     }
 
@@ -132,7 +131,7 @@ const EditorViewComponent: React.FC = () => {
       document.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('blur', handleBlur)
     }
-  }, [isAltPressed])
+  }, []) // Stable: ref tracks dispatch state, useState triggers React re-renders
 
   // Initialize the CodeMirror editor once
   useEffect(() => {
@@ -299,7 +298,7 @@ const EditorViewComponent: React.FC = () => {
     <div className="editor-view" style={{ padding: '0 24px' }}>
       <div
         ref={editorRef}
-        className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''} ${typewriterModeEnabled ? 'typewriter-mode' : ''}`}
+        className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''}`}
         data-editor-container
       />
       {projectPath && (

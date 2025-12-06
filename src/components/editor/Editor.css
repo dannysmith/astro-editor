@@ -42,49 +42,6 @@
   /* Could add any global focus mode styling here */
 }
 
-/* Typewriter Mode Enhancements */
-.cm-editor.typewriter-mode {
-  position: relative;
-}
-
-.cm-editor.typewriter-mode::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40px;
-  background: linear-gradient(
-    to bottom,
-    var(--editor-color-background) 0%,
-    transparent 100%
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-.cm-editor.typewriter-mode::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 40px;
-  background: linear-gradient(
-    to top,
-    var(--editor-color-background) 0%,
-    transparent 100%
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Ensure content stays above gradients */
-.cm-editor.typewriter-mode .cm-content {
-  position: relative;
-  z-index: 2;
-}
-
 /* URL Alt+Click Styling */
 .alt-pressed .cm-content {
   cursor: default !important;

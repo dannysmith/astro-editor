@@ -157,5 +157,4 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
   )
 }
 
-// Memoize to prevent unnecessary re-renders when parent re-renders
-export const ImagePreview = React.memo(ImagePreviewComponent)
+export const ImagePreview = ImagePreviewComponent

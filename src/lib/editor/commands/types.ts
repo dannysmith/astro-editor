@@ -16,7 +16,6 @@ export interface EditorCommandRegistry {
   formatHeading: (level: HeadingLevel) => EditorCommand
   save: EditorCommand
   toggleFocusMode: EditorCommand
-  toggleTypewriterMode: EditorCommand
 }
 
 /**

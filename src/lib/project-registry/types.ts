@@ -4,6 +4,14 @@
  * Simple type definitions for project identification and persistence
  */
 
+/**
+ * Utility type for deep partial - makes all nested properties optional
+ * Used for settings updates where only changed fields need to be passed
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+}
+
 export interface ProjectMetadata {
   id: string // Generated project ID (package.json name + path hash if needed)
   name: string // From package.json

@@ -70,18 +70,11 @@ export const createMarkdownKeymap = (
         key: 'Alt-Mod-0',
         run: view => transformLineToHeading(view, 0),
       },
-      // Focus and typewriter mode shortcuts
+      // Focus mode shortcut
       {
         key: 'Mod-Shift-f',
         run: () => {
           globalCommandRegistry.execute('toggleFocusMode')
-          return true
-        },
-      },
-      {
-        key: 'Mod-Shift-t',
-        run: () => {
-          globalCommandRegistry.execute('toggleTypewriterMode')
           return true
         },
       },

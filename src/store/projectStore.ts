@@ -9,6 +9,7 @@ import {
   projectRegistryManager,
   GlobalSettings,
   ProjectSettings,
+  DeepPartial,
 } from '../lib/project-registry'
 import { useEditorStore } from './editorStore'
 import { queryClient } from '../lib/query-client'
@@ -37,7 +38,7 @@ interface ProjectState {
   navigateToRoot: () => void // Go to collection root (clear subdirectory)
   loadPersistedProject: () => Promise<void>
   initializeProjectRegistry: () => Promise<void>
-  updateGlobalSettings: (settings: Partial<GlobalSettings>) => Promise<void>
+  updateGlobalSettings: (settings: DeepPartial<GlobalSettings>) => Promise<void>
   updateProjectSettings: (settings: Partial<ProjectSettings>) => Promise<void>
   startFileWatcher: () => Promise<void>
   stopFileWatcher: () => Promise<void>
@@ -328,7 +329,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  updateGlobalSettings: async (settings: Partial<GlobalSettings>) => {
+  updateGlobalSettings: async (settings: DeepPartial<GlobalSettings>) => {
     try {
       await projectRegistryManager.updateGlobalSettings(settings)
       const updatedSettings = projectRegistryManager.getGlobalSettings()

@@ -27,7 +27,6 @@ const PARTS_OF_SPEECH: PartOfSpeech[] = [
  * - Parts-of-speech highlight toggles for copyedit mode
  * - 'toggle-all-highlights': Toggles all highlights on/off
  * - 'toggle-focus-mode': Toggles focus mode
- * - 'toggle-typewriter-mode': Toggles typewriter mode
  * - 'file-opened': Updates selected collection when file opens
  */
 export function useDOMEventListeners(
@@ -66,14 +65,10 @@ export function useDOMEventListeners(
       window.removeEventListener('create-new-file', handleCreateNewFile)
   }, [])
 
-  // Focus mode and typewriter mode, parts-of-speech highlighting, and file-opened event
+  // Focus mode, parts-of-speech highlighting, and file-opened event
   useEffect(() => {
     const handleToggleFocusMode = () => {
       useUIStore.getState().toggleFocusMode()
-    }
-
-    const handleToggleTypewriterMode = () => {
-      useUIStore.getState().toggleTypewriterMode()
     }
 
     const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
@@ -82,25 +77,9 @@ export function useDOMEventListeners(
       const currentValue =
         globalSettings?.general?.highlights?.[partOfSpeech] ?? true
 
-      const newSettings = {
-        general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
-          highlights: {
-            nouns: globalSettings?.general?.highlights?.nouns ?? true,
-            verbs: globalSettings?.general?.highlights?.verbs ?? true,
-            adjectives: globalSettings?.general?.highlights?.adjectives ?? true,
-            adverbs: globalSettings?.general?.highlights?.adverbs ?? true,
-            conjunctions:
-              globalSettings?.general?.highlights?.conjunctions ?? true,
-            [partOfSpeech]: !currentValue,
-          },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
-        },
-      }
-
-      void updateGlobalSettings(newSettings).then(() => {
+      void updateGlobalSettings({
+        general: { highlights: { [partOfSpeech]: !currentValue } },
+      }).then(() => {
         setTimeout(() => {
           updateCopyeditModePartsOfSpeech()
         }, 50)
@@ -115,10 +94,8 @@ export function useDOMEventListeners(
       const anyEnabled = Object.values(highlights).some(enabled => enabled)
       const newValue = !anyEnabled
 
-      const newSettings = {
+      void updateGlobalSettings({
         general: {
-          ideCommand: globalSettings?.general?.ideCommand || '',
-          theme: globalSettings?.general?.theme || 'system',
           highlights: {
             nouns: newValue,
             verbs: newValue,
@@ -126,12 +103,8 @@ export function useDOMEventListeners(
             adverbs: newValue,
             conjunctions: newValue,
           },
-          autoSaveDelay: globalSettings?.general?.autoSaveDelay || 2,
-          defaultFileType: globalSettings?.general?.defaultFileType || 'md',
         },
-      }
-
-      void updateGlobalSettings(newSettings).then(() => {
+      }).then(() => {
         setTimeout(() => {
           updateCopyeditModePartsOfSpeech()
         }, 50)
@@ -148,12 +121,8 @@ export function useDOMEventListeners(
       }
     }
 
-    // Register focus and typewriter mode listeners
+    // Register focus mode listener
     window.addEventListener('toggle-focus-mode', handleToggleFocusMode)
-    window.addEventListener(
-      'toggle-typewriter-mode',
-      handleToggleTypewriterMode
-    )
 
     // Generate and register part-of-speech toggle handlers
     const partOfSpeechHandlers = PARTS_OF_SPEECH.map(pos => {
@@ -167,10 +136,6 @@ export function useDOMEventListeners(
 
     return () => {
       window.removeEventListener('toggle-focus-mode', handleToggleFocusMode)
-      window.removeEventListener(
-        'toggle-typewriter-mode',
-        handleToggleTypewriterMode
-      )
       partOfSpeechHandlers.forEach(({ event, handler }) => {
         window.removeEventListener(event, handler)
       })
