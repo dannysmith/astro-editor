@@ -37,9 +37,9 @@ const mockCleanupMenuCommands = vi.mocked(
 ).cleanupMenuCommands
 
 describe('useEditorSetup', () => {
-  let mockOnSave: ReturnType<typeof vi.fn>
-  let mockOnFocus: ReturnType<typeof vi.fn>
-  let mockOnBlur: ReturnType<typeof vi.fn>
+  let mockOnSave: () => void
+  let mockOnFocus: () => void
+  let mockOnBlur: () => void
   let mockEditorView: EditorView
   let mockCommands: EditorCommandRegistry
 
