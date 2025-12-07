@@ -4,381 +4,564 @@
 
 ## TL;DR
 
-Astro Editor currently only works on macOS. To support Windows and Linux, we need to fix **critical path handling issues** (11+ files using hardcoded `/`), create **platform-specific title bars**, and update the **build pipeline**. Tauri v2 handles most platform differences automatically - React, CodeMirror, state management all work unchanged. Path handling is 80% of the work.
+Astro Editor currently only works on macOS. This task prepares the codebase for cross-platform support through careful refactoring that **doesn't break macOS functionality**. The work is split into three sections:
 
-**Key Decision:** Normalize all paths to forward slashes in Rust backend. Frontend never sees platform differences.
+1. **Part A: Preparatory Work** - Everything we can do on macOS, merge to main, and release without breaking anything
+2. **Part B: Windows-Specific Work** - Requires a Windows environment to test and refine
+3. **Part C: Linux-Specific Work** - Requires a Linux environment to test and refine
 
-## Implementation Strategy
+**Key Decision:** Normalize all paths to forward slashes in Rust backend. Frontend receives consistent paths regardless of platform.
 
-### Core Approach
+**Scope Decisions:**
+- No Windows code signing (can add later if users request it)
+- No paid test environments (GitHub Actions CI only for automated builds)
+- Linux: Build-from-source initially; binary distribution only if there's demand
 
-1. **Path Normalization:** Rust serializes ALL paths with forward slashes (e.g., `C:/Users/foo` instead of `C:\Users\foo`)
-2. **Platform-Specific UI:** Separate title bar components for macOS/Windows/Linux
-3. **Conditional Compilation:** Use `#[cfg(target_os = "...")]` for platform-specific Rust code
-4. **Progressive Enhancement:** macOS stays fully functional, Windows/Linux added incrementally
+---
 
-### Key Decisions
+## Part A: Preparatory Work (macOS-Safe)
 
-- ✅ **Forward slashes everywhere** - Consistent with Markdown image paths
-- ✅ **Separate title bar components** - UnifiedTitleBarMacOS, UnifiedTitleBarWindows, UnifiedTitleBarLinux
-- ✅ **Windows first, then Linux** - Larger user base on Windows
-- ⚠️ **DECIDE:** Windows code signing certificate? (~$100-300/year for trusted installs)
-- ⚠️ **DECIDE:** Linux packages - DEB only, or also AppImage/Flatpak?
+Everything in Part A can be done on macOS, merged to main, and released. It makes the codebase cross-platform ready without changing macOS behavior.
 
-## Implementation Phases
+---
 
-### Phase 0: Development Environment Setup
+### Phase 1: Path Normalization (Rust Backend)
 
-**Goal:** Ability to build, run, and test on Windows/Linux
-**Duration:** 1-2 days
-**Blocks:** Everything else
+**Goal:** Ensure all paths sent to the frontend use forward slashes, regardless of platform.
 
-**Tasks:**
-- [ ] Set up Windows test environment (see [Dev Environment Setup](#development-environment-setup))
-- [ ] Set up Linux test environment
-- [ ] Verify app builds on Windows (will be broken, that's OK)
-- [ ] Verify app builds on Linux
-- [ ] Add platform detection utility function
-- [ ] Document how to build/test on each platform
+**Why:** Windows uses backslashes (`C:\Users\foo`) but our frontend code assumes forward slashes. By normalizing in Rust, the frontend works unchanged.
 
-**Acceptance Criteria:**
-- Can build Windows binary from GitHub Actions or local VM
-- Can build Linux binary from GitHub Actions or local VM
-- Can launch app on Windows (even if it crashes)
-
-### Phase 1: Path Handling (CRITICAL BLOCKER)
-
-**Goal:** Fix all path operations to work on Windows
-**Duration:** 3-5 days
-**Dependencies:** Phase 0
-**Blocks:** All other phases
-
-**Why This Blocks Everything:** The app won't open projects, read files, or save preferences on Windows until this is fixed.
+**Current State (from codebase audit):**
+- Rust mostly uses `PathBuf` correctly
+- However, serialization sends platform-native separators
+- Frontend has 15+ instances of hardcoded `/` path manipulation
 
 **Tasks:**
 
-1. **Rust Backend (1-2 days)**
-   - [ ] Create path normalization utility function
-   - [ ] Add normalization to Collection, FileEntry, DirectoryInfo serialization
-   - [ ] Fix `validate_project_path()` in `project.rs` (Windows security paths)
-   - [ ] Fix `fix_path_env()` in `ide.rs` (Windows IDE paths)
-   - [ ] Add Windows-specific PATH entries
+1. **Create path utility module**
+   - [ ] Create `src-tauri/src/utils/path.rs`
+   - [ ] Implement `normalize_path_for_serialization(path: &Path) -> String`
+   - [ ] Add comprehensive tests for Windows-style paths (even on macOS)
 
-2. **TypeScript Frontend (2-3 days)**
-   - [ ] Audit and fix `projectStore.ts` (lines 136, 139)
-   - [ ] Audit and fix `project-registry/utils.ts` (5 instances)
-   - [ ] Audit and fix `project-registry/persistence.ts` (template literals)
-   - [ ] Audit and fix `usePreferences.ts` (line 103)
-   - [ ] Audit and fix `LeftSidebar.tsx` (lines 176, 226, 279)
-   - [ ] Audit and fix `FileItem.tsx` (line 23)
-   - [ ] Audit and fix `UnifiedTitleBar.tsx` (line 159)
-   - [ ] Audit and fix `context-menu.tsx` (multiple lines)
-   - [ ] Remove hardcoded path separators from any other files
+2. **Apply normalization to all serialized types**
+   - [ ] Update `Collection` serialization in `src-tauri/src/types.rs`
+   - [ ] Update `FileEntry` serialization
+   - [ ] Update `DirectoryInfo` serialization
+   - [ ] Audit all `#[derive(Serialize)]` types that contain paths
 
-3. **Testing**
-   - [ ] Add path normalization tests (Rust)
-   - [ ] Test opening project on Windows
-   - [ ] Test file operations on Windows
-   - [ ] Test directory navigation on Windows
-   - [ ] Test preferences persistence on Windows
-
-**Code Patterns to Use:**
-
-```rust
-// Rust: Path normalization utility
-pub fn normalize_path_for_serialization(path: &Path) -> String {
-    path.display().to_string().replace('\\', "/")
-}
-
-// Apply in serialization
-#[derive(Serialize)]
-struct Collection {
-    #[serde(serialize_with = "serialize_path_normalized")]
-    path: PathBuf,
-}
-
-// Windows security checks
-#[cfg(target_os = "windows")]
-fn is_system_directory(path: &Path) -> bool {
-    let path_str = path.to_string_lossy().to_lowercase();
-    path_str.starts_with("c:\\windows\\")
-        || path_str.starts_with("c:\\program files\\")
-        || path_str.starts_with("c:\\program files (x86)\\")
-}
-
-#[cfg(not(target_os = "windows"))]
-fn is_system_directory(path: &Path) -> bool {
-    let path_str = path.to_string_lossy();
-    path_str.starts_with("/System/")
-        || path_str.starts_with("/usr/")
-        // ... existing Unix checks
-}
-```
-
-```typescript
-// TypeScript: NEVER manipulate paths directly
-// ❌ WRONG
-const projectName = projectPath.split('/').pop()
-const filePath = `${dir}/preferences.json`
-
-// ✅ RIGHT - Let backend handle it
-const projectName = await invoke('get_project_name', { projectPath })
-const filePath = await invoke('join_paths', { base: dir, filename: 'preferences.json' })
-
-// OR: If paths are already normalized to forward slashes from backend
-const projectName = projectPath.split('/').pop() // Now safe because backend normalized it
-```
-
-**Acceptance Criteria:**
-- [ ] App opens on Windows without path errors
-- [ ] Can select and open Astro projects on Windows
-- [ ] Can read/write files on Windows
-- [ ] Can navigate directories on Windows
-- [ ] Security checks work (C:\Windows blocked, user projects allowed)
-- [ ] All existing macOS functionality still works
-
-**Testing Checklist:**
-```
-Windows:
-- [ ] Open project: C:\Users\{user}\Documents\my-astro-project
-- [ ] Create new file
-- [ ] Edit and save file
-- [ ] Navigate subdirectories
-- [ ] Copy file to assets
-- [ ] Duplicate file
-- [ ] Delete file
-- [ ] Change collection
-
-macOS (regression):
-- [ ] All above scenarios still work
-```
-
-### Phase 2: IDE Integration Fix
-
-**Goal:** Fix preferences crash and IDE detection on Windows/Linux
-**Duration:** 1-2 days
-**Dependencies:** Phase 1
-**Blocks:** Users opening preferences on Windows/Linux
-
-**Tasks:**
-- [ ] Add Windows IDE path detection to `fix_path_env()`
-- [ ] Add Linux IDE path detection to `fix_path_env()`
-- [ ] Add fallback for empty IDE list (don't crash)
-- [ ] Update preferences UI to handle empty IDE list gracefully
-- [ ] Test IDE detection on Windows with VS Code, Cursor
-- [ ] Test IDE detection on Linux with common editors
+3. **Fix path validation for Windows**
+   - [ ] Update `validate_project_path()` in `project.rs` to recognize Windows paths
+   - [ ] Add Windows system directory checks (`C:\Windows`, `C:\Program Files`, etc.)
+   - [ ] Ensure Unix checks still work
 
 **Code Pattern:**
 
 ```rust
+// src-tauri/src/utils/path.rs
+use std::path::Path;
+
+/// Normalizes a path to use forward slashes for consistent frontend handling.
+/// Windows paths like `C:\Users\foo` become `C:/Users/foo`.
+pub fn normalize_path_for_serialization(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
+/// Custom serializer for PathBuf fields
+pub fn serialize_path_normalized<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&normalize_path_for_serialization(path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_windows_path() {
+        // Test string that looks like Windows path (works on any platform)
+        let normalized = "C:\\Users\\foo\\project".replace('\\', "/");
+        assert_eq!(normalized, "C:/Users/foo/project");
+    }
+
+    #[test]
+    fn test_normalize_unix_path() {
+        let path = Path::new("/Users/foo/project");
+        assert_eq!(normalize_path_for_serialization(path), "/Users/foo/project");
+    }
+}
+```
+
+**Acceptance Criteria:**
+- [ ] All path-containing types serialize with forward slashes
+- [ ] Tests pass for Windows-style path strings
+- [ ] macOS behavior unchanged
+
+---
+
+### Phase 2: IDE Integration Robustness
+
+**Goal:** Make IDE detection graceful when no IDEs are found, and prepare structure for platform-specific paths.
+
+**Current State (from codebase audit):**
+- `fix_path_env()` in `ide.rs` only handles macOS paths
+- `validate_file_path()` rejects Windows absolute paths (`C:\...`)
+- Frontend may crash if IDE list is empty
+
+**Tasks:**
+
+1. **Refactor IDE path detection structure**
+   - [ ] Create platform-specific sections using `#[cfg(target_os = "...")]`
+   - [ ] Keep macOS paths working as-is
+   - [ ] Add placeholder structure for Windows/Linux (actual paths added in Part B/C)
+
+2. **Fix path validation for Windows**
+   - [ ] Update `validate_file_path()` to accept Windows paths (`C:\`, `D:\`, etc.)
+   - [ ] Handle UNC paths (`\\server\share`) as invalid for IDE opening
+
+3. **Make frontend handle empty IDE list gracefully**
+   - [ ] Update preferences UI to show message when no IDEs detected
+   - [ ] Ensure "Open in IDE" context menu item is disabled/hidden when no IDE configured
+
+**Code Pattern:**
+
+```rust
+// Structure for platform-specific IDE paths
 fn fix_path_env() {
     #[cfg(target_os = "macos")]
     {
-        // Existing macOS code
+        // Existing macOS code stays here unchanged
+        if let Ok(path) = std::env::var("PATH") {
+            let mut paths: Vec<&str> = path.split(':').collect();
+            let macos_paths = [
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin",
+                "/Applications/Cursor.app/Contents/Resources/app/bin",
+            ];
+            // ... existing logic
+        }
     }
 
     #[cfg(target_os = "windows")]
     {
-        if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(';').collect();
-
-            let common_paths = [
-                "C:\\Program Files\\Microsoft VS Code\\bin",
-                "C:\\Program Files\\Cursor\\bin",
-                "C:\\Users\\{user}\\AppData\\Local\\Programs\\Microsoft VS Code\\bin",
-            ];
-
-            // Add missing paths...
-        }
+        // Placeholder - actual paths added when testing on Windows
+        // Windows uses `;` as PATH separator
     }
 
     #[cfg(target_os = "linux")]
     {
-        if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(':').collect();
-
-            let common_paths = [
-                "/usr/bin",
-                "/usr/local/bin",
-                "/home/{user}/.local/bin",
-            ];
-
-            // Add missing paths...
-        }
+        // Placeholder - actual paths added when testing on Linux
+        // Linux uses `:` as PATH separator
     }
 }
-```
 
-```typescript
-// Frontend: Handle empty IDE list
-const ides = await invoke('get_available_ides')
+fn validate_file_path(path: &str) -> Result<(), String> {
+    // Unix absolute paths
+    if path.starts_with('/') || path.starts_with('~') {
+        return Ok(());
+    }
 
-if (ides.length === 0) {
-  // Show message: "No IDEs detected. Install VS Code, Cursor, etc."
-  // Disable IDE integration
-  return <EmptyStateMessage />
+    // Windows absolute paths (C:\, D:\, etc.)
+    if path.len() >= 3 {
+        let bytes = path.as_bytes();
+        if bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && (bytes[2] == b'\\' || bytes[2] == b'/') {
+            return Ok(());
+        }
+    }
+
+    Err("Path must be absolute".to_string())
 }
-
-// Show IDE selector with first as default
 ```
 
 **Acceptance Criteria:**
-- [ ] App doesn't crash when opening preferences on Windows
-- [ ] Detects installed IDEs on Windows (VS Code, Cursor)
-- [ ] Gracefully handles no IDEs installed
-- [ ] "Open in IDE" works on Windows
-- [ ] Still works on macOS
+- [ ] macOS IDE detection unchanged
+- [ ] Windows/Linux sections exist (can be empty placeholders)
+- [ ] Frontend handles empty IDE list without crashing
+- [ ] Path validation accepts Windows-style paths
 
-### Phase 3: Platform-Specific UI
+---
 
-**Goal:** Create native-feeling title bars and UI for each platform
-**Duration:** 3-4 days
-**Dependencies:** Phase 1, Phase 2
-**Blocks:** Shipping Windows/Linux versions
+### Phase 3: Platform Detection Utilities
+
+**Goal:** Create reusable platform detection for React components and establish patterns.
 
 **Tasks:**
 
-1. **Platform Detection Utility (0.5 days)**
-   - [ ] Create `usePlatform()` hook
-   - [ ] Create platform constants
-   - [ ] Add platform to app context
+1. **Create platform detection hook**
+   - [ ] Create `src/hooks/usePlatform.ts`
+   - [ ] Use `@tauri-apps/plugin-os` for detection
+   - [ ] Export platform type and detection hook
 
-2. **Title Bar Components (2 days)**
-   - [ ] Rename `UnifiedTitleBar.tsx` → `UnifiedTitleBarMacOS.tsx`
-   - [ ] Create `UnifiedTitleBarWindows.tsx` (controls on right, no vibrancy)
-   - [ ] Create `UnifiedTitleBarLinux.tsx` (similar to Windows)
-   - [ ] Create `UnifiedTitleBar.tsx` wrapper that selects platform version
-   - [ ] Update Layout to use new wrapper
+2. **Create platform-specific strings utility**
+   - [ ] Create `src/lib/platform-strings.ts`
+   - [ ] Map platform to UI strings (e.g., "Reveal in Finder" vs "Show in Explorer")
+   - [ ] Export utility function
 
-3. **Platform-Specific Strings (0.5 days)**
-   - [ ] "Reveal in Finder" → platform-specific text in context menu
-   - [ ] Update any other macOS-specific strings
+3. **Update context menu**
+   - [ ] Replace hardcoded "Reveal in Finder" with platform-aware string
+   - [ ] Test on macOS (should still show "Reveal in Finder")
 
-4. **Remove macOS-Only Features (0.5 days)**
-   - [ ] Conditional vibrancy effect (macOS only)
-   - [ ] Make `window-vibrancy` dependency conditional in Cargo.toml
-   - [ ] Test transparent windows on Windows (different behavior)
-
-5. **Testing (0.5 days)**
-   - [ ] Test title bar on Windows (dragging, buttons, layout)
-   - [ ] Test title bar on Linux
-   - [ ] Verify macOS title bar unchanged
-
-**Code Patterns:**
+**Code Pattern:**
 
 ```typescript
-// Platform detection hook
-import { platform } from '@tauri-apps/plugin-os'
+// src/hooks/usePlatform.ts
+import { useState, useEffect } from 'react'
+import { platform, type Platform } from '@tauri-apps/plugin-os'
 
-export function usePlatform() {
-  const [currentPlatform, setCurrentPlatform] = useState<'macos' | 'windows' | 'linux' | 'ios' | 'android'>()
+export type AppPlatform = 'macos' | 'windows' | 'linux'
+
+export function usePlatform(): AppPlatform | undefined {
+  const [currentPlatform, setCurrentPlatform] = useState<AppPlatform>()
 
   useEffect(() => {
-    platform().then(setCurrentPlatform)
+    platform().then((p: Platform) => {
+      // Map Tauri platform to our simplified type
+      if (p === 'macos') setCurrentPlatform('macos')
+      else if (p === 'windows') setCurrentPlatform('windows')
+      else setCurrentPlatform('linux') // All other Unix-like
+    })
   }, [])
 
   return currentPlatform
 }
 
-// Platform-specific strings
-const platformStrings = {
-  macos: 'Reveal in Finder',
-  windows: 'Show in File Explorer',
-  linux: 'Show in File Manager',
-}
+// src/lib/platform-strings.ts
+import type { AppPlatform } from '@/hooks/usePlatform'
 
-const revealText = platformStrings[currentPlatform] || 'Show in File Manager'
+const strings = {
+  revealInFileManager: {
+    macos: 'Reveal in Finder',
+    windows: 'Show in Explorer',
+    linux: 'Show in File Manager',
+  },
+  // Add more as needed
+} as const
+
+export function getPlatformString(
+  key: keyof typeof strings,
+  platform: AppPlatform | undefined
+): string {
+  if (!platform) return strings[key].macos // Default to macOS
+  return strings[key][platform]
+}
 ```
 
+**Acceptance Criteria:**
+- [ ] `usePlatform()` hook works on macOS (returns 'macos')
+- [ ] Context menu shows "Reveal in Finder" on macOS
+- [ ] Pattern is documented for future use
+
+---
+
+### Phase 4: Windows Title Bar Component
+
+**Goal:** Build a Windows-style title bar in React that can be tested on macOS.
+
+**Background (from Tauri v2 research):**
+- Windows custom title bars use `decorations: false` in Tauri config
+- We build the title bar in HTML/CSS with `data-tauri-drag-region`
+- Window controls (close/minimize/maximize) are on the RIGHT side
+- We wire up buttons to `getCurrentWindow().minimize()` etc.
+
+**Approach:**
+- Keep existing `UnifiedTitleBar.tsx` for macOS (rename to `UnifiedTitleBarMacOS.tsx`)
+- Create `UnifiedTitleBarWindows.tsx` with Windows-style layout
+- Create wrapper `UnifiedTitleBar.tsx` that selects based on platform
+- Test Windows component on macOS by temporarily forcing platform
+
+**Tasks:**
+
+1. **Refactor existing title bar**
+   - [ ] Rename `UnifiedTitleBar.tsx` to `UnifiedTitleBarMacOS.tsx`
+   - [ ] Extract shared logic (save button, toolbar items) into shared components
+   - [ ] Ensure macOS version still works identically
+
+2. **Create Windows title bar**
+   - [ ] Create `UnifiedTitleBarWindows.tsx`
+   - [ ] Position window controls on the right
+   - [ ] Use Windows-style icons (not traffic lights)
+   - [ ] Apply `data-tauri-drag-region` for dragging
+   - [ ] Wire up minimize/maximize/close buttons
+
+3. **Create platform wrapper**
+   - [ ] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
+   - [ ] Render macOS version for 'macos'
+   - [ ] Render Windows version for 'windows'
+   - [ ] Render Windows version for 'linux' initially (revisit in Phase 5)
+
+4. **Add development toggle for testing**
+   - [ ] Add dev-only prop to force platform for visual testing
+   - [ ] Test Windows layout renders correctly (even on macOS)
+
+**Code Pattern:**
+
 ```typescript
-// Title bar wrapper
-export const UnifiedTitleBar: React.FC = () => {
-  const platform = usePlatform()
+// src/components/layout/UnifiedTitleBar.tsx (wrapper)
+import { usePlatform } from '@/hooks/usePlatform'
+import { UnifiedTitleBarMacOS } from './UnifiedTitleBarMacOS'
+import { UnifiedTitleBarWindows } from './UnifiedTitleBarWindows'
+
+interface Props {
+  // Dev-only: force a specific platform for testing
+  _forcePlatform?: 'macos' | 'windows' | 'linux'
+}
+
+export function UnifiedTitleBar({ _forcePlatform }: Props) {
+  const detectedPlatform = usePlatform()
+  const platform = _forcePlatform ?? detectedPlatform
 
   if (!platform) return null // Loading
 
-  switch (platform) {
-    case 'macos':
-      return <UnifiedTitleBarMacOS />
-    case 'windows':
-      return <UnifiedTitleBarWindows />
-    default:
-      return <UnifiedTitleBarLinux />
+  if (platform === 'macos') {
+    return <UnifiedTitleBarMacOS />
   }
+
+  // Windows and Linux use Windows-style title bar
+  return <UnifiedTitleBarWindows />
 }
 ```
 
-```rust
-// Conditional Cargo.toml
-[target.'cfg(target_os = "macos")'.dependencies]
-window-vibrancy = "0.5"
+```typescript
+// src/components/layout/UnifiedTitleBarWindows.tsx
+import { getCurrentWindow } from '@tauri-apps/api/window'
+
+export function UnifiedTitleBarWindows() {
+  const appWindow = getCurrentWindow()
+
+  return (
+    <div data-tauri-drag-region className="flex h-10 items-center justify-between">
+      {/* Left side: App title and toolbar */}
+      <div className="flex items-center gap-2 pl-3">
+        {/* Shared toolbar components */}
+      </div>
+
+      {/* Right side: Window controls */}
+      <div className="flex">
+        <button
+          onClick={() => appWindow.minimize()}
+          className="h-10 w-12 hover:bg-gray-200 dark:hover:bg-gray-700"
+        >
+          {/* Minimize icon */}
+        </button>
+        <button
+          onClick={() => appWindow.toggleMaximize()}
+          className="h-10 w-12 hover:bg-gray-200 dark:hover:bg-gray-700"
+        >
+          {/* Maximize icon */}
+        </button>
+        <button
+          onClick={() => appWindow.close()}
+          className="h-10 w-12 hover:bg-red-500 hover:text-white"
+        >
+          {/* Close icon */}
+        </button>
+      </div>
+    </div>
+  )
+}
+```
+
+**Acceptance Criteria:**
+- [ ] macOS title bar unchanged in appearance and behavior
+- [ ] Windows title bar renders with controls on right
+- [ ] Window dragging works on Windows title bar (test via dev toggle)
+- [ ] Shared components extracted and reused
+
+---
+
+### Phase 5: Linux Title Bar Approach
+
+**Goal:** Determine and implement the Linux title bar strategy.
+
+**Background (from research):**
+- Linux has many desktop environments (GNOME, KDE, XFCE, etc.)
+- Each has different title bar conventions
+- Trying to mimic any one would look wrong on others
+- Best approach: **Use native decorations and add toolbar below**
+
+**Approach:**
+- On Linux, keep `decorations: true` (native window chrome)
+- Render a toolbar-only component below the native title bar
+- This avoids the impossible task of matching every Linux DE
+
+**Tasks:**
+
+1. **Create Linux title bar/toolbar**
+   - [ ] Create `UnifiedTitleBarLinux.tsx`
+   - [ ] Render as toolbar only (no window controls)
+   - [ ] Include same toolbar items as macOS/Windows (save, panels, etc.)
+   - [ ] Adjust styling to work below native decorations
+
+2. **Update platform wrapper**
+   - [ ] Update `UnifiedTitleBar.tsx` to use Linux version for 'linux'
+
+3. **Document Tauri config requirements**
+   - [ ] Note that Linux builds need different window settings
+   - [ ] Add to Phase 6 (conditional compilation) checklist
+
+**Code Pattern:**
+
+```typescript
+// src/components/layout/UnifiedTitleBarLinux.tsx
+export function UnifiedTitleBarLinux() {
+  // No window controls - those are in native decorations
+  // This is just a toolbar
+  return (
+    <div className="flex h-10 items-center border-b px-3">
+      {/* Shared toolbar components only */}
+      <ProjectTitle />
+      <ToolbarActions />
+    </div>
+  )
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Linux toolbar component created
+- [ ] No window control buttons in Linux version
+- [ ] Documented that Linux uses native decorations
+
+---
+
+### Phase 6: Conditional Compilation & Configuration
+
+**Goal:** Set up proper conditional compilation in Rust and Tauri config for platform differences.
+
+**Tasks:**
+
+1. **Make window-vibrancy macOS-only**
+   - [ ] Update `Cargo.toml` to make `window-vibrancy` conditional
+   - [ ] Ensure builds don't fail on Windows/Linux
+
+2. **Create platform-specific Tauri configs**
+   - [ ] Create `tauri.macos.conf.json` for macOS-specific settings
+   - [ ] Create `tauri.windows.conf.json` with `decorations: false`
+   - [ ] Create `tauri.linux.conf.json` with `decorations: true`
+   - [ ] Verify config merging works correctly
+
+3. **Handle macos-private-api feature**
+   - [ ] Make this feature conditional in Cargo.toml
+   - [ ] Ensure Windows/Linux builds don't require it
+
+4. **Document patterns**
+   - [ ] Create `docs/developer/cross-platform.md`
+   - [ ] Document conditional compilation patterns
+   - [ ] Document Tauri config merging
+   - [ ] Document platform detection usage
+
+**Code Pattern:**
+
+```toml
+# Cargo.toml
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
 
-[target.'cfg(target_os = "macos")'.features]
-# This syntax might not work - just make macos-private-api conditional
+# macOS-only dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "0.6"
+
+# macOS-only features
+[target.'cfg(target_os = "macos")'.dependencies.tauri]
+version = "2"
+features = ["macos-private-api"]
+```
+
+```json
+// tauri.windows.conf.json
+{
+  "app": {
+    "windows": [
+      {
+        "decorations": false
+      }
+    ]
+  }
+}
+```
+
+```json
+// tauri.linux.conf.json
+{
+  "app": {
+    "windows": [
+      {
+        "decorations": true
+      }
+    ]
+  }
+}
 ```
 
 **Acceptance Criteria:**
-- [ ] Windows shows native-looking title bar (controls on right)
-- [ ] Linux shows appropriate title bar
-- [ ] macOS unchanged
-- [ ] Window dragging works on all platforms
-- [ ] Window controls (close/minimize/maximize) work on all platforms
-- [ ] Transparency/vibrancy handled appropriately per platform
+- [ ] macOS build still works with vibrancy
+- [ ] Windows/Linux configs exist
+- [ ] Patterns documented
+- [ ] No build failures from macOS-only code
 
-### Phase 4: Build Pipeline & Distribution
+---
 
-**Goal:** Automated builds for Windows and Linux
-**Duration:** 2-3 days
-**Dependencies:** Phase 3 (or can be parallel)
+### Phase 7: CI/Build System Setup
+
+**Goal:** Configure GitHub Actions to build for all platforms.
 
 **Tasks:**
 
-1. **GitHub Actions (1 day)**
-   - [ ] Add Windows build matrix to `.github/workflows/release.yml`
-   - [ ] Add Linux build matrix
-   - [ ] Configure platform-specific bundle args
-   - [ ] Test automated builds
+1. **Update release workflow**
+   - [ ] Add Windows build to matrix
+   - [ ] Add Linux build to matrix
+   - [ ] Configure platform-specific bundle arguments
+   - [ ] Add Linux dependency installation step
 
-2. **Tauri Configuration (0.5 days)**
-   - [ ] Add Windows config to `tauri.conf.json`
-   - [ ] Add Linux config
-   - [ ] Verify icon files are correct
+2. **Configure Tauri bundle settings**
+   - [ ] Set up Windows bundle config (MSI, no code signing)
+   - [ ] Set up Linux bundle config (AppImage only initially)
+   - [ ] Keep macOS config unchanged
 
-3. **Code Signing (1 day - if doing it)**
-   - [ ] Obtain Windows code signing certificate
-   - [ ] Add certificate to GitHub secrets
-   - [ ] Configure signing in workflow
-   - [ ] Test signed builds
+3. **Auto-updater configuration**
+   - [ ] Verify updater plugin is configured for all platforms
+   - [ ] Update `latest.json` generation to include all platforms
+   - [ ] Test that updater endpoints work
 
-4. **Testing (0.5 days)**
-   - [ ] Test DMG on macOS
-   - [ ] Test MSI/NSIS on Windows
-   - [ ] Test DEB/AppImage on Linux
-   - [ ] Verify auto-updater works on each platform
+4. **Test builds via CI**
+   - [ ] Trigger test build on feature branch
+   - [ ] Verify Windows MSI artifact is produced
+   - [ ] Verify Linux AppImage artifact is produced
+   - [ ] Verify macOS DMG still works
 
-**GitHub Actions Changes:**
+**Code Pattern:**
 
 ```yaml
+# .github/workflows/release.yml
 strategy:
   fail-fast: false
   matrix:
     include:
       - platform: 'macos-14'
-        args: '--target universal-apple-darwin --bundles app,dmg'
+        args: '--target universal-apple-darwin'
 
       - platform: 'windows-latest'
-        args: '--bundles msi,nsis'
+        args: ''
 
       - platform: 'ubuntu-22.04'
-        args: '--bundles deb,appimage'
+        args: ''
+
+steps:
+  - name: Install Linux dependencies
+    if: matrix.platform == 'ubuntu-22.04'
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+  - uses: tauri-apps/tauri-action@v0
+    with:
+      args: ${{ matrix.args }}
 ```
 
-**Tauri Config Changes:**
-
 ```json
+// tauri.conf.json bundle additions
 {
   "bundle": {
     "windows": {
@@ -387,228 +570,153 @@ strategy:
       "timestampUrl": ""
     },
     "linux": {
-      "deb": {
-        "depends": [
-          "libwebkit2gtk-4.1-0",
-          "libgtk-3-0",
-          "libappindicator3-1"
-        ]
+      "appimage": {
+        "bundleMediaFramework": false
       }
-    },
-    "macOS": {
-      // ... existing config
     }
   }
 }
 ```
 
 **Acceptance Criteria:**
-- [ ] GitHub Actions builds Windows MSI
-- [ ] GitHub Actions builds Windows NSIS installer
-- [ ] GitHub Actions builds Linux DEB
-- [ ] GitHub Actions builds Linux AppImage
-- [ ] macOS DMG still builds
-- [ ] All bundles are signed (if doing code signing)
-- [ ] `latest.json` includes all platforms
-- [ ] Auto-updater can fetch updates for each platform
+- [ ] GitHub Actions produces Windows artifact
+- [ ] GitHub Actions produces Linux artifact
+- [ ] macOS release unchanged
+- [ ] Auto-updater configured for all platforms
 
-### Phase 5: Testing & Polish
+---
 
-**Goal:** Verify everything works on real machines
-**Duration:** 2-3 days
-**Dependencies:** Phase 4
+## Part B: Windows-Specific Work
 
-**Tasks:**
-- [ ] Full feature test on Windows (see [Testing Checklist](#testing-checklist))
-- [ ] Full feature test on Linux
-- [ ] Regression test on macOS
-- [ ] Performance comparison across platforms
-- [ ] Fix any platform-specific bugs discovered
-- [ ] Update documentation
-- [ ] Update website screenshots
+Everything in Part B requires a Windows environment to test. This work should be done as a **separate task** after Part A is complete and a Windows test environment is available.
 
-**Acceptance Criteria:**
-- [ ] All features work on Windows
-- [ ] All features work on Linux
-- [ ] macOS functionality unchanged
-- [ ] No new crashes or errors
-- [ ] Performance is acceptable on all platforms
+---
 
-## Development Environment Setup
+### Windows Testing Environment Setup
 
-### Option 1: GitHub Actions (Free, Recommended for CI)
+*(To be defined in separate task)*
 
-**Pros:** Free, automated, matches production builds
-**Cons:** Slower iteration, need to push to test
+Options include:
+- Windows VM (Parallels, UTM, or VirtualBox)
+- Physical Windows machine
+- GitHub Actions for automated testing
 
-**Setup:**
-1. Create `.github/workflows/test-builds.yml` for pull requests
-2. Build on push to test branches
-3. Download artifacts to test
+---
 
-### Option 2: Windows VM on macOS
+### Windows-Specific Tasks (Requires Testing)
 
-**Best for:** Active Windows development
+The following cannot be completed without Windows testing:
 
-**Using Parallels (Paid, $100/year):**
-1. Download Windows 11 ARM ISO (for Apple Silicon) or x64 (for Intel)
-2. Install Parallels Desktop
-3. Create Windows VM
-4. Install Rust: https://rustup.rs
-5. Install Node.js: https://nodejs.org
-6. Install pnpm: `npm install -g pnpm`
-7. Install WebView2 (usually pre-installed on Windows 11)
-8. Install Visual Studio Build Tools
-9. Clone repo in Windows
-10. `pnpm install && pnpm run tauri:build`
+1. **IDE Path Detection**
+   - Fill in Windows IDE paths in `fix_path_env()`
+   - Common paths: `C:\Program Files\Microsoft VS Code\bin`, etc.
+   - Test that VS Code, Cursor are detected
 
-**Using UTM (Free, Open Source):**
-1. Download UTM: https://mac.getutm.app
-2. Download Windows 11 ARM ISO
-3. Create VM with 4GB+ RAM, 64GB+ disk
-4. Follow Parallels steps 4-10
+2. **Path Handling Verification**
+   - Test project opening with `C:\Users\...` paths
+   - Test file operations (create, save, delete)
+   - Test asset copying
+   - Verify preferences persist correctly
 
-### Option 3: Linux VM on macOS
+3. **Title Bar Refinement**
+   - Verify window controls work correctly
+   - Test window dragging
+   - Adjust styling as needed
+   - Test maximize/restore behavior
 
-**Using UTM (Free):**
-1. Download Ubuntu 22.04 ISO
-2. Create VM in UTM
-3. Install dependencies:
-```bash
-sudo apt update
-sudo apt install -y \
-  libwebkit2gtk-4.1-dev \
-  build-essential \
-  curl \
-  wget \
-  file \
-  libssl-dev \
-  libgtk-3-dev \
-  libayatana-appindicator3-dev \
-  librsvg2-dev
-```
-4. Install Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-5. Install Node.js and pnpm
-6. Clone repo and build
+4. **General Testing**
+   - Run through full testing checklist (see [Testing Checklist](#testing-checklist))
+   - Fix any platform-specific bugs discovered
+   - Verify keyboard shortcuts work (Ctrl instead of Cmd)
 
-### Option 4: Physical Machines
+---
 
-**If you have access to Windows/Linux machines:**
-- Ideal for performance testing
-- Follow respective installation steps above
+## Part C: Linux-Specific Work
 
-### Quick Test Without Full Setup
+Everything in Part C requires a Linux environment to test. This work should be done as a **separate task** after Part A is complete.
 
-**Cross-compile from macOS (builds but can't test):**
-```bash
-# Windows (requires mingw)
-rustup target add x86_64-pc-windows-gnu
-cargo build --target x86_64-pc-windows-gnu
+---
 
-# Linux (requires cross-compilation tools)
-rustup target add x86_64-unknown-linux-gnu
-# More complex - use GitHub Actions instead
-```
+### Linux Distribution Strategy
 
-**Recommendation:** Use GitHub Actions for automated testing, set up one VM (Windows or Linux) for interactive development.
+**Initial Approach:** Build-from-source only
 
-## Code Patterns & Standards
+Given the complexity of Linux distribution (DEB, RPM, AppImage, Flatpak, Snap) and the variety of desktop environments, the initial approach is:
 
-### Path Handling
+1. Document how to build from source
+2. Produce an AppImage via CI (low effort, works everywhere)
+3. Do NOT produce other package formats initially
+4. If users request specific formats, add them based on demand
 
-**Rule:** Frontend NEVER manipulates paths with string operations. Either use backend commands OR rely on normalized paths.
+This avoids the overhead of maintaining multiple package formats until there's proven demand.
 
-```typescript
-// ❌ NEVER
-const dir = path.substring(0, path.lastIndexOf('/'))
-const filename = path.split('/').pop()
-const newPath = `${directory}/${filename}`
+---
 
-// ✅ Option A: Use backend
-const dir = await invoke('get_directory', { path })
-const filename = await invoke('get_filename', { path })
-const newPath = await invoke('join_paths', { directory, filename })
+### Linux-Specific Tasks (Requires Testing)
 
-// ✅ Option B: Use normalized paths (after Phase 1)
-// Backend guarantees all paths use forward slashes
-const filename = path.split('/').pop() // Safe now
-const newPath = `${directory}/${filename}` // Safe for display only, not for invoke()
-```
+The following cannot be completed without Linux testing:
 
-**Rust Pattern:**
-```rust
-// ALWAYS use PathBuf/Path for manipulation
-use std::path::{Path, PathBuf};
+1. **Native Decorations Verification**
+   - Test that native title bar renders correctly
+   - Verify toolbar component works below decorations
+   - Test on at least one DE (GNOME or KDE)
 
-fn process_path(path_str: &str) -> Result<String, String> {
-    let path = Path::new(path_str);
+2. **IDE Path Detection**
+   - Fill in Linux IDE paths in `fix_path_env()`
+   - Common paths: `/usr/bin/code`, `/snap/bin/code`, etc.
+   - Test detection
 
-    // Do operations
-    let parent = path.parent();
-    let filename = path.file_name();
+3. **Webkit Rendering**
+   - Verify webkit2gtk renders correctly
+   - Test CodeMirror editor
+   - Check for any rendering differences
 
-    // Normalize for serialization
-    Ok(normalize_path_for_serialization(&path))
-}
-```
+4. **General Testing**
+   - Run through full testing checklist
+   - Fix any platform-specific bugs
 
-### Platform Detection
+---
 
-```typescript
-// In a hook or component
-import { platform } from '@tauri-apps/plugin-os'
+## Reference: Files Requiring Attention
 
-const currentPlatform = await platform()
+### Path Handling (Phase 1)
 
-// For conditional rendering
-{currentPlatform === 'windows' && <WindowsSpecificComponent />}
+**TypeScript files with hardcoded `/`:**
+- `src/lib/project-registry/persistence.ts` (lines 28-31, 44, 52, 209, 258)
+- `src/lib/project-registry/utils.ts` (lines 54, 67, 93, 117, 128)
+- `src/components/ui/context-menu.tsx` (lines 40-52, 131-133)
+- `src/components/layout/FileItem.tsx` (line 23)
+- `src/components/layout/UnifiedTitleBar.tsx` (line 159)
+- `src/components/layout/LeftSidebar.tsx` (line 186)
+- `src/hooks/usePreferences.ts` (line 104)
+- `src/hooks/queries/useDirectoryScanQuery.ts` (line 42)
+- `src/hooks/useCreateFile.ts` (line 103)
 
-// For conditional logic
-const shouldUseVibrancy = currentPlatform === 'macos'
-```
+**Note:** After Rust normalizes paths to forward slashes, many of these become safe. However, audit each for correctness.
 
-### Conditional Compilation (Rust)
+**Already cross-platform aware:**
+- `src/lib/editor/dragdrop/fileProcessing.ts` - Uses `split(/[/\\]/)`
 
-```rust
-// Platform-specific code
-#[cfg(target_os = "windows")]
-fn platform_specific_function() {
-    // Windows implementation
-}
+### Rust Files
 
-#[cfg(target_os = "macos")]
-fn platform_specific_function() {
-    // macOS implementation
-}
+- `src-tauri/src/commands/ide.rs` - IDE detection and path validation
+- `src-tauri/src/commands/preferences.rs` - Already has platform-specific code (good reference)
+- `src-tauri/src/types.rs` - Path serialization
+- `src-tauri/Cargo.toml` - Conditional dependencies
 
-#[cfg(target_os = "linux")]
-fn platform_specific_function() {
-    // Linux implementation
-}
+### UI Files
 
-// Or use common code with platform-specific parts
-fn common_function() {
-    // Common logic
+- `src/components/layout/UnifiedTitleBar.tsx` - Title bar refactoring
+- `src/App.css` - Traffic light styling (macOS only)
 
-    #[cfg(target_os = "windows")]
-    {
-        // Windows-specific part
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Unix-like systems
-    }
-}
-```
+---
 
 ## Testing Checklist
 
-Run this on each platform before marking phase complete:
+Run this on each platform:
 
 ### Core Functionality
-- [ ] App launches
-- [ ] App doesn't crash immediately
+- [ ] App launches without crash
 - [ ] Can open preferences
 - [ ] Can select project folder
 - [ ] Can open existing project
@@ -617,9 +725,8 @@ Run this on each platform before marking phase complete:
 
 ### File Operations
 - [ ] Can open file for editing
-- [ ] Can edit file content
-- [ ] Can save file (Cmd/Ctrl+S)
-- [ ] Auto-save works (wait 2 seconds after edit)
+- [ ] Can edit and save file
+- [ ] Auto-save works
 - [ ] Can create new file
 - [ ] Can duplicate file
 - [ ] Can delete file
@@ -628,180 +735,73 @@ Run this on each platform before marking phase complete:
 ### Navigation
 - [ ] Can switch between collections
 - [ ] Can navigate subdirectories
-- [ ] Can search files (if applicable)
 - [ ] Sidebar shows correct file tree
-
-### Frontmatter
-- [ ] Frontmatter panel opens
-- [ ] Can edit frontmatter fields
-- [ ] Changes save correctly
-- [ ] Schema validation works
 
 ### Editor
 - [ ] CodeMirror renders correctly
 - [ ] Syntax highlighting works
-- [ ] Can use keyboard shortcuts
-- [ ] Can format text (bold, italic, etc.)
-- [ ] Can insert links
+- [ ] Keyboard shortcuts work
 
 ### UI
 - [ ] Title bar renders correctly
-- [ ] Window can be dragged via title bar
-- [ ] Window controls work (close/minimize/maximize)
+- [ ] Window controls work
+- [ ] Window dragging works
 - [ ] Panels can be toggled
 - [ ] Resizing works
-- [ ] Dark mode works (if applicable)
-
-### Assets
-- [ ] Can copy image to assets
-- [ ] Image preview works
-- [ ] Drag and drop files works
 
 ### Context Menus
-- [ ] Right-click on file shows menu
-- [ ] "Reveal in Finder/Explorer" works
-- [ ] "Copy Path" works
-- [ ] "Open in IDE" works (if IDE configured)
-
-### Keyboard Shortcuts
-- [ ] Cmd/Ctrl+S saves
-- [ ] Cmd/Ctrl+N new file
-- [ ] Cmd/Ctrl+W close file
-- [ ] Cmd/Ctrl+1 toggle sidebar
-- [ ] Cmd/Ctrl+2 toggle frontmatter
-- [ ] Cmd/Ctrl+P command palette
-- [ ] Cmd/Ctrl+, preferences
-
-### Platform-Specific
-**Windows Only:**
-- [ ] No crashes from path separators
-- [ ] Window decorations look native
-- [ ] Installer works
-
-**Linux Only:**
-- [ ] Package installs correctly
-- [ ] Webkit renders properly
-
-## Troubleshooting
-
-### App won't open project on Windows
-**Check:**
-- Are paths being normalized to forward slashes in Rust?
-- Look for `path.split('/')` errors in console
-- Check if `validate_project_path()` has Windows paths
-
-**Fix:** Review Phase 1 path normalization
-
-### Preferences crash on Windows
-**Check:**
-- Does `get_available_ides()` return empty array?
-- Is SelectItem receiving empty string?
-
-**Fix:** Review Phase 2 IDE integration
-
-### Title bar looks wrong on Windows
-**Check:**
-- Is platform detection working?
-- Is `UnifiedTitleBarWindows` being rendered?
-- Check CSS for macOS-specific styles
-
-**Fix:** Review Phase 3 platform detection
-
-### Build fails on Windows
-**Check:**
-- Are all dependencies installed?
-- Is `window-vibrancy` dependency conditional?
-- Check Cargo.toml for macOS-only features
-
-**Fix:** Review Cargo.toml conditional compilation
-
-## Known Limitations & Trade-offs
-
-### What We're Not Doing (For Now)
-
-1. **Windows-specific features:**
-   - Windows 11 Snap Layouts (could add `tauri-plugin-decorum` later)
-   - Windows notifications integration
-   - Windows Hello integration
-
-2. **Linux-specific features:**
-   - GNOME/KDE-specific integrations
-   - Wayland vs X11 optimizations
-   - Flatpak/Snap packaging (DEB/AppImage only initially)
-
-3. **Performance optimizations:**
-   - Platform-specific rendering optimizations
-   - Different WebView tuning
-
-4. **Accessibility:**
-   - Not specifically testing screen readers on Windows/Linux
-   - (Should work via standard web a11y, but not verified)
-
-### Design Trade-offs
-
-**Why forward slashes everywhere?**
-- Markdown images require forward slashes on all platforms
-- Simpler frontend code (one pattern)
-- Web convention (URLs, etc.)
-- One place to normalize (Rust) vs 11+ places in TypeScript
-
-**Why separate title bar components?**
-- Platform-specific positioning (traffic lights left vs right)
-- Platform-specific styling (vibrancy on macOS)
-- Easier to maintain than one component with lots of conditionals
-- Better matches platform conventions
-
-**Why Windows before Linux?**
-- Larger user base
-- More likely to have Windows machines for testing
-- Can use similar approach for Linux (both non-macOS)
-
-## References & Research
-
-### Official Documentation
-- [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/)
-- [Tauri v2 Window Customization](https://v2.tauri.app/learn/window-customization/)
-- [Tauri Cross-Platform Compilation](https://v2.tauri.app/develop/cross-platform/)
-
-### GitHub Issues
-- [Issue #56: Windows Support](https://github.com/dannysmith/astro-editor/issues/56)
-
-### Third-Party Tools
-- [tauri-plugin-decorum](https://github.com/clearlysid/tauri-plugin-decorum) - Better Windows integration
-
-### Platform-Specific Info
-
-**WebView Engines:**
-- macOS: WKWebView (WebKit)
-- Windows: WebView2 (Chromium)
-- Linux: webkit2gtk-4.1
-
-**Minimum Versions:**
-- Windows: Windows 10 1803+ (for WebView2)
-- Linux: Ubuntu 22.04+ (for webkit2gtk-4.1)
-- macOS: 10.15+ (current minimum)
-
-**Known Issues from GitHub #56:**
-1. Windows+P shortcut conflict (mitigated - we use Ctrl+P on Windows)
-2. IDE detection returns empty list on Windows
-3. Date picker off-by-one bug (may be platform-agnostic)
-4. YAML frontmatter quoting issues (may be parser issue)
+- [ ] Right-click shows menu
+- [ ] "Reveal in Explorer/Finder" works
+- [ ] "Open in IDE" works (if configured)
 
 ---
 
-## Quick Start: Starting Phase 1
+## Code Patterns Reference
 
-Ready to start implementing? Here's what to do:
+### Path Normalization (Rust)
 
-1. **Set up a Windows test environment** (see [Dev Environment Setup](#development-environment-setup))
-2. **Create a feature branch:** `git checkout -b feature/windows-support`
-3. **Start with Rust path normalization:**
-   - Create `src-tauri/src/utils/path.rs`
-   - Add `normalize_path_for_serialization()` function
-   - Update Collection, FileEntry serialization to use it
-4. **Test on Windows** - try opening a project
-5. **Fix crashes one by one** - console will show which paths are breaking
-6. **Move to TypeScript files** - search for `split('/')` and `lastIndexOf('/')`
-7. **Test again** - verify all file operations work
+```rust
+pub fn normalize_path_for_serialization(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+```
 
-Check off tasks in Phase 1 as you complete them. When all acceptance criteria are met, move to Phase 2.
+### Platform Detection (TypeScript)
+
+```typescript
+import { platform } from '@tauri-apps/plugin-os'
+
+export function usePlatform() {
+  const [p, setP] = useState<'macos' | 'windows' | 'linux'>()
+  useEffect(() => { platform().then(setP) }, [])
+  return p
+}
+```
+
+### Conditional Compilation (Rust)
+
+```rust
+#[cfg(target_os = "macos")]
+fn macos_only() { }
+
+#[cfg(target_os = "windows")]
+fn windows_only() { }
+
+#[cfg(target_os = "linux")]
+fn linux_only() { }
+```
+
+### Conditional Dependencies (Cargo.toml)
+
+```toml
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "0.6"
+```
+
+---
+
+## References
+
+- [Tauri v2 Window Customization](https://v2.tauri.app/learn/window-customization/)
+- [Tauri Cross-Platform Compilation](https://v2.tauri.app/develop/cross-platform/)
+- [GitHub Issue #56](https://github.com/dannysmith/astro-editor/issues/56)
