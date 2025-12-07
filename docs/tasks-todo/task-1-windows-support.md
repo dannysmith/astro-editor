@@ -13,6 +13,7 @@ Astro Editor currently only works on macOS. This task prepares the codebase for 
 **Key Decision:** Normalize all paths to forward slashes in Rust backend. Frontend receives consistent paths regardless of platform.
 
 **Scope Decisions:**
+
 - No Windows code signing (can add later if users request it)
 - No paid test environments (GitHub Actions CI only for automated builds)
 - Linux: Build-from-source initially; binary distribution only if there's demand
@@ -32,6 +33,7 @@ Everything in Part A can be done on macOS, merged to main, and released. It make
 **Why:** Windows uses backslashes (`C:\Users\foo`) but our frontend code assumes forward slashes. By normalizing in Rust, the frontend works unchanged.
 
 **Current State (from codebase audit):**
+
 - Rust mostly uses `PathBuf` correctly
 - However, serialization sends platform-native separators
 - Frontend has 15+ instances of hardcoded `/` path manipulation
@@ -94,6 +96,7 @@ mod tests {
 ```
 
 **Acceptance Criteria:**
+
 - [ ] All path-containing types serialize with forward slashes
 - [ ] Tests pass for Windows-style path strings
 - [ ] macOS behavior unchanged
@@ -105,6 +108,7 @@ mod tests {
 **Goal:** Make IDE detection graceful when no IDEs are found, and prepare structure for platform-specific paths.
 
 **Current State (from codebase audit):**
+
 - `fix_path_env()` in `ide.rs` only handles macOS paths
 - `validate_file_path()` rejects Windows absolute paths (`C:\...`)
 - Frontend may crash if IDE list is empty
@@ -176,6 +180,7 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 ```
 
 **Acceptance Criteria:**
+
 - [ ] macOS IDE detection unchanged
 - [ ] Windows/Linux sections exist (can be empty placeholders)
 - [ ] Frontend handles empty IDE list without crashing
@@ -249,6 +254,7 @@ export function getPlatformString(
 ```
 
 **Acceptance Criteria:**
+
 - [ ] `usePlatform()` hook works on macOS (returns 'macos')
 - [ ] Context menu shows "Reveal in Finder" on macOS
 - [ ] Pattern is documented for future use
@@ -260,38 +266,56 @@ export function getPlatformString(
 **Goal:** Build a Windows-style title bar in React that can be tested on macOS.
 
 **Background (from Tauri v2 research):**
+
 - Windows custom title bars use `decorations: false` in Tauri config
 - We build the title bar in HTML/CSS with `data-tauri-drag-region`
 - Window controls (close/minimize/maximize) are on the RIGHT side
 - We wire up buttons to `getCurrentWindow().minimize()` etc.
 
+**Package Option: `tauri-controls`**
+
+The `tauri-controls` package provides ready-made React components (`<WindowTitlebar>`, `<WindowControls>`) with native-looking controls that auto-detect platform. This would reduce maintenance burden as OS styles change.
+
+However, we previously chose not to use it. The likely reason: we need to **completely hide the title bar** (including all window controls) when the user is in focus mode with both sidebars disabled. We also need precise control over button placement within our unified title bar.
+
 **Approach:**
-- Keep existing `UnifiedTitleBar.tsx` for macOS (rename to `UnifiedTitleBarMacOS.tsx`)
-- Create `UnifiedTitleBarWindows.tsx` with Windows-style layout
-- Create wrapper `UnifiedTitleBar.tsx` that selects based on platform
-- Test Windows component on macOS by temporarily forcing platform
+
+1. First, evaluate whether `tauri-controls` can meet our requirements:
+   - Can we conditionally hide the entire component in focus mode?
+   - Can we position controls exactly where we need them?
+   - Does it conflict with our existing title bar layout?
+
+2. If `tauri-controls` works: use it and save maintenance effort.
+
+3. If not: copy the relevant styling/components from `tauri-controls` into our codebase for full control. The package is MIT licensed and provides good reference implementations for Windows control styling.
 
 **Tasks:**
 
-1. **Refactor existing title bar**
+1. **Evaluate `tauri-controls` package**
+   - [ ] Install and test `tauri-controls` with our existing layout
+   - [ ] Verify it can be completely hidden in focus mode
+   - [ ] Check if button placement is flexible enough
+   - [ ] Document findings and decision
+
+2. **Refactor existing title bar**
    - [ ] Rename `UnifiedTitleBar.tsx` to `UnifiedTitleBarMacOS.tsx`
    - [ ] Extract shared logic (save button, toolbar items) into shared components
    - [ ] Ensure macOS version still works identically
 
-2. **Create Windows title bar**
+3. **Create Windows title bar** (using package OR custom implementation)
    - [ ] Create `UnifiedTitleBarWindows.tsx`
    - [ ] Position window controls on the right
    - [ ] Use Windows-style icons (not traffic lights)
    - [ ] Apply `data-tauri-drag-region` for dragging
    - [ ] Wire up minimize/maximize/close buttons
 
-3. **Create platform wrapper**
+4. **Create platform wrapper**
    - [ ] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
    - [ ] Render macOS version for 'macos'
    - [ ] Render Windows version for 'windows'
    - [ ] Render Windows version for 'linux' initially (revisit in Phase 5)
 
-4. **Add development toggle for testing**
+5. **Add development toggle for testing**
    - [ ] Add dev-only prop to force platform for visual testing
    - [ ] Test Windows layout renders correctly (even on macOS)
 
@@ -364,6 +388,7 @@ export function UnifiedTitleBarWindows() {
 ```
 
 **Acceptance Criteria:**
+
 - [ ] macOS title bar unchanged in appearance and behavior
 - [ ] Windows title bar renders with controls on right
 - [ ] Window dragging works on Windows title bar (test via dev toggle)
@@ -376,12 +401,14 @@ export function UnifiedTitleBarWindows() {
 **Goal:** Determine and implement the Linux title bar strategy.
 
 **Background (from research):**
+
 - Linux has many desktop environments (GNOME, KDE, XFCE, etc.)
 - Each has different title bar conventions
 - Trying to mimic any one would look wrong on others
 - Best approach: **Use native decorations and add toolbar below**
 
 **Approach:**
+
 - On Linux, keep `decorations: true` (native window chrome)
 - Render a toolbar-only component below the native title bar
 - This avoids the impossible task of matching every Linux DE
@@ -419,6 +446,7 @@ export function UnifiedTitleBarLinux() {
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Linux toolbar component created
 - [ ] No window control buttons in Linux version
 - [ ] Documented that Linux uses native decorations
@@ -428,6 +456,8 @@ export function UnifiedTitleBarLinux() {
 ### Phase 6: Conditional Compilation & Configuration
 
 **Goal:** Set up proper conditional compilation in Rust and Tauri config for platform differences.
+
+**Note:** Platform-specific Tauri configs (e.g., `tauri.windows.conf.json`) are standard practice in Tauri v2. They are automatically discovered and merged with the base config using JSON Merge Patch.
 
 **Tasks:**
 
@@ -496,6 +526,7 @@ features = ["macos-private-api"]
 ```
 
 **Acceptance Criteria:**
+
 - [ ] macOS build still works with vibrancy
 - [ ] Windows/Linux configs exist
 - [ ] Patterns documented
@@ -579,6 +610,7 @@ steps:
 ```
 
 **Acceptance Criteria:**
+
 - [ ] GitHub Actions produces Windows artifact
 - [ ] GitHub Actions produces Linux artifact
 - [ ] macOS release unchanged
@@ -594,9 +626,10 @@ Everything in Part B requires a Windows environment to test. This work should be
 
 ### Windows Testing Environment Setup
 
-*(To be defined in separate task)*
+_(To be defined in separate task)_
 
 Options include:
+
 - Windows VM (Parallels, UTM, or VirtualBox)
 - Physical Windows machine
 - GitHub Actions for automated testing
@@ -682,6 +715,7 @@ The following cannot be completed without Linux testing:
 ### Path Handling (Phase 1)
 
 **TypeScript files with hardcoded `/`:**
+
 - `src/lib/project-registry/persistence.ts` (lines 28-31, 44, 52, 209, 258)
 - `src/lib/project-registry/utils.ts` (lines 54, 67, 93, 117, 128)
 - `src/components/ui/context-menu.tsx` (lines 40-52, 131-133)
@@ -695,6 +729,7 @@ The following cannot be completed without Linux testing:
 **Note:** After Rust normalizes paths to forward slashes, many of these become safe. However, audit each for correctness.
 
 **Already cross-platform aware:**
+
 - `src/lib/editor/dragdrop/fileProcessing.ts` - Uses `split(/[/\\]/)`
 
 ### Rust Files
@@ -708,53 +743,6 @@ The following cannot be completed without Linux testing:
 
 - `src/components/layout/UnifiedTitleBar.tsx` - Title bar refactoring
 - `src/App.css` - Traffic light styling (macOS only)
-
----
-
-## Testing Checklist
-
-Run this on each platform:
-
-### Core Functionality
-- [ ] App launches without crash
-- [ ] Can open preferences
-- [ ] Can select project folder
-- [ ] Can open existing project
-- [ ] Collections load correctly
-- [ ] Files list appears
-
-### File Operations
-- [ ] Can open file for editing
-- [ ] Can edit and save file
-- [ ] Auto-save works
-- [ ] Can create new file
-- [ ] Can duplicate file
-- [ ] Can delete file
-- [ ] Can rename file
-
-### Navigation
-- [ ] Can switch between collections
-- [ ] Can navigate subdirectories
-- [ ] Sidebar shows correct file tree
-
-### Editor
-- [ ] CodeMirror renders correctly
-- [ ] Syntax highlighting works
-- [ ] Keyboard shortcuts work
-
-### UI
-- [ ] Title bar renders correctly
-- [ ] Window controls work
-- [ ] Window dragging works
-- [ ] Panels can be toggled
-- [ ] Resizing works
-
-### Context Menus
-- [ ] Right-click shows menu
-- [ ] "Reveal in Explorer/Finder" works
-- [ ] "Open in IDE" works (if configured)
-
----
 
 ## Code Patterns Reference
 
@@ -773,7 +761,9 @@ import { platform } from '@tauri-apps/plugin-os'
 
 export function usePlatform() {
   const [p, setP] = useState<'macos' | 'windows' | 'linux'>()
-  useEffect(() => { platform().then(setP) }, [])
+  useEffect(() => {
+    platform().then(setP)
+  }, [])
   return p
 }
 ```
