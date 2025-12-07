@@ -1,40 +1,30 @@
-# Task: Windows & Linux Support
+# Task: Cross-Platform Preparation (Part A)
 
 **Issue:** https://github.com/dannysmith/astro-editor/issues/56
 
-## TL;DR
+## Overview
 
-Astro Editor currently only works on macOS. This task prepares the codebase for cross-platform support through careful refactoring that **doesn't break macOS functionality**. The work is split into three sections:
+Astro Editor currently only works on macOS. This task prepares the codebase for cross-platform support through careful refactoring that **doesn't break macOS functionality**.
 
-1. **Part A: Preparatory Work** - Everything we can do on macOS, merge to main, and release without breaking anything
-2. **Part B: Windows-Specific Work** - Requires a Windows environment to test and refine
-3. **Part C: Linux-Specific Work** - Requires a Linux environment to test and refine
+This is **Part A** of the cross-platform work - everything that can be done on macOS, merged to main, and released. Parts B (Windows testing) and C (Linux testing) are separate tasks that require their respective environments.
 
 **Key Decision:** Normalize all paths to forward slashes in Rust backend. Frontend receives consistent paths regardless of platform.
 
 **Scope Decisions:**
 
 - No Windows code signing (can add later if users request it)
-- No paid test environments (GitHub Actions CI only for automated builds)
-- Linux: Build-from-source initially; binary distribution only if there's demand
 - No in-window menu bars for Windows/Linux - all functionality is accessible via keyboard shortcuts, command palette, and buttons
 - Keyboard shortcuts: `react-hotkeys-hook` uses `mod+` prefix which automatically maps to Cmd on macOS and Ctrl on Windows/Linux
 
 ---
 
-## Part A: Preparatory Work (macOS-Safe)
-
-Everything in Part A can be done on macOS, merged to main, and released. It makes the codebase cross-platform ready without changing macOS behavior.
-
----
-
-### Phase 1: Path Normalization (Rust Backend)
+## Phase 1: Path Normalization (Rust Backend)
 
 **Goal:** Ensure all paths sent to the frontend use forward slashes, regardless of platform.
 
 **Why:** Windows uses backslashes (`C:\Users\foo`) but our frontend code assumes forward slashes. By normalizing in Rust, the frontend works unchanged.
 
-**Current State (from codebase audit):**
+**Current State:**
 
 - Rust mostly uses `PathBuf` correctly
 - However, serialization sends platform-native separators
@@ -69,32 +59,6 @@ use std::path::Path;
 pub fn normalize_path_for_serialization(path: &Path) -> String {
     path.display().to_string().replace('\\', "/")
 }
-
-/// Custom serializer for PathBuf fields
-pub fn serialize_path_normalized<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_str(&normalize_path_for_serialization(path))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_normalize_windows_path() {
-        // Test string that looks like Windows path (works on any platform)
-        let normalized = "C:\\Users\\foo\\project".replace('\\', "/");
-        assert_eq!(normalized, "C:/Users/foo/project");
-    }
-
-    #[test]
-    fn test_normalize_unix_path() {
-        let path = Path::new("/Users/foo/project");
-        assert_eq!(normalize_path_for_serialization(path), "/Users/foo/project");
-    }
-}
 ```
 
 **Acceptance Criteria:**
@@ -105,11 +69,11 @@ mod tests {
 
 ---
 
-### Phase 2: IDE Integration Robustness
+## Phase 2: IDE Integration Robustness
 
 **Goal:** Make IDE detection graceful when no IDEs are found, and prepare structure for platform-specific paths.
 
-**Current State (from codebase audit):**
+**Current State:**
 
 - `fix_path_env()` in `ide.rs` only handles macOS paths (uses `:` separator, hardcoded macOS paths)
 - `validate_file_path()` rejects Windows absolute paths (`C:\...`)
@@ -121,7 +85,7 @@ mod tests {
 1. **Refactor IDE path detection structure**
    - [ ] Create platform-specific sections using `#[cfg(target_os = "...")]`
    - [ ] Keep macOS paths working as-is
-   - [ ] Add placeholder structure for Windows/Linux (actual paths added in Part B/C)
+   - [ ] Add placeholder structure for Windows/Linux (actual paths added in Parts B/C)
 
 2. **Fix path validation for Windows**
    - [ ] Update `validate_file_path()` to accept Windows paths (`C:\`, `D:\`, etc.)
@@ -135,32 +99,22 @@ mod tests {
 **Code Pattern:**
 
 ```rust
-// Structure for platform-specific IDE paths
 fn fix_path_env() {
     #[cfg(target_os = "macos")]
     {
         // Existing macOS code stays here unchanged
-        if let Ok(path) = std::env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(':').collect();
-            let macos_paths = [
-                "/usr/local/bin",
-                "/opt/homebrew/bin",
-                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin",
-                "/Applications/Cursor.app/Contents/Resources/app/bin",
-            ];
-            // ... existing logic
-        }
+        // Uses `:` as PATH separator
     }
 
     #[cfg(target_os = "windows")]
     {
-        // Placeholder - actual paths added when testing on Windows
+        // Placeholder - actual paths added in Part B
         // Windows uses `;` as PATH separator
     }
 
     #[cfg(target_os = "linux")]
     {
-        // Placeholder - actual paths added when testing on Linux
+        // Placeholder - actual paths added in Part C
         // Linux uses `:` as PATH separator
     }
 }
@@ -192,7 +146,7 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 
 ---
 
-### Phase 3: Platform Detection Utilities
+## Phase 3: Platform Detection Utilities
 
 **Goal:** Create reusable platform detection for React components and establish patterns.
 
@@ -234,10 +188,9 @@ export function usePlatform(): AppPlatform | undefined {
 
   useEffect(() => {
     platform().then((p: Platform) => {
-      // Map Tauri platform to our simplified type
       if (p === 'macos') setCurrentPlatform('macos')
       else if (p === 'windows') setCurrentPlatform('windows')
-      else setCurrentPlatform('linux') // All other Unix-like
+      else setCurrentPlatform('linux')
     })
   }, [])
 
@@ -245,24 +198,13 @@ export function usePlatform(): AppPlatform | undefined {
 }
 
 // src/lib/platform-strings.ts
-import type { AppPlatform } from '@/hooks/usePlatform'
-
 const strings = {
   revealInFileManager: {
     macos: 'Reveal in Finder',
     windows: 'Show in Explorer',
     linux: 'Show in File Manager',
   },
-  // Add more as needed
 } as const
-
-export function getPlatformString(
-  key: keyof typeof strings,
-  platform: AppPlatform | undefined
-): string {
-  if (!platform) return strings[key].macos // Default to macOS
-  return strings[key][platform]
-}
 ```
 
 **Acceptance Criteria:**
@@ -273,27 +215,20 @@ export function getPlatformString(
 
 ---
 
-### Phase 4: Windows Title Bar Component
+## Phase 4: Windows Title Bar Component
 
 **Goal:** Build a Windows-style title bar in React that can be tested on macOS.
 
-**Background (from Tauri v2 research):**
+**Background:**
 
 - Windows custom title bars use `decorations: false` in Tauri config
 - We build the title bar in HTML/CSS with `data-tauri-drag-region`
 - Window controls (close/minimize/maximize) are on the RIGHT side
 - We wire up buttons to `getCurrentWindow().minimize()` etc.
 
-**Package Option: `tauri-controls`**
+**Note on `tauri-controls`:** This package provides ready-made components but was last updated March 2024. We'll build a custom implementation using official Tauri APIs. Reference `tauri-controls` (MIT licensed) for Windows control styling if needed.
 
-The `tauri-controls` package provides ready-made React components with native-looking controls. However:
-- **Last updated March 2024** (~2 years old) - maintenance status unclear
-- We need to completely hide the title bar in focus mode
-- We need precise control over button placement
-
-**Recommendation:** Build custom implementation using official Tauri APIs. Reference `tauri-controls` (MIT licensed) for Windows control styling if needed.
-
-**Windows CSS Requirement:** For drag regions to work properly with touch/pen input on Windows:
+**Windows CSS Requirement:** For drag regions to work properly with touch/pen input:
 ```css
 *[data-tauri-drag-region] {
   app-region: drag;
@@ -325,74 +260,6 @@ The `tauri-controls` package provides ready-made React components with native-lo
    - [ ] Add dev-only prop to force platform for visual testing
    - [ ] Test Windows layout renders correctly (even on macOS)
 
-**Code Pattern:**
-
-```typescript
-// src/components/layout/UnifiedTitleBar.tsx (wrapper)
-import { usePlatform } from '@/hooks/usePlatform'
-import { UnifiedTitleBarMacOS } from './UnifiedTitleBarMacOS'
-import { UnifiedTitleBarWindows } from './UnifiedTitleBarWindows'
-
-interface Props {
-  // Dev-only: force a specific platform for testing
-  _forcePlatform?: 'macos' | 'windows' | 'linux'
-}
-
-export function UnifiedTitleBar({ _forcePlatform }: Props) {
-  const detectedPlatform = usePlatform()
-  const platform = _forcePlatform ?? detectedPlatform
-
-  if (!platform) return null // Loading
-
-  if (platform === 'macos') {
-    return <UnifiedTitleBarMacOS />
-  }
-
-  // Windows and Linux use Windows-style title bar
-  return <UnifiedTitleBarWindows />
-}
-```
-
-```typescript
-// src/components/layout/UnifiedTitleBarWindows.tsx
-import { getCurrentWindow } from '@tauri-apps/api/window'
-
-export function UnifiedTitleBarWindows() {
-  const appWindow = getCurrentWindow()
-
-  return (
-    <div data-tauri-drag-region className="flex h-10 items-center justify-between">
-      {/* Left side: App title and toolbar */}
-      <div className="flex items-center gap-2 pl-3">
-        {/* Shared toolbar components */}
-      </div>
-
-      {/* Right side: Window controls */}
-      <div className="flex">
-        <button
-          onClick={() => appWindow.minimize()}
-          className="h-10 w-12 hover:bg-gray-200 dark:hover:bg-gray-700"
-        >
-          {/* Minimize icon */}
-        </button>
-        <button
-          onClick={() => appWindow.toggleMaximize()}
-          className="h-10 w-12 hover:bg-gray-200 dark:hover:bg-gray-700"
-        >
-          {/* Maximize icon */}
-        </button>
-        <button
-          onClick={() => appWindow.close()}
-          className="h-10 w-12 hover:bg-red-500 hover:text-white"
-        >
-          {/* Close icon */}
-        </button>
-      </div>
-    </div>
-  )
-}
-```
-
 **Acceptance Criteria:**
 
 - [ ] macOS title bar unchanged in appearance and behavior
@@ -402,22 +269,20 @@ export function UnifiedTitleBarWindows() {
 
 ---
 
-### Phase 5: Linux Title Bar Approach
+## Phase 5: Linux Title Bar Approach
 
 **Goal:** Determine and implement the Linux title bar strategy.
 
-**Background (from research):**
+**Background:**
 
 - Linux has many desktop environments (GNOME, KDE, XFCE, etc.)
 - Each has different title bar conventions
-- Trying to mimic any one would look wrong on others
 - Best approach: **Use native decorations and add toolbar below**
 
 **Approach:**
 
 - On Linux, keep `decorations: true` (native window chrome)
 - Render a toolbar-only component below the native title bar
-- This avoids the impossible task of matching every Linux DE
 
 **Tasks:**
 
@@ -432,24 +297,6 @@ export function UnifiedTitleBarWindows() {
 
 3. **Document Tauri config requirements**
    - [ ] Note that Linux builds need different window settings
-   - [ ] Add to Phase 6 (conditional compilation) checklist
-
-**Code Pattern:**
-
-```typescript
-// src/components/layout/UnifiedTitleBarLinux.tsx
-export function UnifiedTitleBarLinux() {
-  // No window controls - those are in native decorations
-  // This is just a toolbar
-  return (
-    <div className="flex h-10 items-center border-b px-3">
-      {/* Shared toolbar components only */}
-      <ProjectTitle />
-      <ToolbarActions />
-    </div>
-  )
-}
-```
 
 **Acceptance Criteria:**
 
@@ -459,11 +306,9 @@ export function UnifiedTitleBarLinux() {
 
 ---
 
-### Phase 6: Conditional Compilation & Configuration
+## Phase 6: Conditional Compilation & Configuration
 
 **Goal:** Set up proper conditional compilation in Rust and Tauri config for platform differences.
-
-**Note:** Platform-specific Tauri configs (e.g., `tauri.windows.conf.json`) are standard practice in Tauri v2. They are automatically discovered and merged with the base config using JSON Merge Patch.
 
 **Current State:** The main `tauri.conf.json` has macOS-specific settings that need to move:
 - `decorations: false` → move to `tauri.macos.conf.json` and `tauri.windows.conf.json`
@@ -499,10 +344,8 @@ Base config should have safe cross-platform defaults (`decorations: true`, `tran
 
 ```toml
 # Cargo.toml
-
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
-# ... other deps ...
 
 # macOS-only dependencies (features ADD to base, don't replace)
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -547,7 +390,7 @@ tauri = { version = "2", features = ["macos-private-api"] }
 
 ---
 
-### Phase 7: CI/Build System Setup
+## Phase 7: CI/Build System Setup
 
 **Goal:** Configure GitHub Actions to build for all platforms.
 
@@ -585,10 +428,8 @@ strategy:
     include:
       - platform: 'macos-14'
         args: '--target universal-apple-darwin'
-
       - platform: 'windows-latest'
         args: ''
-
       - platform: 'ubuntu-22.04'
         args: ''
 
@@ -604,122 +445,12 @@ steps:
       args: ${{ matrix.args }}
 ```
 
-```json
-// tauri.conf.json bundle additions
-{
-  "bundle": {
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": ""
-    },
-    "linux": {
-      "appimage": {
-        "bundleMediaFramework": false
-      }
-    }
-  }
-}
-```
-
 **Acceptance Criteria:**
 
 - [ ] GitHub Actions produces Windows artifact
 - [ ] GitHub Actions produces Linux artifact
 - [ ] macOS release unchanged
 - [ ] Auto-updater configured for all platforms
-
----
-
-## Part B: Windows-Specific Work
-
-Everything in Part B requires a Windows environment to test. This work should be done as a **separate task** after Part A is complete and a Windows test environment is available.
-
----
-
-### Windows Testing Environment Setup
-
-_(To be defined in separate task)_
-
-Options include:
-
-- Windows VM (Parallels, UTM, or VirtualBox)
-- Physical Windows machine
-- GitHub Actions for automated testing
-
----
-
-### Windows-Specific Tasks (Requires Testing)
-
-The following cannot be completed without Windows testing:
-
-1. **IDE Path Detection**
-   - Fill in Windows IDE paths in `fix_path_env()`
-   - Common paths: `C:\Program Files\Microsoft VS Code\bin`, etc.
-   - Test that VS Code, Cursor are detected
-
-2. **Path Handling Verification**
-   - Test project opening with `C:\Users\...` paths
-   - Test file operations (create, save, delete)
-   - Test asset copying
-   - Verify preferences persist correctly
-
-3. **Title Bar Refinement**
-   - Verify window controls work correctly
-   - Test window dragging
-   - Adjust styling as needed
-   - Test maximize/restore behavior
-
-4. **General Testing**
-   - Run through full testing checklist (see [Testing Checklist](#testing-checklist))
-   - Fix any platform-specific bugs discovered
-   - Verify keyboard shortcuts work (Ctrl instead of Cmd)
-
----
-
-## Part C: Linux-Specific Work
-
-Everything in Part C requires a Linux environment to test. This work should be done as a **separate task** after Part A is complete.
-
----
-
-### Linux Distribution Strategy
-
-**Initial Approach:** Build-from-source only
-
-Given the complexity of Linux distribution (DEB, RPM, AppImage, Flatpak, Snap) and the variety of desktop environments, the initial approach is:
-
-1. Document how to build from source
-2. Produce an AppImage via CI (low effort, works everywhere)
-3. Do NOT produce other package formats initially
-4. If users request specific formats, add them based on demand
-
-This avoids the overhead of maintaining multiple package formats until there's proven demand.
-
----
-
-### Linux-Specific Tasks (Requires Testing)
-
-The following cannot be completed without Linux testing:
-
-1. **Native Decorations Verification**
-   - Test that native title bar renders correctly
-   - Verify toolbar component works below decorations
-   - Test on at least one DE (GNOME or KDE)
-
-2. **IDE Path Detection**
-   - Fill in Linux IDE paths in `fix_path_env()`
-   - Common paths: `/usr/bin/code`, `/snap/bin/code`, etc.
-   - Test detection
-
-3. **Webkit Rendering**
-   - Verify webkit2gtk renders correctly
-   - Test CodeMirror editor
-   - Check for any rendering differences
-
-4. **General Testing**
-   - Run through full testing checklist
-   - Fix any platform-specific bugs
 
 ---
 
@@ -739,7 +470,7 @@ The following cannot be completed without Linux testing:
 - `src/hooks/queries/useDirectoryScanQuery.ts` (line 42)
 - `src/hooks/useCreateFile.ts` (line 103)
 
-**Note:** After Rust normalizes paths to forward slashes, many of these become safe. However, audit each for correctness.
+**Note:** After Rust normalizes paths to forward slashes, many of these become safe. Audit each for correctness.
 
 **Already cross-platform aware:**
 
@@ -757,51 +488,12 @@ The following cannot be completed without Linux testing:
 - `src/components/layout/UnifiedTitleBar.tsx` - Title bar refactoring
 - `src/App.css` - Traffic light styling (macOS only)
 
-## Code Patterns Reference
-
-### Path Normalization (Rust)
-
-```rust
-pub fn normalize_path_for_serialization(path: &Path) -> String {
-    path.display().to_string().replace('\\', "/")
-}
-```
-
-### Platform Detection (TypeScript)
-
-```typescript
-import { platform } from '@tauri-apps/plugin-os'
-
-export function usePlatform() {
-  const [p, setP] = useState<'macos' | 'windows' | 'linux'>()
-  useEffect(() => {
-    platform().then(setP)
-  }, [])
-  return p
-}
-```
-
-### Conditional Compilation (Rust)
-
-```rust
-#[cfg(target_os = "macos")]
-fn macos_only() { }
-
-#[cfg(target_os = "windows")]
-fn windows_only() { }
-
-#[cfg(target_os = "linux")]
-fn linux_only() { }
-```
-
-### Conditional Dependencies (Cargo.toml)
-
-```toml
-[target.'cfg(target_os = "macos")'.dependencies]
-window-vibrancy = "0.6"
-```
-
 ---
+
+## Related Tasks
+
+- **Part B:** [Windows Testing](task-x-windows-testing.md) - Requires Windows environment
+- **Part C:** [Linux Testing](task-x-linux-testing.md) - Requires Linux environment
 
 ## References
 
