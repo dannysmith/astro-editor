@@ -336,8 +336,8 @@ export const ideCommands: AppCommand[] = [
     isAvailable: (context: CommandContext) => {
       return Boolean(
         context.globalSettings?.general?.ideCommand &&
-          context.selectedCollection &&
-          context.projectPath
+        context.selectedCollection &&
+        context.projectPath
       )
     },
   },

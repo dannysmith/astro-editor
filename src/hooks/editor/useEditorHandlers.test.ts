@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useEditorHandlers } from './useEditorHandlers'
 import type { FileEntry } from '@/types'
@@ -26,28 +26,31 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
   ...overrides,
 })
 
+// Type for mocked store state matching EditorState interface
+interface MockEditorState {
+  setEditorContent: Mock
+  currentFile: FileEntry | null
+  saveFile: Mock
+  isDirty: boolean
+  isFrontmatterDirty: boolean
+  editorContent: string
+  frontmatter: Record<string, unknown>
+  rawFrontmatter: string
+  imports: string
+  openFile: Mock
+  closeCurrentFile: Mock
+  updateFrontmatterField: Mock
+  scheduleAutoSave: Mock
+  autoSaveTimeoutId: ReturnType<typeof setTimeout> | null
+  lastSaveTimestamp: number | null
+  updateFrontmatter: Mock
+  updateCurrentFileAfterRename: Mock
+  autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null
+  setAutoSaveCallback: Mock
+}
+
 describe('useEditorHandlers', () => {
-  let mockStoreState: {
-    setEditorContent: ReturnType<typeof vi.fn>
-    currentFile: FileEntry | null
-    saveFile: ReturnType<typeof vi.fn>
-    isDirty: boolean
-    isFrontmatterDirty: boolean
-    editorContent: string
-    frontmatter: Record<string, unknown>
-    rawFrontmatter: string
-    imports: string
-    openFile: ReturnType<typeof vi.fn>
-    closeCurrentFile: ReturnType<typeof vi.fn>
-    updateFrontmatterField: ReturnType<typeof vi.fn>
-    scheduleAutoSave: ReturnType<typeof vi.fn>
-    autoSaveTimeoutId: ReturnType<typeof setTimeout> | null
-    lastSaveTimestamp: number | null
-    updateFrontmatter: ReturnType<typeof vi.fn>
-    updateCurrentFileAfterRename: ReturnType<typeof vi.fn>
-    autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null
-    setAutoSaveCallback: ReturnType<typeof vi.fn>
-  }
+  let mockStoreState: MockEditorState
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -74,7 +77,10 @@ describe('useEditorHandlers', () => {
       isFrontmatterDirty: false,
     }
 
-    mockGetState.mockReturnValue(mockStoreState)
+    // Cast to unknown first to satisfy TypeScript when mocking store state
+    mockGetState.mockReturnValue(
+      mockStoreState as unknown as ReturnType<typeof useEditorStore.getState>
+    )
 
     // Mock window global
     Object.defineProperty(window, 'isEditorFocused', {

@@ -2,8 +2,10 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 import TextareaAutosize from 'react-textarea-autosize'
 
-export interface AutoExpandingTextareaProps
-  extends Omit<React.ComponentProps<'textarea'>, 'style'> {
+export interface AutoExpandingTextareaProps extends Omit<
+  React.ComponentProps<'textarea'>,
+  'style'
+> {
   minRows?: number
   maxRows?: number
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { CommandRegistry } from './CommandRegistry'
@@ -14,7 +14,7 @@ const mockView = {
 describe('CommandRegistry', () => {
   let registry: CommandRegistry
   let mockCommands: EditorCommandRegistry
-  let mockSave: ReturnType<typeof vi.fn>
+  let mockSave: Mock<() => void>
 
   beforeEach(() => {
     registry = new CommandRegistry()

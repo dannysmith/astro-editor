@@ -218,6 +218,7 @@ The script automatically:
   - **Client State:** Zustand for UI state and editing state
 - **Styling:** Tailwind v4 + shadcn/ui
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
+  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `pnpm.overrides` in package.json to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `pnpm why @lezer/common` and `pnpm why @lezer/highlight`.
 - **Testing:** Vitest + React Testing Library, Cargo
 - **Quality:** ESLint (with React Compiler rules), Prettier, Clippy
 
