@@ -17,6 +17,8 @@ Astro Editor currently only works on macOS. This task prepares the codebase for 
 - No Windows code signing (can add later if users request it)
 - No paid test environments (GitHub Actions CI only for automated builds)
 - Linux: Build-from-source initially; binary distribution only if there's demand
+- No in-window menu bars for Windows/Linux - all functionality is accessible via keyboard shortcuts, command palette, and buttons
+- Keyboard shortcuts: `react-hotkeys-hook` uses `mod+` prefix which automatically maps to Cmd on macOS and Ctrl on Windows/Linux
 
 ---
 
@@ -109,8 +111,9 @@ mod tests {
 
 **Current State (from codebase audit):**
 
-- `fix_path_env()` in `ide.rs` only handles macOS paths
+- `fix_path_env()` in `ide.rs` only handles macOS paths (uses `:` separator, hardcoded macOS paths)
 - `validate_file_path()` rejects Windows absolute paths (`C:\...`)
+- `escape_shell_arg()` uses Unix-style single-quote escaping (won't work on Windows CMD/PowerShell)
 - Frontend may crash if IDE list is empty
 
 **Tasks:**
@@ -123,6 +126,7 @@ mod tests {
 2. **Fix path validation for Windows**
    - [ ] Update `validate_file_path()` to accept Windows paths (`C:\`, `D:\`, etc.)
    - [ ] Handle UNC paths (`\\server\share`) as invalid for IDE opening
+   - [ ] Make `escape_shell_arg()` platform-aware (Windows uses different escaping rules)
 
 3. **Make frontend handle empty IDE list gracefully**
    - [ ] Update preferences UI to show message when no IDEs detected
@@ -192,9 +196,17 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 
 **Goal:** Create reusable platform detection for React components and establish patterns.
 
+**Prerequisites:**
+```bash
+pnpm add @tauri-apps/plugin-os
+cargo add tauri-plugin-os  # in src-tauri
+```
+Then add `tauri_plugin_os` to the Tauri plugin initialization in `lib.rs`.
+
 **Tasks:**
 
 1. **Create platform detection hook**
+   - [ ] Install `@tauri-apps/plugin-os` (npm + cargo)
    - [ ] Create `src/hooks/usePlatform.ts`
    - [ ] Use `@tauri-apps/plugin-os` for detection
    - [ ] Export platform type and detection hook
@@ -274,48 +286,42 @@ export function getPlatformString(
 
 **Package Option: `tauri-controls`**
 
-The `tauri-controls` package provides ready-made React components (`<WindowTitlebar>`, `<WindowControls>`) with native-looking controls that auto-detect platform. This would reduce maintenance burden as OS styles change.
+The `tauri-controls` package provides ready-made React components with native-looking controls. However:
+- **Last updated March 2024** (~2 years old) - maintenance status unclear
+- We need to completely hide the title bar in focus mode
+- We need precise control over button placement
 
-However, we previously chose not to use it. The likely reason: we need to **completely hide the title bar** (including all window controls) when the user is in focus mode with both sidebars disabled. We also need precise control over button placement within our unified title bar.
+**Recommendation:** Build custom implementation using official Tauri APIs. Reference `tauri-controls` (MIT licensed) for Windows control styling if needed.
 
-**Approach:**
-
-1. First, evaluate whether `tauri-controls` can meet our requirements:
-   - Can we conditionally hide the entire component in focus mode?
-   - Can we position controls exactly where we need them?
-   - Does it conflict with our existing title bar layout?
-
-2. If `tauri-controls` works: use it and save maintenance effort.
-
-3. If not: copy the relevant styling/components from `tauri-controls` into our codebase for full control. The package is MIT licensed and provides good reference implementations for Windows control styling.
+**Windows CSS Requirement:** For drag regions to work properly with touch/pen input on Windows:
+```css
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+```
 
 **Tasks:**
 
-1. **Evaluate `tauri-controls` package**
-   - [ ] Install and test `tauri-controls` with our existing layout
-   - [ ] Verify it can be completely hidden in focus mode
-   - [ ] Check if button placement is flexible enough
-   - [ ] Document findings and decision
-
-2. **Refactor existing title bar**
+1. **Refactor existing title bar**
    - [ ] Rename `UnifiedTitleBar.tsx` to `UnifiedTitleBarMacOS.tsx`
    - [ ] Extract shared logic (save button, toolbar items) into shared components
    - [ ] Ensure macOS version still works identically
 
-3. **Create Windows title bar** (using package OR custom implementation)
+2. **Create Windows title bar**
    - [ ] Create `UnifiedTitleBarWindows.tsx`
    - [ ] Position window controls on the right
    - [ ] Use Windows-style icons (not traffic lights)
    - [ ] Apply `data-tauri-drag-region` for dragging
+   - [ ] Add Windows-specific CSS (`app-region: drag`)
    - [ ] Wire up minimize/maximize/close buttons
 
-4. **Create platform wrapper**
+3. **Create platform wrapper**
    - [ ] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
    - [ ] Render macOS version for 'macos'
    - [ ] Render Windows version for 'windows'
    - [ ] Render Windows version for 'linux' initially (revisit in Phase 5)
 
-5. **Add development toggle for testing**
+4. **Add development toggle for testing**
    - [ ] Add dev-only prop to force platform for visual testing
    - [ ] Test Windows layout renders correctly (even on macOS)
 
@@ -459,6 +465,13 @@ export function UnifiedTitleBarLinux() {
 
 **Note:** Platform-specific Tauri configs (e.g., `tauri.windows.conf.json`) are standard practice in Tauri v2. They are automatically discovered and merged with the base config using JSON Merge Patch.
 
+**Current State:** The main `tauri.conf.json` has macOS-specific settings that need to move:
+- `decorations: false` → move to `tauri.macos.conf.json` and `tauri.windows.conf.json`
+- `transparent: true` → move to `tauri.macos.conf.json` only
+- `macOSPrivateApi: true` → move to `tauri.macos.conf.json` only
+
+Base config should have safe cross-platform defaults (`decorations: true`, `transparent: false`).
+
 **Tasks:**
 
 1. **Make window-vibrancy macOS-only**
@@ -466,9 +479,10 @@ export function UnifiedTitleBarLinux() {
    - [ ] Ensure builds don't fail on Windows/Linux
 
 2. **Create platform-specific Tauri configs**
-   - [ ] Create `tauri.macos.conf.json` for macOS-specific settings
+   - [ ] Move macOS-specific settings from `tauri.conf.json` to `tauri.macos.conf.json`
+   - [ ] Set safe defaults in base `tauri.conf.json` (`decorations: true`, `transparent: false`, remove `macOSPrivateApi`)
    - [ ] Create `tauri.windows.conf.json` with `decorations: false`
-   - [ ] Create `tauri.linux.conf.json` with `decorations: true`
+   - [ ] Create `tauri.linux.conf.json` with `decorations: true` (explicit, matches default)
    - [ ] Verify config merging works correctly
 
 3. **Handle macos-private-api feature**
@@ -488,26 +502,29 @@ export function UnifiedTitleBarLinux() {
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
+# ... other deps ...
 
-# macOS-only dependencies
+# macOS-only dependencies (features ADD to base, don't replace)
 [target.'cfg(target_os = "macos")'.dependencies]
 window-vibrancy = "0.6"
+tauri = { version = "2", features = ["macos-private-api"] }
+```
 
-# macOS-only features
-[target.'cfg(target_os = "macos")'.dependencies.tauri]
-version = "2"
-features = ["macos-private-api"]
+```json
+// tauri.macos.conf.json
+{
+  "app": {
+    "windows": [{ "decorations": false, "transparent": true }],
+    "macOSPrivateApi": true
+  }
+}
 ```
 
 ```json
 // tauri.windows.conf.json
 {
   "app": {
-    "windows": [
-      {
-        "decorations": false
-      }
-    ]
+    "windows": [{ "decorations": false }]
   }
 }
 ```
@@ -516,11 +533,7 @@ features = ["macos-private-api"]
 // tauri.linux.conf.json
 {
   "app": {
-    "windows": [
-      {
-        "decorations": true
-      }
-    ]
+    "windows": [{ "decorations": true }]
   }
 }
 ```
