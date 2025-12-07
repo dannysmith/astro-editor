@@ -53,13 +53,14 @@ export const comprehensiveHighlightStyle = HighlightStyle.define([
   },
   {
     tag: markdownTags.emphasisMark,
-    color: 'var(--editor-color-text)',
+    color: 'var(--editor-color-mdtag)',
     fontFamily: 'var(--editor-font-family-italic)',
+    fontStyle: 'italic',
   },
   { tag: markdownTags.strong, fontWeight: 'var(--editor-font-weight-bold)' },
   {
     tag: markdownTags.strongMark,
-    color: 'var(--editor-color-text)',
+    color: 'var(--editor-color-mdtag)',
     fontWeight: 'var(--editor-font-weight-bold)',
   },
   {
@@ -67,7 +68,10 @@ export const comprehensiveHighlightStyle = HighlightStyle.define([
     textDecoration: 'line-through',
     color: 'var(--editor-color-mdtag)',
   },
-  { tag: markdownTags.strikethroughMark, color: 'var(--editor-color-text)' },
+  {
+    tag: markdownTags.strikethroughMark,
+    color: 'var(--editor-color-mdtag)',
+  },
 
   // Code
   {
