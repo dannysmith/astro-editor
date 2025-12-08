@@ -15,6 +15,7 @@ import {
 import { Prec } from '@codemirror/state'
 import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
+import { addCursorsToLineEnds } from '../selection'
 import { globalCommandRegistry } from '../commands'
 
 /**
@@ -77,6 +78,11 @@ export const createMarkdownKeymap = (
           globalCommandRegistry.execute('toggleFocusMode')
           return true
         },
+      },
+      // Add cursors to line ends (VS Code: "Add Cursors to Line Ends")
+      {
+        key: 'Mod-Shift-l',
+        run: view => addCursorsToLineEnds(view),
       },
     ])
   )

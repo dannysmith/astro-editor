@@ -6,12 +6,6 @@ import { EditorView } from '@codemirror/view'
 export const createEditorTheme = () => {
   return EditorView.theme({
     '&': {
-      fontSize: 'var(--editor-font-size)',
-      fontFamily: 'var(--editor-font-family)',
-      fontWeight: 'var(--editor-font-weight-normal)',
-      fontVariationSettings: 'var(--editor-font-variation-settings)',
-      letterSpacing: 'var(--editor-letter-spacing)',
-      WebkitFontSmoothing: 'subpixel-antialiased',
       backgroundColor: 'var(--editor-color-background)',
       color: 'var(--editor-color-text)',
       containerType: 'inline-size',
@@ -23,6 +17,13 @@ export const createEditorTheme = () => {
       outline: 'none',
     },
     '.cm-content': {
+      fontSize: 'var(--editor-font-size)',
+      fontFamily: 'var(--editor-font-family)',
+      fontWeight: 'var(--editor-font-weight-normal)',
+      fontVariationSettings: 'var(--editor-font-variation-settings)',
+      letterSpacing: 'var(--editor-letter-spacing)',
+      WebkitFontSmoothing: 'antialiased',
+      fontSmoothing: 'antialiased',
       lineHeight: 'var(--editor-line-height)',
       minHeight: 'calc(100vh - 44px)', // Subtract titlebar (44px)
       maxWidth: 'var(--editor-content-max-width)',
@@ -71,6 +72,24 @@ export const createEditorTheme = () => {
     '.cm-snippetField.cm-focused': {
       backgroundColor: 'var(--editor-color-background)',
       border: '1px solid rgba(0, 0, 0, 0.1)',
+    },
+    // Fenced code block background
+    // Uses semi-transparent background to allow selection layer to show through.
+    // The selection layer is positioned behind text content, so opaque backgrounds
+    // would completely hide the selection. Transparency maintains visual hierarchy:
+    // selection layer (bottom) → line background (middle) → text (top)
+    '.cm-codeblock-line': {
+      backgroundColor: 'var(--editor-color-codeblock-background)',
+    },
+    // Rounded corners for first/last lines of code blocks
+    '.cm-codeblock-first': {
+      borderRadius: '2px 2px 0 0',
+    },
+    '.cm-codeblock-last': {
+      borderRadius: '0 0 2px 2px',
+    },
+    '.cm-codeblock-only': {
+      borderRadius: '2px',
     },
   })
 }

@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view'
 import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
+import { addCursorsToLineEnds } from '../selection'
 import { HeadingLevel } from '../markdown/types'
 import { EditorCommand, EditorCommandRegistry } from './types'
 import { useUIStore } from '../../../store/uiStore'
@@ -55,6 +56,13 @@ export const createFocusModeCommand = (): EditorCommand => {
 }
 
 /**
+ * Create an add cursors to line ends command
+ */
+export const createAddCursorsToLineEndsCommand = (): EditorCommand => {
+  return (view: EditorView) => addCursorsToLineEnds(view)
+}
+
+/**
  * Create a complete editor command registry
  */
 export const createEditorCommandRegistry = (
@@ -67,5 +75,6 @@ export const createEditorCommandRegistry = (
     formatHeading: (level: HeadingLevel) => createHeadingCommand(level),
     save: createSaveCommand(onSave),
     toggleFocusMode: createFocusModeCommand(),
+    addCursorsToLineEnds: createAddCursorsToLineEndsCommand(),
   }
 }
