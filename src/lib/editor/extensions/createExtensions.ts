@@ -12,6 +12,8 @@ import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
 import { hangingHeadersExtension } from './hanging-headers'
+import { codeBlockBackgroundExtension } from './code-block-background'
+import { blockquoteStyleExtension } from './blockquote-style'
 
 /**
  * Configuration for creating editor extensions
@@ -76,6 +78,8 @@ export const createExtensions = (config: ExtensionConfig) => {
 
     // Visual enhancements
     hangingHeadersExtension,
+    codeBlockBackgroundExtension,
+    blockquoteStyleExtension,
 
     // Theme and styling
     createEditorTheme(),

@@ -38,10 +38,6 @@
   transition: opacity 0.2s ease-in-out;
 }
 
-.cm-editor.focus-mode-enabled {
-  /* Could add any global focus mode styling here */
-}
-
 /* URL Alt+Click Styling */
 .alt-pressed .cm-content {
   cursor: default !important;
@@ -74,7 +70,7 @@
   --editor-color-pink: rgba(177, 79, 159, 1);
   --editor-color-blue: rgba(53, 118, 182, 1);
   --editor-color-green: rgba(66, 131, 44, 1);
-  --editor-color-codeblock-background: rgba(238, 238, 238, 1);
+  --editor-color-codeblock-background: rgba(238, 238, 238, 0.5);
   --editor-color-selectedtext-background: rgba(185, 234, 250, 1);
   --editor-color-heading: #191919; /* Default to text color, overridden by JS */
 
@@ -95,7 +91,7 @@
   --editor-color-pink: rgba(186, 142, 177, 1);
   --editor-color-blue: rgba(124, 159, 192, 1);
   --editor-color-green: rgba(131, 165, 115, 1);
-  --editor-color-codeblock-background: rgba(37, 37, 37, 1);
+  --editor-color-codeblock-background: rgba(37, 37, 37, 0.5);
   --editor-color-selectedtext-background: rgba(20, 68, 84, 1);
   --editor-color-heading: #cccccc; /* Default to text color, overridden by JS */
 
@@ -116,7 +112,7 @@
     'Roboto', sans-serif;
 
   /* Base Font Weight */
-  --editor-font-weight-normal: 490;
+  --editor-font-weight-normal: 480;
   --editor-font-weight-bold: 700;
 
   /* Base font size - set dynamically from preferences */
@@ -132,53 +128,53 @@
   /* Responsive Typography - Tiny Width (default) */
   --editor-font-size: var(--editor-type-scale-tiny);
   --editor-line-height: 1.609; /* 17.7px ÷ 11px */
-  --editor-letter-spacing: letter-spacing: 0.07em;
-  /* --editor-font-variation-settings: 'spcg' 1; */
-  --editor-content-max-width: none;
+  --editor-letter-spacing: 0.005em;
+  --editor-font-variation-settings: 'spcg' 1;
+  --editor-content-max-width: 60ch;
 }
 
-/* Responsive Typography Breakpoints using regular media queries for now */
-/* Since container queries may not be fully supported in current WebKit */
+/* Responsive Typography using Container Queries */
+/* Based on editor pane width, not viewport */
+@supports (container-type: inline-size) {
+  @container editor (min-width: 440px) {
+    /* Small Width */
+    .cm-editor {
+      --editor-font-size: var(--editor-type-scale-small);
+      --editor-line-height: 1.742; /* 20.9px ÷ 12px */
+      --editor-font-variation-settings: 'spcg' 14;
+    }
+  }
 
-@media (min-width: 440px) {
-  /* Small Width */
-  .editor-view {
-    --editor-font-size: var(--editor-type-scale-small);
-    --editor-line-height: 1.742; /* 20.9px ÷ 12px */
-    /* --editor-font-variation-settings: 'spcg' 14; */
+  @container editor (min-width: 875px) {
+    /* Medium Width */
+    .cm-editor {
+      --editor-font-size: var(--editor-type-scale-medium);
+      --editor-line-height: 1.742; /* 20.9px ÷ 12px */
+      --editor-font-variation-settings: 'spcg' 14;
+      --editor-content-max-width: 705px;
+    }
+  }
+
+  @container editor (min-width: 1250px) {
+    /* Large Width */
+    .cm-editor {
+      --editor-font-size: var(--editor-type-scale-large);
+      --editor-line-height: 1.721; /* 24.1px ÷ 14px */
+      --editor-font-variation-settings: 'spcg' 3;
+      --editor-content-max-width: 800px;
+    }
+  }
+
+  @container editor (min-width: 1660px) {
+    /* Huge Width */
+    .cm-editor {
+      --editor-font-size: var(--editor-type-scale-huge);
+      --editor-line-height: 1.7916; /* 43px ÷ 24px */
+      --editor-font-variation-settings: 'spcg' 20;
+      --editor-content-max-width: 980px;
+    }
   }
 }
-
-@media (min-width: 875px) {
-  /* Medium Width */
-  .editor-view {
-    --editor-font-size: var(--editor-type-scale-medium);
-    --editor-line-height: 1.742; /* 20.9px ÷ 12px */
-    /* --editor-font-variation-settings: 'spcg' 14; */
-    --editor-content-max-width: 705px;
-  }
-}
-
-@media (min-width: 1250px) {
-  /* Large Width */
-  .editor-view {
-    --editor-font-size: var(--editor-type-scale-large);
-    --editor-line-height: 1.721; /* 24.1px ÷ 14px */
-    /* --editor-font-variation-settings: 'spcg' 3; */
-    --editor-content-max-width: 800px;
-  }
-}
-
-@media (min-width: 1660px) {
-  /* Huge Width */
-  .editor-view {
-    --editor-font-size: var(--editor-type-scale-huge);
-    --editor-line-height: 1.7916; /* 43px ÷ 24px */
-    /* --editor-font-variation-settings: 'spcg' 20; */
-    --editor-content-max-width: 980px;
-  }
-}
-
 /* Hanging Headers - iA Writer style */
 /* Hash marks appear in left margin, heading text aligns with body text */
 /* Only enabled when editor container is wide enough (875px+) */
@@ -204,4 +200,11 @@
       text-indent: -4.2em;
     } /* ###### + space */
   }
+}
+
+/* Blockquote Styling */
+.cm-line.cm-blockquote {
+  color: var(--editor-color-mdtag);
+  font-style: italic;
+  font-family: var(--editor-font-family-italic);
 }

@@ -15,7 +15,7 @@ https://github.com/user-attachments/assets/dc32dd12-2094-47c4-ab90-620ecd11ba48
 - Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.
-- Smart auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing. Crash recovery included.
+- Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing. Crash recovery included.
 
 **Frontmatter & Schema Integration**
 
