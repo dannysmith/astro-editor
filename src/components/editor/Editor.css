@@ -132,7 +132,7 @@
   /* Responsive Typography - Tiny Width (default) */
   --editor-font-size: var(--editor-type-scale-tiny);
   --editor-line-height: 1.609; /* 17.7px ÷ 11px */
-  --editor-letter-spacing: letter-spacing: 0.07em;
+  --editor-letter-spacing: 0.005em;
   /* --editor-font-variation-settings: 'spcg' 1; */
   --editor-content-max-width: none;
 }
