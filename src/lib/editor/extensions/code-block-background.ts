@@ -23,7 +23,11 @@ function buildCodeBlockDecorations(state: EditorState): DecorationSet {
         const isSingleLine = startLine.number === endLine.number
 
         // Apply decoration to each line in the code block
-        for (let lineNum = startLine.number; lineNum <= endLine.number; lineNum++) {
+        for (
+          let lineNum = startLine.number;
+          lineNum <= endLine.number;
+          lineNum++
+        ) {
           const line = state.doc.line(lineNum)
           const isFirst = lineNum === startLine.number
           const isLast = lineNum === endLine.number
@@ -38,7 +42,9 @@ function buildCodeBlockDecorations(state: EditorState): DecorationSet {
             className += ' cm-codeblock-last'
           }
 
-          decorations.push(Decoration.line({ class: className }).range(line.from))
+          decorations.push(
+            Decoration.line({ class: className }).range(line.from)
+          )
         }
       }
     },

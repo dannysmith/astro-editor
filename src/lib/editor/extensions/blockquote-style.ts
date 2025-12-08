@@ -24,7 +24,11 @@ function buildBlockquoteDecorations(state: EditorState): DecorationSet {
         const startLine = state.doc.lineAt(node.from)
         const endLine = state.doc.lineAt(node.to)
 
-        for (let lineNum = startLine.number; lineNum <= endLine.number; lineNum++) {
+        for (
+          let lineNum = startLine.number;
+          lineNum <= endLine.number;
+          lineNum++
+        ) {
           const line = state.doc.line(lineNum)
           decorations.push(
             Decoration.line({
