@@ -116,7 +116,7 @@
     'Roboto', sans-serif;
 
   /* Base Font Weight */
-  --editor-font-weight-normal: 490;
+  --editor-font-weight-normal: 480;
   --editor-font-weight-bold: 700;
 
   /* Base font size - set dynamically from preferences */
@@ -133,7 +133,7 @@
   --editor-font-size: var(--editor-type-scale-tiny);
   --editor-line-height: 1.609; /* 17.7px ÷ 11px */
   --editor-letter-spacing: 0.005em;
-  /* --editor-font-variation-settings: 'spcg' 1; */
+  --editor-font-variation-settings: 'spcg' 1;
   --editor-content-max-width: none;
 }
 
@@ -145,7 +145,7 @@
   .editor-view {
     --editor-font-size: var(--editor-type-scale-small);
     --editor-line-height: 1.742; /* 20.9px ÷ 12px */
-    /* --editor-font-variation-settings: 'spcg' 14; */
+    --editor-font-variation-settings: 'spcg' 14;
   }
 }
 
@@ -154,7 +154,7 @@
   .editor-view {
     --editor-font-size: var(--editor-type-scale-medium);
     --editor-line-height: 1.742; /* 20.9px ÷ 12px */
-    /* --editor-font-variation-settings: 'spcg' 14; */
+    --editor-font-variation-settings: 'spcg' 14;
     --editor-content-max-width: 705px;
   }
 }
@@ -164,7 +164,7 @@
   .editor-view {
     --editor-font-size: var(--editor-type-scale-large);
     --editor-line-height: 1.721; /* 24.1px ÷ 14px */
-    /* --editor-font-variation-settings: 'spcg' 3; */
+    --editor-font-variation-settings: 'spcg' 3;
     --editor-content-max-width: 800px;
   }
 }
@@ -174,7 +174,7 @@
   .editor-view {
     --editor-font-size: var(--editor-type-scale-huge);
     --editor-line-height: 1.7916; /* 43px ÷ 24px */
-    /* --editor-font-variation-settings: 'spcg' 20; */
+    --editor-font-variation-settings: 'spcg' 20;
     --editor-content-max-width: 980px;
   }
 }

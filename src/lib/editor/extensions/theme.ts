@@ -6,13 +6,6 @@ import { EditorView } from '@codemirror/view'
 export const createEditorTheme = () => {
   return EditorView.theme({
     '&': {
-      fontSize: 'var(--editor-font-size)',
-      fontFamily: 'var(--editor-font-family)',
-      fontWeight: 'var(--editor-font-weight-normal)',
-      fontVariationSettings: 'var(--editor-font-variation-settings)',
-      letterSpacing: 'var(--editor-letter-spacing)',
-      WebkitFontSmoothing: 'antialiased',
-      fontSmoothing: 'antialiased',
       backgroundColor: 'var(--editor-color-background)',
       color: 'var(--editor-color-text)',
       containerType: 'inline-size',
@@ -24,6 +17,13 @@ export const createEditorTheme = () => {
       outline: 'none',
     },
     '.cm-content': {
+      fontSize: 'var(--editor-font-size)',
+      fontFamily: 'var(--editor-font-family)',
+      fontWeight: 'var(--editor-font-weight-normal)',
+      fontVariationSettings: 'var(--editor-font-variation-settings)',
+      letterSpacing: 'var(--editor-letter-spacing)',
+      WebkitFontSmoothing: 'antialiased',
+      fontSmoothing: 'antialiased',
       lineHeight: 'var(--editor-line-height)',
       minHeight: 'calc(100vh - 44px)', // Subtract titlebar (44px)
       maxWidth: 'var(--editor-content-max-width)',
