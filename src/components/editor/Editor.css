@@ -201,3 +201,10 @@
     } /* ###### + space */
   }
 }
+
+/* Blockquote Styling */
+.cm-line.cm-blockquote {
+  color: var(--editor-color-mdtag);
+  font-style: italic;
+  font-family: var(--editor-font-family-italic);
+}

@@ -113,12 +113,7 @@ export const comprehensiveHighlightStyle = HighlightStyle.define([
   { tag: markdownTags.listMark, color: 'var(--editor-color-mdtag)' },
   { tag: markdownTags.listItem },
 
-  // Blockquotes
-  {
-    tag: markdownTags.blockquote,
-    fontStyle: 'italic',
-    fontFamily: 'var(--editor-font-family-italic)',
-  },
+  // Blockquotes - text styling handled by CSS via blockquote-style.ts extension
   { tag: markdownTags.blockquoteMark, color: 'var(--editor-color-mdtag)' },
 
   // Horizontal Rules
