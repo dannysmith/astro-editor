@@ -62,7 +62,7 @@ describe('useEditorSetup', () => {
       formatHeading: vi.fn(),
       save: vi.fn(),
       toggleFocusMode: vi.fn(),
-      splitSelectionByLines: vi.fn(),
+      addCursorsToLineEnds: vi.fn(),
     } as EditorCommandRegistry
 
     mockCreateExtensions.mockReturnValue([])

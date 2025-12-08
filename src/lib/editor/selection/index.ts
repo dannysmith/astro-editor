@@ -1,1 +1,1 @@
-export { splitSelectionByLines } from './splitSelectionByLines'
+export { addCursorsToLineEnds } from './addCursorsToLineEnds'

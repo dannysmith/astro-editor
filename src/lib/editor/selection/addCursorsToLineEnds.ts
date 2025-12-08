@@ -2,10 +2,11 @@ import { EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 
 /**
- * Split the current selection into multiple cursors, one at the end of each line.
+ * Add cursors to the end of each line within the current selection.
+ * Mirrors VS Code's "Add Cursors to Line Ends" command.
  * Empty lines within the selection are included.
  */
-export const splitSelectionByLines = (view: EditorView): boolean => {
+export const addCursorsToLineEnds = (view: EditorView): boolean => {
   const { state } = view
   const { from, to } = state.selection.main
 
@@ -23,7 +24,7 @@ export const splitSelectionByLines = (view: EditorView): boolean => {
     endLine = state.doc.line(endLine.number - 1)
   }
 
-  // If selection is on a single line, nothing to split
+  // If selection is on a single line, nothing to add cursors to
   if (startLine.number === endLine.number) return false
 
   const cursors: number[] = []
