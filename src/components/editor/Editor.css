@@ -99,6 +99,10 @@
   --editor-color-highlight-background: rgba(68, 59, 15, 1);
   --editor-color-highlight-underline: rgba(214, 176, 0, 1);
   --editor-color-highlight-text: rgba(220, 206, 157, 1);
+
+  /* Typography - dark mode override */
+  --editor-font-weight-normal: 480;
+  --editor-letter-spacing: 0.005em;
 }
 
 /* Typography Variables */
@@ -112,7 +116,7 @@
     'Roboto', sans-serif;
 
   /* Base Font Weight */
-  --editor-font-weight-normal: 480;
+  --editor-font-weight-normal: 490;
   --editor-font-weight-bold: 700;
 
   /* Base font size - set dynamically from preferences */
@@ -128,7 +132,7 @@
   /* Responsive Typography - Tiny Width (default) */
   --editor-font-size: var(--editor-type-scale-tiny);
   --editor-line-height: 1.609; /* 17.7px ÷ 11px */
-  --editor-letter-spacing: 0.005em;
+  --editor-letter-spacing: 0;
   --editor-font-variation-settings: 'spcg' 1;
   --editor-content-max-width: 60ch;
 }
