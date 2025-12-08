@@ -72,5 +72,23 @@ export const createEditorTheme = () => {
       backgroundColor: 'var(--editor-color-background)',
       border: '1px solid rgba(0, 0, 0, 0.1)',
     },
+    // Fenced code block background
+    // Uses semi-transparent background to allow selection layer to show through.
+    // The selection layer is positioned behind text content, so opaque backgrounds
+    // would completely hide the selection. Transparency maintains visual hierarchy:
+    // selection layer (bottom) → line background (middle) → text (top)
+    '.cm-codeblock-line': {
+      backgroundColor: 'var(--editor-color-codeblock-background)',
+    },
+    // Rounded corners for first/last lines of code blocks
+    '.cm-codeblock-first': {
+      borderRadius: '2px 2px 0 0',
+    },
+    '.cm-codeblock-last': {
+      borderRadius: '0 0 2px 2px',
+    },
+    '.cm-codeblock-only': {
+      borderRadius: '2px',
+    },
   })
 }

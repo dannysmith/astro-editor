@@ -74,7 +74,7 @@
   --editor-color-pink: rgba(177, 79, 159, 1);
   --editor-color-blue: rgba(53, 118, 182, 1);
   --editor-color-green: rgba(66, 131, 44, 1);
-  --editor-color-codeblock-background: rgba(238, 238, 238, 1);
+  --editor-color-codeblock-background: rgba(238, 238, 238, 0.5);
   --editor-color-selectedtext-background: rgba(185, 234, 250, 1);
   --editor-color-heading: #191919; /* Default to text color, overridden by JS */
 
@@ -95,7 +95,7 @@
   --editor-color-pink: rgba(186, 142, 177, 1);
   --editor-color-blue: rgba(124, 159, 192, 1);
   --editor-color-green: rgba(131, 165, 115, 1);
-  --editor-color-codeblock-background: rgba(37, 37, 37, 1);
+  --editor-color-codeblock-background: rgba(37, 37, 37, 0.5);
   --editor-color-selectedtext-background: rgba(20, 68, 84, 1);
   --editor-color-heading: #cccccc; /* Default to text color, overridden by JS */
 
