@@ -15,6 +15,7 @@ import {
 import { Prec } from '@codemirror/state'
 import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
+import { splitSelectionByLines } from '../selection'
 import { globalCommandRegistry } from '../commands'
 
 /**
@@ -77,6 +78,11 @@ export const createMarkdownKeymap = (
           globalCommandRegistry.execute('toggleFocusMode')
           return true
         },
+      },
+      // Split selection by lines (multi-cursor at line ends)
+      {
+        key: 'Mod-Shift-l',
+        run: view => splitSelectionByLines(view),
       },
     ])
   )

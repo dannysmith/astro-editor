@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view'
 import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
+import { splitSelectionByLines } from '../selection'
 import { HeadingLevel } from '../markdown/types'
 import { EditorCommand, EditorCommandRegistry } from './types'
 import { useUIStore } from '../../../store/uiStore'
@@ -55,6 +56,13 @@ export const createFocusModeCommand = (): EditorCommand => {
 }
 
 /**
+ * Create a split selection by lines command
+ */
+export const createSplitSelectionByLinesCommand = (): EditorCommand => {
+  return (view: EditorView) => splitSelectionByLines(view)
+}
+
+/**
  * Create a complete editor command registry
  */
 export const createEditorCommandRegistry = (
@@ -67,5 +75,6 @@ export const createEditorCommandRegistry = (
     formatHeading: (level: HeadingLevel) => createHeadingCommand(level),
     save: createSaveCommand(onSave),
     toggleFocusMode: createFocusModeCommand(),
+    splitSelectionByLines: createSplitSelectionByLinesCommand(),
   }
 }

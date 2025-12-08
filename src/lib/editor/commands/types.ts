@@ -16,6 +16,7 @@ export interface EditorCommandRegistry {
   formatHeading: (level: HeadingLevel) => EditorCommand
   save: EditorCommand
   toggleFocusMode: EditorCommand
+  splitSelectionByLines: EditorCommand
 }
 
 /**

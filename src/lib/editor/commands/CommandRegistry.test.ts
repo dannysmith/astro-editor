@@ -32,6 +32,7 @@ describe('CommandRegistry', () => {
         return true
       }),
       toggleFocusMode: vi.fn(() => true),
+      splitSelectionByLines: vi.fn(() => true),
     }
   })
 
