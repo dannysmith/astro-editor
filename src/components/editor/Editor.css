@@ -38,10 +38,6 @@
   transition: opacity 0.2s ease-in-out;
 }
 
-.cm-editor.focus-mode-enabled {
-  /* Could add any global focus mode styling here */
-}
-
 /* URL Alt+Click Styling */
 .alt-pressed .cm-content {
   cursor: default !important;
