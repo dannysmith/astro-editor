@@ -1,3 +1,4 @@
+use crate::utils::serialize_path;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::PathBuf;
@@ -6,6 +7,7 @@ use std::path::PathBuf;
 pub struct Collection {
     pub name: String,
     #[specta(type = String)]
+    #[serde(serialize_with = "serialize_path")]
     pub path: PathBuf,
 
     // Internal use only - for schema merging in Rust

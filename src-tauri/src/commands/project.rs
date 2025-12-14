@@ -42,8 +42,14 @@ fn send_toast_notification(
 /// Check if a directory path is in the blocked/dangerous list
 fn is_blocked_directory(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
+    // Normalize path for consistent comparison (handle both / and \ separators)
+    let normalized_path = path_str.replace('\\', "/");
+    // Lowercase version for case-insensitive Windows path comparison
+    #[allow(unused_variables)]
+    let normalized_lower = normalized_path.to_lowercase();
 
-    // List of blocked directory patterns (matching our Tauri capabilities deny list)
+    // Unix blocked directory patterns (matching our Tauri capabilities deny list)
+    #[cfg(not(target_os = "windows"))]
     let blocked_patterns = [
         "/System/",
         "/usr/",
@@ -52,21 +58,44 @@ fn is_blocked_directory(path: &Path) -> bool {
         "/sbin/",
         "/Library/Frameworks/",
         "/Library/Extensions/",
-        "/Library/Keychains/", // Should be ~/Library/Keychains/ but we'll catch both
+        "/Library/Keychains/",
         "/.ssh/",
         "/.aws/",
         "/.docker/",
     ];
 
+    // Windows blocked directory patterns
+    #[cfg(target_os = "windows")]
+    let blocked_patterns = [
+        "c:/windows",
+        "c:/program files",
+        "c:/program files (x86)",
+        "c:/programdata",
+        "c:/users/default",
+        "c:/users/public",
+        "c:/recovery",
+        "c:/$recycle.bin",
+    ];
+
+    #[cfg(not(target_os = "windows"))]
     for pattern in &blocked_patterns {
-        if path_str.starts_with(pattern) {
+        if normalized_path.starts_with(pattern) {
+            return true;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    for pattern in &blocked_patterns {
+        if normalized_lower.starts_with(pattern) {
             return true;
         }
     }
 
     // Also check for home directory patterns
     if let Some(home) = dirs::home_dir() {
-        let home_str = home.to_string_lossy();
+        let home_str = home.to_string_lossy().replace('\\', "/");
+
+        #[cfg(not(target_os = "windows"))]
         let blocked_home_patterns = [
             format!("{home_str}/Library/Keychains/"),
             format!("{home_str}/.ssh/"),
@@ -74,8 +103,23 @@ fn is_blocked_directory(path: &Path) -> bool {
             format!("{home_str}/.docker/"),
         ];
 
+        #[cfg(target_os = "windows")]
+        let blocked_home_patterns = [
+            format!("{}/.ssh/", home_str.to_lowercase()),
+            format!("{}/.aws/", home_str.to_lowercase()),
+            format!("{}/.docker/", home_str.to_lowercase()),
+            format!("{}/appdata/local/microsoft", home_str.to_lowercase()),
+            format!("{}/appdata/roaming/microsoft", home_str.to_lowercase()),
+        ];
+
         for pattern in &blocked_home_patterns {
-            if path_str.starts_with(pattern) {
+            #[cfg(not(target_os = "windows"))]
+            if normalized_path.starts_with(pattern) {
+                return true;
+            }
+
+            #[cfg(target_os = "windows")]
+            if normalized_lower.starts_with(pattern) {
                 return true;
             }
         }
@@ -661,4 +705,89 @@ pub async fn count_collection_files_recursive(collection_path: String) -> Result
     }
 
     count_files_recursive(&path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_is_blocked_directory_unix_system_paths() {
+        // System paths should be blocked
+        assert!(is_blocked_directory(&PathBuf::from("/System/Library")));
+        assert!(is_blocked_directory(&PathBuf::from("/usr/bin")));
+        assert!(is_blocked_directory(&PathBuf::from("/etc/passwd")));
+        assert!(is_blocked_directory(&PathBuf::from("/bin/bash")));
+        assert!(is_blocked_directory(&PathBuf::from("/sbin/mount")));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_is_blocked_directory_unix_library_paths() {
+        assert!(is_blocked_directory(&PathBuf::from(
+            "/Library/Frameworks/Python.framework"
+        )));
+        assert!(is_blocked_directory(&PathBuf::from(
+            "/Library/Extensions/SomeKext"
+        )));
+        assert!(is_blocked_directory(&PathBuf::from(
+            "/Library/Keychains/System.keychain"
+        )));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_is_blocked_directory_unix_sensitive_dotfiles() {
+        assert!(is_blocked_directory(&PathBuf::from("/.ssh/id_rsa")));
+        assert!(is_blocked_directory(&PathBuf::from("/.aws/credentials")));
+        assert!(is_blocked_directory(&PathBuf::from("/.docker/config.json")));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_is_blocked_directory_unix_allowed_paths() {
+        // User directories should be allowed
+        assert!(!is_blocked_directory(&PathBuf::from(
+            "/Users/danny/projects"
+        )));
+        assert!(!is_blocked_directory(&PathBuf::from(
+            "/Users/danny/Desktop/myproject"
+        )));
+        assert!(!is_blocked_directory(&PathBuf::from(
+            "/home/user/development"
+        )));
+        assert!(!is_blocked_directory(&PathBuf::from("/tmp/astro-project")));
+    }
+
+    #[test]
+    fn test_is_blocked_directory_normalized_backslashes() {
+        // Paths with backslashes should be normalized and still blocked
+        // This simulates a path that might come from Windows-formatted input
+        #[cfg(not(target_os = "windows"))]
+        {
+            // The function normalizes backslashes to forward slashes
+            // So /System\Library becomes /System/Library which is blocked
+            let path_with_backslash = PathBuf::from("/System\\Library");
+            assert!(
+                is_blocked_directory(&path_with_backslash),
+                "Normalized path /System/Library should be blocked"
+            );
+
+            // A safe path with backslash should still be safe after normalization
+            let safe_path_with_backslash = PathBuf::from("/Users\\danny\\projects");
+            assert!(
+                !is_blocked_directory(&safe_path_with_backslash),
+                "Normalized user path should not be blocked"
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_project_path_basic() {
+        // Test that basic paths work
+        let path = PathBuf::from("/Users/danny/projects/astro-site");
+        assert!(!is_blocked_directory(&path));
+    }
 }

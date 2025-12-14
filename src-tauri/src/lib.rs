@@ -4,6 +4,7 @@ mod models;
 mod parser;
 mod schema_merger;
 mod telemetry;
+mod utils;
 
 use std::collections::HashMap;
 use std::sync::Mutex;

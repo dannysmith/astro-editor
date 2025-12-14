@@ -131,10 +131,12 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
                     if let Some(extension) = path.extension() {
                         if matches!(extension.to_str(), Some("md") | Some("mdx")) {
                             // Emit event to frontend
+                            // Normalize path to forward slashes for cross-platform consistency
+                            let normalized_path = path_str.replace('\\', "/");
                             if let Err(e) = app.emit(
                                 "file-changed",
                                 FileChangeEvent {
-                                    path: path_str.to_string(),
+                                    path: normalized_path,
                                     kind: format!("{:?}", event.kind),
                                 },
                             ) {

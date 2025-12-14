@@ -31,6 +31,7 @@ This is **Part A** of the cross-platform work - everything that can be done on m
 - Frontend has 15+ instances of hardcoded `/` path manipulation
 
 **Existing Normalization (extend this pattern):**
+
 - `FileEntry.id` in `models/file_entry.rs` already uses `replace('\\', "/")` for ID generation
 - `DirectoryInfo.relative_path` in `models/directory_info.rs` already normalizes to forward slashes
 - The pattern exists - Phase 1 centralizes and applies it consistently
@@ -90,7 +91,7 @@ pub fn normalize_path_for_serialization(path: &Path) -> String {
 1. **Refactor IDE path detection structure**
    - [ ] Create platform-specific sections using `#[cfg(target_os = "...")]`
    - [ ] Keep macOS paths working as-is
-   - [ ] Add placeholder structure for Windows/Linux (actual paths added in Parts B/C)
+   - [ ] Add placeholder structure for Windows/Linux (add appropriate paths now, can be refined later in Parts B/C)
 
 2. **Fix path validation for Windows**
    - [ ] Update `validate_file_path()` to accept Windows paths (`C:\`, `D:\`, etc.)
@@ -156,10 +157,12 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 **Goal:** Create reusable platform detection for React components and establish patterns.
 
 **Prerequisites:**
+
 ```bash
 pnpm add @tauri-apps/plugin-os
 cargo add tauri-plugin-os  # in src-tauri
 ```
+
 Then add `tauri_plugin_os` to the Tauri plugin initialization in `lib.rs`.
 
 **Tasks:**
@@ -234,6 +237,7 @@ const strings = {
 **Note on `tauri-controls`:** This package provides ready-made components but was last updated March 2024. We'll build a custom implementation using official Tauri APIs. Reference `tauri-controls` (MIT licensed) for Windows control styling if needed.
 
 **Windows CSS Requirement:** For drag regions to work properly with touch/pen input:
+
 ```css
 *[data-tauri-drag-region] {
   app-region: drag;
@@ -316,6 +320,7 @@ const strings = {
 **Goal:** Set up proper conditional compilation in Rust and Tauri config for platform differences.
 
 **Current State:** The main `tauri.conf.json` has macOS-specific settings that need to move:
+
 - `decorations: false` → move to `tauri.macos.conf.json` and `tauri.windows.conf.json`
 - `transparent: true` → move to `tauri.macos.conf.json` only
 - `macOSPrivateApi: true` → move to `tauri.macos.conf.json` only (or use `titleBarStyle: "transparent"` as modern alternative)
