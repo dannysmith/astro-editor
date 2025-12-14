@@ -1,6 +1,7 @@
 use tauri_specta::{collect_commands, Builder};
 
-/// Export TypeScript bindings to the frontend
+/// Export TypeScript bindings to the frontend (debug mode only)
+#[cfg(debug_assertions)]
 pub fn export_bindings() {
     let builder = generate_bindings();
     builder

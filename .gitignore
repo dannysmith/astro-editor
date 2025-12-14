@@ -28,6 +28,9 @@ dist-ssr
 # MCPs
 .playwright-mcp/
 
+# Serenabot
+.serena/
+
 # Test data (temporary project for manual testing)
 temp-dummy-astro-project/
 
