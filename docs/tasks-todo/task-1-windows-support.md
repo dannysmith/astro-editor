@@ -30,6 +30,11 @@ This is **Part A** of the cross-platform work - everything that can be done on m
 - However, serialization sends platform-native separators
 - Frontend has 15+ instances of hardcoded `/` path manipulation
 
+**Existing Normalization (extend this pattern):**
+- `FileEntry.id` in `models/file_entry.rs` already uses `replace('\\', "/")` for ID generation
+- `DirectoryInfo.relative_path` in `models/directory_info.rs` already normalizes to forward slashes
+- The pattern exists - Phase 1 centralizes and applies it consistently
+
 **Tasks:**
 
 1. **Create path utility module**
@@ -38,9 +43,9 @@ This is **Part A** of the cross-platform work - everything that can be done on m
    - [ ] Add comprehensive tests for Windows-style paths (even on macOS)
 
 2. **Apply normalization to all serialized types**
-   - [ ] Update `Collection` serialization in `src-tauri/src/types.rs`
-   - [ ] Update `FileEntry` serialization
-   - [ ] Update `DirectoryInfo` serialization
+   - [ ] Update `Collection` serialization in `src-tauri/src/models/collection.rs`
+   - [ ] Update `FileEntry` serialization in `src-tauri/src/models/file_entry.rs`
+   - [ ] Update `DirectoryInfo` serialization in `src-tauri/src/models/directory_info.rs`
    - [ ] Audit all `#[derive(Serialize)]` types that contain paths
 
 3. **Fix path validation for Windows**
@@ -313,9 +318,11 @@ const strings = {
 **Current State:** The main `tauri.conf.json` has macOS-specific settings that need to move:
 - `decorations: false` → move to `tauri.macos.conf.json` and `tauri.windows.conf.json`
 - `transparent: true` → move to `tauri.macos.conf.json` only
-- `macOSPrivateApi: true` → move to `tauri.macos.conf.json` only
+- `macOSPrivateApi: true` → move to `tauri.macos.conf.json` only (or use `titleBarStyle: "transparent"` as modern alternative)
 
 Base config should have safe cross-platform defaults (`decorations: true`, `transparent: false`).
+
+**Note:** Tauri v2 also supports `titleBarStyle: "transparent"` as an alternative to `macOSPrivateApi` for transparent title bars on macOS. Either approach works.
 
 **Tasks:**
 
@@ -328,6 +335,7 @@ Base config should have safe cross-platform defaults (`decorations: true`, `tran
    - [ ] Set safe defaults in base `tauri.conf.json` (`decorations: true`, `transparent: false`, remove `macOSPrivateApi`)
    - [ ] Create `tauri.windows.conf.json` with `decorations: false`
    - [ ] Create `tauri.linux.conf.json` with `decorations: true` (explicit, matches default)
+   - [ ] Add window dragging permissions to capability file (`core:window:allow-start-dragging`)
    - [ ] Verify config merging works correctly
 
 3. **Handle macos-private-api feature**
@@ -480,7 +488,7 @@ steps:
 
 - `src-tauri/src/commands/ide.rs` - IDE detection and path validation
 - `src-tauri/src/commands/preferences.rs` - Already has platform-specific code (good reference)
-- `src-tauri/src/types.rs` - Path serialization
+- `src-tauri/src/models/` - Path serialization (collection.rs, file_entry.rs, directory_info.rs)
 - `src-tauri/Cargo.toml` - Conditional dependencies
 
 ### UI Files
