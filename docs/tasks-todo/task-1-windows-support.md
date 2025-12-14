@@ -260,14 +260,14 @@ const strings = {
    - [x] Wire up minimize/maximize/close buttons
 
 3. **Create platform wrapper**
-   - [ ] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
-   - [ ] Render macOS version for 'macos'
-   - [ ] Render Windows version for 'windows'
-   - [ ] Render Windows version for 'linux' initially (revisit in Phase 5)
+   - [x] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
+   - [x] Render macOS version for 'macos'
+   - [x] Render Windows version for 'windows'
+   - [x] Render Windows version for 'linux' initially (revisit in Phase 5)
 
 4. **Add development toggle for testing**
-   - [ ] Add dev-only prop to force platform for visual testing
-   - [ ] Test Windows layout renders correctly (even on macOS)
+   - [x] Add dev-only prop to force platform for visual testing
+   - [x] Test Windows layout renders correctly (even on macOS)
 
 **Acceptance Criteria:**
 

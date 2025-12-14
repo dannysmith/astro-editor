@@ -4,7 +4,7 @@ import { UnifiedTitleBarMacOS } from './UnifiedTitleBarMacOS'
 import { UnifiedTitleBarWindows } from './UnifiedTitleBarWindows'
 
 // TEMPORARY: Set to true to preview Windows title bar on macOS during development
-const FORCE_WINDOWS_TITLEBAR = true
+const FORCE_WINDOWS_TITLEBAR = false
 
 /**
  * Platform-aware unified title bar component.
@@ -33,8 +33,9 @@ export const UnifiedTitleBar: React.FC = () => {
     case 'windows':
       return <UnifiedTitleBarWindows />
     case 'linux':
-      // TODO: Create UnifiedTitleBarLinux in Phase 5
-      return <UnifiedTitleBarMacOS />
+      // TODO: Create UnifiedTitleBarLinux in Phase 5 (uses native decorations + toolbar only)
+      // For now, use Windows version (custom title bar with controls on right)
+      return <UnifiedTitleBarWindows />
     default:
       return <UnifiedTitleBarMacOS />
   }
