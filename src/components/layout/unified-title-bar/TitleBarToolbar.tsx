@@ -80,13 +80,11 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   return (
     <div
       className={cn(
-        'w-full flex items-center justify-between px-3 py-1.5 select-none border-b',
+        'w-full flex items-center justify-between px-3 py-1.5 select-none border-b transition-opacity duration-300 transform-gpu',
         bothPanelsHidden
           ? 'bg-[var(--editor-color-background)] border-transparent'
           : 'bg-gray-50 dark:bg-black border-border',
-        distractionFreeBarsHidden &&
-          bothPanelsHidden &&
-          'opacity-0 transition-opacity duration-300'
+        distractionFreeBarsHidden && bothPanelsHidden && 'opacity-0'
       )}
       data-tauri-drag-region
       onMouseEnter={showBars}

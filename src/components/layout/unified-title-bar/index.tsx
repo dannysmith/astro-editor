@@ -1,16 +1,25 @@
 import React from 'react'
 import { usePlatform } from '../../../hooks/usePlatform'
 import { UnifiedTitleBarMacOS } from './UnifiedTitleBarMacOS'
+import { UnifiedTitleBarWindows } from './UnifiedTitleBarWindows'
+
+// TEMPORARY: Set to true to preview Windows title bar on macOS during development
+const FORCE_WINDOWS_TITLEBAR = true
 
 /**
  * Platform-aware unified title bar component.
  * Renders the appropriate title bar based on the current platform:
  * - macOS: Traffic lights on left, toolbar items
- * - Windows: Toolbar items, window controls on right (TODO)
+ * - Windows: Toolbar items, window controls on right
  * - Linux: Native decorations, toolbar only (TODO)
  */
 export const UnifiedTitleBar: React.FC = () => {
   const platform = usePlatform()
+
+  // TEMPORARY: Force Windows title bar for development/testing
+  if (FORCE_WINDOWS_TITLEBAR) {
+    return <UnifiedTitleBarWindows />
+  }
 
   // While platform is loading, render macOS version as default
   // (prevents layout shift on initial render)
@@ -22,8 +31,7 @@ export const UnifiedTitleBar: React.FC = () => {
     case 'macos':
       return <UnifiedTitleBarMacOS />
     case 'windows':
-      // TODO: Create UnifiedTitleBarWindows in Phase 4 step 2
-      return <UnifiedTitleBarMacOS />
+      return <UnifiedTitleBarWindows />
     case 'linux':
       // TODO: Create UnifiedTitleBarLinux in Phase 5
       return <UnifiedTitleBarMacOS />
@@ -34,5 +42,7 @@ export const UnifiedTitleBar: React.FC = () => {
 
 // Re-export for direct access if needed
 export { UnifiedTitleBarMacOS } from './UnifiedTitleBarMacOS'
+export { UnifiedTitleBarWindows } from './UnifiedTitleBarWindows'
 export { TitleBarToolbar } from './TitleBarToolbar'
 export { TrafficLights } from './TrafficLights'
+export { WindowsControls } from './WindowsControls'

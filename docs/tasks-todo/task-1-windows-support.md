@@ -247,17 +247,17 @@ const strings = {
 **Tasks:**
 
 1. **Refactor existing title bar**
-   - [ ] Rename `UnifiedTitleBar.tsx` to `UnifiedTitleBarMacOS.tsx`
-   - [ ] Extract shared logic (save button, toolbar items) into shared components
-   - [ ] Ensure macOS version still works identically
+   - [x] Rename `UnifiedTitleBar.tsx` to `UnifiedTitleBarMacOS.tsx`
+   - [x] Extract shared logic (save button, toolbar items) into shared components
+   - [x] Ensure macOS version still works identically
 
 2. **Create Windows title bar**
-   - [ ] Create `UnifiedTitleBarWindows.tsx`
-   - [ ] Position window controls on the right
-   - [ ] Use Windows-style icons (not traffic lights)
-   - [ ] Apply `data-tauri-drag-region` for dragging
-   - [ ] Add Windows-specific CSS (`app-region: drag`)
-   - [ ] Wire up minimize/maximize/close buttons
+   - [x] Create `UnifiedTitleBarWindows.tsx`
+   - [x] Position window controls on the right
+   - [x] Use Windows-style icons (not traffic lights)
+   - [x] Apply `data-tauri-drag-region` for dragging
+   - [x] Add Windows-specific CSS (`app-region: drag`)
+   - [x] Wire up minimize/maximize/close buttons
 
 3. **Create platform wrapper**
    - [ ] Create new `UnifiedTitleBar.tsx` that uses `usePlatform()`
@@ -500,6 +500,14 @@ steps:
 
 - `src/components/layout/UnifiedTitleBar.tsx` - Title bar refactoring
 - `src/App.css` - Traffic light styling (macOS only)
+
+---
+
+## Documentation To-Do
+
+When rewriting docs after this task is complete, document the following:
+
+- **`transform-gpu` fix for opacity transitions**: The Windows title bar's opacity fade (for distraction-free mode) didn't work until `transform-gpu` was added to the `TitleBarToolbar` container. This forces the element onto a GPU compositing layer, which fixes a WebKit rendering quirk where child elements weren't properly participating in the parent's opacity transition. Without this, elements would stay visible until window blur, then instantly disappear (no transition).
 
 ---
 

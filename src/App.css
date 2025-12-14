@@ -373,6 +373,17 @@ body {
   }
 }
 
+/* Windows Title Bar - drag region support for touch/pen input */
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+
+/* Ensure buttons within drag regions are clickable */
+*[data-tauri-drag-region] button,
+*[data-tauri-drag-region] [role='button'] {
+  app-region: no-drag;
+}
+
 /* Allow text selection in specific areas */
 input,
 textarea,
