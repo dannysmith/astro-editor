@@ -51,6 +51,7 @@ indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
 reqwest = { version = "0.12", features = ["json"] }
 uuid = { version = "1.0", features = ["v4"] }
+tauri-plugin-os = "2.3.2"
 
 [dev-dependencies]
 tempfile = "3.8"

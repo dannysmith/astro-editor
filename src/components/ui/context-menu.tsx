@@ -8,6 +8,8 @@ import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
 import { openInIde } from '../../lib/ide'
 import { getTitle } from '../layout/FileItem'
+import { getPlatform } from '@/hooks/usePlatform'
+import { getPlatformString } from '@/lib/platform-strings'
 
 interface ContextMenuOptions {
   file: FileEntry
@@ -73,9 +75,10 @@ export class FileContextMenu {
         currentProjectSettings?.frontmatterMappings?.title || 'title'
 
       // Create menu items
+      const currentPlatform = getPlatform()
       const revealItem = await MenuItem.new({
         id: 'reveal-in-finder',
-        text: 'Reveal in Finder',
+        text: getPlatformString('revealInFileManager', currentPlatform),
         action: () => {
           void (async () => {
             try {
@@ -87,7 +90,7 @@ export class FileContextMenu {
               await openPath(directory)
             } catch (error) {
               // eslint-disable-next-line no-console
-              console.error('Failed to reveal in Finder:', error)
+              console.error('Failed to reveal in file manager:', error)
             }
           })()
         },

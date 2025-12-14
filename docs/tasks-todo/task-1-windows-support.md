@@ -168,18 +168,18 @@ Then add `tauri_plugin_os` to the Tauri plugin initialization in `lib.rs`.
 **Tasks:**
 
 1. **Create platform detection hook**
-   - [ ] Install `@tauri-apps/plugin-os` (npm + cargo)
-   - [ ] Create `src/hooks/usePlatform.ts`
-   - [ ] Use `@tauri-apps/plugin-os` for detection
-   - [ ] Export platform type and detection hook
+   - [x] Install `@tauri-apps/plugin-os` (npm + cargo)
+   - [x] Create `src/hooks/usePlatform.ts`
+   - [x] Use `@tauri-apps/plugin-os` for detection
+   - [x] Export platform type and detection hook
 
 2. **Create platform-specific strings utility**
-   - [ ] Create `src/lib/platform-strings.ts`
-   - [ ] Map platform to UI strings (e.g., "Reveal in Finder" vs "Show in Explorer")
-   - [ ] Export utility function
+   - [x] Create `src/lib/platform-strings.ts`
+   - [x] Map platform to UI strings (e.g., "Reveal in Finder" vs "Show in Explorer")
+   - [x] Export utility function
 
 3. **Update context menu**
-   - [ ] Replace hardcoded "Reveal in Finder" with platform-aware string
+   - [x] Replace hardcoded "Reveal in Finder" with platform-aware string
    - [ ] Test on macOS (should still show "Reveal in Finder")
 
 **Code Pattern:**
@@ -219,7 +219,7 @@ const strings = {
 
 - [ ] `usePlatform()` hook works on macOS (returns 'macos')
 - [ ] Context menu shows "Reveal in Finder" on macOS
-- [ ] Pattern is documented for future use
+- [x] Pattern is documented for future use
 
 ---
 
