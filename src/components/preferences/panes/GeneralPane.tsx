@@ -132,7 +132,14 @@ export const GeneralPane: React.FC = () => {
               </SelectContent>
             </Select>
             <FieldDescription>
-              Choose your preferred IDE for opening files and projects
+              {availableIdes.length === 0 && !ideLoading ? (
+                <span className="text-muted-foreground/80">
+                  No supported IDEs detected. Install VS Code, Cursor, Vim,
+                  Neovim, Emacs, or Sublime Text to enable this feature.
+                </span>
+              ) : (
+                'Choose your preferred IDE for opening files and projects'
+              )}
             </FieldDescription>
           </FieldContent>
         </Field>

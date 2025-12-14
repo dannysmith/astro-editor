@@ -5,7 +5,7 @@
 //! of the underlying platform.
 
 use serde::{self, Serialize, Serializer};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Normalizes a path to use forward slashes for consistent frontend handling.
 /// Windows paths like `C:\Users\foo` become `C:/Users/foo`.
@@ -15,36 +15,23 @@ pub fn normalize_path_for_serialization(path: &Path) -> String {
 
 /// Serialize a PathBuf as a normalized string with forward slashes.
 /// Use with `#[serde(serialize_with = "serialize_path")]`
-pub fn serialize_path<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_path<S>(path: &Path, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     normalize_path_for_serialization(path).serialize(serializer)
 }
 
-/// Serialize an Option<PathBuf> as a normalized string with forward slashes.
-/// Use with `#[serde(serialize_with = "serialize_option_path")]`
-#[allow(dead_code)]
-pub fn serialize_option_path<S>(path: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match path {
-        Some(p) => normalize_path_for_serialization(p).serialize(serializer),
-        None => serializer.serialize_none(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_normalize_unix_path() {
-        let path = PathBuf::from("/Users/danny/projects/test");
+        let path = Path::new("/Users/danny/projects/test");
         assert_eq!(
-            normalize_path_for_serialization(&path),
+            normalize_path_for_serialization(path),
             "/Users/danny/projects/test"
         );
     }
@@ -53,8 +40,8 @@ mod tests {
     fn test_normalize_windows_path() {
         // Test with a string that contains backslashes (simulating Windows path)
         let path_str = r"C:\Users\danny\projects\test";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         // On Unix, PathBuf treats backslashes as part of the filename,
         // but our normalize function still replaces them
@@ -66,17 +53,17 @@ mod tests {
     fn test_normalize_mixed_path() {
         // Path with mixed separators
         let path_str = r"C:\Users/danny\projects/test";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         assert!(!normalized.contains('\\'), "Should not contain backslashes");
     }
 
     #[test]
     fn test_normalize_relative_path() {
-        let path = PathBuf::from("posts/2024/my-post.md");
+        let path = Path::new("posts/2024/my-post.md");
         assert_eq!(
-            normalize_path_for_serialization(&path),
+            normalize_path_for_serialization(path),
             "posts/2024/my-post.md"
         );
     }
@@ -84,22 +71,22 @@ mod tests {
     #[test]
     fn test_normalize_windows_relative_path() {
         let path_str = r"posts\2024\my-post.md";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         assert!(!normalized.contains('\\'), "Should not contain backslashes");
     }
 
     #[test]
     fn test_normalize_empty_path() {
-        let path = PathBuf::from("");
-        assert_eq!(normalize_path_for_serialization(&path), "");
+        let path = Path::new("");
+        assert_eq!(normalize_path_for_serialization(path), "");
     }
 
     #[test]
     fn test_normalize_root_only() {
-        let path = PathBuf::from("/");
-        assert_eq!(normalize_path_for_serialization(&path), "/");
+        let path = Path::new("/");
+        assert_eq!(normalize_path_for_serialization(path), "/");
     }
 
     #[test]
@@ -147,8 +134,8 @@ mod tests {
     fn test_normalize_windows_drive_letter() {
         // Test Windows drive letter paths (simulated)
         let path_str = r"C:\Users\danny\projects\astro-site";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         // Should convert backslashes to forward slashes
         assert!(
@@ -161,8 +148,8 @@ mod tests {
     #[test]
     fn test_normalize_deeply_nested_path() {
         let path_str = r"posts\2024\01\15\my-first-post.md";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         // Count the number of forward slashes - should have 4
         let slash_count = normalized.chars().filter(|&c| c == '/').count();
@@ -176,8 +163,8 @@ mod tests {
     #[test]
     fn test_normalize_path_with_spaces() {
         let path_str = r"C:\Users\Some User\My Documents\project";
-        let path = PathBuf::from(path_str);
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new(path_str);
+        let normalized = normalize_path_for_serialization(path);
 
         assert!(normalized.contains("Some User"), "Should preserve spaces");
         assert!(
@@ -189,8 +176,8 @@ mod tests {
 
     #[test]
     fn test_normalize_preserves_special_characters() {
-        let path = PathBuf::from("posts/hello-world_2024.md");
-        let normalized = normalize_path_for_serialization(&path);
+        let path = Path::new("posts/hello-world_2024.md");
+        let normalized = normalize_path_for_serialization(path);
 
         assert!(normalized.contains('-'), "Should preserve hyphens");
         assert!(normalized.contains('_'), "Should preserve underscores");
