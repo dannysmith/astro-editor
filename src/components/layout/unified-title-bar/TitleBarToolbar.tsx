@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useEditorStore } from '../../store/editorStore'
-import { useProjectStore } from '../../store/projectStore'
-import { useUIStore } from '../../store/uiStore'
-import { useCreateFile } from '../../hooks/useCreateFile'
-import { Button } from '../ui/button'
+import { useEditorStore } from '../../../store/editorStore'
+import { useProjectStore } from '../../../store/projectStore'
+import { useUIStore } from '../../../store/uiStore'
+import { useCreateFile } from '../../../hooks/useCreateFile'
+import { Button } from '../../ui/button'
 import {
   Save,
   PanelRight,
@@ -16,17 +15,30 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn } from '../../../lib/utils'
 
-export const UnifiedTitleBar: React.FC = () => {
+interface TitleBarToolbarProps {
+  /** Content to render at the start of the left section (e.g., traffic lights on macOS) */
+  leftSlot?: React.ReactNode
+  /** Content to render at the end of the right section (e.g., window controls on Windows) */
+  rightSlot?: React.ReactNode
+}
+
+/**
+ * Shared toolbar component for the unified title bar.
+ * Contains sidebar toggles, project name, and action buttons.
+ * Platform-specific window controls are passed via slots.
+ */
+export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
+  leftSlot,
+  rightSlot,
+}) => {
   // Object subscription needs shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
 
   // Primitive subscriptions - selector syntax for consistency
   const saveFile = useEditorStore(state => state.saveFile)
   const isDirty = useEditorStore(state => state.isDirty)
-
-  const [isWindowFocused, setIsWindowFocused] = useState(true)
 
   const projectPath = useProjectStore(state => state.projectPath)
   const selectedCollection = useProjectStore(state => state.selectedCollection)
@@ -63,37 +75,7 @@ export const UnifiedTitleBar: React.FC = () => {
     toggleFocusMode()
   }
 
-  const handleMinimize = async () => {
-    const window = getCurrentWindow()
-    await window.minimize()
-  }
-
-  const handleToggleMaximize = async () => {
-    const window = getCurrentWindow()
-    const isFullscreen = await window.isFullscreen()
-    await window.setFullscreen(!isFullscreen)
-  }
-
-  const handleClose = async () => {
-    const window = getCurrentWindow()
-    await window.hide()
-  }
-
   const bothPanelsHidden = !sidebarVisible && !frontmatterPanelVisible
-
-  // Handle window focus/blur for traffic lights
-  useEffect(() => {
-    const handleFocus = () => setIsWindowFocused(true)
-    const handleBlur = () => setIsWindowFocused(false)
-
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('blur', handleBlur)
-
-    return () => {
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('blur', handleBlur)
-    }
-  }, [])
 
   return (
     <div
@@ -109,36 +91,11 @@ export const UnifiedTitleBar: React.FC = () => {
       data-tauri-drag-region
       onMouseEnter={showBars}
     >
-      {/* Left: Traffic lights + sidebar toggle + project name */}
+      {/* Left: Platform slot + sidebar toggle + project name */}
       <div className="flex items-center gap-2 flex-1" data-tauri-drag-region>
-        {/* Custom traffic lights - no drag region on these */}
-        <div
-          className={cn(
-            'traffic-lights-group mr-3',
-            !isWindowFocused && 'window-unfocused'
-          )}
-        >
-          <button
-            onClick={() => void handleClose()}
-            className="traffic-light traffic-light-close"
-          >
-            <span className="symbol">×</span>
-          </button>
-          <button
-            onClick={() => void handleMinimize()}
-            className="traffic-light traffic-light-minimize"
-          >
-            <span className="symbol">−</span>
-          </button>
-          <button
-            onClick={() => void handleToggleMaximize()}
-            className="traffic-light traffic-light-maximize"
-          >
-            <span className="symbol">⤢</span>
-          </button>
-        </div>
+        {leftSlot}
 
-        {/* Left sidebar toggle - no drag region */}
+        {/* Left sidebar toggle */}
         <Button
           onClick={toggleSidebar}
           variant="ghost"
@@ -153,7 +110,7 @@ export const UnifiedTitleBar: React.FC = () => {
           )}
         </Button>
 
-        {/* Project name - on the left */}
+        {/* Project name */}
         {projectPath ? (
           <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
             {projectPath.split('/').pop() || projectPath}
@@ -165,7 +122,7 @@ export const UnifiedTitleBar: React.FC = () => {
         )}
       </div>
 
-      {/* Right: New file + Focus mode + Save button + Right sidebar toggle */}
+      {/* Right: Action buttons + platform slot */}
       <div className="flex items-center gap-2" data-tauri-drag-region>
         {/* New file button - only show when in a collection */}
         {selectedCollection && (
@@ -198,7 +155,7 @@ export const UnifiedTitleBar: React.FC = () => {
           )}
         </Button>
 
-        {/* Save button - no drag region */}
+        {/* Save button */}
         <Button
           onClick={handleSave}
           variant="ghost"
@@ -210,7 +167,7 @@ export const UnifiedTitleBar: React.FC = () => {
           <Save className="size-4" />
         </Button>
 
-        {/* Right sidebar toggle - no drag region */}
+        {/* Right sidebar toggle */}
         <Button
           onClick={toggleFrontmatterPanel}
           variant="ghost"
@@ -228,6 +185,8 @@ export const UnifiedTitleBar: React.FC = () => {
             <PanelRight className="size-4" />
           )}
         </Button>
+
+        {rightSlot}
       </div>
     </div>
   )
