@@ -296,22 +296,22 @@ const strings = {
 **Tasks:**
 
 1. **Create Linux title bar/toolbar**
-   - [ ] Create `UnifiedTitleBarLinux.tsx`
-   - [ ] Render as toolbar only (no window controls)
-   - [ ] Include same toolbar items as macOS/Windows (save, panels, etc.)
-   - [ ] Adjust styling to work below native decorations
+   - [x] Create `UnifiedTitleBarLinux.tsx`
+   - [x] Render as toolbar only (no window controls)
+   - [x] Include same toolbar items as macOS/Windows (save, panels, etc.)
+   - [x] Adjust styling to work below native decorations
 
 2. **Update platform wrapper**
-   - [ ] Update `UnifiedTitleBar.tsx` to use Linux version for 'linux'
+   - [x] Update `UnifiedTitleBar.tsx` to use Linux version for 'linux'
 
 3. **Document Tauri config requirements**
-   - [ ] Note that Linux builds need different window settings
+   - [x] Note that Linux builds need different window settings
 
 **Acceptance Criteria:**
 
-- [ ] Linux toolbar component created
-- [ ] No window control buttons in Linux version
-- [ ] Documented that Linux uses native decorations
+- [x] Linux toolbar component created
+- [x] No window control buttons in Linux version
+- [x] Documented that Linux uses native decorations
 
 ---
 
