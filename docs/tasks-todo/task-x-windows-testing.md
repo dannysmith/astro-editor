@@ -4,7 +4,7 @@
 
 ## Overview
 
-This task covers Windows-specific testing and refinement that **requires a Windows environment**. It should be done after [Part A (Cross-Platform Preparation)](task-1-windows-support.md) is complete and merged to main.
+This task covers Windows-specific testing and refinement that **requires a Windows environment**. It should be done after Part A (Cross-Platform Preparation) is complete and merged to main.
 
 **Prerequisites:**
 - Part A completed and merged
@@ -31,31 +31,14 @@ Options include:
 
 ## Tasks
 
-### 1. IDE Path Detection
+### 1. IDE Path Detection Verification
 
-Fill in the Windows IDE paths placeholder created in Part A.
+IDE paths for Windows were added in Part A. Verify they work correctly.
 
 **Tasks:**
-- [ ] Research common Windows IDE installation paths
-- [ ] Add paths to `fix_path_env()` in `ide.rs`:
-  - VS Code: `C:\Program Files\Microsoft VS Code\bin`, `%LOCALAPPDATA%\Programs\Microsoft VS Code\bin`
-  - Cursor: Similar paths
-  - Other IDEs as needed
-- [ ] Test that VS Code and Cursor are detected correctly
-- [ ] Verify PATH separator uses `;` correctly
-
-**Common Windows IDE Paths:**
-```rust
-#[cfg(target_os = "windows")]
-{
-    // Windows uses `;` as PATH separator
-    let windows_paths = [
-        r"C:\Program Files\Microsoft VS Code\bin",
-        r"C:\Program Files (x86)\Microsoft VS Code\bin",
-        // Also check %LOCALAPPDATA%\Programs\...
-    ];
-}
-```
+- [ ] Test that VS Code is detected correctly (system and user installs)
+- [ ] Test that Cursor is detected correctly
+- [ ] Refine paths in `get_augmented_path()` in `ide.rs` if needed
 
 ---
 
@@ -73,9 +56,9 @@ Verify all path operations work correctly with Windows paths.
 
 ---
 
-### 3. Title Bar Refinement
+### 3. Title Bar Verification
 
-Verify and refine the Windows title bar component.
+Verify the Windows title bar component works correctly.
 
 **Tasks:**
 - [ ] Verify window controls (minimize, maximize, close) work correctly
@@ -83,7 +66,7 @@ Verify and refine the Windows title bar component.
 - [ ] Verify touch/pen input works with `app-region: drag` CSS
 - [ ] Test maximize/restore behavior
 - [ ] Adjust styling as needed for Windows aesthetics
-- [ ] Verify focus mode correctly hides the title bar
+- [ ] Verify focus mode correctly hides/fades the title bar
 
 ---
 
@@ -114,14 +97,13 @@ Run through complete application testing on Windows.
 **Editor:**
 - [ ] CodeMirror renders correctly
 - [ ] Syntax highlighting works
-- [ ] Markdown preview (if applicable)
 - [ ] Drag and drop files into editor
 
 **Window Management:**
 - [ ] Window resizing works
-- [ ] Minimum size constraints enforced
+- [ ] Minimum size constraints enforced (1000×700)
 - [ ] Panel resizing works
-- [ ] Window state persists after restart
+- [ ] Window opens at correct size (1400×900)
 
 **Installer/Updates:**
 - [ ] MSI installer works correctly
@@ -136,7 +118,6 @@ Run through complete application testing on Windows.
 Document and fix any Windows-specific bugs discovered during testing.
 
 **Known Areas to Watch:**
-- File path handling (backslashes vs forward slashes)
 - Shell command execution differences
 - Font rendering differences
 - Window chrome and shadows
@@ -158,7 +139,7 @@ Document and fix any Windows-specific bugs discovered during testing.
 
 ## Related Tasks
 
-- **Part A:** [Cross-Platform Preparation](task-1-windows-support.md) - Must be completed first
+- **Part A:** Cross-Platform Preparation (completed) - see `tasks-done/task-2025-12-15-windows-support.md`
 - **Part C:** [Linux Testing](task-x-linux-testing.md) - Can be done in parallel
 
 ## References

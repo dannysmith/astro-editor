@@ -4,7 +4,7 @@
 
 ## Overview
 
-This task covers Linux-specific testing and refinement that **requires a Linux environment**. It should be done after [Part A (Cross-Platform Preparation)](task-1-windows-support.md) is complete and merged to main.
+This task covers Linux-specific testing and refinement that **requires a Linux environment**. It should be done after Part A (Cross-Platform Preparation) is complete and merged to main.
 
 **Prerequisites:**
 - Part A completed and merged
@@ -12,21 +12,9 @@ This task covers Linux-specific testing and refinement that **requires a Linux e
 - Linux test environment available
 
 **Scope:**
-- Build-from-source initially; binary distribution only if there's demand
 - AppImage via CI (works across most distros)
 - No DEB/RPM/Flatpak/Snap packages initially
 - Native window decorations (not custom title bar)
-
----
-
-## Distribution Strategy
-
-Given the complexity of Linux packaging and desktop environment variety:
-
-1. Document how to build from source
-2. Produce AppImage via CI (low effort, works everywhere)
-3. Do NOT produce other package formats initially
-4. Add specific formats based on user demand
 
 ---
 
@@ -61,33 +49,13 @@ Verify the toolbar-below-native-decorations approach works.
 
 ---
 
-### 2. IDE Path Detection
+### 2. IDE Path Detection Verification
 
-Fill in the Linux IDE paths placeholder created in Part A.
+IDE paths for Linux were added in Part A. Verify they work correctly.
 
 **Tasks:**
-- [ ] Research common Linux IDE installation paths
-- [ ] Add paths to `fix_path_env()` in `ide.rs`:
-  - System: `/usr/bin/code`, `/usr/bin/cursor`
-  - Snap: `/snap/bin/code`
-  - Flatpak: Check flatpak binary locations
-  - AppImage: Common locations like `~/Applications/`
-- [ ] Test that VS Code is detected correctly
-- [ ] Verify PATH separator uses `:` correctly
-
-**Common Linux IDE Paths:**
-```rust
-#[cfg(target_os = "linux")]
-{
-    // Linux uses `:` as PATH separator
-    let linux_paths = [
-        "/usr/bin",
-        "/usr/local/bin",
-        "/snap/bin",
-        "/home/*/.local/bin",  // User-local installs
-    ];
-}
-```
+- [ ] Test that VS Code is detected correctly (system, snap, flatpak installs)
+- [ ] Refine paths in `get_augmented_path()` in `ide.rs` if needed
 
 ---
 
@@ -122,7 +90,6 @@ Run through complete application testing on Linux.
 
 **UI/UX:**
 - [ ] Dark mode toggle works
-- [ ] Theme respects system preference (if applicable)
 - [ ] Keyboard shortcuts work (Ctrl-based)
 - [ ] Context menus appear correctly
 - [ ] "Show in File Manager" opens correct folder
@@ -136,15 +103,14 @@ Run through complete application testing on Linux.
 
 **Window Management:**
 - [ ] Window resizing works
-- [ ] Minimum size constraints enforced
+- [ ] Minimum size constraints enforced (1000×700)
 - [ ] Panel resizing works
-- [ ] Window state persists after restart
+- [ ] Window opens at correct size (1400×900)
 
 **AppImage:**
 - [ ] AppImage runs without installation
 - [ ] App launches correctly
 - [ ] Auto-updater can check for updates
-- [ ] File associations work (if configured)
 
 ---
 
@@ -175,7 +141,7 @@ Document and fix any Linux-specific bugs discovered during testing.
 
 ## Related Tasks
 
-- **Part A:** [Cross-Platform Preparation](task-1-windows-support.md) - Must be completed first
+- **Part A:** Cross-Platform Preparation (completed) - see `tasks-done/task-2025-12-15-windows-support.md`
 - **Part B:** [Windows Testing](task-x-windows-testing.md) - Can be done in parallel
 
 ## References
