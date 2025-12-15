@@ -1,14 +1,16 @@
 # Logging in Astro Editor
 
-Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integrate with macOS's native logging system.
+Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integrate with each platform's native logging system.
 
 ## Getting Support Logs
 
 **For Support Issues:**
 
+### macOS
+
 **Option 1: Complete Log File (Recommended)**
 1. Open Finder and navigate to: `~/Library/Logs/is.danny.astroeditor/`
-2. Copy the file `Astro Editor.log` 
+2. Copy the file `Astro Editor.log`
 3. Send this file along with a description of your issue
 
 **Option 2: Console.app for Live Monitoring**
@@ -18,6 +20,18 @@ Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integ
 4. Copy the relevant logs and send them to support
 
 **Note:** The complete log file contains all historical logs and is usually more helpful for debugging than individual Console.app entries.
+
+### Windows
+
+1. Open File Explorer and navigate to: `%LOCALAPPDATA%\is.danny.astroeditor\logs\`
+2. Copy the log file(s)
+3. Send along with a description of your issue
+
+### Linux
+
+1. Navigate to: `~/.local/share/is.danny.astroeditor/logs/` (or `$XDG_DATA_HOME/is.danny.astroeditor/logs/` if XDG_DATA_HOME is set)
+2. Copy the log file(s)
+3. Send along with a description of your issue
 
 **Common Search Terms:**
 
@@ -30,6 +44,8 @@ Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integ
 
 ## Viewing Logs
 
+### macOS
+
 **Console.app (Recommended):**
 
 1. Open Console.app (`/Applications/Utilities/Console.app`)
@@ -40,16 +56,42 @@ Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integ
 
 ```bash
 # View complete log file (most helpful)
-cat "~/Library/Logs/is.danny.astroeditor/Astro Editor.log"
+cat ~/Library/Logs/is.danny.astroeditor/Astro\ Editor.log
 
 # View recent log file entries
-tail -50 "~/Library/Logs/is.danny.astroeditor/Astro Editor.log"
+tail -50 ~/Library/Logs/is.danny.astroeditor/Astro\ Editor.log
 
 # Search log file for specific issues
-grep "[PROJECT_SETUP]" "~/Library/Logs/is.danny.astroeditor/Astro Editor.log"
+grep "\[PROJECT_SETUP\]" ~/Library/Logs/is.danny.astroeditor/Astro\ Editor.log
 
 # Live system logs (less detailed than log file)
 log stream --predicate 'process == "astro-editor"'
+```
+
+### Windows (PowerShell)
+
+```powershell
+# View log file
+Get-Content "$env:LOCALAPPDATA\is.danny.astroeditor\logs\Astro Editor.log"
+
+# View recent entries
+Get-Content "$env:LOCALAPPDATA\is.danny.astroeditor\logs\Astro Editor.log" -Tail 50
+
+# Search for specific issues
+Select-String -Path "$env:LOCALAPPDATA\is.danny.astroeditor\logs\Astro Editor.log" -Pattern "PROJECT_SETUP"
+```
+
+### Linux
+
+```bash
+# View complete log file
+cat ~/.local/share/is.danny.astroeditor/logs/Astro\ Editor.log
+
+# View recent entries
+tail -50 ~/.local/share/is.danny.astroeditor/logs/Astro\ Editor.log
+
+# Search for specific issues
+grep "\[PROJECT_SETUP\]" ~/.local/share/is.danny.astroeditor/logs/Astro\ Editor.log
 ```
 
 ## TypeScript Logging Patterns

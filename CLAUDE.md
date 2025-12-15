@@ -65,6 +65,7 @@
 - `docs/developer/testing.md` - Testing strategies and patterns
 
 **System Documentation** (reference for system features):
+- `docs/developer/cross-platform.md` - Platform detection, conditional compilation, title bar architecture
 - `docs/developer/form-patterns.md` - Frontmatter fields and settings forms
 - `docs/developer/schema-system.md` - Schema parsing and merging (Rust)
 - `docs/developer/keyboard-shortcuts.md` - Implementing shortcuts

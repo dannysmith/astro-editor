@@ -502,8 +502,8 @@ How to Test
 
 - [ ] Fix any codeRabbit issues
 - [ ] Final once-over of the code we've written on this branch and run checks.
-- [ ] Check all documentation in `docs/developer` for any updates we should make off the back of this work. This includes fixing any examples which are no longer relevant, adding any necessary notes on cross platform stuff to the higher level docs (architecture guide and performance patterns), updating any references to the title bar to be accurate. We will also need to update any of the documentation on the release process Where relevant.
-- [ ] Update CLAUDE.md and README.md As appropriate. Remember: this is still primarily a Mac app for now, but we may need to just mention that it does include builds for other platforms, although they're not officially supported FOR END USERS yet.
+- [x] Check all documentation in `docs/developer` for any updates we should make off the back of this work. This includes fixing any examples which are no longer relevant, adding any necessary notes on cross platform stuff to the higher level docs (architecture guide and performance patterns), updating any references to the title bar to be accurate. We will also need to update any of the documentation on the release process Where relevant.
+- [x] Update CLAUDE.md and README.md As appropriate. Remember: this is still primarily a Mac app for now, but we may need to just mention that it does include builds for other platforms, although they're not officially supported FOR END USERS yet.
 - [ ] Final manual review and testing on macOS
 
 ## Reference: Files Requiring Attention

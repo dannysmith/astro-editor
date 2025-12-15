@@ -585,6 +585,7 @@ For in-depth coverage of specific topics, see these guides:
 - **[command-system.md](./command-system.md)**: Command pattern implementation, registration, and integration
 - **[ui-patterns.md](./ui-patterns.md)**: Common UI patterns and shadcn/ui best practices
 - **[performance-patterns.md](./performance-patterns.md)**: Comprehensive performance optimization patterns
+- **[cross-platform.md](./cross-platform.md)**: Platform detection, conditional compilation, and title bar architecture
 - **[testing.md](./testing.md)**: Testing strategies and patterns
 - **[optimization.md](./optimization.md)**: Bundle optimization and performance budgets
 
