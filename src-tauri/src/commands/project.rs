@@ -866,19 +866,15 @@ mod tests {
             let home_str = home.to_string_lossy();
 
             // These paths under AppData/*/Microsoft should be blocked
-            let blocked_local = PathBuf::from(format!(
-                r"{}\AppData\Local\Microsoft\Credentials",
-                home_str
-            ));
+            let blocked_local =
+                PathBuf::from(format!(r"{}\AppData\Local\Microsoft\Credentials", home_str));
             assert!(
                 is_blocked_directory(&blocked_local),
                 "AppData/Local/Microsoft should be blocked"
             );
 
-            let blocked_roaming = PathBuf::from(format!(
-                r"{}\AppData\Roaming\Microsoft\Windows",
-                home_str
-            ));
+            let blocked_roaming =
+                PathBuf::from(format!(r"{}\AppData\Roaming\Microsoft\Windows", home_str));
             assert!(
                 is_blocked_directory(&blocked_roaming),
                 "AppData/Roaming/Microsoft should be blocked"
