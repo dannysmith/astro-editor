@@ -3,8 +3,20 @@
   "app": {
     "windows": [
       {
+        "title": "Astro Editor",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "maximized": false,
+        "center": true,
         "decorations": false,
-        "transparent": true
+        "transparent": true,
+        "alwaysOnTop": false,
+        "shadow": true,
+        "dragDropEnabled": true
       }
     ],
     "macOSPrivateApi": true

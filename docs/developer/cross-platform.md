@@ -70,14 +70,23 @@ Tauri uses JSON Merge Patch (RFC 7396) to merge platform-specific configs:
 
 Platform-specific configs are **automatically** detected and merged during build.
 
+> **⚠️ Important: Arrays are replaced, not merged!**
+>
+> JSON Merge Patch replaces arrays entirely. If your platform config specifies a `windows` array, it completely replaces the base config's `windows` array. This means you must include ALL window settings in each platform config, not just the overrides.
+
 ### Base Configuration (`tauri.conf.json`)
 
-The base config uses safe cross-platform defaults:
+The base config uses safe cross-platform defaults (serves as fallback if no platform config matches):
 
 ```json
 {
   "app": {
     "windows": [{
+      "title": "Astro Editor",
+      "width": 1400,
+      "height": 900,
+      "minWidth": 1000,
+      "minHeight": 700,
       "decorations": true,
       "shadow": true
     }]
@@ -91,8 +100,14 @@ The base config uses safe cross-platform defaults:
 {
   "app": {
     "windows": [{
+      "title": "Astro Editor",
+      "width": 1400,
+      "height": 900,
+      "minWidth": 1000,
+      "minHeight": 700,
       "decorations": false,
-      "transparent": true
+      "transparent": true,
+      "shadow": true
     }],
     "macOSPrivateApi": true
   }
@@ -105,7 +120,13 @@ The base config uses safe cross-platform defaults:
 {
   "app": {
     "windows": [{
-      "decorations": false
+      "title": "Astro Editor",
+      "width": 1400,
+      "height": 900,
+      "minWidth": 1000,
+      "minHeight": 700,
+      "decorations": false,
+      "shadow": true
     }]
   }
 }
@@ -117,7 +138,13 @@ The base config uses safe cross-platform defaults:
 {
   "app": {
     "windows": [{
-      "decorations": true
+      "title": "Astro Editor",
+      "width": 1400,
+      "height": 900,
+      "minWidth": 1000,
+      "minHeight": 700,
+      "decorations": true,
+      "shadow": true
     }]
   }
 }
