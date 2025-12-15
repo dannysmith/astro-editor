@@ -56,6 +56,17 @@ new_users=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
 printf "   ${BOLD}${GREEN}%-6s${RESET} total installs\n" "$total"
 printf "   ${BOLD}${YELLOW}%-6s${RESET} new this week\n" "$new_users"
 
+header "🖥️  USERS BY PLATFORM"
+pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+  SELECT platform, COUNT(DISTINCT uuid) as users
+  FROM telemetry_events
+  WHERE app_id = 'astro-editor'
+  GROUP BY platform
+  ORDER BY users DESC
+" 2>/dev/null | jq -r '.[0].results[] | "\(.platform)|\(.users)"' | while IFS='|' read -r plat count; do
+  printf "   ${BOLD}%-10s${RESET} ${GREEN}%s${RESET} users\n" "$plat" "$count"
+done
+
 header "📦 CURRENT VERSION"
 pnpm wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT version, COUNT(*) as users
