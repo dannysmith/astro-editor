@@ -119,8 +119,6 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
         match &event.kind {
             EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
                 for path in &event.paths {
-                    let path_str = path.to_string_lossy();
-
                     // Check if it's a schema-related file
                     if is_schema_file(path) {
                         schema_changed = true;
@@ -130,9 +128,9 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
                     // Check if it's a markdown file
                     if let Some(extension) = path.extension() {
                         if matches!(extension.to_str(), Some("md") | Some("mdx")) {
-                            // Emit event to frontend
-                            // Normalize path to forward slashes for cross-platform consistency
-                            let normalized_path = path_str.replace('\\', "/");
+                            // Emit event to frontend with normalized path
+                            let normalized_path =
+                                crate::utils::path::normalize_path_for_serialization(path);
                             if let Err(e) = app.emit(
                                 "file-changed",
                                 FileChangeEvent {

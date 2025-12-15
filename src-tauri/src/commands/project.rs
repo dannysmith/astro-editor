@@ -43,7 +43,11 @@ fn send_toast_notification(
 fn is_blocked_directory(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
     // Normalize path for consistent comparison (handle both / and \ separators)
-    let normalized_path = path_str.replace('\\', "/");
+    let mut normalized_path = path_str.replace('\\', "/");
+    // Ensure trailing slash for consistent starts_with matching
+    if !normalized_path.ends_with('/') {
+        normalized_path.push('/');
+    }
     // Lowercase version for case-insensitive Windows path comparison
     #[allow(unused_variables)]
     let normalized_lower = normalized_path.to_lowercase();
@@ -64,17 +68,17 @@ fn is_blocked_directory(path: &Path) -> bool {
         "/.docker/",
     ];
 
-    // Windows blocked directory patterns
+    // Windows blocked directory patterns (trailing slash prevents false positives like "c:/windowsupdate")
     #[cfg(target_os = "windows")]
     let blocked_patterns = [
-        "c:/windows",
-        "c:/program files",
-        "c:/program files (x86)",
-        "c:/programdata",
-        "c:/users/default",
-        "c:/users/public",
-        "c:/recovery",
-        "c:/$recycle.bin",
+        "c:/windows/",
+        "c:/program files/",
+        "c:/program files (x86)/",
+        "c:/programdata/",
+        "c:/users/default/",
+        "c:/users/public/",
+        "c:/recovery/",
+        "c:/$recycle.bin/",
     ];
 
     #[cfg(not(target_os = "windows"))]
@@ -785,9 +789,69 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_project_path_basic() {
-        // Test that basic paths work
+    #[cfg(not(target_os = "windows"))]
+    fn test_validate_project_path_basic_unix() {
+        // Test that basic Unix paths work
         let path = PathBuf::from("/Users/danny/projects/astro-site");
         assert!(!is_blocked_directory(&path));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_validate_project_path_basic_windows() {
+        // Test that basic Windows paths work
+        let path = PathBuf::from(r"C:\Users\danny\projects\astro-site");
+        assert!(!is_blocked_directory(&path));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_is_blocked_directory_windows_system_paths() {
+        // System paths should be blocked (case-insensitive)
+        assert!(is_blocked_directory(&PathBuf::from(r"C:\Windows\System32")));
+        assert!(is_blocked_directory(&PathBuf::from("c:/windows/system32")));
+        assert!(is_blocked_directory(&PathBuf::from(
+            r"C:\Program Files\App"
+        )));
+        assert!(is_blocked_directory(&PathBuf::from(
+            r"C:\ProgramData\Config"
+        )));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_is_blocked_directory_windows_case_insensitive() {
+        // Windows paths should be case-insensitive
+        assert!(is_blocked_directory(&PathBuf::from(r"C:\WINDOWS\System32")));
+        assert!(is_blocked_directory(&PathBuf::from(r"c:\windows\system32")));
+        assert!(is_blocked_directory(&PathBuf::from(
+            r"C:\PROGRAM FILES\App"
+        )));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_is_blocked_directory_windows_allowed_paths() {
+        // User project directories should be allowed
+        assert!(!is_blocked_directory(&PathBuf::from(
+            r"C:\Users\danny\projects"
+        )));
+        assert!(!is_blocked_directory(&PathBuf::from(
+            r"D:\Development\astro-site"
+        )));
+        assert!(!is_blocked_directory(&PathBuf::from(
+            r"C:\Users\danny\Documents\Code"
+        )));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_is_blocked_directory_windows_no_false_positives() {
+        // Paths that start similarly to blocked paths but aren't blocked
+        // e.g., "c:/windowsupdate" should NOT match "c:/windows/"
+        assert!(!is_blocked_directory(&PathBuf::from(r"C:\WindowsUpdate")));
+        assert!(!is_blocked_directory(&PathBuf::from(
+            r"C:\Program Files Custom\App"
+        )));
     }
 }

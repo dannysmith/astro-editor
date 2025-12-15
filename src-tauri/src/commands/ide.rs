@@ -39,19 +39,25 @@ fn fix_path_env() {
     #[cfg(target_os = "windows")]
     {
         if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(';').collect();
+            let mut paths: Vec<String> = path.split(';').map(String::from).collect();
 
-            // Common paths for IDEs on Windows
-            // Note: Actual paths will be refined during Windows testing (Part B)
-            let common_paths = [
-                r"C:\Program Files\Microsoft VS Code\bin",
-                r"C:\Users\Default\AppData\Local\Programs\Microsoft VS Code\bin",
-                r"C:\Program Files\Cursor\resources\app\bin",
+            // System-wide install locations
+            let mut common_paths = vec![
+                r"C:\Program Files\Microsoft VS Code\bin".to_string(),
+                r"C:\Program Files\Cursor\resources\app\bin".to_string(),
             ];
+
+            // User-specific install locations (VS Code per-user install)
+            if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+                common_paths.push(format!(r"{local_app_data}\Programs\Microsoft VS Code\bin"));
+                common_paths.push(format!(
+                    r"{local_app_data}\Programs\cursor\resources\app\bin"
+                ));
+            }
 
             for common_path in &common_paths {
                 if !paths.contains(common_path) {
-                    paths.push(common_path);
+                    paths.push(common_path.clone());
                 }
             }
 
@@ -64,23 +70,28 @@ fn fix_path_env() {
     #[cfg(target_os = "linux")]
     {
         if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(':').collect();
+            let mut paths: Vec<String> = path.split(':').map(String::from).collect();
 
-            // Common paths for IDEs on Linux
-            // Note: Actual paths will be refined during Linux testing (Part C)
-            let common_paths = [
-                "/usr/local/bin",
-                "/usr/bin",
-                "/bin",
-                "/snap/bin",                              // Snap packages
-                "/var/lib/flatpak/exports/bin",           // Flatpak
-                "/home/.local/share/flatpak/exports/bin", // User Flatpak
-                "/opt/visual-studio-code/bin",            // Some distros
+            // System-wide paths
+            let mut common_paths = vec![
+                "/usr/local/bin".to_string(),
+                "/usr/bin".to_string(),
+                "/bin".to_string(),
+                "/snap/bin".to_string(),                    // Snap packages
+                "/var/lib/flatpak/exports/bin".to_string(), // System Flatpak
+                "/opt/visual-studio-code/bin".to_string(),  // Some distros
             ];
+
+            // User-specific paths
+            if let Ok(home) = env::var("HOME") {
+                common_paths.push(format!("{home}/.local/bin")); // User local bin
+                common_paths.push(format!("{home}/.local/share/flatpak/exports/bin"));
+                // User Flatpak
+            }
 
             for common_path in &common_paths {
                 if !paths.contains(common_path) {
-                    paths.push(common_path);
+                    paths.push(common_path.clone());
                 }
             }
 
@@ -94,36 +105,6 @@ fn fix_path_env() {
 /// Validates that an IDE command is in the allowed list
 fn validate_ide_command(ide: &str) -> bool {
     ALLOWED_IDES.contains(&ide)
-}
-
-/// Safely escapes a file path for shell execution
-/// This prevents command injection attacks through malicious file paths
-#[allow(dead_code)]
-fn escape_shell_arg(arg: &str) -> String {
-    #[cfg(not(target_os = "windows"))]
-    {
-        // For macOS/Unix systems, we'll use single quotes and escape any single quotes in the path
-        if arg.contains('\'') {
-            // If the path contains single quotes, we need to escape them properly
-            format!("'{}'", arg.replace('\'', "'\"'\"'"))
-        } else {
-            // Simple case - wrap in single quotes
-            format!("'{arg}'")
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        // For Windows, we use double quotes and escape internal double quotes
-        // Note: This is for CMD.exe compatibility. PowerShell has different rules.
-        if arg.contains('"') {
-            // Escape double quotes by doubling them
-            format!("\"{}\"", arg.replace('"', "\"\""))
-        } else {
-            // Simple case - wrap in double quotes
-            format!("\"{arg}\"")
-        }
-    }
 }
 
 /// Checks if a path looks like a Windows absolute path (e.g., C:\, D:\)
@@ -204,15 +185,10 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
     // Fix PATH environment for production builds
     fix_path_env();
 
-    // Escape the file path for safe shell execution
-    let escaped_path = escape_shell_arg(&file_path);
+    info!("Executing IDE command: {ide_command} \"{file_path}\"");
 
-    info!("Executing IDE command: {ide_command} {escaped_path}");
-
-    // Execute the command
-    let result = Command::new(&ide_command)
-        .arg(&file_path) // Use the original path, not escaped, since Command handles it safely
-        .output();
+    // Execute the command (Command::new().arg() handles path escaping safely)
+    let result = Command::new(&ide_command).arg(&file_path).output();
 
     match result {
         Ok(output) => {
@@ -337,20 +313,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "windows"))]
-    fn test_escape_shell_arg() {
-        assert_eq!(escape_shell_arg("/simple/path"), "'/simple/path'");
-        assert_eq!(
-            escape_shell_arg("/path with spaces/file.txt"),
-            "'/path with spaces/file.txt'"
-        );
-        assert_eq!(
-            escape_shell_arg("/path/with'quote"),
-            "'/path/with'\"'\"'quote'"
-        );
-    }
-
-    #[test]
     fn test_is_windows_absolute_path() {
         // Valid Windows absolute paths
         assert!(is_windows_absolute_path(r"C:\Users\test"));
@@ -395,5 +357,23 @@ mod tests {
         // UNC paths should be rejected on all platforms
         assert!(validate_file_path(r"\\server\share\file.txt").is_err());
         assert!(validate_file_path("//server/share/file.txt").is_err());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_validate_file_path_windows_valid_paths() {
+        // Valid Windows absolute paths should be accepted
+        assert!(validate_file_path(r"C:\Users\test\file.md").is_ok());
+        assert!(validate_file_path(r"D:\Projects\astro-site\content\post.md").is_ok());
+        assert!(validate_file_path("C:/Users/test/file.md").is_ok()); // Forward slashes also valid
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_validate_file_path_unix_valid_paths() {
+        // Valid Unix absolute paths should be accepted
+        assert!(validate_file_path("/Users/test/file.md").is_ok());
+        assert!(validate_file_path("/home/user/projects/post.md").is_ok());
+        assert!(validate_file_path("~/Documents/file.md").is_ok());
     }
 }

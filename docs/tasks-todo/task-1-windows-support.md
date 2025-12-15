@@ -466,6 +466,32 @@ steps:
 - [ ] macOS release unchanged
 - [ ] Auto-updater configured for all platforms
 
+How to Test
+
+1. Push your branch:
+   git add .github/workflows/release.yml
+   git commit -m "Add Windows and Linux builds to release workflow"
+   git push origin windows-support
+2. Trigger the workflow manually:
+   - Go to GitHub → Actions → "Release Astro Editor"
+   - Click "Run workflow"
+   - Select windows-support branch
+   - Enter a test version like v0.0.0-test.1
+   - Click "Run workflow"
+
+3. Watch the three jobs - they'll run in parallel:
+   - publish-tauri (macos-14)
+   - publish-tauri (windows-latest)
+   - publish-tauri (ubuntu-22.04)
+
+4. If successful, a draft release will be created with:
+   - .dmg for macOS
+   - .msi for Windows
+   - .AppImage for Linux
+   - latest.json for auto-updater (all platforms)
+
+- 5. Clean up - delete the test release and tag after verification
+
 ---
 
 ## Phase 8: Documentation Updates and Reviews
