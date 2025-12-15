@@ -62,6 +62,7 @@ The most important developer docs - foundational patterns for daily development.
 
 Other fundamenal developer documentation.
 
+- **[developer/cross-platform.md](developer/cross-platform.md)** - Cross-platform development (Tauri config, conditional compilation, platform detection)
 - **[developer/form-patterns.md](developer/form-patterns.md)** - Frontmatter field components and settings forms
 - **[developer/schema-system.md](developer/schema-system.md)** - Rust-based schema parsing and merging
 - **[developer/keyboard-shortcuts.md](developer/keyboard-shortcuts.md)** - Implementing keyboard shortcuts with react-hotkeys-hook

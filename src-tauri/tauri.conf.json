@@ -22,9 +22,8 @@
         "fullscreen": false,
         "maximized": false,
         "center": true,
-        "decorations": false,
+        "decorations": true,
         "alwaysOnTop": false,
-        "transparent": true,
         "shadow": true,
         "dragDropEnabled": true
       }
@@ -38,7 +37,6 @@
         ]
       }
     },
-    "macOSPrivateApi": true,
     "withGlobalTauri": false
   },
   "bundle": {

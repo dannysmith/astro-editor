@@ -332,38 +332,39 @@ Base config should have safe cross-platform defaults (`decorations: true`, `tran
 **Tasks:**
 
 1. **Make window-vibrancy macOS-only**
-   - [ ] Update `Cargo.toml` to make `window-vibrancy` conditional
-   - [ ] Ensure builds don't fail on Windows/Linux
+   - [x] Update `Cargo.toml` to make `window-vibrancy` conditional
+   - [x] Ensure builds don't fail on Windows/Linux
 
 2. **Create platform-specific Tauri configs**
-   - [ ] Move macOS-specific settings from `tauri.conf.json` to `tauri.macos.conf.json`
-   - [ ] Set safe defaults in base `tauri.conf.json` (`decorations: true`, `transparent: false`, remove `macOSPrivateApi`)
-   - [ ] Create `tauri.windows.conf.json` with `decorations: false`
-   - [ ] Create `tauri.linux.conf.json` with `decorations: true` (explicit, matches default)
-   - [ ] Add window dragging permissions to capability file (`core:window:allow-start-dragging`)
-   - [ ] Verify config merging works correctly
+   - [x] Move macOS-specific settings from `tauri.conf.json` to `tauri.macos.conf.json`
+   - [x] Set safe defaults in base `tauri.conf.json` (`decorations: true`, `transparent: false`, remove `macOSPrivateApi`)
+   - [x] Create `tauri.windows.conf.json` with `decorations: false`
+   - [x] Create `tauri.linux.conf.json` with `decorations: true` (explicit, matches default)
+   - [x] Add window dragging permissions to capability file (`core:window:allow-start-dragging`) - Already existed
+   - [x] Verify config merging works correctly
 
 3. **Handle macos-private-api feature**
-   - [ ] Make this feature conditional in Cargo.toml
-   - [ ] Ensure Windows/Linux builds don't require it
+   - [x] Make this feature conditional in Cargo.toml (kept in base due to tauri-build limitation, no-op on other platforms)
+   - [x] Ensure Windows/Linux builds don't require it
 
 4. **Document patterns**
-   - [ ] Create `docs/developer/cross-platform.md`
-   - [ ] Document conditional compilation patterns
-   - [ ] Document Tauri config merging
-   - [ ] Document platform detection usage
+   - [x] Create `docs/developer/cross-platform.md`
+   - [x] Document conditional compilation patterns
+   - [x] Document Tauri config merging
+   - [x] Document platform detection usage
 
 **Code Pattern:**
 
 ```toml
 # Cargo.toml
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+# Note: macos-private-api is kept in base features because tauri-build's feature
+# check runs before Cargo resolves target-specific deps. It's a no-op on other platforms.
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 
-# macOS-only dependencies (features ADD to base, don't replace)
+# macOS-only dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
 window-vibrancy = "0.6"
-tauri = { version = "2", features = ["macos-private-api"] }
 ```
 
 ```json
@@ -396,10 +397,10 @@ tauri = { version = "2", features = ["macos-private-api"] }
 
 **Acceptance Criteria:**
 
-- [ ] macOS build still works with vibrancy
-- [ ] Windows/Linux configs exist
-- [ ] Patterns documented
-- [ ] No build failures from macOS-only code
+- [x] macOS build still works with vibrancy
+- [x] Windows/Linux configs exist
+- [x] Patterns documented
+- [x] No build failures from macOS-only code
 
 ---
 
@@ -466,6 +467,18 @@ steps:
 - [ ] Auto-updater configured for all platforms
 
 ---
+
+## Phase 8: Documentation Updates and Reviews
+
+**Goal:** Update developer documentation and fo a full final check
+
+**Tasks:**
+
+- [ ] Fix any codeRabbit issues
+- [ ] Final once-over of the code we've written on this branch and run checks.
+- [ ] Check all documentation in `docs/developer` for any updates we should make off the back of this work. This includes fixing any examples which are no longer relevant, adding any necessary notes on cross platform stuff to the higher level docs (architecture guide and performance patterns), updating any references to the title bar to be accurate.
+- [ ] Update CLAUDE.md and README.md As appropriate. This is still primarily a Mac app for now, but we may need to just mention that it does include builds for other platforms, although they're not officially supported at the moment.
+- [ ] Final manual review and testing on macOS
 
 ## Reference: Files Requiring Attention
 

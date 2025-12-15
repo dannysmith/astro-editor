@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "decorations": false,
+        "transparent": true
+      }
+    ],
+    "macOSPrivateApi": true
+  }
+}
