@@ -158,7 +158,8 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
 
 /// Check if a file path is a schema-related file
 fn is_schema_file(path: &std::path::Path) -> bool {
-    let path_str = path.to_string_lossy();
+    // Normalize path to forward slashes for consistent cross-platform matching
+    let path_str = crate::utils::path::normalize_path_for_serialization(path);
 
     // Check for content config files
     if path_str.ends_with("src/content/config.ts") || path_str.ends_with("src/content.config.ts") {

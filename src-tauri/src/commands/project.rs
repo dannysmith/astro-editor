@@ -112,8 +112,8 @@ fn is_blocked_directory(path: &Path) -> bool {
             format!("{}/.ssh/", home_str.to_lowercase()),
             format!("{}/.aws/", home_str.to_lowercase()),
             format!("{}/.docker/", home_str.to_lowercase()),
-            format!("{}/appdata/local/microsoft", home_str.to_lowercase()),
-            format!("{}/appdata/roaming/microsoft", home_str.to_lowercase()),
+            format!("{}/appdata/local/microsoft/", home_str.to_lowercase()),
+            format!("{}/appdata/roaming/microsoft/", home_str.to_lowercase()),
         ];
 
         for pattern in &blocked_home_patterns {
@@ -766,26 +766,25 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn test_is_blocked_directory_normalized_backslashes() {
         // Paths with backslashes should be normalized and still blocked
         // This simulates a path that might come from Windows-formatted input
-        #[cfg(not(target_os = "windows"))]
-        {
-            // The function normalizes backslashes to forward slashes
-            // So /System\Library becomes /System/Library which is blocked
-            let path_with_backslash = PathBuf::from("/System\\Library");
-            assert!(
-                is_blocked_directory(&path_with_backslash),
-                "Normalized path /System/Library should be blocked"
-            );
 
-            // A safe path with backslash should still be safe after normalization
-            let safe_path_with_backslash = PathBuf::from("/Users\\danny\\projects");
-            assert!(
-                !is_blocked_directory(&safe_path_with_backslash),
-                "Normalized user path should not be blocked"
-            );
-        }
+        // The function normalizes backslashes to forward slashes
+        // So /System\Library becomes /System/Library which is blocked
+        let path_with_backslash = PathBuf::from("/System\\Library");
+        assert!(
+            is_blocked_directory(&path_with_backslash),
+            "Normalized path /System/Library should be blocked"
+        );
+
+        // A safe path with backslash should still be safe after normalization
+        let safe_path_with_backslash = PathBuf::from("/Users\\danny\\projects");
+        assert!(
+            !is_blocked_directory(&safe_path_with_backslash),
+            "Normalized user path should not be blocked"
+        );
     }
 
     #[test]
@@ -853,5 +852,47 @@ mod tests {
         assert!(!is_blocked_directory(&PathBuf::from(
             r"C:\Program Files Custom\App"
         )));
+        // MicrosoftEdge should NOT match "microsoft/" pattern
+        assert!(!is_blocked_directory(&PathBuf::from(
+            r"C:\Users\danny\AppData\Local\MicrosoftEdge"
+        )));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_is_blocked_directory_windows_appdata_microsoft() {
+        // Test home-based AppData/Microsoft blocking rules
+        if let Some(home) = dirs::home_dir() {
+            let home_str = home.to_string_lossy();
+
+            // These paths under AppData/*/Microsoft should be blocked
+            let blocked_local = PathBuf::from(format!(
+                r"{}\AppData\Local\Microsoft\Credentials",
+                home_str
+            ));
+            assert!(
+                is_blocked_directory(&blocked_local),
+                "AppData/Local/Microsoft should be blocked"
+            );
+
+            let blocked_roaming = PathBuf::from(format!(
+                r"{}\AppData\Roaming\Microsoft\Windows",
+                home_str
+            ));
+            assert!(
+                is_blocked_directory(&blocked_roaming),
+                "AppData/Roaming/Microsoft should be blocked"
+            );
+
+            // But MicrosoftEdge (without trailing slash match) should be allowed
+            let allowed_edge = PathBuf::from(format!(
+                r"{}\AppData\Local\MicrosoftEdge\User Data",
+                home_str
+            ));
+            assert!(
+                !is_blocked_directory(&allowed_edge),
+                "MicrosoftEdge should NOT be blocked (no trailing slash match)"
+            );
+        }
     }
 }

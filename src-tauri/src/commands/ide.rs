@@ -5,100 +5,98 @@ use std::process::Command;
 /// The list of allowed IDE commands for security
 const ALLOWED_IDES: &[&str] = &["cursor", "code", "vim", "nvim", "emacs", "subl"];
 
-/// Fix PATH environment variable for production builds
-/// This ensures shell commands can find executables in common locations
-fn fix_path_env() {
+/// Compute an augmented PATH with common IDE locations for production builds.
+/// Returns the augmented PATH string to be passed to Command::new().env("PATH", ...).
+/// This is thread-safe unlike env::set_var which is deprecated since Rust 1.80.
+fn get_augmented_path() -> String {
     #[cfg(target_os = "macos")]
     {
-        if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<&str> = path.split(':').collect();
+        let current_path = env::var("PATH").unwrap_or_default();
+        let mut paths: Vec<&str> = current_path.split(':').collect();
 
-            // Common paths that might be missing in production builds on macOS
-            let common_paths = [
-                "/usr/local/bin",
-                "/opt/homebrew/bin",
-                "/usr/bin",
-                "/bin",
-                "/opt/local/bin", // MacPorts
-                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin",
-                "/Applications/Cursor.app/Contents/Resources/app/bin",
-            ];
+        // Common paths that might be missing in production builds on macOS
+        let common_paths = [
+            "/usr/local/bin",
+            "/opt/homebrew/bin",
+            "/usr/bin",
+            "/bin",
+            "/opt/local/bin", // MacPorts
+            "/Applications/Visual Studio Code.app/Contents/Resources/app/bin",
+            "/Applications/Cursor.app/Contents/Resources/app/bin",
+        ];
 
-            for common_path in &common_paths {
-                if !paths.contains(common_path) {
-                    paths.push(common_path);
-                }
+        for common_path in &common_paths {
+            if !paths.contains(common_path) {
+                paths.push(common_path);
             }
-
-            let new_path = paths.join(":");
-            env::set_var("PATH", &new_path);
-            debug!("Fixed PATH for IDE execution: {new_path}");
         }
+
+        let augmented = paths.join(":");
+        debug!("Augmented PATH for IDE execution: {augmented}");
+        augmented
     }
 
     #[cfg(target_os = "windows")]
     {
-        if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<String> = path.split(';').map(String::from).collect();
+        let current_path = env::var("PATH").unwrap_or_default();
+        let mut paths: Vec<String> = current_path.split(';').map(String::from).collect();
 
-            // System-wide install locations
-            let mut common_paths = vec![
-                r"C:\Program Files\Microsoft VS Code\bin".to_string(),
-                r"C:\Program Files\Cursor\resources\app\bin".to_string(),
-            ];
+        // System-wide install locations
+        let mut common_paths = vec![
+            r"C:\Program Files\Microsoft VS Code\bin".to_string(),
+            r"C:\Program Files\Cursor\resources\app\bin".to_string(),
+        ];
 
-            // User-specific install locations (VS Code per-user install)
-            if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
-                common_paths.push(format!(r"{local_app_data}\Programs\Microsoft VS Code\bin"));
-                common_paths.push(format!(
-                    r"{local_app_data}\Programs\cursor\resources\app\bin"
-                ));
-            }
-
-            for common_path in &common_paths {
-                if !paths.contains(common_path) {
-                    paths.push(common_path.clone());
-                }
-            }
-
-            let new_path = paths.join(";");
-            env::set_var("PATH", &new_path);
-            debug!("Fixed PATH for IDE execution: {new_path}");
+        // User-specific install locations (VS Code per-user install)
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            common_paths.push(format!(r"{local_app_data}\Programs\Microsoft VS Code\bin"));
+            common_paths.push(format!(
+                r"{local_app_data}\Programs\cursor\resources\app\bin"
+            ));
         }
+
+        for common_path in &common_paths {
+            if !paths.contains(common_path) {
+                paths.push(common_path.clone());
+            }
+        }
+
+        let augmented = paths.join(";");
+        debug!("Augmented PATH for IDE execution: {augmented}");
+        augmented
     }
 
     #[cfg(target_os = "linux")]
     {
-        if let Ok(path) = env::var("PATH") {
-            let mut paths: Vec<String> = path.split(':').map(String::from).collect();
+        let current_path = env::var("PATH").unwrap_or_default();
+        let mut paths: Vec<String> = current_path.split(':').map(String::from).collect();
 
-            // System-wide paths
-            let mut common_paths = vec![
-                "/usr/local/bin".to_string(),
-                "/usr/bin".to_string(),
-                "/bin".to_string(),
-                "/snap/bin".to_string(),                    // Snap packages
-                "/var/lib/flatpak/exports/bin".to_string(), // System Flatpak
-                "/opt/visual-studio-code/bin".to_string(),  // Some distros
-            ];
+        // System-wide paths
+        let mut common_paths = vec![
+            "/usr/local/bin".to_string(),
+            "/usr/bin".to_string(),
+            "/bin".to_string(),
+            "/snap/bin".to_string(),                    // Snap packages
+            "/var/lib/flatpak/exports/bin".to_string(), // System Flatpak
+            "/opt/visual-studio-code/bin".to_string(),  // Some distros
+        ];
 
-            // User-specific paths
-            if let Ok(home) = env::var("HOME") {
-                common_paths.push(format!("{home}/.local/bin")); // User local bin
-                common_paths.push(format!("{home}/.local/share/flatpak/exports/bin"));
-                // User Flatpak
-            }
-
-            for common_path in &common_paths {
-                if !paths.contains(common_path) {
-                    paths.push(common_path.clone());
-                }
-            }
-
-            let new_path = paths.join(":");
-            env::set_var("PATH", &new_path);
-            debug!("Fixed PATH for IDE execution: {new_path}");
+        // User-specific paths
+        if let Ok(home) = env::var("HOME") {
+            common_paths.push(format!("{home}/.local/bin")); // User local bin
+            common_paths.push(format!("{home}/.local/share/flatpak/exports/bin"));
+            // User Flatpak
         }
+
+        for common_path in &common_paths {
+            if !paths.contains(common_path) {
+                paths.push(common_path.clone());
+            }
+        }
+
+        let augmented = paths.join(":");
+        debug!("Augmented PATH for IDE execution: {augmented}");
+        augmented
     }
 }
 
@@ -108,7 +106,7 @@ fn validate_ide_command(ide: &str) -> bool {
 }
 
 /// Checks if a path looks like a Windows absolute path (e.g., C:\, D:\)
-#[allow(dead_code)]
+#[cfg(any(target_os = "windows", test))]
 fn is_windows_absolute_path(path: &str) -> bool {
     if path.len() >= 3 {
         let bytes = path.as_bytes();
@@ -182,13 +180,16 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
         return Err(error_msg);
     }
 
-    // Fix PATH environment for production builds
-    fix_path_env();
+    // Get augmented PATH for production builds (thread-safe, doesn't mutate global env)
+    let augmented_path = get_augmented_path();
 
     info!("Executing IDE command: {ide_command} \"{file_path}\"");
 
-    // Execute the command (Command::new().arg() handles path escaping safely)
-    let result = Command::new(&ide_command).arg(&file_path).output();
+    // Execute the command with augmented PATH (Command::new().arg() handles path escaping safely)
+    let result = Command::new(&ide_command)
+        .env("PATH", &augmented_path)
+        .arg(&file_path)
+        .output();
 
     match result {
         Ok(output) => {
@@ -235,20 +236,17 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
 pub async fn get_available_ides() -> Result<Vec<String>, String> {
     debug!("Checking available IDEs");
 
-    // Fix PATH first
-    fix_path_env();
+    // Get augmented PATH (thread-safe, doesn't mutate global env)
+    let augmented_path = get_augmented_path();
 
     let mut available_ides = Vec::new();
 
     for ide in ALLOWED_IDES {
-        // Try to execute the IDE with --version or --help to see if it's available
-        let check_result = match *ide {
-            "code" | "cursor" => Command::new(ide).arg("--version").output(),
-            "vim" | "nvim" => Command::new(ide).arg("--version").output(),
-            "emacs" => Command::new(ide).arg("--version").output(),
-            "subl" => Command::new(ide).arg("--version").output(),
-            _ => continue,
-        };
+        // Try to execute the IDE with --version to see if it's available
+        let check_result = Command::new(ide)
+            .env("PATH", &augmented_path)
+            .arg("--version")
+            .output();
 
         match check_result {
             Ok(output) if output.status.success() => {

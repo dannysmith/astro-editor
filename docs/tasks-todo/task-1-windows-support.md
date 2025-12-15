@@ -411,26 +411,26 @@ window-vibrancy = "0.6"
 **Tasks:**
 
 1. **Update release workflow**
-   - [ ] Add Windows build to matrix
-   - [ ] Add Linux build to matrix
-   - [ ] Configure platform-specific bundle arguments
-   - [ ] Add Linux dependency installation step
+   - [x] Add Windows build to matrix
+   - [x] Add Linux build to matrix
+   - [x] Configure platform-specific bundle arguments
+   - [x] Add Linux dependency installation step
 
 2. **Configure Tauri bundle settings**
-   - [ ] Set up Windows bundle config (MSI, no code signing)
-   - [ ] Set up Linux bundle config (AppImage only initially)
-   - [ ] Keep macOS config unchanged
+   - [x] Set up Windows bundle config (MSI, no code signing)
+   - [x] Set up Linux bundle config (AppImage only initially)
+   - [x] Keep macOS config unchanged
 
 3. **Auto-updater configuration**
-   - [ ] Verify updater plugin is configured for all platforms
-   - [ ] Update `latest.json` generation to include all platforms
-   - [ ] Test that updater endpoints work
+   - [x] Verify updater plugin is configured for all platforms
+   - [x] Update `latest.json` generation to include all platforms
+   - [x] Test that updater endpoints work
 
 4. **Test builds via CI**
-   - [ ] Trigger test build on feature branch
-   - [ ] Verify Windows MSI artifact is produced
-   - [ ] Verify Linux AppImage artifact is produced
-   - [ ] Verify macOS DMG still works
+   - [x] Trigger test build on feature branch
+   - [x] Verify Windows MSI artifact is produced
+   - [x] Verify Linux AppImage artifact is produced
+   - [x] Verify macOS DMG still works
 
 **Code Pattern:**
 
@@ -461,10 +461,10 @@ steps:
 
 **Acceptance Criteria:**
 
-- [ ] GitHub Actions produces Windows artifact
-- [ ] GitHub Actions produces Linux artifact
-- [ ] macOS release unchanged
-- [ ] Auto-updater configured for all platforms
+- [x] GitHub Actions produces Windows artifact
+- [x] GitHub Actions produces Linux artifact
+- [x] macOS release unchanged
+- [x] Auto-updater configured for all platforms
 
 How to Test
 
@@ -502,8 +502,8 @@ How to Test
 
 - [ ] Fix any codeRabbit issues
 - [ ] Final once-over of the code we've written on this branch and run checks.
-- [ ] Check all documentation in `docs/developer` for any updates we should make off the back of this work. This includes fixing any examples which are no longer relevant, adding any necessary notes on cross platform stuff to the higher level docs (architecture guide and performance patterns), updating any references to the title bar to be accurate.
-- [ ] Update CLAUDE.md and README.md As appropriate. This is still primarily a Mac app for now, but we may need to just mention that it does include builds for other platforms, although they're not officially supported at the moment.
+- [ ] Check all documentation in `docs/developer` for any updates we should make off the back of this work. This includes fixing any examples which are no longer relevant, adding any necessary notes on cross platform stuff to the higher level docs (architecture guide and performance patterns), updating any references to the title bar to be accurate. We will also need to update any of the documentation on the release process Where relevant.
+- [ ] Update CLAUDE.md and README.md As appropriate. Remember: this is still primarily a Mac app for now, but we may need to just mention that it does include builds for other platforms, although they're not officially supported FOR END USERS yet.
 - [ ] Final manual review and testing on macOS
 
 ## Reference: Files Requiring Attention
