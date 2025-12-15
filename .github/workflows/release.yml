@@ -122,33 +122,95 @@ jobs:
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
 
-      - name: Copy DMG to website folder
+      - name: Upload macOS artifact for website
         if: matrix.platform == 'macos-14'
-        run: |
-          # Find the generated DMG file (universal binary location)
-          DMG_FILE=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-macos
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
+      - name: Upload Windows artifact for website
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-windows
+          path: src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Upload Linux artifact for website
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-linux
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+  # Collect all artifacts and commit to website folder
+  update-website:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: website-macos
+          path: /tmp/artifacts
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: website-windows
+          path: /tmp/artifacts
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: website-linux
+          path: /tmp/artifacts
+
+      - name: Copy artifacts to website folder
+        run: |
+          echo "Available artifacts:"
+          ls -la /tmp/artifacts/
+
+          # Copy macOS DMG
+          DMG_FILE=$(find /tmp/artifacts -name "*.dmg" | head -1)
           if [ -n "$DMG_FILE" ]; then
-            echo "Found DMG: $DMG_FILE"
-            # Copy to website folder with static name
             cp "$DMG_FILE" website/astro-editor-latest.dmg
-            echo "Copied DMG to website/astro-editor-latest.dmg"
-          else
-            echo "No DMG file found!"
-            exit 1
+            echo "✓ Copied DMG: $DMG_FILE"
           fi
 
-      - name: Commit website DMG
-        if: matrix.platform == 'macos-14'
+          # Copy Windows MSI
+          MSI_FILE=$(find /tmp/artifacts -name "*.msi" | head -1)
+          if [ -n "$MSI_FILE" ]; then
+            cp "$MSI_FILE" website/astro-editor-latest.msi
+            echo "✓ Copied MSI: $MSI_FILE"
+          fi
+
+          # Copy Linux AppImage
+          APPIMAGE_FILE=$(find /tmp/artifacts -name "*.AppImage" | head -1)
+          if [ -n "$APPIMAGE_FILE" ]; then
+            cp "$APPIMAGE_FILE" website/astro-editor-latest.AppImage
+            echo "✓ Copied AppImage: $APPIMAGE_FILE"
+          fi
+
+          echo "Website folder contents:"
+          ls -la website/*.dmg website/*.msi website/*.AppImage 2>/dev/null || true
+
+      - name: Commit website artifacts
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add website/astro-editor-latest.dmg
-          git commit -m "chore: update latest DMG for ${{ github.ref_name || inputs.version }}" || echo "No changes to commit"
-          git push origin HEAD:main || echo "Failed to push, continuing..."
+          git add website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage
+          git commit -m "chore: update installers for ${{ github.ref_name || inputs.version }}" || echo "No changes to commit"
+          git push origin main || echo "Failed to push, continuing..."
 
       - name: Trigger website deployment
-        if: matrix.platform == 'macos-14'
         run: |
           echo "Triggering website deployment..."
           gh workflow run deploy-website.yml || echo "Failed to trigger website deployment, continuing..."
