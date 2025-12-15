@@ -18,32 +18,27 @@ import {
 import { cn } from '../../../lib/utils'
 
 interface TitleBarToolbarProps {
-  /** Content to render at the start of the left section (e.g., traffic lights on macOS) */
+  /** Window controls for the left side (e.g., macOS traffic lights) */
   leftSlot?: React.ReactNode
-  /** Content to render at the end of the right section (e.g., window controls on Windows) */
+  /** Window controls for the right side (e.g., Windows minimize/maximize/close) */
   rightSlot?: React.ReactNode
 }
 
 /**
- * Shared toolbar component for the unified title bar.
- * Contains sidebar toggles, project name, and action buttons.
+ * Shared toolbar for the unified title bar.
  * Platform-specific window controls are passed via slots.
  */
 export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   leftSlot,
   rightSlot,
 }) => {
-  // Object subscription needs shallow
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
-
-  // Primitive subscriptions - selector syntax for consistency
   const saveFile = useEditorStore(state => state.saveFile)
   const isDirty = useEditorStore(state => state.isDirty)
 
   const projectPath = useProjectStore(state => state.projectPath)
   const selectedCollection = useProjectStore(state => state.selectedCollection)
 
-  // UI store values (all already primitives or functions)
   const toggleFrontmatterPanel = useUIStore(
     state => state.toggleFrontmatterPanel
   )
@@ -67,14 +62,6 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
     }
   }
 
-  const handleNewFile = () => {
-    void createNewFile()
-  }
-
-  const handleToggleFocusMode = () => {
-    toggleFocusMode()
-  }
-
   const bothPanelsHidden = !sidebarVisible && !frontmatterPanelVisible
 
   return (
@@ -89,11 +76,9 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
       data-tauri-drag-region
       onMouseEnter={showBars}
     >
-      {/* Left: Platform slot + sidebar toggle + project name */}
       <div className="flex items-center gap-2 flex-1" data-tauri-drag-region>
         {leftSlot}
 
-        {/* Left sidebar toggle */}
         <Button
           onClick={toggleSidebar}
           variant="ghost"
@@ -108,7 +93,6 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           )}
         </Button>
 
-        {/* Project name */}
         {projectPath ? (
           <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
             {projectPath.split('/').pop() || projectPath}
@@ -120,12 +104,10 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         )}
       </div>
 
-      {/* Right: Action buttons + platform slot */}
       <div className="flex items-center gap-2" data-tauri-drag-region>
-        {/* New file button - only show when in a collection */}
         {selectedCollection && (
           <Button
-            onClick={handleNewFile}
+            onClick={() => void createNewFile()}
             variant="ghost"
             size="sm"
             className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
@@ -135,9 +117,8 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           </Button>
         )}
 
-        {/* Focus mode toggle */}
         <Button
-          onClick={handleToggleFocusMode}
+          onClick={toggleFocusMode}
           variant="ghost"
           size="sm"
           className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
@@ -153,7 +134,6 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           )}
         </Button>
 
-        {/* Save button */}
         <Button
           onClick={handleSave}
           variant="ghost"
@@ -165,7 +145,6 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           <Save className="size-4" />
         </Button>
 
-        {/* Right sidebar toggle */}
         <Button
           onClick={toggleFrontmatterPanel}
           variant="ghost"

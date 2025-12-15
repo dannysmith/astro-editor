@@ -2,11 +2,7 @@ import React from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Minus, Square, X } from 'lucide-react'
 
-/**
- * Windows-style window controls (minimize, maximize, close).
- * Positioned on the right side of the title bar.
- */
-
+/** Windows-style window controls (minimize, maximize, close). */
 export const WindowsControls: React.FC = () => {
   const handleMinimize = async () => {
     const window = getCurrentWindow()
