@@ -18,6 +18,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# Note: macos-private-api is kept in base features because tauri-build's feature
+# check runs before Cargo resolves target-specific deps. The feature is a no-op
+# on non-macOS platforms.
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 
 # Type-safe Tauri commands with auto-generated TypeScript bindings
@@ -25,7 +28,6 @@ specta = { version = "=2.0.0-rc.22", features = ["indexmap", "serde_json"] }
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 tauri-plugin-opener = "2"
-window-vibrancy = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_norway = "0.9.42"
@@ -51,10 +53,16 @@ indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
 reqwest = { version = "0.12", features = ["json"] }
 uuid = { version = "1.0", features = ["v4"] }
+tauri-plugin-os = "2.3.2"
 
 [dev-dependencies]
 tempfile = "3.8"
 
+# macOS-only dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "0.6"
+
+# Desktop-only dependencies (excludes Android and iOS)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 

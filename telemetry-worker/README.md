@@ -44,6 +44,18 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 "
 ```
 
+### Users by platform
+
+```bash
+pnpm wrangler d1 execute astro-telemetry --remote --command "
+  SELECT platform, COUNT(DISTINCT uuid) as users
+  FROM telemetry_events
+  WHERE app_id = 'astro-editor'
+  GROUP BY platform
+  ORDER BY users DESC
+"
+```
+
 ### Users per current version
 
 ```bash

@@ -1,3 +1,4 @@
+use crate::utils::serialize_path;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::PathBuf;
@@ -5,8 +6,9 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DirectoryInfo {
     pub name: String,          // Just the directory name
-    pub relative_path: String, // Path from collection root
+    pub relative_path: String, // Path from collection root (already normalized)
     #[specta(type = String)]
+    #[serde(serialize_with = "serialize_path")]
     pub full_path: PathBuf, // Full filesystem path
 }
 

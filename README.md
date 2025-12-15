@@ -72,6 +72,8 @@ Download the [latest Release](https://github.com/dannysmith/astro-editor/release
 brew install --cask astro-editor
 ```
 
+**Other Platforms:** Windows (.msi) and Linux (.AppImage, .deb) builds are available from the releases page but are not officially supported yet. Use at your own risk.
+
 ## Documentation
 
 - **[User Guide](docs/user-guide.md)** - Complete feature documentation

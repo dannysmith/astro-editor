@@ -37,6 +37,7 @@
     "process:default",
     "process:allow-restart",
     "log:default",
+    "os:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [

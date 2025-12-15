@@ -4,6 +4,7 @@ mod models;
 mod parser;
 mod schema_merger;
 mod telemetry;
+mod utils;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -55,6 +56,7 @@ pub fn run() {
                 tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview)
             ])
             .build())
+        .plugin(tauri_plugin_os::init())
         .manage(commands::watcher::init_watcher_state())
         .setup(|app| {
             // Log app startup information

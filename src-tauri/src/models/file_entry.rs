@@ -1,3 +1,4 @@
+use crate::utils::serialize_path;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -8,6 +9,7 @@ use std::path::PathBuf;
 pub struct FileEntry {
     pub id: String,
     #[specta(type = String)]
+    #[serde(serialize_with = "serialize_path")]
     pub path: PathBuf,
     pub name: String,
     pub extension: String,

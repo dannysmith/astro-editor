@@ -318,32 +318,6 @@ body {
     transform: translate(-50%, -50%);
   }
 
-  /* Dark mode traffic light adaptations - same colors as light mode */
-  .dark .traffic-light-close {
-    background: #ff5f56;
-    border-color: #e0443e;
-  }
-  .dark .traffic-light-close:hover {
-    background: #ff453a;
-  }
-  .dark .traffic-light-minimize {
-    background: #ffbd30;
-    border-color: #dea123;
-  }
-  .dark .traffic-light-minimize:hover {
-    background: #ffb524;
-  }
-  .dark .traffic-light-maximize {
-    background: #28ca42;
-    border-color: #1aac29;
-  }
-  .dark .traffic-light-maximize:hover {
-    background: #1fb932;
-  }
-  .dark .traffic-light .symbol {
-    color: rgba(0, 0, 0, 0.75);
-  }
-
   /* Window unfocused state - grey traffic lights */
   .window-unfocused .traffic-light-close,
   .window-unfocused .traffic-light-minimize,
@@ -371,6 +345,17 @@ body {
   .dark.window-unfocused .traffic-light-maximize:hover {
     background: #6a6a6a !important;
   }
+}
+
+/* Windows Title Bar - drag region support for touch/pen input */
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+
+/* Ensure buttons within drag regions are clickable */
+*[data-tauri-drag-region] button,
+*[data-tauri-drag-region] [role='button'] {
+  app-region: no-drag;
 }
 
 /* Allow text selection in specific areas */
