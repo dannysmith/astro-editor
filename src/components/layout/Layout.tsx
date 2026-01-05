@@ -129,7 +129,7 @@ export const Layout: React.FC = () => {
   }, [editorBaseFontSize])
 
   return (
-    <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">
+    <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col overflow-hidden">
       <UnifiedTitleBar />
 
       <div className="flex-1 min-h-0">
