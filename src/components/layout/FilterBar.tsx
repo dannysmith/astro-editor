@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { Search, ArrowUpDown, X, ArrowUp, ArrowDown } from 'lucide-react'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
@@ -59,21 +59,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     inputRef.current?.focus()
   }, [])
 
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onSearchChange(e.target.value)
-    },
-    [onSearchChange]
-  )
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSearchChange(e.target.value)
+  }
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Escape') {
-        onClearSearch()
-      }
-    },
-    [onClearSearch]
-  )
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      onClearSearch()
+    }
+  }
 
   const currentSortOption = sortOptions.find(opt => opt.id === sortMode)
 
@@ -123,7 +117,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             {sortOptions.map(option => {
               const typeLabel = getSortTypeLabel(option)
               return (
-                <SelectItem key={option.id} value={option.id} className="text-xs">
+                <SelectItem
+                  key={option.id}
+                  value={option.id}
+                  className="text-xs"
+                >
                   <span className="flex items-center justify-between w-full gap-3">
                     <span>{option.label}</span>
                     {typeLabel && (

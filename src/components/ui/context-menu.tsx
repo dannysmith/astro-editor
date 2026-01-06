@@ -7,7 +7,7 @@ import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
 import { openInIde } from '../../lib/ide'
-import { getTitle } from '../layout/FileItem'
+import { getTitle } from '@/lib/files/sorting'
 import { getPlatform } from '@/hooks/usePlatform'
 import { getPlatformString } from '@/lib/platform-strings'
 

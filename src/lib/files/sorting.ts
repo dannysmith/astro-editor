@@ -52,14 +52,18 @@ export function getPublishedDate(
 }
 
 /**
- * Get display title from file, falling back to filename
+ * Get display title from file, falling back to filename (without extension)
  */
-function getTitle(file: FileEntry, titleField: string): string {
-  const title = file.frontmatter?.[titleField]
-  if (title && typeof title === 'string') {
-    return title
+export function getTitle(file: FileEntry, titleField: string): string {
+  if (
+    file.frontmatter?.[titleField] &&
+    typeof file.frontmatter[titleField] === 'string'
+  ) {
+    return file.frontmatter[titleField]
   }
-  return file.name
+
+  const filename = file.name || file.path.split('/').pop() || 'Untitled'
+  return filename.replace(/\.(md|mdx)$/, '')
 }
 
 /**
@@ -100,10 +104,13 @@ export function sortFilesByPublishedDate(
 }
 
 /**
- * Capitalize first letter of a string
+ * Convert camelCase or simple strings to Title Case with spaces
+ * Examples: "publishedDate" → "Published Date", "title" → "Title"
  */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1)
+function toTitleCase(str: string): string {
+  // Insert space before uppercase letters, then capitalize first letter
+  const spaced = str.replace(/([A-Z])/g, ' $1').trim()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
 /**
@@ -125,7 +132,7 @@ export function getSortOptionsForCollection(
       if (field.type === FieldType.Date) {
         options.push({
           id: `date-${field.name}`,
-          label: capitalize(field.name),
+          label: toTitleCase(field.name),
           type: 'date',
           field: field.name,
         })

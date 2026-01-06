@@ -17,6 +17,7 @@ export { filterFilesByDraft } from './filtering'
 export {
   sortFilesByPublishedDate,
   getPublishedDate,
+  getTitle,
   getSortOptionsForCollection,
   sortFiles,
 } from './sorting'
