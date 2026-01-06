@@ -3,9 +3,8 @@ import { platform, type Platform } from '@tauri-apps/plugin-os'
 
 export type AppPlatform = 'macos' | 'windows' | 'linux'
 
-// Debug: Set to 'windows' or 'linux' to test title bars on macOS
-// TODO: Remove before shipping - search for DEBUG_PLATFORM_OVERRIDE
-const DEBUG_PLATFORM_OVERRIDE: AppPlatform | null = 'windows'
+// Debug: Set to 'windows' or 'linux' to test platform-specific UI on other platforms
+const DEBUG_PLATFORM_OVERRIDE: AppPlatform | null = null
 
 /**
  * Hook to detect the current platform.

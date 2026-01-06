@@ -42,6 +42,7 @@
 
 :root {
   color-scheme: light;
+  --app-corner-radius: 12px;
   --background: hsl(0 0% 100%);
   --foreground: hsl(0 0% 10%);
   --card: hsl(0 0% 100%);
@@ -121,6 +122,11 @@
   --color-required: 0 91% 71%; /* Lighter red for dark */
   --color-warning: 48 96% 80%; /* Lighter yellow for dark */
   --color-warning-bg: 48 100% 6%; /* Dark yellow background */
+}
+
+/* Square corners mode - used on Windows/Linux in fullscreen */
+.square-corners {
+  --app-corner-radius: 0px;
 }
 
 @theme inline {
@@ -225,7 +231,7 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--app-corner-radius);
   background: hsl(var(--background));
   border: 0.5px solid hsl(var(--border));
 }

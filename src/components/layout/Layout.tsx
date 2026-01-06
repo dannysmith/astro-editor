@@ -22,6 +22,7 @@ import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
 import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
+import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
 import { LAYOUT_SIZES } from '../../lib/layout-constants'
@@ -78,6 +79,7 @@ export const Layout: React.FC = () => {
   useEditorFocusTracking()
   useKeyboardShortcuts(handleSetPreferencesOpen)
   useMenuEvents(createNewFileWithQuery, handleSetPreferencesOpen)
+  useSquareCornersEffect()
   useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
 
   // Enable query-based file loading

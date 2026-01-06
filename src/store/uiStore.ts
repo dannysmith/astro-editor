@@ -18,6 +18,7 @@ interface UIState {
   handleTypingInEditor: () => void
   showBars: () => void
   toggleDraftFilter: (collectionName: string) => void
+  setSquareCorners: (enabled: boolean) => void
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -72,6 +73,10 @@ export const useUIStore = create<UIState>((set, get) => ({
         [collectionName]: !state.draftFilterByCollection[collectionName],
       },
     }))
+  },
+
+  setSquareCorners: (enabled: boolean) => {
+    document.documentElement.classList.toggle('square-corners', enabled)
   },
 }))
 
