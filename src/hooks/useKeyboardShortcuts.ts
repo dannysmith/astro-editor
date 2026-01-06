@@ -126,10 +126,10 @@ export function useKeyboardShortcuts(
   useHotkeys(
     'f11',
     () => {
-      const window = getCurrentWindow()
-      void window
+      const tauriWindow = getCurrentWindow()
+      void tauriWindow
         .isFullscreen()
-        .then(isFullscreen => window.setFullscreen(!isFullscreen))
+        .then(isFullscreen => tauriWindow.setFullscreen(!isFullscreen))
         .catch(error => {
           // eslint-disable-next-line no-console
           console.error('Failed to toggle fullscreen:', error)
