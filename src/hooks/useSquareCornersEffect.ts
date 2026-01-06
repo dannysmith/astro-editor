@@ -22,10 +22,12 @@ export function useSquareCornersEffect() {
       return
     }
 
+    let cancelled = false
     const window = getCurrentWindow()
 
     const updateCorners = async () => {
       const isFullscreen = await window.isFullscreen()
+      if (cancelled) return
       // Windows/Linux: square corners only in fullscreen
       setSquareCorners(isFullscreen)
     }
@@ -35,10 +37,12 @@ export function useSquareCornersEffect() {
 
     // Listen for window state changes
     const unlisten = window.onResized(() => {
+      if (cancelled) return
       void updateCorners()
     })
 
     return () => {
+      cancelled = true
       void unlisten.then(fn => fn())
     }
   }, [platform, setSquareCorners])
