@@ -60,7 +60,6 @@ export const mockFiles = [
     path: '/test/project/src/content/posts/post1.md',
     name: 'post1',
     extension: 'md',
-    isDraft: false,
     collection: 'posts',
     frontmatter: {
       title: 'Test Post 1',
@@ -73,7 +72,6 @@ export const mockFiles = [
     path: '/test/project/src/content/posts/post2.md',
     name: 'post2',
     extension: 'md',
-    isDraft: true,
     collection: 'posts',
     frontmatter: {
       title: 'Test Post 2',

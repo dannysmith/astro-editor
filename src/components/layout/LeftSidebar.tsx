@@ -17,9 +17,11 @@ import {
   Filter,
   Folder,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { FileItem } from './FileItem'
 import { openProjectViaDialog } from '../../lib/projects/actions'
@@ -227,7 +229,7 @@ export const LeftSidebar: React.FC = () => {
 
   const headerTitle = selectedCollection
     ? selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)
-    : 'Collections'
+    : 'Content'
 
   // Generate breadcrumb segments
   const breadcrumbSegments = React.useMemo(() => {
@@ -342,6 +344,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {collections.map(collection => {
               const fileCount = fileCounts[collection.name] ?? 0
+              const hasSchema = Boolean(collection.complete_schema)
 
               return (
                 <button
@@ -350,9 +353,21 @@ export const LeftSidebar: React.FC = () => {
                   className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-medium text-foreground">
-                      {collection.name}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-foreground">
+                        {collection.name}
+                      </span>
+                      {!hasSchema && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertTriangle className="size-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            No schema found - using defaults
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     <Badge variant="secondary" className="text-xs">
                       {fileCount} item{fileCount !== 1 ? 's' : ''}
                     </Badge>

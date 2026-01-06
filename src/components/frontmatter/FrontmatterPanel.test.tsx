@@ -15,7 +15,6 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
   path: '/project/posts/test.md',
   name: 'test',
   extension: 'md',
-  isDraft: false,
   collection: 'posts',
   last_modified: null,
   frontmatter: null,

@@ -43,7 +43,7 @@ const notes = defineCollection({
       slug: z.string().optional(),
       draft: z.boolean().default(false),
       description: z.string().optional(),
-      pubDate: z.coerce.date(),
+      pubDate: z.coerce.date().optional(),
       tags: z.array(z.string()).optional(),
       // Nullable schema types for testing (Issue #68 follow-up)
       status: z.enum(['draft', 'review', 'published']).nullish(),
@@ -65,4 +65,19 @@ const notes = defineCollection({
     }),
 });
 
-export const collections = { authors, articles, notes };
+const ideas = defineCollection({
+  loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/ideas' }),
+  schema: z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().optional(),
+    archived: z.boolean().default(false),
+    pubDate: z.coerce.date().optional(),
+  }),
+});
+
+// Schemaless collection for testing schema indicator (no schema defined)
+const schemaless = defineCollection({
+  loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/schemaless' }),
+});
+
+export const collections = { authors, articles, notes, ideas, schemaless };

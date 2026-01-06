@@ -31,7 +31,6 @@ const createMockFileEntry = (
   name: 'test.md',
   path: '/test/content/blog/test.md',
   extension: 'md',
-  isDraft: false,
   collection: 'blog',
   last_modified: null,
   frontmatter: null,
@@ -629,7 +628,7 @@ describe('Store ↔ Query Integration Tests', () => {
         id: 'file-with-meta',
         name: 'post.md',
         path: '/test/content/blog/post.md',
-        isDraft: true,
+        frontmatter: { draft: true },
       })
 
       store.openFile(fileWithMetadata)
@@ -637,7 +636,7 @@ describe('Store ↔ Query Integration Tests', () => {
       // Verify: All metadata preserved
       const updatedStore = useEditorStore.getState()
       expect(updatedStore.currentFile).toEqual(fileWithMetadata)
-      expect(updatedStore.currentFile!.isDraft).toBe(true)
+      expect(updatedStore.currentFile!.frontmatter?.draft).toBe(true)
       expect(updatedStore.currentFile!.collection).toBe('blog')
     })
   })

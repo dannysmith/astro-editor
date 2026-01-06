@@ -22,10 +22,12 @@ export type {
    * - `path` - Absolute file path
    * - `name` - Display name (filename without extension)
    * - `extension` - File extension ('md' or 'mdx')
-   * - `isDraft` - Is this file marked as draft?
    * - `collection` - Collection this file belongs to
    * - `last_modified` - Unix timestamp of last modification (null when unavailable)
    * - `frontmatter` - Parsed frontmatter data (null when not loaded)
+   *
+   * Note: Draft status is determined in the frontend using the user-configured
+   * draft field from settings, accessed via `file.frontmatter[draftField]`.
    */
   FileEntry,
   /**

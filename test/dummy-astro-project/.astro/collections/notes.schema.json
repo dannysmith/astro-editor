@@ -143,8 +143,7 @@
         }
       },
       "required": [
-        "title",
-        "pubDate"
+        "title"
       ],
       "additionalProperties": false
     }

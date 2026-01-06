@@ -16,7 +16,6 @@ const mockFileEntry: FileEntry = {
   name: 'test.md',
   path: '/test/content/blog/test.md',
   extension: 'md',
-  isDraft: false,
   collection: 'blog',
   last_modified: null,
   frontmatter: null,

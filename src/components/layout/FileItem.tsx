@@ -66,8 +66,8 @@ export const FileItem: React.FC<FileItemProps> = ({
   const previousIsRenamingRef = useRef(isRenaming)
 
   // Derived state (NO store subscriptions)
-  const isFileDraft =
-    file.isDraft || file.frontmatter?.[frontmatterMappings.draft] === true
+  // Draft detection uses only the user-configured field (or 'draft' default)
+  const isFileDraft = file.frontmatter?.[frontmatterMappings.draft] === true
   const isMdx = file.extension === 'mdx'
   const title = getTitle(file, frontmatterMappings.title)
   const publishedDate = getPublishedDate(

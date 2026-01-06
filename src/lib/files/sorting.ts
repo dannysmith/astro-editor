@@ -13,7 +13,6 @@ type FieldMappings = {
 
 /**
  * Get published date from frontmatter
- * ⚠️ CRITICAL: Moved from FileItem.tsx lines 42-60 WITHOUT CHANGES
  *
  * @param frontmatter - File frontmatter object
  * @param publishedDateField - Field name(s) to check for published date
@@ -40,35 +39,49 @@ export function getPublishedDate(
 }
 
 /**
- * Sort files by published date (reverse chronological), files without dates first
- * ⚠️ CRITICAL: Preserves array spreading with [...files].sort()
+ * Get display title from file, falling back to filename
+ */
+function getTitle(file: FileEntry, titleField: string): string {
+  const title = file.frontmatter?.[titleField]
+  if (title && typeof title === 'string') {
+    return title
+  }
+  return file.name
+}
+
+/**
+ * Sort files by published date with alphabetical fallback.
+ *
+ * Sorting order:
+ * 1. Undated files at top, sorted alphabetically by title (falling back to filename)
+ * 2. Dated files below, sorted newest first
+ * 3. Same-date files use alphabetical tiebreaker
  *
  * @param files - Array of file entries to sort
- * @param mappings - Frontmatter field mappings (contains publishedDate field)
+ * @param mappings - Frontmatter field mappings (contains publishedDate and title fields)
  * @returns New sorted array (does not mutate original)
  */
 export function sortFilesByPublishedDate(
   files: FileEntry[],
   mappings: FieldMappings | null
 ): FileEntry[] {
-  // ⚠️ CRITICAL: Use [...files].sort() not files.sort() to avoid mutation
-  // This logic is copied exactly from LeftSidebar.tsx lines 241-258
-  return [...files].sort((a, b) => {
-    const dateA = getPublishedDate(
-      a.frontmatter || {},
-      mappings?.publishedDate || 'publishedDate'
-    )
-    const dateB = getPublishedDate(
-      b.frontmatter || {},
-      mappings?.publishedDate || 'publishedDate'
-    )
+  const titleField = mappings?.title || 'title'
+  const publishedDateField = mappings?.publishedDate || 'publishedDate'
 
-    // Files without dates go to top
-    if (!dateA && !dateB) return 0
+  return [...files].sort((a, b) => {
+    const dateA = getPublishedDate(a.frontmatter || {}, publishedDateField)
+    const dateB = getPublishedDate(b.frontmatter || {}, publishedDateField)
+
+    // Undated files go to top, sorted alphabetically among themselves
+    if (!dateA && !dateB) {
+      return getTitle(a, titleField).localeCompare(getTitle(b, titleField))
+    }
     if (!dateA) return -1
     if (!dateB) return 1
 
-    // Sort by date descending (newest first)
-    return dateB.getTime() - dateA.getTime()
+    // Dated files: newest first, alphabetical tiebreaker
+    const dateDiff = dateB.getTime() - dateA.getTime()
+    if (dateDiff !== 0) return dateDiff
+    return getTitle(a, titleField).localeCompare(getTitle(b, titleField))
   })
 }
