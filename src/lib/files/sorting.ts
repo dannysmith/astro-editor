@@ -3,12 +3,25 @@
  */
 
 import type { FileEntry } from '@/types'
+import { CompleteSchema, FieldType } from '../schema'
 
-type FieldMappings = {
+export type FieldMappings = {
   publishedDate: string | string[]
   title: string
   description: string
   draft: string
+}
+
+export interface SortOption {
+  id: string
+  label: string
+  type: 'default' | 'alpha' | 'date' | 'numeric'
+  field: string | null // frontmatter field name, null for built-in fields
+}
+
+export interface SortConfig {
+  mode: string
+  direction: 'asc' | 'desc'
 }
 
 /**
@@ -83,5 +96,140 @@ export function sortFilesByPublishedDate(
     const dateDiff = dateB.getTime() - dateA.getTime()
     if (dateDiff !== 0) return dateDiff
     return getTitle(a, titleField).localeCompare(getTitle(b, titleField))
+  })
+}
+
+/**
+ * Capitalize first letter of a string
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+/**
+ * Generate sort options based on the collection's schema
+ * Returns dynamic options including date fields from schema
+ */
+export function getSortOptionsForCollection(
+  schema: CompleteSchema | null
+): SortOption[] {
+  const options: SortOption[] = [
+    { id: 'default', label: 'Default', type: 'default', field: null },
+    { id: 'title', label: 'Title', type: 'alpha', field: 'title' },
+    { id: 'filename', label: 'Filename', type: 'alpha', field: null },
+  ]
+
+  if (schema) {
+    // Add date fields from schema
+    for (const field of schema.fields) {
+      if (field.type === FieldType.Date) {
+        options.push({
+          id: `date-${field.name}`,
+          label: capitalize(field.name),
+          type: 'date',
+          field: field.name,
+        })
+      }
+    }
+
+    // Add order field if present and numeric
+    const orderField = schema.fields.find(f => f.name === 'order')
+    if (
+      orderField &&
+      (orderField.type === FieldType.Number ||
+        orderField.type === FieldType.Integer)
+    ) {
+      options.push({
+        id: 'order',
+        label: 'Order',
+        type: 'numeric',
+        field: 'order',
+      })
+    }
+  }
+
+  // Always add last modified
+  options.push({
+    id: 'modified',
+    label: 'Last Modified',
+    type: 'date',
+    field: null,
+  })
+
+  return options
+}
+
+/**
+ * Sort files by the given configuration
+ *
+ * @param files - Array of file entries to sort
+ * @param config - Sort configuration (mode and direction)
+ * @param mappings - Frontmatter field mappings
+ * @returns New sorted array (does not mutate original)
+ */
+export function sortFiles(
+  files: FileEntry[],
+  config: SortConfig,
+  mappings: FieldMappings | null
+): FileEntry[] {
+  // Default mode uses existing behavior
+  if (config.mode === 'default') {
+    return sortFilesByPublishedDate(files, mappings)
+  }
+
+  const titleField = mappings?.title || 'title'
+
+  return [...files].sort((a, b) => {
+    let valueA: unknown
+    let valueB: unknown
+
+    // Extract values based on mode
+    switch (config.mode) {
+      case 'filename':
+        valueA = a.name
+        valueB = b.name
+        break
+      case 'title':
+        valueA = a.frontmatter?.[titleField] as string | undefined
+        valueB = b.frontmatter?.[titleField] as string | undefined
+        break
+      case 'modified':
+        valueA = a.last_modified
+        valueB = b.last_modified
+        break
+      case 'order':
+        valueA = a.frontmatter?.order as number | undefined
+        valueB = b.frontmatter?.order as number | undefined
+        break
+      default:
+        // Date field from frontmatter (mode = "date-{field}")
+        if (config.mode.startsWith('date-')) {
+          const field = config.mode.replace('date-', '')
+          valueA = a.frontmatter?.[field]
+          valueB = b.frontmatter?.[field]
+        }
+    }
+
+    // Handle missing values - go to BOTTOM (opposite of Default mode)
+    if (valueA == null && valueB == null) return 0
+    if (valueA == null) return 1 // a goes to bottom
+    if (valueB == null) return -1 // b goes to bottom
+
+    // Compare based on type
+    let comparison: number
+    if (typeof valueA === 'number' && typeof valueB === 'number') {
+      comparison = valueA - valueB
+    } else if (config.mode.startsWith('date-') || config.mode === 'modified') {
+      comparison =
+        new Date(valueA as string | number).getTime() -
+        new Date(valueB as string | number).getTime()
+    } else {
+      // For string comparisons, ensure we have strings
+      const strA = typeof valueA === 'string' ? valueA : ''
+      const strB = typeof valueB === 'string' ? valueB : ''
+      comparison = strA.localeCompare(strB)
+    }
+
+    return config.direction === 'desc' ? -comparison : comparison
   })
 }

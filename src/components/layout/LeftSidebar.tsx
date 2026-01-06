@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
@@ -18,15 +18,19 @@ import {
   Folder,
   ChevronRight,
   AlertTriangle,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { FileItem } from './FileItem'
+import { FilterBar } from './FilterBar'
 import { openProjectViaDialog } from '../../lib/projects/actions'
 import { filterFilesByDraft } from '../../lib/files/filtering'
-import { sortFilesByPublishedDate } from '../../lib/files/sorting'
+import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
+import { filterFilesBySearch } from '../../lib/files/search'
+import { deserializeCompleteSchema } from '../../lib/schema'
 
 export const LeftSidebar: React.FC = () => {
   // Object subscription needs shallow
@@ -48,11 +52,60 @@ export const LeftSidebar: React.FC = () => {
       state => state.draftFilterByCollection[selectedCollection || '']
     ) || false
 
+  // Get collection view state from UI store
+  const collectionViewState = useUIStore(
+    useShallow(state =>
+      selectedCollection
+        ? state.getCollectionViewState(selectedCollection)
+        : {
+            sortMode: 'default',
+            sortDirection: 'desc' as const,
+            searchQuery: '',
+            filterBarExpanded: false,
+          }
+    )
+  )
+
   // Use getState() pattern for callbacks to avoid render cascades
   const handleToggleDraftsOnly = useCallback(() => {
     const { selectedCollection } = useProjectStore.getState()
     if (selectedCollection) {
       useUIStore.getState().toggleDraftFilter(selectedCollection)
+    }
+  }, [])
+
+  const handleToggleFilterBar = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().toggleFilterBar(selectedCollection)
+    }
+  }, [])
+
+  const handleSearchChange = useCallback((query: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSearchQuery(selectedCollection, query)
+    }
+  }, [])
+
+  const handleClearSearch = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSearchQuery(selectedCollection, '')
+    }
+  }, [])
+
+  const handleSortModeChange = useCallback((mode: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSortMode(selectedCollection, mode)
+    }
+  }, [])
+
+  const handleSortDirectionToggle = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().toggleSortDirection(selectedCollection)
     }
   }, [])
 
@@ -217,15 +270,64 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(null)
   }
 
-  // Filter and sort files by published date (reverse chronological), files without dates first
-  const filteredAndSortedFiles = React.useMemo((): FileEntry[] => {
-    const filtered = filterFilesByDraft(
-      files,
-      showDraftsOnly,
+  // Parse the schema for the current collection
+  const completeSchemaJson = currentCollection?.complete_schema ?? null
+  const currentSchema = useMemo(() => {
+    if (!completeSchemaJson) return null
+    return deserializeCompleteSchema(completeSchemaJson)
+  }, [completeSchemaJson])
+
+  // Get sort options based on schema
+  const sortOptions = useMemo(() => {
+    return getSortOptionsForCollection(currentSchema)
+  }, [currentSchema])
+
+  // Check if filters are active (manual computation to avoid unnecessary deps warning)
+  const hasActiveFilters = useMemo(() => {
+    if (!selectedCollection) return false
+    return (
+      collectionViewState.searchQuery.trim() !== '' ||
+      collectionViewState.sortMode !== 'default' ||
+      showDraftsOnly
+    )
+  }, [
+    selectedCollection,
+    collectionViewState.searchQuery,
+    collectionViewState.sortMode,
+    showDraftsOnly,
+  ])
+
+  // Filter and sort files
+  const filteredAndSortedFiles = useMemo((): FileEntry[] => {
+    // Step 1: Filter by draft status
+    let result = filterFilesByDraft(files, showDraftsOnly, frontmatterMappings)
+
+    // Step 2: Filter by search query
+    if (collectionViewState.searchQuery) {
+      result = filterFilesBySearch(
+        result,
+        collectionViewState.searchQuery,
+        frontmatterMappings
+      )
+    }
+
+    // Step 3: Sort files
+    return sortFiles(
+      result,
+      {
+        mode: collectionViewState.sortMode,
+        direction: collectionViewState.sortDirection,
+      },
       frontmatterMappings
     )
-    return sortFilesByPublishedDate(filtered, frontmatterMappings)
-  }, [files, frontmatterMappings, showDraftsOnly])
+  }, [
+    files,
+    frontmatterMappings,
+    showDraftsOnly,
+    collectionViewState.searchQuery,
+    collectionViewState.sortMode,
+    collectionViewState.sortDirection,
+  ])
 
   const headerTitle = selectedCollection
     ? selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)
@@ -315,27 +417,61 @@ export const LeftSidebar: React.FC = () => {
             )}
           </div>
           {selectedCollection && (
-            <Button
-              onClick={handleToggleDraftsOnly}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
-                showDraftsOnly
-                  ? 'text-draft bg-draft hover:bg-draft/80'
-                  : 'text-muted-foreground'
-              )}
-              title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
-            >
-              {showDraftsOnly ? (
-                <Filter className="size-4" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-            </Button>
+            <>
+              <Button
+                onClick={handleToggleFilterBar}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                  collectionViewState.filterBarExpanded || hasActiveFilters
+                    ? 'text-foreground bg-accent'
+                    : 'text-muted-foreground'
+                )}
+                title={
+                  collectionViewState.filterBarExpanded
+                    ? 'Hide Filters'
+                    : 'Show Filters'
+                }
+              >
+                <SlidersHorizontal className="size-4" />
+              </Button>
+              <Button
+                onClick={handleToggleDraftsOnly}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                  showDraftsOnly
+                    ? 'text-draft bg-draft hover:bg-draft/80'
+                    : 'text-muted-foreground'
+                )}
+                title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
+              >
+                {showDraftsOnly ? (
+                  <Filter className="size-4" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Filter Bar */}
+      {selectedCollection && collectionViewState.filterBarExpanded && (
+        <FilterBar
+          searchQuery={collectionViewState.searchQuery}
+          sortMode={collectionViewState.sortMode}
+          sortDirection={collectionViewState.sortDirection}
+          sortOptions={sortOptions}
+          onSearchChange={handleSearchChange}
+          onSortModeChange={handleSortModeChange}
+          onSortDirectionToggle={handleSortDirectionToggle}
+          onClearSearch={handleClearSearch}
+        />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
@@ -455,9 +591,11 @@ export const LeftSidebar: React.FC = () => {
                 {filteredAndSortedFiles.length === 0 &&
                   subdirectories.length === 0 && (
                     <div className="p-4 text-center text-muted-foreground text-sm">
-                      {showDraftsOnly
-                        ? 'No draft files found in this directory.'
-                        : 'This directory is empty.'}
+                      {collectionViewState.searchQuery
+                        ? 'No files match your search.'
+                        : showDraftsOnly
+                          ? 'No draft files found in this directory.'
+                          : 'This directory is empty.'}
                     </div>
                   )}
               </>
