@@ -5,6 +5,15 @@
 import type { FileEntry } from '@/types'
 import { CompleteSchema, FieldType } from '../schema'
 
+/**
+ * Maps semantic field purposes to actual frontmatter field names.
+ * Allows collections to use custom field names while maintaining consistent behavior.
+ *
+ * @property publishedDate - Field name(s) containing the publish date (checked in order if array)
+ * @property title - Field name for the display title
+ * @property description - Field name for the description/summary
+ * @property draft - Field name for the draft status boolean
+ */
 export type FieldMappings = {
   publishedDate: string | string[]
   title: string
@@ -12,13 +21,27 @@ export type FieldMappings = {
   draft: string
 }
 
+/**
+ * Represents a sorting option available for a collection's file list.
+ *
+ * @property id - Unique identifier for this sort option (e.g., 'title', 'date-publishedDate')
+ * @property label - Human-readable label shown in the UI
+ * @property type - Sort algorithm: 'default' (date with fallback), 'alpha', 'date', or 'numeric'
+ * @property field - Frontmatter field name to sort by, or null for built-in sorts (filename, modified)
+ */
 export interface SortOption {
   id: string
   label: string
   type: 'default' | 'alpha' | 'date' | 'numeric'
-  field: string | null // frontmatter field name, null for built-in fields
+  field: string | null
 }
 
+/**
+ * Current sort configuration for a file list.
+ *
+ * @property mode - The active sort option id (matches SortOption.id)
+ * @property direction - Sort direction: 'asc' for ascending, 'desc' for descending
+ */
 export interface SortConfig {
   mode: string
   direction: 'asc' | 'desc'
@@ -227,9 +250,13 @@ export function sortFiles(
     if (typeof valueA === 'number' && typeof valueB === 'number') {
       comparison = valueA - valueB
     } else if (config.mode.startsWith('date-') || config.mode === 'modified') {
-      comparison =
-        new Date(valueA as string | number).getTime() -
-        new Date(valueB as string | number).getTime()
+      const timeA = new Date(valueA as string | number).getTime()
+      const timeB = new Date(valueB as string | number).getTime()
+      // Handle invalid dates (NaN) - treat as missing, push to bottom
+      if (isNaN(timeA) && isNaN(timeB)) return 0
+      if (isNaN(timeA)) return 1
+      if (isNaN(timeB)) return -1
+      comparison = timeA - timeB
     } else {
       // For string comparisons, ensure we have strings
       const strA = typeof valueA === 'string' ? valueA : ''
