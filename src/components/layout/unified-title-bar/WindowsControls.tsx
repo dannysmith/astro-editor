@@ -42,7 +42,7 @@ export const WindowsControls: React.FC = () => {
       </button>
       <button
         onClick={() => void handleClose()}
-        className="h-11 w-11 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors group rounded-tr-[12px]"
+        className="h-11 w-11 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors group"
         aria-label="Close"
       >
         <X className="size-4 text-gray-700 dark:text-gray-300 group-hover:text-white" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
@@ -17,14 +17,20 @@ import {
   Filter,
   Folder,
   ChevronRight,
+  AlertTriangle,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { FileItem } from './FileItem'
+import { FilterBar } from './FilterBar'
 import { openProjectViaDialog } from '../../lib/projects/actions'
 import { filterFilesByDraft } from '../../lib/files/filtering'
-import { sortFilesByPublishedDate } from '../../lib/files/sorting'
+import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
+import { filterFilesBySearch } from '../../lib/files/search'
+import { deserializeCompleteSchema } from '../../lib/schema'
 
 export const LeftSidebar: React.FC = () => {
   // Object subscription needs shallow
@@ -46,11 +52,60 @@ export const LeftSidebar: React.FC = () => {
       state => state.draftFilterByCollection[selectedCollection || '']
     ) || false
 
+  // Get collection view state from UI store
+  const collectionViewState = useUIStore(
+    useShallow(state =>
+      selectedCollection
+        ? state.getCollectionViewState(selectedCollection)
+        : {
+            sortMode: 'default',
+            sortDirection: 'desc' as const,
+            searchQuery: '',
+            filterBarExpanded: false,
+          }
+    )
+  )
+
   // Use getState() pattern for callbacks to avoid render cascades
   const handleToggleDraftsOnly = useCallback(() => {
     const { selectedCollection } = useProjectStore.getState()
     if (selectedCollection) {
       useUIStore.getState().toggleDraftFilter(selectedCollection)
+    }
+  }, [])
+
+  const handleToggleFilterBar = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().toggleFilterBar(selectedCollection)
+    }
+  }, [])
+
+  const handleSearchChange = useCallback((query: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSearchQuery(selectedCollection, query)
+    }
+  }, [])
+
+  const handleClearSearch = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSearchQuery(selectedCollection, '')
+    }
+  }, [])
+
+  const handleSortModeChange = useCallback((mode: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().setSortMode(selectedCollection, mode)
+    }
+  }, [])
+
+  const handleSortDirectionToggle = useCallback(() => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (selectedCollection) {
+      useUIStore.getState().toggleSortDirection(selectedCollection)
     }
   }, [])
 
@@ -215,19 +270,65 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(null)
   }
 
-  // Filter and sort files by published date (reverse chronological), files without dates first
-  const filteredAndSortedFiles = React.useMemo((): FileEntry[] => {
-    const filtered = filterFilesByDraft(
-      files,
-      showDraftsOnly,
+  // Parse the schema for the current collection
+  const completeSchemaJson = currentCollection?.complete_schema ?? null
+  const currentSchema = useMemo(() => {
+    if (!completeSchemaJson) return null
+    return deserializeCompleteSchema(completeSchemaJson)
+  }, [completeSchemaJson])
+
+  // Get sort options based on schema
+  const sortOptions = useMemo(() => {
+    return getSortOptionsForCollection(currentSchema)
+  }, [currentSchema])
+
+  // Derived filter states for UI indicators
+  const searchActive = collectionViewState.searchQuery.trim() !== ''
+  const sortActive = collectionViewState.sortMode !== 'default'
+
+  // Determine header background class based on composable states
+  // Priority: drafts (intentional filter) > search (hides files) > default
+  const headerBgClass = useMemo(() => {
+    if (showDraftsOnly) return 'bg-draft'
+    if (searchActive) return 'bg-filter'
+    return 'bg-muted/30'
+  }, [showDraftsOnly, searchActive])
+
+  // Filter and sort files
+  const filteredAndSortedFiles = useMemo((): FileEntry[] => {
+    // Step 1: Filter by draft status
+    let result = filterFilesByDraft(files, showDraftsOnly, frontmatterMappings)
+
+    // Step 2: Filter by search query
+    if (collectionViewState.searchQuery) {
+      result = filterFilesBySearch(
+        result,
+        collectionViewState.searchQuery,
+        frontmatterMappings
+      )
+    }
+
+    // Step 3: Sort files
+    return sortFiles(
+      result,
+      {
+        mode: collectionViewState.sortMode,
+        direction: collectionViewState.sortDirection,
+      },
       frontmatterMappings
     )
-    return sortFilesByPublishedDate(filtered, frontmatterMappings)
-  }, [files, frontmatterMappings, showDraftsOnly])
+  }, [
+    files,
+    frontmatterMappings,
+    showDraftsOnly,
+    collectionViewState.searchQuery,
+    collectionViewState.sortMode,
+    collectionViewState.sortDirection,
+  ])
 
   const headerTitle = selectedCollection
     ? selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)
-    : 'Collections'
+    : 'Content'
 
   // Generate breadcrumb segments
   const breadcrumbSegments = React.useMemo(() => {
@@ -238,19 +339,22 @@ export const LeftSidebar: React.FC = () => {
   return (
     <div className="h-full flex flex-col border-r bg-background">
       {/* Header */}
-      <div
-        className={cn(
-          'border-b p-3',
-          showDraftsOnly ? 'bg-draft' : 'bg-muted/30'
-        )}
-      >
+      <div className={cn('border-b p-3', headerBgClass)}>
         <div className="flex items-center gap-2">
           {selectedCollection && (
             <Button
               onClick={handleBackClick}
               variant="ghost"
               size="sm"
-              className="size-7 p-0 text-muted-foreground"
+              className={cn(
+                'size-7 p-0 flex-shrink-0',
+                // Match header background color for hover state
+                showDraftsOnly
+                  ? 'text-draft hover:bg-draft/50'
+                  : searchActive
+                    ? 'text-filter hover:bg-filter/50'
+                    : 'text-muted-foreground hover:bg-muted'
+              )}
               title="Back"
             >
               <ArrowLeft className="size-4" />
@@ -306,34 +410,102 @@ export const LeftSidebar: React.FC = () => {
               )
             })}
 
-            {showDraftsOnly && (
-              <span className="text-xs text-draft ml-2 font-normal flex-shrink-0">
-                (Drafts)
-              </span>
+            {/* Status indicators - composable badges, right-aligned */}
+            {(showDraftsOnly ||
+              (searchActive && !collectionViewState.filterBarExpanded) ||
+              (sortActive && !collectionViewState.filterBarExpanded)) && (
+              <div className="ml-auto flex items-center gap-1">
+                {showDraftsOnly && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-draft border-draft opacity-80"
+                  >
+                    DRAFTS
+                  </Badge>
+                )}
+                {searchActive && !collectionViewState.filterBarExpanded && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-filter border-filter opacity-80"
+                  >
+                    FILTERED
+                  </Badge>
+                )}
+                {sortActive && !collectionViewState.filterBarExpanded && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal opacity-60"
+                  >
+                    SORTED
+                  </Badge>
+                )}
+              </div>
             )}
           </div>
           {selectedCollection && (
-            <Button
-              onClick={handleToggleDraftsOnly}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
-                showDraftsOnly
-                  ? 'text-draft bg-draft hover:bg-draft/80'
-                  : 'text-muted-foreground'
-              )}
-              title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
-            >
-              {showDraftsOnly ? (
-                <Filter className="size-4" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-            </Button>
+            <>
+              <Button
+                onClick={handleToggleFilterBar}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                  // Color priority: own active state > header color > expanded/sorted > default
+                  searchActive
+                    ? 'text-filter bg-filter hover:bg-filter/80'
+                    : showDraftsOnly
+                      ? 'text-draft hover:bg-draft/50'
+                      : collectionViewState.filterBarExpanded || sortActive
+                        ? 'text-foreground bg-accent hover:bg-accent/80'
+                        : 'text-muted-foreground hover:bg-muted'
+                )}
+                title={
+                  collectionViewState.filterBarExpanded
+                    ? 'Hide Filters'
+                    : 'Show Filters'
+                }
+              >
+                <SlidersHorizontal className="size-4" />
+              </Button>
+              <Button
+                onClick={handleToggleDraftsOnly}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                  // Color priority: own active state > header color > default
+                  showDraftsOnly
+                    ? 'text-draft bg-draft hover:bg-draft/80'
+                    : searchActive
+                      ? 'text-filter hover:bg-filter/50'
+                      : 'text-muted-foreground hover:bg-muted'
+                )}
+                title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
+              >
+                {showDraftsOnly ? (
+                  <Filter className="size-4" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Filter Bar */}
+      {selectedCollection && collectionViewState.filterBarExpanded && (
+        <FilterBar
+          searchQuery={collectionViewState.searchQuery}
+          sortMode={collectionViewState.sortMode}
+          sortDirection={collectionViewState.sortDirection}
+          sortOptions={sortOptions}
+          onSearchChange={handleSearchChange}
+          onSortModeChange={handleSortModeChange}
+          onSortDirectionToggle={handleSortDirectionToggle}
+          onClearSearch={handleClearSearch}
+        />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
@@ -342,6 +514,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {collections.map(collection => {
               const fileCount = fileCounts[collection.name] ?? 0
+              const hasSchema = Boolean(collection.complete_schema)
 
               return (
                 <button
@@ -350,9 +523,21 @@ export const LeftSidebar: React.FC = () => {
                   className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-medium text-foreground">
-                      {collection.name}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-foreground">
+                        {collection.name}
+                      </span>
+                      {!hasSchema && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertTriangle className="size-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            No schema found - using defaults
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     <Badge variant="secondary" className="text-xs">
                       {fileCount} item{fileCount !== 1 ? 's' : ''}
                     </Badge>
@@ -440,9 +625,11 @@ export const LeftSidebar: React.FC = () => {
                 {filteredAndSortedFiles.length === 0 &&
                   subdirectories.length === 0 && (
                     <div className="p-4 text-center text-muted-foreground text-sm">
-                      {showDraftsOnly
-                        ? 'No draft files found in this directory.'
-                        : 'This directory is empty.'}
+                      {collectionViewState.searchQuery
+                        ? 'No files match your search.'
+                        : showDraftsOnly
+                          ? 'No draft files found in this directory.'
+                          : 'This directory is empty.'}
                     </div>
                   )}
               </>

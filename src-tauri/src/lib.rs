@@ -57,6 +57,7 @@ pub fn run() {
             ])
             .build())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::watcher::init_watcher_state())
         .setup(|app| {
             // Log app startup information

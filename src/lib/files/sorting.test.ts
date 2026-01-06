@@ -14,7 +14,6 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
   path: 'test/path.md',
   name: 'test.md',
   extension: 'md',
-  isDraft: false,
   collection: 'posts',
   last_modified: null,
   frontmatter: null,
@@ -94,28 +93,90 @@ describe('sortFilesByPublishedDate', () => {
     expect(result.map(f => f.id)).toEqual(['2', '3', '1'])
   })
 
-  it('should place files without dates at the top', () => {
+  it('should place undated files at top (alphabetically), then dated files (newest first)', () => {
     const files: FileEntry[] = [
-      createMockFile({ id: '1', frontmatter: { publishedDate: '2024-01-01' } }),
-      createMockFile({ id: '2', frontmatter: {} }),
-      createMockFile({ id: '3', frontmatter: { publishedDate: '2024-02-01' } }),
-      createMockFile({ id: '4', frontmatter: {} }),
+      createMockFile({
+        id: '1',
+        name: 'jan-post',
+        frontmatter: { publishedDate: '2024-01-01', title: 'January Post' },
+      }),
+      createMockFile({
+        id: '2',
+        name: 'z-draft',
+        frontmatter: { title: 'Z Draft' },
+      }),
+      createMockFile({
+        id: '3',
+        name: 'feb-post',
+        frontmatter: { publishedDate: '2024-02-01', title: 'February Post' },
+      }),
+      createMockFile({
+        id: '4',
+        name: 'a-draft',
+        frontmatter: { title: 'A Draft' },
+      }),
     ]
 
     const result = sortFilesByPublishedDate(files, mockMappings)
-    expect(result.slice(0, 2).map(f => f.id)).toEqual(['2', '4'])
-    expect(result.slice(2).map(f => f.id)).toEqual(['3', '1'])
+    // Undated first (alphabetically: A Draft, Z Draft), then dated (newest first: Feb, Jan)
+    expect(result.map(f => f.id)).toEqual(['4', '2', '3', '1'])
   })
 
-  it('should maintain order for files without dates', () => {
+  it('should sort undated files alphabetically by title', () => {
     const files: FileEntry[] = [
-      createMockFile({ id: '1', frontmatter: {} }),
-      createMockFile({ id: '2', frontmatter: {} }),
-      createMockFile({ id: '3', frontmatter: {} }),
+      createMockFile({
+        id: '1',
+        name: 'zebra',
+        frontmatter: { title: 'Zebra Post' },
+      }),
+      createMockFile({
+        id: '2',
+        name: 'apple',
+        frontmatter: { title: 'Apple Post' },
+      }),
+      createMockFile({
+        id: '3',
+        name: 'mango',
+        frontmatter: { title: 'Mango Post' },
+      }),
     ]
 
     const result = sortFilesByPublishedDate(files, mockMappings)
-    expect(result.map(f => f.id)).toEqual(['1', '2', '3'])
+    expect(result.map(f => f.id)).toEqual(['2', '3', '1']) // Apple, Mango, Zebra
+  })
+
+  it('should sort undated files by filename when no title', () => {
+    const files: FileEntry[] = [
+      createMockFile({ id: '1', name: 'zebra', frontmatter: {} }),
+      createMockFile({ id: '2', name: 'apple', frontmatter: {} }),
+      createMockFile({ id: '3', name: 'mango', frontmatter: {} }),
+    ]
+
+    const result = sortFilesByPublishedDate(files, mockMappings)
+    expect(result.map(f => f.id)).toEqual(['2', '3', '1']) // apple, mango, zebra
+  })
+
+  it('should use alphabetical tiebreaker for same-date files', () => {
+    const files: FileEntry[] = [
+      createMockFile({
+        id: '1',
+        name: 'z',
+        frontmatter: { publishedDate: '2024-01-15', title: 'Zebra' },
+      }),
+      createMockFile({
+        id: '2',
+        name: 'a',
+        frontmatter: { publishedDate: '2024-01-15', title: 'Apple' },
+      }),
+      createMockFile({
+        id: '3',
+        name: 'm',
+        frontmatter: { publishedDate: '2024-01-15', title: 'Mango' },
+      }),
+    ]
+
+    const result = sortFilesByPublishedDate(files, mockMappings)
+    expect(result.map(f => f.id)).toEqual(['2', '3', '1']) // Apple, Mango, Zebra
   })
 
   it('should not mutate original array', () => {

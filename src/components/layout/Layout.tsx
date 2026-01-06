@@ -22,6 +22,7 @@ import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
 import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
+import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
 import { LAYOUT_SIZES } from '../../lib/layout-constants'
@@ -78,6 +79,7 @@ export const Layout: React.FC = () => {
   useEditorFocusTracking()
   useKeyboardShortcuts(handleSetPreferencesOpen)
   useMenuEvents(createNewFileWithQuery, handleSetPreferencesOpen)
+  useSquareCornersEffect()
   useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
 
   // Enable query-based file loading
@@ -129,12 +131,17 @@ export const Layout: React.FC = () => {
   }, [editorBaseFontSize])
 
   return (
-    <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col rounded-xl overflow-hidden">
+    <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col overflow-hidden">
       <UnifiedTitleBar />
 
       <div className="flex-1 min-h-0">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-full"
+          autoSaveId="astro-editor-layout"
+        >
           <ResizablePanel
+            id="left-sidebar"
             defaultSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.default : 0}
             minSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.min : 0}
             maxSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.max : 0}
@@ -147,6 +154,7 @@ export const Layout: React.FC = () => {
           />
 
           <ResizablePanel
+            id="main-editor"
             defaultSize={LAYOUT_SIZES.mainEditor.getDefault(
               sidebarVisible,
               frontmatterPanelVisible
@@ -160,6 +168,7 @@ export const Layout: React.FC = () => {
             className={`!cursor-col-resize ${frontmatterPanelVisible ? '' : 'hidden'}`}
           />
           <ResizablePanel
+            id="right-sidebar"
             defaultSize={
               frontmatterPanelVisible ? LAYOUT_SIZES.rightSidebar.default : 0
             }

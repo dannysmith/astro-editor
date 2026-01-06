@@ -15,7 +15,7 @@ import {
   Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
-import type { Collection, FileEntry } from '@/types'
+import type { Collection, DirectoryScanResult } from '@/types'
 import { toast } from '../toast'
 import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'
@@ -380,14 +380,14 @@ function generateSearchCommands(
   const searchCommands: AppCommand[] = []
 
   // Get all files from collections that are cached
-  // This follows the architecture guide's pattern of using cached query data
+  // Uses directoryContents query key (replaces legacy collectionFiles)
   context.collections.forEach(collection => {
-    const filesData = queryClient.getQueryData<FileEntry[]>(
-      queryKeys.collectionFiles(context.projectPath!, collection.name)
+    const dirData = queryClient.getQueryData<DirectoryScanResult>(
+      queryKeys.directoryContents(context.projectPath!, collection.name, 'root')
     )
 
-    if (filesData) {
-      filesData.forEach(file => {
+    if (dirData?.files) {
+      dirData.files.forEach(file => {
         // Create searchable text from filename and title
         const title = file.frontmatter?.title as string | undefined
         const searchableText = title ? `${file.name} ${title}` : file.name

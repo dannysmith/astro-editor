@@ -1,14 +1,16 @@
 ---
-title: "Object Field Testing"
-slug: "object-field-test"
-description: "A note to test object field handling in the UI"
+title: Object Field Testing
+slug: object-field-test
+draft: true
+description: A note to test object field handling in the UI
 pubDate: 2024-03-15
-tags: ["testing", "objects"]
-draft: false
+tags:
+- testing
+- objects
 metadata:
-  category: "development"
-  priority: 5
+  category: development
   deadline: 2024-04-01
+  priority: 5
 ---
 
 # Object Field Testing

@@ -31,10 +31,7 @@ export function filterFilesByDraft(
   }
 
   // Filter to show only draft files
-  // ⚠️ CRITICAL: This logic is copied exactly from LeftSidebar.tsx lines 233-237
-  return files.filter(file => {
-    return (
-      file.isDraft || file.frontmatter?.[mappings?.draft || 'draft'] === true
-    )
-  })
+  // Draft detection uses only the user-configured field (or 'draft' default)
+  const draftField = mappings?.draft || 'draft'
+  return files.filter(file => file.frontmatter?.[draftField] === true)
 }

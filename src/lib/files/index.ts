@@ -14,4 +14,12 @@ export {
 
 // Filtering and sorting exports
 export { filterFilesByDraft } from './filtering'
-export { sortFilesByPublishedDate, getPublishedDate } from './sorting'
+export {
+  sortFilesByPublishedDate,
+  getPublishedDate,
+  getTitle,
+  getSortOptionsForCollection,
+  sortFiles,
+} from './sorting'
+export type { FieldMappings, SortOption, SortConfig } from './sorting'
+export { filterFilesBySearch } from './search'

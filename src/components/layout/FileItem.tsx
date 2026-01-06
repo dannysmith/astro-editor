@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Badge } from '../ui/badge'
 import { cn } from '@/lib/utils'
-import { getPublishedDate } from '../../lib/files/sorting'
+import { getPublishedDate, getTitle } from '../../lib/files/sorting'
 import type { FileEntry } from '@/types'
 
 type FrontmatterMappings = {
@@ -9,19 +9,6 @@ type FrontmatterMappings = {
   title: string
   description: string
   draft: string
-}
-
-// Helper functions - exported for reuse
-export function getTitle(file: FileEntry, titleField: string): string {
-  if (
-    file.frontmatter?.[titleField] &&
-    typeof file.frontmatter[titleField] === 'string'
-  ) {
-    return file.frontmatter[titleField]
-  }
-
-  const filename = file.name || file.path.split('/').pop() || 'Untitled'
-  return filename.replace(/\.(md|mdx)$/, '')
 }
 
 export function formatDate(dateValue: unknown): string {
@@ -66,8 +53,8 @@ export const FileItem: React.FC<FileItemProps> = ({
   const previousIsRenamingRef = useRef(isRenaming)
 
   // Derived state (NO store subscriptions)
-  const isFileDraft =
-    file.isDraft || file.frontmatter?.[frontmatterMappings.draft] === true
+  // Draft detection uses only the user-configured field (or 'draft' default)
+  const isFileDraft = file.frontmatter?.[frontmatterMappings.draft] === true
   const isMdx = file.extension === 'mdx'
   const title = getTitle(file, frontmatterMappings.title)
   const publishedDate = getPublishedDate(
