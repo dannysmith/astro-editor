@@ -12,6 +12,25 @@ import {
 import { cn } from '@/lib/utils'
 import type { SortOption } from '@/lib/files'
 
+/**
+ * Get a subtle type label for sort options
+ */
+function getSortTypeLabel(option: SortOption): string | null {
+  // Special case for last modified (filesystem metadata)
+  if (option.id === 'modified') return 'file data'
+  // Map type to display label
+  switch (option.type) {
+    case 'alpha':
+      return 'alpha'
+    case 'date':
+      return 'date'
+    case 'numeric':
+      return 'num'
+    default:
+      return null
+  }
+}
+
 interface FilterBarProps {
   searchQuery: string
   sortMode: string
@@ -89,14 +108,33 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <ArrowUpDown className="size-3 text-muted-foreground flex-shrink-0" />
         <Select value={sortMode} onValueChange={onSortModeChange}>
           <SelectTrigger size="sm" className="h-6 text-xs flex-1 min-w-0 px-2">
-            <SelectValue>{currentSortOption?.label || 'Default'}</SelectValue>
+            <SelectValue>
+              <span className="flex items-center gap-2">
+                <span>{currentSortOption?.label || 'Default'}</span>
+                {currentSortOption && getSortTypeLabel(currentSortOption) && (
+                  <span className="text-[10px] text-muted-foreground/60 font-normal">
+                    {getSortTypeLabel(currentSortOption)}
+                  </span>
+                )}
+              </span>
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {sortOptions.map(option => (
-              <SelectItem key={option.id} value={option.id} className="text-xs">
-                {option.label}
-              </SelectItem>
-            ))}
+            {sortOptions.map(option => {
+              const typeLabel = getSortTypeLabel(option)
+              return (
+                <SelectItem key={option.id} value={option.id} className="text-xs">
+                  <span className="flex items-center justify-between w-full gap-3">
+                    <span>{option.label}</span>
+                    {typeLabel && (
+                      <span className="text-[10px] text-muted-foreground/60 font-normal">
+                        {typeLabel}
+                      </span>
+                    )}
+                  </span>
+                </SelectItem>
+              )
+            })}
           </SelectContent>
         </Select>
 

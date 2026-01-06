@@ -282,20 +282,17 @@ export const LeftSidebar: React.FC = () => {
     return getSortOptionsForCollection(currentSchema)
   }, [currentSchema])
 
-  // Check if filters are active (manual computation to avoid unnecessary deps warning)
-  const hasActiveFilters = useMemo(() => {
-    if (!selectedCollection) return false
-    return (
-      collectionViewState.searchQuery.trim() !== '' ||
-      collectionViewState.sortMode !== 'default' ||
-      showDraftsOnly
-    )
-  }, [
-    selectedCollection,
-    collectionViewState.searchQuery,
-    collectionViewState.sortMode,
-    showDraftsOnly,
-  ])
+  // Derived filter states for UI indicators
+  const searchActive = collectionViewState.searchQuery.trim() !== ''
+  const sortActive = collectionViewState.sortMode !== 'default'
+
+  // Determine header background class based on composable states
+  // Priority: drafts (intentional filter) > search (hides files) > default
+  const headerBgClass = useMemo(() => {
+    if (showDraftsOnly) return 'bg-draft'
+    if (searchActive) return 'bg-filter'
+    return 'bg-muted/30'
+  }, [showDraftsOnly, searchActive])
 
   // Filter and sort files
   const filteredAndSortedFiles = useMemo((): FileEntry[] => {
@@ -342,19 +339,22 @@ export const LeftSidebar: React.FC = () => {
   return (
     <div className="h-full flex flex-col border-r bg-background">
       {/* Header */}
-      <div
-        className={cn(
-          'border-b p-3',
-          showDraftsOnly ? 'bg-draft' : 'bg-muted/30'
-        )}
-      >
+      <div className={cn('border-b p-3', headerBgClass)}>
         <div className="flex items-center gap-2">
           {selectedCollection && (
             <Button
               onClick={handleBackClick}
               variant="ghost"
               size="sm"
-              className="size-7 p-0 text-muted-foreground"
+              className={cn(
+                'size-7 p-0 flex-shrink-0',
+                // Match header background color for hover state
+                showDraftsOnly
+                  ? 'text-draft hover:bg-draft/50'
+                  : searchActive
+                    ? 'text-filter hover:bg-filter/50'
+                    : 'text-muted-foreground hover:bg-muted'
+              )}
               title="Back"
             >
               <ArrowLeft className="size-4" />
@@ -410,10 +410,36 @@ export const LeftSidebar: React.FC = () => {
               )
             })}
 
-            {showDraftsOnly && (
-              <span className="text-xs text-draft ml-2 font-normal flex-shrink-0">
-                (Drafts)
-              </span>
+            {/* Status indicators - composable badges, right-aligned */}
+            {(showDraftsOnly ||
+              (searchActive && !collectionViewState.filterBarExpanded) ||
+              (sortActive && !collectionViewState.filterBarExpanded)) && (
+              <div className="ml-auto flex items-center gap-1">
+                {showDraftsOnly && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-draft border-draft opacity-80"
+                  >
+                    DRAFTS
+                  </Badge>
+                )}
+                {searchActive && !collectionViewState.filterBarExpanded && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-filter border-filter opacity-80"
+                  >
+                    FILTERED
+                  </Badge>
+                )}
+                {sortActive && !collectionViewState.filterBarExpanded && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 py-0 text-[10px] font-normal opacity-60"
+                  >
+                    SORTED
+                  </Badge>
+                )}
+              </div>
             )}
           </div>
           {selectedCollection && (
@@ -424,9 +450,14 @@ export const LeftSidebar: React.FC = () => {
                 size="sm"
                 className={cn(
                   'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
-                  collectionViewState.filterBarExpanded || hasActiveFilters
-                    ? 'text-foreground bg-accent'
-                    : 'text-muted-foreground'
+                  // Color priority: own active state > header color > expanded/sorted > default
+                  searchActive
+                    ? 'text-filter bg-filter hover:bg-filter/80'
+                    : showDraftsOnly
+                      ? 'text-draft hover:bg-draft/50'
+                      : collectionViewState.filterBarExpanded || sortActive
+                        ? 'text-foreground bg-accent hover:bg-accent/80'
+                        : 'text-muted-foreground hover:bg-muted'
                 )}
                 title={
                   collectionViewState.filterBarExpanded
@@ -442,9 +473,12 @@ export const LeftSidebar: React.FC = () => {
                 size="sm"
                 className={cn(
                   'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
+                  // Color priority: own active state > header color > default
                   showDraftsOnly
                     ? 'text-draft bg-draft hover:bg-draft/80'
-                    : 'text-muted-foreground'
+                    : searchActive
+                      ? 'text-filter hover:bg-filter/50'
+                      : 'text-muted-foreground hover:bg-muted'
                 )}
                 title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}
               >
