@@ -2,7 +2,7 @@
 
 ## Overview
 
-Address bugs and UX issues with how files are sorted and filtered in the sidebar, plus clarify the "Collections" vs "Content Folders" terminology.
+Address bugs and UX issues with how files are sorted and filtered in the sidebar, and add visual clarity for schema status.
 
 ## Problems to Solve
 
@@ -41,13 +41,9 @@ if (!dateA && !dateB) return 0  // ← Preserves OS-dependent order
 
 Filesystem order varies by OS and is effectively random to users.
 
-### 3. "Collections" Terminology Confusion
+### 3. No Visual Indicator for Schema Status
 
-**User report**: Consider renaming "Collections" to "Content Folders" to clarify these represent files on disk, whether or not they're mapped to a content collection schema.
-
-### 4. No Visual Indicator for Schema Status
-
-**Related to #3**: Users can't tell which folders have valid schema assignments vs which are just directories in the content folder.
+Users can't tell which folders have valid schema assignments vs which are just directories in the content folder. The header "Collections" also implies all folders are schema-mapped collections, which isn't always true.
 
 ---
 
@@ -93,70 +89,67 @@ Filesystem order varies by OS and is effectively random to users.
 
 ### Fix 2: Alphabetical Fallback Sort
 
-**Approach**: When files have no dates, sort alphabetically by title (falling back to filename).
+**Approach**: Ensure completely deterministic sort ordering:
+1. Undated files at top, sorted alphabetically by title (falling back to filename)
+2. Dated files below, sorted newest first
+3. Same-date files use alphabetical tiebreaker
 
 **Changes required**:
 
-1. **sorting.ts** (`src/lib/files/sorting.ts`):
+1. **sorting.ts** (`src/lib/files/sorting.ts`) - refactor sort function:
    ```typescript
-   // Change line 67 from:
-   if (!dateA && !dateB) return 0
+   export function sortFilesByPublishedDate(
+     files: FileEntry[],
+     mappings: FieldMappings | null
+   ): FileEntry[] {
+     const getTitle = (file: FileEntry): string => {
+       return (file.frontmatter?.[mappings?.title || 'title'] as string) || file.name
+     }
 
-   // To:
-   if (!dateA && !dateB) {
-     const titleA = a.frontmatter?.[mappings?.title || 'title'] as string || a.name
-     const titleB = b.frontmatter?.[mappings?.title || 'title'] as string || b.name
-     return titleA.localeCompare(titleB)
+     return [...files].sort((a, b) => {
+       const dateA = getPublishedDate(a.frontmatter || {}, mappings?.publishedDate || 'publishedDate')
+       const dateB = getPublishedDate(b.frontmatter || {}, mappings?.publishedDate || 'publishedDate')
+
+       // Undated files go to top, sorted alphabetically among themselves
+       if (!dateA && !dateB) {
+         return getTitle(a).localeCompare(getTitle(b))
+       }
+       if (!dateA) return -1
+       if (!dateB) return 1
+
+       // Dated files: newest first, alphabetical tiebreaker
+       const dateDiff = dateB.getTime() - dateA.getTime()
+       if (dateDiff !== 0) return dateDiff
+       return getTitle(a).localeCompare(getTitle(b))
+     })
    }
    ```
 
-2. **Tests**: Add test cases for alphabetical fallback
-
-**Consideration**: Should this be the ONLY fallback, or should we also apply it as a secondary sort for files WITH dates but the same date? (Probably yes - stable sort.)
-
----
-
-### Fix 3: Rename "Collections" → "Content Folders"
-
-**Approach**: Update UI text and possibly settings terminology.
-
-**Changes required**:
-
-1. **LeftSidebar.tsx**:
-   - Change `'Collections'` string in header (line ~230)
-   - Consider whether to change variable names (probably not - internal naming can stay)
-
-2. **Preferences UI** (`CollectionSettingsPane.tsx`):
-   - Review section headers and labels
-   - May need to clarify "Collection Settings" → "Content Folder Settings"?
-
-3. **Documentation**: Update any user-facing docs
-
-**Open question**: Should we rename throughout (including code variables/types) or just UI text? Recommend UI text only for now - internal naming as "collection" is fine since Astro uses that term.
+2. **Tests**: Add test cases for:
+   - Undated files sorted alphabetically
+   - Same-date files sorted alphabetically
+   - Mixed dated/undated files (undated first, then dated newest-first)
 
 ---
 
-### Fix 4: Schema Status Indicator
+### Fix 3: Schema Status Indicator
 
-**Approach**: Add visual indicator in sidebar showing which folders have valid schema assignments.
+**Approach**: Add visual indicator for folders WITHOUT valid schema assignments (the exception case). Also simplify the header text.
 
-**Current data**: Collections already have `complete_schema: string | null` - if null or empty, no schema is loaded.
+**Current data**: Collections have `complete_schema: string | null` - if null or empty, no schema is loaded.
 
 **Changes required**:
 
-1. **LeftSidebar.tsx** (collection list section, ~lines 343-380):
-   - Add icon/badge next to collection name
-   - Options:
-     - Checkmark for valid schema, warning for no schema
-     - Different text color/opacity
-     - Tooltip explaining status
+1. **LeftSidebar.tsx** - header text:
+   - Change header from "Collections" to "Content" (neutral term)
 
-2. **Styling**: Define appropriate visual treatment that's subtle but noticeable
+2. **LeftSidebar.tsx** - collection list (~lines 343-380):
+   - Add subtle warning icon next to collection name ONLY when `complete_schema` is null/empty
+   - Use `AlertTriangle` from Lucide, small size, muted color (`text-muted-foreground`)
+   - Include tooltip on hover: "No schema found - using defaults"
+   - No click action for now (future: could link to Project Manager UI)
 
-**Open questions**:
-- What icon to use? (Lucide has `CheckCircle`, `AlertCircle`, `FileQuestion`)
-- Should we show a tooltip explaining what it means?
-- Should clicking it do anything (e.g., open settings)?
+3. **No indicator for valid schemas** - the normal case needs no visual noise
 
 ---
 
@@ -164,8 +157,7 @@ Filesystem order varies by OS and is effectively random to users.
 
 1. **Fix 1** (Draft bug) - Most impactful bug fix
 2. **Fix 2** (Sort fallback) - Quick improvement
-3. **Fix 3** (Rename) - Simple text change
-4. **Fix 4** (Schema indicator) - UI enhancement
+3. **Fix 3** (Schema indicator + header text) - UI enhancement
 
 ## Testing Plan
 
@@ -175,13 +167,13 @@ Filesystem order varies by OS and is effectively random to users.
 - [ ] Unit tests for filtering.ts changes
 - [ ] Unit tests for sorting.ts changes
 - [ ] Visual: Schema indicator appears correctly for mapped vs unmapped folders
+- [ ] Visual: Header shows "Content" instead of "Collections"
 
-## Out of Scope
+## Out of Scope (Separate Tasks)
 
-- Sort controls in sidebar (separate task)
-- Search/filter in sidebar (separate task)
-- Full project manager UI (separate epic)
-- CSV collection support (separate task)
+- Sort controls and search/filter in sidebar → `task-2-sidebar-sorting-filtering-ui.md`
+- CSV collection support → `task-3-csv-collection-support.md`
+- Full project manager UI → `task-4-project-manager-epic.md`
 
 ---
 

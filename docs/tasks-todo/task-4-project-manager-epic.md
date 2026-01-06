@@ -221,19 +221,13 @@ ProjectListPane → ProjectDetailPane → ContentFolderList
 ## Related Work
 
 ### Prerequisites
-- [ ] Fix draft field override bug (task-x-collection-sorting-filtering-fixes)
-- [ ] Rename "Collections" → "Content Folders" (same task)
+- [ ] Fix draft field override bug (`task-1-collection-sorting-filtering-fixes.md`)
+- [ ] Change header to "Content" (same task)
 - [ ] Add schema status indicator (same task)
 
-### Related Tasks (Could Be Done Separately)
-- Sort controls in sidebar
-- Search/filter in sidebar
-- CSV collection support for references
-
-### Future Enhancements
-- Cloud sync for settings
-- Team/shared settings
-- Plugin system for custom loaders
+### Can Be Done Independently
+- Sidebar sorting/filtering UI (`task-2-sidebar-sorting-filtering-ui.md`)
+- CSV collection support (`task-3-csv-collection-support.md`)
 
 ---
 
