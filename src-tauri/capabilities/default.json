@@ -41,6 +41,7 @@
     "process:allow-restart",
     "log:default",
     "os:default",
+    "window-state:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [
