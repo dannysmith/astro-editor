@@ -22,7 +22,11 @@ Build a comprehensive project management interface that allows users to view, co
 
 > "The content list is very hard to navigate. The sorting seems haphazard. Custom settings are hidden underneath expandable menus on a secondary menu in preferences."
 
+*Note: Sorting/filtering issues addressed by tasks 1 and 2. Project Manager focuses on the settings discoverability problem.*
+
 > "Consider a clear visual indicator for when a content folder has successfully been assigned its corresponding collection schema."
+
+*Note: Basic indicator added in task 1. Project Manager provides the full mapping UI.*
 
 > "Build a proper project manager into the settings which shows all projects which have been opened, allows users to visually map schema content collections to content folders, and clearly shows any errors when reading or merging the schemas."
 
@@ -228,6 +232,11 @@ ProjectListPane → ProjectDetailPane → ContentFolderList
 ### Can Be Done Independently
 - Sidebar sorting/filtering UI (`task-2-sidebar-sorting-filtering-ui.md`)
 - CSV collection support (`task-3-csv-collection-support.md`)
+
+### Patterns Established by Earlier Tasks
+- **Task 1**: Schema status indicator (`complete_schema` null check) - reuse for mapping status
+- **Task 2**: Dynamic UI from schema (sort options built from schema fields) - same pattern needed for field mapping UI
+- **Task 2**: Ephemeral sort/filter preferences - Project Manager could add persistence option
 
 ---
 
