@@ -145,7 +145,7 @@ export function getSortOptionsForCollection(
 ): SortOption[] {
   const options: SortOption[] = [
     { id: 'default', label: 'Default', type: 'default', field: null },
-    { id: 'title', label: 'Title', type: 'alpha', field: 'title' },
+    { id: 'title', label: 'Title', type: 'alpha', field: null }, // Uses mappings.title
     { id: 'filename', label: 'Filename', type: 'alpha', field: null },
   ]
 
