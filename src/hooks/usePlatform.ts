@@ -3,8 +3,11 @@ import { platform, type Platform } from '@tauri-apps/plugin-os'
 
 export type AppPlatform = 'macos' | 'windows' | 'linux'
 
-// Debug: Set to 'windows' or 'linux' to test platform-specific UI on other platforms
-const DEBUG_PLATFORM_OVERRIDE: AppPlatform | null = null
+// Debug: Change the first null to 'windows' or 'linux' to test platform-specific UI
+// Only takes effect in development builds - production always uses real platform
+const DEBUG_PLATFORM_OVERRIDE: AppPlatform | null = import.meta.env.DEV
+  ? null // ← Change to 'windows' or 'linux' to test
+  : null
 
 /**
  * Hook to detect the current platform.

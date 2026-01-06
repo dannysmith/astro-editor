@@ -6,6 +6,7 @@ import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { focusEditor } from '../lib/focus-utils'
 import { openProjectViaDialog } from '../lib/projects/actions'
+import { toast } from '../lib/toast'
 import { useEditorActions } from './editor/useEditorActions'
 import { usePlatform } from './usePlatform'
 
@@ -126,9 +127,14 @@ export function useKeyboardShortcuts(
     'f11',
     () => {
       const window = getCurrentWindow()
-      void window.isFullscreen().then(isFullscreen => {
-        void window.setFullscreen(!isFullscreen)
-      })
+      void window
+        .isFullscreen()
+        .then(isFullscreen => window.setFullscreen(!isFullscreen))
+        .catch(error => {
+          // eslint-disable-next-line no-console
+          console.error('Failed to toggle fullscreen:', error)
+          toast.error('Failed to toggle fullscreen')
+        })
     },
     { ...DEFAULT_HOTKEY_OPTS, enabled: platform === 'windows' }
   )

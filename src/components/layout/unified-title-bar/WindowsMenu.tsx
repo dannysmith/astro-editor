@@ -7,6 +7,7 @@ import { message } from '@tauri-apps/plugin-dialog'
 import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { commands } from '@/lib/bindings'
+import { toast } from '@/lib/toast'
 import { Button } from '../../ui/button'
 import {
   DropdownMenu,
@@ -28,17 +29,24 @@ export const WindowsMenu: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     const window = getCurrentWindow()
 
     // Check initial fullscreen state
-    void window.isFullscreen().then(setIsFullscreen)
+    void window.isFullscreen().then(fullscreen => {
+      if (!cancelled) setIsFullscreen(fullscreen)
+    })
 
     // Listen for fullscreen changes
     const unlisten = window.onResized(() => {
-      void window.isFullscreen().then(setIsFullscreen)
+      if (cancelled) return
+      void window.isFullscreen().then(fullscreen => {
+        if (!cancelled) setIsFullscreen(fullscreen)
+      })
     })
 
     return () => {
+      cancelled = true
       void unlisten.then(fn => fn())
     }
   }, [])
@@ -64,9 +72,15 @@ export const WindowsMenu: React.FC = () => {
   }
 
   const handleFullScreen = async () => {
-    const window = getCurrentWindow()
-    const isFullscreen = await window.isFullscreen()
-    await window.setFullscreen(!isFullscreen)
+    try {
+      const window = getCurrentWindow()
+      const isFullscreen = await window.isFullscreen()
+      await window.setFullscreen(!isFullscreen)
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to toggle fullscreen:', error)
+      toast.error('Failed to toggle fullscreen')
+    }
   }
 
   const handlePreferences = () => {
