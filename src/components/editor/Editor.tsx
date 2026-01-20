@@ -269,11 +269,20 @@ const EditorViewComponent: React.FC = () => {
         if (viewRef.current.state.doc.toString() !== newContent) {
           isProgrammaticUpdate.current = true
 
+          // Preserve cursor position during replacement to prevent cursor jumping
+          // This is critical when typing in trailing newlines and auto-save triggers
+          const currentSelection = viewRef.current.state.selection
+          const cursorPos = currentSelection.main.anchor
+
           viewRef.current.dispatch({
             changes: {
               from: 0,
               to: viewRef.current.state.doc.length,
               insert: newContent,
+            },
+            // Clamp cursor to valid range in new content
+            selection: {
+              anchor: Math.min(cursorPos, newContent.length),
             },
           })
 

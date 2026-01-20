@@ -395,15 +395,21 @@ pub fn parse_frontmatter_internal(content: &str) -> Result<MarkdownContent, Stri
 }
 
 fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
+    // Track if original content ends with newline - lines() drops this info
+    let original_ends_with_newline = content.ends_with('\n');
     let lines: Vec<&str> = content.lines().collect();
 
     // Check if file starts with frontmatter
     if lines.is_empty() || lines[0] != "---" {
         // No frontmatter, but might have imports at the top
-        let (imports, content_without_imports) = extract_imports_from_content(&lines);
+        let (imports, mut body_content) = extract_imports_from_content(&lines);
+        // Preserve trailing newline that lines() dropped
+        if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
+            body_content.push('\n');
+        }
         return Ok(MarkdownContent {
             frontmatter: IndexMap::new(),
-            content: content_without_imports,
+            content: body_content,
             raw_frontmatter: String::new(),
             imports,
         });
@@ -441,11 +447,16 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
         vec![]
     };
 
-    let (imports, content) = extract_imports_from_content(&remaining_lines);
+    let (imports, mut body_content) = extract_imports_from_content(&remaining_lines);
+
+    // Preserve trailing newline that lines() dropped
+    if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
+        body_content.push('\n');
+    }
 
     Ok(MarkdownContent {
         frontmatter,
-        content,
+        content: body_content,
         raw_frontmatter,
         imports,
     })
