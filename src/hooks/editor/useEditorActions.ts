@@ -92,9 +92,12 @@ export function useEditorActions() {
           useEditorStore.setState({ autoSaveTimeoutId: null })
         }
 
+        // Only mark as clean if content hasn't changed during save (race condition protection)
+        const currentContent = useEditorStore.getState().editorContent
+        const contentUnchanged = currentContent === editorContent
         useEditorStore.setState({
-          isDirty: false,
-          isFrontmatterDirty: false,
+          isDirty: !contentUnchanged,
+          isFrontmatterDirty: !contentUnchanged && isFrontmatterDirty,
           lastSaveTimestamp: Date.now(),
         })
 
