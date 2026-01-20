@@ -709,13 +709,9 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
         result.push_str(content);
     }
 
-    // Ensure file always ends with exactly one newline
-    if !result.is_empty() {
-        // Remove any trailing newlines
-        while result.ends_with('\n') {
-            result.pop();
-        }
-        // Add exactly one newline
+    // Ensure file ends with at least one newline (POSIX convention)
+    // but preserve any extra trailing newlines the user added
+    if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }
 
@@ -753,11 +749,9 @@ fn rebuild_markdown_with_raw_frontmatter(
         result.push_str(content);
     }
 
-    // Ensure file always ends with exactly one newline
-    if !result.is_empty() {
-        while result.ends_with('\n') {
-            result.pop();
-        }
+    // Ensure file ends with at least one newline (POSIX convention)
+    // but preserve any extra trailing newlines the user added
+    if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }
 
@@ -784,11 +778,9 @@ fn rebuild_markdown_content_only(imports: &str, content: &str) -> Result<String,
         result.push_str(content);
     }
 
-    // Ensure file always ends with exactly one newline
-    if !result.is_empty() {
-        while result.ends_with('\n') {
-            result.pop();
-        }
+    // Ensure file ends with at least one newline (POSIX convention)
+    // but preserve any extra trailing newlines the user added
+    if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }
 
