@@ -97,7 +97,8 @@ export function useEditorActions() {
         const currentState = useEditorStore.getState()
         const contentUnchanged = currentState.editorContent === editorContent
         const frontmatterUnchanged =
-          JSON.stringify(currentState.frontmatter) === JSON.stringify(frontmatter)
+          JSON.stringify(currentState.frontmatter) ===
+          JSON.stringify(frontmatter)
 
         useEditorStore.setState({
           isDirty: !contentUnchanged || !frontmatterUnchanged,
