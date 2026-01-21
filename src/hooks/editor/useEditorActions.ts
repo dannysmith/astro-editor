@@ -92,9 +92,17 @@ export function useEditorActions() {
           useEditorStore.setState({ autoSaveTimeoutId: null })
         }
 
+        // Only mark as clean if content hasn't changed during save (race condition protection)
+        // Check both content AND frontmatter to avoid dropping unsaved edits
+        const currentState = useEditorStore.getState()
+        const contentUnchanged = currentState.editorContent === editorContent
+        const frontmatterUnchanged =
+          JSON.stringify(currentState.frontmatter) === JSON.stringify(frontmatter)
+
         useEditorStore.setState({
-          isDirty: false,
-          isFrontmatterDirty: false,
+          isDirty: !contentUnchanged || !frontmatterUnchanged,
+          isFrontmatterDirty:
+            currentState.isFrontmatterDirty || !frontmatterUnchanged,
           lastSaveTimestamp: Date.now(),
         })
 
