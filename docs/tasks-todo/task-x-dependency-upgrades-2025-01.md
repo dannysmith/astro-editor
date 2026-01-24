@@ -1,5 +1,54 @@
 # Dependency Upgrades - January 2025
 
+## Current Status (as of session end)
+
+**Phase 1:** Complete ✅
+**Phase 2:** Complete ✅ (with fix for @lezer/common)
+**Phase 3:** Not started
+
+### ⚠️ BLOCKING ISSUE: Syntax Highlighting Regression
+
+After completing Phase 1 & 2, markdown syntax marks (`##`, `**`, `` ` ``, `[]()`) are showing in **yellow/gold** instead of the intended subdued gray color.
+
+**Root Cause Analysis:**
+1. `@lezer/markdown` was updated from **1.4.3 → 1.6.3** during Phase 1
+2. The package has built-in default styles that map all marks to `tags.processingInstruction`:
+   ```javascript
+   "HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": tags.processingInstruction
+   ```
+3. Our custom `markdownStyleExtension` in `src/lib/editor/syntax/styleExtension.ts` should override these, but it's not working
+4. `tags.processingInstruction` is styled as `--editor-color-brown` which is gold/yellow in dark mode
+
+**Key Files:**
+- `src/lib/editor/syntax/styleExtension.ts` - Custom styleTags mappings (should override defaults)
+- `src/lib/editor/syntax/markdownTags.ts` - Custom Tag definitions
+- `src/lib/editor/syntax/highlightStyle.ts` - Highlight styles for tags
+- `src/lib/editor/extensions/createExtensions.ts` - Where markdown() is configured
+
+**Next Steps to Fix:**
+1. **Option A:** Debug why our `styleTags` in `styleExtension.ts` aren't overriding the defaults
+   - Check if the extension format is correct for @lezer/markdown 1.6.3
+   - May need to adjust how we pass extensions to `markdown()`
+
+2. **Option B:** Pin `@lezer/markdown` to 1.4.3 in pnpm overrides (quick fix)
+   ```json
+   "pnpm": {
+     "overrides": {
+       "@lezer/common": "^1.5.0",
+       "@lezer/markdown": "1.4.3"
+     }
+   }
+   ```
+
+3. **Option C:** Remove our custom markdown style extension and instead override `tags.processingInstruction` styling in `highlightStyle.ts` to use `--editor-color-mdtag` (gray) instead of brown
+
+**To Test Fix:**
+- Open a markdown file in the editor
+- Verify `##`, `**`, `` ` ``, `[]()` syntax marks appear in gray (not yellow/gold)
+- Run `pnpm run check:all` to ensure tests pass
+
+---
+
 ## Overview
 
 Comprehensive dependency update covering 45 npm packages and ~100 Cargo crates. Organized into phases by risk level.
@@ -101,7 +150,7 @@ git add -A && git commit -m "chore: update dependencies (phase 1 - safe updates)
 
 ## Phase 2: Review Required
 
-**Status:** Complete
+**Status:** Complete (commit 269b35f) - but caused syntax highlighting regression, see top of doc
 
 These updates need individual attention before applying.
 
@@ -292,8 +341,7 @@ These are intentionally kept at current versions:
 - [x] **Phase 2c:** Updated `@ast-grep/cli` 0.39.9 → 0.40.5
 - [x] **Phase 2d:** Updated `lucide-react` 0.539.0 → 0.563.0
 - [x] **Phase 2:** Commit (91434f0)
-- [ ] **Phase 3a:** Decide on `react-resizable-panels` v4 migration
-- [ ] **Phase 3b:** Monitor specta/tauri-specta for stable release
+- [ ] Fix syntax highlighting regression
 
 ---
 
@@ -311,8 +359,8 @@ For each of the Astro projects in `test/`:
 
 1. Upgrade Astro version to 5.16.15 using `pnpm dlx @astrojs/upgrade`
 2. Check for any other packages which can also be upgraded
-3. Run the dev server and check that everything works in the browser etc
-4. Run Astro Editor and point it at the project for a smoke test
+3. [Manual by user] Run the dev server and check that everything works in the browser etc
+4. [Manual by user] Run Astro Editor and point it at the project for a quick check
 5. Make a commit
 
 ## Phase 2 - Telemetry Worker
@@ -323,5 +371,6 @@ Confirm it still works properly.
 ## Phase 3 - Finishing up
 
 - [ ] Run all checks and manually smoke test
-- [ ] Check for CodeRabbit suggestions
+- [ ] Clean up task doc and complete to `tasks-done/`, push branch
+- [ ] Check for CodeRabbit suggestions and CI build
 - [ ] Merge `deps-2026-01-24` into `main`
