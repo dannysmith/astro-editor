@@ -77,9 +77,9 @@ v4 has breaking API changes (`PanelGroup` → `Group`, `direction` → `orientat
 - Starlight also upgraded to 0.37.4
 - Fixed optional pubDate bug in `dummy-astro-project/src/pages/index.astro`
 
-**Telemetry Worker:**
-- Upgrade dependencies per https://github.com/dannysmith/astro-editor/pull/93
-- Verify it still works
+**Telemetry Worker:** ✅
+- Upgraded wrangler 4.45.4 → 4.60.0 (commit 93423d8)
+- Verified with `wrangler deploy --dry-run`
 
 ### Finishing Up
 
