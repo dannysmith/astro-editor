@@ -6,7 +6,7 @@ Comprehensive dependency update covering 45 npm packages and ~100 Cargo crates. 
 
 ## Phase 1: Safe Batch Updates
 
-**Status:** Not started
+**Status:** Complete (commit ee8001b)
 
 These are patch/minor updates within declared semver ranges.
 
@@ -110,17 +110,23 @@ These updates need individual attention before applying.
 **Current:** Pinned to `1.2.3` in `pnpm.overrides`
 **Available:** 1.3.0, 1.4.0, 1.5.0
 
-**Why pinned:** Mismatched `@lezer/*` versions break CodeMirror syntax highlighting. All lezer packages must use the same version of `@lezer/common`.
+**Why originally pinned:** Mismatched `@lezer/*` versions break CodeMirror syntax highlighting.
 
-**Investigation steps:**
-1. Remove override temporarily
-2. Run `pnpm install`
-3. Check `pnpm why @lezer/common` for version alignment
-4. If all CodeMirror packages resolve to same version, remove override
-5. If not, update override to the version they align on
-6. Test syntax highlighting thoroughly
+**Investigation findings:**
+- [Lezer changelog](https://lezer.codemirror.net/docs/changelog/) shows **no breaking changes** between 1.2.x and 1.5.x
+- `@codemirror/language@6.12.1` now requires `@lezer/common ^1.5.0`
+- `@lezer/highlight@1.2.3` requires `@lezer/common ^1.3.0`
+- Our override to 1.2.3 is **artificially holding back** the version below what packages now require!
+- All packages should naturally resolve to 1.5.0 (satisfies all semver ranges)
 
-**Risk:** Medium - could break editor highlighting
+**Action:** Remove the override entirely. All CodeMirror packages should align on 1.5.0.
+```bash
+# Remove override from package.json, then:
+pnpm install
+pnpm why @lezer/common  # Verify single version
+```
+
+**Risk:** Low - no breaking changes documented, and current override is actually incorrect
 
 ---
 
@@ -129,9 +135,15 @@ These updates need individual attention before applying.
 **Current:** 24.10.1
 **Available:** 25.0.10
 
-**Action:** Major version bump for Node.js types. Check what Node version the project targets and whether v25 types are appropriate.
+**Investigation findings:**
+- [@types/node follows Node.js major versions](https://www.npmjs.com/package/@types/node)
+- [Node.js 25](https://nodejs.org/en/blog/release/v25.0.0) removed 50+ deprecated APIs
+- Types-only change, no runtime impact
+- No documented breaking changes in the type definitions themselves
 
-**Risk:** Low - types only, no runtime impact
+**Action:** Safe to update. Types will reflect Node.js 25 API surface.
+
+**Risk:** Low - types only, may surface deprecation warnings if using removed APIs
 
 ---
 
@@ -140,13 +152,20 @@ These updates need individual attention before applying.
 **Current:** 0.39.9
 **Available:** 0.40.5
 
-**Action:** 0.x version so minor bumps could be breaking. Update and verify:
+**Investigation findings:**
+- [Changelog](https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md) shows mostly bug fixes
+- 0.40.0: Added SARIF output format support
+- 0.40.1: Fixed AST strictness check
+- 0.40.2: Fixed exit status, pattern rejection for unknown keys
+- **No breaking changes documented**
+
+**Action:** Safe to update and verify linting still works.
 ```bash
 pnpm update @ast-grep/cli
 pnpm run ast:lint
 ```
 
-**Risk:** Low-Medium - only affects linting
+**Risk:** Low - only affects linting, no breaking changes
 
 ---
 
@@ -155,12 +174,17 @@ pnpm run ast:lint
 **Current:** 0.539.0
 **Available:** 0.563.0
 
-**Action:** Icon library updates rarely break. Update and verify icons still render:
+**Investigation findings:**
+- Icon library with frequent releases
+- New icons may be added, rarely are icons removed
+- 0.x version but follows additive patterns
+
+**Action:** Safe to update.
 ```bash
 pnpm update lucide-react
 ```
 
-**Risk:** Low
+**Risk:** Low - icons rarely break
 
 ---
 
@@ -193,15 +217,30 @@ These have known breaking changes requiring code modifications.
 - Multi-panel resize support
 - Better server rendering
 
-**Recommendation:** Consider whether v4 features are needed. The current v3 implementation works well. If upgrading:
-1. Update shadcn wrapper to use new exports
-2. Convert all size values to strings with `%` suffix
-3. Change `direction` to `orientation`
+**Approach:** This comes in via shadcn/ui.
+
+**Investigation findings:**
+- `pnpm dlx shadcn@latest diff resizable` shows "No updates found" - shadcn hasn't updated their component yet
+- shadcn/ui has [open issues](https://github.com/shadcn-ui/ui/issues/9136) about v4 incompatibility
+- We would need to manually migrate both the wrapper AND our usage code
+
+**Steps (if proceeding):**
+1. Update `react-resizable-panels` to v4
+2. Update `src/components/ui/resizable.tsx`:
+   - Change imports from `PanelGroup` → `Group`, `PanelResizeHandle` → `Separator`
+   - Update `data-[panel-group-direction=...]` to `aria-[orientation=...]` in classNames
+3. Update `src/components/layout/Layout.tsx`:
+   - Change `direction="horizontal"` to `orientation="horizontal"`
+   - Convert all size values to strings: `30` → `"30%"`
+   - Update LAYOUT_SIZES constants
 4. Test panel resizing thoroughly
 
-**Risk:** Medium-High - requires code changes and testing
+**Decision:** Consider deferring until shadcn updates their component. Current v3 works fine.
+
+**Risk:** Medium-High - requires code changes, shadcn hasn't migrated yet
 
 **References:**
+- https://ui.shadcn.com/docs/components/radix/resizable
 - https://github.com/bvaughn/react-resizable-panels/pull/528
 - https://github.com/shadcn-ui/ui/issues/9136
 
@@ -216,7 +255,7 @@ These have known breaking changes requiring code modifications.
 
 **Status:** Still in Release Candidate - **no stable 2.0 release yet**
 
-**Recommendation:** Keep pinned. The maintainers explicitly recommend locking RC versions since breaking changes may occur before final release. Monitor for stable release.
+**Decision:** Keep pinned for now. Not upgrading in this round.
 
 **Action:** Check periodically for stable release:
 - https://github.com/specta-rs/tauri-specta/releases
@@ -242,10 +281,10 @@ These are intentionally kept at current versions:
 
 ## Checklist
 
-- [ ] **Phase 1:** Safe batch updates (`pnpm update` + `cargo update`)
-- [ ] **Phase 1:** Run `check:all` and fix any issues
-- [ ] **Phase 1:** Manual smoke test
-- [ ] **Phase 1:** Commit
+- [x] **Phase 1:** Safe batch updates (`pnpm update` + `cargo update`)
+- [x] **Phase 1:** Run `check:all` and fix any issues
+- [x] **Phase 1:** Manual smoke test
+- [x] **Phase 1:** Commit
 - [ ] **Phase 2a:** Investigate `@lezer/common` override
 - [ ] **Phase 2b:** Update `@types/node` if appropriate
 - [ ] **Phase 2c:** Update `@ast-grep/cli` and verify
