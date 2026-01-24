@@ -5,47 +5,68 @@
 **Phase 1:** Complete ✅
 **Phase 2:** Complete ✅ (with fix for @lezer/common)
 **Phase 3:** Not started
+**Syntax Regression:** Fixed ✅
 
 ### ⚠️ BLOCKING ISSUE: Syntax Highlighting Regression
 
-After completing Phase 1 & 2, markdown syntax marks (`##`, `**`, `` ` ``, `[]()`) are showing in **yellow/gold** instead of the intended subdued gray color.
+After completing Phase 1 & 2, markdown syntax marks (`##`, `**`, `` ` ``, `[]()`) were showing in **yellow/gold** instead of the intended colors.
 
-**Root Cause Analysis:**
-1. `@lezer/markdown` was updated from **1.4.3 → 1.6.3** during Phase 1
-2. The package has built-in default styles that map all marks to `tags.processingInstruction`:
-   ```javascript
-   "HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": tags.processingInstruction
-   ```
-3. Our custom `markdownStyleExtension` in `src/lib/editor/syntax/styleExtension.ts` should override these, but it's not working
-4. `tags.processingInstruction` is styled as `--editor-color-brown` which is gold/yellow in dark mode
+---
 
-**Key Files:**
-- `src/lib/editor/syntax/styleExtension.ts` - Custom styleTags mappings (should override defaults)
-- `src/lib/editor/syntax/markdownTags.ts` - Custom Tag definitions
-- `src/lib/editor/syntax/highlightStyle.ts` - Highlight styles for tags
-- `src/lib/editor/extensions/createExtensions.ts` - Where markdown() is configured
+#### Root Cause (Confirmed)
 
-**Next Steps to Fix:**
-1. **Option A:** Debug why our `styleTags` in `styleExtension.ts` aren't overriding the defaults
-   - Check if the extension format is correct for @lezer/markdown 1.6.3
-   - May need to adjust how we pass extensions to `markdown()`
+The issue is caused by a behavior change in `@lezer/highlight` when `@lezer/common` was updated from **1.2.3 → 1.5.0**.
 
-2. **Option B:** Pin `@lezer/markdown` to 1.4.3 in pnpm overrides (quick fix)
-   ```json
-   "pnpm": {
-     "overrides": {
-       "@lezer/common": "^1.5.0",
-       "@lezer/markdown": "1.4.3"
-     }
-   }
-   ```
+**Key changelog entries from [Lezer changelog](https://lezer.codemirror.net/docs/changelog/):**
 
-3. **Option C:** Remove our custom markdown style extension and instead override `tags.processingInstruction` styling in `highlightStyle.ts` to use `--editor-color-mdtag` (gray) instead of brown
+> **@lezer/highlight 1.2.2 (2025-10-17):** "Fix an issue where adding additional highlighting info for a node that already had some rule would drop the old info."
+>
+> **@lezer/highlight 1.2.3 (2025-10-26):** "Fix a regression in 1.2.2 when assigning new highlight tags to nodes."
 
-**To Test Fix:**
-- Open a markdown file in the editor
-- Verify `##`, `**`, `` ` ``, `[]()` syntax marks appear in gray (not yellow/gold)
-- Run `pnpm run check:all` to ensure tests pass
+**What changed:**
+- Before: When our custom `styleTags` (in `markdownStyleExtension`) were added to nodes that already had rules from `@lezer/markdown`'s built-in `markdownHighlighting`, the new rules would take precedence
+- After: The old rules are now preserved and come first in the rule chain. Since the built-in rules have no context requirement, they match immediately and our contextual rules are never checked
+
+**The built-in `markdownHighlighting` in `@lezer/markdown` maps all marks to `tags.processingInstruction`:**
+```javascript
+"HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": tags.processingInstruction
+```
+
+Our `highlightStyle.ts` styled `tags.processingInstruction` as `--editor-color-brown` (gold/yellow in dark mode), so all marks appeared gold.
+
+---
+
+#### Partial Fix Applied ✅
+
+Changed `tags.processingInstruction` styling from brown to mdtag (gray) in `highlightStyle.ts`:
+
+```typescript
+// Line 225 - CHANGED:
+{ tag: tags.processingInstruction, color: 'var(--editor-color-mdtag)' },
+```
+
+This fixes most marks (`**`, `*`, `` ` ``, `[]()`, `-`, etc.) → now gray as intended.
+
+---
+
+#### Heading Marks Fix ✅
+
+**Solution Applied:** Created a new `headingMarkStyleExtension` (ViewPlugin decoration approach).
+
+This extension bypasses the highlight system entirely by directly decorating `HeaderMark` nodes inside `ATXHeading` nodes with a custom `.cm-heading-mark` class, which is styled in `theme.ts`.
+
+**Files Changed:**
+- `src/lib/editor/extensions/heading-mark-style.ts` - New extension (created)
+- `src/lib/editor/extensions/theme.ts` - Added `.cm-heading-mark` styling
+- `src/lib/editor/extensions/createExtensions.ts` - Added extension to editor
+
+---
+
+#### Testing
+
+- [x] Most marks (`**`, `*`, `` ` ``, `[]()`, `-`) appear gray ✅
+- [x] `##` heading marks appear pink (same as heading text) ✅
+- [x] Run `pnpm run check:all` to ensure tests pass ✅
 
 ---
 
@@ -247,6 +268,8 @@ These have known breaking changes requiring code modifications.
 
 ### 3a. `react-resizable-panels` (3.0.6 → 4.5.1)
 
+DECISION: WE WILL NOT DO THIS NOW.
+
 **Current:** 3.0.6
 **Available:** 4.5.1
 
@@ -341,7 +364,12 @@ These are intentionally kept at current versions:
 - [x] **Phase 2c:** Updated `@ast-grep/cli` 0.39.9 → 0.40.5
 - [x] **Phase 2d:** Updated `lucide-react` 0.539.0 → 0.563.0
 - [x] **Phase 2:** Commit (91434f0)
-- [ ] Fix syntax highlighting regression
+- [x] Fix syntax highlighting regression (partial) - most marks now gray
+- [x] Fix heading marks (`##`) to be pink instead of gray ✅
+- [ ] Review all editor extensions and ensure we have clear comments at the top describing exactly what they do and why they exist.
+- [ ] Investigate upgrading:
+  - [ ] `reqwest` (Cargo) | 0.12.x | 0.13.1 | Major version, would need migration
+  - [ ] `swc_ecma_parser` (Cargo) | 29.x | 33.0.0 | Major version, would need migration
 
 ---
 
