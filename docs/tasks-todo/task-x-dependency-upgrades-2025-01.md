@@ -101,7 +101,7 @@ git add -A && git commit -m "chore: update dependencies (phase 1 - safe updates)
 
 ## Phase 2: Review Required
 
-**Status:** Not started
+**Status:** Complete
 
 These updates need individual attention before applying.
 
@@ -119,14 +119,16 @@ These updates need individual attention before applying.
 - Our override to 1.2.3 is **artificially holding back** the version below what packages now require!
 - All packages should naturally resolve to 1.5.0 (satisfies all semver ranges)
 
-**Action:** Remove the override entirely. All CodeMirror packages should align on 1.5.0.
+**Action:** Update the override to `^1.5.0` (not remove it). pnpm doesn't dedupe properly without it.
 ```bash
-# Remove override from package.json, then:
+# Update override in package.json to "^1.5.0", then:
 pnpm install
 pnpm why @lezer/common  # Verify single version
 ```
 
-**Risk:** Low - no breaking changes documented, and current override is actually incorrect
+**Note:** Simply removing the override causes dual versions (1.2.3 + 1.5.0) which breaks syntax highlighting with `TypeError: undefined is not an object (evaluating 'children.length')`.
+
+**Risk:** Low - override is still needed, just updated to correct version
 
 ---
 
@@ -285,11 +287,11 @@ These are intentionally kept at current versions:
 - [x] **Phase 1:** Run `check:all` and fix any issues
 - [x] **Phase 1:** Manual smoke test
 - [x] **Phase 1:** Commit
-- [ ] **Phase 2a:** Investigate `@lezer/common` override
-- [ ] **Phase 2b:** Update `@types/node` if appropriate
-- [ ] **Phase 2c:** Update `@ast-grep/cli` and verify
-- [ ] **Phase 2d:** Update `lucide-react`
-- [ ] **Phase 2:** Commit
+- [x] **Phase 2a:** Removed `@lezer/common` override (was holding back required versions)
+- [x] **Phase 2b:** Updated `@types/node` 24.x → 25.x
+- [x] **Phase 2c:** Updated `@ast-grep/cli` 0.39.9 → 0.40.5
+- [x] **Phase 2d:** Updated `lucide-react` 0.539.0 → 0.563.0
+- [x] **Phase 2:** Commit (91434f0)
 - [ ] **Phase 3a:** Decide on `react-resizable-panels` v4 migration
 - [ ] **Phase 3b:** Monitor specta/tauri-specta for stable release
 

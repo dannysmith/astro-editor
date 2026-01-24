@@ -4,6 +4,7 @@ packages:
   - '!telemetry-worker'
 
 onlyBuiltDependencies:
+  - '@ast-grep/cli'
   - '@tailwindcss/oxide'
   - esbuild
   - sharp
