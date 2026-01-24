@@ -1,3 +1,30 @@
+/**
+ * Editor Theme Extension
+ *
+ * Defines the visual styling for the CodeMirror editor instance. This includes
+ * both core editor styling and extension-specific class definitions.
+ *
+ * THEMING ARCHITECTURE:
+ * All colors and typography use CSS custom properties (variables) defined in
+ * src/components/editor/editor.css. This allows the theme to adapt to light/dark
+ * mode without rebuilding the extension.
+ *
+ * KEY CSS VARIABLES USED:
+ * - --editor-color-* : Colors (background, text, heading, mdtag, etc.)
+ * - --editor-font-* : Typography (family, size, weight, line-height)
+ * - --editor-content-max-width : Content width constraint
+ *
+ * SECTIONS:
+ * 1. Core editor styling (container, content, cursor, selection)
+ * 2. Snippet field styling
+ * 3. Syntax mark overrides (heading, emphasis, strong marks)
+ * 4. Code block background styling
+ *
+ * NOTE ON !important:
+ * Some rules use !important to override dynamically-generated highlight classes.
+ * This is intentional and scoped to specific elements we control.
+ */
+
 import { EditorView } from '@codemirror/view'
 
 /**

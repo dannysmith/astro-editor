@@ -66,7 +66,8 @@ v4 has breaking API changes (`PanelGroup` → `Group`, `direction` → `orientat
 
 ### Other
 
-- [ ] Review all editor extensions and ensure we have clear comments at the top describing exactly what they do and why they exist.
+- [x] Review all editor extensions and ensure we have clear comments at the top describing exactly what they do and why they exist. ✅
+- [x] Create `docs/developer/editor.md` documenting CodeMirror/Lezer architecture and extension patterns ✅
 - [ ] Investigate possibility of upgrading...
   - [ ]  `reqwest` (Cargo) | 0.12.x | Major version jump to 0.13.1
   - [ ] `swc_ecma_parser` (Cargo) | 29.x | Major version jump to 33.0.0

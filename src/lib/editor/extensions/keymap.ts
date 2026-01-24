@@ -1,3 +1,30 @@
+/**
+ * Editor Keymap Extensions
+ *
+ * Defines all keyboard shortcuts for the editor. Organized into three layers
+ * with different precedences to ensure correct handling.
+ *
+ * SHORTCUTS DEFINED:
+ *
+ * | Key              | Action                          |
+ * |------------------|---------------------------------|
+ * | Mod+B            | Toggle bold (**)                |
+ * | Mod+I            | Toggle italic (*)               |
+ * | Mod+K            | Create/edit link                |
+ * | Mod+/            | Component builder OR toggle comment |
+ * | Alt+Mod+1-4      | Transform line to heading 1-4   |
+ * | Alt+Mod+0        | Remove heading (to paragraph)   |
+ * | Mod+Shift+F      | Toggle focus mode               |
+ * | Mod+Shift+L      | Add cursors to line ends        |
+ * | Tab              | Insert tab or next snippet field |
+ * | Shift+Tab        | Previous snippet field          |
+ *
+ * PRECEDENCE:
+ * - Highest: Tab handling (traps Tab key in editor)
+ * - High: Markdown shortcuts (override defaults)
+ * - Normal: Default CodeMirror keymaps
+ */
+
 import { keymap, EditorView } from '@codemirror/view'
 import {
   defaultKeymap,

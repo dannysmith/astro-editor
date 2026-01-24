@@ -1,3 +1,23 @@
+/**
+ * Focus Mode Extension
+ *
+ * Provides a distraction-free writing mode that dims all text except the
+ * current sentence. As the cursor moves, the "focused" sentence updates
+ * and surrounding text is visually dimmed via the `.cm-focus-dimmed` class.
+ *
+ * HOW IT WORKS:
+ * - Tracks cursor position and uses sentence detection to find boundaries
+ * - Applies mark decorations to dim text before and after the current sentence
+ * - State is toggled via the `toggleFocusMode` effect
+ *
+ * USAGE:
+ * Toggle via Cmd+Shift+F or the 'toggleFocusMode' command.
+ *
+ * STYLING:
+ * The `.cm-focus-dimmed` class is defined in the editor's global CSS
+ * (see src/components/editor/editor.css).
+ */
+
 import { StateField, StateEffect, Transaction } from '@codemirror/state'
 import {
   EditorView,
