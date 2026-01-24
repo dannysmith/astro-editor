@@ -73,14 +73,28 @@ export const createEditorTheme = () => {
       backgroundColor: 'var(--editor-color-background)',
       border: '1px solid rgba(0, 0, 0, 0.1)',
     },
-    // Heading marks (# symbols) - styled to match heading text color
-    // This overrides the default processingInstruction styling from @lezer/markdown
+    // Syntax mark styling - overrides default processingInstruction from @lezer/markdown
+    // See syntax-mark-decorations.ts for why this is needed
     '.cm-heading-mark': {
       color: 'var(--editor-color-heading)',
       fontWeight: 'var(--editor-font-weight-bold)',
     },
     '.cm-heading-mark span': {
       color: 'inherit !important',
+    },
+    '.cm-emphasis-mark': {
+      fontStyle: 'italic',
+      fontFamily: 'var(--editor-font-family-italic)',
+    },
+    '.cm-emphasis-mark span': {
+      fontStyle: 'inherit !important',
+      fontFamily: 'inherit !important',
+    },
+    '.cm-strong-mark': {
+      fontWeight: 'var(--editor-font-weight-bold)',
+    },
+    '.cm-strong-mark span': {
+      fontWeight: 'inherit !important',
     },
     // Fenced code block background
     // Uses semi-transparent background to allow selection layer to show through.
