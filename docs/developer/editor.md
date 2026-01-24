@@ -15,7 +15,7 @@ The editor is built on **CodeMirror 6** with **Lezer** for parsing. This documen
 
 Syntax highlighting flows through four stages:
 
-```
+```text
 Parser nodes → styleTags → Tags → HighlightStyle → CSS
 ```
 
