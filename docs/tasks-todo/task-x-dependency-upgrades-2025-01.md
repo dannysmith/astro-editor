@@ -57,8 +57,6 @@ v4 has breaking API changes (`PanelGroup` → `Group`, `direction` → `orientat
 | `babel-plugin-react-compiler` | ~1.0.0 | Tilde pin, React Compiler still maturing |
 | `specta` | =2.0.0-rc.22 | RC version, awaiting stable |
 | `tauri-specta` | =2.0.0-rc.21 | RC version, awaiting stable |
-| `reqwest` (Cargo) | 0.12.x | Major version jump to 0.13.1 |
-| `swc_ecma_parser` (Cargo) | 29.x | Major version jump to 33.0.0 |
 
 ---
 
@@ -74,11 +72,10 @@ v4 has breaking API changes (`PanelGroup` → `Group`, `direction` → `orientat
 
 ### Sub-Projects
 
-**Test Astro Projects** (in `test/`):
-1. Upgrade Astro to 5.16.15 using `pnpm dlx @astrojs/upgrade`
-2. Check for other upgradeable packages
-3. Manual smoke test in browser
-4. Test with Astro Editor
+**Test Astro Projects** (in `test/`): ✅
+- Upgraded `demo-project`, `dummy-astro-project`, `starlight-minimal` to Astro 5.16.15
+- Starlight also upgraded to 0.37.4
+- Fixed optional pubDate bug in `dummy-astro-project/src/pages/index.astro`
 
 **Telemetry Worker:**
 - Upgrade dependencies per https://github.com/dannysmith/astro-editor/pull/93
