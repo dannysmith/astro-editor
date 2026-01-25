@@ -31,15 +31,15 @@ The pipeline:
 - `styleExtension.ts` - Maps Lezer parser nodes to our tags via `styleTags()`
 - `highlightStyle.ts` - Maps tags to CSS properties via `HighlightStyle.define()`
 
-### The @lezer/highlight 1.2.2 Workaround
+### The @lezer/highlight 1.2.3 Workaround
 
-**Critical institutional knowledge**: A behavior change in `@lezer/highlight` 1.2.2 broke our contextual styling.
+**Critical institutional knowledge**: A behavior change in `@lezer/highlight` 1.2.3 broke our contextual styling.
 
 **What changed**: When custom `styleTags` are added to nodes that already have rules, old rules are now preserved and checked **first**.
 
 **The problem**: `@lezer/markdown`'s built-in highlighting maps all marks to `tags.processingInstruction`:
 ```javascript
-// Built-in rule (checked first after 1.2.2)
+// Built-in rule (checked first after 1.2.3)
 "HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": tags.processingInstruction
 ```
 

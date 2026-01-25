@@ -10,7 +10,7 @@ import { syntaxTree } from '@codemirror/language'
  * that need styling beyond what the highlight system provides.
  *
  * WHY THIS EXISTS:
- * A behavior change in @lezer/highlight 1.2.2 means that when custom styleTags are
+ * A behavior change in @lezer/highlight 1.2.3 means that when custom styleTags are
  * added to nodes that already have rules, the old rules are now preserved and checked
  * first. The built-in @lezer/markdown maps all marks to tags.processingInstruction,
  * which matches before our contextual rules (like 'ATXHeading1/HeaderMark') can be

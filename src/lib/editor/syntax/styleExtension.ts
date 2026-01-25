@@ -5,7 +5,7 @@ import { markdownTags } from './markdownTags'
  * Style extension that maps Lezer parser nodes to our custom markdown tags.
  * This is where we connect the markdown parser output to our styling system.
  *
- * LIMITATION (@lezer/highlight 1.2.2+):
+ * LIMITATION (@lezer/highlight 1.2.3+):
  * Some contextual mappings (e.g., 'ATXHeading1/HeaderMark') don't fully take
  * effect because @lezer/markdown's built-in rules now take precedence. The
  * built-in maps all marks to tags.processingInstruction, which matches before
