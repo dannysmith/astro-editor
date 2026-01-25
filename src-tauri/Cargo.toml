@@ -34,7 +34,7 @@ serde_norway = "0.9.42"
 tokio = { version = "1", features = ["full"] }
 notify = "8"
 walkdir = "2"
-rfd = "0.16"
+rfd = "0.17"
 regex = "1.10"
 tauri-plugin-clipboard-manager = "2.3.0"
 tauri-plugin-fs = "2.4.0"
