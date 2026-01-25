@@ -1,0 +1,87 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+
+updates:
+  # NPM dependencies (main project only)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "09:00"
+      timezone: "Europe/London"
+    # Exclude test Astro projects - these are only for testing the editor
+    exclude-paths:
+      - "test/**"
+    # Group minor/patch updates to reduce PR noise
+    groups:
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 10
+
+  # Rust/Cargo dependencies (Tauri backend)
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "09:00"
+      timezone: "Europe/London"
+    groups:
+      rust-dependencies:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Telemetry worker (separate Cloudflare Worker)
+  - package-ecosystem: "npm"
+    directory: "/telemetry-worker"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "09:00"
+      timezone: "Europe/London"
+    groups:
+      all-dependencies:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - "dependencies"
+      - "npm"
+      - "telemetry"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 3

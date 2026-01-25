@@ -1,0 +1,15 @@
+# CodeRabbit Configuration
+# https://docs.coderabbit.ai/reference/configuration
+
+reviews:
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  path_filters:
+    - "!**/*.md"
+    - "!test/**"
+    - "!pnpm-lock.yaml"
+    - "!src/lib/bindings.ts"
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
