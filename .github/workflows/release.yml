@@ -88,7 +88,7 @@ jobs:
           chmod 600 ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
 
       - name: Build and release
-        uses: tauri-apps/tauri-action@v0.5.22
+        uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
