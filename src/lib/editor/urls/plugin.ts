@@ -1,3 +1,20 @@
+/**
+ * URL Hover Plugin
+ *
+ * Provides visual feedback for Alt+Click URL opening. When the Alt key is
+ * pressed, URLs in the visible viewport are decorated with a hover class
+ * to indicate they're clickable.
+ *
+ * HOW IT WORKS:
+ * 1. altKeyState tracks whether Alt is currently held (updated via altKeyEffect)
+ * 2. urlHoverPlugin scans visible text for URLs when Alt is pressed
+ * 3. Matching URLs get the 'url-alt-hover' class for visual styling
+ * 4. Click handling is done separately in createExtensions.ts via handleUrlClick
+ *
+ * The Alt key state is managed globally via keydown/keyup listeners in the
+ * Layout component, which dispatches altKeyEffect to the editor.
+ */
+
 import {
   EditorView,
   ViewPlugin,

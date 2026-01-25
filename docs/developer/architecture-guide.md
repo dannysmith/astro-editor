@@ -13,7 +13,7 @@ The codebase maintains clear boundaries between different types of concerns:
 - **Business Logic**: Lives in decomposed Zustand stores (`src/store/`)
 - **Server State**: Managed by TanStack Query (`hooks/queries/`, `hooks/mutations/`)
 - **UI Orchestration**: Container components (e.g., `Layout.tsx`)
-- **Editor Logic**: Isolated modules in `src/lib/editor/`
+- **Editor Logic**: Isolated modules in `src/lib/editor/` (see [editor.md](./editor.md))
 - **Reusable UI Logic**: Custom hooks in `src/hooks/`
 - **Pure UI Components**:
   - `src/components/ui/`: shadcn/ui components
@@ -590,6 +590,7 @@ For in-depth coverage of specific topics, see these guides:
 - **[optimization.md](./optimization.md)**: Bundle optimization and performance budgets
 
 **System Documentation**:
+- **[editor.md](./editor.md)**: CodeMirror 6 architecture, Lezer parsing, and extension patterns
 - **[form-patterns.md](./form-patterns.md)**: Frontmatter fields and settings forms
 - **[schema-system.md](./schema-system.md)**: Rust-based schema parsing and merging
 - **[keyboard-shortcuts.md](./keyboard-shortcuts.md)**: Keyboard shortcut implementation

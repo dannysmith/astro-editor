@@ -1,3 +1,42 @@
+/**
+ * Editor Extensions Factory
+ *
+ * Creates and configures all CodeMirror extensions for the editor. This is the
+ * main entry point for editor configuration.
+ *
+ * EXTENSION CATEGORIES:
+ *
+ * 1. Core Functionality
+ *    - Alt key state tracking, URL hover, drag/drop cursor
+ *    - Multiple selection support, bracket closing
+ *
+ * 2. Language Support
+ *    - Markdown parser with custom style extensions
+ *    - Syntax highlighting via comprehensiveHighlightStyle
+ *    - Undo/redo history
+ *
+ * 3. Keymaps
+ *    - Tab handling, markdown shortcuts, default bindings
+ *    - See keymap.ts for full shortcut reference
+ *
+ * 4. Event Handlers
+ *    - Paste handling, Alt+Click URL opening
+ *    - Focus/blur callbacks for external state sync
+ *
+ * 5. Writing Modes
+ *    - Focus mode (sentence-based dimming)
+ *    - Copyedit mode (parts of speech highlighting)
+ *
+ * 6. Visual Enhancements
+ *    - Hanging headers (# in margin)
+ *    - Syntax mark decorations (heading/emphasis/strong marks)
+ *    - Code block backgrounds
+ *    - Blockquote line styling
+ *
+ * 7. Theme
+ *    - Editor styling, line wrapping
+ */
+
 import { EditorView, dropCursor, drawSelection } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { syntaxHighlighting } from '@codemirror/language'
@@ -12,6 +51,7 @@ import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
 import { hangingHeadersExtension } from './hanging-headers'
+import { syntaxMarkDecorationsExtension } from './syntax-mark-decorations'
 import { codeBlockBackgroundExtension } from './code-block-background'
 import { blockquoteStyleExtension } from './blockquote-style'
 
@@ -78,6 +118,7 @@ export const createExtensions = (config: ExtensionConfig) => {
 
     // Visual enhancements
     hangingHeadersExtension,
+    syntaxMarkDecorationsExtension,
     codeBlockBackgroundExtension,
     blockquoteStyleExtension,
 

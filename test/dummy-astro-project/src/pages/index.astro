@@ -51,7 +51,7 @@ const relatedArticles = latestArticle.data.relatedArticles
 		<h2>All Notes</h2>
 		<ul>
 			{notes.map(note => (
-				<li>{note.data.title} - {note.data.pubDate.toDateString()}</li>
+				<li>{note.data.title}{note.data.pubDate && ` - ${note.data.pubDate.toDateString()}`}</li>
 			))}
 		</ul>
 

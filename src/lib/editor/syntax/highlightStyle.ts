@@ -222,7 +222,7 @@ export const comprehensiveHighlightStyle = HighlightStyle.define([
 
   // Special/Meta
   { tag: tags.meta, color: 'var(--editor-color-brown)' },
-  { tag: tags.processingInstruction, color: 'var(--editor-color-brown)' },
+  { tag: tags.processingInstruction, color: 'var(--editor-color-mdtag)' },
   {
     tag: tags.definition(tags.variableName),
     color: 'var(--editor-color-text)',

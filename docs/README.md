@@ -69,7 +69,8 @@ Other fundamenal developer documentation.
 - **[developer/preferences-system.md](developer/preferences-system.md)** - Three-tier settings hierarchy and management
 - **[developer/color-system.md](developer/color-system.md)** - Color tokens, CSS variables, and dark mode
 - **[developer/notifications.md](developer/notifications.md)** - Toast notification system (Rust ↔ TypeScript)
-- **[developer/editor-styles.md](developer/editor-styles.md)** - Custom CodeMirror syntax highlighting and typography
+- **[developer/editor.md](developer/editor.md)** - CodeMirror 6 architecture, Lezer parsing, and extension patterns
+- **[developer/editor-styles.md](developer/editor-styles.md)** - Editor color palette and typography specs
 - **[developer/recovery-system.md](developer/recovery-system.md)** - Crash recovery and auto-save resilience
 - **[developer/logging.md](developer/logging.md)** - Logging system
 

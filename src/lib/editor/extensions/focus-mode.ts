@@ -1,3 +1,23 @@
+/**
+ * Focus Mode Extension
+ *
+ * Provides a distraction-free writing mode that dims all text except the
+ * current sentence. As the cursor moves, the "focused" sentence updates
+ * and surrounding text is visually dimmed via the `.cm-focus-dimmed` class.
+ *
+ * HOW IT WORKS:
+ * - Tracks cursor position and uses sentence detection to find boundaries
+ * - Applies mark decorations to dim text before and after the current sentence
+ * - State is toggled via the `toggleFocusMode` effect
+ *
+ * USAGE:
+ * Toggle via Cmd+Shift+F or the 'toggleFocusMode' command.
+ *
+ * STYLING:
+ * The `.cm-focus-dimmed` class is defined in the editor's global CSS
+ * (see src/components/editor/editor.css).
+ */
+
 import { StateField, StateEffect, Transaction } from '@codemirror/state'
 import {
   EditorView,
@@ -9,10 +29,10 @@ import {
 import type { Range } from '@codemirror/state'
 import { findCurrentSentence } from '../sentence-detection'
 
-// State effect to toggle focus mode
+/** State effect to toggle focus mode on or off. Dispatch with `true` to enable, `false` to disable. */
 export const toggleFocusMode = StateEffect.define<boolean>()
 
-// State field to track focus mode state
+/** State field tracking whether focus mode is enabled and the current sentence boundaries. */
 export const focusModeState = StateField.define<{
   enabled: boolean
   currentSentence: { from: number; to: number } | null
@@ -52,7 +72,7 @@ export const focusModeState = StateField.define<{
   },
 })
 
-// Focus mode decorations with simplified approach for better compatibility
+/** State field that provides decorations to dim text outside the current sentence. */
 export const focusModeDecorations = StateField.define<DecorationSet>({
   create() {
     return Decoration.none
@@ -106,7 +126,7 @@ export const focusModeDecorations = StateField.define<DecorationSet>({
   provide: f => EditorView.decorations.from(f),
 })
 
-// Main focus mode plugin
+/** ViewPlugin that coordinates focus mode updates. State changes are handled by the state fields. */
 export const focusModePlugin = ViewPlugin.fromClass(
   class {
     constructor(public view: EditorView) {}
@@ -118,7 +138,7 @@ export const focusModePlugin = ViewPlugin.fromClass(
   }
 )
 
-// Combined focus mode extension
+/** Creates the combined focus mode extension. Include this in your editor's extensions array. */
 export function createFocusModeExtension() {
   return [focusModeState, focusModeDecorations, focusModePlugin]
 }

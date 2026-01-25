@@ -2,8 +2,19 @@ import { styleTags } from '@lezer/highlight'
 import { markdownTags } from './markdownTags'
 
 /**
- * Style extension that maps Lezer parser nodes to our custom markdown tags
- * This is where we connect the markdown parser output to our styling system
+ * Style extension that maps Lezer parser nodes to our custom markdown tags.
+ * This is where we connect the markdown parser output to our styling system.
+ *
+ * LIMITATION (@lezer/highlight 1.2.3+):
+ * Some contextual mappings (e.g., 'ATXHeading1/HeaderMark') don't fully take
+ * effect because @lezer/markdown's built-in rules now take precedence. The
+ * built-in maps all marks to tags.processingInstruction, which matches before
+ * our contextual rules are evaluated.
+ *
+ * WORKAROUND:
+ * The syntax-mark-decorations.ts extension bypasses the highlight system for
+ * marks that need special treatment (heading marks, emphasis marks, strong marks)
+ * by applying decorations directly.
  */
 export const markdownStyleExtension = {
   props: [
