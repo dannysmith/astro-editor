@@ -124,21 +124,21 @@ jobs:
 
       - name: Upload macOS artifact for website
         if: matrix.platform == 'macos-14'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-macos
           path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
       - name: Upload Windows artifact for website
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-windows
           path: src-tauri/target/release/bundle/msi/*.msi
 
       - name: Upload Linux artifact for website
         if: matrix.platform == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-linux
           path: src-tauri/target/release/bundle/appimage/*.AppImage
