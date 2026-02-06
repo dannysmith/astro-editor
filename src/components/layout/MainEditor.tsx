@@ -1,15 +1,26 @@
 import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { Editor } from '../editor'
+import { openProjectViaDialog } from '../../lib/projects/actions'
+import { Button } from '../ui/button'
 
 // Welcome screen component for better organization
 const WelcomeScreen: React.FC = () => (
   <div className="flex items-center justify-center h-full">
-    <div className="text-center text-muted-foreground">
-      <h2 className="m-0 mb-4 text-2xl font-light">Welcome to Astro Editor</h2>
+    <div className="text-center text-muted-foreground space-y-4 flex flex-col gap-4">
+      <h2 className="m-0 text-2xl font-light">Welcome to Astro Editor</h2>
       <p className="m-0 text-sm">
         Select a project folder to get started, then choose a file to edit.
       </p>
+      <Button
+        onClick={() => void openProjectViaDialog()}
+        className="self-center"
+        variant="outline"
+        size="sm"
+        title="Open Project"
+      >
+        Open Project
+      </Button>
     </div>
   </div>
 )
