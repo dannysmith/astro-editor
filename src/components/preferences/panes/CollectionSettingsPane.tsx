@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -29,6 +28,7 @@ import { getDefaultFileType } from '../../../lib/project-registry/default-file-t
 import type { SchemaField } from '../../../lib/schema'
 import type { CollectionSettings } from '../../../lib/project-registry/types'
 import { SettingsSection } from '../SettingsSection'
+import { PreferencesTextInput } from '../PreferencesTextInput'
 
 export const CollectionSettingsPane: React.FC = () => {
   const {
@@ -327,16 +327,16 @@ export const CollectionSettingsPane: React.FC = () => {
                       <Field>
                         <FieldLabel>Content Directory</FieldLabel>
                         <FieldContent>
-                          <Input
+                          <PreferencesTextInput
                             value={
                               collectionOverride?.settings?.pathOverrides
                                 ?.contentDirectory || ''
                             }
-                            onChange={e =>
+                            onCommit={value =>
                               handlePathOverrideChange(
                                 collection.name,
                                 'contentDirectory',
-                                e.target.value
+                                value
                               )
                             }
                             placeholder={`Using project setting: ${effectiveSettings.pathOverrides.contentDirectory}`}
@@ -351,16 +351,16 @@ export const CollectionSettingsPane: React.FC = () => {
                       <Field>
                         <FieldLabel>Assets Directory</FieldLabel>
                         <FieldContent>
-                          <Input
+                          <PreferencesTextInput
                             value={
                               collectionOverride?.settings?.pathOverrides
                                 ?.assetsDirectory || ''
                             }
-                            onChange={e =>
+                            onCommit={value =>
                               handlePathOverrideChange(
                                 collection.name,
                                 'assetsDirectory',
-                                e.target.value
+                                value
                               )
                             }
                             placeholder={`Using project setting: ${effectiveSettings.pathOverrides.assetsDirectory}`}

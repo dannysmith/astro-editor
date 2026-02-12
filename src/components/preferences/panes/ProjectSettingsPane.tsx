@@ -1,5 +1,4 @@
 import React from 'react'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import {
   Field,
@@ -16,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { SettingsSection } from '../SettingsSection'
+import { PreferencesTextInput } from '../PreferencesTextInput'
 
 export const ProjectSettingsPane: React.FC = () => {
   const { currentProjectSettings, updateProject, projectName, globalSettings } =
@@ -75,12 +75,12 @@ export const ProjectSettingsPane: React.FC = () => {
         <Field>
           <FieldLabel>Content Directory</FieldLabel>
           <FieldContent>
-            <Input
+            <PreferencesTextInput
               value={
                 currentProjectSettings?.pathOverrides?.contentDirectory || ''
               }
-              onChange={e =>
-                handlePathOverrideChange('contentDirectory', e.target.value)
+              onCommit={value =>
+                handlePathOverrideChange('contentDirectory', value)
               }
               placeholder="src/content/"
             />
@@ -93,12 +93,12 @@ export const ProjectSettingsPane: React.FC = () => {
         <Field>
           <FieldLabel>Assets Directory</FieldLabel>
           <FieldContent>
-            <Input
+            <PreferencesTextInput
               value={
                 currentProjectSettings?.pathOverrides?.assetsDirectory || ''
               }
-              onChange={e =>
-                handlePathOverrideChange('assetsDirectory', e.target.value)
+              onCommit={value =>
+                handlePathOverrideChange('assetsDirectory', value)
               }
               placeholder="src/assets/"
             />
@@ -111,16 +111,13 @@ export const ProjectSettingsPane: React.FC = () => {
         <Field>
           <FieldLabel>MDX Components Directory</FieldLabel>
           <FieldContent>
-            <Input
+            <PreferencesTextInput
               value={
                 currentProjectSettings?.pathOverrides?.mdxComponentsDirectory ||
                 ''
               }
-              onChange={e =>
-                handlePathOverrideChange(
-                  'mdxComponentsDirectory',
-                  e.target.value
-                )
+              onCommit={value =>
+                handlePathOverrideChange('mdxComponentsDirectory', value)
               }
               placeholder="src/components/mdx/"
             />

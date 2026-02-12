@@ -17,19 +17,11 @@ import {
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
 import { SettingsSection } from '../SettingsSection'
+import { PreferencesTextInput } from '../PreferencesTextInput'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const { setTheme } = useTheme()
-
-  const handleIdeCommandChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      void updateGlobal({
-        general: { ideCommand: e.target.value },
-      })
-    },
-    [updateGlobal]
-  )
 
   const handleThemeChange = useCallback(
     (value: 'light' | 'dark' | 'system') => {
@@ -100,10 +92,11 @@ export const GeneralPane: React.FC = () => {
         <Field>
           <FieldLabel>IDE Command</FieldLabel>
           <FieldContent>
-            <Input
-              type="text"
-              value={globalSettings?.general?.ideCommand || ''}
-              onChange={handleIdeCommandChange}
+            <PreferencesTextInput
+              value={globalSettings?.general?.ideCommand ?? ''}
+              onCommit={value =>
+                void updateGlobal({ general: { ideCommand: value } })
+              }
               placeholder="e.g., code, cursor, /usr/local/bin/nvim"
               className="max-w-md"
             />
