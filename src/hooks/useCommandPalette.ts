@@ -58,7 +58,6 @@ export function useCommandPalette(searchValue = '') {
       context.currentFile?.id,
       context.selectedCollection,
       context.projectPath,
-      context.isDirty,
       context.globalSettings?.general?.ideCommand,
       context.globalSettings?.general?.highlights?.nouns,
       context.globalSettings?.general?.highlights?.verbs,

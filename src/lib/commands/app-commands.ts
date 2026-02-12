@@ -1,7 +1,6 @@
 import {
   FileText,
   FolderOpen,
-  Save,
   X,
   Sidebar,
   PanelRight,
@@ -38,19 +37,6 @@ export const fileCommands: AppCommand[] = [
     },
     isAvailable: (context: CommandContext) => {
       return Boolean(context.selectedCollection && context.projectPath)
-    },
-  },
-  {
-    id: 'save-file',
-    label: 'Save File',
-    description: 'Save the current file',
-    icon: Save,
-    group: 'file',
-    execute: async (context: CommandContext) => {
-      await context.saveFile()
-    },
-    isAvailable: (context: CommandContext) => {
-      return Boolean(context.currentFile && context.isDirty)
     },
   },
   {
