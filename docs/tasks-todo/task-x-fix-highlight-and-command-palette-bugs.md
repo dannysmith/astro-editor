@@ -93,37 +93,35 @@ isActivelyEditing = false, decorations re-analyzed
 
 #### Bug 2: Command Palette Selection Jumping
 
-**The mechanism:**
+**Initial theory (DISPROVEN):**
 
-In `useCommandPalette.ts` (lines 54-70), `baseCommands` has `context.isDirty` as a dependency:
+The initial theory was that `context.isDirty` in the `baseCommands` dependency array caused re-renders when auto-save fired, disrupting cmdk's selection state.
 
-```typescript
-const baseCommands = useMemo(
-  () => getAllCommands(context, ''),
-  [
-    context.currentFile?.id,
-    context.selectedCollection,
-    context.projectPath,
-    context.isDirty,  // ← PROBLEMATIC DEPENDENCY
-    context.globalSettings?.general?.ideCommand,
-    context.globalSettings?.general?.highlights?.nouns,
-    // ... etc
-  ]
-)
-```
+**What was tried:**
+- Removed the `save-file` command from the command palette (committed 2026-02-12)
+- Removed `context.isDirty` from `baseCommands` dependency array
 
-**Flow:**
-1. User opens command palette while `isDirty = true` (auto-save pending)
-2. User navigates with arrow keys
-3. Auto-save fires in background → `isDirty` becomes `false`
-4. `useCommandContext()` returns new object (subscribed to `isDirty`)
-5. `baseCommands` recalculates (new array reference even if content unchanged)
-6. `commands` and `commandGroups` get new references
-7. `CommandPalette` re-renders
-8. cmdk's internal selection state is disrupted
-9. Selection appears to "jump"
+**Result:** The bug persists. The `isDirty` dependency was not the cause.
 
-**Why at the bottom of the list:** cmdk works harder at list boundaries (scroll management, boundary checks). Re-renders during rapid navigation at boundaries are more likely to cause visible disruption.
+**The change was kept anyway** because:
+1. Nobody uses the command palette to save files (Cmd+S is universal)
+2. It simplifies the command palette
+3. It removes an unnecessary dependency
+
+**Further investigation needed:**
+
+The actual cause is still unknown. Possible areas to investigate:
+1. **cmdk library behavior** - May have internal state management issues with rapid key repeats
+2. **Other re-render sources** - Check what else triggers CommandPalette re-renders during navigation
+3. **Scroll/virtualization** - cmdk may have issues with scroll position at list boundaries
+4. **React 19.2.4 changes** - The patch update may have subtle timing differences
+5. **Panel system interaction** - The resizable panels may be triggering layout recalculations
+
+**Reproduction steps:**
+1. Open command palette (Cmd+P)
+2. Hold down arrow key
+3. Navigate to bottom of list
+4. Selection jumps unexpectedly (especially near boundaries)
 
 ### Why Did the Commit Expose These Issues?
 
@@ -141,11 +139,13 @@ The bugs aren't in the new panel code itself, but the timing changes made existi
 
 ## Recommended Approach
 
-### Step 1: Fix Command Palette (VERIFIED - Implement First)
+### Step 1: ~~Fix Command Palette~~ (COMPLETED - DID NOT FIX BUG)
 
-Remove the "Save File" command from the command palette. This fix is verified and low-risk - implement it first.
+**Status:** Implemented and committed 2026-02-12.
 
-See details in "Fix: Remove Save File Command" section below.
+Removed the `save-file` command and `isDirty` dependency. The change is kept as a reasonable simplification, but **the command palette jumping bug persists**. The root cause is elsewhere.
+
+**Next steps for command palette:** Need fresh investigation - see "Bug 2" section above for ideas.
 
 ### Step 2: Verify Highlights Theory with Debug Logging
 
@@ -225,51 +225,37 @@ If debug logging shows the store update / CodeMirror dispatch is NOT happening w
 
 ## Fix Details
 
-### Fix: Remove "Save File" Command from Command Palette (VERIFIED)
+### Fix: Remove "Save File" Command from Command Palette (IMPLEMENTED - DID NOT FIX BUG)
 
-The `isDirty` dependency exists because the "Save File" command uses it in its `isAvailable` check (lines 43-55 in `app-commands.ts`):
+**Status:** Committed 2026-02-12. Change kept as reasonable cleanup, but did not fix the jumping bug.
 
-```typescript
-{
-  id: 'save-file',
-  label: 'Save File',
-  isAvailable: (context: CommandContext) => {
-    return Boolean(context.currentFile && context.isDirty)  // ← This is why isDirty is a dependency
-  },
-},
-```
+The theory was that `isDirty` changes caused list structure changes that disrupted cmdk's selection state. This was incorrect - the bug persists after the fix.
 
-When `isDirty` changes from `true` to `false` after auto-save:
-1. The "Save File" command gets **filtered out of the list entirely** (via `.filter(command => command.isAvailable(context))`)
-2. The command list structure changes (one fewer item)
-3. cmdk re-renders with a different list
-4. Selection jumps because items have shifted
+**What was done:**
+- Removed `save-file` command from `fileCommands` in `app-commands.ts`
+- Removed `context.isDirty` from `baseCommands` dependency array in `useCommandPalette.ts`
+- Removed unused `Save` import from lucide-react
 
-**The fix:** Remove the `save-file` command from `fileCommands` in `app-commands.ts`.
+**Why we kept the change:**
+- Cmd+S is universal and faster than command palette for saving
+- Simplifies the command palette
+- Removes an unnecessary store subscription
 
-**Verified safe to remove:** All other save triggers (Cmd+S keyboard shortcut, title bar button, menu item, editor blur, auto-save) use `useEditorStore.getState().saveFile` or `useEditorActions().saveFile` directly. None of them go through the command registry. The `save-file` command is only used by the command palette.
-
-**Rationale:** Nobody uses the command palette to save files - Cmd+S is universal and faster. The Save command provides no value while causing a real bug. Removing it:
-1. Eliminates the `isDirty` dependency from `baseCommands`
-2. Prevents the list structure change that causes selection jumping
-3. Simplifies the command palette
-
-After removing the command, also remove `context.isDirty` from the `baseCommands` dependency array in `useCommandPalette.ts` since nothing else uses it.
+**Conclusion:** The command palette jumping has a different root cause. Fresh investigation needed.
 
 ---
 
 ## Testing Plan
 
-### Phase 1: Command Palette Fix Testing
+### Phase 1: Command Palette Fix Testing - ❌ DID NOT FIX
 
-1. Open a file and make changes (ensure `isDirty = true`)
-2. Open command palette (Cmd+P)
-3. Immediately start holding down arrow key
-4. Navigate to bottom of list while holding arrow
-5. Verify selection moves smoothly without jumping
-6. Repeat while auto-save is firing (within 2s of last edit)
-7. Verify "Save File" command no longer appears in palette
-8. Verify Cmd+S still saves files correctly
+**Tested 2026-02-12:**
+- ✅ "Save File" command no longer appears in palette
+- ✅ Cmd+S still saves files correctly
+- ✅ Auto-save works correctly
+- ❌ Selection still jumps when navigating with held arrow key
+
+**Conclusion:** The `isDirty` dependency was not the cause. Need fresh investigation.
 
 ### Phase 2: Highlights Debug Verification
 
@@ -314,9 +300,12 @@ After removing the command, also remove `context.isDirty` from the `baseCommands
 
 ## Files to Modify
 
-**Phase 1 (Command Palette - VERIFIED):**
-1. `src/lib/commands/app-commands.ts` - Remove the `save-file` command from `fileCommands` array
-2. `src/hooks/useCommandPalette.ts` - Remove `isDirty` from `baseCommands` dependency array
+**Phase 1 (Command Palette):** ✅ DONE (but bug not fixed)
+1. ~~`src/lib/commands/app-commands.ts` - Remove the `save-file` command from `fileCommands` array~~
+2. ~~`src/hooks/useCommandPalette.ts` - Remove `isDirty` from `baseCommands` dependency array~~
+
+**Phase 1b (Command Palette - NEW INVESTIGATION NEEDED):**
+- TBD - need to identify actual root cause
 
 **Phase 2 (Highlights Debug):**
 3. `src/hooks/useEditorFileContent.ts` - Add temporary debug logging
@@ -331,10 +320,14 @@ After removing the command, also remove `context.isDirty` from the `baseCommands
 
 ## Risk Assessment
 
-**Very low risk:** Removing the "Save File" command from command palette (nobody uses it, Cmd+S exists)
-**Low risk:** Removing `isDirty` from command palette dependencies (follows from above)
+**Completed (low risk):** ✅ Removed "Save File" command and `isDirty` dependency - did not fix bug but kept as cleanup
+**Unknown risk:** Command palette jumping - root cause unknown, needs fresh investigation
 **Unknown risk:** Highlights fix - theory not yet verified, debug first
 **Medium risk:** Adding content comparison in `useEditorFileContent` (need to ensure external changes are still detected)
 **Higher risk:** Removing query invalidation entirely (could break external file change detection)
 
-**Process:** Implement verified fix first, then debug to verify theory, then implement highlights fix based on findings.
+**Updated process:**
+1. ~~Implement command palette fix~~ (done, didn't work)
+2. Investigate command palette jumping with fresh approach
+3. Debug to verify highlights theory
+4. Implement highlights fix based on findings
