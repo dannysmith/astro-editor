@@ -25,5 +25,5 @@ export async function openInIde(
     console.error('IDE open failed:', result.error)
     return
   }
-  toast.success(`Opened in ${ideCommand}`)
+  toast.success('Opened in IDE')
 }

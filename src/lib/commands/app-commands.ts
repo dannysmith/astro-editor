@@ -282,18 +282,6 @@ export function generateCollectionCommands(
 }
 
 /**
- * Allowed IDE commands for display purposes (validation happens in Rust)
- */
-export const ALLOWED_IDES = [
-  'cursor',
-  'code',
-  'vim',
-  'nvim',
-  'emacs',
-  'subl',
-] as const
-
-/**
  * IDE-related commands
  */
 export const ideCommands: AppCommand[] = [

@@ -1,5 +1,7 @@
 # Custom External Editor Command
 
+**Status:** Implemented
+
 Replace the hardcoded IDE whitelist with a user-configurable command string.
 
 ## Problem
@@ -14,74 +16,43 @@ Allow users to enter any command in preferences (e.g., `code`, `/usr/local/bin/n
 
 ## Implementation
 
+All items below have been completed.
+
 ### Rust (`src-tauri/src/commands/ide.rs`)
 
-**Remove:**
-- `ALLOWED_IDES` constant
-- `validate_ide_command()` function
-- `get_available_ides()` command
-
-**Keep:**
-- All file path validation (shell injection protection)
-- `get_augmented_path()` - still needed for simple commands in signed macOS apps
-
-**Add:**
-- Tilde expansion for the command (use existing `dirs` crate):
-  ```rust
-  fn expand_tilde(cmd: &str) -> String {
-      if cmd.starts_with("~/") {
-          if let Some(home) = dirs::home_dir() {
-              return format!("{}{}", home.display(), &cmd[1..]);
-          }
-      }
-      cmd.to_string()
-  }
-  ```
-- Add Zed to `get_augmented_path()` for macOS:
-  ```rust
-  "/Applications/Zed.app/Contents/MacOS/cli"
-  ```
-
-**Note:** PATH augmentation is harmless for full paths - when `Command::new("/full/path")` is used, PATH is simply not consulted. No conditional logic needed.
+- ✅ Removed `ALLOWED_IDES` constant
+- ✅ Removed `validate_ide_command()` function
+- ✅ Removed `get_available_ides()` command
+- ✅ Added `expand_tilde()` function for `~/` path expansion
+- ✅ Added Zed to `get_augmented_path()` for macOS
+- ✅ Kept all file path validation (shell injection protection)
+- ✅ Kept `get_augmented_path()` for simple commands in signed macOS apps
 
 ### Frontend
 
-- `src/components/preferences/panes/GeneralPane.tsx`: Replace dropdown with text input
-- `src/hooks/useAvailableIdes.ts`: Delete
-- `src/lib/commands/app-commands.ts`: Remove `ALLOWED_IDES` export
-
-**Add help text under the input:**
-> The command to launch your editor. Eg: `/usr/local/bin/nvim`. You can use `code` or `cursor` if installed in a standard location, use a full path if in doubt.
+- ✅ `src/components/preferences/panes/GeneralPane.tsx`: Replaced dropdown with text input
+- ✅ `src/hooks/useAvailableIdes.ts`: Deleted
+- ✅ `src/lib/commands/app-commands.ts`: Removed `ALLOWED_IDES` export
 
 ### UI Text Changes
 
-Change these to always say "IDE" instead of showing the command name:
+- ✅ `src/components/ui/context-menu.tsx`: Changed to `Open in IDE`
+- ✅ `src/lib/ide.ts`: Changed toast to `Opened in IDE`
 
-- `src/components/ui/context-menu.tsx:180`: Change `Open in ${ideCommand}` → `Open in IDE`
-- `src/lib/ide.ts:28`: Change `Opened in ${ideCommand}` → `Opened in IDE`
+### Error Message
 
-### Improve Error Message
-
-Update the "not found" error in `src-tauri/src/commands/ide.rs` (around line 218):
-
-**Current:**
-> "IDE 'nvim' not found. Make sure it's installed and available in PATH."
-
-**New:**
-> "Command not found. Try using the full path to your editor in Preferences."
+- ✅ Updated to: "Command not found. Try using the full path to your editor in Preferences."
 
 ### Remove Unused Shell Plugin
 
-The Tauri shell plugin is installed but never used. Remove it:
-
-- `src-tauri/Cargo.toml`: Remove `tauri-plugin-shell`
-- `package.json`: Remove `@tauri-apps/plugin-shell`
-- `src-tauri/src/lib.rs:50`: Remove `.plugin(tauri_plugin_shell::init())`
-- `src-tauri/capabilities/default.json`: Remove `shell:allow-execute` section (lines 45-85)
+- ✅ `src-tauri/Cargo.toml`: Removed `tauri-plugin-shell`
+- ✅ `package.json`: Removed `@tauri-apps/plugin-shell`
+- ✅ `src-tauri/src/lib.rs`: Removed `.plugin(tauri_plugin_shell::init())`
+- ✅ `src-tauri/capabilities/default.json`: Removed `shell:allow-execute` section
 
 ## Upgrade Path
 
-No migration needed. Existing values like `"ideCommand": "cursor"` are already valid command names that will continue to work with the augmented PATH.
+No migration needed. Existing values like `"ideCommand": "cursor"` continue to work.
 
 ## Security Notes
 
