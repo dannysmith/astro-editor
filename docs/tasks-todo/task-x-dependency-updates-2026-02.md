@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Finalization - Ready for Manual Smoke Test
+**Current Phase:** Finalization - Ready for PR
 **Branch:** deps-2026-02-11
 
 ## Research Findings
@@ -75,8 +75,8 @@ This override ensures consistent @lezer/common across all CodeMirror packages.
 ### Finalization
 - [x] Apply GitHub Actions updates (upload-artifact v6, setup-node v6, download-artifact v6)
 - [x] Run check:all ✅
-- [ ] Manual smoke test (user)
-- [ ] Push + create PR (user)
+- [x] Manual smoke test (user)
+- [x] Push + create PR (user)
 - [ ] Merge + verify CI (user)
 
 ---
