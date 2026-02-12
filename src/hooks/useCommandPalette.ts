@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { useCommandContext } from './commands/useCommandContext'
 import { getAllCommands } from '../lib/commands/app-commands'
 import { AppCommand, CommandGroup } from '../lib/commands/types'
@@ -33,18 +34,19 @@ export function useCommandPalette(searchValue = '') {
     [open, setDistractionFreeBarsHidden]
   )
 
-  // Handle Cmd+P keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'p' && e.metaKey) {
-        e.preventDefault()
-        handleSetOpen(open => !open)
-      }
+  // Handle Cmd+P (macOS) / Ctrl+P (Windows) keyboard shortcut
+  // Uses mod+ prefix which maps to Cmd on macOS and Ctrl on Windows
+  useHotkeys(
+    'mod+p',
+    () => {
+      handleSetOpen(open => !open)
+    },
+    {
+      preventDefault: true,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
     }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [handleSetOpen])
+  )
 
   // Get all available commands based on current context
   // Optimize dependencies to prevent unnecessary recalculations that could disrupt navigation
