@@ -4,19 +4,19 @@
  */
 export const LAYOUT_SIZES = {
   leftSidebar: {
-    default: 20,
-    min: 15,
-    max: 35,
+    default: '20',
+    min: '15',
+    max: '35',
     minWidth: '200px', // Minimum pixel width for usability
   },
   rightSidebar: {
-    default: 25,
-    min: 20,
-    max: 40,
+    default: '25',
+    min: '20',
+    max: '40',
   },
   mainEditor: {
-    default: 55,
-    min: 40,
+    default: '55',
+    min: '40',
   },
 } as const
 
