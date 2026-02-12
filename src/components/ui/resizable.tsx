@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useState, useCallback } from 'react'
 import { GripVerticalIcon } from 'lucide-react'
 import {
   Group,
@@ -13,97 +14,65 @@ import { cn } from '@/lib/utils'
 
 type Orientation = 'horizontal' | 'vertical'
 
-/**
- * Convert numeric size values to percentage strings for v4 compatibility.
- * In v4, numbers are interpreted as pixels, but strings without units are percentages.
- * This maintains backwards compatibility with v3 API where numbers were percentages.
- */
-function toPercentageString(value: number | string | undefined): string | undefined {
-  if (value === undefined) return undefined
-  if (typeof value === 'string') return value
-  // Convert number to percentage string (v3 compatibility)
-  return `${value}%`
-}
-
-interface ResizablePanelGroupProps
-  extends Omit<React.ComponentProps<typeof Group>, 'direction'> {
+interface ResizablePanelGroupProps extends Omit<
+  React.ComponentProps<typeof Group>,
+  'direction'
+> {
   direction?: Orientation
   /**
-   * @deprecated autoSaveId is no longer supported in react-resizable-panels v4.
-   * Layout persistence needs to be implemented at the application level using
-   * onLayoutChange callback and defaultLayout prop.
+   * Unique ID for localStorage persistence. Layout is saved on resize
+   * and restored on mount.
    */
   autoSaveId?: string
 }
 
+type PanelLayout = Record<string, number>
+
 function ResizablePanelGroup({
   className,
   direction = 'horizontal',
-  autoSaveId: _autoSaveId, // Ignored - v4 doesn't support this
+  autoSaveId,
+  onLayoutChange,
   ...props
 }: ResizablePanelGroupProps) {
+  // Load saved layout on mount (lazy initializer runs once)
+  const [savedLayout] = useState<PanelLayout | undefined>(() => {
+    if (!autoSaveId) return undefined
+    try {
+      const stored = localStorage.getItem(`panel-v4:${autoSaveId}`)
+      return stored ? (JSON.parse(stored) as PanelLayout) : undefined
+    } catch {
+      return undefined
+    }
+  })
+
+  // Save layout to localStorage on change
+  const handleLayoutChange = useCallback(
+    (layout: PanelLayout) => {
+      if (autoSaveId) {
+        localStorage.setItem(`panel-v4:${autoSaveId}`, JSON.stringify(layout))
+      }
+      onLayoutChange?.(layout)
+    },
+    [autoSaveId, onLayoutChange]
+  )
+
   return (
     <Group
       data-slot="resizable-panel-group"
       orientation={direction}
-      className={cn(
-        // Note: v4 sets flex-flow via inline styles, so we just need base flex setup
-        'flex h-full w-full',
-        className
-      )}
+      defaultLayout={savedLayout}
+      onLayoutChange={handleLayoutChange}
+      className={cn('flex h-full w-full', className)}
       {...props}
     />
   )
 }
 
-interface ResizablePanelProps
-  extends Omit<
-    React.ComponentProps<typeof Panel>,
-    'defaultSize' | 'minSize' | 'maxSize' | 'collapsedSize'
-  > {
-  /**
-   * Default size as a percentage (0-100).
-   * Note: v4 interprets numbers as pixels, but we convert to percentage strings
-   * for backwards compatibility with v3 API.
-   */
-  defaultSize?: number | string
-  /**
-   * Minimum size as a percentage (0-100).
-   */
-  minSize?: number | string
-  /**
-   * Maximum size as a percentage (0-100).
-   */
-  maxSize?: number | string
-  /**
-   * Size when collapsed (as percentage 0-100).
-   */
-  collapsedSize?: number | string
-  /**
-   * Ref for imperative panel control (collapse, expand, resize, etc.)
-   */
-  panelRef?: React.Ref<PanelImperativeHandle>
-}
+type ResizablePanelProps = React.ComponentProps<typeof Panel>
 
-function ResizablePanel({
-  defaultSize,
-  minSize,
-  maxSize,
-  collapsedSize,
-  panelRef,
-  ...props
-}: ResizablePanelProps) {
-  return (
-    <Panel
-      data-slot="resizable-panel"
-      defaultSize={toPercentageString(defaultSize)}
-      minSize={toPercentageString(minSize)}
-      maxSize={toPercentageString(maxSize)}
-      collapsedSize={toPercentageString(collapsedSize)}
-      panelRef={panelRef}
-      {...props}
-    />
-  )
+function ResizablePanel(props: ResizablePanelProps) {
+  return <Panel data-slot="resizable-panel" {...props} />
 }
 
 function ResizableHandle({

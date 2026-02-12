@@ -15,14 +15,8 @@ export const LAYOUT_SIZES = {
     max: 40,
   },
   mainEditor: {
+    default: 55,
     min: 40,
-    // Dynamic defaults based on panel visibility
-    getDefault: (leftVisible: boolean, rightVisible: boolean) => {
-      if (leftVisible && rightVisible) return 55
-      if (leftVisible) return 80
-      if (rightVisible) return 75
-      return 100
-    },
   },
 } as const
 

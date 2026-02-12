@@ -170,7 +170,7 @@ export const Layout: React.FC = () => {
             defaultSize={LAYOUT_SIZES.leftSidebar.default}
             minSize={LAYOUT_SIZES.leftSidebar.min}
             maxSize={LAYOUT_SIZES.leftSidebar.max}
-            className={`min-w-[${LAYOUT_SIZES.leftSidebar.minWidth}]`}
+            style={{ minWidth: LAYOUT_SIZES.leftSidebar.minWidth }}
           >
             <LeftSidebar />
           </ResizablePanel>
@@ -180,7 +180,7 @@ export const Layout: React.FC = () => {
 
           <ResizablePanel
             id="main-editor"
-            defaultSize={LAYOUT_SIZES.mainEditor.getDefault(true, true)}
+            defaultSize={LAYOUT_SIZES.mainEditor.default}
             minSize={LAYOUT_SIZES.mainEditor.min}
           >
             <MainEditor />
