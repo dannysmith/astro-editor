@@ -19,12 +19,3 @@ export const LAYOUT_SIZES = {
     min: '40',
   },
 } as const
-
-/**
- * UI element heights and spacing
- */
-export const UI_SIZES = {
-  titleBar: {
-    paddingY: 1.5, // py-1.5 = 6px
-  },
-} as const
