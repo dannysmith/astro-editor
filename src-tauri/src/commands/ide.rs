@@ -193,7 +193,8 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
     match result {
         Ok(output) => {
             if output.status.success() {
-                let success_msg = format!("Successfully opened '{file_path}' in {expanded_command}");
+                let success_msg =
+                    format!("Successfully opened '{file_path}' in {expanded_command}");
                 info!("{success_msg}");
                 Ok(success_msg)
             } else {
