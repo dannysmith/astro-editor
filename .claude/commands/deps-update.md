@@ -167,6 +167,15 @@ Create `tasks-todo/task-x-dependency-updates-YYYY-MM.md` with:
 [Document any regressions, fixes applied, etc.]
 ```
 
+### Checkpoint: Research Complete
+
+**STOP and report to user:**
+1. Summarize key findings (dependabot PRs, major version bumps available)
+2. List pinned packages that need decisions
+3. Note any concerns from previous upgrade tasks
+
+**Present the task doc** and use AskUserQuestion to confirm ready to proceed to Main App Phase.
+
 ## Main App Phase
 
 ### 1. Review Research Findings
@@ -235,7 +244,20 @@ Inspect logs for:
 - Deprecation warnings
 - Build warnings that could become errors
 
-**Update task doc** and suggest user commits if everything passes. This creates a checkpoint before moving to test sites.
+**Update task doc** and suggest user commits if everything passes.
+
+### Checkpoint: Main App Complete
+
+**STOP and report to user:**
+1. Summarize what was updated (key packages, version changes)
+2. Note any issues encountered and how they were resolved
+3. List any pinned package decisions made
+
+**Ask user to:**
+- Run the app (`pnpm run tauri:dev`) and verify it works
+- Check for any obvious regressions
+
+Use AskUserQuestion to confirm ready to proceed to Test Sites Phase.
 
 ## Test Sites Phase
 
@@ -285,6 +307,15 @@ pnpm run reset:testdata
 
 **Update task doc** and suggest user commits after all test sites are verified working.
 
+### Checkpoint: Test Sites Complete
+
+**STOP and report to user:**
+1. Summarize Astro version updates for each site
+2. Note any issues or config changes required
+3. Confirm reset:testdata was run
+
+Use AskUserQuestion to confirm ready to proceed to Telemetry Worker Phase.
+
 ## Telemetry Worker Phase
 
 ### 1. Update Dependencies
@@ -329,6 +360,15 @@ Confirm it still queries the database correctly.
 If wrangler had significant changes, update `telemetry-worker/README.md`.
 
 **Update task doc** and suggest user commits after telemetry worker is verified.
+
+### Checkpoint: Telemetry Worker Complete
+
+**STOP and report to user:**
+1. Summarize what was updated (wrangler version, any other deps)
+2. Confirm staging deploy succeeded
+3. Note any config or code changes required
+
+Use AskUserQuestion to confirm ready to proceed to Finalization Phase.
 
 ## Finalization Phase
 
