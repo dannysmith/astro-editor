@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
@@ -30,6 +30,7 @@ import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
+  type PanelImperativeHandle,
 } from '../ui/resizable'
 
 export const Layout: React.FC = () => {
@@ -51,6 +52,27 @@ export const Layout: React.FC = () => {
   )
 
   const [preferencesOpen, setPreferencesOpen] = useState(false)
+
+  // Panel refs for imperative collapse/expand control
+  const leftPanelRef = useRef<PanelImperativeHandle>(null)
+  const rightPanelRef = useRef<PanelImperativeHandle>(null)
+
+  // Sync sidebar visibility with panel collapse state
+  useEffect(() => {
+    if (sidebarVisible) {
+      leftPanelRef.current?.expand()
+    } else {
+      leftPanelRef.current?.collapse()
+    }
+  }, [sidebarVisible])
+
+  useEffect(() => {
+    if (frontmatterPanelVisible) {
+      rightPanelRef.current?.expand()
+    } else {
+      rightPanelRef.current?.collapse()
+    }
+  }, [frontmatterPanelVisible])
 
   const handleSetPreferencesOpen = useCallback((open: boolean) => {
     setPreferencesOpen(open)
@@ -142,10 +164,13 @@ export const Layout: React.FC = () => {
         >
           <ResizablePanel
             id="left-sidebar"
-            defaultSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.default : 0}
-            minSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.min : 0}
-            maxSize={sidebarVisible ? LAYOUT_SIZES.leftSidebar.max : 0}
-            className={`min-w-[${LAYOUT_SIZES.leftSidebar.minWidth}] ${sidebarVisible ? '' : 'hidden'}`}
+            panelRef={leftPanelRef}
+            collapsible
+            collapsedSize={0}
+            defaultSize={LAYOUT_SIZES.leftSidebar.default}
+            minSize={LAYOUT_SIZES.leftSidebar.min}
+            maxSize={LAYOUT_SIZES.leftSidebar.max}
+            style={{ minWidth: LAYOUT_SIZES.leftSidebar.minWidth }}
           >
             <LeftSidebar />
           </ResizablePanel>
@@ -155,10 +180,7 @@ export const Layout: React.FC = () => {
 
           <ResizablePanel
             id="main-editor"
-            defaultSize={LAYOUT_SIZES.mainEditor.getDefault(
-              sidebarVisible,
-              frontmatterPanelVisible
-            )}
+            defaultSize={LAYOUT_SIZES.mainEditor.default}
             minSize={LAYOUT_SIZES.mainEditor.min}
           >
             <MainEditor />
@@ -169,16 +191,12 @@ export const Layout: React.FC = () => {
           />
           <ResizablePanel
             id="right-sidebar"
-            defaultSize={
-              frontmatterPanelVisible ? LAYOUT_SIZES.rightSidebar.default : 0
-            }
-            minSize={
-              frontmatterPanelVisible ? LAYOUT_SIZES.rightSidebar.min : 0
-            }
-            maxSize={
-              frontmatterPanelVisible ? LAYOUT_SIZES.rightSidebar.max : 0
-            }
-            className={frontmatterPanelVisible ? '' : 'hidden'}
+            panelRef={rightPanelRef}
+            collapsible
+            collapsedSize={0}
+            defaultSize={LAYOUT_SIZES.rightSidebar.default}
+            minSize={LAYOUT_SIZES.rightSidebar.min}
+            maxSize={LAYOUT_SIZES.rightSidebar.max}
           >
             <RightSidebar>
               <FrontmatterPanel />
