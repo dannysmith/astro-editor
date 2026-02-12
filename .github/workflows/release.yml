@@ -41,7 +41,7 @@ jobs:
           run_install: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 'lts/*'
           cache: 'pnpm'
@@ -124,21 +124,21 @@ jobs:
 
       - name: Upload macOS artifact for website
         if: matrix.platform == 'macos-14'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-macos
           path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
       - name: Upload Windows artifact for website
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-windows
           path: src-tauri/target/release/bundle/msi/*.msi
 
       - name: Upload Linux artifact for website
         if: matrix.platform == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-linux
           path: src-tauri/target/release/bundle/appimage/*.AppImage
@@ -157,19 +157,19 @@ jobs:
           fetch-depth: 0
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: website-macos
           path: /tmp/artifacts
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: website-windows
           path: /tmp/artifacts
 
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: website-linux
           path: /tmp/artifacts
