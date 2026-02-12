@@ -31,7 +31,7 @@ Both bugs point to race conditions or unnecessary re-renders introduced by the d
 
 #### Bug 1: Highlights Hiding for 2-10 Seconds
 
-**The mechanism:**
+**Theoretical mechanism (NOT YET VERIFIED):**
 
 1. User types in editor → `isDirty = true`, auto-save scheduled (2s default)
 2. User pauses typing
@@ -44,6 +44,22 @@ Both bugs point to race conditions or unnecessary re-renders introduced by the d
 9. After 3 seconds of no document changes, decorations are re-analyzed
 
 **The timing (2-10s):** 2s auto-save delay + variable disk/query latency + 3s `isActivelyEditing` timeout = 5-6s typical, with network/disk variability explaining the 2-10s range observed.
+
+**IMPORTANT CAVEAT:** This theory has a potential flaw. In `Editor.tsx` (lines 269-271), there's a safeguard:
+```typescript
+if (viewRef.current.state.doc.toString() !== newContent) {
+  // Only then dispatch to CodeMirror
+}
+```
+
+For this theory to hold, the refetched content must actually **differ** from what CodeMirror has. If content is identical after save (which it should be), the dispatch doesn't happen and `docChanged` won't fire.
+
+Possible explanations:
+1. The Rust backend normalizes content (trailing whitespace, line endings) causing a mismatch
+2. There's a race condition where content differs momentarily
+3. This theory is incorrect and something else triggers `docChanged`
+
+The "occasional" nature of the bug (not every auto-save) also suggests something more intermittent than this theory explains. **Debug logging is needed to verify this theory before implementing a fix.**
 
 **Key code paths:**
 
@@ -125,9 +141,47 @@ The bugs aren't in the new panel code itself, but the timing changes made existi
 
 ## Recommended Approach
 
-### Fix 1: Prevent Query Invalidation from Triggering CodeMirror Updates
+### Step 1: Fix Command Palette (VERIFIED - Implement First)
 
-**Option A: Content comparison in `useEditorFileContent.ts`**
+Remove the "Save File" command from the command palette. This fix is verified and low-risk - implement it first.
+
+See details in "Fix: Remove Save File Command" section below.
+
+### Step 2: Verify Highlights Theory with Debug Logging
+
+Before implementing a fix for the highlights issue, add temporary debug logging to verify the theory:
+
+```typescript
+// In useEditorFileContent.ts
+useEffect(() => {
+  if (!data || !currentFile) return
+  const { isDirty, editorContent } = useEditorStore.getState()
+  console.log('[useEditorFileContent] Query data received', {
+    isDirty,
+    contentMatch: data.content === editorContent,
+    contentLength: data.content.length,
+    storeContentLength: editorContent.length,
+  })
+  // ... rest of effect
+}, [data, currentFile])
+
+// In Editor.tsx subscription
+if (newContent !== previousContent) {
+  console.log('[Editor] Store content changed', {
+    willDispatch: viewRef.current.state.doc.toString() !== newContent,
+  })
+  // ... rest of subscription
+}
+```
+
+Test by:
+1. Enabling highlights
+2. Typing and waiting for auto-save
+3. Checking console to see if the store update and CodeMirror dispatch actually occur
+
+### Step 3: Implement Highlights Fix (If Theory Verified)
+
+**Option A: Content comparison in `useEditorFileContent.ts`** (Recommended if theory is correct)
 
 Add a check to skip the store update if content hasn't actually changed:
 
@@ -158,63 +212,55 @@ The `isProgrammaticUpdate` ref already exists in `Editor.tsx`. Could expose this
 
 **Option C: Don't invalidate file content query after save**
 
-The editor already has authoritative content after save. Query invalidation was intended for external file changes, not confirming our own saves. Consider removing lines 111-116 in `useEditorActions.ts`:
+The editor already has authoritative content after save. Query invalidation was intended for external file changes, not confirming our own saves. Consider removing lines 111-116 in `useEditorActions.ts`.
+
+### Step 4: If Theory Is Wrong, Investigate Further
+
+If debug logging shows the store update / CodeMirror dispatch is NOT happening when highlights hide, we need to investigate other causes:
+- Panel resize/collapse triggering something
+- Focus/blur events
+- Other sources of `docChanged` in the copyedit mode extension
+
+---
+
+## Fix Details
+
+### Fix: Remove "Save File" Command from Command Palette (VERIFIED)
+
+The `isDirty` dependency exists because the "Save File" command uses it in its `isAvailable` check (lines 43-55 in `app-commands.ts`):
 
 ```typescript
-// After successful save, we already have the correct content
-// Only invalidate directory queries for file list updates, not file content
+{
+  id: 'save-file',
+  label: 'Save File',
+  isAvailable: (context: CommandContext) => {
+    return Boolean(context.currentFile && context.isDirty)  // ← This is why isDirty is a dependency
+  },
+},
 ```
 
-**Recommended:** Option A is the safest and most targeted fix.
+When `isDirty` changes from `true` to `false` after auto-save:
+1. The "Save File" command gets **filtered out of the list entirely** (via `.filter(command => command.isAvailable(context))`)
+2. The command list structure changes (one fewer item)
+3. cmdk re-renders with a different list
+4. Selection jumps because items have shifted
 
-### Fix 2: Remove `isDirty` from Command Palette Dependencies
+**The fix:** Remove the `save-file` command from `fileCommands` in `app-commands.ts`.
 
-In `useCommandPalette.ts`, remove `context.isDirty` from the `baseCommands` dependency array:
+**Verified safe to remove:** All other save triggers (Cmd+S keyboard shortcut, title bar button, menu item, editor blur, auto-save) use `useEditorStore.getState().saveFile` or `useEditorActions().saveFile` directly. None of them go through the command registry. The `save-file` command is only used by the command palette.
 
-```typescript
-const baseCommands = useMemo(
-  () => getAllCommands(context, ''),
-  [
-    context.currentFile?.id,
-    context.selectedCollection,
-    context.projectPath,
-    // REMOVED: context.isDirty - commands don't depend on dirty state
-    context.globalSettings?.general?.ideCommand,
-    context.globalSettings?.general?.highlights?.nouns,
-    // ... etc
-  ]
-)
-```
+**Rationale:** Nobody uses the command palette to save files - Cmd+S is universal and faster. The Save command provides no value while causing a real bug. Removing it:
+1. Eliminates the `isDirty` dependency from `baseCommands`
+2. Prevents the list structure change that causes selection jumping
+3. Simplifies the command palette
 
-**Rationale:** Commands are derived from file/collection/project state, not from whether the file has unsaved changes. The `isDirty` value is only used to display UI indicators, not to determine command availability or content.
-
-### Fix 3: (Optional) Stabilize Command Array References
-
-If removing `isDirty` isn't sufficient, consider using a deep comparison for command memoization:
-
-```typescript
-const baseCommands = useMemo(() => {
-  const commands = getAllCommands(context, '')
-  // Return same reference if commands are deeply equal
-  return commands
-}, [/* stable deps */])
-```
-
-Or use a library like `use-deep-compare-memoize`.
+After removing the command, also remove `context.isDirty` from the `baseCommands` dependency array in `useCommandPalette.ts` since nothing else uses it.
 
 ---
 
 ## Testing Plan
 
-### Highlight Bug Testing
-
-1. Enable noun highlights (or any POS highlight)
-2. Type several sentences in the editor
-3. Stop typing and observe highlights
-4. Verify highlights do NOT disappear after auto-save (2s + network latency)
-5. Repeat multiple times to catch intermittent occurrences
-
-### Command Palette Bug Testing
+### Phase 1: Command Palette Fix Testing
 
 1. Open a file and make changes (ensure `isDirty = true`)
 2. Open command palette (Cmd+P)
@@ -222,6 +268,29 @@ Or use a library like `use-deep-compare-memoize`.
 4. Navigate to bottom of list while holding arrow
 5. Verify selection moves smoothly without jumping
 6. Repeat while auto-save is firing (within 2s of last edit)
+7. Verify "Save File" command no longer appears in palette
+8. Verify Cmd+S still saves files correctly
+
+### Phase 2: Highlights Debug Verification
+
+1. Add debug logging as described in Step 2
+2. Enable noun highlights (or any POS highlight)
+3. Type several sentences in the editor
+4. Stop typing and wait for auto-save
+5. Check console output to see:
+   - Does `useEditorFileContent` receive data after save?
+   - Does it update the store (is `isDirty` false, does content differ)?
+   - Does `Editor.tsx` dispatch to CodeMirror?
+6. Correlate console output with when highlights hide/reappear
+
+### Phase 3: Highlights Fix Testing (After Theory Verified)
+
+1. Implement chosen fix option
+2. Enable noun highlights
+3. Type several sentences in the editor
+4. Stop typing and observe highlights
+5. Verify highlights do NOT disappear after auto-save (2s + network latency)
+6. Repeat multiple times to catch intermittent occurrences
 
 ### Regression Testing
 
@@ -234,26 +303,38 @@ Or use a library like `use-deep-compare-memoize`.
 
 ## Implementation Notes
 
+- **Start with the verified fix** (command palette) before tackling the uncertain one (highlights)
+- **Debug first, fix second** for the highlights issue - verify the theory before implementing
 - The fixes should be minimal and targeted to avoid introducing new timing issues
 - Test with React DevTools Profiler to verify re-render counts don't increase
-- Consider adding debug logging during development to trace the exact timing of events
 - The copyedit mode extension has its own timeout management; changes there require careful consideration of all code paths
+- Remove debug logging before final commit
 
 ---
 
 ## Files to Modify
 
-1. `src/hooks/useEditorFileContent.ts` - Add content comparison
-2. `src/hooks/useCommandPalette.ts` - Remove `isDirty` dependency
-3. Possibly `src/hooks/editor/useEditorActions.ts` - Consider removing file content query invalidation
-4. Possibly `src/lib/editor/extensions/copyedit-mode/extension.ts` - If programmatic update awareness is needed
+**Phase 1 (Command Palette - VERIFIED):**
+1. `src/lib/commands/app-commands.ts` - Remove the `save-file` command from `fileCommands` array
+2. `src/hooks/useCommandPalette.ts` - Remove `isDirty` from `baseCommands` dependency array
+
+**Phase 2 (Highlights Debug):**
+3. `src/hooks/useEditorFileContent.ts` - Add temporary debug logging
+4. `src/components/editor/Editor.tsx` - Add temporary debug logging
+
+**Phase 3 (Highlights Fix - If Theory Verified):**
+5. `src/hooks/useEditorFileContent.ts` - Add content comparison before updating store
+6. Possibly `src/hooks/editor/useEditorActions.ts` - Consider removing file content query invalidation
+7. Possibly `src/lib/editor/extensions/copyedit-mode/extension.ts` - If programmatic update awareness is needed
 
 ---
 
 ## Risk Assessment
 
-**Low risk:** Removing `isDirty` from command palette dependencies
+**Very low risk:** Removing the "Save File" command from command palette (nobody uses it, Cmd+S exists)
+**Low risk:** Removing `isDirty` from command palette dependencies (follows from above)
+**Unknown risk:** Highlights fix - theory not yet verified, debug first
 **Medium risk:** Adding content comparison in `useEditorFileContent` (need to ensure external changes are still detected)
 **Higher risk:** Removing query invalidation entirely (could break external file change detection)
 
-Recommend implementing in order of risk, testing thoroughly at each step.
+**Process:** Implement verified fix first, then debug to verify theory, then implement highlights fix based on findings.
