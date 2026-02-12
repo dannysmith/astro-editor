@@ -352,10 +352,9 @@ pnpm run check:all
 
 ### 4. Security Audit (Informational)
 
-Run security audits for awareness:
+Run security audit for awareness:
 ```bash
 pnpm audit
-cd src-tauri && cargo audit
 ```
 
 Note any issues in the task doc. Some may be unfixable due to transitive dependencies - that's expected. Only flag critical issues that have available fixes.
