@@ -20,18 +20,21 @@ export function useCommandPalette(searchValue = '') {
   // Custom setOpen that shows bars when command palette opens and returns focus when closed
   const handleSetOpen = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const newValue = typeof value === 'boolean' ? value : value(open)
-      setOpen(value)
+      setOpen(prev => {
+        const newValue = typeof value === 'boolean' ? value : value(prev)
 
-      // Show bars when command palette opens
-      if (newValue) {
-        setDistractionFreeBarsHidden(false)
-      } else {
-        // Return focus to editor when command palette closes
-        focusEditorDelayed()
-      }
+        // Show bars when command palette opens
+        if (newValue) {
+          setDistractionFreeBarsHidden(false)
+        } else {
+          // Return focus to editor when command palette closes
+          focusEditorDelayed()
+        }
+
+        return newValue
+      })
     },
-    [open, setDistractionFreeBarsHidden]
+    [setDistractionFreeBarsHidden]
   )
 
   // Handle Cmd+P (macOS) / Ctrl+P (Windows) keyboard shortcut

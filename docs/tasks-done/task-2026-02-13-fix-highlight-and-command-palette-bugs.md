@@ -2,6 +2,8 @@
 
 ## Problem Statement
 
+NOTE: BOTH THESE BUGS SEEM TO HAVE BEEN FIXED.
+
 After commit `551c513eb8a73ffec4d34b882e5e666646dcc049` (Dependency Updates 2026-02-11), two related bugs appeared:
 
 1. **Highlights intermittently hiding**: With POS highlights enabled (e.g., noun highlights), typing in the editor can occasionally cause highlights to disappear for 2-10 seconds before reappearing. The timing suggests correlation with the auto-save cycle.

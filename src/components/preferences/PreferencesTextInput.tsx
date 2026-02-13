@@ -31,12 +31,26 @@ export const PreferencesTextInput: React.FC<PreferencesTextInputProps> = ({
     setLocalValue(storeValue)
   }
 
+  const commitIfChanged = () => {
+    if (localValue !== storeValue) {
+      onCommit(localValue)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      commitIfChanged()
+      e.currentTarget.blur()
+    }
+  }
+
   return (
     <Input
       {...inputProps}
       value={localValue}
       onChange={e => setLocalValue(e.target.value)}
-      onBlur={() => onCommit(localValue)}
+      onBlur={commitIfChanged}
+      onKeyDown={handleKeyDown}
     />
   )
 }
