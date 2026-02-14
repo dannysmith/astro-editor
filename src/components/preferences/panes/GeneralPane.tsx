@@ -16,22 +16,12 @@ import {
 } from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
-import { useAvailableIdes } from '../../../hooks/useAvailableIdes'
 import { SettingsSection } from '../SettingsSection'
+import { PreferencesTextInput } from '../PreferencesTextInput'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const { setTheme } = useTheme()
-  const { data: availableIdes = [], isLoading: ideLoading } = useAvailableIdes()
-
-  const handleIdeCommandChange = useCallback(
-    (value: string) => {
-      void updateGlobal({
-        general: { ideCommand: value === 'none' ? '' : value },
-      })
-    },
-    [updateGlobal]
-  )
 
   const handleThemeChange = useCallback(
     (value: 'light' | 'dark' | 'system') => {
@@ -102,44 +92,18 @@ export const GeneralPane: React.FC = () => {
         <Field>
           <FieldLabel>IDE Command</FieldLabel>
           <FieldContent>
-            <Select
-              value={globalSettings?.general?.ideCommand || 'none'}
-              onValueChange={handleIdeCommandChange}
-              disabled={ideLoading}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={ideLoading ? 'Loading...' : 'Select IDE'}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {availableIdes.map(ide => {
-                  const labels: Record<string, string> = {
-                    code: 'Visual Studio Code (code)',
-                    cursor: 'Cursor (cursor)',
-                    subl: 'Sublime Text (subl)',
-                    vim: 'Vim (vim)',
-                    nvim: 'Neovim (nvim)',
-                    emacs: 'Emacs (emacs)',
-                  }
-                  return (
-                    <SelectItem key={ide} value={ide}>
-                      {labels[ide] || `${ide} (${ide})`}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
+            <PreferencesTextInput
+              value={globalSettings?.general?.ideCommand ?? ''}
+              onCommit={value =>
+                void updateGlobal({ general: { ideCommand: value } })
+              }
+              placeholder="e.g., code, cursor, /usr/local/bin/nvim"
+              className="max-w-md"
+            />
             <FieldDescription>
-              {availableIdes.length === 0 && !ideLoading ? (
-                <span className="text-muted-foreground/80">
-                  No supported IDEs detected. Install VS Code, Cursor, Vim,
-                  Neovim, Emacs, or Sublime Text to enable this feature.
-                </span>
-              ) : (
-                'Choose your preferred IDE for opening files and projects'
-              )}
+              The command to launch your editor. Use <code>code</code> or{' '}
+              <code>cursor</code> if installed in a standard location, or
+              provide the full path (e.g., <code>/usr/local/bin/nvim</code>).
             </FieldDescription>
           </FieldContent>
         </Field>

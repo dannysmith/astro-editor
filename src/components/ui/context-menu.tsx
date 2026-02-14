@@ -177,7 +177,7 @@ export class FileContextMenu {
       const openInIdeItem = ideCommand
         ? await MenuItem.new({
             id: 'open-in-ide',
-            text: `Open in ${ideCommand}`,
+            text: 'Open in IDE',
             action: () => {
               void openInIde(file.path, ideCommand)
             },

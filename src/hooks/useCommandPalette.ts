@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { useCommandContext } from './commands/useCommandContext'
 import { getAllCommands } from '../lib/commands/app-commands'
 import { AppCommand, CommandGroup } from '../lib/commands/types'
@@ -19,32 +20,36 @@ export function useCommandPalette(searchValue = '') {
   // Custom setOpen that shows bars when command palette opens and returns focus when closed
   const handleSetOpen = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const newValue = typeof value === 'boolean' ? value : value(open)
-      setOpen(value)
+      setOpen(prev => {
+        const newValue = typeof value === 'boolean' ? value : value(prev)
 
-      // Show bars when command palette opens
-      if (newValue) {
-        setDistractionFreeBarsHidden(false)
-      } else {
-        // Return focus to editor when command palette closes
-        focusEditorDelayed()
-      }
+        // Show bars when command palette opens
+        if (newValue) {
+          setDistractionFreeBarsHidden(false)
+        } else {
+          // Return focus to editor when command palette closes
+          focusEditorDelayed()
+        }
+
+        return newValue
+      })
     },
-    [open, setDistractionFreeBarsHidden]
+    [setDistractionFreeBarsHidden]
   )
 
-  // Handle Cmd+P keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'p' && e.metaKey) {
-        e.preventDefault()
-        handleSetOpen(open => !open)
-      }
+  // Handle Cmd+P (macOS) / Ctrl+P (Windows) keyboard shortcut
+  // Uses mod+ prefix which maps to Cmd on macOS and Ctrl on Windows
+  useHotkeys(
+    'mod+p',
+    () => {
+      handleSetOpen(open => !open)
+    },
+    {
+      preventDefault: true,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
     }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [handleSetOpen])
+  )
 
   // Get all available commands based on current context
   // Optimize dependencies to prevent unnecessary recalculations that could disrupt navigation
@@ -56,7 +61,6 @@ export function useCommandPalette(searchValue = '') {
       context.currentFile?.id,
       context.selectedCollection,
       context.projectPath,
-      context.isDirty,
       context.globalSettings?.general?.ideCommand,
       context.globalSettings?.general?.highlights?.nouns,
       context.globalSettings?.general?.highlights?.verbs,

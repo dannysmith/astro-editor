@@ -2,9 +2,6 @@ use log::{debug, error, info, warn};
 use std::env;
 use std::process::Command;
 
-/// The list of allowed IDE commands for security
-const ALLOWED_IDES: &[&str] = &["cursor", "code", "vim", "nvim", "emacs", "subl"];
-
 /// Compute an augmented PATH with common IDE locations for production builds.
 /// Returns the augmented PATH string to be passed to Command::new().env("PATH", ...).
 /// This is thread-safe unlike env::set_var which is deprecated since Rust 1.80.
@@ -23,6 +20,7 @@ fn get_augmented_path() -> String {
             "/opt/local/bin", // MacPorts
             "/Applications/Visual Studio Code.app/Contents/Resources/app/bin",
             "/Applications/Cursor.app/Contents/Resources/app/bin",
+            "/Applications/Zed.app/Contents/MacOS",
         ];
 
         for common_path in &common_paths {
@@ -100,9 +98,14 @@ fn get_augmented_path() -> String {
     }
 }
 
-/// Validates that an IDE command is in the allowed list
-fn validate_ide_command(ide: &str) -> bool {
-    ALLOWED_IDES.contains(&ide)
+/// Expands tilde (~) to the user's home directory
+fn expand_tilde(cmd: &str) -> String {
+    if cmd.starts_with("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return format!("{}{}", home.display(), &cmd[1..]);
+        }
+    }
+    cmd.to_string()
 }
 
 /// Checks if a path looks like a Windows absolute path (e.g., C:\, D:\)
@@ -166,12 +169,8 @@ fn validate_file_path(path: &str) -> Result<(), String> {
 pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<String, String> {
     info!("Attempting to open path in IDE: {ide_command} -> {file_path}");
 
-    // Validate IDE command
-    if !validate_ide_command(&ide_command) {
-        let error_msg = format!("Invalid IDE command '{ide_command}'. Allowed: {ALLOWED_IDES:?}");
-        error!("{error_msg}");
-        return Err(error_msg);
-    }
+    // Expand tilde in the IDE command if present
+    let expanded_command = expand_tilde(&ide_command);
 
     // Validate file path
     if let Err(validation_error) = validate_file_path(&file_path) {
@@ -183,10 +182,10 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
     // Get augmented PATH for production builds (thread-safe, doesn't mutate global env)
     let augmented_path = get_augmented_path();
 
-    info!("Executing IDE command: {ide_command} \"{file_path}\"");
+    info!("Executing IDE command: {expanded_command} \"{file_path}\"");
 
     // Execute the command with augmented PATH (Command::new().arg() handles path escaping safely)
-    let result = Command::new(&ide_command)
+    let result = Command::new(&expanded_command)
         .env("PATH", &augmented_path)
         .arg(&file_path)
         .output();
@@ -194,7 +193,8 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
     match result {
         Ok(output) => {
             if output.status.success() {
-                let success_msg = format!("Successfully opened '{file_path}' in {ide_command}");
+                let success_msg =
+                    format!("Successfully opened '{file_path}' in {expanded_command}");
                 info!("{success_msg}");
                 Ok(success_msg)
             } else {
@@ -209,15 +209,14 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
             }
         }
         Err(e) => {
-            let error_msg = format!("Failed to execute IDE command '{ide_command}': {e}");
+            let error_msg = format!("Failed to execute IDE command '{expanded_command}': {e}");
             error!("{error_msg}");
 
             // Provide helpful suggestions based on the error
             let suggestion = match e.kind() {
                 std::io::ErrorKind::NotFound => {
-                    format!(
-                        "IDE '{ide_command}' not found. Make sure it's installed and available in PATH."
-                    )
+                    "Command not found. Try using the full path to your editor in Preferences."
+                        .to_string()
                 }
                 std::io::ErrorKind::PermissionDenied => {
                     "Permission denied. Check file permissions and IDE installation.".to_string()
@@ -231,58 +230,25 @@ pub async fn open_path_in_ide(ide_command: String, file_path: String) -> Result<
     }
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn get_available_ides() -> Result<Vec<String>, String> {
-    debug!("Checking available IDEs");
-
-    // Get augmented PATH (thread-safe, doesn't mutate global env)
-    let augmented_path = get_augmented_path();
-
-    let mut available_ides = Vec::new();
-
-    for ide in ALLOWED_IDES {
-        // Try to execute the IDE with --version to see if it's available
-        let check_result = Command::new(ide)
-            .env("PATH", &augmented_path)
-            .arg("--version")
-            .output();
-
-        match check_result {
-            Ok(output) if output.status.success() => {
-                info!("Found available IDE: {ide}");
-                available_ides.push(ide.to_string());
-            }
-            Ok(_) => {
-                warn!("IDE '{ide}' found but returned non-zero exit code");
-            }
-            Err(e) => {
-                debug!("IDE '{ide}' not available: {e}");
-            }
-        }
-    }
-
-    info!("Available IDEs: {available_ides:?}");
-    Ok(available_ides)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_validate_ide_command() {
-        assert!(validate_ide_command("code"));
-        assert!(validate_ide_command("cursor"));
-        assert!(validate_ide_command("vim"));
-        assert!(validate_ide_command("nvim"));
-        assert!(validate_ide_command("emacs"));
-        assert!(validate_ide_command("subl"));
+    fn test_expand_tilde() {
+        // Test that non-tilde paths are unchanged
+        assert_eq!(expand_tilde("code"), "code");
+        assert_eq!(expand_tilde("/usr/bin/vim"), "/usr/bin/vim");
 
-        assert!(!validate_ide_command("rm"));
-        assert!(!validate_ide_command("cat"));
-        assert!(!validate_ide_command(""));
-        assert!(!validate_ide_command("code; rm -rf /"));
+        // Test tilde expansion (if home dir is available)
+        if let Some(home) = dirs::home_dir() {
+            let expected = format!("{}/bin/editor", home.display());
+            assert_eq!(expand_tilde("~/bin/editor"), expected);
+        }
+
+        // Test that ~ alone or ~user is not expanded (only ~/)
+        assert_eq!(expand_tilde("~"), "~");
+        assert_eq!(expand_tilde("~user/bin"), "~user/bin");
     }
 
     #[test]
