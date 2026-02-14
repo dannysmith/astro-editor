@@ -13,7 +13,7 @@ import {
   PanelRightClose,
   Plus,
   Eye,
-  EyeOff,
+  Pilcrow,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 
@@ -49,6 +49,12 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   const sidebarVisible = useUIStore(state => state.sidebarVisible)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const toggleFocusMode = useUIStore(state => state.toggleFocusMode)
+  const typewriterModeEnabled = useUIStore(
+    state => state.typewriterModeEnabled
+  )
+  const toggleTypewriterMode = useUIStore(
+    state => state.toggleTypewriterMode
+  )
   const distractionFreeBarsHidden = useUIStore(
     state => state.distractionFreeBarsHidden
   )
@@ -127,11 +133,36 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
             focusModeEnabled ? 'Disable Focus Mode' : 'Enable Focus Mode'
           }
         >
-          {focusModeEnabled ? (
-            <EyeOff className="size-4" />
-          ) : (
-            <Eye className="size-4" />
-          )}
+          <Eye
+            className={cn(
+              'size-4',
+              focusModeEnabled && 'text-blue-500 dark:text-blue-400'
+            )}
+          />
+        </Button>
+
+        <Button
+          onClick={toggleTypewriterMode}
+          variant="ghost"
+          size="sm"
+          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          title={
+            typewriterModeEnabled
+              ? 'Disable Typewriter Mode'
+              : 'Enable Typewriter Mode'
+          }
+          aria-label={
+            typewriterModeEnabled
+              ? 'Disable Typewriter Mode'
+              : 'Enable Typewriter Mode'
+          }
+        >
+          <Pilcrow
+            className={cn(
+              'size-4',
+              typewriterModeEnabled && 'text-blue-500 dark:text-blue-400'
+            )}
+          />
         </Button>
 
         <Button
