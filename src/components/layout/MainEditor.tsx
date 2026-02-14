@@ -1,5 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
+import { useUIStore } from '../../store/uiStore'
 import { Editor } from '../editor'
 import { openProjectViaDialog } from '../../lib/projects/actions'
 import { Button } from '../ui/button'
@@ -34,10 +35,14 @@ const WelcomeScreen: React.FC = () => {
 export const MainEditor: React.FC = () => {
   // PERFORMANCE FIX: Use specific selector instead of currentFile object to avoid cascade
   const hasCurrentFile = useEditorStore(state => !!state.currentFile)
+  const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-x-hidden overflow-y-auto bg-[var(--editor-color-background)]">
+      <div
+        className="flex-1 overflow-x-hidden overflow-y-auto bg-[var(--editor-color-background)]"
+        style={typewriterModeEnabled ? { scrollbarWidth: 'none' } : undefined}
+      >
         {hasCurrentFile ? <Editor /> : <WelcomeScreen />}
       </div>
     </div>
