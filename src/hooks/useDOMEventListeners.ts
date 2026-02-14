@@ -71,6 +71,10 @@ export function useDOMEventListeners(
       useUIStore.getState().toggleFocusMode()
     }
 
+    const handleToggleTypewriterMode = () => {
+      useUIStore.getState().toggleTypewriterMode()
+    }
+
     const handleToggleHighlight = (partOfSpeech: PartOfSpeech) => {
       const { globalSettings, updateGlobalSettings } =
         useProjectStore.getState()
@@ -121,8 +125,12 @@ export function useDOMEventListeners(
       }
     }
 
-    // Register focus mode listener
+    // Register focus mode and typewriter mode listeners
     window.addEventListener('toggle-focus-mode', handleToggleFocusMode)
+    window.addEventListener(
+      'toggle-typewriter-mode',
+      handleToggleTypewriterMode
+    )
 
     // Generate and register part-of-speech toggle handlers
     const partOfSpeechHandlers = PARTS_OF_SPEECH.map(pos => {
@@ -136,6 +144,10 @@ export function useDOMEventListeners(
 
     return () => {
       window.removeEventListener('toggle-focus-mode', handleToggleFocusMode)
+      window.removeEventListener(
+        'toggle-typewriter-mode',
+        handleToggleTypewriterMode
+      )
       partOfSpeechHandlers.forEach(({ event, handler }) => {
         window.removeEventListener(event, handler)
       })

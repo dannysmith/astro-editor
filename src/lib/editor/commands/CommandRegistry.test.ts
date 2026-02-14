@@ -32,6 +32,7 @@ describe('CommandRegistry', () => {
         return true
       }),
       toggleFocusMode: vi.fn(() => true),
+      toggleTypewriterMode: vi.fn(() => true),
       addCursorsToLineEnds: vi.fn(() => true),
     }
   })

@@ -106,6 +106,14 @@ export const createMarkdownKeymap = (
           return true
         },
       },
+      // Typewriter mode shortcut
+      {
+        key: 'Mod-Shift-t',
+        run: () => {
+          globalCommandRegistry.execute('toggleTypewriterMode')
+          return true
+        },
+      },
       // Add cursors to line ends (VS Code: "Add Cursors to Line Ends")
       {
         key: 'Mod-Shift-l',

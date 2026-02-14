@@ -93,15 +93,23 @@ User preferences are managed through a three-tier system (see `docs/developer/pr
 
 ## Research Findings
 
-### CSS-Only: Not Viable
+### CSS-Only: Exhaustively Investigated, Not Viable
 
-Investigated CSS scroll-snap, scroll-state container queries, and scroll-padding as potential pure-CSS solutions:
+Every modern CSS scroll feature was evaluated (as of Jan 2026):
 
-- **`scroll-snap`** - Designed for snapping to predefined positions (carousels), not continuous cursor-following. Wrong paradigm.
-- **`scroll-padding`** - Safari/WebKit bug (filed 2017, still open) where it only works inside scroll-snap containers. Since Tauri uses WebKit on macOS, this is a dealbreaker.
-- **CSS scroll-state container queries** - Too new (Chrome 133+, no Safari/WebKit support). Not viable for Tauri.
+| CSS Feature | Why It Can't Work | Safari/WebKit Status |
+|---|---|---|
+| `scroll-snap` | Designed for carousels, not cursor-following. `proximity` mode unreliable; `mandatory` fights normal scrolling. Doesn't re-snap on programmatic target changes. | Supported but quirky |
+| `scroll-padding` / `scroll-margin` | Only influences positioning when scrolling is triggered by something else. Cannot initiate scrolling. Safari only respects these inside scroll-snap containers (bug filed 2017, still open). | Broken outside snap containers |
+| Scroll-Driven Animations | Causality reversed: these respond to scroll position, they don't cause it. | Safari 26+ only (not Sequoia) |
+| CSS Anchor Positioning | Controls layout position of floating elements, not scroll position. | Safari 26+ only (not Sequoia) |
+| `scroll-state()` queries | Styling only, cannot trigger scroll actions. | Not in Safari or Firefox at all |
+| `:has()` + scroll-margin | CM6 cursor isn't native DOM focus, so `:has(:focus-within)` can't target the active line. Even if it could, CSS can't trigger scrolling. | `:has()` supported, but approach non-viable |
+| `scroll-start` / `scroll-start-target` | Initial layout only, doesn't respond to dynamic changes. | Chrome 129+ only |
 
-**Conclusion:** JavaScript is required. CSS cannot implement typewriter mode.
+**Fundamental limitation:** CSS has no mechanism to say "scroll this container so element X is centred." Every CSS scroll feature either responds to scrolling, requires user scroll gestures to trigger, or only influences positioning when scrolling happens via another mechanism.
+
+**Conclusion:** JavaScript is required. However, the JS footprint is small (~20-30 lines of CM6 extension code) and works with CM6's designed-for-this-purpose APIs rather than fighting the editor.
 
 ### CodeMirror 6 API Options
 
@@ -109,56 +117,62 @@ Investigated CSS scroll-snap, scroll-state container queries, and scroll-padding
 
 CM6 has a built-in scroll effect: `EditorView.scrollIntoView(pos, { y: "center" })`. Dispatched as a transaction effect. Simplest to implement but gives no control over animation, timing, or conflict resolution with user scrolling. Just snaps instantly.
 
-#### Option 2: ViewPlugin (Most Precedent in Our Codebase)
+#### Option 2: ViewPlugin with `requestMeasure` (CM6 Forum Pattern)
 
-A `ViewPlugin.fromClass()` monitoring `update.selectionSet`, using `view.coordsAtPos()` for cursor Y position and `scrollDOM.scrollTo()` to centre. More control but fires *after* DOM update, causing an extra reflow.
+A `ViewPlugin.fromClass()` that intercepts transactions with `scrollIntoView`, then uses `view.requestMeasure()` to read cursor coords and write a scroll adjustment. Batches DOM reads/writes properly.
 
 **Gotcha:** `coordsAtPos()` returns scrolled position (viewport-relative), not absolute. Must add `scrollDOM.scrollTop`.
 
 #### Option 3: Transaction Extender (CM6 Maintainer Recommended)
 
-`EditorState.transactionExtender` adds `scrollIntoView` effects to transactions *before* they're applied, reducing DOM reflows compared to ViewPlugin. This is what the Obsidian Typewriter Mode plugin uses (the most mature CM6 typewriter implementation).
+`EditorState.transactionExtender` adds `scrollIntoView` effects to transactions *before* they're applied, reducing DOM reflows compared to ViewPlugin. Recommended by marijn (CM6 creator). Battle-tested in Obsidian Typewriter Mode plugin.
 
 ### Production Reference: Obsidian Typewriter Mode
 
-The [Obsidian Typewriter Mode plugin](https://github.com/davisriedel/obsidian-typewriter-mode) is the most complete production CM6 implementation. Key lessons:
+The [Obsidian Typewriter Mode plugin](https://github.com/davisriedel/obsidian-typewriter-mode) (also the older [cm-typewriter-scroll-obsidian](https://github.com/deathau/cm-typewriter-scroll-obsidian)) is the most complete production CM6 implementation. Architecture has 3 components:
 
-- **User vs automatic scroll conflict** is the hardest problem. Uses `onWheel` event listeners to detect user-initiated scrolling and temporarily suppresses auto-centering.
+1. **Padding Plugin**: Adds dynamic `paddingTop`/`paddingBottom` to `.cm-content` so first/last lines can reach centre
+2. **Scroll Plugin**: ViewPlugin that monitors transactions for cursor moves and dispatches `EditorView.scrollIntoView(head, { y: 'start', yMargin: offset })` inside `requestAnimationFrame`
+3. **Offset Facet**: Configurable 0-1 value (0.5 = centre) controlling where on screen the cursor sits
+
+Key lessons:
+- **User vs automatic scroll conflict** is the hardest problem. Uses `onWheel` to detect user scrolling and temporarily suppresses auto-centering.
 - **Performance**: Fixed jankiness by only updating when cursor *actually moves*, not on a timer.
-- **Edge cases**: Zoom levels can cause bouncing/jankiness (Scrivener has same issue at 110% zoom).
+- **`requestAnimationFrame` required**: CM6 doesn't allow dispatching transactions during `update()`, so rAF is needed.
 
 ### Padding for First/Last Line Centering
 
-For the requirement that first/last lines sit in the centre (empty space above/below):
+Two approaches:
 
-- CM6's `.cm-content` already has `padding: 40px 0`. This can be made dynamic (~`viewportHeight / 2`) when typewriter mode is active.
-- Alternative: use `EditorView.contentAttributes` to set padding.
-- The padding areas need click handlers to place cursor at doc start/end.
-- **Risk**: Dynamic padding changes could feel janky if not carefully managed. Needs testing.
+1. **`EditorView.scrollMargins` facet** (preferred): CM6's built-in mechanism for adding virtual scroll margins. CM6 accounts for these in its viewport calculations - no layout shifts, no jank. Set `top` and `bottom` to ~`viewportHeight / 2`.
+2. **Dynamic `.cm-content` padding**: Simpler but riskier - padding changes could cause layout shifts. The Obsidian plugin uses this approach.
 
-### Smooth Scrolling
+Both need click handlers on the padding regions to place cursor at doc start/end.
 
-- `requestAnimationFrame` with easing (easeOutCubic) and short duration (100-200ms)
-- Must handle cancellation when new cursor movement happens mid-animation
-- Must not conflict with browser native smooth scrolling
-- The Obsidian plugin handles this by suppressing auto-scroll during detected `onWheel` events
+### Smooth Scrolling Options
+
+- **CSS `scroll-behavior: smooth`** on `.cm-scroller`: Simple, browser-native. But no control over duration/easing, and could conflict with CM6's own scroll management.
+- **`requestAnimationFrame` animation** with easing: Full control over duration (100-200ms) and easing. Must handle cancellation when new cursor movement happens mid-animation.
+- **`scrollDOM.scrollTo({ behavior: 'smooth' })`**: Browser-native smooth scrolling via JS. Well-supported (Safari 14+). Less control than rAF but simpler.
 
 ### Key Pitfalls
 
 1. **Jankiness** from fighting between user scroll events and programmatic scrolling
 2. **Excessive DOM reflows** from scroll calculations on every keystroke
-3. **`coordsAtPos()` returning viewport-relative coords** (common mistake)
+3. **`coordsAtPos()` returning viewport-relative coords** (common mistake - must add `scrollTop`)
 4. **Smooth scrolling conflicts** - browser native smooth scroll + our animation = double-scroll
-5. **Dynamic padding causing layout shifts** if not carefully timed
+5. **CM6 prohibits dispatching during `update()`** - must use `requestAnimationFrame`
 
 ## Approach Decision
 
-**Scroll mechanism:** Start with Option 1 (`scrollIntoView` with `y: "center"`) to validate the basic behaviour. If it's insufficient (likely - no animation control, no user-scroll conflict handling), move to Option 3 (transaction extender), which is recommended by the CM6 maintainer and battle-tested in Obsidian.
+**Scroll mechanism:** ViewPlugin with `requestMeasure` (Option 2). This gives us proper DOM read/write batching, works with CM6's scroll system, and follows the pattern recommended on the CM6 forum. If we find it's causing extra reflows, we can refactor to a transaction extender (Option 3).
 
-**Smooth scrolling:** Yes - needed for good UX. Short `requestAnimationFrame` animation with easing.
+**Smooth scrolling:** `scrollDOM.scrollTo({ behavior: 'smooth' })` for simplicity. If the browser-native smoothing feels wrong, we can switch to rAF animation.
 
-**Padding:** Dynamic `.cm-content` padding (simplest approach). Needs careful testing to avoid jankiness - the concern is that changing padding values could cause visible layout shifts. If it does feel janky, we'll explore alternatives.
+**Padding:** `EditorView.scrollMargins` facet (CM6's built-in mechanism). Cleaner than dynamic CSS padding - CM6 accounts for these in viewport calculations automatically.
+
+**Toggle:** `StateEffect` + `StateField` pattern (same as focus mode). Integrate with preferences system and command palette.
 
 ## Implementation Plan
 
-_To be decided after exploring Option 1 and confirming approach._
+_See below._
