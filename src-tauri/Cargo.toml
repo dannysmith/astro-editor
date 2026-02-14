@@ -51,7 +51,7 @@ dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
 reqwest = { version = "0.13", features = ["json"] }
-uuid = { version = "1.20", features = ["v4"] }
+uuid = { version = "1.21", features = ["v4"] }
 tauri-plugin-os = "2.3.2"
 tauri-plugin-window-state = "2"
 
