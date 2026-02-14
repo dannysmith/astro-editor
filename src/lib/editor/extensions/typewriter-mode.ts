@@ -48,17 +48,24 @@ export const typewriterModeState = StateField.define<{ enabled: boolean }>({
 })
 
 /**
- * Transaction extender: intercepts every transaction that changes the selection
- * or document and adds a center-scroll effect. This works with CM6's own scroll
- * system rather than manually calculating scroll positions.
+ * Transaction extender: intercepts every non-pointer transaction that changes
+ * the selection or document and adds a center-scroll effect.
+ *
+ * IMPORTANT: Pointer selections (clicks) are excluded here because scrolling
+ * between mousedown and mouseup causes CM6 to interpret the click as a drag,
+ * creating a selection instead of placing the cursor. Pointer-initiated centering
+ * is handled by the ViewPlugin below, which defers until after the click completes.
  *
  * Triggers on:
- * - tr.selection: explicit selection changes (clicks, arrow keys, find/replace)
  * - tr.docChanged: document edits (typing, paste, delete)
+ * - tr.selection (non-pointer): keyboard selection changes (arrow keys, find/replace)
  * - toggleTypewriterMode effect: when mode is toggled on, immediately centre
  */
 const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
   if (!tr.state.field(typewriterModeState).enabled) return null
+
+  // Skip pointer selections - handled by ViewPlugin after click completes
+  if (tr.isUserEvent('select.pointer')) return null
 
   const justEnabled = tr.effects.some(
     e => e.is(toggleTypewriterMode) && e.value
@@ -76,11 +83,12 @@ const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
 })
 
 /**
- * ViewPlugin that toggles a CSS class on .cm-scroller to enable/disable
- * the 50vh padding. CSS handles the actual padding values via vh units,
- * which avoids JS calculation feedback loops and auto-responds to resizes.
+ * ViewPlugin that:
+ * 1. Toggles a CSS class on .cm-scroller for the 50vh padding
+ * 2. Handles deferred centering for pointer clicks (must wait until after
+ *    the click sequence completes to avoid the mousedown/mouseup scroll bug)
  */
-const typewriterPaddingPlugin = ViewPlugin.fromClass(
+const typewriterPlugin = ViewPlugin.fromClass(
   class {
     constructor(private view: EditorView) {
       this.syncClass()
@@ -92,6 +100,22 @@ const typewriterPaddingPlugin = ViewPlugin.fromClass(
 
       if (wasEnabled !== isEnabled) {
         this.syncClass()
+      }
+
+      // Deferred centering for pointer clicks
+      if (
+        isEnabled &&
+        update.transactions.some(tr => tr.isUserEvent('select.pointer'))
+      ) {
+        // Use rAF to centre after the click sequence (mouseup) completes
+        requestAnimationFrame(() => {
+          this.view.dispatch({
+            effects: EditorView.scrollIntoView(
+              this.view.state.selection.main.head,
+              { y: 'center' }
+            ),
+          })
+        })
       }
     }
 
@@ -108,5 +132,5 @@ const typewriterPaddingPlugin = ViewPlugin.fromClass(
 
 /** Creates the combined typewriter mode extension. */
 export function createTypewriterModeExtension() {
-  return [typewriterModeState, typewriterScrollExtender, typewriterPaddingPlugin]
+  return [typewriterModeState, typewriterScrollExtender, typewriterPlugin]
 }

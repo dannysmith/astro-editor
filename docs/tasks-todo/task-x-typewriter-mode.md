@@ -163,16 +163,60 @@ Both need click handlers on the padding regions to place cursor at doc start/end
 4. **Smooth scrolling conflicts** - browser native smooth scroll + our animation = double-scroll
 5. **CM6 prohibits dispatching during `update()`** - must use `requestAnimationFrame`
 
-## Approach Decision
+## Current Implementation (v1 - basic working, needs refinement)
 
-**Scroll mechanism:** ViewPlugin with `requestMeasure` (Option 2). This gives us proper DOM read/write batching, works with CM6's scroll system, and follows the pattern recommended on the CM6 forum. If we find it's causing extra reflows, we can refactor to a transaction extender (Option 3).
+### What's Built
 
-**Smooth scrolling:** `scrollDOM.scrollTo({ behavior: 'smooth' })` for simplicity. If the browser-native smoothing feels wrong, we can switch to rAF animation.
+The core typewriter mode is implemented and the basic centering behaviour works. Toggle via command palette ("Toggle Typewriter Mode") or `Cmd+Shift+T`.
 
-**Padding:** `EditorView.scrollMargins` facet (CM6's built-in mechanism). Cleaner than dynamic CSS padding - CM6 accounts for these in viewport calculations automatically.
+### Architecture
 
-**Toggle:** `StateEffect` + `StateField` pattern (same as focus mode). Integrate with preferences system and command palette.
+**Extension file:** `src/lib/editor/extensions/typewriter-mode.ts`
 
-## Implementation Plan
+Three components:
 
-_See below._
+1. **`typewriterModeState`** - StateField tracking `{ enabled: boolean }`, toggled via `toggleTypewriterMode` StateEffect. Same pattern as focus mode.
+
+2. **`typewriterScrollExtender`** - `EditorState.transactionExtender` that adds `EditorView.scrollIntoView(pos, { y: 'center' })` to every transaction where `tr.selection` (clicks, arrow keys) or `tr.docChanged` (typing) is true. Also triggers on the toggle-on effect itself so the view centres immediately.
+
+3. **`typewriterPaddingPlugin`** - ViewPlugin that toggles `.cm-typewriter-active` class on `.cm-scroller`. CSS handles the padding via `50vh` units (no JS calculation, no feedback loops).
+
+**CSS:** `src/components/editor/Editor.css` - `.cm-typewriter-active .cm-content` gets `padding-top: 50vh !important; padding-bottom: 50vh !important;`
+
+### Toggle Plumbing (follows focus mode pattern exactly)
+
+All of these are small additions to existing files:
+
+| File | What was added |
+|---|---|
+| `src/store/uiStore.ts` | `typewriterModeEnabled` state + `toggleTypewriterMode` action |
+| `src/components/editor/Editor.tsx` | Subscribes to store, dispatches `toggleTypewriterMode` effect to CM6 |
+| `src/lib/commands/types.ts` | `toggleTypewriterMode` on `CommandContext` interface |
+| `src/lib/editor/commands/types.ts` | `toggleTypewriterMode` on `EditorCommandRegistry` interface |
+| `src/lib/editor/commands/editorCommands.ts` | `createTypewriterModeCommand()` factory + registry entry |
+| `src/hooks/commands/useCommandContext.ts` | Dispatches `toggle-typewriter-mode` custom event |
+| `src/lib/commands/app-commands.ts` | Command palette entry in `viewModeCommands` |
+| `src/hooks/useDOMEventListeners.ts` | Event listener calling `useUIStore.getState().toggleTypewriterMode()` |
+| `src/lib/editor/extensions/keymap.ts` | `Mod-Shift-t` keyboard shortcut |
+| `src/lib/editor/extensions/createExtensions.ts` | Registers `createTypewriterModeExtension()` in writing modes section |
+
+### Lessons Learned / Pitfalls Encountered
+
+1. **`EditorView.scrollMargins` does NOT create visible space** - it only tells CM6 to treat the viewport as smaller for scroll-into-view calculations. For first/last line centering, you need actual CSS padding on `.cm-content`.
+
+2. **`tr.scrollIntoView` is the wrong trigger** - this flag is only set when CM6 thinks the cursor might be out of view. Clicks on visible content don't set it. The correct triggers are `tr.selection` (covers clicks, arrow keys, find/replace) and `tr.docChanged` (covers typing).
+
+3. **JS-calculated padding causes feedback loops** - setting `paddingTop`/`paddingBottom` via inline styles in a ViewPlugin that also responds to `geometryChanged` creates an infinite cycle: padding change → geometry change → recalculate padding → repeat. Using CSS `50vh` units with a class toggle completely avoids this.
+
+4. **Manual `scrollDOM.scrollTo()` fights CM6's scroll system** - causes double-scrolling and random jumps. Using `EditorView.scrollIntoView()` as a transaction effect works WITH CM6 instead.
+
+### Lessons Learned / Pitfalls Encountered (continued)
+
+5. **Pointer selections cause drag-selection bug** - Scrolling between mousedown and mouseup causes CM6 to interpret the click as a drag. The transaction extender MUST skip `tr.isUserEvent('select.pointer')` transactions. Pointer-initiated centering is deferred to a `requestAnimationFrame` callback in the ViewPlugin, which fires after the click sequence completes.
+
+### Known Issues (to fix next)
+
+- **Clicking in padding regions** - Need to verify clicks in the 50vh padding above/below content correctly place cursor at doc start/end. May need click handler.
+- **Smooth scrolling** - Currently uses CM6's instant `scrollIntoView`. May want smoother animation for large jumps.
+- **No preference persistence** - Currently ephemeral UI state (resets on app restart). May want to persist as a global preference.
+- **General testing needed** - Multiple cursors, find/replace, focus mode interaction, window resize, panel toggles.
