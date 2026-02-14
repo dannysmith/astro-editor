@@ -92,6 +92,7 @@ const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
 const typewriterPlugin = ViewPlugin.fromClass(
   class {
     private pendingMouseup: (() => void) | null = null
+    private _destroyed = false
 
     constructor(private view: EditorView) {
       this.syncClass()
@@ -117,6 +118,7 @@ const typewriterPlugin = ViewPlugin.fromClass(
           this.pendingMouseup = null
           // rAF after mouseup ensures CM6 has finished processing the click
           requestAnimationFrame(() => {
+            if (this._destroyed) return
             this.view.dispatch({
               effects: EditorView.scrollIntoView(
                 this.view.state.selection.main.head,
@@ -145,6 +147,7 @@ const typewriterPlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this._destroyed = true
       this.cancelPendingMouseup()
       this.view.scrollDOM.classList.remove('cm-typewriter-active')
     }

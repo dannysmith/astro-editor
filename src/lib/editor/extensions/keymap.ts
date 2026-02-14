@@ -15,6 +15,7 @@
  * | Alt+Mod+1-4      | Transform line to heading 1-4   |
  * | Alt+Mod+0        | Remove heading (to paragraph)   |
  * | Mod+Shift+F      | Toggle focus mode               |
+ * | Mod+Shift+T      | Toggle typewriter mode          |
  * | Mod+Shift+L      | Add cursors to line ends        |
  * | Tab              | Insert tab or next snippet field |
  * | Shift+Tab        | Previous snippet field          |

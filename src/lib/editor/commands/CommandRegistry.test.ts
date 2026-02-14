@@ -118,6 +118,13 @@ describe('CommandRegistry', () => {
       expect(result).toBe(false)
     })
 
+    it('should execute toggleTypewriterMode command', () => {
+      const result = registry.execute('toggleTypewriterMode')
+
+      expect(result).toBe(true)
+      expect(mockCommands.toggleTypewriterMode).toHaveBeenCalledWith(mockView)
+    })
+
     it('should handle command execution errors gracefully', () => {
       mockCommands.toggleBold = vi.fn(() => {
         throw new Error('Test error')
