@@ -49,12 +49,8 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   const sidebarVisible = useUIStore(state => state.sidebarVisible)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const toggleFocusMode = useUIStore(state => state.toggleFocusMode)
-  const typewriterModeEnabled = useUIStore(
-    state => state.typewriterModeEnabled
-  )
-  const toggleTypewriterMode = useUIStore(
-    state => state.toggleTypewriterMode
-  )
+  const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
+  const toggleTypewriterMode = useUIStore(state => state.toggleTypewriterMode)
   const distractionFreeBarsHidden = useUIStore(
     state => state.distractionFreeBarsHidden
   )
