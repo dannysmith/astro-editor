@@ -27,6 +27,14 @@
   border-radius: 2px;
 }
 
+/* Typewriter Mode Styling */
+/* 50vh padding lets first/last lines reach the vertical centre.
+   Using vh units avoids JS feedback loops and auto-responds to resizes. */
+.cm-typewriter-active .cm-content {
+  padding-top: 50vh !important;
+  padding-bottom: 50vh !important;
+}
+
 /* Focus Mode Styling */
 .cm-focus-dimmed {
   opacity: 0.3;

@@ -50,6 +50,7 @@ import { createKeymapExtensions } from './keymap'
 import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
+import { createTypewriterModeExtension } from './typewriter-mode'
 import { hangingHeadersExtension } from './hanging-headers'
 import { syntaxMarkDecorationsExtension } from './syntax-mark-decorations'
 import { codeBlockBackgroundExtension } from './code-block-background'
@@ -115,6 +116,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     // Writing modes - Always include extensions, toggle via state
     ...createFocusModeExtension(),
     ...createCopyeditModeExtension(),
+    ...createTypewriterModeExtension(),
 
     // Visual enhancements
     hangingHeadersExtension,

@@ -26,6 +26,7 @@ export interface CommandContext {
   loadCollectionFiles: () => void
   openPreferences: () => void
   toggleFocusMode: () => void
+  toggleTypewriterMode: () => void
   toggleHighlightNouns: () => void
   toggleHighlightVerbs: () => void
   toggleHighlightAdjectives: () => void
