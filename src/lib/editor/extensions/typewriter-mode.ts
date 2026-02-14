@@ -10,7 +10,8 @@
  *    works WITH CM6's scroll system rather than fighting it.
  * 2. A ViewPlugin toggles a CSS class on .cm-scroller that applies 50vh padding
  *    to .cm-content via CSS. Using vh units avoids JS calculation feedback loops
- *    and automatically responds to viewport changes.
+ *    and automatically responds to viewport changes. For pointer clicks, it waits
+ *    for mouseup before scrolling to avoid the scroll causing a drag selection.
  * 3. State is toggled via the `toggleTypewriterMode` effect.
  *
  * USAGE:
@@ -90,6 +91,8 @@ const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
  */
 const typewriterPlugin = ViewPlugin.fromClass(
   class {
+    private pendingMouseup: (() => void) | null = null
+
     constructor(private view: EditorView) {
       this.syncClass()
     }
@@ -102,20 +105,30 @@ const typewriterPlugin = ViewPlugin.fromClass(
         this.syncClass()
       }
 
-      // Deferred centering for pointer clicks
+      // Deferred centering for pointer clicks - must wait for mouseup to avoid
+      // scroll between mousedown/mouseup causing CM6 to interpret click as drag
       if (
         isEnabled &&
         update.transactions.some(tr => tr.isUserEvent('select.pointer'))
       ) {
-        // Use rAF to centre after the click sequence (mouseup) completes
-        requestAnimationFrame(() => {
-          this.view.dispatch({
-            effects: EditorView.scrollIntoView(
-              this.view.state.selection.main.head,
-              { y: 'center' }
-            ),
+        this.cancelPendingMouseup()
+
+        const handler = () => {
+          this.pendingMouseup = null
+          // rAF after mouseup ensures CM6 has finished processing the click
+          requestAnimationFrame(() => {
+            this.view.dispatch({
+              effects: EditorView.scrollIntoView(
+                this.view.state.selection.main.head,
+                { y: 'center' }
+              ),
+            })
           })
-        })
+        }
+
+        this.pendingMouseup = () =>
+          document.removeEventListener('mouseup', handler)
+        document.addEventListener('mouseup', handler, { once: true })
       }
     }
 
@@ -124,7 +137,15 @@ const typewriterPlugin = ViewPlugin.fromClass(
       this.view.scrollDOM.classList.toggle('cm-typewriter-active', enabled)
     }
 
+    private cancelPendingMouseup() {
+      if (this.pendingMouseup) {
+        this.pendingMouseup()
+        this.pendingMouseup = null
+      }
+    }
+
     destroy() {
+      this.cancelPendingMouseup()
       this.view.scrollDOM.classList.remove('cm-typewriter-active')
     }
   }
