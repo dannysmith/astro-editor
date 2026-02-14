@@ -100,6 +100,22 @@ describe('parseIsoDate', () => {
     expect(parseIsoDate('2025-01-00')).toBeUndefined() // Invalid day
   })
 
+  it('returns undefined for month-specific overflow dates', () => {
+    // These would silently roll over without proper validation
+    expect(parseIsoDate('2025-02-30')).toBeUndefined() // Feb 30 doesn't exist
+    expect(parseIsoDate('2025-02-31')).toBeUndefined() // Feb 31 doesn't exist
+    expect(parseIsoDate('2025-04-31')).toBeUndefined() // Apr has 30 days
+    expect(parseIsoDate('2025-06-31')).toBeUndefined() // Jun has 30 days
+    expect(parseIsoDate('2025-09-31')).toBeUndefined() // Sep has 30 days
+    expect(parseIsoDate('2025-11-31')).toBeUndefined() // Nov has 30 days
+  })
+
+  it('returns undefined for Feb 29 on non-leap years', () => {
+    expect(parseIsoDate('2025-02-29')).toBeUndefined() // 2025 is not a leap year
+    expect(parseIsoDate('2023-02-29')).toBeUndefined() // 2023 is not a leap year
+    expect(parseIsoDate('2100-02-29')).toBeUndefined() // 2100 is not a leap year (century rule)
+  })
+
   it('parses dates that would be affected by UTC conversion', () => {
     // This is the key test for the timezone bug fix.
     // When parsed as UTC (like `new Date("2025-01-15")`), this would

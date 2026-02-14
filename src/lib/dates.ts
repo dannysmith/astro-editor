@@ -35,10 +35,17 @@ export function parseIsoDate(dateString: string): Date | undefined {
   const m = Number(month)
   const d = Number(day)
 
-  // Basic validation
-  if (m < 1 || m > 12 || d < 1 || d > 31) return undefined
+  // Create the date and verify components match (catches invalid dates like Feb 31)
+  const date = new Date(y, m - 1, d)
+  if (
+    date.getFullYear() !== y ||
+    date.getMonth() !== m - 1 ||
+    date.getDate() !== d
+  ) {
+    return undefined
+  }
 
-  return new Date(y, m - 1, d)
+  return date
 }
 
 export function todayIsoDate(): string {
