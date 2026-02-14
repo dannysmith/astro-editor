@@ -9,7 +9,7 @@
     </title>
     <meta
       name="description"
-      content="Transform your Astro content workflow with schema-aware frontmatter forms. Astro Editor reads your Zod schemas and creates intelligent editing interfaces for distraction-free markdown writing. Download for macOS."
+      content="Transform your Astro content workflow with schema-aware frontmatter forms. Astro Editor reads your Zod schemas and creates intelligent editing interfaces for distraction-free markdown writing. Download for macOS and Windows."
     />
     <meta
       name="keywords"
@@ -191,7 +191,7 @@
         "@type": "SoftwareApplication",
         "name": "Astro Editor",
         "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "macOS",
+        "operatingSystem": ["macOS", "Windows"],
         "description": "Schema-aware markdown editor for Astro content collections with intelligent frontmatter forms",
         "url": "https://astroeditor.danny.is/",
         "author": {
@@ -316,10 +316,10 @@
               Writer.
             </p>
             <div
+              id="download"
               class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
             >
               <a
-                id="download"
                 href="./astro-editor-latest.dmg"
                 class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-medium shadow-glow hover:bg-brand-500 transition"
                 aria-label="Download Astro Editor for macOS (Universal Binary - Intel & Apple Silicon)"
@@ -343,6 +343,32 @@
                 <div class="flex flex-col items-start">
                   <span>Download for macOS</span>
                   <span class="text-xs text-white/70 font-normal">Universal (Intel & Apple Silicon)</span>
+                </div>
+              </a>
+              <a
+                href="./astro-editor-latest.msi"
+                class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-medium shadow-glow hover:bg-brand-500 transition"
+                aria-label="Download Astro Editor for Windows"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3v12m0 0l4-4m-4 4l-4-4M4 18h16"
+                    stroke="white"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <div class="flex flex-col items-start">
+                  <span>Download for Windows</span>
+                  <span class="text-xs text-white/70 font-normal">Windows Installer</span>
                 </div>
               </a>
             </div>
