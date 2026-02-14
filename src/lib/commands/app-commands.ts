@@ -11,6 +11,7 @@ import {
   Folder,
   Settings,
   Eye,
+  AlignVerticalSpaceAround,
   Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
@@ -142,6 +143,17 @@ export const viewModeCommands: AppCommand[] = [
     group: 'settings',
     execute: (context: CommandContext) => {
       context.toggleFocusMode()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-typewriter-mode',
+    label: 'Toggle Typewriter Mode',
+    description: 'Keep cursor line centred in viewport',
+    icon: AlignVerticalSpaceAround,
+    group: 'settings',
+    execute: (context: CommandContext) => {
+      context.toggleTypewriterMode()
     },
     isAvailable: () => true,
   },

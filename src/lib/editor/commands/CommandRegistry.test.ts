@@ -32,6 +32,7 @@ describe('CommandRegistry', () => {
         return true
       }),
       toggleFocusMode: vi.fn(() => true),
+      toggleTypewriterMode: vi.fn(() => true),
       addCursorsToLineEnds: vi.fn(() => true),
     }
   })
@@ -115,6 +116,13 @@ describe('CommandRegistry', () => {
       const result = registry.execute('toggleBold')
 
       expect(result).toBe(false)
+    })
+
+    it('should execute toggleTypewriterMode command', () => {
+      const result = registry.execute('toggleTypewriterMode')
+
+      expect(result).toBe(true)
+      expect(mockCommands.toggleTypewriterMode).toHaveBeenCalledWith(mockView)
     })
 
     it('should handle command execution errors gracefully', () => {

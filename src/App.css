@@ -1,6 +1,14 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* Utility: hide scrollbars (WebKit + standards) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* iA Writer Variable Fonts */

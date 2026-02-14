@@ -12,6 +12,7 @@ import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
+import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
 import '../../lib/editor/extensions/copyedit-mode.css'
 
@@ -27,6 +28,7 @@ const EditorViewComponent: React.FC = () => {
   const currentFilePath = useEditorStore(state => state.currentFile?.path)
   const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
+  const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
@@ -68,11 +70,17 @@ const EditorViewComponent: React.FC = () => {
   // Handle mode changes - use stable callback with getState() pattern
   const handleModeChange = useCallback(() => {
     // Get fresh values from store using getState() pattern per architecture guide
-    const { focusModeEnabled: currentFocusMode } = useUIStore.getState()
+    const {
+      focusModeEnabled: currentFocusMode,
+      typewriterModeEnabled: currentTypewriterMode,
+    } = useUIStore.getState()
 
     if (viewRef.current) {
       viewRef.current.dispatch({
-        effects: [toggleFocusMode.of(currentFocusMode)],
+        effects: [
+          toggleFocusMode.of(currentFocusMode),
+          toggleTypewriterMode.of(currentTypewriterMode),
+        ],
       })
     }
   }, []) // Stable dependency array per architecture guide
@@ -80,7 +88,7 @@ const EditorViewComponent: React.FC = () => {
   // Subscribe to mode changes using the stable callback
   useEffect(() => {
     handleModeChange()
-  }, [handleModeChange, focusModeEnabled])
+  }, [handleModeChange, focusModeEnabled, typewriterModeEnabled])
 
   // Track Alt key state for URL highlighting - moved back to component for timing
   // Uses ref for dispatch tracking (stable listener) + state for React rendering (useImageHover)
