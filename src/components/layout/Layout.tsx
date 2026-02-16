@@ -74,6 +74,29 @@ export const Layout: React.FC = () => {
     }
   }, [frontmatterPanelVisible])
 
+  // Sync drag-to-collapse back to the store
+  const handleLeftPanelResize = useCallback(
+    (size: { asPercentage: number }) => {
+      const isCollapsed = size.asPercentage === 0
+      const { sidebarVisible: current, setSidebarVisible } =
+        useUIStore.getState()
+      if (isCollapsed && current) setSidebarVisible(false)
+      if (!isCollapsed && !current) setSidebarVisible(true)
+    },
+    []
+  )
+
+  const handleRightPanelResize = useCallback(
+    (size: { asPercentage: number }) => {
+      const isCollapsed = size.asPercentage === 0
+      const { frontmatterPanelVisible: current, setFrontmatterPanelVisible } =
+        useUIStore.getState()
+      if (isCollapsed && current) setFrontmatterPanelVisible(false)
+      if (!isCollapsed && !current) setFrontmatterPanelVisible(true)
+    },
+    []
+  )
+
   const handleSetPreferencesOpen = useCallback((open: boolean) => {
     setPreferencesOpen(open)
     if (!open) {
@@ -170,7 +193,8 @@ export const Layout: React.FC = () => {
             defaultSize={LAYOUT_SIZES.leftSidebar.default}
             minSize={LAYOUT_SIZES.leftSidebar.min}
             maxSize={LAYOUT_SIZES.leftSidebar.max}
-            style={{ minWidth: LAYOUT_SIZES.leftSidebar.minWidth }}
+            style={{ minWidth: sidebarVisible ? LAYOUT_SIZES.leftSidebar.minWidth : undefined }}
+            onResize={handleLeftPanelResize}
           >
             <LeftSidebar />
           </ResizablePanel>
@@ -197,6 +221,7 @@ export const Layout: React.FC = () => {
             defaultSize={LAYOUT_SIZES.rightSidebar.default}
             minSize={LAYOUT_SIZES.rightSidebar.min}
             maxSize={LAYOUT_SIZES.rightSidebar.max}
+            onResize={handleRightPanelResize}
           >
             <RightSidebar>
               <FrontmatterPanel />
