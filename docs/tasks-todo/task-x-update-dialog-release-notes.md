@@ -138,6 +138,7 @@ Register in `src-tauri/src/bindings.rs` and expose via tauri-specta. Frontend ca
 - Unauthenticated rate limit: 60 requests/hour per IP. Fine for a desktop app.
 - Cache the result for the session — don't re-fetch on every dialog open.
 - 5-second timeout (same as telemetry) to avoid blocking if network is slow.
+- May need the `semver` crate as a direct dependency for version comparison (likely already a transitive dep via Tauri, but add explicitly if not).
 
 ### Phase 3: Create Update Store
 
