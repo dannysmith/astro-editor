@@ -5,6 +5,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
+import { useContentLinkerStore } from '../../store/contentLinkerStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useEditorSetup, useEditorHandlers } from '../../hooks/editor'
 import { useImageHover } from '../../hooks/editor/useImageHover'
@@ -57,11 +58,19 @@ const EditorViewComponent: React.FC = () => {
     return false // Let CodeMirror handle it (insert comment)
   }, [])
 
+  const contentLinkerHandler = useCallback((view: EditorView) => {
+    useContentLinkerStore.getState().open(view)
+    return true
+  }, [])
+
   const { extensions, setupCommands, cleanupCommands } = useEditorSetup(
     handleSave,
     handleFocus,
     handleBlur,
-    componentBuilderHandler
+    {
+      componentBuilder: componentBuilderHandler,
+      contentLinker: contentLinkerHandler,
+    }
   )
 
   // Track hovered image URLs when Alt is pressed

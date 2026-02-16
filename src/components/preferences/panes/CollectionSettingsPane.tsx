@@ -161,6 +161,19 @@ export const CollectionSettingsPane: React.FC = () => {
     void updateCollectionSettings(collectionName, newSettings.settings)
   }
 
+  // Update a collection's URL pattern
+  const handleUrlPatternChange = (collectionName: string, value: string) => {
+    const existing = getCollectionOverride(collectionName)
+    const newSettings: CollectionSettings = {
+      name: collectionName,
+      settings: {
+        ...existing?.settings,
+        urlPattern: value || undefined, // Remove empty strings
+      },
+    }
+    void updateCollectionSettings(collectionName, newSettings.settings)
+  }
+
   // Update a collection's absolute paths setting
   const handleAbsolutePathsChange = (
     collectionName: string,
@@ -291,7 +304,8 @@ export const CollectionSettingsPane: React.FC = () => {
             !!collectionOverride?.settings?.pathOverrides ||
             !!collectionOverride?.settings?.frontmatterMappings ||
             !!collectionOverride?.settings?.defaultFileType ||
-            collectionOverride?.settings?.useAbsoluteAssetPaths !== undefined
+            collectionOverride?.settings?.useAbsoluteAssetPaths !== undefined ||
+            !!collectionOverride?.settings?.urlPattern
 
           if (!effectiveSettings) return null
 
@@ -546,6 +560,29 @@ export const CollectionSettingsPane: React.FC = () => {
                           )}
                           <FieldDescription>
                             Field that shows a draft marker in the file list
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+                    </SettingsSection>
+
+                    {/* Link URL Pattern Section */}
+                    <SettingsSection title="Content Links">
+                      <Field>
+                        <FieldLabel>Link URL Pattern</FieldLabel>
+                        <FieldContent>
+                          <PreferencesTextInput
+                            value={
+                              collectionOverride?.settings?.urlPattern || ''
+                            }
+                            onCommit={value =>
+                              handleUrlPatternChange(collection.name, value)
+                            }
+                            placeholder="/path/{slug}"
+                          />
+                          <FieldDescription>
+                            URL template for content links. Use{' '}
+                            <code className="text-xs">{'{slug}'}</code> for the
+                            content slug. Leave empty for relative file paths.
                           </FieldDescription>
                         </FieldContent>
                       </Field>

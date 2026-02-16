@@ -12,6 +12,7 @@
  * | Mod+I            | Toggle italic (*)               |
  * | Mod+K            | Create/edit link                |
  * | Mod+/            | Component builder OR toggle comment |
+ * | Mod+Shift+K      | Content linker (insert link)    |
  * | Alt+Mod+1-4      | Transform line to heading 1-4   |
  * | Alt+Mod+0        | Remove heading (to paragraph)   |
  * | Mod+Shift+F      | Toggle focus mode               |
@@ -47,11 +48,17 @@ import { addCursorsToLineEnds } from '../selection'
 import { globalCommandRegistry } from '../commands'
 
 /**
+ * Keymap handler callbacks passed from the editor component
+ */
+export interface KeymapHandlers {
+  componentBuilder?: (view: EditorView) => boolean
+  contentLinker?: (view: EditorView) => boolean
+}
+
+/**
  * Create custom markdown shortcuts with high precedence
  */
-export const createMarkdownKeymap = (
-  componentBuilderHandler?: (view: EditorView) => boolean
-) => {
+export const createMarkdownKeymap = (handlers?: KeymapHandlers) => {
   return Prec.high(
     keymap.of([
       {
@@ -66,17 +73,20 @@ export const createMarkdownKeymap = (
         key: 'Mod-k',
         run: view => createMarkdownLink(view),
       },
-      // This is the new keybinding for the component inserter.
+      // Component builder / comment toggle
       {
         key: 'Mod-/',
         run: view => {
-          // Try component builder first if handler is provided
-          if (componentBuilderHandler && componentBuilderHandler(view)) {
+          if (handlers?.componentBuilder?.(view)) {
             return true
           }
-          // Fallback to default comment toggling
           return toggleComment(view)
         },
+      },
+      // Content linker
+      {
+        key: 'Mod-Shift-k',
+        run: view => handlers?.contentLinker?.(view) ?? false,
       },
       // Heading transformation shortcuts
       {
@@ -191,13 +201,11 @@ export const createTabKeymap = () => {
 /**
  * Create all keymap extensions
  */
-export const createKeymapExtensions = (
-  componentBuilderHandler?: (view: EditorView) => boolean
-) => {
+export const createKeymapExtensions = (handlers?: KeymapHandlers) => {
   return [
     // Tab handling must be highest precedence to trap Tab key
     createTabKeymap(),
-    createMarkdownKeymap(componentBuilderHandler),
+    createMarkdownKeymap(handlers),
     createDefaultKeymap(),
   ]
 }

@@ -46,7 +46,7 @@ import { EditorState } from '@codemirror/state'
 import { markdownStyleExtension, comprehensiveHighlightStyle } from '../syntax'
 import { altKeyState, urlHoverPlugin, handleUrlClick } from '../urls'
 import { handlePaste } from '../paste'
-import { createKeymapExtensions } from './keymap'
+import { createKeymapExtensions, type KeymapHandlers } from './keymap'
 import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
@@ -62,14 +62,14 @@ import { blockquoteStyleExtension } from './blockquote-style'
 export interface ExtensionConfig {
   onFocus: () => void
   onBlur: () => void
-  componentBuilderHandler?: (view: EditorView) => boolean
+  keymapHandlers?: KeymapHandlers
 }
 
 /**
  * Create all editor extensions
  */
 export const createExtensions = (config: ExtensionConfig) => {
-  const { onFocus, onBlur, componentBuilderHandler } = config
+  const { onFocus, onBlur, keymapHandlers } = config
 
   const extensions = [
     // Core functionality
@@ -91,7 +91,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     history(),
 
     // Keymaps
-    ...createKeymapExtensions(componentBuilderHandler),
+    ...createKeymapExtensions(keymapHandlers),
 
     // Event handlers
     EditorView.domEventHandlers({

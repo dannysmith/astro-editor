@@ -55,11 +55,16 @@ Link URLs are constructed using a **configurable per-collection URL pattern** in
 
 ## Implementation Plan
 
-### Phase 1: Content Linker Store & Data Layer
+### Phase 1: Recursive Collection Scan & Data Layer
 
-Create the Zustand store and link generation logic.
+The existing `scanDirectory` and `scanCollectionFiles` Rust commands are **non-recursive** - they only return files in the immediate directory. The command palette search only queries the `'root'` cache key, so files in nested subdirectories (e.g. `posts/2024/january/my-post.md`) are invisible unless the user has browsed into that subdirectory. For a content linker, we need to find *all* content items regardless of nesting.
 
-**New files:**
+**New Rust command:**
+- Add `scan_collection_files_recursive` to `src-tauri/src/commands/project.rs` - walks the entire collection directory tree and returns all `.md`/`.mdx` files with frontmatter parsed. Similar to `scan_collection_files` but uses recursive directory traversal.
+- Register in `src-tauri/src/bindings.rs`
+- The content linker dialog will call this directly rather than relying on cached `directoryContents` queries
+
+**New TypeScript files:**
 - `src/store/contentLinkerStore.ts` - Store managing dialog state, search, and EditorView reference (follow `componentBuilderStore.ts` pattern)
 - `src/lib/content-linker/link-builder.ts` - Pure functions for generating markdown links from content items
 - `src/lib/content-linker/index.ts` - Barrel export
@@ -91,7 +96,10 @@ Build the picker dialog component.
 - Footer hint bar showing "↩ Open · ⌘↩ Insert link"
 - `onSelect` (Enter) → opens file via `useEditorStore.getState().openFile(file)`
 - Cmd+Enter handler → calls `contentLinkerStore.getState().insert(file, collections)`
-- Sources content items from TanStack Query cache (same pattern as `generateSearchCommands`)
+- Fetches all content items via `scan_collection_files_recursive` when the dialog opens (or uses a dedicated TanStack Query with appropriate cache key)
+
+**Cmd+Enter handling (important):**
+The `cmdk` library fires `onSelect` on bare Enter. To support two actions (Enter = open, Cmd+Enter = insert link), we need to intercept Cmd+Enter via `onKeyDown` on `CommandInput` or `CommandItem` *before* `onSelect` fires. This is the same pattern used by `ComponentBuilderDialog` (see lines 119-127) where `onKeyDown` checks for `e.metaKey || e.ctrlKey` and calls `e.preventDefault()` + `e.stopPropagation()` to prevent `onSelect` from also firing. We need to track the currently-highlighted item to know which file to insert - either via `cmdk`'s value state or by tracking selection in our store.
 
 ### Phase 3: Keyboard Shortcut & Editor Integration
 
@@ -99,8 +107,22 @@ Wire up the trigger and integrate with the editor.
 
 **Modified files:**
 - `src/lib/editor/extensions/keymap.ts` - Add `Mod-Shift-k` shortcut that opens the content linker
-- `src/components/editor/Editor.tsx` - Pass content linker handler to keymap (same pattern as component builder handler)
+- `src/components/editor/Editor.tsx` - Create content linker handler and pass to keymap
 - `src/components/layout/Layout.tsx` - Mount `ContentLinkerDialog`
+
+**Keymap handler signature change:**
+`createMarkdownKeymap` currently takes a single `componentBuilderHandler` parameter. Rather than adding a second positional parameter, refactor to accept a handlers object:
+```typescript
+// Before:
+createMarkdownKeymap(componentBuilderHandler?: (view: EditorView) => boolean)
+
+// After:
+createMarkdownKeymap(handlers?: {
+  componentBuilder?: (view: EditorView) => boolean
+  contentLinker?: (view: EditorView) => boolean
+})
+```
+This avoids parameter bloat if more handlers are added later. Update `createExtensions`, `useEditorSetup`, and `Editor.tsx` to pass the new shape.
 
 **Command palette integration:**
 - `src/lib/commands/types.ts` - No changes needed (use existing group or add to navigation)
@@ -122,11 +144,23 @@ Add per-collection URL pattern configuration.
 
 ### Phase 5: Testing & Polish
 
-- Unit tests for `link-builder.ts` (relative path calculation, URL pattern resolution, edge cases)
+- Unit tests for `link-builder.ts`:
+  - Relative path: cross-collection (`../notes/idea.md`)
+  - Relative path: same collection (`./other-post.md`)
+  - Relative path: source at root, target nested (`./2024/january/deep-post.md`)
+  - Relative path: source nested, target at root (`../../other-post.md`)
+  - Relative path: both nested at different depths
+  - URL pattern with frontmatter `slug` field present
+  - URL pattern with no `slug` field (falls back to `id`)
+  - Title resolution respecting `frontmatterMappings.title`
+  - Fallback to filename when no title in frontmatter
 - Unit tests for `contentLinkerStore.ts`
-- Component test for `ContentLinkerDialog.tsx` (search, selection, keyboard interactions)
-- Integration: verify Cmd+Shift+K → picker → Cmd+Enter → link inserted correctly
-- Edge cases: linking to items in the same collection, nested subdirectories, items without titles
+- Component test for `ContentLinkerDialog.tsx`:
+  - Fuzzy search filters correctly
+  - Enter opens file (onSelect behavior)
+  - Cmd+Enter inserts link and does NOT also trigger onSelect
+  - Dialog closes and editor regains focus after both actions
+- Rust test for `scan_collection_files_recursive` (finds files in nested subdirectories)
 
 ## Technical Notes
 
@@ -150,13 +184,29 @@ From `FileEntry` (via TanStack Query cache):
 
 ### Relative Path Calculation
 
-When no URL pattern is configured, we need to compute a relative path from the source file to the target file. Both files live under `src/content/`, so:
+When no URL pattern is configured, we need to compute a relative path from the source file to the target file. Both files live under `src/content/`, so we use their `path` properties and compute the relative path between their parent directories.
+
+**Cross-collection example:**
 - Source: `src/content/articles/my-post.md`
 - Target: `src/content/notes/idea.md`
 - Relative path: `../notes/idea.md`
 
-Use the files' `path` properties and compute the relative path between their parent directories.
+**Same-collection example:**
+- Source: `src/content/articles/my-post.md`
+- Target: `src/content/articles/other-post.md`
+- Relative path: `./other-post.md`
 
-### Data Availability Caveat
+**Nested subdirectory examples:**
+- Source: `src/content/posts/my-post.md` (root level)
+- Target: `src/content/posts/2024/january/deep-post.md` (nested)
+- Relative path: `./2024/january/deep-post.md`
 
-Content items are only searchable if their collection has been loaded into the TanStack Query cache (i.e. the user has visited the collection in the sidebar). This matches the existing behavior from command palette search. We could consider eagerly loading all collections when the project opens, but that's a separate concern.
+- Source: `src/content/posts/2024/january/deep-post.md` (nested)
+- Target: `src/content/posts/other-post.md` (root level)
+- Relative path: `../../other-post.md`
+
+These cases should all have explicit unit tests in `link-builder.test.ts`.
+
+### Data Availability
+
+The content linker uses `scan_collection_files_recursive` to fetch all files across all collections when the dialog opens. This is independent of the sidebar's `directoryContents` cache - the user doesn't need to have visited a collection for its files to appear in the linker. The results can be cached with a dedicated TanStack Query key (e.g. `queryKeys.allContentFiles(projectPath)`) so repeated opens don't re-scan.

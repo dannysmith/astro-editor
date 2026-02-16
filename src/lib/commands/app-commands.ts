@@ -13,15 +13,14 @@ import {
   Eye,
   AlignVerticalSpaceAround,
   Highlighter,
+  Link,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
-import type { Collection, DirectoryScanResult } from '@/types'
+import type { Collection } from '@/types'
 import { toast } from '../toast'
-import { queryClient } from '../query-client'
-import { queryKeys } from '../query-keys'
-import { useEditorStore } from '../../store/editorStore'
 import { openInIde } from '../ide'
 import { openProjectViaDialog } from '../projects/actions'
+import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
 /**
  * File-related commands
@@ -80,6 +79,19 @@ export const navigationCommands: AppCommand[] = [
       context.toggleFrontmatterPanel()
     },
     isAvailable: () => true,
+  },
+  {
+    id: 'content-linker',
+    label: 'Content Linker',
+    description: 'Search content to open or insert a link',
+    icon: Link,
+    group: 'navigation',
+    execute: () => {
+      useContentLinkerStore.getState().open(null)
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.projectPath)
+    },
   },
 ]
 
@@ -348,73 +360,13 @@ export const ideCommands: AppCommand[] = [
 ]
 
 /**
- * Generate search result commands based on search query
- *
- * Note: This function only searches collections that have been loaded into the
- * TanStack Query cache. Collections are automatically loaded when visited via
- * the sidebar, following the established architecture patterns.
- */
-function generateSearchCommands(
-  context: CommandContext,
-  searchValue: string
-): AppCommand[] {
-  // Only show search results if user has typed at least 2 characters
-  if (!searchValue || searchValue.length < 2 || !context.projectPath) {
-    return []
-  }
-
-  const searchCommands: AppCommand[] = []
-
-  // Get all files from collections that are cached
-  // Uses directoryContents query key (replaces legacy collectionFiles)
-  context.collections.forEach(collection => {
-    const dirData = queryClient.getQueryData<DirectoryScanResult>(
-      queryKeys.directoryContents(context.projectPath!, collection.name, 'root')
-    )
-
-    if (dirData?.files) {
-      dirData.files.forEach(file => {
-        // Create searchable text from filename and title
-        const title = file.frontmatter?.title as string | undefined
-        const searchableText = title ? `${file.name} ${title}` : file.name
-
-        // Perform case-insensitive search
-        if (searchableText.toLowerCase().includes(searchValue.toLowerCase())) {
-          searchCommands.push({
-            id: `search-file-${file.id}`,
-            label: title || file.name,
-            description: `${collection.name}/${file.name}.${file.extension}`,
-            icon: FileText,
-            group: 'search',
-            execute: () => {
-              // Open the file using the editor store
-              const { openFile } = useEditorStore.getState()
-              openFile(file)
-            },
-            isAvailable: () => true,
-          })
-        }
-      })
-    }
-  })
-
-  // Limit to top 10 results for performance
-  return searchCommands.slice(0, 10)
-}
-
-/**
  * Get all available commands based on current context
  */
-export function getAllCommands(
-  context: CommandContext,
-  searchValue = ''
-): AppCommand[] {
+export function getAllCommands(context: CommandContext): AppCommand[] {
   const collectionCommands = generateCollectionCommands(context.collections)
-  const searchCommands = generateSearchCommands(context, searchValue)
   const highlightCommands = getHighlightCommands(context)
 
   return [
-    ...searchCommands, // Search results first when searching
     ...fileCommands,
     ...navigationCommands,
     ...projectCommands,

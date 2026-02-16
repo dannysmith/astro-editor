@@ -711,6 +711,88 @@ pub async fn count_collection_files_recursive(collection_path: String) -> Result
     count_files_recursive(&path)
 }
 
+/// Scan all markdown/mdx files recursively in a collection directory
+#[tauri::command]
+#[specta::specta]
+pub async fn scan_collection_files_recursive(
+    collection_path: String,
+    collection_name: String,
+) -> Result<Vec<FileEntry>, String> {
+    let path = PathBuf::from(&collection_path);
+    let collection_root = path.clone();
+
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    if !path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path.display()));
+    }
+
+    fn collect_files_recursive(
+        dir_path: &Path,
+        collection_name: &str,
+        collection_root: &Path,
+    ) -> Result<Vec<FileEntry>, String> {
+        let mut files = Vec::new();
+
+        for entry in
+            std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {e}"))?
+        {
+            let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+            let path = entry.path();
+
+            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            // Skip hidden files/directories (starting with . or _)
+            if file_name.starts_with('.') || file_name.starts_with('_') {
+                continue;
+            }
+
+            // Skip symbolic links
+            let metadata = entry
+                .metadata()
+                .map_err(|e| format!("Failed to read metadata: {e}"))?;
+
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+
+            if path.is_dir() {
+                files.extend(collect_files_recursive(
+                    &path,
+                    collection_name,
+                    collection_root,
+                )?);
+            } else if path.is_file() {
+                if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+                    if matches!(extension, "md" | "mdx") {
+                        let mut file_entry = FileEntry::new(
+                            path.clone(),
+                            collection_name.to_string(),
+                            collection_root.to_path_buf(),
+                        );
+
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            if let Ok(parsed) =
+                                crate::commands::files::parse_frontmatter_internal(&content)
+                            {
+                                file_entry = file_entry.with_frontmatter(parsed.frontmatter);
+                            }
+                        }
+
+                        files.push(file_entry);
+                    }
+                }
+            }
+        }
+
+        Ok(files)
+    }
+
+    collect_files_recursive(&path, &collection_name, &collection_root)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

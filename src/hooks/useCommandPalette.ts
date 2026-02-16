@@ -9,7 +9,7 @@ import { focusEditorDelayed } from '../lib/focus-utils'
 /**
  * Hook for managing command palette state and commands
  */
-export function useCommandPalette(searchValue = '') {
+export function useCommandPalette() {
   const [open, setOpen] = useState(false)
   const context = useCommandContext()
   // Use selector syntax for consistency
@@ -52,10 +52,8 @@ export function useCommandPalette(searchValue = '') {
   )
 
   // Get all available commands based on current context
-  // Optimize dependencies to prevent unnecessary recalculations that could disrupt navigation
-  // Note: We deliberately exclude searchValue from dependencies to prevent disrupting navigation
-  const baseCommands = useMemo(
-    () => getAllCommands(context, ''), // Pass empty string to get base commands only
+  const commands = useMemo(
+    () => getAllCommands(context),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       context.currentFile?.id,
@@ -71,27 +69,6 @@ export function useCommandPalette(searchValue = '') {
     ]
   )
 
-  // Generate search commands separately to avoid disrupting navigation
-  const searchCommands = useMemo(
-    () => {
-      if (!searchValue || searchValue.length < 2 || !context.projectPath) {
-        return []
-      }
-      // For search commands, we only need the collections and projectPath from context
-      return getAllCommands(context, searchValue).filter(
-        cmd => cmd.group === 'search'
-      )
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchValue, context.projectPath, context.collections.length]
-  )
-
-  // Combine base commands with search commands
-  const commands = useMemo(
-    () => [...searchCommands, ...baseCommands],
-    [searchCommands, baseCommands]
-  )
-
   // Group commands by category
   const commandGroups = useMemo((): CommandGroup[] => {
     const groups: Record<string, AppCommand[]> = {}
@@ -105,7 +82,6 @@ export function useCommandPalette(searchValue = '') {
 
     // Define group order and labels
     const groupOrder: Array<{ key: string; heading: string }> = [
-      { key: 'search', heading: 'Search Results' },
       { key: 'file', heading: 'File' },
       { key: 'navigation', heading: 'Navigation' },
       { key: 'project', heading: 'Project' },
