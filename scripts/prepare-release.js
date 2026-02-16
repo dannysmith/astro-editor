@@ -30,17 +30,48 @@ function askQuestion(question) {
   })
 }
 
-async function prepareRelease() {
-  const version = process.argv[2]
+function bumpPatch(version) {
+  const parts = version.split('.')
+  parts[2] = String(Number(parts[2]) + 1)
+  return parts.join('.')
+}
 
-  if (!version || !version.match(/^v?\d+\.\d+\.\d+$/)) {
-    console.error('❌ Usage: node scripts/prepare-release.js v1.0.0')
-    console.error('   or: pnpm run prepare-release v1.0.0')
+async function resolveVersion() {
+  const arg = process.argv[2]
+
+  // If a valid version was passed as argument, use it directly
+  if (arg && arg.match(/^v?\d+\.\d+\.\d+$/)) {
+    const clean = arg.replace('v', '')
+    return clean
+  }
+
+  if (arg) {
+    console.error(`❌ Invalid version format: ${arg}`)
+    console.error('   Expected: v1.0.0 or 1.0.0')
     process.exit(1)
   }
 
-  const cleanVersion = version.replace('v', '')
-  const tagVersion = version.startsWith('v') ? version : `v${version}`
+  // Auto-detect from package.json and propose patch bump
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+  const current = pkg.version
+  const proposed = bumpPatch(current)
+
+  const answer = await askQuestion(
+    `📦 Current version: ${current}\n❓ Release version? (${proposed}): `
+  )
+
+  const chosen = answer || proposed
+  if (!chosen.match(/^\d+\.\d+\.\d+$/)) {
+    console.error(`❌ Invalid version format: ${chosen}`)
+    process.exit(1)
+  }
+
+  return chosen
+}
+
+async function prepareRelease() {
+  const cleanVersion = await resolveVersion()
+  const tagVersion = `v${cleanVersion}`
 
   console.log(`🚀 Preparing release ${tagVersion}...\n`)
 
@@ -128,7 +159,7 @@ async function prepareRelease() {
     console.log('\n📋 Git commands to execute:')
     console.log(`   git add .`)
     console.log(`   git commit -S -m "chore: release ${tagVersion}"`)
-    console.log(`   git tag ${tagVersion}`)
+    console.log(`   git tag -m "Release ${tagVersion}" ${tagVersion}`)
     console.log(`   git push origin main --tags`)
 
     console.log('\n🚀 After pushing:')
@@ -152,7 +183,7 @@ async function prepareRelease() {
       exec(`git commit -S -m "chore: release ${tagVersion}"`)
 
       console.log('🏷️  Creating tag...')
-      exec(`git tag ${tagVersion}`)
+      exec(`git tag -m "Release ${tagVersion}" ${tagVersion}`)
 
       console.log('📤 Pushing to remote...')
       exec('git push origin main --tags')
