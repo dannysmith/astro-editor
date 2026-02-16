@@ -14,6 +14,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
+import { resolveTitle } from '../../lib/content-linker'
 import { commands, type FileEntry } from '@/types'
 
 /**
@@ -50,17 +51,18 @@ export function ContentLinkerDialog() {
     let cancelled = false
 
     const fetchAll = async () => {
-      const files: FileEntry[] = []
-
-      for (const collection of collections) {
-        const result = await commands.scanCollectionFilesRecursive(
-          collection.path,
-          collection.name
+      const results = await Promise.all(
+        collections.map(collection =>
+          commands.scanCollectionFilesRecursive(
+            collection.path,
+            collection.name
+          )
         )
-        if (result.status === 'ok') {
-          files.push(...result.data)
-        }
-      }
+      )
+
+      const files = results.flatMap(result =>
+        result.status === 'ok' ? result.data : []
+      )
 
       if (!cancelled) {
         setAllFiles(files)
@@ -168,7 +170,7 @@ export function ContentLinkerDialog() {
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
               {allFiles.map(file => {
-                const title = resolveFileTitle(file)
+                const title = resolveTitle(file)
                 const value = buildItemValue(file)
 
                 return (
@@ -223,15 +225,7 @@ export function ContentLinkerDialog() {
   )
 }
 
-function resolveFileTitle(file: FileEntry): string {
-  if (file.frontmatter?.title) {
-    const val = file.frontmatter.title
-    if (typeof val === 'string' && val.length > 0) return val
-  }
-  return file.name
-}
-
 function buildItemValue(file: FileEntry): string {
-  const title = resolveFileTitle(file)
+  const title = resolveTitle(file)
   return `${file.collection}:${file.id}:${title}:${file.name}`
 }

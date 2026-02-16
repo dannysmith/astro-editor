@@ -3,4 +3,5 @@ export {
   resolveSlug,
   resolveUrlPattern,
   buildContentLink,
+  resolveTitle,
 } from './link-builder'

@@ -88,7 +88,7 @@ export function buildContentLink(
 /**
  * Resolve the display title for a file entry
  */
-function resolveTitle(file: FileEntry, titleField?: string): string {
+export function resolveTitle(file: FileEntry, titleField?: string): string {
   if (titleField && file.frontmatter?.[titleField]) {
     const val = file.frontmatter[titleField]
     if (typeof val === 'string' && val.length > 0) return val
