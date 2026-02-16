@@ -61,7 +61,13 @@ export const useComponentBuilderStore = create<
     })
   },
 
-  close: () => set({ ...initialState }), // Fully reset on close
+  close: () => {
+    const { editorView } = get()
+    set({ ...initialState })
+    if (editorView) {
+      setTimeout(() => editorView.focus(), 100)
+    }
+  },
 
   selectComponent: component => {
     const requiredProps = new Set(
@@ -106,12 +112,7 @@ export const useComponentBuilderStore = create<
         clientDirective
       )
       insertSnippet(editorView, snippetString)
-      get().close() // Close and reset after insertion
-
-      // Focus the editor after a short delay to ensure dialog has closed
-      setTimeout(() => {
-        editorView.focus()
-      }, 100)
+      get().close()
     })()
   },
 

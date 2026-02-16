@@ -38,7 +38,13 @@ export const useContentLinkerStore = create<
     })
   },
 
-  close: () => set({ ...initialState }),
+  close: () => {
+    const { editorView } = get()
+    set({ ...initialState })
+    if (editorView) {
+      setTimeout(() => editorView.focus(), 100)
+    }
+  },
 
   insertLink: (targetFile, sourceFile, urlPattern, titleField) => {
     const { editorView } = get()
@@ -58,9 +64,5 @@ export const useContentLinkerStore = create<
     })
 
     get().close()
-
-    setTimeout(() => {
-      editorView.focus()
-    }, 100)
   },
 }))
