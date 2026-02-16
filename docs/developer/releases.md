@@ -1,207 +1,174 @@
 # Release Process Guide
 
-This document explains how to create releases for Astro Editor using the automated GitHub Actions workflow.
+This document explains how to create releases for Astro Editor and how the release infrastructure works.
 
-## Release Process
+## Creating a Release
 
-### Method 1: Command Line
-
-**Step 1: Prepare Release**
+### Step 1: Prepare the Release
 
 ```bash
 # Ensure you're on main branch and up to date
 git checkout main
 git pull origin main
 
-# Verify everything works
-pnpm run check:all
+# Run the prepare-release script
+pnpm run prepare-release
 ```
 
-**Step 2: Update Version Numbers**
+The script will:
+
+1. Read the current version from `package.json`
+2. Propose a patch bump (e.g., `1.0.8` → `1.0.9`)
+3. Prompt for confirmation — press Enter to accept, or type a different version
+4. Run `check:all` to verify everything passes
+5. Update version in `package.json`, `Cargo.toml`, and `tauri.conf.json`
+6. Run `pnpm install` to update the lockfile
+7. Run a final `cargo check`
+8. Optionally execute the git commands for you (commit, tag, push)
+
+You can also pass a version directly to skip the prompt:
 
 ```bash
-# Update package.json version (example: 0.1.0 → 0.1.1)
-# Update src-tauri/Cargo.toml version to match
-# You can do this manually or wait for the automation script
+pnpm run prepare-release v2.0.0
 ```
 
-**Step 3: Create and Push Tag**
+### Step 2: Publish the Draft Release
 
-```bash
-# Commit version changes first
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-git commit -m "chore: bump version to 0.1.1"
+After pushing the tag, the build workflow runs automatically:
 
-# Create and push tag (this triggers the release workflow)
-git tag v0.1.1
-git push origin main --tags
-```
+1. Go to **GitHub → Actions** and watch the "Release Astro Editor" workflow
+2. Once complete, go to **GitHub → Releases** — a draft release will be waiting
+3. **Edit the draft** — write release notes describing the changes
+4. Click **Publish release**
 
-### Method 2: GitHub Web Interface
+Publishing the release triggers two things:
+- The updater (`latest.json`) becomes available to existing users
+- The `publish-website-artifacts` workflow copies installers to the website
 
-**Step 1: Go to Releases**
+## Workflow Architecture
 
-- Navigate to your GitHub repository
-- Click "Releases" in the right sidebar
-- Click "Create a new release"
+### `release.yml` — Build & Draft
 
-**Step 2: Create Tag**
+Triggered by tag push (`v*`). Builds all platforms (macOS universal, Windows MSI, Linux AppImage), creates a draft GitHub Release with updater JSON (`latest.json`) attached.
 
-- Click "Choose a tag" dropdown
-- Type new tag name (e.g., `v0.1.1`)
-- Click "Create new tag: v0.1.1 on publish"
+Does **not** update the website — that happens only after you publish the draft.
 
-**Step 3: Fill Release Info**
+### `publish-website-artifacts.yml` — Website Update
 
-- Release title: `Astro Editor v0.1.1`
-- Description: Brief summary of changes
-- Click "Publish release"
+Triggered when a release is **published** (not drafted). Downloads the release assets (DMG, MSI, AppImage) via `gh release download`, copies them to `website/` with `*-latest.*` naming, and commits to `main`.
 
-## What Happens After Tagging
+This ensures the website only serves installers from published releases, not drafts.
 
-### Automatic Workflow Steps
+### `deploy-website.yml` — Website Deployment
 
-1. **Workflow Triggers** - GitHub Actions starts when tag is pushed
-2. **Create Draft Release** - Initial release draft is created
-3. **Multi-Platform Builds** - Builds for macOS, Windows, and Linux simultaneously
-4. **Upload Assets** - All installers and updater files are attached
-5. **Publish Release** - Draft becomes public release automatically
+Triggered by changes to `website/**` on `main`. Deploys the website directory to GitHub Pages. This fires automatically after `publish-website-artifacts` commits the new installers.
 
-### Build Artifacts Created
-
-- `Astro Editor_0.1.1_universal.dmg` (macOS installer)
-- `Astro Editor_0.1.1_x64_en-US.msi` (Windows installer)
-- `astro-editor_0.1.1_amd64.deb` (Debian package)
-- `astro-editor_0.1.1_amd64.AppImage` (Linux AppImage)
-- `latest.json` (Auto-updater manifest)
-- `.sig` signature files for verification
-
-## Testing the Release System
-
-### Test 1: First Release
-
-1. **Create Initial Release**
-
-   ```bash
-   # Start with version 0.1.0
-   git tag v0.1.0
-   git push origin main --tags
-   ```
-
-2. **Monitor Workflow**
-   - Go to GitHub → Actions tab
-   - Watch "Release Astro Editor" workflow
-   - Should take 10-15 minutes to complete
-
-3. **Verify Release**
-   - Check GitHub → Releases
-   - Download and test one installer
-   - Confirm all expected files are present
-
-### Test 2: Auto-Update Testing
-
-1. **Install First Release**
-   - Download and install v0.1.0 from GitHub releases
-   - Run the application
-
-2. **Create Second Release**
-
-   ```bash
-   # Make a small change (e.g., update README)
-   echo "Test update" >> README.md
-   git add README.md
-   git commit -m "test: minor change for update testing"
-
-   # Update version to 0.1.1 in both package.json and Cargo.toml
-   # Then create new release
-   git tag v0.1.1
-   git push origin main --tags
-   ```
-
-3. **Test Auto-Update**
-   - Keep v0.1.0 app running
-   - Wait 5 seconds after v0.1.1 release is published
-   - Should see update notification dialog
-   - Test the update process
-
-## Branch Strategy
-
-### Current Setup: Trunk-Based Development
-
-- **Main Branch**: `main` - All development and releases happen here
-- **No Feature Branches**: Direct commits to main (suitable for single developer)
-- **Release Tags**: Created from main branch commits
-
-### Release Workflow
+### Flow Diagram
 
 ```
-main branch: ──●──●──●──●──●──●──●──
-                    ↑        ↑
-                 v0.1.0   v0.1.1
+Tag push (v1.0.9)
+  └─→ release.yml
+        └─→ Build all platforms
+        └─→ Create draft release with latest.json
+              │
+              ▼ (you manually publish the draft)
+              │
+              └─→ publish-website-artifacts.yml
+                    └─→ Download assets from release
+                    └─→ Copy to website/ folder
+                    └─→ Commit to main
+                          │
+                          └─→ deploy-website.yml (path trigger)
+                                └─→ Deploy to GitHub Pages
 ```
+
+## Auto-Update System
+
+### How Updates Reach Users
+
+The Tauri updater plugin checks for updates by fetching:
+
+```
+https://github.com/dannysmith/astro-editor/releases/latest/download/latest.json
+```
+
+This file is generated by `tauri-action` during the build and contains the download URL, version, and signature for each platform. It's attached to the GitHub Release as an asset.
+
+### Release Notes in the Update Dialog
+
+Release notes are **not** read from `latest.json`. The `notes` field in `latest.json` only contains the `releaseBody` template text from build time, not the hand-written notes you add before publishing.
+
+Instead, the app fetches release notes at runtime:
+
+```
+GitHub Release (published)
+  ├── latest.json ──→ version, download URL, signature (used by updater plugin)
+  └── GitHub API ──→ Rust command ──→ update store ──→ dialog (release notes)
+```
+
+The Rust command `fetch_release_notes` (`src-tauri/src/commands/updater.rs`) calls the GitHub Releases API, filters releases between the user's current version and the available version, and returns the combined markdown bodies. This handles jumped versions — if a user skips from v1.0.7 to v1.0.10, they see notes for v1.0.8, v1.0.9, and v1.0.10.
+
+### Update Dialog Behavior
+
+- **Automatic check**: Runs 5 seconds after launch. If an update is available and the user hasn't skipped that version, shows the update dialog.
+- **Manual check**: Triggered via the "Check for Updates" menu item. Always shows the dialog, even for skipped versions. Shows "Up to Date" if no update is available.
+- **Skip This Version**: Persists the skipped version to `localStorage`. The dialog won't show automatically for that version, but will show on manual check.
+- **Download progress**: After clicking "Update Now", the dialog shows a progress bar.
+- **Restart prompt**: After download completes, offers "Restart Now" or "Later".
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/App.tsx` | Update check logic (automatic + manual via menu event) |
+| `src/store/updateStore.ts` | Update state management (dialog mode, progress, skip tracking) |
+| `src/components/update-dialog/UpdateDialog.tsx` | Update dialog UI (all modes) |
+| `src-tauri/src/commands/updater.rs` | Rust command to fetch release notes from GitHub API |
+| `src-tauri/tauri.conf.json` → `plugins.updater` | Updater endpoint URL and public key |
+
+## Testing Auto-Updates
+
+1. Install a published release (e.g., v1.0.9)
+2. Create a new release (e.g., v1.0.10) with a trivial change
+3. Launch the installed app — after 5 seconds, the update dialog should appear
+4. Verify: release notes display, download progress works, restart applies the update
 
 ## Troubleshooting
 
-### Common Issues
-
 **Workflow doesn't trigger:**
-
-- Ensure tag starts with `v` (e.g., `v1.0.0`, not `1.0.0`)
-- Check that tag was pushed: `git push origin --tags`
+- Ensure the tag starts with `v` (e.g., `v1.0.9`, not `1.0.9`)
+- Check that the tag was pushed: `git push origin --tags`
 
 **Build fails:**
-
-- Verify `TAURI_PRIVATE_KEY` secret is set correctly
+- Verify `TAURI_PRIVATE_KEY` and other secrets are set in repo settings
 - Check that all tests pass locally: `pnpm run check:all`
 
 **Auto-update doesn't work:**
+- Verify the updater endpoint URL in `tauri.conf.json` points to the correct repo
+- Verify the public key in `tauri.conf.json` matches the private key used for signing
+- Check app logs for error messages (Help → Show Log File, or Console.app)
+- Ensure the release is **published**, not still a draft — `latest.json` isn't accessible from draft releases
 
-- Confirm updater endpoint URLs match your GitHub repository
-- Verify public key in `tauri.conf.json` matches private key
-- Check console logs in the app for error messages
+**Release notes don't appear:**
+- The GitHub API is rate-limited to 60 requests/hour per IP (unauthenticated). This is fine for normal use but could be hit during testing.
+- Check that releases on GitHub have a non-empty body
+- The Rust command has a 5-second timeout — slow networks may cause it to fail (the dialog still works, just without notes)
 
 **Version mismatches:**
+- The `prepare-release` script updates all three files (`package.json`, `Cargo.toml`, `tauri.conf.json`) — use it to avoid mismatches
+- Tags should match the version: tag `v1.0.9` should correspond to version `1.0.9` in all config files
 
-- Ensure `package.json` and `src-tauri/Cargo.toml` versions match
-- Tags should match the version in `package.json`
+**Website not updating after publish:**
+- Check that `publish-website-artifacts.yml` ran successfully after publishing
+- Verify the commit appeared on `main` with the updated website files
+- Check that `deploy-website.yml` triggered from the path change
 
 ### Manual Cleanup
 
-**Delete a tag (if needed):**
-
 ```bash
-# Delete local tag
-git tag -d v0.1.0
+# Delete a tag locally and remotely
+git tag -d v1.0.9
+git push origin --delete v1.0.9
 
-# Delete remote tag
-git push origin --delete v0.1.0
+# Cancel a running workflow: GitHub → Actions → Select run → Cancel
 ```
-
-**Cancel a running workflow:**
-
-- Go to GitHub → Actions → Select workflow run → Cancel
-
-## Quick Reference Commands
-
-```bash
-# Check current version
-grep '"version"' package.json
-
-# List all tags
-git tag -l
-
-# Create and push tag
-git tag v0.1.1 && git push origin main --tags
-
-# Run all checks
-pnpm run check:all
-```
-
-## Next Steps
-
-Once this basic process is working, we can add:
-
-- [ ] Automated version bumping script
-- [ ] Changelog generation
-- [ ] Pre-release testing workflow
-- [ ] Code signing for distribution outside Mac App Store
