@@ -36,7 +36,7 @@ export function ContentLinkerDialog() {
   )
 
   const [allFiles, setAllFiles] = useState<FileEntry[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [hasFetched, setHasFetched] = useState(false)
 
   // Build a lookup from value string -> FileEntry
   const fileMapRef = useRef<Map<string, FileEntry>>(new Map())
@@ -50,7 +50,6 @@ export function ContentLinkerDialog() {
     let cancelled = false
 
     const fetchAll = async () => {
-      setIsLoading(true)
       const files: FileEntry[] = []
 
       for (const collection of collections) {
@@ -65,7 +64,7 @@ export function ContentLinkerDialog() {
 
       if (!cancelled) {
         setAllFiles(files)
-        setIsLoading(false)
+        setHasFetched(true)
 
         // Build value -> file map
         const map = new Map<string, FileEntry>()
@@ -150,6 +149,7 @@ export function ContentLinkerDialog() {
         if (!open) {
           close()
           setAllFiles([])
+          setHasFetched(false)
           fileMapRef.current = new Map()
         }
       }}
@@ -158,8 +158,8 @@ export function ContentLinkerDialog() {
       filter={customFilter}
     >
       <CommandInput placeholder="Search content..." onKeyDown={handleKeyDown} />
-      <CommandList>
-        {isLoading ? (
+      <CommandList className="min-h-[300px]">
+        {!hasFetched ? (
           <CommandEmpty>Loading content...</CommandEmpty>
         ) : allFiles.length === 0 ? (
           <CommandEmpty>No content items found.</CommandEmpty>
