@@ -125,23 +125,24 @@ When you're editing in the main editor, you can quickly preview images by holdin
 
 Astro Editor includes the following keyboard shortcuts.
 
-| Shortcut     | Action            | Description                                |
-| ------------ | ----------------- | ------------------------------------------ |
-| `Cmd+B`      | Bold              | Toggle bold formatting for selected text   |
-| `Cmd+I`      | Italic            | Toggle italic formatting for selected text |
-| `Cmd+K`      | Link              | Create or edit a link for selected text    |
-| `Cmd+]`      | Indent Right      | Indent current line right                  |
-| `Cmd+[`      | Indent Left       | Indent current line left                   |
-| `Cmd+Z`      | Undo              | Undo the last edit action                  |
-| `Cmd+Y`      | Redo              | Redo the last undo action                  |
-| `Ctrl+Cmd+F` | Toggle Focus Mode | Enable/disable focus writing mode          |
-| `Opt+Click`  | Open URL          | Open URL under mouse cursor in browser     |
-| `Opt+Hover`  | Image Preview     | Preview image at path/URL under cursor     |
-| `Opt+Cmd+1`  | Heading 1         | Convert current line to H1                 |
-| `Opt+Cmd+2`  | Heading 2         | Convert current line to H2                 |
-| `Opt+Cmd+3`  | Heading 3         | Convert current line to H3                 |
-| `Opt+Cmd+4`  | Heading 4         | Convert current line to H4                 |
-| `Opt+Cmd+0`  | Plain Text        | Convert current line to plain paragraph    |
+| Shortcut       | Action            | Description                                          |
+| -------------- | ----------------- | ---------------------------------------------------- |
+| `Cmd+B`        | Bold              | Toggle bold formatting for selected text             |
+| `Cmd+I`        | Italic            | Toggle italic formatting for selected text           |
+| `Cmd+K`        | Link              | Create or edit a link for selected text              |
+| `Cmd+Shift+K`  | Content Linker    | Search and insert a link to another content item     |
+| `Cmd+]`        | Indent Right      | Indent current line right                            |
+| `Cmd+[`        | Indent Left       | Indent current line left                             |
+| `Cmd+Z`        | Undo              | Undo the last edit action                            |
+| `Cmd+Y`        | Redo              | Redo the last undo action                            |
+| `Ctrl+Cmd+F`   | Toggle Focus Mode | Enable/disable focus writing mode                    |
+| `Opt+Click`    | Open URL          | Open URL under mouse cursor in browser               |
+| `Opt+Hover`    | Image Preview     | Preview image at path/URL under cursor               |
+| `Opt+Cmd+1`    | Heading 1         | Convert current line to H1                           |
+| `Opt+Cmd+2`    | Heading 2         | Convert current line to H2                           |
+| `Opt+Cmd+3`    | Heading 3         | Convert current line to H3                           |
+| `Opt+Cmd+4`    | Heading 4         | Convert current line to H4                           |
+| `Opt+Cmd+0`    | Plain Text        | Convert current line to plain paragraph              |
 
 ## The Frontmatter Sidebar
 
@@ -391,7 +392,7 @@ Articles / 2024 / January
 
 ![alt text](assets/command-palette.png)
 
-The command palette provides quick access to all major functions in Astro Editor. It's designed for keyboard-driven workflows and fast file switching.
+The command palette provides quick access to all major functions in Astro Editor. It's designed for keyboard-driven workflows.
 
 **Opening the Palette**: Press `Cmd+P` from anywhere in the application to open the command palette. Start typing immediately to search.
 
@@ -410,6 +411,7 @@ Commands are organized into logical groups that appear at the top of the search 
 **Navigation**
 
 - **Open Collection**: Jump to a different content collection
+- **Content Linker**: Open the Content Linker to search, open, or insert links to content items
 - **Toggle Sidebar**: Show/hide the left file browser
 - **Toggle Frontmatter Panel**: Show/hide the right frontmatter editor
 
@@ -418,16 +420,6 @@ Commands are organized into logical groups that appear at the top of the search 
 - **Open Project**: Select and open a different Astro project
 - **Reload Collections**: Refresh the project's content collections
 - **Open in IDE**: Open the current project, collection, or file in your configured IDE.
-
-### File Search
-
-The command palette doubles as a powerful file search tool. When you type text that doesn't match a command, it automatically searches across all files in your project:
-
-**Cross-Collection Search**: Finds files in any collection, not just the currently selected one.
-
-**Title and Filename Matching**: Searches both the frontmatter title and the actual filename.
-
-**Quick Switching**: Select any file from the search results to open it immediately, even if it's in a different collection.
 
 ### Opening in Your IDE
 
@@ -498,6 +490,67 @@ After insertion, you can tab through the various prop values to fill them in. Th
 **Subdirectory Support**: Components can be organized in subdirectories within your MDX components folder. Astro Editor scans recursively and shows all available components regardless of how deeply nested they are.
 
 _[Gif needed: Using the component builder]_
+
+## Content Linker
+
+The Content Linker lets you quickly search across all your content items and either open a file or insert a markdown link to it at your current cursor position. It's especially handy when you're writing and want to cross-reference another piece of content without leaving the editor.
+
+**Opening the Content Linker**: Press `Cmd+Shift+K` from the editor, or use the command palette (`Cmd+P`) and search for "Content Linker".
+
+**How it works:**
+
+1. A search dialog appears showing all content items across every collection in your project
+2. Type to filter by title or filename -- the search narrows results as you type
+3. Choose what to do with the selected item:
+   - **Press Enter** to open the file in the editor
+   - **Press Cmd+Enter** to insert a markdown link at your current cursor position
+
+The dialog footer shows these actions as a reminder: `Enter` to open, `Cmd+Enter` to insert a link.
+
+### How Links Are Formatted
+
+The format of inserted links depends on whether you've configured a URL pattern for the collection (see [URL Pattern Configuration](#url-pattern-configuration) below).
+
+**With a URL pattern configured:**
+
+Links use the pattern you've defined. For example, if your blog collection has a pattern of `/writing/{slug}`:
+
+```markdown
+[My Blog Post](/writing/my-blog-post)
+```
+
+The `{slug}` placeholder resolves to the content item's frontmatter `slug` field if one exists, or falls back to the item's ID (the filename without extension).
+
+**Without a URL pattern:**
+
+Links use a relative file path from the current file to the target:
+
+```markdown
+[My Blog Post](../blog/my-blog-post.md)
+```
+
+### URL Pattern Configuration
+
+You can configure a URL pattern for each collection in Collection Settings (see [Collection Settings](#collection-settings)). The pattern determines how the Content Linker formats links when you insert them.
+
+**Setting up a URL pattern:**
+
+1. Open Preferences (`Cmd+,`)
+2. Navigate to your collection's settings
+3. Find the **Content Links** section
+4. Enter a pattern in the **Link URL Pattern** field (e.g., `/blog/{slug}`)
+
+The `{slug}` placeholder is replaced with the content item's slug when a link is inserted. If the item has a `slug` field in its frontmatter, that value is used. Otherwise, the item's ID (filename without extension) is used.
+
+**Examples:**
+
+| Pattern           | Slug / ID      | Resulting Link Path    |
+| ----------------- | -------------- | ---------------------- |
+| `/blog/{slug}`    | `my-first-post`| `/blog/my-first-post`  |
+| `/writing/{slug}` | `hello-world`  | `/writing/hello-world` |
+| `/docs/{slug}`    | `getting-started` | `/docs/getting-started` |
+
+If you leave the URL pattern empty, the Content Linker falls back to relative file paths.
 
 ## Preferences & Configuration
 
@@ -582,6 +635,10 @@ You can configure settings for individual collections, allowing different collec
   - Can be configured at project level (applies to all collections) or per collection (overrides project setting)
   - Useful when different collections have different portability requirements
 
+**Content Links** (per collection):
+
+- **Link URL Pattern**: Define the URL pattern used when inserting links via the [Content Linker](#content-linker). Enter a pattern like `/blog/{slug}` where `{slug}` is replaced with the content item's slug or ID. When set, the Content Linker uses this pattern to create clean URLs (e.g., `[My Post](/blog/my-post)`). When left empty, links use relative file paths instead.
+
 **Frontmatter Field Mappings** (per collection):
 
 - **Title Field**: Which field to use for file titles in sidebar (e.g., `title` or `heading`)
@@ -656,16 +713,17 @@ Astro Editor automatically logs detailed information to help diagnose setup prob
 
 These work anywhere in the application
 
-| Shortcut | Action                   | Description                                             |
-| -------- | ------------------------ | ------------------------------------------------------- |
-| `Cmd+S`  | Save File                | Save the currently open file                            |
-| `Cmd+N`  | New File                 | Create a new file in the selected collection            |
-| `Cmd+W`  | Close File               | Close the currently open file                           |
-| `Cmd+P`  | Command Palette          | Open the command palette to search and execute commands |
-| `Cmd+,`  | Preferences              | Open application preferences                            |
-| `Cmd+0`  | Focus Editor             | Focus the main editor from anywhere in the app          |
-| `Cmd+1`  | Toggle Sidebar           | Show/hide the left sidebar (file browser)               |
-| `Cmd+2`  | Toggle Frontmatter Panel | Show/hide the right sidebar (frontmatter editor)        |
+| Shortcut      | Action                   | Description                                             |
+| ------------- | ------------------------ | ------------------------------------------------------- |
+| `Cmd+S`       | Save File                | Save the currently open file                            |
+| `Cmd+N`       | New File                 | Create a new file in the selected collection            |
+| `Cmd+W`       | Close File               | Close the currently open file                           |
+| `Cmd+P`       | Command Palette          | Open the command palette to search and execute commands |
+| `Cmd+Shift+K` | Content Linker           | Search content items, open files or insert links        |
+| `Cmd+,`       | Preferences              | Open application preferences                            |
+| `Cmd+0`       | Focus Editor             | Focus the main editor from anywhere in the app          |
+| `Cmd+1`       | Toggle Sidebar           | Show/hide the left sidebar (file browser)               |
+| `Cmd+2`       | Toggle Frontmatter Panel | Show/hide the right sidebar (frontmatter editor)        |
 
 ### Component Builder Keyboard Shortcuts
 
@@ -676,3 +734,12 @@ When the Component Builder dialog is open:
 | `Backspace` | Go Back          | Return to component selection (when in configuration step) |
 | `Cmd+A`     | Toggle All Props | Select/deselect all optional component properties          |
 | `Cmd+Enter` | Insert Component | Insert the configured component into the editor            |
+
+### Content Linker Keyboard Shortcuts
+
+When the Content Linker dialog is open:
+
+| Shortcut    | Action      | Description                                           |
+| ----------- | ----------- | ----------------------------------------------------- |
+| `Enter`     | Open File   | Open the selected content item in the editor          |
+| `Cmd+Enter` | Insert Link | Insert a markdown link to the selected item at cursor |
