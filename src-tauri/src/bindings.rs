@@ -66,5 +66,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         crate::commands::mdx_components::scan_mdx_components,
         // clipboard.rs commands
         crate::commands::clipboard::copy_text_to_clipboard,
+        // updater.rs commands
+        crate::commands::updater::fetch_release_notes,
     ])
 }

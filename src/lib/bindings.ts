@@ -389,6 +389,19 @@ async copyTextToClipboard(text: string) : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Fetch release notes from GitHub Releases API for all versions between
+ * current_version (exclusive) and new_version (inclusive).
+ * Returns combined markdown with version headers in reverse chronological order.
+ */
+async fetchReleaseNotes(currentVersion: string, newVersion: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("fetch_release_notes", { currentVersion, newVersion }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
