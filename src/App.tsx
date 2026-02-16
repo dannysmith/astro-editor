@@ -6,9 +6,39 @@ import { info, error } from '@tauri-apps/plugin-log'
 import { listen } from '@tauri-apps/api/event'
 import { commands } from '@/lib/bindings'
 import { useEffect } from 'react'
+import { UpdateDialog } from '@/components/update-dialog'
+import { useUpdateStore } from '@/store/updateStore'
 import './App.css'
 
 function App() {
+  // TODO: REMOVE — temporary test to show update dialog with real release notes
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const store = useUpdateStore.getState()
+      // Pretend we're on v1.0.0 and latest is current version
+      const fakeCurrentVersion = '1.0.0'
+      const fakeNewVersion = '1.0.8'
+
+      store.setAvailable(null as never, fakeNewVersion, fakeCurrentVersion)
+
+      // Fetch real release notes from GitHub
+      try {
+        const result = await commands.fetchReleaseNotes(
+          fakeCurrentVersion,
+          fakeNewVersion
+        )
+        if (result.status === 'ok') {
+          store.setReleaseNotes(result.data)
+        } else {
+          store.setReleaseNotesError()
+        }
+      } catch {
+        store.setReleaseNotesError()
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
+
   useEffect(() => {
     const checkForUpdates = async (): Promise<boolean> => {
       try {
@@ -99,6 +129,7 @@ function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="astro-editor-theme">
       <Layout />
+      <UpdateDialog />
     </ThemeProvider>
   )
 }

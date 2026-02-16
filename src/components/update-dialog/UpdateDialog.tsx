@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { CheckCircle2Icon, AlertCircleIcon, DownloadIcon } from 'lucide-react'
+import './release-notes.css'
 
 function ProgressBar({ value }: { value: number }) {
   return (
@@ -58,7 +59,7 @@ function ReleaseNotesArea() {
 
   return (
     <div
-      className="prose prose-sm dark:prose-invert max-h-[300px] overflow-y-auto rounded-md border p-4"
+      className="release-notes max-h-[300px] overflow-y-auto rounded-md border p-4"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -129,7 +130,7 @@ function AvailableContent() {
         </DialogDescription>
       </DialogHeader>
       <ReleaseNotesArea />
-      <DialogFooter className="gap-2 sm:gap-0">
+      <DialogFooter className="gap-2">
         <Button variant="ghost" onClick={closeDialog}>
           Remind Me Later
         </Button>

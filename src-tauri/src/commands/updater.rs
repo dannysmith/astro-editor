@@ -82,15 +82,10 @@ pub async fn fetch_release_notes(
         return Ok(String::new());
     }
 
-    // If there's only one release, return its body without an extra header
-    if relevant.len() == 1 {
-        return Ok(relevant.into_iter().next().unwrap().2);
-    }
-
-    // Concatenate with version headers
+    // Concatenate release bodies separated by horizontal rules
     let combined = relevant
         .into_iter()
-        .map(|(_, tag, body)| format!("## {tag}\n\n{body}"))
+        .map(|(_, _, body)| body)
         .collect::<Vec<_>>()
         .join("\n\n---\n\n");
 
