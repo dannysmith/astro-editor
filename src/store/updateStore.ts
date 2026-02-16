@@ -76,6 +76,7 @@ export const useUpdateStore = create<UpdateState>(set => ({
   closeDialog: () =>
     set({
       dialogOpen: false,
+      dialogMode: 'checking',
       releaseNotes: null,
       releaseNotesLoading: false,
       releaseNotesError: false,

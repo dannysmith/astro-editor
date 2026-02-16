@@ -13,7 +13,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Download release assets
         run: |
@@ -22,7 +21,13 @@ jobs:
             --pattern "*.dmg" \
             --pattern "*.msi" \
             --pattern "*.AppImage" \
-            --dir /tmp/artifacts || true
+            --dir /tmp/artifacts
+
+          if [ -z "$(ls -A /tmp/artifacts)" ]; then
+            echo "::error::No artifacts downloaded from release ${{ github.event.release.tag_name }}"
+            exit 1
+          fi
+
           echo "Downloaded artifacts:"
           ls -la /tmp/artifacts/
         env:
@@ -30,6 +35,8 @@ jobs:
 
       - name: Copy artifacts to website folder
         run: |
+          mkdir -p website
+
           # Copy macOS DMG
           DMG_FILE=$(find /tmp/artifacts -name "*.dmg" | head -1)
           if [ -n "$DMG_FILE" ]; then
@@ -58,6 +65,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage
+          git add --ignore-missing website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage
           git commit -m "chore: update installers for ${{ github.event.release.tag_name }}" || echo "No changes to commit"
+          git pull --rebase origin main
           git push origin main

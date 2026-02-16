@@ -91,10 +91,12 @@ describe('updateStore', () => {
   })
 
   describe('closeDialog', () => {
-    it('closes dialog', () => {
-      useUpdateStore.setState({ dialogOpen: true })
+    it('closes dialog and resets mode', () => {
+      useUpdateStore.setState({ dialogOpen: true, dialogMode: 'error' })
       useUpdateStore.getState().closeDialog()
-      expect(useUpdateStore.getState().dialogOpen).toBe(false)
+      const state = useUpdateStore.getState()
+      expect(state.dialogOpen).toBe(false)
+      expect(state.dialogMode).toBe('checking')
     })
 
     it('resets release notes state', () => {

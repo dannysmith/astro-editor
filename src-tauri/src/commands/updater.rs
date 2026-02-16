@@ -22,11 +22,6 @@ fn parse_version(version: &str) -> Option<(u64, u64, u64)> {
     ))
 }
 
-/// Compare two version tuples. Returns Ordering.
-fn version_cmp(a: (u64, u64, u64), b: (u64, u64, u64)) -> std::cmp::Ordering {
-    a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2))
-}
-
 /// Filter and combine release notes from a list of GitHub releases.
 /// Returns bodies for versions between current (exclusive) and new (inclusive),
 /// sorted reverse chronologically and joined with horizontal rules.
@@ -41,10 +36,12 @@ fn filter_and_combine_releases(
         .filter_map(|r| {
             let v = parse_version(&r.tag_name)?;
             // Include versions: current < v <= new
-            if version_cmp(v, current) == std::cmp::Ordering::Greater
-                && version_cmp(v, new) != std::cmp::Ordering::Greater
-            {
-                Some((v, r.body.unwrap_or_default()))
+            if v > current && v <= new {
+                let body = r.body.unwrap_or_default();
+                if body.trim().is_empty() {
+                    return None;
+                }
+                Some((v, body))
             } else {
                 None
             }
@@ -52,7 +49,7 @@ fn filter_and_combine_releases(
         .collect();
 
     // Sort reverse chronologically (newest first)
-    relevant.sort_by(|a, b| version_cmp(b.0, a.0));
+    relevant.sort_by(|a, b| b.0.cmp(&a.0));
 
     relevant
         .into_iter()
@@ -82,7 +79,7 @@ pub async fn fetch_release_notes(
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     let releases: Vec<GitHubRelease> = client
-        .get("https://api.github.com/repos/dannysmith/astro-editor/releases")
+        .get("https://api.github.com/repos/dannysmith/astro-editor/releases?per_page=100")
         .send()
         .await
         .map_err(|e| format!("Failed to fetch releases: {e}"))?
@@ -96,7 +93,6 @@ pub async fn fetch_release_notes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::Ordering;
 
     // -- parse_version tests --
 
@@ -143,33 +139,6 @@ mod tests {
     #[test]
     fn parse_version_invalid_just_v() {
         assert_eq!(parse_version("v"), None);
-    }
-
-    // -- version_cmp tests --
-
-    #[test]
-    fn version_cmp_equal() {
-        assert_eq!(version_cmp((1, 0, 8), (1, 0, 8)), Ordering::Equal);
-    }
-
-    #[test]
-    fn version_cmp_patch_less() {
-        assert_eq!(version_cmp((1, 0, 7), (1, 0, 8)), Ordering::Less);
-    }
-
-    #[test]
-    fn version_cmp_patch_greater() {
-        assert_eq!(version_cmp((1, 0, 9), (1, 0, 8)), Ordering::Greater);
-    }
-
-    #[test]
-    fn version_cmp_minor_takes_precedence() {
-        assert_eq!(version_cmp((1, 1, 0), (1, 0, 9)), Ordering::Greater);
-    }
-
-    #[test]
-    fn version_cmp_major_takes_precedence() {
-        assert_eq!(version_cmp((2, 0, 0), (1, 9, 9)), Ordering::Greater);
     }
 
     // -- filter_and_combine_releases tests --
@@ -275,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn filter_handles_empty_body() {
+    fn filter_skips_empty_body() {
         let releases = vec![GitHubRelease {
             tag_name: "v1.0.8".to_string(),
             body: None,
@@ -284,5 +253,33 @@ mod tests {
         }];
         let result = filter_and_combine_releases(releases, (1, 0, 7), (1, 0, 8));
         assert_eq!(result, "");
+    }
+
+    #[test]
+    fn filter_skips_whitespace_only_body() {
+        let releases = vec![GitHubRelease {
+            tag_name: "v1.0.8".to_string(),
+            body: Some("  \n  ".to_string()),
+            draft: false,
+            prerelease: false,
+        }];
+        let result = filter_and_combine_releases(releases, (1, 0, 7), (1, 0, 8));
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn filter_no_separators_between_empty_bodies() {
+        let releases = vec![
+            make_release("v1.0.8", "Notes 1.0.8", false, false),
+            GitHubRelease {
+                tag_name: "v1.0.7".to_string(),
+                body: None,
+                draft: false,
+                prerelease: false,
+            },
+            make_release("v1.0.6", "Notes 1.0.6", false, false),
+        ];
+        let result = filter_and_combine_releases(releases, (1, 0, 5), (1, 0, 8));
+        assert_eq!(result, "Notes 1.0.8\n\n---\n\nNotes 1.0.6");
     }
 }

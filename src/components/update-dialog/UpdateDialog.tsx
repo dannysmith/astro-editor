@@ -55,6 +55,8 @@ function ReleaseNotesArea() {
     )
   }
 
+  // Safe to render unsanitized: content comes exclusively from GitHub Releases
+  // authored by repo maintainers. If the source ever changes, add DOMPurify.
   const html = marked.parse(notes, { async: false })
 
   return (
@@ -167,7 +169,12 @@ function ReadyContent() {
   const closeDialog = useUpdateStore(s => s.closeDialog)
 
   const handleRelaunch = async () => {
-    await relaunch()
+    try {
+      await relaunch()
+    } catch (err) {
+      void logError(`Relaunch failed: ${String(err)}`)
+      useUpdateStore.getState().setError(`Failed to restart: ${String(err)}`)
+    }
   }
 
   return (

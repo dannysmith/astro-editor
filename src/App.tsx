@@ -27,10 +27,8 @@ async function fetchAndSetReleaseNotes(
 }
 
 async function checkForUpdates(manual: boolean): Promise<void> {
-  const store = useUpdateStore.getState()
-
   if (manual) {
-    store.setChecking()
+    useUpdateStore.getState().setChecking()
   }
 
   try {
@@ -39,14 +37,19 @@ async function checkForUpdates(manual: boolean): Promise<void> {
     if (update) {
       await info(`Update available: ${update.version}`)
 
+      // Re-read store after await to get fresh skippedVersion
+      const { skippedVersion } = useUpdateStore.getState()
+
       // For automatic checks, skip if user has skipped this version
-      if (!manual && store.skippedVersion === update.version) {
+      if (!manual && skippedVersion === update.version) {
         await info(`Skipping version ${update.version} (user skipped)`)
         return
       }
 
       const currentVersion = update.currentVersion
-      store.setAvailable(update, update.version, currentVersion)
+      useUpdateStore
+        .getState()
+        .setAvailable(update, update.version, currentVersion)
 
       // Fetch release notes in the background
       void fetchAndSetReleaseNotes(currentVersion, update.version)
@@ -56,14 +59,14 @@ async function checkForUpdates(manual: boolean): Promise<void> {
       if (manual) {
         const result = await commands.getAppVersion()
         const version = result.status === 'ok' ? result.data : 'unknown'
-        store.setNoUpdate(version)
+        useUpdateStore.getState().setNoUpdate(version)
       }
     }
   } catch (err) {
     await error(`Update check failed: ${String(err)}`)
 
     if (manual) {
-      store.setError(`Update check failed: ${String(err)}`)
+      useUpdateStore.getState().setError(`Update check failed: ${String(err)}`)
     }
   }
 }
