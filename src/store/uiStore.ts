@@ -20,6 +20,8 @@ interface UIState {
   collectionViewState: Record<string, CollectionViewState>
 
   // Actions
+  setSidebarVisible: (visible: boolean) => void
+  setFrontmatterPanelVisible: (visible: boolean) => void
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
   toggleFocusMode: () => void
@@ -59,6 +61,14 @@ export const useUIStore = create<UIState>((set, get) => ({
   collectionViewState: {},
 
   // Actions
+  setSidebarVisible: (visible: boolean) => {
+    set({ sidebarVisible: visible })
+  },
+
+  setFrontmatterPanelVisible: (visible: boolean) => {
+    set({ frontmatterPanelVisible: visible })
+  },
+
   toggleSidebar: () => {
     set(state => ({
       sidebarVisible: !state.sidebarVisible,
