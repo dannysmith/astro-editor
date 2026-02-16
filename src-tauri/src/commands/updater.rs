@@ -198,7 +198,10 @@ mod tests {
             make_release("v1.0.7", "Notes 1.0.7", false, false),
         ];
         let result = filter_and_combine_releases(releases, (1, 0, 5), (1, 0, 8));
-        assert_eq!(result, "Notes 1.0.8\n\n---\n\nNotes 1.0.7\n\n---\n\nNotes 1.0.6");
+        assert_eq!(
+            result,
+            "Notes 1.0.8\n\n---\n\nNotes 1.0.7\n\n---\n\nNotes 1.0.6"
+        );
     }
 
     #[test]
