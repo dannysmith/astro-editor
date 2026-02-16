@@ -82,23 +82,19 @@ function CheckingContent() {
 function AvailableContent() {
   const version = useUpdateStore((s) => s.version)
   const currentVersion = useUpdateStore((s) => s.currentVersion)
-  const setDownloading = useUpdateStore((s) => s.setDownloading)
-  const setProgress = useUpdateStore((s) => s.setProgress)
-  const setReady = useUpdateStore((s) => s.setReady)
-  const setError = useUpdateStore((s) => s.setError)
   const skipVersion = useUpdateStore((s) => s.skipVersion)
   const closeDialog = useUpdateStore((s) => s.closeDialog)
 
   const handleUpdate = async () => {
-    const updateRef = useUpdateStore.getState().updateRef
-    if (!updateRef) return
+    const state = useUpdateStore.getState()
+    if (!state.updateRef) return
 
-    setDownloading()
+    state.setDownloading()
     try {
       let totalBytes = 0
       let downloadedBytes = 0
 
-      await updateRef.downloadAndInstall((event) => {
+      await state.updateRef.downloadAndInstall((event) => {
         switch (event.event) {
           case 'Started':
             totalBytes = event.data.contentLength ?? 0
@@ -106,7 +102,7 @@ function AvailableContent() {
             break
           case 'Progress':
             downloadedBytes += event.data.chunkLength
-            setProgress(downloadedBytes, totalBytes)
+            useUpdateStore.getState().setProgress(downloadedBytes, totalBytes)
             break
           case 'Finished':
             void info('Download complete')
@@ -114,10 +110,10 @@ function AvailableContent() {
         }
       })
 
-      setReady()
+      useUpdateStore.getState().setReady()
     } catch (err) {
       void logError(`Update failed: ${String(err)}`)
-      setError(`Download failed: ${String(err)}`)
+      useUpdateStore.getState().setError(`Download failed: ${String(err)}`)
     }
   }
 

@@ -393,7 +393,7 @@ async copyTextToClipboard(text: string) : Promise<Result<null, string>> {
 /**
  * Fetch release notes from GitHub Releases API for all versions between
  * current_version (exclusive) and new_version (inclusive).
- * Returns combined markdown with version headers in reverse chronological order.
+ * Returns combined markdown bodies in reverse chronological order.
  */
 async fetchReleaseNotes(currentVersion: string, newVersion: string) : Promise<Result<string, string>> {
     try {

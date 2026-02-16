@@ -31,7 +31,7 @@ fn version_cmp(a: (u64, u64, u64), b: (u64, u64, u64)) -> std::cmp::Ordering {
 
 /// Fetch release notes from GitHub Releases API for all versions between
 /// current_version (exclusive) and new_version (inclusive).
-/// Returns combined markdown with version headers in reverse chronological order.
+/// Returns combined markdown bodies in reverse chronological order.
 #[tauri::command]
 #[specta::specta]
 pub async fn fetch_release_notes(
@@ -68,7 +68,7 @@ pub async fn fetch_release_notes(
             if version_cmp(v, current) == std::cmp::Ordering::Greater
                 && version_cmp(v, new) != std::cmp::Ordering::Greater
             {
-                Some((v, r.tag_name, r.body.unwrap_or_default()))
+                Some((v, r.body.unwrap_or_default()))
             } else {
                 None
             }
@@ -85,7 +85,7 @@ pub async fn fetch_release_notes(
     // Concatenate release bodies separated by horizontal rules
     let combined = relevant
         .into_iter()
-        .map(|(_, _, body)| body)
+        .map(|(_, body)| body)
         .collect::<Vec<_>>()
         .join("\n\n---\n\n");
 
