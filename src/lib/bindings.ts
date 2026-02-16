@@ -285,6 +285,17 @@ async countCollectionFilesRecursive(collectionPath: string) : Promise<Result<num
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Scan all markdown/mdx files recursively in a collection directory
+ */
+async scanCollectionFilesRecursive(collectionPath: string, collectionName: string) : Promise<Result<FileEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("scan_collection_files_recursive", { collectionPath, collectionName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async startWatchingProject(projectPath: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("start_watching_project", { projectPath }) };

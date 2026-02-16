@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { EditorView } from '@codemirror/view'
 import { createExtensions } from '../../lib/editor/extensions'
+import type { KeymapHandlers } from '../../lib/editor/extensions/keymap'
 import {
   globalCommandRegistry,
   createEditorCommandRegistry,
@@ -15,13 +16,13 @@ export const useEditorSetup = (
   onSave: () => void,
   onFocus: () => void,
   onBlur: () => void,
-  componentBuilderHandler?: (view: EditorView) => boolean
+  keymapHandlers?: KeymapHandlers
 ) => {
   // Create extensions with current configuration
   const extensions = createExtensions({
     onFocus,
     onBlur,
-    componentBuilderHandler,
+    keymapHandlers,
   })
 
   // Set up editor commands when editor view is available

@@ -1,0 +1,260 @@
+import { useState, useEffect, useRef } from 'react'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from '../ui/command'
+import { Badge } from '../ui/badge'
+import { useContentLinkerStore } from '../../store/contentLinkerStore'
+import { useProjectStore } from '../../store/projectStore'
+import { useEditorStore } from '../../store/editorStore'
+import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
+import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
+import { resolveTitle } from '../../lib/content-linker'
+import { commands, type FileEntry, type Collection } from '@/types'
+import { usePlatform } from '../../hooks/usePlatform'
+
+const EMPTY_COLLECTIONS: Collection[] = []
+
+/**
+ * Content Linker Dialog
+ * Search all content items and either open or insert a markdown link
+ */
+export function ContentLinkerDialog() {
+  const isOpen = useContentLinkerStore(state => state.isOpen)
+  const close = useContentLinkerStore(state => state.close)
+  const insertLink = useContentLinkerStore(state => state.insertLink)
+
+  const projectPath = useProjectStore(state => state.projectPath)
+  const currentProjectSettings = useProjectStore(
+    state => state.currentProjectSettings
+  )
+
+  const { data: collections = EMPTY_COLLECTIONS } = useCollectionsQuery(
+    projectPath,
+    currentProjectSettings
+  )
+
+  const platform = usePlatform()
+  const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
+
+  const [allFiles, setAllFiles] = useState<FileEntry[]>([])
+  const [hasFetched, setHasFetched] = useState(false)
+
+  // Build a lookup from value string -> FileEntry
+  const fileMapRef = useRef<Map<string, FileEntry>>(new Map())
+
+  // Derive a stable primitive key from collections to avoid re-fetching
+  // when TanStack Query returns a new array reference with identical data
+  const collectionsKey = collections.map(c => c.name).join(',')
+
+  // Fetch all files recursively when dialog opens
+  useEffect(() => {
+    if (!isOpen || !projectPath || collections.length === 0) {
+      return
+    }
+
+    let cancelled = false
+
+    const fetchAll = async () => {
+      try {
+        const results = await Promise.all(
+          collections.map(collection =>
+            commands.scanCollectionFilesRecursive(
+              collection.path,
+              collection.name
+            )
+          )
+        )
+
+        const files = results.flatMap(result =>
+          result.status === 'ok' ? result.data : []
+        )
+
+        if (!cancelled) {
+          setAllFiles(files)
+
+          // Build value -> file map
+          const map = new Map<string, FileEntry>()
+          for (const file of files) {
+            map.set(buildItemValue(file), file)
+          }
+          fileMapRef.current = map
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch content files:', error)
+        if (!cancelled) {
+          setAllFiles([])
+        }
+      } finally {
+        if (!cancelled) {
+          setHasFetched(true)
+        }
+      }
+    }
+
+    void fetchAll()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, projectPath, collectionsKey])
+
+  // Get the currently highlighted item's value from the DOM.
+  // Uses cmdk's internal [cmdk-item][aria-selected] attributes —
+  // this is the recommended way to read selection state when cmdk
+  // doesn't expose it via a callback prop.
+  const getSelectedValue = (): string | null => {
+    const selected = document.querySelector('[cmdk-item][aria-selected="true"]')
+    return selected?.getAttribute('data-value') ?? null
+  }
+
+  const customFilter = (value: string, search: string) => {
+    const lower = search.toLowerCase()
+    // value is file.path — also search against title, collection, and file name
+    const file = fileMapRef.current.get(value)
+    if (file) {
+      const title = resolveTitle(file)
+      if (
+        title.toLowerCase().includes(lower) ||
+        file.collection.toLowerCase().includes(lower) ||
+        file.name.toLowerCase().includes(lower) ||
+        value.toLowerCase().includes(lower)
+      ) {
+        return 1
+      }
+    }
+    return 0
+  }
+
+  const handleSelect = (value: string) => {
+    const file = fileMapRef.current.get(value)
+    if (file) {
+      close()
+      useEditorStore.getState().openFile(file)
+    }
+  }
+
+  const handleInsertLink = () => {
+    const value = getSelectedValue()
+    if (!value) return
+
+    const file = fileMapRef.current.get(value)
+    if (!file) return
+
+    const currentFile = useEditorStore.getState().currentFile
+    if (!currentFile) return
+
+    // Get effective settings for the target collection
+    const settings = getCollectionSettings(
+      currentProjectSettings,
+      file.collection
+    )
+
+    insertLink(
+      file,
+      currentFile,
+      settings.urlPattern,
+      settings.frontmatterMappings.title
+    )
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      e.stopPropagation()
+      handleInsertLink()
+    }
+  }
+
+  return (
+    <CommandDialog
+      open={isOpen}
+      onOpenChange={open => {
+        if (!open) {
+          close()
+          setAllFiles([])
+          setHasFetched(false)
+          fileMapRef.current = new Map()
+        }
+      }}
+      title="Content Linker"
+      description="Search content to open or insert a link"
+      filter={customFilter}
+    >
+      <CommandInput placeholder="Search content..." onKeyDown={handleKeyDown} />
+      <CommandList className="min-h-[300px]">
+        {!hasFetched ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            Loading content...
+          </div>
+        ) : allFiles.length === 0 ? (
+          <CommandEmpty>No content items found.</CommandEmpty>
+        ) : (
+          <>
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup>
+              {allFiles.map(file => {
+                const title = resolveTitle(file)
+                const value = buildItemValue(file)
+
+                return (
+                  <CommandItem
+                    key={value}
+                    value={value}
+                    onSelect={() => handleSelect(value)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate">{title}</span>
+                        {title !== file.name && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {file.name}.{file.extension}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Badge variant="outline" className="text-xs">
+                          {file.collection}
+                        </Badge>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-mono"
+                        >
+                          .{file.extension}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </>
+        )}
+      </CommandList>
+
+      {/* Footer hint bar */}
+      <div className="border-t px-3 py-2 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex gap-3">
+          <span>
+            <CommandShortcut>↩</CommandShortcut> Open
+          </span>
+          <span>
+            <CommandShortcut>{modKey}↩</CommandShortcut> Insert link
+          </span>
+        </div>
+      </div>
+    </CommandDialog>
+  )
+}
+
+function buildItemValue(file: FileEntry): string {
+  return file.path
+}

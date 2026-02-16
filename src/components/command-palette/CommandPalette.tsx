@@ -15,16 +15,7 @@ import { useCommandPalette } from '../../hooks/useCommandPalette'
  * Provides quick access to application commands
  */
 export function CommandPalette() {
-  const [searchValue, setSearchValue] = React.useState('')
-  const { open, setOpen, commandGroups, executeCommand } =
-    useCommandPalette(searchValue)
-
-  // Reset search when palette closes
-  React.useEffect(() => {
-    if (!open) {
-      setSearchValue('')
-    }
-  }, [open])
+  const { open, setOpen, commandGroups, executeCommand } = useCommandPalette()
 
   // Custom filter function that only searches command labels
   const customFilter = React.useCallback((value: string, search: string) => {
@@ -47,11 +38,7 @@ export function CommandPalette() {
       filter={customFilter}
       loop
     >
-      <CommandInput
-        placeholder="Type a command or search..."
-        value={searchValue}
-        onValueChange={setSearchValue}
-      />
+      <CommandInput placeholder="Type a command..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 

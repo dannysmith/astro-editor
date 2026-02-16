@@ -89,7 +89,16 @@ export const usePreferences = () => {
               ] !== undefined
           )
         const hasDefaultFileType = c.settings.defaultFileType !== undefined
-        return hasPathOverrides || hasFrontmatterMappings || hasDefaultFileType
+        const hasUrlPattern = c.settings.urlPattern !== undefined
+        const hasAbsoluteAssetPaths =
+          c.settings.useAbsoluteAssetPaths !== undefined
+        return (
+          hasPathOverrides ||
+          hasFrontmatterMappings ||
+          hasDefaultFileType ||
+          hasUrlPattern ||
+          hasAbsoluteAssetPaths
+        )
       })
 
       return updateProjectSettings({

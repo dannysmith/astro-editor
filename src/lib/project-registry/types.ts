@@ -58,6 +58,8 @@ export interface CollectionSpecificSettings {
   defaultFileType?: 'md' | 'mdx'
   // Override to use absolute paths for images (collection-level override)
   useAbsoluteAssetPaths?: boolean
+  // URL pattern template for content links (e.g. "/writing/{slug}")
+  urlPattern?: string
 }
 
 export interface CollectionSettings {

@@ -33,6 +33,7 @@ export function getCollectionSettings(
     draft: string
   }
   useRelativeAssetPaths: boolean
+  urlPattern?: string
 } {
   // Handle null/undefined projectSettings
   if (!projectSettings) {
@@ -49,6 +50,7 @@ export function getCollectionSettings(
         draft: 'draft',
       },
       useRelativeAssetPaths: true,
+      urlPattern: undefined,
     }
   }
   // Find collection-specific settings
@@ -118,5 +120,6 @@ export function getCollectionSettings(
     pathOverrides: effectivePathOverrides,
     frontmatterMappings: effectiveFrontmatterMappings,
     useRelativeAssetPaths: !useAbsolutePaths, // Invert: absolute=false means relative=true
+    urlPattern: collectionSettings?.urlPattern,
   }
 }
