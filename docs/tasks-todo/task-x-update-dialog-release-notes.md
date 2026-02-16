@@ -17,7 +17,7 @@ Additionally, the release workflow has issues: draft releases trigger website ar
 
 1. Rework the release process so website artifacts are only updated when a release is published (not drafted)
 2. Improve the release script with auto-version detection
-3. Fetch release notes from the GitHub Releases API at runtime (not from `latest.json`)
+3. Fetch release notes from the GitHub Releases API via a Rust command (not from `latest.json`)
 4. Replace browser dialogs with a custom shadcn/ui Dialog rendering markdown release notes
 5. Support jumped versions by fetching all intermediate release notes
 
@@ -36,8 +36,8 @@ Additionally, the release workflow has issues: draft releases trigger website ar
 ### Jumped Versions
 
 - When a user is multiple versions behind, show concatenated release notes for all intermediate versions (in reverse chronological order with version headers)
-- Fetch from GitHub Releases API: `GET https://api.github.com/repos/dannysmith/astro-editor/releases`
-- Filter releases between current version and latest version
+- Fetched via a Rust Tauri command that calls the GitHub Releases API
+- Filter releases between current version and latest version; exclude pre-releases and drafts
 - If the API call fails (e.g., no network), fall back gracefully — show the update dialog without release notes, or with a "Could not load release notes" message
 
 ### Download Progress
@@ -55,6 +55,10 @@ Additionally, the release workflow has issues: draft releases trigger website ar
 
 - When manually triggered and no update exists, show a simple dialog (or toast) with current version: "You're on the latest version (v1.0.8)"
 - This replaces the current `alert()` call
+
+### Telemetry
+
+The app currently sends a single telemetry event (`update_check`) on startup via Rust (`src-tauri/src/telemetry.rs`), posted to `https://updateserver.dny.li/event`. This is completely independent of the frontend update check — it fires from `lib.rs` setup. **This must continue working unchanged.** The frontend refactoring does not touch this code path, but verify it still fires correctly after changes.
 
 ## Implementation Plan
 
@@ -74,7 +78,7 @@ Currently the script requires `pnpm run prepare-release v1.0.9`. Improve it to:
 2. Propose a patch bump (e.g., `1.0.8` → `1.0.9`)
 3. Prompt: `Release version? (1.0.9):` — pressing Enter accepts the default, or type a different version
 4. Version argument still accepted as override: `pnpm run prepare-release v2.0.0` skips the prompt
-5. Remove the tag editor invocation — use `-m "chore: release vX.Y.Z"` directly
+5. Fix the `git tag` command: add `-m "Release vX.Y.Z"` to prevent the editor opening. The current `git tag ${tagVersion}` creates a lightweight tag, but the global git config has `tag.forceSignAnnotated = true`, which forces it into an annotated tag and opens `$EDITOR` for the tag message. Adding `-m` provides the message inline.
 
 **Modified file:** `scripts/prepare-release.js`
 
@@ -106,9 +110,36 @@ Currently the script requires `pnpm run prepare-release v1.0.9`. Improve it to:
 pnpm add marked
 ```
 
-`marked` is lightweight (~40KB), fast, and outputs HTML strings. Use `DOMPurify` is not needed since the markdown comes from our own GitHub Releases (trusted source). Render with `dangerouslySetInnerHTML` in a styled container.
+`marked` is lightweight (~40KB), fast, and outputs HTML strings. DOMPurify is not needed since the markdown comes from our own GitHub Releases (trusted source). Render with `dangerouslySetInnerHTML` in a styled container.
 
-### Phase 2: Create Update Store
+### Phase 2: Rust Command for Fetching Release Notes
+
+**New Rust command:** `fetch_release_notes(current_version: String, new_version: String) -> Result<String, String>`
+
+Add to `src-tauri/src/commands/` (new file or existing module). Uses `reqwest` (already a dependency, used by `telemetry.rs`) to fetch from the GitHub Releases API:
+
+```
+GET https://api.github.com/repos/dannysmith/astro-editor/releases
+```
+
+The command:
+1. Fetches all releases (public API, no auth needed)
+2. Filters out drafts and pre-releases
+3. Filters to releases between `current_version` and `new_version` (inclusive of new, exclusive of current) using semver comparison
+4. Sorts reverse chronologically
+5. Concatenates bodies with version headers into a single markdown string
+6. Returns the combined markdown
+
+**Why Rust instead of JS `fetch()`:** All outbound HTTP in the app is currently Rust-side (updater plugin, telemetry). Keeping release notes fetching in Rust avoids adding `https://api.github.com` to the CSP `connect-src`, keeping the CSP clean. The `reqwest` dependency is already available.
+
+Register in `src-tauri/src/bindings.rs` and expose via tauri-specta. Frontend calls it as `commands.fetchReleaseNotes(currentVersion, newVersion)`.
+
+**GitHub API notes:**
+- Unauthenticated rate limit: 60 requests/hour per IP. Fine for a desktop app.
+- Cache the result for the session — don't re-fetch on every dialog open.
+- 5-second timeout (same as telemetry) to avoid blocking if network is slow.
+
+### Phase 3: Create Update Store
 
 **New file:** `src/store/updateStore.ts`
 
@@ -124,7 +155,11 @@ interface UpdateState {
   currentVersion: string | null
   errorMessage: string | null
 
-  // Release notes (fetched from GitHub API)
+  // The Update object from check() — needed for downloadAndInstall()
+  // Stored as a non-reactive ref (not serializable, has methods)
+  updateRef: Update | null
+
+  // Release notes (fetched via Rust command from GitHub API)
   releaseNotes: string | null // Combined markdown for all intermediate versions
   releaseNotesLoading: boolean
   releaseNotesError: boolean
@@ -140,7 +175,7 @@ interface UpdateState {
   openDialog: () => void
   closeDialog: () => void
   setChecking: () => void
-  setAvailable: (version: string, currentVersion: string) => void
+  setAvailable: (update: Update, version: string, currentVersion: string) => void
   setReleaseNotes: (notes: string) => void
   setReleaseNotesError: () => void
   setDownloading: () => void
@@ -152,9 +187,11 @@ interface UpdateState {
 }
 ```
 
+**Important:** The `Update` object returned by `check()` must be stored so that `downloadAndInstall()` can be called later from the dialog. It has methods on it and is not serializable — store it as a plain reference in the store, not in localStorage or any serialized form.
+
 **Skip version persistence:** Use `localStorage` (key: `astro-editor-skipped-update-version`). The store reads it on init and writes on skip.
 
-### Phase 3: Create Update Dialog Component
+### Phase 4: Create Update Dialog Component
 
 **New files:**
 - `src/components/update-dialog/UpdateDialog.tsx` — main dialog component
@@ -182,47 +219,20 @@ UpdateDialog
 - Release notes area should be scrollable with a max height
 - Markdown rendered with `marked`, styled to match app typography
 
-### Phase 4: Fetch Release Notes from GitHub API
-
-**New file:** `src/lib/release-notes.ts`
-
-Fetches release notes from the public GitHub Releases API (no auth needed for public repos):
-
-```typescript
-const RELEASES_URL = 'https://api.github.com/repos/dannysmith/astro-editor/releases'
-
-async function fetchReleaseNotes(currentVersion: string, newVersion: string): Promise<string> {
-  // 1. Fetch all releases (paginated if needed, but unlikely for this project)
-  // 2. Filter to releases between currentVersion and newVersion (inclusive of new, exclusive of current)
-  // 3. Sort reverse chronologically
-  // 4. Concatenate bodies with version headers:
-  //    ## v1.0.9
-  //    <release body>
-  //
-  //    ## v1.0.8
-  //    <release body>
-  // 5. Return combined markdown string
-}
-```
-
-**Called from:** The update check flow in App.tsx. After `check()` returns an update, fetch release notes in parallel (non-blocking — the dialog shows immediately with a loading state for the notes area).
-
-**Fallback:** If the fetch fails, set `releaseNotesError: true` and the dialog shows the update info without notes. The user can still update.
-
 ### Phase 5: Refactor Update Logic from App.tsx
 
 **Modified file:** `src/App.tsx`
 
 Replace `confirm()`/`alert()` calls with store actions:
 
-1. On update found → `updateStore.getState().setAvailable(version, currentVersion)` + kick off `fetchReleaseNotes()` in background
+1. On update found → `updateStore.getState().setAvailable(update, version, currentVersion)` + kick off `commands.fetchReleaseNotes()` in background
 2. Release notes loaded → `updateStore.getState().setReleaseNotes(notes)`
 3. On download progress → `updateStore.getState().setProgress(...)`
 4. On download complete → `updateStore.getState().setReady()`
 5. On no update (manual) → `updateStore.getState().setNoUpdate(currentVersion)`
 6. On error → `updateStore.getState().setError(message)`
 
-The actual `downloadAndInstall()` and `relaunch()` calls live in a `useUpdateActions()` hook (following the hybrid action hooks pattern) or as simple async functions called from the dialog's button handlers.
+The actual `downloadAndInstall()` call uses `updateStore.getState().updateRef` to access the `Update` object. The `relaunch()` call uses `@tauri-apps/plugin-process` as before.
 
 **Key behavior changes:**
 - Automatic check: if `skippedVersion` matches the available version, silently ignore
@@ -237,6 +247,14 @@ The actual `downloadAndInstall()` and `relaunch()` calls live in a `useUpdateAct
 - Verify the progress bar works smoothly with real downloads
 - Handle edge cases: empty release notes (show "No release notes for this version"), network errors during check
 
+### Phase 7: Update Documentation
+
+Update `docs/developer/releases.md` to reflect all changes:
+- New `prepare-release.js` behavior (auto-version detection, no editor prompt)
+- Split workflow: `release.yml` (build + draft) vs `publish-website-artifacts.yml` (on publish → website)
+- How release notes flow from GitHub Release body → GitHub API → Rust command → update dialog
+- The `latest.json` `notes` field limitation and why we fetch from the API instead
+
 ## Technical Notes
 
 ### Release Notes Data Flow
@@ -244,15 +262,19 @@ The actual `downloadAndInstall()` and `relaunch()` calls live in a `useUpdateAct
 ```
                                     ┌─ latest.json ─── version, URL, signature
 GitHub Release (published) ────────┤
-                                    └─ GitHub API ──── release notes markdown
-                                                        (fetched at runtime)
+                                    └─ GitHub API ──── Rust command ──── frontend store ──── dialog
+                                                        (fetched at runtime via reqwest)
 ```
 
-The `latest.json` `notes` field is NOT used for release notes display — it only contains the template header from build time. Instead, the app fetches the actual published release body from the GitHub Releases API at runtime.
+The `latest.json` `notes` field is NOT used for release notes display — it only contains the template header from build time. Instead, the app fetches the actual published release body from the GitHub Releases API via a Rust Tauri command at runtime.
 
 ### Why Not Use `update.body` from `latest.json`?
 
 `tauri-action` populates the `notes` field in `latest.json` from the `releaseBody` input at build time. But release notes are written manually in the GitHub Release draft _after_ the build completes. By the time you publish the release, `latest.json` already has the template text baked in. Fetching from the GitHub API at runtime gets the actual hand-written notes.
+
+### Why Fetch via Rust Instead of JS?
+
+All outbound HTTP in the app is Rust-side (updater plugin uses Rust, telemetry uses `reqwest`). Fetching release notes from Rust keeps this consistent and avoids needing to add `https://api.github.com` to the webview CSP `connect-src`. The `reqwest` crate is already a dependency.
 
 ### Existing Patterns to Follow
 
@@ -260,22 +282,12 @@ The `latest.json` `notes` field is NOT used for release notes display — it onl
 - **Store:** Follow decomposed store pattern from `editorStore`, `uiStore`
 - **Toast:** Use `@/lib/toast` for non-dialog notifications (e.g., background update errors)
 - **Menu events:** Keep existing `menu-check-updates` listener pattern
+- **HTTP in Rust:** `telemetry.rs` for `reqwest` usage pattern with timeout
 
 ### Dependencies
 
-- `marked` (new) — lightweight markdown-to-HTML renderer
+- `marked` (new, frontend) — lightweight markdown-to-HTML renderer
+- `reqwest` (existing, Rust) — already used by telemetry, reused for GitHub API fetch
 - `@tauri-apps/plugin-updater` (existing) — update check, download, install
 - `@tauri-apps/plugin-process` (existing) — `relaunch()` after install
 - `@tauri-apps/plugin-log` (existing) — logging
-
-### CSP Consideration
-
-The app's CSP in `tauri.conf.json` will need to allow `connect-src` to `https://api.github.com` for the release notes fetch. Check current CSP and add if needed.
-
-### Phase 7: Update Documentation
-
-Update `docs/developer/releases.md` to reflect all changes:
-- New `prepare-release.js` behavior (auto-version detection, no editor prompt)
-- Split workflow: `release.yml` (build + draft) vs `publish-website-artifacts.yml` (on publish → website)
-- How release notes flow from GitHub Release body → GitHub API → update dialog
-- The `latest.json` `notes` field limitation and why we fetch from the API instead
