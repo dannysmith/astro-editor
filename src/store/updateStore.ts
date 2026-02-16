@@ -38,7 +38,6 @@ interface UpdateState {
   skippedVersion: string | null
 
   // Actions
-  openDialog: () => void
   closeDialog: () => void
   setChecking: () => void
   setAvailable: (
@@ -56,7 +55,7 @@ interface UpdateState {
   skipVersion: (version: string) => void
 }
 
-export const useUpdateStore = create<UpdateState>((set) => ({
+export const useUpdateStore = create<UpdateState>(set => ({
   dialogOpen: false,
   dialogMode: 'checking',
 
@@ -74,7 +73,6 @@ export const useUpdateStore = create<UpdateState>((set) => ({
 
   skippedVersion: localStorage.getItem(SKIPPED_VERSION_KEY),
 
-  openDialog: () => set({ dialogOpen: true }),
   closeDialog: () =>
     set({
       dialogOpen: false,
@@ -101,14 +99,18 @@ export const useUpdateStore = create<UpdateState>((set) => ({
       errorMessage: null,
     }),
 
-  setReleaseNotes: (notes) =>
+  setReleaseNotes: notes =>
     set({ releaseNotes: notes, releaseNotesLoading: false }),
 
   setReleaseNotesError: () =>
     set({ releaseNotesLoading: false, releaseNotesError: true }),
 
   setDownloading: () =>
-    set({ dialogMode: 'downloading', downloadProgress: 0, downloadTotal: null }),
+    set({
+      dialogMode: 'downloading',
+      downloadProgress: 0,
+      downloadTotal: null,
+    }),
 
   setProgress: (downloaded, total) =>
     set({
@@ -118,7 +120,7 @@ export const useUpdateStore = create<UpdateState>((set) => ({
 
   setReady: () => set({ dialogMode: 'ready', downloadProgress: 100 }),
 
-  setNoUpdate: (currentVersion) =>
+  setNoUpdate: currentVersion =>
     set({
       dialogOpen: true,
       dialogMode: 'no-update',
@@ -126,10 +128,10 @@ export const useUpdateStore = create<UpdateState>((set) => ({
       errorMessage: null,
     }),
 
-  setError: (message) =>
+  setError: message =>
     set({ dialogOpen: true, dialogMode: 'error', errorMessage: message }),
 
-  skipVersion: (version) => {
+  skipVersion: version => {
     localStorage.setItem(SKIPPED_VERSION_KEY, version)
     set({ skippedVersion: version, dialogOpen: false })
   },

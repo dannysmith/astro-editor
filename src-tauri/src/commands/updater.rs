@@ -24,9 +24,7 @@ fn parse_version(version: &str) -> Option<(u64, u64, u64)> {
 
 /// Compare two version tuples. Returns Ordering.
 fn version_cmp(a: (u64, u64, u64), b: (u64, u64, u64)) -> std::cmp::Ordering {
-    a.0.cmp(&b.0)
-        .then(a.1.cmp(&b.1))
-        .then(a.2.cmp(&b.2))
+    a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2))
 }
 
 /// Fetch release notes from GitHub Releases API for all versions between
@@ -40,8 +38,8 @@ pub async fn fetch_release_notes(
 ) -> Result<String, String> {
     let current = parse_version(&current_version)
         .ok_or_else(|| format!("Invalid current version: {current_version}"))?;
-    let new = parse_version(&new_version)
-        .ok_or_else(|| format!("Invalid new version: {new_version}"))?;
+    let new =
+        parse_version(&new_version).ok_or_else(|| format!("Invalid new version: {new_version}"))?;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))

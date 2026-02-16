@@ -55,8 +55,7 @@ async function checkForUpdates(manual: boolean): Promise<void> {
 
       if (manual) {
         const result = await commands.getAppVersion()
-        const version =
-          result.status === 'ok' ? result.data : 'unknown'
+        const version = result.status === 'ok' ? result.data : 'unknown'
         store.setNoUpdate(version)
       }
     }

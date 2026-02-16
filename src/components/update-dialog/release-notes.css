@@ -1,7 +1,9 @@
 .release-notes {
   font-size: 0.875rem;
   line-height: 1.625;
-  color: var(--color-foreground);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .release-notes h1,

@@ -19,7 +19,7 @@ function ProgressBar({ value }: { value: number }) {
   return (
     <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
       <div
-        className="bg-primary h-full rounded-full transition-all duration-300"
+        className="bg-primary h-full rounded-full transition-[width] duration-300"
         style={{ width: `${value}%` }}
       />
     </div>
@@ -27,9 +27,9 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function ReleaseNotesArea() {
-  const loading = useUpdateStore((s) => s.releaseNotesLoading)
-  const hasError = useUpdateStore((s) => s.releaseNotesError)
-  const notes = useUpdateStore((s) => s.releaseNotes)
+  const loading = useUpdateStore(s => s.releaseNotesLoading)
+  const hasError = useUpdateStore(s => s.releaseNotesError)
+  const notes = useUpdateStore(s => s.releaseNotes)
 
   if (loading) {
     return (
@@ -55,7 +55,7 @@ function ReleaseNotesArea() {
     )
   }
 
-  const html = marked.parse(notes, { async: false }) as string
+  const html = marked.parse(notes, { async: false })
 
   return (
     <div
@@ -80,10 +80,10 @@ function CheckingContent() {
 }
 
 function AvailableContent() {
-  const version = useUpdateStore((s) => s.version)
-  const currentVersion = useUpdateStore((s) => s.currentVersion)
-  const skipVersion = useUpdateStore((s) => s.skipVersion)
-  const closeDialog = useUpdateStore((s) => s.closeDialog)
+  const version = useUpdateStore(s => s.version)
+  const currentVersion = useUpdateStore(s => s.currentVersion)
+  const skipVersion = useUpdateStore(s => s.skipVersion)
+  const closeDialog = useUpdateStore(s => s.closeDialog)
 
   const handleUpdate = async () => {
     const state = useUpdateStore.getState()
@@ -94,7 +94,7 @@ function AvailableContent() {
       let totalBytes = 0
       let downloadedBytes = 0
 
-      await state.updateRef.downloadAndInstall((event) => {
+      await state.updateRef.downloadAndInstall(event => {
         switch (event.event) {
           case 'Started':
             totalBytes = event.data.contentLength ?? 0
@@ -145,7 +145,7 @@ function AvailableContent() {
 }
 
 function DownloadingContent() {
-  const progress = useUpdateStore((s) => s.downloadProgress)
+  const progress = useUpdateStore(s => s.downloadProgress)
 
   return (
     <>
@@ -164,7 +164,7 @@ function DownloadingContent() {
 }
 
 function ReadyContent() {
-  const closeDialog = useUpdateStore((s) => s.closeDialog)
+  const closeDialog = useUpdateStore(s => s.closeDialog)
 
   const handleRelaunch = async () => {
     await relaunch()
@@ -174,7 +174,7 @@ function ReadyContent() {
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <CheckCircle2Icon className="text-green-500" />
+          <CheckCircle2Icon className="text-muted-foreground" />
           Update Ready
         </DialogTitle>
         <DialogDescription>
@@ -192,14 +192,14 @@ function ReadyContent() {
 }
 
 function NoUpdateContent() {
-  const currentVersion = useUpdateStore((s) => s.currentVersion)
-  const closeDialog = useUpdateStore((s) => s.closeDialog)
+  const currentVersion = useUpdateStore(s => s.currentVersion)
+  const closeDialog = useUpdateStore(s => s.closeDialog)
 
   return (
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <CheckCircle2Icon className="text-green-500" />
+          <CheckCircle2Icon className="text-muted-foreground" />
           Up to Date
         </DialogTitle>
         <DialogDescription>
@@ -215,8 +215,8 @@ function NoUpdateContent() {
 }
 
 function ErrorContent() {
-  const errorMessage = useUpdateStore((s) => s.errorMessage)
-  const closeDialog = useUpdateStore((s) => s.closeDialog)
+  const errorMessage = useUpdateStore(s => s.errorMessage)
+  const closeDialog = useUpdateStore(s => s.closeDialog)
 
   return (
     <>
@@ -244,9 +244,9 @@ const MODE_COMPONENTS = {
 } as const
 
 export function UpdateDialog() {
-  const dialogOpen = useUpdateStore((s) => s.dialogOpen)
-  const dialogMode = useUpdateStore((s) => s.dialogMode)
-  const closeDialog = useUpdateStore((s) => s.closeDialog)
+  const dialogOpen = useUpdateStore(s => s.dialogOpen)
+  const dialogMode = useUpdateStore(s => s.dialogMode)
+  const closeDialog = useUpdateStore(s => s.closeDialog)
 
   const Content = MODE_COMPONENTS[dialogMode]
 
