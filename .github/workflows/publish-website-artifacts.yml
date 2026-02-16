@@ -76,3 +76,8 @@ jobs:
           git commit -m "chore: update installers for $RELEASE_TAG" || echo "No changes to commit"
           git pull --rebase origin main
           git push origin main
+
+      - name: Trigger website deploy
+        run: gh workflow run deploy-website.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
