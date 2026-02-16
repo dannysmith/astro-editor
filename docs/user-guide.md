@@ -135,6 +135,7 @@ Astro Editor includes the following keyboard shortcuts.
 | `Cmd+[`        | Indent Left       | Indent current line left                             |
 | `Cmd+Z`        | Undo              | Undo the last edit action                            |
 | `Cmd+Y`        | Redo              | Redo the last undo action                            |
+| `Cmd+Shift+T`  | Typewriter Mode   | Keep cursor line centered in viewport                |
 | `Ctrl+Cmd+F`   | Toggle Focus Mode | Enable/disable focus writing mode                    |
 | `Opt+Click`    | Open URL          | Open URL under mouse cursor in browser               |
 | `Opt+Hover`    | Image Preview     | Preview image at path/URL under cursor               |
@@ -436,6 +437,16 @@ A number of "modes" can be toggled while writing/editing, which alter how the ed
 ### Focus Mode
 
 Dims everything but the current sentence (or line for lists). Can be toggled with the 👁️ icon in the toolbar.
+
+### Typewriter Mode
+
+Typewriter mode keeps the cursor line vertically centered in the editor at all times. As you type or navigate, the viewport scrolls to keep the cursor in the middle of the visible area, creating an immersive writing experience similar to iA Writer's typewriter mode.
+
+Toggle it with `Cmd+Shift+T`, or via the command palette ("Toggle Typewriter Mode").
+
+Typewriter mode works well alongside Focus Mode — enable both for a deeply focused writing experience where your current sentence stays front and center.
+
+**Note**: Typewriter mode is session-only and resets when you restart the app.
 
 ### Copyedit Highlighting
 
