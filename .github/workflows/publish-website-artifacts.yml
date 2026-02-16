@@ -65,7 +65,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add --ignore-missing website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage
+          git add website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage 2>/dev/null || true
           git commit -m "chore: update installers for ${{ github.event.release.tag_name }}" || echo "No changes to commit"
           git pull --rebase origin main
           git push origin main
