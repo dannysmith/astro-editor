@@ -1,0 +1,71 @@
+name: Publish Website Artifacts
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-website:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Download release assets
+        run: |
+          mkdir -p /tmp/artifacts
+          gh release download "${{ github.event.release.tag_name }}" \
+            --pattern "*.dmg" \
+            --pattern "*.msi" \
+            --pattern "*.AppImage" \
+            --dir /tmp/artifacts
+
+          if [ -z "$(ls -A /tmp/artifacts)" ]; then
+            echo "::error::No artifacts downloaded from release ${{ github.event.release.tag_name }}"
+            exit 1
+          fi
+
+          echo "Downloaded artifacts:"
+          ls -la /tmp/artifacts/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy artifacts to website folder
+        run: |
+          mkdir -p website
+
+          # Copy macOS DMG
+          DMG_FILE=$(find /tmp/artifacts -name "*.dmg" | head -1)
+          if [ -n "$DMG_FILE" ]; then
+            cp "$DMG_FILE" website/astro-editor-latest.dmg
+            echo "Copied DMG: $DMG_FILE"
+          fi
+
+          # Copy Windows MSI
+          MSI_FILE=$(find /tmp/artifacts -name "*.msi" | head -1)
+          if [ -n "$MSI_FILE" ]; then
+            cp "$MSI_FILE" website/astro-editor-latest.msi
+            echo "Copied MSI: $MSI_FILE"
+          fi
+
+          # Copy Linux AppImage
+          APPIMAGE_FILE=$(find /tmp/artifacts -name "*.AppImage" | head -1)
+          if [ -n "$APPIMAGE_FILE" ]; then
+            cp "$APPIMAGE_FILE" website/astro-editor-latest.AppImage
+            echo "Copied AppImage: $APPIMAGE_FILE"
+          fi
+
+          echo "Website folder contents:"
+          ls -la website/*.dmg website/*.msi website/*.AppImage 2>/dev/null || true
+
+      - name: Commit website artifacts
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add --ignore-missing website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage
+          git commit -m "chore: update installers for ${{ github.event.release.tag_name }}" || echo "No changes to commit"
+          git pull --rebase origin main
+          git push origin main
