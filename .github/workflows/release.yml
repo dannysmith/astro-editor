@@ -107,15 +107,6 @@ jobs:
           releaseBody: |
             ## Astro Editor ${{ github.ref_name || inputs.version }}
 
-            ### Installation Instructions
-
-            - **macOS**: Download the `.dmg` file (Universal - works on both Intel and Apple Silicon) and drag Astro Editor to the Applications folder.
-            - **Windows**: Download the `.msi` installer and run it to install Astro Editor.
-            - **Linux**: Download the `.AppImage` file, make it executable (`chmod +x *.AppImage`), and run it.
-
-            > **Note**: Windows and Linux builds are experimental and not officially supported yet.
-
-            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name || inputs.version }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
