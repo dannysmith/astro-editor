@@ -193,7 +193,11 @@ export const Layout: React.FC = () => {
             defaultSize={LAYOUT_SIZES.leftSidebar.default}
             minSize={LAYOUT_SIZES.leftSidebar.min}
             maxSize={LAYOUT_SIZES.leftSidebar.max}
-            style={{ minWidth: sidebarVisible ? LAYOUT_SIZES.leftSidebar.minWidth : undefined }}
+            style={{
+              minWidth: sidebarVisible
+                ? LAYOUT_SIZES.leftSidebar.minWidth
+                : undefined,
+            }}
             onResize={handleLeftPanelResize}
           >
             <LeftSidebar />
