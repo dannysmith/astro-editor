@@ -117,8 +117,18 @@ export function ContentLinkerDialog() {
 
   const customFilter = (value: string, search: string) => {
     const lower = search.toLowerCase()
-    if (value.toLowerCase().includes(lower)) {
-      return 1
+    // value is file.path — also search against title, collection, and file name
+    const file = fileMapRef.current.get(value)
+    if (file) {
+      const title = resolveTitle(file)
+      if (
+        title.toLowerCase().includes(lower) ||
+        file.collection.toLowerCase().includes(lower) ||
+        file.name.toLowerCase().includes(lower) ||
+        value.toLowerCase().includes(lower)
+      ) {
+        return 1
+      }
     }
     return 0
   }
@@ -181,7 +191,9 @@ export function ContentLinkerDialog() {
       <CommandInput placeholder="Search content..." onKeyDown={handleKeyDown} />
       <CommandList className="min-h-[300px]">
         {!hasFetched ? (
-          <CommandEmpty>Loading content...</CommandEmpty>
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            Loading content...
+          </div>
         ) : allFiles.length === 0 ? (
           <CommandEmpty>No content items found.</CommandEmpty>
         ) : (
@@ -244,6 +256,5 @@ export function ContentLinkerDialog() {
 }
 
 function buildItemValue(file: FileEntry): string {
-  const title = resolveTitle(file)
-  return `${file.collection}:${file.id}:${title}:${file.name}`
+  return file.path
 }
