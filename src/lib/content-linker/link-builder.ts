@@ -82,7 +82,7 @@ export function buildContentLink(
     ? resolveUrlPattern(urlPattern, targetFile)
     : buildRelativePath(sourceFile.path, targetFile.path)
 
-  const safeTitle = title.replace(/\]/g, '\\]')
+  const safeTitle = title.replace(/\\/g, '\\\\').replace(/\]/g, '\\]')
   const safeUrl = url.replace(/\)/g, '%29')
 
   return `[${safeTitle}](${safeUrl})`

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   CommandDialog,
   CommandEmpty,
@@ -48,6 +48,10 @@ export function ContentLinkerDialog() {
   // Build a lookup from value string -> FileEntry
   const fileMapRef = useRef<Map<string, FileEntry>>(new Map())
 
+  // Derive a stable primitive key from collections to avoid re-fetching
+  // when TanStack Query returns a new array reference with identical data
+  const collectionsKey = collections.map(c => c.name).join(',')
+
   // Fetch all files recursively when dialog opens
   useEffect(() => {
     if (!isOpen || !projectPath || collections.length === 0) {
@@ -57,29 +61,40 @@ export function ContentLinkerDialog() {
     let cancelled = false
 
     const fetchAll = async () => {
-      const results = await Promise.all(
-        collections.map(collection =>
-          commands.scanCollectionFilesRecursive(
-            collection.path,
-            collection.name
+      try {
+        const results = await Promise.all(
+          collections.map(collection =>
+            commands.scanCollectionFilesRecursive(
+              collection.path,
+              collection.name
+            )
           )
         )
-      )
 
-      const files = results.flatMap(result =>
-        result.status === 'ok' ? result.data : []
-      )
+        const files = results.flatMap(result =>
+          result.status === 'ok' ? result.data : []
+        )
 
-      if (!cancelled) {
-        setAllFiles(files)
-        setHasFetched(true)
+        if (!cancelled) {
+          setAllFiles(files)
 
-        // Build value -> file map
-        const map = new Map<string, FileEntry>()
-        for (const file of files) {
-          map.set(buildItemValue(file), file)
+          // Build value -> file map
+          const map = new Map<string, FileEntry>()
+          for (const file of files) {
+            map.set(buildItemValue(file), file)
+          }
+          fileMapRef.current = map
         }
-        fileMapRef.current = map
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch content files:', error)
+        if (!cancelled) {
+          setAllFiles([])
+        }
+      } finally {
+        if (!cancelled) {
+          setHasFetched(true)
+        }
       }
     }
 
@@ -88,34 +103,35 @@ export function ContentLinkerDialog() {
     return () => {
       cancelled = true
     }
-  }, [isOpen, projectPath, collections])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, projectPath, collectionsKey])
 
-  // Get the currently highlighted item's value from the DOM
-  const getSelectedValue = useCallback((): string | null => {
+  // Get the currently highlighted item's value from the DOM.
+  // Uses cmdk's internal [cmdk-item][aria-selected] attributes —
+  // this is the recommended way to read selection state when cmdk
+  // doesn't expose it via a callback prop.
+  const getSelectedValue = (): string | null => {
     const selected = document.querySelector('[cmdk-item][aria-selected="true"]')
     return selected?.getAttribute('data-value') ?? null
-  }, [])
+  }
 
-  const customFilter = useCallback((value: string, search: string) => {
+  const customFilter = (value: string, search: string) => {
     const lower = search.toLowerCase()
     if (value.toLowerCase().includes(lower)) {
       return 1
     }
     return 0
-  }, [])
+  }
 
-  const handleSelect = useCallback(
-    (value: string) => {
-      const file = fileMapRef.current.get(value)
-      if (file) {
-        close()
-        useEditorStore.getState().openFile(file)
-      }
-    },
-    [close]
-  )
+  const handleSelect = (value: string) => {
+    const file = fileMapRef.current.get(value)
+    if (file) {
+      close()
+      useEditorStore.getState().openFile(file)
+    }
+  }
 
-  const handleInsertLink = useCallback(() => {
+  const handleInsertLink = () => {
     const value = getSelectedValue()
     if (!value) return
 
@@ -137,18 +153,15 @@ export function ContentLinkerDialog() {
       settings.urlPattern,
       settings.frontmatterMappings.title
     )
-  }, [getSelectedValue, insertLink, currentProjectSettings])
+  }
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        e.stopPropagation()
-        handleInsertLink()
-      }
-    },
-    [handleInsertLink]
-  )
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      e.stopPropagation()
+      handleInsertLink()
+    }
+  }
 
   return (
     <CommandDialog
@@ -184,7 +197,6 @@ export function ContentLinkerDialog() {
                     key={value}
                     value={value}
                     onSelect={() => handleSelect(value)}
-                    onKeyDown={handleKeyDown}
                     className="cursor-pointer"
                   >
                     <div className="flex items-center justify-between w-full gap-2">

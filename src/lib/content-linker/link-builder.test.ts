@@ -219,4 +219,19 @@ describe('buildContentLink', () => {
       '[Title with \\] bracket](/path/with%29paren/test)'
     )
   })
+
+  it('escapes backslashes in title before escaping ]', () => {
+    const source = makeFile({
+      path: '/project/src/content/articles/my-post.md',
+    })
+    const target = makeFile({
+      path: '/project/src/content/articles/other.md',
+      name: 'other',
+      frontmatter: { title: 'Title with \\] tricky' },
+    })
+
+    expect(buildContentLink(source, target)).toBe(
+      '[Title with \\\\\\] tricky](./other.md)'
+    )
+  })
 })
