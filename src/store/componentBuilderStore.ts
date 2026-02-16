@@ -65,7 +65,11 @@ export const useComponentBuilderStore = create<
     const { editorView } = get()
     set({ ...initialState })
     if (editorView) {
-      setTimeout(() => editorView.focus(), 100)
+      setTimeout(() => {
+        if (editorView.dom?.isConnected) {
+          editorView.focus()
+        }
+      }, 100)
     }
   },
 

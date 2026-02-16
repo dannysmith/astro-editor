@@ -90,11 +90,14 @@ export const usePreferences = () => {
           )
         const hasDefaultFileType = c.settings.defaultFileType !== undefined
         const hasUrlPattern = c.settings.urlPattern !== undefined
+        const hasAbsoluteAssetPaths =
+          c.settings.useAbsoluteAssetPaths !== undefined
         return (
           hasPathOverrides ||
           hasFrontmatterMappings ||
           hasDefaultFileType ||
-          hasUrlPattern
+          hasUrlPattern ||
+          hasAbsoluteAssetPaths
         )
       })
 

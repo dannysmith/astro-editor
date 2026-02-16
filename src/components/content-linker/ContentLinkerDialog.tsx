@@ -15,7 +15,10 @@ import { useEditorStore } from '../../store/editorStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
 import { resolveTitle } from '../../lib/content-linker'
-import { commands, type FileEntry } from '@/types'
+import { commands, type FileEntry, type Collection } from '@/types'
+import { usePlatform } from '../../hooks/usePlatform'
+
+const EMPTY_COLLECTIONS: Collection[] = []
 
 /**
  * Content Linker Dialog
@@ -31,10 +34,13 @@ export function ContentLinkerDialog() {
     state => state.currentProjectSettings
   )
 
-  const { data: collections = [] } = useCollectionsQuery(
+  const { data: collections = EMPTY_COLLECTIONS } = useCollectionsQuery(
     projectPath,
     currentProjectSettings
   )
+
+  const platform = usePlatform()
+  const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
 
   const [allFiles, setAllFiles] = useState<FileEntry[]>([])
   const [hasFetched, setHasFetched] = useState(false)
@@ -175,7 +181,7 @@ export function ContentLinkerDialog() {
 
                 return (
                   <CommandItem
-                    key={file.id}
+                    key={value}
                     value={value}
                     onSelect={() => handleSelect(value)}
                     onKeyDown={handleKeyDown}
@@ -217,7 +223,7 @@ export function ContentLinkerDialog() {
             <CommandShortcut>↩</CommandShortcut> Open
           </span>
           <span>
-            <CommandShortcut>⌘↩</CommandShortcut> Insert link
+            <CommandShortcut>{modKey}↩</CommandShortcut> Insert link
           </span>
         </div>
       </div>
