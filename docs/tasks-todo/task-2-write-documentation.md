@@ -7,14 +7,15 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 ### Getting Started
 
 - [ ] Intro & Overview of the Main Window
-- [ ] Fundamentals Concepts
+- [ ] Fundamental Concepts
 - [ ] A Simple Example
 - [ ] Installation
 - [ ] Opening a Project
-- [ ] Troubleshooting
-- [ ] Philosophy
-  - [ ] Why? - The first bit of the demo video but simplified
-  - [ ] Core Principles
+
+### Philosophy
+
+- [ ] Why? - The first bit of the demo video but simplified
+- [ ] Core Principles
 
 ### The Editor
 
@@ -22,6 +23,7 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Focus mode
 - [ ] Typewriter mode
 - [ ] Copyedit modes
+- [ ] Auto-Saving
 
 ### Editing Features
 
@@ -30,7 +32,7 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Inserting Links
   - [ ] Cmd+K and paste over text
   - [ ] Clicking links
-- [ ] Inserting links to other content items
+- [ ] Inserting links to other content items (Content Linker)
 - [ ] Inserting and Previewing Images & Files
   - [ ] Inserting images and files
   - [ ] Previewing images
@@ -45,7 +47,8 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Drafts + Drafts filter
 - [ ] Filtering and sorting
 - [ ] Context Menu
-- [ ] Openingfiles, collections and projects in your IDE
+- [ ] Opening files, collections and projects in your IDE
+- [ ] Creating new files
 
 ### Frontmatter & Schemas (Right Sidebar)
 
@@ -54,6 +57,7 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Basic Types & their Display
 - [ ] Image Fields
 - [ ] Reference Fields
+- [ ] Nested fields
 - [ ] Special Fields
     - [ ] Title
     - [ ] Description
@@ -73,6 +77,10 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Project Pane
 - [ ] Collections Pane
 - [ ] Advanced Pane
+
+### Troubleshooting
+
+- [ ] Troubleshooting
 
 ## Reference Section
 
