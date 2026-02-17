@@ -34,9 +34,7 @@ function formatDate(date: Date): string {
     {
       sortedReleases.map((release) => (
         <li>
-          <a href={`/${release.data.slug || release.id.replace(/\.mdx?$/, '')}/`}>
-            {release.data.title}
-          </a>
+          <a href={`/releases/${release.data.title}/`}>{release.data.title}</a>
           <span class="release-meta">
             <time datetime={release.data.date!.toISOString()}>
               {formatDate(release.data.date!)}

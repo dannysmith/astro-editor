@@ -8,7 +8,12 @@ import Layout from '@layouts/Layout.astro'
   image="/og-image.png"
 >
   <link rel="preconnect" href="https://fonts.googleapis.com" slot="head" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin slot="head" />
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+    slot="head"
+  />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
     rel="stylesheet"
@@ -164,7 +169,8 @@ import Layout from '@layouts/Layout.astro'
       <div class="aurora"></div>
       <div
         class="absolute inset-0 bg-gradient-to-b from-transparent via-night-900/40 to-night-900"
-      ></div>
+      >
+      </div>
     </div>
 
     <header class="relative">
@@ -192,8 +198,7 @@ import Layout from '@layouts/Layout.astro'
           >
           <a
             href="/getting-started/"
-            class="text-white/80 hover:text-white transition"
-            >Docs</a
+            class="text-white/80 hover:text-white transition">Docs</a
           >
           <a
             href="https://github.com/dannysmith/astro-editor"
@@ -212,7 +217,7 @@ import Layout from '@layouts/Layout.astro'
             >
               <path
                 d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
-              />
+              ></path>
             </svg>
           </a>
           <a
@@ -245,8 +250,9 @@ import Layout from '@layouts/Layout.astro'
             </h1>
             <p class="mx-auto mt-5 max-w-2xl text-lg text-white/70">
               Astro Editor reads your Zod schemas and transforms frontmatter
-              into smart forms. Get validation, cross-collection references, image fields with previews, and multi-framework MDX components — all in a beautiful interface inspired by iA
-              Writer.
+              into smart forms. Get validation, cross-collection references,
+              image fields with previews, and multi-framework MDX components —
+              all in a beautiful interface inspired by iA Writer.
             </p>
             <div
               id="download"
@@ -270,12 +276,13 @@ import Layout from '@layouts/Layout.astro'
                     stroke="white"
                     stroke-width="1.5"
                     stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+                    stroke-linejoin="round"></path>
                 </svg>
                 <div class="flex flex-col items-start">
                   <span>Download for macOS</span>
-                  <span class="text-xs text-white/70 font-normal">Universal (Intel &amp; Apple Silicon)</span>
+                  <span class="text-xs text-white/70 font-normal"
+                    >Universal (Intel &amp; Apple Silicon)</span
+                  >
                 </div>
               </a>
               <a
@@ -296,17 +303,21 @@ import Layout from '@layouts/Layout.astro'
                     stroke="white"
                     stroke-width="1.5"
                     stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+                    stroke-linejoin="round"></path>
                 </svg>
                 <div class="flex flex-col items-start">
                   <span>Download for Windows</span>
-                  <span class="text-xs text-white/70 font-normal">Windows Installer</span>
+                  <span class="text-xs text-white/70 font-normal"
+                    >Windows Installer</span
+                  >
                 </div>
               </a>
             </div>
             <p class="mt-4 text-sm text-white/60">
-              Or install via Homebrew: <code class="px-2 py-1 rounded bg-white/10 text-white/90 font-mono text-xs">brew install --cask astro-editor</code>
+              Or install via Homebrew: <code
+                class="px-2 py-1 rounded bg-white/10 text-white/90 font-mono text-xs"
+                >brew install --cask astro-editor</code
+              >
             </p>
           </div>
         </div>
@@ -328,7 +339,8 @@ import Layout from '@layouts/Layout.astro'
             >
               <div
                 class="mx-auto h-full max-w-6xl bg-gradient-to-b from-brand-600/30 via-blue-500/20 to-purple-500/20"
-              ></div>
+              >
+              </div>
             </div>
             <div class="relative mx-auto max-w-6xl">
               <div class="glass rounded-2xl p-2 shadow-glass">
@@ -337,11 +349,10 @@ import Layout from '@layouts/Layout.astro'
                     class="absolute top-0 left-0 w-full h-full rounded-xl"
                     src="https://www.youtube.com/embed/SJkXD59gQ5U?si=zkGkxDUvoWz78WzR"
                     title="YouTube video player"
-                    frameborder="0"
+                    style="border:0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin"
-                    allowfullscreen
-                  ></iframe>
+                    allowfullscreen></iframe>
                 </div>
               </div>
               <div class="mt-8 grid gap-4 sm:grid-cols-3 text-center text-sm">
@@ -371,11 +382,11 @@ import Layout from '@layouts/Layout.astro'
             <p class="text-lg text-white/80 leading-relaxed">
               Most Astro developers work in two modes:
               <strong>coder mode</strong> for components and deployment,
-              <strong>writer mode</strong> for content. Code editors excel at
-              the former but overwhelm the latter with distractions and YAML
-              complexity. Astro Editor focuses purely on writer mode—no git, no
-              preview, no deployment—just beautiful, distraction-free writing
-              with intelligent frontmatter forms that understand your schemas.
+              <strong>writer mode</strong> for content. Code editors excel at the
+              former but overwhelm the latter with distractions and YAML complexity.
+              Astro Editor focuses purely on writer mode—no git, no preview, no deployment—just
+              beautiful, distraction-free writing with intelligent frontmatter forms
+              that understand your schemas.
             </p>
           </div>
         </div>
@@ -439,8 +450,9 @@ import Layout from '@layouts/Layout.astro'
                   MDX component insertion
                 </h3>
                 <p class="text-lg text-white/70 mb-4">
-                  Press Cmd+/ in MDX files to instantly insert components from any framework—Astro, React, Vue, or Svelte.
-                  Configure props visually, then tab through to fill values.
+                  Press Cmd+/ in MDX files to instantly insert components from
+                  any framework—Astro, React, Vue, or Svelte. Configure props
+                  visually, then tab through to fill values.
                 </p>
                 <p class="text-white/60">
                   Reads your component props automatically from your project's
@@ -466,7 +478,8 @@ import Layout from '@layouts/Layout.astro'
                 <p class="text-lg text-white/70 mb-4">
                   Inspired by iA Writer's clean aesthetics. Custom syntax
                   highlighting makes your markdown beautiful without
-                  overwhelming your content. Customize heading colors to match your style.
+                  overwhelming your content. Customize heading colors to match
+                  your style.
                 </p>
                 <p class="text-white/60">
                   Light and dark themes with thoughtful typography designed for
@@ -486,14 +499,17 @@ import Layout from '@layouts/Layout.astro'
 
             <div class="grid gap-8 lg:grid-cols-2 items-center">
               <div class="lg:order-2">
-                <h3 class="text-2xl font-semibold mb-4">
-                  Smart image fields
-                </h3>
+                <h3 class="text-2xl font-semibold mb-4">Smart image fields</h3>
                 <p class="text-lg text-white/70 mb-4">
-                  Image fields with live previews and drag-and-drop support. Images are automatically copied to your assets directory with web-safe names using relative paths by default for portable content.
+                  Image fields with live previews and drag-and-drop support.
+                  Images are automatically copied to your assets directory with
+                  web-safe names using relative paths by default for portable
+                  content.
                 </p>
                 <p class="text-white/60">
-                  Edit paths manually or clear images with a click. Configure absolute paths per project or collection when needed. Works with Astro's image() helper for type-safe frontmatter.
+                  Edit paths manually or clear images with a click. Configure
+                  absolute paths per project or collection when needed. Works
+                  with Astro's image() helper for type-safe frontmatter.
                 </p>
               </div>
               <div class="glass rounded-2xl p-3 lg:order-1">
@@ -513,10 +529,13 @@ import Layout from '@layouts/Layout.astro'
                   Image preview on hover
                 </h3>
                 <p class="text-lg text-white/70 mb-4">
-                  Hold Option/Alt and hover over any image path or URL in your markdown to see an instant preview in the bottom right corner.
+                  Hold Option/Alt and hover over any image path or URL in your
+                  markdown to see an instant preview in the bottom right corner.
                 </p>
                 <p class="text-white/60">
-                  Works with remote images (URLs), absolute paths relative to your project root, and relative paths. Perfect for quickly checking your images without leaving the editor.
+                  Works with remote images (URLs), absolute paths relative to
+                  your project root, and relative paths. Perfect for quickly
+                  checking your images without leaving the editor.
                 </p>
               </div>
               <div class="glass rounded-2xl p-3">
@@ -550,34 +569,69 @@ import Layout from '@layouts/Layout.astro'
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 6h16M4 12h10M4 18h16" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M4 6h16M4 12h10M4 18h16"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Schema-aware frontmatter</h3>
               <p class="mt-2 text-sm text-white/70">
-                Reads your Zod schemas to generate smart forms. Dates become pickers, enums become dropdowns, references link collections. Nested objects and constraints fully supported.
+                Reads your Zod schemas to generate smart forms. Dates become
+                pickers, enums become dropdowns, references link collections.
+                Nested objects and constraints fully supported.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 7h18M6 7l2 10h8l2-10M10 11h4" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M3 7h18M6 7l2 10h8l2-10M10 11h4"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Smart image handling</h3>
               <p class="mt-2 text-sm text-white/70">
-                Image fields with live previews. Drag images to automatically copy, rename, and link them with relative paths for portability. Hover over any image path with Option to preview it instantly.
+                Image fields with live previews. Drag images to automatically
+                copy, rename, and link them with relative paths for portability.
+                Hover over any image path with Option to preview it instantly.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 18h16" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 3v12m0 0l4-4m-4 4l-4-4M4 18h16"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Writer mode, not coder mode</h3>
@@ -590,8 +644,18 @@ import Layout from '@layouts/Layout.astro'
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 6h18M8 6v12m8-6H8" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M3 6h18M8 6v12m8-6H8"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Command palette</h3>
@@ -605,66 +669,141 @@ import Layout from '@layouts/Layout.astro'
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 8l8 4 8-4-8-4-8 4zm0 4l8 4 8-4" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M4 8l8 4 8-4-8-4-8 4zm0 4l8 4 8-4"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">MDX component insertion</h3>
               <p class="mt-2 text-sm text-white/70">
-                Press Cmd+/ in MDX files to insert Astro, React, Vue, or Svelte components. Configure props visually, then tab through to fill values.
+                Press Cmd+/ in MDX files to insert Astro, React, Vue, or Svelte
+                components. Configure props visually, then tab through to fill
+                values.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 10l3 3 9-9M4 20h16" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M6 10l3 3 9-9M4 20h16"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
-              <h3 class="text-lg font-semibold">Auto-save &amp; crash recovery</h3>
+              <h3 class="text-lg font-semibold">
+                Auto-save &amp; crash recovery
+              </h3>
               <p class="mt-2 text-sm text-white/70">
-                Automatically saves as you write with configurable delay, plus backup saves every 10 seconds during flow state. Full crash recovery means you never lose work, even if the app quits unexpectedly.
+                Automatically saves as you write with configurable delay, plus
+                backup saves every 10 seconds during flow state. Full crash
+                recovery means you never lose work, even if the app quits
+                unexpectedly.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 5l7 7-7 7" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M9 5l7 7-7 7"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Navigate deep hierarchies</h3>
               <p class="mt-2 text-sm text-white/70">
-                Full support for nested subdirectories with breadcrumb navigation. Files and folders sorted intelligently, with draft filtering across all levels.
+                Full support for nested subdirectories with breadcrumb
+                navigation. Files and folders sorted intelligently, with draft
+                filtering across all levels.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2v6m0 0l2-2m-2 2l-2-2M2 12h6m0 0l-2-2m2 2l-2 2m8-2h6m0 0l-2-2m2 2l-2 2m-8 2v6m0 0l2-2m-2 2l-2-2" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 2v6m0 0l2-2m-2 2l-2-2M2 12h6m0 0l-2-2m2 2l-2 2m8-2h6m0 0l-2-2m2 2l-2 2m-8 2v6m0 0l2-2m-2 2l-2-2"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
-              <h3 class="text-lg font-semibold">Adapt to any project structure</h3>
+              <h3 class="text-lg font-semibold">
+                Adapt to any project structure
+              </h3>
               <p class="mt-2 text-sm text-white/70">
-                Three-tier preferences system lets you override paths and field mappings globally, per project, or per collection. Works with unusual Astro setups without compromise.
+                Three-tier preferences system lets you override paths and field
+                mappings globally, per project, or per collection. Works with
+                unusual Astro setups without compromise.
               </p>
             </div>
             <div class="glass rounded-2xl p-6">
               <div
                 class="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600/20 ring-1 ring-inset ring-brand-400/30"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
+                  <path
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    stroke="#a78bfa"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"></path>
                 </svg>
               </div>
               <h3 class="text-lg font-semibold">Image preview on hover</h3>
               <p class="mt-2 text-sm text-white/70">
-                Hold Option/Alt and hover over any image path or URL in the editor for an instant preview. Works with remote images, absolute paths, and relative paths.
+                Hold Option/Alt and hover over any image path or URL in the
+                editor for an instant preview. Works with remote images,
+                absolute paths, and relative paths.
               </p>
             </div>
           </div>
@@ -725,8 +864,7 @@ import Layout from '@layouts/Layout.astro'
             </ol>
             <div class="rounded-2xl border border-white/10 bg-white/[.03] p-6">
               <pre
-                class="overflow-auto rounded-lg bg-slate-900/70 p-5 text-[12px] leading-relaxed ring-1 ring-inset ring-white/10"
-              ><code>import &#123; defineCollection, z &#125; from "astro:content";
+                class="overflow-auto rounded-lg bg-slate-900/70 p-5 text-[12px] leading-relaxed ring-1 ring-inset ring-white/10"><code>import &#123; defineCollection, z &#125; from "astro:content";
 
 const posts = defineCollection(&#123;
   type: "content",
@@ -770,11 +908,7 @@ export const collections = &#123; posts &#125;;</code></pre>
           <nav class="flex items-center gap-6 text-sm text-white/70">
             <a href="#features" class="hover:text-white">Features</a>
             <a href="#how" class="hover:text-white">How it works</a>
-            <a
-              href="/getting-started/"
-              class="hover:text-white"
-              >Docs</a
-            >
+            <a href="/getting-started/" class="hover:text-white">Docs</a>
             <a
               href="https://github.com/dannysmith/astro-editor"
               target="_blank"
@@ -792,7 +926,7 @@ export const collections = &#123; posts &#125;;</code></pre>
               >
                 <path
                   d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
-                />
+                ></path>
               </svg>
             </a>
           </nav>

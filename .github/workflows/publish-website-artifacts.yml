@@ -71,18 +71,17 @@ jobs:
 
       - name: Generate release page
         run: |
-          # Fetch release body
           RELEASE_BODY=$(gh release view "$RELEASE_TAG" --json body -q .body)
           VERSION="${RELEASE_TAG#v}"
           DATE=$(gh release view "$RELEASE_TAG" --json publishedAt -q .publishedAt | cut -dT -f1)
 
           # Sanitise body for MDX:
           # - Strip leading H2 title
-          # - Strip "Installation Instructions" section
+          # - Strip "Installation Instructions" section and everything after
           # - Strip "Full Changelog" links
           # - Escape curly braces outside code spans/blocks
-          CLEAN_BODY=$(echo "$RELEASE_BODY" | \
-            sed '/^## *\(🚀 *\)\?Astro Editor v[0-9]/d' | \
+          CLEAN_BODY=$(printf '%s\n' "$RELEASE_BODY" | \
+            sed '/^## *\(🚀 *\)\{0,1\}Astro Editor v[0-9]/d' | \
             sed '/^### Installation Instructions/,$d' | \
             sed '/^\*\*Full Changelog\*\*/d' | \
             awk '
@@ -94,8 +93,8 @@ jobs:
                 in_tick = 0
                 for (i = 1; i <= n; i++) {
                   if (chars[i] == "`") in_tick = !in_tick
-                  if (!in_tick && chars[i] == "{") { line = line "\\&#123;"; continue }
-                  if (!in_tick && chars[i] == "}") { line = line "\\&#125;"; continue }
+                  if (!in_tick && chars[i] == "{") { line = line "" "&#123;"; continue }
+                  if (!in_tick && chars[i] == "}") { line = line "" "&#125;"; continue }
                   line = line chars[i]
                 }
                 print line
@@ -108,28 +107,20 @@ jobs:
           mkdir -p "$RELEASES_DIR"
           OUTPUT_FILE="$RELEASES_DIR/${VERSION}.mdx"
 
-          cat > "$OUTPUT_FILE" << FRONTMATTER
-          ---
-          title: 'v${VERSION}'
-          description: 'Astro Editor v${VERSION}'
-          date: ${DATE}
-          slug: 'releases/v${VERSION}'
-          ---
-          FRONTMATTER
+          {
+            printf '%s\n' "---"
+            printf '%s\n' "title: 'v${VERSION}'"
+            printf '%s\n' "description: 'Astro Editor v${VERSION}'"
+            printf '%s\n' "date: ${DATE}"
+            printf '%s\n' "slug: 'releases/v${VERSION}'"
+            printf '%s\n' "---"
 
-          # Remove leading whitespace from heredoc
-          sed -i 's/^          //' "$OUTPUT_FILE"
+            if [ -n "$CLEAN_BODY" ]; then
+              printf '\n%s\n' "$CLEAN_BODY"
+            fi
 
-          if [ -n "$CLEAN_BODY" ]; then
-            echo "" >> "$OUTPUT_FILE"
-            echo "$CLEAN_BODY" >> "$OUTPUT_FILE"
-          fi
-
-          echo "" >> "$OUTPUT_FILE"
-          echo "---" >> "$OUTPUT_FILE"
-          echo "" >> "$OUTPUT_FILE"
-          echo "[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/${RELEASE_TAG})" >> "$OUTPUT_FILE"
-          echo "" >> "$OUTPUT_FILE"
+            printf '\n%s\n\n%s\n' "---" "[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/${RELEASE_TAG})"
+          } > "$OUTPUT_FILE"
 
           echo "Generated release page: $OUTPUT_FILE"
           cat "$OUTPUT_FILE"

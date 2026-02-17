@@ -51,17 +51,14 @@ function formatDate(iso: string): string {
  * - Strip "Installation Instructions" boilerplate section
  * - Strip leading H2 title that duplicates the frontmatter title
  */
-function sanitiseBody(body: string, tag: string): string {
+function sanitiseBody(body: string): string {
   let text = body
 
   // Strip the leading "## Astro Editor vX.Y.Z" or "## 🚀 Astro Editor vX.Y.Z"
   text = text.replace(/^##\s*(?:🚀\s*)?Astro Editor\s+v[\d.]+\s*\n*/i, '')
 
   // Strip "Installation Instructions" section and everything after it
-  text = text.replace(
-    /### Installation Instructions[\s\S]*$/i,
-    ''
-  )
+  text = text.replace(/### Installation Instructions[\s\S]*$/i, '')
 
   // Strip "Full Changelog" links
   text = text.replace(/\*\*Full Changelog\*\*:.*$/gm, '')
@@ -118,7 +115,7 @@ function escapeLineOutsideCode(line: string): string {
 function generatePage(release: Release): string {
   const version = versionFromTag(release.tagName)
   const date = formatDate(release.publishedAt)
-  const body = sanitiseBody(release.body, release.tagName)
+  const body = sanitiseBody(release.body)
   const ghUrl = `https://github.com/${REPO}/releases/tag/${release.tagName}`
 
   const hasContent = body.trim().length > 0
@@ -199,7 +196,7 @@ async function main() {
 
     if (!post1 && !includeAll) {
       console.log(`\n── ${release.tagName} (pre-1.0) ──`)
-      const body = sanitiseBody(release.body, release.tagName)
+      const body = sanitiseBody(release.body)
       if (body.trim().length === 0) {
         console.log('  (empty body after stripping boilerplate)')
       } else {
@@ -225,9 +222,7 @@ async function main() {
     generated++
   }
 
-  console.log(
-    `\nDone. Generated: ${generated}, Skipped: ${skipped}`
-  )
+  console.log(`\nDone. Generated: ${generated}, Skipped: ${skipped}`)
 }
 
 main().catch((err) => {
