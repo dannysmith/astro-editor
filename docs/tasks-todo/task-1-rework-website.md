@@ -29,7 +29,7 @@ No GH Actions changes yet — they'll be broken on this branch which is fine.
 
 ---
 
-## Phase 1: Build Out Starlight Site
+## Phase 1: Build Out Starlight Site [✅ DONE]
 
 Core scaffolding, config, and all structural pages.
 
@@ -114,7 +114,7 @@ Core scaffolding, config, and all structural pages.
 
 ---
 
-## Phase 2: Changelog System & Release Integration
+## Phase 2: Changelog System & Release Integration  [✅ DONE]
 
 ### 2.1 Releases Pages
 
@@ -149,7 +149,7 @@ Core scaffolding, config, and all structural pages.
 
 ---
 
-## Phase 3: Deployment
+## Phase 3: Deployment [✅ DONE]
 
 ### 3.1 Update GitHub Actions
 
