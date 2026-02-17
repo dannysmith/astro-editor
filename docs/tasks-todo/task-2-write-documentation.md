@@ -6,20 +6,24 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 ### Getting Started
 
-- [ ] Intro & Overview of the Main Window
+- [ ] Intro & Overview (of the Main Window)
 - [ ] Fundamental Concepts
-- [ ] A Simple Example
-- [ ] Installation
-- [ ] Opening a Project
+- [ ] A Simple Example - example schema, file tree and file + how they look in the editor
+- [ ] Installation - mention cross-platform stuff
+- [ ] Opening a Project - briefly mention how to configure most common path overrides
 
 ### Philosophy
 
-- [ ] Why? - The first bit of the demo video but simplified
+- [ ] Overview and Why - The first bit of the demo video but simplified
 - [ ] Core Principles
 
 ### The Editor
 
-- [ ] How it looks: responsive typography | hanging headers | Custom heading color
+- [ ] Overview
+  - How it looks & what's not shown
+  - responsive typography
+  - hanging headers
+  - Custom heading color & font size
 - [ ] Focus mode
 - [ ] Typewriter mode
 - [ ] Copyedit modes
@@ -27,49 +31,44 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 ### Editing Features
 
-- [ ] Basic Markdown Features
-- [ ] Headers (Keyboard shortcut)
+- [ ] Overview
+  - Basic Markdown Features
+  - Headers (Keyboard shortcut)
 - [ ] Inserting Links
   - [ ] Cmd+K and paste over text
   - [ ] Clicking links
 - [ ] Inserting links to other content items (Content Linker)
 - [ ] Inserting and Previewing Images & Files
   - [ ] Inserting images and files
-  - [ ] Previewing images
-- [ ] Inserting Components
+  - [ ] Previewing images on hover
+- [ ] Inserting Components in MDX files
   - [ ] "MDX" Astro Components
   - [ ] React/Vue/Svelte Components
 
 ### File Management (Left Sidebar)
 
-- [ ] Opening a Project & Viewing Collections
-- [ ] What's shown + MDX label + Subfolders etc
-- [ ] Drafts + Drafts filter
+- [ ] Overview
+  - Opening a Project & Viewing Collections
+  - What's shown + MDX label + Subfolders etc
+- [ ] Drafts (+ Drafts filter)
 - [ ] Filtering and sorting
-- [ ] Context Menu
-- [ ] Opening files, collections and projects in your IDE
+- [ ] IDE Integration & Context Menu
 - [ ] Creating new files
 
 ### Frontmatter & Schemas (Right Sidebar)
 
-- [ ] Basics of the sidebar
-  - [ ] How schemas & frontmatter are parsed/ordered
-- [ ] Basic Types & their Display
+- [ ] Overview
+  - Intro & Screenshot
+  - How schemas & frontmatter are parsed/ordered in the sidebar
+- [ ] Basic Field Types (& their Display)
+  - [ ] Nested fields
 - [ ] Image Fields
 - [ ] Reference Fields
-- [ ] Nested fields
 - [ ] Special Fields
-    - [ ] Title
-    - [ ] Description
-    - [ ] Slug
+    - Title
+    - Description
 - [ ] Required Fields & Descriptions
 - [ ] Examples
-
-
-### The Command Palette & Keyboard Shortcuts
-
-- [ ] Commands
-- [ ] Global Keyboard Shortcuts
 
 ### Preferences
 
@@ -78,8 +77,9 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Collections Pane
 - [ ] Advanced Pane
 
-### Troubleshooting
+### Other Bits
 
+- [ ] The Command Palette
 - [ ] Troubleshooting
 
 ## Reference Section
