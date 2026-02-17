@@ -177,7 +177,7 @@ Core scaffolding, config, and all structural pages.
 
 ---
 
-## Phase 4: Documentation Stubs
+## Phase 4: Documentation Stubs  [✅ DONE]
 
 Placeholder pages so the sidebar has structure. Actual content is Task 2.
 
