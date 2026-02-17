@@ -1,0 +1,67 @@
+---
+import { getCollection } from 'astro:content'
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+
+const allDocs = await getCollection('docs')
+const releases = allDocs.filter(
+  (doc) => doc.id.startsWith('releases/') && doc.data.date
+)
+
+const sortedReleases = releases.sort(
+  (a, b) => b.data.date!.getTime() - a.data.date!.getTime()
+)
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Releases',
+    description: 'Release notes and changelog',
+    tableOfContents: false,
+  }}
+>
+  <p>All releases.</p>
+
+  <ul class="release-list">
+    {
+      sortedReleases.map((release) => (
+        <li>
+          <a href={`/${release.data.slug || release.id.replace(/\.mdx?$/, '')}/`}>
+            {release.data.title}
+          </a>
+          <span class="release-meta">
+            <time datetime={release.data.date!.toISOString()}>
+              {formatDate(release.data.date!)}
+            </time>
+          </span>
+        </li>
+      ))
+    }
+  </ul>
+</StarlightPage>
+
+<style>
+  .release-list {
+    list-style: none;
+    padding: 0;
+  }
+  .release-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  .release-meta {
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-3);
+  }
+</style>

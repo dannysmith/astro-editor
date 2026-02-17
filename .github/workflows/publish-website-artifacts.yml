@@ -41,40 +41,108 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Copy artifacts to website folder
+      - name: Copy artifacts to website public folder
         run: |
-          mkdir -p website
+          mkdir -p website/public
 
           # Copy macOS DMG
           DMG_FILE=$(find /tmp/artifacts -name "*.dmg" | head -1)
           if [ -n "$DMG_FILE" ]; then
-            cp "$DMG_FILE" website/astro-editor-latest.dmg
+            cp "$DMG_FILE" website/public/astro-editor-latest.dmg
             echo "Copied DMG: $DMG_FILE"
           fi
 
           # Copy Windows MSI
           MSI_FILE=$(find /tmp/artifacts -name "*.msi" | head -1)
           if [ -n "$MSI_FILE" ]; then
-            cp "$MSI_FILE" website/astro-editor-latest.msi
+            cp "$MSI_FILE" website/public/astro-editor-latest.msi
             echo "Copied MSI: $MSI_FILE"
           fi
 
           # Copy Linux AppImage
           APPIMAGE_FILE=$(find /tmp/artifacts -name "*.AppImage" | head -1)
           if [ -n "$APPIMAGE_FILE" ]; then
-            cp "$APPIMAGE_FILE" website/astro-editor-latest.AppImage
+            cp "$APPIMAGE_FILE" website/public/astro-editor-latest.AppImage
             echo "Copied AppImage: $APPIMAGE_FILE"
           fi
 
-          echo "Website folder contents:"
-          ls -la website/*.dmg website/*.msi website/*.AppImage 2>/dev/null || true
+          echo "Website public folder contents:"
+          ls -la website/public/*.dmg website/public/*.msi website/public/*.AppImage 2>/dev/null || true
 
-      - name: Commit website artifacts
+      - name: Generate release page
+        run: |
+          # Fetch release body
+          RELEASE_BODY=$(gh release view "$RELEASE_TAG" --json body -q .body)
+          VERSION="${RELEASE_TAG#v}"
+          DATE=$(gh release view "$RELEASE_TAG" --json publishedAt -q .publishedAt | cut -dT -f1)
+
+          # Sanitise body for MDX:
+          # - Strip leading H2 title
+          # - Strip "Installation Instructions" section
+          # - Strip "Full Changelog" links
+          # - Escape curly braces outside code spans/blocks
+          CLEAN_BODY=$(echo "$RELEASE_BODY" | \
+            sed '/^## *\(🚀 *\)\?Astro Editor v[0-9]/d' | \
+            sed '/^### Installation Instructions/,$d' | \
+            sed '/^\*\*Full Changelog\*\*/d' | \
+            awk '
+              /^```/ { in_code = !in_code }
+              in_code { print; next }
+              {
+                line = ""
+                n = split($0, chars, "")
+                in_tick = 0
+                for (i = 1; i <= n; i++) {
+                  if (chars[i] == "`") in_tick = !in_tick
+                  if (!in_tick && chars[i] == "{") { line = line "\\&#123;"; continue }
+                  if (!in_tick && chars[i] == "}") { line = line "\\&#125;"; continue }
+                  line = line chars[i]
+                }
+                print line
+              }
+            ' | \
+            sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
+
+          # Generate MDX file
+          RELEASES_DIR="website/src/content/docs/releases"
+          mkdir -p "$RELEASES_DIR"
+          OUTPUT_FILE="$RELEASES_DIR/${VERSION}.mdx"
+
+          cat > "$OUTPUT_FILE" << FRONTMATTER
+          ---
+          title: 'v${VERSION}'
+          description: 'Astro Editor v${VERSION}'
+          date: ${DATE}
+          slug: 'releases/v${VERSION}'
+          ---
+          FRONTMATTER
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' "$OUTPUT_FILE"
+
+          if [ -n "$CLEAN_BODY" ]; then
+            echo "" >> "$OUTPUT_FILE"
+            echo "$CLEAN_BODY" >> "$OUTPUT_FILE"
+          fi
+
+          echo "" >> "$OUTPUT_FILE"
+          echo "---" >> "$OUTPUT_FILE"
+          echo "" >> "$OUTPUT_FILE"
+          echo "[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/${RELEASE_TAG})" >> "$OUTPUT_FILE"
+          echo "" >> "$OUTPUT_FILE"
+
+          echo "Generated release page: $OUTPUT_FILE"
+          cat "$OUTPUT_FILE"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit website artifacts and release page
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add website/astro-editor-latest.dmg website/astro-editor-latest.msi website/astro-editor-latest.AppImage 2>/dev/null || true
-          git commit -m "chore: update installers for $RELEASE_TAG" || echo "No changes to commit"
+          git add website/public/astro-editor-latest.dmg website/public/astro-editor-latest.msi website/public/astro-editor-latest.AppImage 2>/dev/null || true
+          git add website/src/content/docs/releases/*.mdx 2>/dev/null || true
+          git commit -m "chore: update installers and add release page for $RELEASE_TAG" || echo "No changes to commit"
           git pull --rebase origin main
           git push origin main
 
