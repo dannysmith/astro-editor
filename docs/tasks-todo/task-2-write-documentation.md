@@ -12,7 +12,7 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Installation - mention cross-platform stuff
 - [ ] Opening a Project - briefly mention how to configure most common path overrides
 
-### Philosophy
+### Philosophy (single page: `philosophy.mdx`)
 
 - [ ] Overview and Why - The first bit of the demo video but simplified
 - [ ] Core Principles
@@ -34,16 +34,16 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Overview
   - Basic Markdown Features
   - Headers (Keyboard shortcut)
-- [ ] Inserting Links
-  - [ ] Cmd+K and paste over text
-  - [ ] Clicking links
+- [ ] Inserting Links (single page: `editing/links.mdx`)
+  - Cmd+K and paste over text
+  - Clicking links
 - [ ] Inserting links to other content items (Content Linker)
-- [ ] Inserting and Previewing Images & Files
-  - [ ] Inserting images and files
-  - [ ] Previewing images on hover
-- [ ] Inserting Components in MDX files
-  - [ ] "MDX" Astro Components
-  - [ ] React/Vue/Svelte Components
+- [ ] Inserting and Previewing Images & Files (single page: `editing/images-and-files.mdx`)
+  - Inserting images and files
+  - Previewing images on hover
+- [ ] Inserting Components in MDX files (single page: `editing/mdx-components.mdx`)
+  - "MDX" Astro Components
+  - React/Vue/Svelte Components
 
 ### File Management (Left Sidebar)
 
