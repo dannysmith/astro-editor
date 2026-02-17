@@ -36,3 +36,8 @@ temp-dummy-astro-project/
 
 # Code quality reports
 jscpd-report/
+
+# Website build artifacts
+website/dist/
+website/.astro/
+website/node_modules/
