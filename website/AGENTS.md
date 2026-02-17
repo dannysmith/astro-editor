@@ -58,6 +58,15 @@ bun run format       # Prettier format
 - Release pages also have a `date` field
 - File naming: kebab-case
 
+## Documentation Structure
+
+The sidebar is manually defined in `astro.config.mjs` using explicit `slug` entries. Sections are organised into directories under `src/content/docs/`.
+
+- **Main docs** are grouped by topic (e.g. `editor/`, `editing/`, `frontmatter/`, `preferences/`). Most sections have an `overview.mdx` as their first page. Some topics (`philosophy`, `command-palette`, `troubleshooting`) are single top-level pages.
+- **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, special field behaviours, override settings, etc. These document *what* things do, not how to use them.
+- **Releases** (`releases/`) are auto-generated per GitHub release by the `publish-website-artifacts.yml` workflow. The releases index page at `src/pages/releases/index.astro` lists them sorted by date. Don't create release pages by hand.
+- **Privacy policy** (`privacy.mdx`) and **getting-started.mdx** live at the docs root.
+
 ## Writing Style
 
 - Active voice, second person, present tense
