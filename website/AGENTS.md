@@ -1,5 +1,9 @@
 # Claude / AI Agent Instructions for Astro Editor Website
 
+## CRITICAL: Package Manager
+
+**Always use `bun`, never `pnpm` or `npm`, when working in `website/`.** This project is fully independent of the root Astro Editor pnpm workspace. It has its own `bun.lock` and `node_modules/`.
+
 ## Project Overview
 
 Public-facing documentation website for Astro Editor, built with Astro + Starlight.
@@ -9,7 +13,7 @@ Public-facing documentation website for Astro Editor, built with Astro + Starlig
 - **Framework**: Astro 5.x with Starlight 0.37.x
 - **Theme**: starlight-theme-flexoki (blue accent)
 - **Plugins**: starlight-llms-txt, starlight-kbd
-- **Package Manager**: pnpm (workspace member of root project)
+- **Package Manager**: bun (independent of root project's pnpm workspace)
 - **Analytics**: Simple Analytics (privacy-first, no cookies)
 
 ## Directory Structure
@@ -39,12 +43,12 @@ website/
 ## Commands
 
 ```bash
-pnpm run dev          # Start dev server
-pnpm run build        # Production build
-pnpm run preview      # Preview production build
-pnpm run check        # Type check + lint + format check
-pnpm run lint         # ESLint
-pnpm run format       # Prettier format
+bun run dev          # Start dev server
+bun run build        # Production build
+bun run preview      # Preview production build
+bun run check        # Type check + lint + format check
+bun run lint         # ESLint
+bun run format       # Prettier format
 ```
 
 ## Content Conventions

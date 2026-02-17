@@ -1,6 +1,5 @@
 packages:
   - .
-  - website
   - test/*
   - '!telemetry-worker'
 
