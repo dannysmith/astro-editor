@@ -35,7 +35,11 @@ Core scaffolding, config, and all structural pages.
 
 ### 1.1 Scaffold & Dependencies
 
-- [ ] Scaffold Starlight project in `website/` (may need temp dir since it's not empty after backup)
+- [ ] Scaffold Starlight project in `website/` using the CLI to get latest configs:
+  ```bash
+  npm create astro@latest -- --template starlight website
+  ```
+  (`website/` won't exist after Phase 0 backup, so this should work directly)
 - [ ] Ensure `package.json` has `"type": "module"` and standard scripts:
   ```json
   {
@@ -74,6 +78,8 @@ Core scaffolding, config, and all structural pages.
 - [ ] `prettier.config.js` — no semi, single quotes, tab width 2, trailing comma es5, astro plugin
 - [ ] `.prettierignore` — `dist/`, `.astro/`, `node_modules/`, `bun.lock`, `*.md`, `*.mdx`
 - [ ] `website/.gitignore` — `dist/`, `.astro/`, `node_modules/`, `npm-debug.log*`, `.env`, `.env.production`, `.DS_Store`
+- [ ] `website/AGENTS.md` — Starlight/Astro-specific AI instructions (build up over time). Include: Astro/Starlight version, key patterns, content conventions
+- [ ] `website/CLAUDE.md` — just `@AGENTS.md` (same pattern as root project)
 
 ### 1.3 Content Collection & Components
 
@@ -85,6 +91,7 @@ Core scaffolding, config, and all structural pages.
 
 - [ ] `src/pages/index.astro` — port current `index.html` content into Astro component using standalone `Layout.astro`
   - Keep Tailwind CDN for now (Task 3 will handle properly)
+  - **Gotcha**: Inline `<script>` tags need `is:inline` or Astro's build pipeline will process them. Applies to the Tailwind config script AND the JSON-LD structured data. The CDN `<script src="...">` is fine as-is (Astro leaves external URLs alone).
   - Same hero, feature sections, YouTube embed, download buttons, "how it works", footer
   - Move screenshot images to `src/assets/` (Astro-optimized) or keep in `public/` as-is
   - Update "Docs" nav link to point to `/getting-started/` instead of GitHub user guide
@@ -121,7 +128,10 @@ Core scaffolding, config, and all structural pages.
   - For post-1.0.0 releases: generates `.mdx` file in `src/content/docs/releases/`
   - For pre-1.0.0 releases: presents each to the user for approval before generating
   - Strips "Installation Instructions" boilerplate from release bodies
-  - Converts GitHub-flavoured markdown to MDX-safe content (HTML image tags, etc.)
+  - Converts GitHub-flavoured markdown to MDX-safe content. Known issues in existing releases:
+    - v1.0.5, v0.1.37 have HTML `<img>` tags — self-closing, so valid JSX/MDX
+    - v1.0.9 has `{slug}` in prose — MDX will interpret `{}` as expressions and break. Must escape as `\{slug\}` or wrap in a code span
+  - Both the one-off script AND the CI workflow (Phase 2.3) need this escaping logic
   - File naming: `{version}.mdx` (e.g. `1.0.5.mdx`)
   - Each file has frontmatter: `title`, `description`, `date`
   - Adds "View on GitHub" link at bottom of each page
@@ -135,7 +145,7 @@ Core scaffolding, config, and all structural pages.
   - Generate a new `.mdx` file in `website/src/content/docs/releases/`
   - Copy binaries to `website/public/` (not `website/` — Astro serves from `public/`)
   - Commit both the binaries AND the new release page
-  - Continue triggering `deploy-website.yml` as before
+  - Keep the explicit `gh workflow run deploy-website.yml` trigger — commits from the GitHub bot user don't trigger `on: push` workflows, so the explicit dispatch is required
 
 ---
 
@@ -178,7 +188,7 @@ Placeholder pages so the sidebar has structure. Actual content is Task 2.
 
 ## Reference Implementation Details
 
-The sections below are carried over from the original task document for use during implementation.
+The sections below are carried over from the original task document. Since we're scaffolding via CLI (which gives us the latest config formats), treat these as **guidance for what to customize**, not as copy-paste. The CLI-generated configs take precedence for structure/syntax; these snippets show what needs adding on top.
 
 ### Directory Structure
 
