@@ -151,16 +151,23 @@ Core scaffolding, config, and all structural pages.
 
 ## Phase 3: Deployment [✅ DONE]
 
+### 3.0 Decouple Website from Root Workspace
+
+- [x] Remove `website` from `pnpm-workspace.yaml` — website is now fully independent
+- [x] Switch website package manager from pnpm to bun (`bun.lock` in `website/`)
+- [x] Add `website/**` and `website-old/**` to root `eslint.config.js` ignores
+- [x] Update `website/package.json` scripts to use `bun run`
+- [x] Update `website/AGENTS.md` and root `AGENTS.md` to document the separation
+- [x] Exclude `scripts/` from website `tsconfig.json` (one-off script, not part of Astro build)
+
 ### 3.1 Update GitHub Actions
 
-- [ ] Update `deploy-website.yml`:
+- [x] Update `deploy-website.yml`:
   - Add `oven-sh/setup-bun@v2` step
-  - Add `bun install` step (working-directory: `website`)
-  - Add `bun run build` step (working-directory: `website`)
+  - `bun install --frozen-lockfile` (working-directory: `website`)
+  - `bun run build` (working-directory: `website`)
   - Change upload artifact path from `./website` to `./website/dist`
-- [ ] Update `publish-website-artifacts.yml`:
-  - Binary destination: `website/public/` (Astro copies `public/` into `dist/` at build)
-  - Release page generation (from Phase 2.3) already wired in
+- [x] `publish-website-artifacts.yml` — no changes needed (only writes files and commits, doesn't build)
 
 ### 3.2 Cleanup & Verify
 
