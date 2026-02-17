@@ -1,0 +1,20 @@
+---
+title: 'v0.1.31'
+description: 'Astro Editor v0.1.31'
+date: 2025-10-24
+slug: 'releases/v0.1.31'
+---
+
+### Breaking Changes ⚠️
+Generated JSON schemas are now **required** for schema fields to show in the sidebar. While `content.config.json` or `content/config.json` schemas are still parsed, they are now **only** used to enrich the generated JSON schemas. Runnigh `astro sync` or `astro dev` or `astro build` in your Astro project will auto-generate these schemas, so this should not negatively affect many users.
+
+### New Features
+- Image and Reference fields now work properly inside nested objects in the schema.
+
+### Technical Improvements & Bugfixes
+- Rebuilt simplified Zod schema parser to only handle information which isn't available in the generated JSON schemas. Currently this is Zod `references()` and Astro `image()` fields.
+- Simplified logic for handling images and files added to MD/MDX files and/or frontmatter. No change to functionality, but should make this more reliable.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v0.1.31)

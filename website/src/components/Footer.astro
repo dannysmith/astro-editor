@@ -1,0 +1,39 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro'
+---
+
+<Default><slot /></Default>
+
+<footer class="sl-footer-links">
+  <span>&copy; {new Date().getFullYear()} Danny Smith</span>
+  <span class="separator">&middot;</span>
+  <a href="/privacy/">Privacy Policy</a>
+</footer>
+
+<style>
+  .sl-footer-links {
+    padding: 1rem var(--sl-content-pad-x);
+    text-align: center;
+    font-size: var(--sl-text-2xs);
+    color: var(--sl-color-gray-3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+
+    a {
+      color: var(--sl-color-gray-3);
+      text-decoration: none;
+
+      &:hover {
+        color: var(--sl-color-white);
+        text-decoration: underline;
+      }
+    }
+
+    .separator {
+      opacity: 0.5;
+    }
+  }
+</style>
