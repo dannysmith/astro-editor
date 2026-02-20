@@ -3,6 +3,22 @@ title: 'Required Fields & Descriptions'
 description: 'How required fields and field descriptions are displayed'
 ---
 
-This page will cover how required fields are indicated and how field descriptions are shown.
+## Field Descriptions
 
-Documentation is coming soon.
+When you add descriptions to your schema fields, they appear in the frontmatter sidebar to guide your editing. Any field using `.describe()` in your schema will display that description below the input field in gray text. This is helpful for explaining what the field is for or providing usage examples.
+
+```typescript
+title: z.string().describe('The main heading for your article')
+```
+
+## Field Constraints
+
+Character limits, min/max values, and other constraints from your schema are enforced in the form. For example:
+
+- `z.string().min(10).max(100)` - Shows character counter and prevents saving if out of range
+- `z.number().min(1).max(10)` - Number input with validation
+- `z.string().length(50)` - Enforces exact length
+
+## Required Fields
+
+Required schema fields show an asterisk (\*) next to their label and prevent saving if empty.

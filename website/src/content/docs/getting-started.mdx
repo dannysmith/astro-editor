@@ -3,6 +3,33 @@ title: 'Getting Started'
 description: 'Introduction to Astro Editor and an overview of the main window'
 ---
 
-Astro Editor is a schema-aware markdown editor for Astro content collections. This page will introduce the app and provide an overview of the main window.
+Astro Editor provides a clean, pleasant user experience for authoring and editing [Markdown](https://www.markdownguide.org/) & [MDX](https://mdxjs.com/) files in the content collections of local [Astro](https://astro.build/) sites.
 
-Documentation is coming soon.
+## Quick Start
+
+Getting started with Astro Editor takes just a few steps. The application is designed to work with existing Astro projects that use content collections.
+
+1. **Open an Astro Project**: Use `File > Open Project` to select your Astro project directory. Astro Editor will automatically scan for content collections defined in your `src/content/config.ts` file.
+
+2. **Select a Collection**: Once your project opens, you'll see your content collections listed in the left sidebar. Click on any collection name to view the files it contains.
+
+3. **Open a File**: Click on any markdown or MDX file in the file list to open it in the main editor. The editor will show your content without the frontmatter, which appears in the right sidebar.
+
+4. **Start Writing**: Begin editing. Your changes are automatically saved every 2 seconds, and you can manually save anytime with `Cmd+S`.
+
+5. **Edit Frontmatter**: Use the right sidebar to edit metadata fields. These forms are automatically generated from your Astro content collection schemas.
+
+That's it. Astro Editor handles project discovery, file management, and frontmatter editing automatically based on your existing Astro setup.
+
+## Interface Overview
+
+Astro Editor uses a clean three-panel layout designed to minimize distractions while providing easy access to files and metadata:
+
+| Interface Area    | Purpose                                                                      |
+| ----------------- | ---------------------------------------------------------------------------- |
+| **Left Sidebar**  | Browse collections and files, with draft indicators and context menu options |
+| **Main Editor**   | Clean writing space with markdown syntax highlighting                        |
+| **Right Sidebar** | Dynamic frontmatter forms generated from your Astro collection schemas       |
+| **Top Bar**       | Project name, window controls, and menu access                               |
+
+Both sidebars can be hidden using `Cmd+1` (left) and `Cmd+2` (right) for distraction-free writing. The panels remember their sizes and visibility between sessions.

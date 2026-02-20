@@ -3,6 +3,22 @@ title: 'Reference Fields'
 description: 'How reference fields work in the frontmatter sidebar'
 ---
 
-This page will cover reference fields in the frontmatter sidebar.
+Reference fields let you link content collection entries together. For example, you might have an `authors` collection and want to reference an author from your blog posts.
 
-Documentation is coming soon.
+**In your schema:**
+
+```typescript
+const blog = defineCollection({
+  schema: z.object({
+    author: z.reference('authors'), // Single reference
+    contributors: z.array(z.reference('authors')), // Multiple references
+  }),
+})
+```
+
+**In the frontmatter sidebar:**
+
+- Single references (`z.reference()`) show as a dropdown where you can select one item from the referenced collection
+- Array references (`z.array(z.reference())`) show as a multi-select or tag input where you can select multiple items
+
+**What gets displayed:** The dropdown shows the `name` field from each referenced item, or falls back to the `id` if no name field exists. This works for both markdown-based collections and data file collections (like `authors.json`).

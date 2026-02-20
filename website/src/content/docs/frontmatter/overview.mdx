@@ -3,6 +3,37 @@ title: 'Frontmatter & Schemas'
 description: 'Overview of the right sidebar — how schemas and frontmatter are parsed and displayed'
 ---
 
-This page will introduce the frontmatter sidebar and explain how schemas and frontmatter are parsed and ordered.
+The frontmatter sidebar automatically generates editing forms based on your Astro content collection schemas. This means you get proper validation, appropriate input types, and a clean editing experience without any manual configuration.
 
-Documentation is coming soon.
+## How Schema Parsing Works
+
+Astro Editor uses a flexible multi-source approach to read your content collection schemas, ensuring maximum compatibility with different Astro project setups.
+
+**Primary Method: JSON Schema Files** (Recommended)
+
+Astro Editor first looks for JSON schema files in your project. These can be in two locations:
+
+1. **Astro-generated schemas**: Files in `.astro/collections/` directory (like `blog.schema.json`)
+2. **Custom schema files**: `content.config.json` or `content/config.json` in your project root
+
+To ensure Astro-generated files are available:
+
+1. Run `pnpm run dev` or `astro sync` in your project directory
+2. Astro will automatically generate schema files in `.astro/collections/`
+3. Astro Editor reads these schemas and builds the frontmatter forms
+
+**Support for Schema Imports**
+
+Astro Editor supports `content.config.json` files that import schemas from other sources. This is particularly useful for sites using frameworks like [Starlight](https://starlight.astro.build/), which provide their own schema definitions. If your project imports schemas rather than defining them inline, Astro Editor can still read and use them.
+
+**Fallback Method: Zod Schema Parsing**
+
+If JSON schema files aren't found, Astro Editor falls back to parsing your Zod schema definitions directly from `src/content/config.ts` or `src/content.config.ts`. This works for most cases but has limitations with complex schemas, dynamically built schemas, or third-party schema definitions.
+
+**Best Practice**: Always run `astro sync` after modifying your content collection schemas to ensure Astro Editor has the latest field definitions.
+
+## Field Order and Defaults
+
+Fields appear in the sidebar in the same order they're defined in your Zod schema. When you create a new file, any default values specified in your schema are automatically applied in the panel.
+
+The frontmatter is written to your file in the same order it's shown in the schema, with any non-schema fields shown in alphabetical order by field name.

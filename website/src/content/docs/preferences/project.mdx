@@ -3,6 +3,27 @@ title: 'Project Preferences'
 description: 'The Project pane in Astro Editor preferences'
 ---
 
-This page will cover the Project preferences pane.
+Each project has its own settings that apply to the entire project. Access project settings through the preferences panel (only visible when a project is open).
 
-Documentation is coming soon.
+## Path Overrides
+
+Customize directory locations if your project uses non-standard paths:
+
+- **Content Directory**: Default is `src/content/`, but you might use `content/` or `docs/`
+- **Assets Directory**: Default is `src/assets/`, useful for projects using `public/images/` or `static/`
+- **MDX Components Directory**: Default is `src/components/mdx/`, can be changed if your components are elsewhere
+
+Project-level path overrides apply to all collections unless a collection has its own override.
+
+## File Defaults
+
+- **Default File Type for New Files**: Override the global default for newly created files in this project. Choose between Markdown (`.md`) or MDX (`.mdx`), or inherit the global setting.
+
+## Field Mappings
+
+Configure which fields Astro Editor should use for common purposes:
+
+- **Title Field**: Which field to display as the title in the file list (default: `title`)
+- **Date Field**: Which field(s) to use for sorting files by date (e.g., `pubDate`, `date`, or `publishedDate`)
+- **Description Field**: Which field should render as a multi-line textarea (default: `description`)
+- **Draft Field**: Which boolean field indicates draft status (default: `draft`)

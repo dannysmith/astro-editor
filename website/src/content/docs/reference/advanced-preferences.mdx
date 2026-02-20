@@ -3,6 +3,14 @@ title: 'Advanced Preferences & Project Store'
 description: 'Reference for preferences JSON files and the project store'
 ---
 
-This page will document the preferences JSON files and the project store.
+## Settings Storage
 
-Documentation is coming soon.
+Settings are automatically saved to your system:
+
+- **Location**: `~/Library/Application Support/is.danny.astroeditor/`
+- **Global Settings**: Theme, IDE command, and other app-wide preferences
+- **Project Registry**: Remembers all opened projects and their metadata
+- **Project Files**: Individual settings files for each project (includes collection overrides)
+- **Auto-Recovery**: Settings persist across app restarts and crashes
+
+Projects are identified by their `package.json` name and automatically migrate if you move the project folder.

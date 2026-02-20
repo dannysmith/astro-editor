@@ -3,6 +3,99 @@ title: 'Keyboard Shortcuts'
 description: 'Full list of keyboard shortcuts in Astro Editor'
 ---
 
-This page will provide a full reference of all keyboard shortcuts.
+import { Kbd } from 'starlight-kbd/components'
 
-Documentation is coming soon.
+## Global
+
+These shortcuts work anywhere in the app, regardless of what's focused.
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+S" windows="Ctrl+S" /> | Save current file |
+| <Kbd mac="Cmd+N" windows="Ctrl+N" /> | Create new file in the current collection |
+| <Kbd mac="Cmd+W" windows="Ctrl+W" /> | Close current file |
+| <Kbd mac="Cmd+P" windows="Ctrl+P" /> | Open the command palette |
+| <Kbd mac="Cmd+Shift+O" windows="Ctrl+Shift+O" /> | Open a project |
+| <Kbd mac="Cmd+," windows="Ctrl+," /> | Open preferences |
+| <Kbd mac="Cmd+1" windows="Ctrl+1" /> | Toggle the left sidebar |
+| <Kbd mac="Cmd+2" windows="Ctrl+2" /> | Toggle the frontmatter panel |
+| <Kbd mac="Cmd+0" windows="Ctrl+0" /> | Focus the main editor |
+| <Kbd mac="Ctrl+Cmd+F" windows="F11" /> | Toggle full screen |
+
+## Editor
+
+These shortcuts work when the editor is focused.
+
+### Text Formatting
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+B" windows="Ctrl+B" /> | Toggle bold |
+| <Kbd mac="Cmd+I" windows="Ctrl+I" /> | Toggle italic |
+| <Kbd mac="Cmd+K" windows="Ctrl+K" /> | Insert or edit a link |
+| <Kbd mac="Cmd+Shift+K" windows="Ctrl+Shift+K" /> | Open the content linker |
+| <Kbd mac="Cmd+/" windows="Ctrl+/" /> | Insert MDX component (in `.mdx` files) or toggle comment |
+
+### Headings
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Opt+Cmd+1" windows="Alt+Ctrl+1" /> | Heading 1 |
+| <Kbd mac="Opt+Cmd+2" windows="Alt+Ctrl+2" /> | Heading 2 |
+| <Kbd mac="Opt+Cmd+3" windows="Alt+Ctrl+3" /> | Heading 3 |
+| <Kbd mac="Opt+Cmd+4" windows="Alt+Ctrl+4" /> | Heading 4 |
+| <Kbd mac="Opt+Cmd+0" windows="Alt+Ctrl+0" /> | Remove heading (plain paragraph) |
+
+### Writing Modes
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+Shift+F" windows="Ctrl+Shift+F" /> | Toggle focus mode |
+| <Kbd mac="Cmd+Shift+T" windows="Ctrl+Shift+T" /> | Toggle typewriter mode |
+
+### Search
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+F" windows="Ctrl+F" /> | Open search |
+| <Kbd mac="Cmd+G" windows="Ctrl+G" /> | Find next match |
+| <Kbd mac="Cmd+Shift+G" windows="Ctrl+Shift+G" /> | Find previous match |
+
+### Standard Editing
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+Z" windows="Ctrl+Z" /> | Undo |
+| <Kbd mac="Cmd+Shift+Z" windows="Ctrl+Shift+Z" /> | Redo |
+| <Kbd mac="Cmd+]" windows="Ctrl+]" /> | Indent |
+| <Kbd mac="Cmd+[" windows="Ctrl+[" /> | Dedent |
+| <Kbd mac="Cmd+A" windows="Ctrl+A" /> | Select all |
+| <Kbd mac="Cmd+Shift+L" windows="Ctrl+Shift+L" /> | Add cursors to selected line ends |
+| <Kbd mac="Tab" windows="Tab" /> | Insert tab or jump to next snippet field |
+| <Kbd mac="Shift+Tab" windows="Shift+Tab" /> | Jump to previous snippet field |
+
+### Mouse
+
+| Action | Effect |
+| --- | --- |
+| <Kbd mac="Opt" windows="Alt" /> + hover over image path | Preview the image |
+| <Kbd mac="Opt" windows="Alt" /> + click a URL | Open the URL in your browser |
+
+## Component Builder
+
+These shortcuts work when the component builder dialog is open.
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> | Insert the component |
+| <Kbd mac="Cmd+A" windows="Ctrl+A" /> | Toggle all optional props |
+| <Kbd mac="Backspace" windows="Backspace" /> | Go back to component list |
+
+## Content Linker
+
+These shortcuts work when the content linker dialog is open.
+
+| Shortcut | Action |
+| --- | --- |
+| <Kbd mac="Enter" windows="Enter" /> | Open the selected file |
+| <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> | Insert a link to the selected file |

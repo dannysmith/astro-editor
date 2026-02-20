@@ -3,6 +3,14 @@ title: 'Images & Files'
 description: 'Insert and preview images and files in the editor'
 ---
 
-This page will cover inserting images and files into your content, and previewing images on hover.
+## Image Preview on Hover
 
-Documentation is coming soon.
+When you're editing in the main editor, you can quickly preview images by holding the Option/Alt key and hovering over any image path or URL. A preview will appear in the bottom right corner of the editor.
+
+**How it works:**
+
+- **Remote images**: Any http:// or https:// URL shows a preview
+- **Absolute paths**: Paths like `/src/assets/article/image.png` (relative to your project root)
+- **Relative paths**: Paths like `./image.png` or `../images/photo.jpg` (resolved relative to the current file)
+
+**Note**: Preview for relative paths works in most cases but may be unreliable in unusual folder structures. For the most reliable results, use absolute paths from your project root.

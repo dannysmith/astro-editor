@@ -3,6 +3,61 @@ title: 'Content Linker'
 description: 'Insert links to other content items in your collection'
 ---
 
-This page will cover the content linker — inserting links to other content items within your Astro collections.
+The Content Linker lets you quickly search across all your content items and either open a file or insert a markdown link to it at your current cursor position. It's especially handy when you're writing and want to cross-reference another piece of content without leaving the editor.
 
-Documentation is coming soon.
+**Opening the Content Linker**: Press `Cmd+Shift+K` from the editor, or use the command palette (`Cmd+P`) and search for "Content Linker".
+
+**How it works:**
+
+1. A search dialog appears showing all content items across every collection in your project
+2. Type to filter by title or filename -- the search narrows results as you type
+3. Choose what to do with the selected item:
+   - **Press Enter** to open the file in the editor
+   - **Press Cmd+Enter** to insert a markdown link at your current cursor position
+
+The dialog footer shows these actions as a reminder: `Enter` to open, `Cmd+Enter` to insert a link.
+
+## How Links Are Formatted
+
+The format of inserted links depends on whether you've configured a URL pattern for the collection.
+
+**With a URL pattern configured:**
+
+Links use the pattern you've defined. For example, if your blog collection has a pattern of `/writing/{slug}`:
+
+```markdown
+[My Blog Post](/writing/my-blog-post)
+```
+
+The `{slug}` placeholder resolves to the content item's frontmatter `slug` field if one exists, or falls back to the item's ID (the filename without extension).
+
+**Without a URL pattern:**
+
+Links use a relative file path from the current file to the target:
+
+```markdown
+[My Blog Post](../blog/my-blog-post.md)
+```
+
+## URL Pattern Configuration
+
+You can configure a URL pattern for each collection in Collection Settings. The pattern determines how the Content Linker formats links when you insert them.
+
+**Setting up a URL pattern:**
+
+1. Open Preferences (`Cmd+,`)
+2. Navigate to your collection's settings
+3. Find the **Content Links** section
+4. Enter a pattern in the **Link URL Pattern** field (e.g., `/blog/{slug}`)
+
+The `{slug}` placeholder is replaced with the content item's slug when a link is inserted. If the item has a `slug` field in its frontmatter, that value is used. Otherwise, the item's ID (filename without extension) is used.
+
+**Examples:**
+
+| Pattern           | Slug / ID      | Resulting Link Path    |
+| ----------------- | -------------- | ---------------------- |
+| `/blog/{slug}`    | `my-first-post`| `/blog/my-first-post`  |
+| `/writing/{slug}` | `hello-world`  | `/writing/hello-world` |
+| `/docs/{slug}`    | `getting-started` | `/docs/getting-started` |
+
+If you leave the URL pattern empty, the Content Linker falls back to relative file paths.

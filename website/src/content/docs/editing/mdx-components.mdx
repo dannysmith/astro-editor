@@ -3,6 +3,25 @@ title: 'MDX Components'
 description: 'Insert Astro, React, Vue, and Svelte components in MDX files'
 ---
 
-This page will cover inserting components in MDX files — both Astro components and React/Vue/Svelte components.
+When editing an MDX file, `Cmd+/` will open the component builder. This shows all the components inside your configured `/components/mdx` directory.
 
-Documentation is coming soon.
+**Framework Support**: The component builder works with components written in multiple frameworks:
+
+- **Astro** (`.astro` files)
+- **React** (`.tsx`, `.jsx` files)
+- **Vue** (`.vue` files)
+- **Svelte** (`.svelte` files)
+
+Each component in the list shows a small badge indicating which framework it's written in, along with an icon for quick visual identification.
+
+**Using the component builder:**
+
+1. Press `Cmd+/` in any MDX file
+2. Browse or search for a component
+3. Select a component to see its configuration options
+4. Toggle the props you want to include
+5. Press `Cmd+Enter` to insert the component into your document
+
+After insertion, you can tab through the various prop values to fill them in. The component builder automatically detects which props are available by reading the component's source code.
+
+**Subdirectory Support**: Components can be organized in subdirectories within your MDX components folder. Astro Editor scans recursively and shows all available components regardless of how deeply nested they are.

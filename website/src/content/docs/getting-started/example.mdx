@@ -3,6 +3,21 @@ title: 'A Simple Example'
 description: 'A walkthrough example showing a schema, file tree, and file in the editor'
 ---
 
-This page will walk through a simple example — an example schema, file tree, and content file — and show how they look in the editor.
+By default, Astro Editor expects the following structure in your Astro project:
 
-Documentation is coming soon.
+```
+my-astro-site
+└── src
+    ├── assets
+    │   └── mycollection
+    │       └── image1.png
+    ├── content
+    │   └── mycollection
+    │       └── blog-post.mdx
+    ├── components
+    │   └── mdx
+    │       └── ExampleAstroComponent.astro
+    └── content.config.ts
+```
+
+The paths to the _Assets_, _Content_, and _MDX Components_ directories (relative to the project root) are configurable per project and per collection (see [Preferences](/preferences/general/)).
