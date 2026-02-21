@@ -45,7 +45,7 @@ log = "0.4"
 chrono = "0.4"
 swc_common = "18"
 swc_ecma_ast = "20"
-swc_ecma_parser = "33"
+swc_ecma_parser = "34"
 swc_ecma_visit = "20"
 dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
