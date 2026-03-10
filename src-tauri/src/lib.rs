@@ -48,13 +48,22 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_log::Builder::new()
-            .targets([
+        .plugin({
+            #[allow(unused_mut)]
+            let mut targets = vec![
                 tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
-                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),
-                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview)
-            ])
-            .build())
+                tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                    file_name: None,
+                }),
+            ];
+            #[cfg(target_os = "macos")]
+            targets.push(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::Webview,
+            ));
+            tauri_plugin_log::Builder::new()
+                .targets(targets)
+                .build()
+        })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::watcher::init_watcher_state())
