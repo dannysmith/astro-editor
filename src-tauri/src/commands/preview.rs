@@ -110,6 +110,25 @@ pub async fn stop_preview(state: State<'_, PreviewState>) -> Result<(), String> 
 #[tauri::command]
 #[specta::specta]
 pub async fn is_preview_running(state: State<'_, PreviewState>) -> Result<bool, String> {
-    let child_guard = state.child.lock().await;
-    Ok(child_guard.is_some())
+    let mut child_guard = state.child.lock().await;
+    if let Some(child) = child_guard.as_mut() {
+        match child.try_wait() {
+            Ok(Some(_status)) => {
+                // Process has exited; clear stored child so state reflects reality.
+                *child_guard = None;
+                Ok(false)
+            }
+            Ok(None) => {
+                // Process is still running.
+                Ok(true)
+            }
+            Err(e) => {
+                // If we cannot determine status, log and assume it's still running.
+                error!("Failed to check preview process status: {}", e);
+                Ok(true)
+            }
+        }
+    } else {
+        Ok(false)
+    }
 }
