@@ -56,7 +56,7 @@ pub fn run() {
                     file_name: None,
                 }),
             ];
-            #[cfg(target_os = "macos")]
+            #[cfg(not(target_os = "linux"))]
             targets.push(tauri_plugin_log::Target::new(
                 tauri_plugin_log::TargetKind::Webview,
             ));
