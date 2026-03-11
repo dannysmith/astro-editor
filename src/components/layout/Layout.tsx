@@ -61,8 +61,13 @@ export const Layout: React.FC = () => {
   // react-resizable-panels space redistribution loops between collapsible siblings.
   const leftPanelRef = useRef<PanelImperativeHandle>(null)
 
-  // Suppress benign ResizeObserver errors from panel resizing
+  // Suppress benign ResizeObserver errors from panel resizing (dev-only to avoid hiding issues in production)
   useEffect(() => {
+    // Only attach this handler in development to avoid masking real ResizeObserver issues in production
+    if (!(import.meta as any).env?.DEV) {
+      return
+    }
+
     const handleError = (event: ErrorEvent) => {
       if (event.message?.includes('ResizeObserver loop')) {
         event.stopImmediatePropagation()
