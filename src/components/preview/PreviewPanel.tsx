@@ -23,13 +23,17 @@ export const PreviewPanel: React.FC = () => {
     stopPreview,
     clearLogs,
     init,
+    cleanup,
   } = usePreviewStore()
   const projectPath = useProjectStore(state => state.projectPath)
   const [showLogs, setShowLogs] = useState(false)
 
   useEffect(() => {
     void init()
-  }, [init])
+    return () => {
+      cleanup()
+    }
+  }, [init, cleanup])
 
   const handleStart = () => {
     if (projectPath) {
