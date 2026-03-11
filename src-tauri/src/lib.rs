@@ -67,6 +67,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::watcher::init_watcher_state())
+        .manage(commands::preview::PreviewState::new())
         .setup(|app| {
             // Log app startup information
             let package_info = app.package_info();
@@ -209,6 +210,13 @@ pub fn run() {
                         true,
                         Some("CmdOrCtrl+2"),
                     )?,
+                    &MenuItem::with_id(
+                        app,
+                        "toggle_preview",
+                        "Toggle Preview",
+                        true,
+                        Some("CmdOrCtrl+3"),
+                    )?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(
                         app,
@@ -276,6 +284,9 @@ pub fn run() {
                 "toggle_frontmatter" => {
                     let _ = app.emit("menu-toggle-frontmatter", ());
                 }
+                "toggle_preview" => {
+                    let _ = app.emit("menu-toggle-preview", ());
+                }
                 "enter_fullscreen" => {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.set_fullscreen(true);
@@ -306,6 +317,12 @@ pub fn run() {
                     let _ = app.emit("menu-preferences", ());
                 }
                 "quit" => {
+                    let state: tauri::State<commands::preview::PreviewState> = app.state();
+                    if let Ok(mut child_guard) = state.child.try_lock() {
+                        if let Some(mut child) = child_guard.take() {
+                            let _ = child.start_kill();
+                        }
+                    }
                     app.exit(0);
                 }
                 // Text formatting menu items

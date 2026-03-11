@@ -11,6 +11,7 @@ interface UIState {
   // Layout state
   sidebarVisible: boolean
   frontmatterPanelVisible: boolean
+  previewVisible: boolean
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
@@ -22,8 +23,10 @@ interface UIState {
   // Actions
   setSidebarVisible: (visible: boolean) => void
   setFrontmatterPanelVisible: (visible: boolean) => void
+  setPreviewVisible: (visible: boolean) => void
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
+  togglePreview: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
@@ -54,6 +57,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Initial state
   sidebarVisible: true,
   frontmatterPanelVisible: true,
+  previewVisible: false,
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
@@ -69,6 +73,10 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ frontmatterPanelVisible: visible })
   },
 
+  setPreviewVisible: (visible: boolean) => {
+    set({ previewVisible: visible })
+  },
+
   toggleSidebar: () => {
     set(state => ({
       sidebarVisible: !state.sidebarVisible,
@@ -81,6 +89,14 @@ export const useUIStore = create<UIState>((set, get) => ({
     set(state => ({
       frontmatterPanelVisible: !state.frontmatterPanelVisible,
       // Show bars when opening frontmatter panel
+      distractionFreeBarsHidden: false,
+    }))
+  },
+
+  togglePreview: () => {
+    set(state => ({
+      previewVisible: !state.previewVisible,
+      // Show bars when opening preview
       distractionFreeBarsHidden: false,
     }))
   },

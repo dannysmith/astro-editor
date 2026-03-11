@@ -35,6 +35,7 @@ export function useCommandContext(): CommandContext {
   const toggleFrontmatterPanel = useUIStore(
     state => state.toggleFrontmatterPanel
   )
+  const togglePreview = useUIStore(state => state.togglePreview)
 
   // Get editor actions (Hybrid Action Hooks pattern)
   const { saveFile } = useEditorActions()
@@ -60,6 +61,7 @@ export function useCommandContext(): CommandContext {
     setProject,
     toggleSidebar,
     toggleFrontmatterPanel,
+    togglePreview,
     saveFile,
     closeCurrentFile,
     loadCollections: () => {

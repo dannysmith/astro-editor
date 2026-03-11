@@ -20,6 +20,7 @@ export interface CommandContext {
   setProject: (path: string) => void
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
+  togglePreview: () => void
   saveFile: () => Promise<void>
   closeCurrentFile: () => void
   loadCollections: () => void

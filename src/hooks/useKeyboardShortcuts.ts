@@ -68,6 +68,15 @@ export function useKeyboardShortcuts(
     DEFAULT_HOTKEY_OPTS
   )
 
+  // Cmd+3: Toggle Preview
+  useHotkeys(
+    'mod+3',
+    () => {
+      useUIStore.getState().togglePreview()
+    },
+    DEFAULT_HOTKEY_OPTS
+  )
+
   // Cmd+N: Create New File
   useHotkeys(
     'mod+n',

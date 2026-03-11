@@ -374,6 +374,30 @@ async openPathInIde(ideCommand: string, filePath: string) : Promise<Result<strin
     else return { status: "error", error: e  as any };
 }
 },
+async startPreview(projectPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_preview", { projectPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopPreview() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_preview") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async isPreviewRunning() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("is_preview_running") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async scanMdxComponents(projectPath: string, mdxDirectory: string | null) : Promise<Result<MdxComponent[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory }) };
