@@ -64,7 +64,7 @@ export const Layout: React.FC = () => {
   // Suppress benign ResizeObserver errors from panel resizing (dev-only to avoid hiding issues in production)
   useEffect(() => {
     // Only attach this handler in development to avoid masking real ResizeObserver issues in production
-    if (!(import.meta as any).env?.DEV) {
+    if (!import.meta.env.DEV) {
       return
     }
 

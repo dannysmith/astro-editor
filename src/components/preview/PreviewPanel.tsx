@@ -23,16 +23,18 @@ export const PreviewPanel: React.FC = () => {
     stopPreview,
     clearLogs,
     init,
+    cleanup,
   } = usePreviewStore(state => ({
     isRunning: state.isRunning,
     isStarting: state.isStarting,
     url: state.url,
+    logs: state.logs,
     startPreview: state.startPreview,
     stopPreview: state.stopPreview,
     clearLogs: state.clearLogs,
     init: state.init,
+    cleanup: state.cleanup,
   }))
-  const logs = usePreviewStore(state => state.logs)
   const projectPath = useProjectStore(state => state.projectPath)
   const [showLogs, setShowLogs] = useState(false)
 

@@ -118,9 +118,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   handleTypingInEditor: () => {
-    const { sidebarVisible, frontmatterPanelVisible } = get()
-    // Immediately hide bars if both panels are hidden
-    if (!sidebarVisible && !frontmatterPanelVisible) {
+    const { sidebarVisible, frontmatterPanelVisible, previewVisible } = get()
+    // Immediately hide bars if all panels are hidden
+    if (!sidebarVisible && !frontmatterPanelVisible && !previewVisible) {
       set({ distractionFreeBarsHidden: true })
     }
   },

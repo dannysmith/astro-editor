@@ -318,10 +318,9 @@ pub fn run() {
                 }
                 "quit" => {
                     let state: tauri::State<commands::preview::PreviewState> = app.state();
-                    if let Ok(mut child_guard) = state.child.try_lock() {
-                        if let Some(mut child) = child_guard.take() {
-                            let _ = child.start_kill();
-                        }
+                    let mut child_guard = tauri::async_runtime::block_on(state.child.lock());
+                    if let Some(mut child) = child_guard.take() {
+                        let _ = child.start_kill();
                     }
                     app.exit(0);
                 }
