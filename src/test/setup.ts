@@ -13,6 +13,35 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: mockListen,
 }))
 
+// Mock localStorage if it doesn't exist or is invalid (e.g. in some jsdom environments)
+if (
+  typeof localStorage === 'undefined' ||
+  typeof localStorage.getItem !== 'function'
+) {
+  const mockStorage: Record<string, string> = {}
+  const storageMock = {
+    getItem: vi.fn((key: string) => mockStorage[key] || null),
+    setItem: vi.fn((key: string, value: { toString(): string }) => {
+      mockStorage[key] = value.toString()
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete mockStorage[key]
+    }),
+    clear: vi.fn(() => {
+      Object.keys(mockStorage).forEach(key => delete mockStorage[key])
+    }),
+    key: vi.fn((index: number) => Object.keys(mockStorage)[index] || null),
+    length: 0,
+  }
+
+  // Keep length in sync
+  Object.defineProperty(storageMock, 'length', {
+    get: () => Object.keys(mockStorage).length,
+  })
+
+  globalThis.localStorage = storageMock as unknown as Storage
+}
+
 // Mock project registry manager for testing
 const mockProjectRegistryManager = {
   init: vi.fn().mockResolvedValue(undefined),

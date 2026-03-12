@@ -303,10 +303,14 @@ export class ProjectRegistryManager {
       appearance: {
         ...this.globalSettings.appearance,
         ...settings.appearance,
-        // Two-level deep merge for headingColor
+        // Two-level deep merge for nested objects
         headingColor: {
           ...this.globalSettings.appearance.headingColor,
           ...settings.appearance?.headingColor,
+        },
+        fonts: {
+          ...this.globalSettings.appearance.fonts,
+          ...settings.appearance?.fonts,
         },
       },
     }

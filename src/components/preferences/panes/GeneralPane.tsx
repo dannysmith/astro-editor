@@ -18,10 +18,30 @@ import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
+import { FontSelector } from '../FontSelector'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const { setTheme } = useTheme()
+
+  const handleFontChange = useCallback(
+    (type: 'interface' | 'editorBody' | 'editorCode', value: string) => {
+      void updateGlobal({ appearance: { fonts: { [type]: value } } })
+    },
+    [updateGlobal]
+  )
+
+  const handleResetFont = useCallback(
+    (type: 'interface' | 'editorBody' | 'editorCode') => {
+      const defaults = {
+        interface: 'system-ui, -apple-system, sans-serif',
+        editorBody: 'iA Writer Duo',
+        editorCode: 'iA Writer Mono',
+      }
+      handleFontChange(type, defaults[type])
+    },
+    [handleFontChange]
+  )
 
   const handleThemeChange = useCallback(
     (value: 'light' | 'dark' | 'system') => {
@@ -233,6 +253,78 @@ export const GeneralPane: React.FC = () => {
             </div>
             <FieldDescription>
               Base font size for editor text (default: 18)
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel>Interface Font</FieldLabel>
+          <FieldContent>
+            <div className="flex items-center gap-2 w-full max-w-md">
+              <FontSelector
+                value={globalSettings?.appearance?.fonts?.interface}
+                onChange={value => handleFontChange('interface', value)}
+                placeholder="Select interface font..."
+                defaultFonts={['system-ui', '-apple-system', 'sans-serif']}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleResetFont('interface')}
+              >
+                Reset
+              </Button>
+            </div>
+            <FieldDescription>
+              Font family for the application user interface
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel>Editor Font (Body)</FieldLabel>
+          <FieldContent>
+            <div className="flex items-center gap-2 w-full max-w-md">
+              <FontSelector
+                value={globalSettings?.appearance?.fonts?.editorBody}
+                onChange={value => handleFontChange('editorBody', value)}
+                placeholder="Select editor body font..."
+                defaultFonts={['iA Writer Duo', 'iA Writer Mono', 'monospace']}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleResetFont('editorBody')}
+              >
+                Reset
+              </Button>
+            </div>
+            <FieldDescription>
+              Main font for the editor content
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel>Editor Font (Code)</FieldLabel>
+          <FieldContent>
+            <div className="flex items-center gap-2 w-full max-w-md">
+              <FontSelector
+                value={globalSettings?.appearance?.fonts?.editorCode}
+                onChange={value => handleFontChange('editorCode', value)}
+                placeholder="Select editor code font..."
+                defaultFonts={['iA Writer Mono', 'monospace']}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleResetFont('editorCode')}
+              >
+                Reset
+              </Button>
+            </div>
+            <FieldDescription>
+              Font family for code blocks and monospaced text
             </FieldDescription>
           </FieldContent>
         </Field>
