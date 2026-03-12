@@ -41,3 +41,5 @@ jscpd-report/
 website/dist/
 website/.astro/
 website/node_modules/
+
+.claude/worktrees/

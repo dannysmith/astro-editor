@@ -18,9 +18,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# Note: macos-private-api is kept in base features because tauri-build's feature
-# check runs before Cargo resolves target-specific deps. The feature is a no-op
-# on non-macOS platforms.
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 
 # Type-safe Tauri commands with auto-generated TypeScript bindings
@@ -43,23 +40,24 @@ tauri-plugin-process = "2.3.0"
 tauri-plugin-log = "2.0.0"
 log = "0.4"
 chrono = "0.4"
-swc_common = "18"
-swc_ecma_ast = "20"
-swc_ecma_parser = "33"
-swc_ecma_visit = "20"
+swc_common = "19"
+swc_ecma_ast = "21"
+swc_ecma_parser = "35"
+swc_ecma_visit = "21"
 dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
 reqwest = { version = "0.13", features = ["json"] }
-uuid = { version = "1.21", features = ["v4"] }
+uuid = { version = "1.22", features = ["v4"] }
 tauri-plugin-os = "2.3.2"
 tauri-plugin-window-state = "2"
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.27"
 
 # macOS-only dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
+tauri = { version = "2", features = ["macos-private-api"] }
 window-vibrancy = "0.7"
 
 # Desktop-only dependencies (excludes Android and iOS)

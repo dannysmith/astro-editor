@@ -1,112 +1,81 @@
 {
-  "$ref": "#/definitions/notes",
-  "definitions": {
-    "notes": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "The title of the note"
+    },
+    "sourceURL": {
+      "type": "string",
+      "format": "uri"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "draft": {
+      "default": false,
+      "type": "boolean"
+    },
+    "description": {
+      "type": "string"
+    },
+    "pubDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
       "type": "object",
       "properties": {
-        "title": {
+        "category": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 100,
-          "description": "The title of the note",
-          "markdownDescription": "The title of the note"
+          "description": "Category for organizing notes"
         },
-        "sourceURL": {
+        "priority": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Priority level from 1-5"
+        },
+        "deadline": {
           "type": "string",
-          "format": "uri"
-        },
-        "slug": {
-          "type": "string"
-        },
-        "draft": {
-          "type": "boolean",
-          "default": false
-        },
-        "description": {
-          "type": "string"
-        },
-        "pubDate": {
-          "anyOf": [
-            {
-              "type": "string",
-              "format": "date-time"
-            },
-            {
-              "type": "string",
-              "format": "date"
-            },
-            {
-              "type": "integer",
-              "format": "unix-time"
-            }
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "metadata": {
-          "type": "object",
-          "properties": {
-            "category": {
-              "type": "string",
-              "description": "Category for organizing notes",
-              "markdownDescription": "Category for organizing notes"
-            },
-            "priority": {
-              "type": "number",
-              "minimum": 1,
-              "maximum": 5,
-              "description": "Priority level from 1-5",
-              "markdownDescription": "Priority level from 1-5"
-            },
-            "deadline": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "integer",
-                  "format": "unix-time"
-                }
-              ]
-            }
-          },
-          "required": [
-            "category"
-          ],
-          "additionalProperties": false
-        },
-        "coverImage": {
-          "type": "object",
-          "properties": {
-            "image": {
-              "type": "string"
-            },
-            "alt": {
-              "type": "string",
-              "maxLength": 200
-            }
-          },
-          "additionalProperties": false
-        },
-        "$schema": {
-          "type": "string"
+          "format": "date-time"
         }
       },
       "required": [
-        "title",
-        "pubDate"
+        "category"
       ],
       "additionalProperties": false
+    },
+    "coverImage": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "$schema": {
+      "type": "string"
     }
   },
-  "$schema": "http://json-schema.org/draft-07/schema#"
+  "required": [
+    "title",
+    "draft",
+    "pubDate"
+  ],
+  "additionalProperties": false
 }

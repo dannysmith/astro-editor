@@ -1,38 +1,34 @@
 {
-  "$ref": "#/definitions/authors",
-  "definitions": {
-    "authors": {
-      "type": "object",
-      "properties": {
-        "$schema": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "bio": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "email"
-        ],
-        "additionalProperties": false
-      }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
     }
   },
-  "$schema": "http://json-schema.org/draft-07/schema#"
+  "additionalProperties": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+      },
+      "bio": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "email"
+    ],
+    "additionalProperties": false
+  }
 }
