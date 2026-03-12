@@ -39,6 +39,7 @@
     "updater:allow-install",
     "process:default",
     "process:allow-restart",
+    "system-fonts:default",
     "log:default",
     "os:default",
     "window-state:default",

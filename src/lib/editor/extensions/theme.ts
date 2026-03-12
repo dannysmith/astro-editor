@@ -130,6 +130,7 @@ export const createEditorTheme = () => {
     // selection layer (bottom) → line background (middle) → text (top)
     '.cm-codeblock-line': {
       backgroundColor: 'var(--editor-color-codeblock-background)',
+      fontFamily: 'var(--editor-font-family-code)',
     },
     // Rounded corners for first/last lines of code blocks
     '.cm-codeblock-first': {

@@ -77,14 +77,14 @@ export const comprehensiveHighlightStyle = HighlightStyle.define([
   {
     tag: markdownTags.inlineCode,
     backgroundColor: 'var(--editor-color-codeblock-background)',
-    fontFamily: 'iA Writer Mono Variable, iA Writer Mono, monospace',
+    fontFamily: 'var(--editor-font-family-code)',
     padding: '1px 3px',
     borderRadius: '2px',
   },
   { tag: markdownTags.inlineCodeMark, color: 'var(--editor-color-mdtag)' },
   {
     tag: markdownTags.codeBlock,
-    fontFamily: 'iA Writer Mono Variable, iA Writer Mono, monospace',
+    fontFamily: 'var(--editor-font-family-code)',
   },
   { tag: markdownTags.codeBlockMark, color: 'var(--editor-color-mdtag)' },
   { tag: markdownTags.codeFence, color: 'var(--editor-color-mdtag)' },

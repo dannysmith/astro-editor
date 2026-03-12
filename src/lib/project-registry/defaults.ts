@@ -38,6 +38,12 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
       light: '#191919', // Use default text color
       dark: '#cccccc', // Use default text color
     },
+    editorBaseFontSize: 18,
+    fonts: {
+      interface: 'system-ui, -apple-system, sans-serif',
+      editorBody: 'iA Writer Duo',
+      editorCode: 'iA Writer Mono',
+    },
   },
   version: 2,
 }
