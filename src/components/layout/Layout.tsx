@@ -53,6 +53,9 @@ export const Layout: React.FC = () => {
   const editorBaseFontSize = useProjectStore(
     state => state.globalSettings?.appearance?.editorBaseFontSize
   )
+  const fonts = useProjectStore(
+    state => state.globalSettings?.appearance?.fonts
+  )
 
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
@@ -175,6 +178,27 @@ export const Layout: React.FC = () => {
     const size = editorBaseFontSize ?? 18
     root.style.setProperty('--editor-base-font-size', `${size}px`)
   }, [editorBaseFontSize])
+
+  // Apply fonts from preferences
+  useEffect(() => {
+    if (fonts) {
+      const root = window.document.documentElement
+      if (fonts.interface) {
+        root.style.setProperty('--font-interface', fonts.interface)
+      }
+      if (fonts.editorBody) {
+        root.style.setProperty('--editor-font-family-body', fonts.editorBody)
+        // Also set italic version (assuming it exists or can be fallback)
+        root.style.setProperty(
+          '--editor-font-family-body-italic',
+          fonts.editorBody
+        )
+      }
+      if (fonts.editorCode) {
+        root.style.setProperty('--editor-font-family-mono', fonts.editorCode)
+      }
+    }
+  }, [fonts])
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col overflow-hidden">

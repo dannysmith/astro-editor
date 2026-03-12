@@ -99,6 +99,11 @@ export interface GlobalSettings {
       dark: string
     }
     editorBaseFontSize?: number // 1-30, default 18
+    fonts?: {
+      interface?: string
+      editorBody?: string
+      editorCode?: string
+    }
   }
   version: number
 }

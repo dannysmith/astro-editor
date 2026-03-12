@@ -22,7 +22,9 @@
 /* Inline Code Styling - this works reliably */
 .cm-editor .cm-line [class*='inlineCode'] {
   background-color: var(--editor-color-codeblock-background);
-  font-family: 'iA Writer Mono Variable', 'iA Writer Mono', monospace;
+  font-family:
+    var(--editor-font-family-code), 'iA Writer Mono Variable', 'iA Writer Mono',
+    monospace;
   padding: 1px 3px;
   border-radius: 2px;
 }
@@ -117,11 +119,14 @@
 :root {
   /* Font Family */
   --editor-font-family:
-    'iA Writer Duo Variable', 'iA Writer Duo', -apple-system, 'Segoe UI',
-    'Roboto', sans-serif;
+    var(--editor-font-family-body), 'iA Writer Duo Variable', 'iA Writer Duo',
+    -apple-system, 'Segoe UI', 'Roboto', sans-serif;
   --editor-font-family-italic:
-    'iA Writer Duo Variable Italic', 'iA Writer Duo', -apple-system, 'Segoe UI',
-    'Roboto', sans-serif;
+    var(--editor-font-family-body-italic), 'iA Writer Duo Variable Italic',
+    'iA Writer Duo', -apple-system, 'Segoe UI', 'Roboto', sans-serif;
+  --editor-font-family-code:
+    var(--editor-font-family-mono), 'iA Writer Mono Variable', 'iA Writer Mono',
+    monospace;
 
   /* Base Font Weight */
   --editor-font-weight-normal: 490;
