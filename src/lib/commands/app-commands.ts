@@ -4,6 +4,7 @@ import {
   X,
   Sidebar,
   PanelRight,
+  MonitorPlay,
   RefreshCw,
   Plus,
   ExternalLink,
@@ -79,6 +80,19 @@ export const navigationCommands: AppCommand[] = [
       context.toggleFrontmatterPanel()
     },
     isAvailable: () => true,
+  },
+  {
+    id: 'toggle-preview',
+    label: 'Toggle Preview',
+    description: 'Show or hide the live preview panel',
+    icon: MonitorPlay,
+    group: 'navigation',
+    execute: (context: CommandContext) => {
+      context.togglePreview()
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.projectPath)
+    },
   },
   {
     id: 'content-linker',

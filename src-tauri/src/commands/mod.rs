@@ -5,6 +5,7 @@ pub mod ide;
 pub mod mdx_components;
 pub mod menu;
 pub mod preferences;
+pub mod preview;
 pub mod project;
 pub mod updater;
 pub mod watcher;

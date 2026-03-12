@@ -14,6 +14,7 @@ import {
   Plus,
   Eye,
   Pilcrow,
+  MonitorPlay,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 
@@ -51,6 +52,8 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   const toggleFocusMode = useUIStore(state => state.toggleFocusMode)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const toggleTypewriterMode = useUIStore(state => state.toggleTypewriterMode)
+  const togglePreview = useUIStore(state => state.togglePreview)
+  const previewVisible = useUIStore(state => state.previewVisible)
   const distractionFreeBarsHidden = useUIStore(
     state => state.distractionFreeBarsHidden
   )
@@ -157,6 +160,21 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
             className={cn(
               'size-4',
               typewriterModeEnabled && 'text-blue-500 dark:text-blue-400'
+            )}
+          />
+        </Button>
+
+        <Button
+          onClick={togglePreview}
+          variant="ghost"
+          size="sm"
+          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          title={previewVisible ? 'Close Preview' : 'Open Preview'}
+        >
+          <MonitorPlay
+            className={cn(
+              'size-4',
+              previewVisible && 'text-blue-500 dark:text-blue-400'
             )}
           />
         </Button>

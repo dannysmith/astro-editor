@@ -81,6 +81,9 @@ export function useMenuEvents(
         listen('menu-toggle-frontmatter', () => {
           useUIStore.getState().toggleFrontmatterPanel()
         }),
+        listen('menu-toggle-preview', () => {
+          useUIStore.getState().togglePreview()
+        }),
       ])
 
       // Format operations (using map-based approach)

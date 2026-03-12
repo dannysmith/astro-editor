@@ -201,6 +201,7 @@ useHotkeys('mod+w', handleCloseFile) // Close file
 // Navigation
 useHotkeys('mod+1', toggleSidebar) // Toggle sidebar
 useHotkeys('mod+2', toggleFrontmatter) // Toggle frontmatter panel
+useHotkeys('mod+3', togglePreview) // Toggle preview panel
 
 // Settings
 useHotkeys('mod+comma', openPreferences) // Open preferences

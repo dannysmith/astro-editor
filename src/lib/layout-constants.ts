@@ -14,6 +14,11 @@ export const LAYOUT_SIZES = {
     min: '20',
     max: '40',
   },
+  preview: {
+    default: '35',
+    min: '20',
+    max: '50',
+  },
   mainEditor: {
     default: '55',
     min: '40',
