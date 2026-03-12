@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { usePreviewStore } from '@/store/previewStore'
 import { useProjectStore } from '@/store/projectStore'
@@ -24,17 +25,19 @@ export const PreviewPanel: React.FC = () => {
     clearLogs,
     init,
     cleanup,
-  } = usePreviewStore(state => ({
-    isRunning: state.isRunning,
-    isStarting: state.isStarting,
-    url: state.url,
-    logs: state.logs,
-    startPreview: state.startPreview,
-    stopPreview: state.stopPreview,
-    clearLogs: state.clearLogs,
-    init: state.init,
-    cleanup: state.cleanup,
-  }))
+  } = usePreviewStore(
+    useShallow(state => ({
+      isRunning: state.isRunning,
+      isStarting: state.isStarting,
+      url: state.url,
+      logs: state.logs,
+      startPreview: state.startPreview,
+      stopPreview: state.stopPreview,
+      clearLogs: state.clearLogs,
+      init: state.init,
+      cleanup: state.cleanup,
+    }))
+  )
   const projectPath = useProjectStore(state => state.projectPath)
   const [showLogs, setShowLogs] = useState(false)
 
