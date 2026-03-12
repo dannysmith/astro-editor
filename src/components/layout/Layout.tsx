@@ -54,11 +54,28 @@ export const Layout: React.FC = () => {
 
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
-  // Panel refs for imperative collapse/expand control
+  // Left sidebar uses collapsible panel with imperative API for drag-to-collapse UX.
+  // Preview and right sidebar use conditional rendering to avoid
+  // react-resizable-panels space redistribution loops between collapsible siblings.
   const leftPanelRef = useRef<PanelImperativeHandle>(null)
-  const rightPanelRef = useRef<PanelImperativeHandle>(null)
 
-  // Sync sidebar visibility with panel collapse state
+  // Suppress benign ResizeObserver errors from panel resizing (dev-only to avoid hiding issues in production)
+  useEffect(() => {
+    // Only attach this handler in development to avoid masking real ResizeObserver issues in production
+    if (!import.meta.env.DEV) {
+      return
+    }
+
+    const handleError = (event: ErrorEvent) => {
+      if (event.message?.includes('ResizeObserver loop')) {
+        event.stopImmediatePropagation()
+      }
+    }
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [])
+
+  // Sync left sidebar visibility with panel collapse state
   useEffect(() => {
     if (sidebarVisible) {
       leftPanelRef.current?.expand()
@@ -67,15 +84,7 @@ export const Layout: React.FC = () => {
     }
   }, [sidebarVisible])
 
-  useEffect(() => {
-    if (frontmatterPanelVisible) {
-      rightPanelRef.current?.expand()
-    } else {
-      rightPanelRef.current?.collapse()
-    }
-  }, [frontmatterPanelVisible])
-
-  // Sync drag-to-collapse back to the store
+  // Sync drag-to-collapse back to the store for left sidebar
   const handleLeftPanelResize = useCallback(
     (size: { asPercentage: number }) => {
       const isCollapsed = size.asPercentage === 0
@@ -83,17 +92,6 @@ export const Layout: React.FC = () => {
         useUIStore.getState()
       if (isCollapsed && current) setSidebarVisible(false)
       if (!isCollapsed && !current) setSidebarVisible(true)
-    },
-    []
-  )
-
-  const handleRightPanelResize = useCallback(
-    (size: { asPercentage: number }) => {
-      const isCollapsed = size.asPercentage === 0
-      const { frontmatterPanelVisible: current, setFrontmatterPanelVisible } =
-        useUIStore.getState()
-      if (isCollapsed && current) setFrontmatterPanelVisible(false)
-      if (!isCollapsed && !current) setFrontmatterPanelVisible(true)
     },
     []
   )
@@ -215,23 +213,21 @@ export const Layout: React.FC = () => {
             <MainEditor />
           </ResizablePanel>
 
-          <ResizableHandle
-            className={`!cursor-col-resize ${frontmatterPanelVisible ? '' : 'hidden'}`}
-          />
-          <ResizablePanel
-            id="right-sidebar"
-            panelRef={rightPanelRef}
-            collapsible
-            collapsedSize={0}
-            defaultSize={LAYOUT_SIZES.rightSidebar.default}
-            minSize={LAYOUT_SIZES.rightSidebar.min}
-            maxSize={LAYOUT_SIZES.rightSidebar.max}
-            onResize={handleRightPanelResize}
-          >
-            <RightSidebar>
-              <FrontmatterPanel />
-            </RightSidebar>
-          </ResizablePanel>
+          {frontmatterPanelVisible && (
+            <>
+              <ResizableHandle className="!cursor-col-resize" />
+              <ResizablePanel
+                id="right-sidebar"
+                defaultSize={LAYOUT_SIZES.rightSidebar.default}
+                minSize={LAYOUT_SIZES.rightSidebar.min}
+                maxSize={LAYOUT_SIZES.rightSidebar.max}
+              >
+                <RightSidebar>
+                  <FrontmatterPanel />
+                </RightSidebar>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
 
