@@ -597,12 +597,10 @@ fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
     (imports_string, content_string)
 }
 
-/// Normalizes ISO datetime strings to date-only format recursively
-/// Converts "2024-01-15T00:00:00Z" -> "2024-01-15"
-fn normalize_dates(frontmatter: &mut IndexMap<String, Value>) {
-    for (_, value) in frontmatter.iter_mut() {
-        normalize_value(value);
-    }
+/// No-op: Formerly normalized ISO datetime strings to date-only format.
+/// We now preserve full precision for Astro and other frameworks that need it.
+fn normalize_dates(_frontmatter: &mut IndexMap<String, Value>) {
+    // Intentionally left empty to preserve full timestamp precision
 }
 
 /// Recursively normalizes dates in a Value

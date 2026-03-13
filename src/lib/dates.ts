@@ -51,3 +51,14 @@ export function parseIsoDate(dateString: string): Date | undefined {
 export function todayIsoDate(): string {
   return formatIsoDate(new Date())
 }
+
+/**
+ * Format a Date as a full ISO datetime string (YYYY-MM-DDTHH:mm:ss.sssZ).
+ */
+export function formatIsoDateTime(date: Date): string {
+  return date.toISOString()
+}
+
+export function todayIsoDateTime(): string {
+  return formatIsoDateTime(new Date())
+}
