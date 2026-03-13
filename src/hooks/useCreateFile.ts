@@ -147,6 +147,8 @@ export const useCreateFile = () => {
 
       // Track if we have a title field in the schema
       let hasTitleField = false
+      // Track which fields are date fields to avoid quoting them in YAML
+      const dateFields = new Set<string>()
 
       // Generate default title
       const singularName = singularize(selectedCollection)
@@ -172,6 +174,7 @@ export const useCreateFile = () => {
           ) {
             // Only add date fields if they exist in the schema
             defaultFrontmatter[field.name] = today
+            dateFields.add(field.name)
           }
           // Include other required fields
           else if (field.required) {
@@ -180,6 +183,10 @@ export const useCreateFile = () => {
               field.default !== undefined
                 ? field.default
                 : getDefaultValueForFieldType(field.type)
+
+            if (field.type === FieldType.Date) {
+              dateFields.add(field.name)
+            }
           }
         }
       }
@@ -190,6 +197,10 @@ export const useCreateFile = () => {
           ? `---\n${Object.entries(defaultFrontmatter)
               .map(([key, value]) => {
                 if (typeof value === 'string') {
+                  // Don't quote date fields - YAML needs them unquoted to parse as dates
+                  if (dateFields.has(key)) {
+                    return `${key}: ${value}`
+                  }
                   return `${key}: "${value}"`
                 } else if (typeof value === 'boolean') {
                   return `${key}: ${value}` // Don't quote booleans
