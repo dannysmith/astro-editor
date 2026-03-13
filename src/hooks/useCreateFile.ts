@@ -160,12 +160,15 @@ export const useCreateFile = () => {
             // Always include title field with default value
             defaultFrontmatter[field.name] = defaultTitle
           }
-          // Check for date fields (pubDate, date, publishedDate)
+          // Check for date fields (pubDate, date, publishedDate, timestamp, etc.)
           else if (
             field.type === FieldType.Date &&
             (field.name.toLowerCase() === 'pubdate' ||
               field.name.toLowerCase() === 'date' ||
-              field.name.toLowerCase() === 'publisheddate')
+              field.name.toLowerCase() === 'publisheddate' ||
+              field.name.toLowerCase() === 'timestamp' ||
+              field.name.toLowerCase() === 'updateddate' ||
+              field.name.toLowerCase() === 'modifieddate')
           ) {
             // Only add date fields if they exist in the schema
             defaultFrontmatter[field.name] = today
