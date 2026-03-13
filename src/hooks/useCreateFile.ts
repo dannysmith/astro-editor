@@ -8,7 +8,7 @@ import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import { useCreateFileMutation } from './mutations/useCreateFileMutation'
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
-import { todayIsoDate } from '../lib/dates'
+import { todayIsoDate, todayIsoDateTime } from '../lib/dates'
 import { getDefaultFileType } from '../lib/project-registry/default-file-type'
 
 // Helper function to singularize collection name
@@ -40,7 +40,7 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
     case FieldType.Boolean:
       return false
     case FieldType.Date:
-      return todayIsoDate() // YYYY-MM-DD format
+      return todayIsoDateTime() // YYYY-MM-DDTHH:mm:ss.sssZ format
     case FieldType.Array:
       return []
     default:
@@ -160,15 +160,19 @@ export const useCreateFile = () => {
             // Always include title field with default value
             defaultFrontmatter[field.name] = defaultTitle
           }
-          // Check for date fields (pubDate, date, publishedDate)
+          // Check for date fields (pubDate, date, publishedDate, timestamp, etc.)
           else if (
             field.type === FieldType.Date &&
             (field.name.toLowerCase() === 'pubdate' ||
               field.name.toLowerCase() === 'date' ||
-              field.name.toLowerCase() === 'publisheddate')
+              field.name.toLowerCase() === 'publisheddate' ||
+              field.name.toLowerCase() === 'timestamp' ||
+              field.name.toLowerCase() === 'updateddate' ||
+              field.name.toLowerCase() === 'modifieddate')
           ) {
             // Only add date fields if they exist in the schema
-            defaultFrontmatter[field.name] = today
+            defaultFrontmatter[field.name] = todayIsoDateTime()
+            dateFields.add(field.name)
           }
           // Include other required fields
           else if (field.required) {
@@ -177,6 +181,10 @@ export const useCreateFile = () => {
               field.default !== undefined
                 ? field.default
                 : getDefaultValueForFieldType(field.type)
+
+            if (field.type === FieldType.Date) {
+              dateFields.add(field.name)
+            }
           }
         }
       }
@@ -187,6 +195,10 @@ export const useCreateFile = () => {
           ? `---\n${Object.entries(defaultFrontmatter)
               .map(([key, value]) => {
                 if (typeof value === 'string') {
+                  // Don't quote date fields - YAML needs them unquoted to parse as dates
+                  if (dateFields.has(key)) {
+                    return `${key}: ${value}`
+                  }
                   return `${key}: "${value}"`
                 } else if (typeof value === 'boolean') {
                   return `${key}: ${value}` // Don't quote booleans
