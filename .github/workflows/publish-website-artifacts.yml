@@ -102,6 +102,19 @@ jobs:
             ' | \
             sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
 
+          # Download GitHub attachment images to local repo
+          IMAGES_DIR="website/public/releases"
+          mkdir -p "$IMAGES_DIR"
+          IMAGE_URLS=$(printf '%s\n' "$CLEAN_BODY" | grep -oE 'https://github\.com/user-attachments/assets/[a-f0-9-]+' | sort -u || true)
+          IMG_INDEX=0
+          for URL in $IMAGE_URLS; do
+            IMG_INDEX=$((IMG_INDEX + 1))
+            LOCAL_NAME="${VERSION}-${IMG_INDEX}.png"
+            curl -sL -o "${IMAGES_DIR}/${LOCAL_NAME}" "$URL"
+            CLEAN_BODY=$(printf '%s' "$CLEAN_BODY" | sed "s|${URL}|/releases/${LOCAL_NAME}|g")
+            echo "Downloaded image: ${LOCAL_NAME}"
+          done
+
           # Generate MDX file
           RELEASES_DIR="website/src/content/docs/releases"
           mkdir -p "$RELEASES_DIR"
@@ -116,10 +129,10 @@ jobs:
             printf '%s\n' "---"
 
             if [ -n "$CLEAN_BODY" ]; then
-              printf '\n%s\n' "$CLEAN_BODY"
+              printf '\n%s\n\n%s\n' "$CLEAN_BODY" "---"
             fi
 
-            printf '\n%s\n\n%s\n' "---" "[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/${RELEASE_TAG})"
+            printf '\n%s\n' "[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/${RELEASE_TAG})"
           } > "$OUTPUT_FILE"
 
           echo "Generated release page: $OUTPUT_FILE"
@@ -132,6 +145,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add website/public/astro-editor-latest.dmg website/public/astro-editor-latest.msi website/public/astro-editor-latest.AppImage 2>/dev/null || true
+          git add website/public/releases/*.png 2>/dev/null || true
           git add website/src/content/docs/releases/*.mdx 2>/dev/null || true
           git commit -m "chore: update installers and add release page for $RELEASE_TAG" || echo "No changes to commit"
           git pull --rebase origin main

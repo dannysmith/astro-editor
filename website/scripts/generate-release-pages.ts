@@ -19,6 +19,7 @@ import { join } from 'node:path'
 import * as readline from 'node:readline'
 
 const RELEASES_DIR = join(import.meta.dirname, '../src/content/docs/releases')
+const IMAGES_DIR = join(import.meta.dirname, '../public/releases')
 const REPO = 'dannysmith/astro-editor'
 
 interface Release {
@@ -34,7 +35,7 @@ function isPost1_0(tag: string): boolean {
   const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)/)
   if (!match) return false
   const [, major, minor] = match.map(Number)
-  return major > 1 || (major === 1 && minor >= 0)
+  return major >= 1
 }
 
 function versionFromTag(tag: string): string {
@@ -100,8 +101,8 @@ function escapeCurlyBraces(text: string): string {
 }
 
 function escapeLineOutsideCode(line: string): string {
-  // Split by inline code spans (backtick-delimited)
-  const parts = line.split(/(`[^`]*`)/)
+  // Split by inline code spans, supporting multi-backtick delimiters (e.g. `` `code` ``)
+  const parts = line.split(/(`+[^`]*`+)/)
   return parts
     .map((part, i) => {
       // Odd indices are inside backticks
@@ -110,6 +111,37 @@ function escapeLineOutsideCode(line: string): string {
       return part.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
     })
     .join('')
+}
+
+/**
+ * Download GitHub user-attachment images to local public/releases/ and rewrite URLs.
+ */
+function localiseImages(body: string, version: string, dryRun: boolean): string {
+  const pattern = /https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+/g
+  const urls = [...new Set(body.match(pattern) || [])]
+
+  if (urls.length === 0) return body
+
+  if (!dryRun) {
+    mkdirSync(IMAGES_DIR, { recursive: true })
+  }
+
+  let result = body
+  urls.forEach((url, i) => {
+    const localName = `${version}-${i + 1}.png`
+    const localPath = join(IMAGES_DIR, localName)
+
+    if (!dryRun) {
+      execSync(`curl -sL -o "${localPath}" "${url}"`)
+      console.log(`    Downloaded image: ${localName}`)
+    } else {
+      console.log(`    DRY-RUN would download: ${url} → ${localName}`)
+    }
+
+    result = result.replaceAll(url, `/releases/${localName}`)
+  })
+
+  return result
 }
 
 function generatePage(release: Release): string {
@@ -128,9 +160,7 @@ function generatePage(release: Release): string {
     `slug: 'releases/v${version}'`,
     '---',
     '',
-    ...(hasContent ? [body, ''] : []),
-    '---',
-    '',
+    ...(hasContent ? [body, '', '---', ''] : []),
     `[View on GitHub](${ghUrl})`,
     '',
   ].join('\n')
@@ -156,23 +186,23 @@ async function main() {
   const includeAll = args.includes('--all')
   const dryRun = args.includes('--dry-run')
 
-  // Fetch all releases
+  // Fetch all releases (list endpoint doesn't include body)
   console.log('Fetching releases from GitHub...')
   const json = execSync(
     `gh release list --repo ${REPO} --limit 100 --json tagName,name,publishedAt`,
     { encoding: 'utf-8' }
   )
-  const releases: Release[] = JSON.parse(json)
+  const summaries: Omit<Release, 'body'>[] = JSON.parse(json)
 
-  // Fetch bodies
-  console.log(`Found ${releases.length} releases. Fetching bodies...`)
-  for (const release of releases) {
+  // Fetch bodies individually
+  console.log(`Found ${summaries.length} releases. Fetching bodies...`)
+  const releases: Release[] = summaries.map((summary) => {
     const body = execSync(
-      `gh release view "${release.tagName}" --repo ${REPO} --json body -q .body`,
+      `gh release view "${summary.tagName}" --repo ${REPO} --json body -q .body`,
       { encoding: 'utf-8' }
     )
-    release.body = body
-  }
+    return { ...summary, body }
+  })
 
   // Ensure output directory exists
   if (!dryRun) {
@@ -211,6 +241,7 @@ async function main() {
       }
     }
 
+    release.body = localiseImages(release.body, versionFromTag(release.tagName), dryRun)
     const content = generatePage(release)
 
     if (dryRun) {

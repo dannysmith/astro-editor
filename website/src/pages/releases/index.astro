@@ -7,7 +7,7 @@ const releases = allDocs.filter(
   (doc) => doc.id.startsWith('releases/') && doc.data.date
 )
 
-const sortedReleases = releases.sort(
+const sortedReleases = [...releases].sort(
   (a, b) => b.data.date!.getTime() - a.data.date!.getTime()
 )
 
@@ -34,7 +34,7 @@ function formatDate(date: Date): string {
     {
       sortedReleases.map((release) => (
         <li>
-          <a href={`/releases/${release.data.title}/`}>{release.data.title}</a>
+          <a href={`/${release.id}/`}>{release.data.title}</a>
           <span class="release-meta">
             <time datetime={release.data.date!.toISOString()}>
               {formatDate(release.data.date!)}
