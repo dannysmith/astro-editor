@@ -79,7 +79,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
   )
   GROUP BY version
   ORDER BY version DESC
-" 2>/dev/null | jq -r '.[0].results[] | "\(.version)|\(.users)"' | while IFS='|' read -r ver count; do
+" 2>/dev/null | jq -r '.[0].results[] | "\(.version)|\(.users)"' | sort -t'.' -k1,1rn -k2,2rn -k3,3rn | while IFS='|' read -r ver count; do
   printf "   ${MAGENTA}v%-8s${RESET} ${BOLD}%s${RESET} users\n" "$ver" "$count"
 done
 
@@ -102,7 +102,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT
     uuid,
     COUNT(DISTINCT DATE(created_at)) as days_active,
-    MAX(version) as current_version
+    (SELECT version FROM telemetry_events t2 WHERE t2.uuid = telemetry_events.uuid AND t2.app_id = 'astro-editor' AND t2.event = 'update_check' ORDER BY t2.created_at DESC LIMIT 1) as current_version
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
     AND event = 'update_check'
