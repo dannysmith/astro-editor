@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://astroeditor.danny.is/sitemap-index.xml
