@@ -80,6 +80,10 @@ jobs:
           # - Strip "Installation Instructions" section and everything after
           # - Strip "Full Changelog" links
           # - Escape curly braces outside code spans/blocks
+          #
+          # NOTE: This logic is duplicated in website/scripts/generate-release-pages.ts
+          # (sanitiseBody, escapeCurlyBraces, localiseImages). If you change this,
+          # update that script too (and vice versa).
           CLEAN_BODY=$(printf '%s\n' "$RELEASE_BODY" | \
             sed '/^## *\(🚀 *\)\{0,1\}Astro Editor v[0-9]/d' | \
             sed '/^### Installation Instructions/,$d' | \

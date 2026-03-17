@@ -11,7 +11,7 @@ Image fields use Astro's special `image()` helper to handle images in your conte
 import { defineCollection, z } from 'astro:content'
 
 const blog = defineCollection({
-  schema: z.object({
+  schema: ({ image }) => z.object({
     cover: image().optional(),
     thumbnail: image(),
   }),

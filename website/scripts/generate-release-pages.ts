@@ -13,7 +13,7 @@
  * Without --all, pre-1.0.0 releases are presented for manual approval.
  */
 
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as readline from 'node:readline'
@@ -34,7 +34,7 @@ interface Release {
 function isPost1_0(tag: string): boolean {
   const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)/)
   if (!match) return false
-  const [, major, minor] = match.map(Number)
+  const [, major] = match.map(Number)
   return major >= 1
 }
 
@@ -51,6 +51,10 @@ function formatDate(iso: string): string {
  * - Curly braces in prose (not in code blocks) → HTML entities
  * - Strip "Installation Instructions" boilerplate section
  * - Strip leading H2 title that duplicates the frontmatter title
+ *
+ * NOTE: This logic is duplicated in .github/workflows/publish-website-artifacts.yml
+ * (the "Generate release page" step). If you change this, update that workflow too
+ * (and vice versa).
  */
 function sanitiseBody(body: string): string {
   let text = body
@@ -132,7 +136,7 @@ function localiseImages(body: string, version: string, dryRun: boolean): string 
     const localPath = join(IMAGES_DIR, localName)
 
     if (!dryRun) {
-      execSync(`curl -sL -o "${localPath}" "${url}"`)
+      execFileSync('curl', ['-sL', '-o', localPath, url])
       console.log(`    Downloaded image: ${localName}`)
     } else {
       console.log(`    DRY-RUN would download: ${url} → ${localName}`)
