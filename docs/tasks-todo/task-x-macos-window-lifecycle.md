@@ -4,16 +4,9 @@
 
 Closing Astro Editor's main window kills the entire process, making it impossible to reopen via the dock icon. This is incorrect macOS behavior for a document editor -- the expected pattern is that closing the window hides it while the app stays running, and clicking the dock icon reopens it. Additionally, the file watcher has no resilience to process suspension (App Nap, system sleep), which can silently break file change detection.
 
-## Current State
-
-- No `CloseRequested`, `RunEvent::Reopen`, or `RunEvent::Exit` handlers
-- `tauri-plugin-window-state` is enabled (auto-restores on startup only, not after hide/show)
-- File watcher uses `notify = "8"` with 500ms debounce, no error recovery
-- Quit is handled only through the menu via `app.exit(0)`
-
 ## Phased Approach
 
-### Phase 1: Fix macOS window close behavior
+### Phase 1: Fix macOS window close behavior — DONE
 
 **Goal:** Closing the main window hides it instead of quitting. Dock icon click reopens it. Cmd+Q and Quit menu item still quit properly.
 
@@ -52,7 +45,7 @@ Closing Astro Editor's main window kills the entire process, making it impossibl
 - tauri-apps/tauri#13511 -- `prevent_exit()` blocks normal termination
 - tauri-apps/tauri discussions#11489 -- `window-state` + `prevent_exit()` infinite loop
 
-### Phase 2: File watcher error recovery & periodic rescan
+### Phase 2: File watcher error recovery & periodic rescan — DONE
 
 **Goal:** The file watcher recovers from crashes and a periodic rescan catches missed changes.
 
@@ -65,7 +58,7 @@ Closing Astro Editor's main window kills the entire process, making it impossibl
 
 **Why this matters:** When macOS suspends the process (App Nap, system sleep), FSEvents queue up. On resume they arrive all at once, possibly coalesced. If the watcher thread panics, file changes stop being detected with no recovery path.
 
-### Phase 3: Upgrade notify crate
+### Phase 3: Upgrade notify crate — DONE
 
 **Goal:** Pick up FSEvents crash fixes.
 
@@ -77,7 +70,7 @@ Closing Astro Editor's main window kills the entire process, making it impossibl
 - notify-rs/notify CHANGELOG
 - notify-rs/notify#283 (watcher panic on suspend/resume)
 
-### Phase 4: App Nap and sleep/wake handling (evaluate after Phase 1-3)
+### Phase 4: App Nap and sleep/wake handling — DEFERRED
 
 **Goal:** Prevent aggressive App Nap suspension and rebuild the watcher after system sleep.
 
