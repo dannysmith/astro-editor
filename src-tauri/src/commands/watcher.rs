@@ -24,8 +24,8 @@ fn create_project_watcher(
     let (tx, rx) = mpsc::channel();
     let project_path_log = project_path.to_string();
 
-    let mut watcher = notify::recommended_watcher(move |result: Result<Event, notify::Error>| {
-        match result {
+    let mut watcher =
+        notify::recommended_watcher(move |result: Result<Event, notify::Error>| match result {
             Ok(event) => {
                 if let Err(e) = tx.send(event) {
                     log::error!("Failed to send file event for {project_path_log}: {e}");
@@ -34,9 +34,8 @@ fn create_project_watcher(
             Err(e) => {
                 log::error!("Watch error for {project_path_log}: {e:?}");
             }
-        }
-    })
-    .map_err(|e| format!("Failed to create watcher: {e}"))?;
+        })
+        .map_err(|e| format!("Failed to create watcher: {e}"))?;
 
     let project_root = PathBuf::from(project_path);
 

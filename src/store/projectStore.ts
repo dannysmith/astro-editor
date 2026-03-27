@@ -202,14 +202,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
       // Listen for watcher recovery events
       const unlistenWatcherRescan = await listen('watcher-rescan', () => {
-        void debug('Astro Editor [WATCHER] Periodic rescan — refreshing queries')
+        void debug(
+          'Astro Editor [WATCHER] Periodic rescan — refreshing queries'
+        )
         void queryClient.invalidateQueries({
           queryKey: queryKeys.all,
         })
       })
 
       const unlistenWatcherRebuilt = await listen('watcher-rebuilt', () => {
-        void info('Astro Editor [WATCHER] File watcher rebuilt after disconnection')
+        void info(
+          'Astro Editor [WATCHER] File watcher rebuilt after disconnection'
+        )
         void queryClient.invalidateQueries({
           queryKey: queryKeys.all,
         })
