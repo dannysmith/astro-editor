@@ -135,7 +135,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jscpd": "^4.0.8",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.0.1",
     "knip": "^6.0.6",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
