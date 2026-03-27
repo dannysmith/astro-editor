@@ -13,6 +13,7 @@ use tauri::{
     Emitter, Manager,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_window_state::{AppHandleExt as _, StateFlags, WindowExt as _};
 
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
@@ -339,6 +340,39 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(builder.invoke_handler())
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| match event {
+            // macOS: Hide window instead of quitting when red X is clicked
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } => {
+                if cfg!(target_os = "macos") && label == "main" {
+                    api.prevent_close();
+                    let _ = app_handle.save_window_state(StateFlags::all());
+                    if let Some(window) = app_handle.get_webview_window(&label) {
+                        let _ = window.hide();
+                    }
+                }
+            }
+            // macOS: Reopen window when dock icon is clicked
+            tauri::RunEvent::Reopen {
+                has_visible_windows,
+                ..
+            } => {
+                if !has_visible_windows {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.restore_state(StateFlags::all());
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+            tauri::RunEvent::Exit => {
+                log::info!("Application exiting");
+            }
+            _ => {}
+        });
 }
