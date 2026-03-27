@@ -403,6 +403,13 @@ async fetchReleaseNotes(currentVersion: string, newVersion: string) : Promise<Re
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Detect the user's configured UI font on Linux.
+ * 
+ * Tries gsettings (GNOME/Cinnamon/Budgie/XFCE) first, then falls back to
+ * reading KDE's kdeglobals config file. Returns None if neither works or
+ * if not running on Linux.
+ */
 async getLinuxUiFont() : Promise<Result<string | null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_linux_ui_font") };
