@@ -29,6 +29,9 @@ interface ProjectState {
   // Event listener cleanup functions
   _unlistenFileChanged: UnlistenFn | null
   _unlistenSchemaChanged: UnlistenFn | null
+  _unlistenWatcherRescan: UnlistenFn | null
+  _unlistenWatcherRebuilt: UnlistenFn | null
+  _unlistenWatcherError: UnlistenFn | null
 
   // Actions
   setProject: (path: string) => void
@@ -54,6 +57,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   currentProjectSettings: null,
   _unlistenFileChanged: null,
   _unlistenSchemaChanged: null,
+  _unlistenWatcherRescan: null,
+  _unlistenWatcherRebuilt: null,
+  _unlistenWatcherError: null,
 
   // Actions
   setProject: (path: string) => {
@@ -194,10 +200,35 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         })
       })
 
+      // Listen for watcher recovery events
+      const unlistenWatcherRescan = await listen('watcher-rescan', () => {
+        void debug('Astro Editor [WATCHER] Periodic rescan — refreshing queries')
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.all,
+        })
+      })
+
+      const unlistenWatcherRebuilt = await listen('watcher-rebuilt', () => {
+        void info('Astro Editor [WATCHER] File watcher rebuilt after disconnection')
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.all,
+        })
+      })
+
+      const unlistenWatcherError = await listen('watcher-error', () => {
+        toast.warning('File watcher stopped unexpectedly', {
+          description:
+            'Changes to files may not be automatically detected. Try reopening the project.',
+        })
+      })
+
       // Store the unlisten functions for cleanup
       set({
         _unlistenFileChanged: unlistenFileChanged,
         _unlistenSchemaChanged: unlistenSchemaChanged,
+        _unlistenWatcherRescan: unlistenWatcherRescan,
+        _unlistenWatcherRebuilt: unlistenWatcherRebuilt,
+        _unlistenWatcherError: unlistenWatcherError,
       })
     } catch (error) {
       const errorMsg = formatErrorForLogging(
@@ -214,20 +245,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   stopFileWatcher: async () => {
-    const { projectPath, _unlistenFileChanged, _unlistenSchemaChanged } = get()
+    const {
+      projectPath,
+      _unlistenFileChanged,
+      _unlistenSchemaChanged,
+      _unlistenWatcherRescan,
+      _unlistenWatcherRebuilt,
+      _unlistenWatcherError,
+    } = get()
     if (!projectPath) return
 
     try {
       // Clean up event listeners first
-      if (_unlistenFileChanged) {
-        _unlistenFileChanged()
-      }
-      if (_unlistenSchemaChanged) {
-        _unlistenSchemaChanged()
-      }
+      _unlistenFileChanged?.()
+      _unlistenSchemaChanged?.()
+      _unlistenWatcherRescan?.()
+      _unlistenWatcherRebuilt?.()
+      _unlistenWatcherError?.()
       set({
         _unlistenFileChanged: null,
         _unlistenSchemaChanged: null,
+        _unlistenWatcherRescan: null,
+        _unlistenWatcherRebuilt: null,
+        _unlistenWatcherError: null,
       })
 
       const result = await commands.stopWatchingProject(projectPath)
