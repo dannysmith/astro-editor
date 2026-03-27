@@ -82,7 +82,7 @@ export const navigationCommands: AppCommand[] = [
   },
   {
     id: 'content-linker',
-    label: 'Content Linker',
+    label: 'Find Content',
     description: 'Search content to open or insert a link',
     icon: Link,
     group: 'navigation',

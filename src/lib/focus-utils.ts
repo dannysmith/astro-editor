@@ -42,6 +42,9 @@ export function focusEditor(): boolean {
  */
 export function focusEditorDelayed(delay = 100): void {
   setTimeout(() => {
+    // Don't steal focus from dialogs that opened after the delay was scheduled
+    // (e.g. command palette executing a command that opens a dialog)
+    if (document.querySelector('[role="dialog"]')) return
     focusEditor()
   }, delay)
 }
