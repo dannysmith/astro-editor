@@ -26,6 +26,8 @@ import { useCreateFile } from '../../hooks/useCreateFile'
 import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
+import { commands } from '../../lib/bindings'
+import { getPlatform } from '../../hooks/usePlatform'
 import { LAYOUT_SIZES } from '../../lib/layout-constants'
 import {
   ResizablePanelGroup,
@@ -175,6 +177,30 @@ export const Layout: React.FC = () => {
     const size = editorBaseFontSize ?? 18
     root.style.setProperty('--editor-base-font-size', `${size}px`)
   }, [editorBaseFontSize])
+
+  // On Linux, detect the DE's configured UI font and apply it via CSS variable
+  useEffect(() => {
+    let cancelled = false
+    try {
+      if (getPlatform() !== 'linux') return
+    } catch {
+      return
+    }
+
+    void commands.getLinuxUiFont().then(result => {
+      if (cancelled) return
+      if (result.status === 'ok' && result.data) {
+        window.document.documentElement.style.setProperty(
+          '--font-ui',
+          `'${result.data}', -apple-system, 'Segoe UI', 'Ubuntu', 'Cantarell', 'Noto Sans', 'DejaVu Sans', sans-serif`
+        )
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="h-screen w-screen bg-[var(--editor-color-background)] flex flex-col overflow-hidden">
