@@ -187,15 +187,18 @@ export const Layout: React.FC = () => {
       return
     }
 
-    void commands.getLinuxUiFont().then(result => {
-      if (cancelled) return
-      if (result.status === 'ok' && result.data) {
-        window.document.documentElement.style.setProperty(
-          '--font-ui',
-          `'${result.data}', -apple-system, 'Segoe UI', 'Ubuntu', 'Cantarell', 'Noto Sans', 'DejaVu Sans', sans-serif`
-        )
-      }
-    })
+    void commands
+      .getLinuxUiFont()
+      .then(result => {
+        if (cancelled) return
+        if (result.status === 'ok' && result.data) {
+          window.document.documentElement.style.setProperty(
+            '--font-ui',
+            `'${result.data}', -apple-system, 'Segoe UI', 'Ubuntu', 'Cantarell', 'Noto Sans', 'DejaVu Sans', sans-serif`
+          )
+        }
+      })
+      .catch(() => {})
 
     return () => {
       cancelled = true
