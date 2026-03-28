@@ -95,7 +95,7 @@ See `docs/README.md` for the complete categorized list.
 ### Documentation & Versions
 
 - **Context7 First**: Always use Context7 for framework docs before WebSearch
-- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v3.x
+- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v4.x
 - **Progress Tracking**: Update current task in `docs/tasks-todo` after major work
 
 ## Specialized Agents

@@ -68,5 +68,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         crate::commands::clipboard::copy_text_to_clipboard,
         // updater.rs commands
         crate::commands::updater::fetch_release_notes,
+        // fonts.rs commands
+        crate::commands::fonts::get_linux_ui_font,
     ])
 }

@@ -1,43 +1,46 @@
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 // Global watcher storage
 type WatcherMap = Arc<Mutex<HashMap<String, RecommendedWatcher>>>;
 
-#[tauri::command]
-#[specta::specta]
-pub async fn start_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
-    start_watching_project_with_content_dir(app, project_path, None).await
-}
+/// Debounce window: process buffered events after 500ms of no new events
+const DEBOUNCE_DURATION: Duration = Duration::from_millis(500);
 
-#[tauri::command]
-#[specta::specta]
-pub async fn start_watching_project_with_content_dir(
-    app: AppHandle,
-    project_path: String,
-    content_directory: Option<String>,
-) -> Result<(), String> {
+/// Periodic rescan interval: emit rescan event every 5 minutes as a safety net
+const RESCAN_INTERVAL: Duration = Duration::from_secs(300);
+
+/// Create a configured file watcher for a project's content directories.
+/// Returns the watcher and event receiver.
+fn create_project_watcher(
+    project_path: &str,
+    content_directory: Option<&str>,
+) -> Result<(RecommendedWatcher, Receiver<Event>), String> {
     let (tx, rx) = mpsc::channel();
+    let project_path_log = project_path.to_string();
 
-    let mut watcher = notify::recommended_watcher(move |result| match result {
-        Ok(event) => {
-            if let Err(e) = tx.send(event) {
-                eprintln!("Failed to send file event: {e}");
+    let mut watcher =
+        notify::recommended_watcher(move |result: Result<Event, notify::Error>| match result {
+            Ok(event) => {
+                if let Err(e) = tx.send(event) {
+                    log::error!("Failed to send file event for {project_path_log}: {e}");
+                }
             }
-        }
-        Err(e) => eprintln!("Watch error: {e:?}"),
-    })
-    .map_err(|e| format!("Failed to create watcher: {e}"))?;
+            Err(e) => {
+                log::error!("Watch error for {project_path_log}: {e:?}");
+            }
+        })
+        .map_err(|e| format!("Failed to create watcher: {e}"))?;
 
-    let project_root = PathBuf::from(&project_path);
+    let project_root = PathBuf::from(project_path);
 
     // Watch the content directory specifically (use override if provided)
-    let content_path = if let Some(content_dir) = &content_directory {
+    let content_path = if let Some(content_dir) = content_directory {
         project_root.join(content_dir)
     } else {
         project_root.join("src").join("content")
@@ -50,12 +53,10 @@ pub async fn start_watching_project_with_content_dir(
     }
 
     // Watch for schema changes: src/content/config.ts or src/content.config.ts
-    let config_paths = vec![
+    for config_path in [
         project_root.join("src").join("content").join("config.ts"),
         project_root.join("src").join("content.config.ts"),
-    ];
-
-    for config_path in config_paths {
+    ] {
         if config_path.exists() {
             watcher
                 .watch(&config_path, RecursiveMode::NonRecursive)
@@ -71,32 +72,113 @@ pub async fn start_watching_project_with_content_dir(
             .map_err(|e| format!("Failed to watch schemas directory: {e}"))?;
     }
 
+    Ok((watcher, rx))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn start_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
+    start_watching_project_with_content_dir(app, project_path, None).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn start_watching_project_with_content_dir(
+    app: AppHandle,
+    project_path: String,
+    content_directory: Option<String>,
+) -> Result<(), String> {
+    let (watcher, rx) = create_project_watcher(&project_path, content_directory.as_deref())?;
+
     // Store the watcher so it doesn't get dropped
     let watcher_map: State<WatcherMap> = app.state();
-    {
-        let mut watchers = watcher_map.lock().unwrap();
-        watchers.insert(project_path.clone(), watcher);
-    }
+    watcher_map
+        .lock()
+        .unwrap()
+        .insert(project_path.clone(), watcher);
 
-    // Handle events in a separate thread
+    // Clone the Arc for the spawned task
+    let watcher_map_arc = app.state::<WatcherMap>().inner().clone();
     let app_handle = app.clone();
+
     tokio::spawn(async move {
-        let mut event_buffer = Vec::new();
-        let mut last_event_time = std::time::Instant::now();
-
-        while let Ok(event) = rx.recv() {
-            event_buffer.push(event);
-
-            // Debounce events - wait 500ms after last event before processing
-            if last_event_time.elapsed() > Duration::from_millis(500) {
-                process_events(&app_handle, &mut event_buffer).await;
-                event_buffer.clear();
-            }
-            last_event_time = std::time::Instant::now();
-        }
+        run_event_loop(
+            app_handle,
+            watcher_map_arc,
+            rx,
+            project_path,
+            content_directory,
+        )
+        .await;
     });
 
     Ok(())
+}
+
+/// Event processing loop with automatic recovery and periodic rescan.
+///
+/// Uses `recv_timeout` with the debounce duration so that:
+/// - Events are buffered and processed after 500ms of quiet
+/// - Every 5 minutes, a rescan event is emitted as a safety net for missed changes
+/// - If the watcher dies (channel disconnects), it's automatically rebuilt
+async fn run_event_loop(
+    app: AppHandle,
+    watcher_map: WatcherMap,
+    mut rx: Receiver<Event>,
+    project_path: String,
+    content_directory: Option<String>,
+) {
+    let mut event_buffer: Vec<Event> = Vec::new();
+    let mut last_rescan = Instant::now();
+
+    loop {
+        match rx.recv_timeout(DEBOUNCE_DURATION) {
+            Ok(event) => {
+                event_buffer.push(event);
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // Debounce timeout — process any buffered events
+                if !event_buffer.is_empty() {
+                    process_events(&app, &mut event_buffer).await;
+                    event_buffer.clear();
+                }
+
+                // Periodic rescan as safety net for missed changes
+                if last_rescan.elapsed() >= RESCAN_INTERVAL {
+                    log::debug!("Periodic rescan for {project_path}");
+                    let _ = app.emit("watcher-rescan", &project_path);
+                    last_rescan = Instant::now();
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                // Watcher died — process remaining events then rebuild
+                if !event_buffer.is_empty() {
+                    process_events(&app, &mut event_buffer).await;
+                    event_buffer.clear();
+                }
+
+                log::warn!("File watcher disconnected for {project_path}, attempting rebuild");
+
+                match create_project_watcher(&project_path, content_directory.as_deref()) {
+                    Ok((new_watcher, new_rx)) => {
+                        watcher_map
+                            .lock()
+                            .unwrap()
+                            .insert(project_path.clone(), new_watcher);
+                        rx = new_rx;
+                        last_rescan = Instant::now();
+                        log::info!("File watcher rebuilt for {project_path}");
+                        let _ = app.emit("watcher-rebuilt", &project_path);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to rebuild file watcher for {project_path}: {e}");
+                        let _ = app.emit("watcher-error", &project_path);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -144,6 +226,7 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
                     }
                 }
             }
+            // Other event kinds (e.g. Access, Any) are ignored
             _ => {}
         }
     }

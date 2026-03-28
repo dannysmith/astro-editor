@@ -151,7 +151,7 @@ src/test/
 
 ### Frontend (TypeScript/React)
 
-- **Test Runner**: Vitest v3.x
+- **Test Runner**: Vitest v4.x
 - **React Testing**: React Testing Library
 - **Utilities**: @testing-library/user-event, @testing-library/jest-dom
 

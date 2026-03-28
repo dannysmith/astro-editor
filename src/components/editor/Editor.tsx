@@ -10,6 +10,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { useEditorSetup, useEditorHandlers } from '../../hooks/editor'
 import { useImageHover } from '../../hooks/editor/useImageHover'
 import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
+import { setCurrentEditorView } from '../../lib/editor/editor-view-ref'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
@@ -201,6 +202,7 @@ const EditorViewComponent: React.FC = () => {
     })
 
     viewRef.current = view
+    setCurrentEditorView(view)
 
     // Set up commands once the view is ready
     currentSetupCommands(view)
@@ -225,6 +227,7 @@ const EditorViewComponent: React.FC = () => {
     return () => {
       view.destroy()
       viewRef.current = null
+      setCurrentEditorView(null)
       currentCleanupCommands()
 
       // Clean up Tauri listeners

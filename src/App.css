@@ -221,7 +221,16 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: var(
+    --font-ui,
+    -apple-system,
+    'Segoe UI',
+    'Ubuntu',
+    'Cantarell',
+    'Noto Sans',
+    'DejaVu Sans',
+    sans-serif
+  );
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-size: 16px;

@@ -23,8 +23,6 @@
     }
   },
   "required": [
-    "title",
-    "archived"
-  ],
-  "additionalProperties": false
+    "title"
+  ]
 }

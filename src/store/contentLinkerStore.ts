@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
 import { buildContentLink } from '../lib/content-linker'
+import { getCurrentEditorView } from '../lib/editor/editor-view-ref'
 import { useUIStore } from './uiStore'
 import type { FileEntry } from '@/types'
 
@@ -31,6 +32,11 @@ export const useContentLinkerStore = create<
   ...initialState,
 
   open: editorView => {
+    // Fallback: use the active editor view when opened without a direct
+    // reference (e.g. from the command palette)
+    if (!editorView) {
+      editorView = getCurrentEditorView()
+    }
     useUIStore.getState().setDistractionFreeBarsHidden(false)
     set({
       isOpen: true,
