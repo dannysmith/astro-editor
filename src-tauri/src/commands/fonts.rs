@@ -132,10 +132,7 @@ mod tests {
             Some("Noto Sans CJK SC".to_string())
         );
         // No size suffix
-        assert_eq!(
-            parse_gsettings_font("'Inter'\n"),
-            Some("Inter".to_string())
-        );
+        assert_eq!(parse_gsettings_font("'Inter'\n"), Some("Inter".to_string()));
         // Empty
         assert_eq!(parse_gsettings_font("''\n"), None);
     }
