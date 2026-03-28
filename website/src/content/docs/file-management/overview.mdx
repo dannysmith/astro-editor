@@ -1,0 +1,41 @@
+---
+title: 'File Management'
+description: 'Overview of the left sidebar — collections, file list, and subfolders'
+---
+
+The left sidebar provides your primary interface for navigating between files and collections in your Astro project.
+
+## Collections and File Organization
+
+**Collection Selection**: Click on any collection name to view its files. The currently selected collection is highlighted, and its files appear below.
+
+**Subfolder Support**: Collections can be organized into subdirectories, and Astro Editor fully supports this structure. When you open a collection, you'll see:
+
+- **Subdirectories** listed at the top (sorted alphabetically)
+- **Files** listed below subdirectories (sorted by date)
+
+To navigate into a subdirectory, simply click on it. The sidebar header shows breadcrumb navigation so you always know where you are.
+
+**Breadcrumb Navigation**: When you're inside a subdirectory, the header shows a breadcrumb trail. Click any segment to jump to that level:
+
+```
+Articles / 2024 / January
+```
+
+- Click "Articles" to return to the collection root
+- Click "2024" to go up one level
+- "January" shows your current location (not clickable)
+
+**Back Navigation**: The back button is context-aware:
+
+- In a subdirectory: Goes up one level
+- At collection root: Returns to collections list
+- Use it to quickly navigate up the hierarchy
+
+**File Ordering**: Files are automatically sorted by their publication date (newest first), using the date field configured in your project settings (defaults to `pubDate`, `date`, or `publishedDate`). Files without dates appear at the top of the list.
+
+**File Display**: Each file shows:
+
+- **Title**: Taken from the `title` frontmatter field, or the filename if no title exists
+- **Date**: Publication date in a readable format (e.g., "Dec 15, 2023")
+- **Draft Badge**: Yellow "Draft" indicator for files marked as drafts

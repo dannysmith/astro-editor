@@ -1,0 +1,53 @@
+---
+title: 'Collections Preferences'
+description: 'The Collections pane in Astro Editor preferences'
+---
+
+You can configure settings for individual collections, allowing different collections to have different paths and field mappings. This is useful when different parts of your site have different structures.
+
+## When to Use Collection Settings
+
+- Blog posts in `content/blog/` while docs remain in `src/content/docs/`
+- Different collections using different field names (e.g., blog uses `publishDate`, docs use `date`)
+- Collection-specific asset directories (e.g., blog images in `public/blog-images/`)
+
+## Path Overrides (per collection)
+
+- **Content Directory**: Where this collection's files are located (absolute path from project root)
+  - Example: `content/blog/` means files are in `<project_root>/content/blog/`, not `<project_root>/src/content/blog/`
+- **Assets Directory**: Where this collection's assets should be copied (absolute path from project root)
+  - Example: `public/blog-images/` for blog, `public/docs-images/` for docs
+- **MDX Components Directory**: Where this collection's MDX components are located
+  - Example: `src/components/blog/` for blog-specific components
+
+## File Defaults (per collection)
+
+- **Default File Type for New Files**: Override the project/global default for newly created files in this collection. Useful when one collection uses MDX while others use Markdown.
+  - Example: Blog collection uses `.mdx` for interactive components, docs collection uses `.md` for simple content
+
+## Image Path Strategy (per collection)
+
+- **Use Relative Paths for Images**: By default, images dragged into the editor or added to image fields use relative paths (e.g., `./image.png`), making content more portable. Disable this option to use absolute paths (relative to project root, e.g., `/src/assets/image.png`) instead.
+  - Can be configured at project level (applies to all collections) or per collection (overrides project setting)
+  - Useful when different collections have different portability requirements
+
+## Content Links (per collection)
+
+- **Link URL Pattern**: Define the URL pattern used when inserting links via the Content Linker. Enter a pattern like `/blog/{slug}` where `{slug}` is replaced with the content item's slug or ID. When set, the Content Linker uses this pattern to create clean URLs (e.g., `[My Post](/blog/my-post)`). When left empty, links use relative file paths instead.
+
+## Frontmatter Field Mappings (per collection)
+
+- **Title Field**: Which field to use for file titles in sidebar (e.g., `title` or `heading`)
+- **Date Field**: Which field(s) to use for sorting files (e.g., `publishDate` or `["pubDate", "date"]`)
+- **Description Field**: Which field to style as a textarea (e.g., `description` or `summary`)
+- **Draft Field**: Which boolean field indicates draft status (e.g., `draft` or `published`)
+
+## How Settings Work (Three-Tier Fallback)
+
+When Astro Editor needs a setting (like content directory), it looks in this order:
+
+1. **Collection setting** (if configured for this collection)
+2. **Project setting** (if configured at project level)
+3. **Hard-coded default** (built into the app)
+
+**Example**: If you set project content directory to `content/`, all collections use `content/`. But if you configure the "blog" collection to use `content/blog-posts/`, only the blog collection uses that path while other collections still use `content/`.

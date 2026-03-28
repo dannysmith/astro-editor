@@ -1,0 +1,49 @@
+---
+title: 'Basic Field Types'
+description: 'Basic frontmatter field types and nested fields'
+---
+
+## How Schema Fields Become Forms
+
+Astro Editor converts schema definitions into appropriate form controls. The mapping works as follows:
+
+| Zod Schema Type           | Form Control      | Behavior                                   |
+| ------------------------- | ----------------- | ------------------------------------------ |
+| `z.string()`              | Single-line input | Standard text input                        |
+| `z.string().optional()`   | Single-line input | Empty field allowed, no validation         |
+| `z.enum(['a', 'b', 'c'])` | Dropdown select   | Shows all enum options                     |
+| `z.boolean()`             | Toggle switch     | True/false with visual switch              |
+| `z.date()`                | Date picker       | Native date selection widget               |
+| `z.number()`              | Number input      | Numeric validation and steppers            |
+| `z.array(z.string())`     | Tag input         | Add/remove tags with keyboard              |
+| `z.reference('authors')`  | Dropdown select   | Select from another collection (see below) |
+| `image()`                 | Image picker      | File picker with preview (see below)       |
+| `z.object({ ... })`       | Grouped fields    | Nested fields in a fieldset (see below)    |
+
+## Nested Object Fields
+
+When your schema includes nested objects, the frontmatter sidebar groups the related fields together for better organization.
+
+**In your schema:**
+
+```typescript
+const blog = defineCollection({
+  schema: z.object({
+    metadata: z.object({
+      category: z.string(),
+      priority: z.number().optional(),
+      deadline: z.date().optional(),
+    }),
+  }),
+})
+```
+
+**In the frontmatter sidebar:**
+
+Nested object fields are displayed in a fieldset with:
+
+- A header showing the object name (e.g., "Metadata")
+- Indentation and a left border for visual grouping
+- All nested fields rendered with their appropriate controls
+
+This makes it easy to see which fields belong together and maintains the logical structure of your content.

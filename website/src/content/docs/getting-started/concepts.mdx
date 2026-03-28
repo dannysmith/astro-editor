@@ -1,0 +1,17 @@
+---
+title: 'Fundamental Concepts'
+description: 'Core concepts behind Astro Editor — content collections, schemas, and frontmatter'
+---
+
+## Astro Requirements
+
+Astro Editor will only work properly with Astro projects which:
+
+- Are using Astro 5+ _(it might work with Astro 4+ but you should expect a few bugs)_
+- Use Astro [Content Collections](https://docs.astro.build/en/guides/content-collections/) and have a `src/content/config.ts` or `src/content.config.ts` file.
+- Have at least one collection defined with `defineCollection`. It **must** use the `glob` loader and have a `schema`.
+- Have all collections in a single directory: `src/content/[collectionname]`
+
+Content collections can contain non-markdown/MDX files, but they will not be shown in the editor.
+
+Some features require you to have certain properties in your schema. A date field is required for proper ordering in the file list. A boolean field is required to show and filter drafts. A text field is required to show titles in the sidebar. Etc.
