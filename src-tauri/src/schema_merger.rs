@@ -227,33 +227,55 @@ pub fn create_complete_schema(
     Err("No schema available".to_string())
 }
 
-/// Parse Astro JSON schema
+/// Parse Astro JSON schema (supports both Astro 5 and Astro 6 formats)
 fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaDefinition, String> {
     log::debug!("[Schema] Parsing JSON schema for collection: {collection_name}");
 
-    let schema: AstroJsonSchema =
-        serde_json::from_str(json_schema).map_err(|e| format!("Failed to parse JSON: {e}"))?;
+    // Try Astro 5 format first: { "$ref": "#/definitions/name", "definitions": { ... } }
+    if let Ok(schema) = serde_json::from_str::<AstroJsonSchema>(json_schema) {
+        log::debug!("[Schema] Detected Astro 5 format (ref+definitions)");
+        let collection_name_from_ref = schema.ref_.replace("#/definitions/", "");
+        log::debug!("[Schema] Looking for definition: {collection_name_from_ref}");
 
-    // Extract collection definition
-    let collection_name_from_ref = schema.ref_.replace("#/definitions/", "");
-    log::debug!("[Schema] Looking for definition: {collection_name_from_ref}");
+        let collection_def = schema
+            .definitions
+            .get(&collection_name_from_ref)
+            .ok_or_else(|| format!("Collection definition not found: {collection_name}"))?;
 
-    let collection_def = schema
-        .definitions
-        .get(&collection_name_from_ref)
-        .ok_or_else(|| format!("Collection definition not found: {collection_name}"))?;
+        // Check for file-based collection
+        if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
+            &collection_def.additional_properties
+        {
+            log::debug!("[Schema] File-based collection detected");
+            return parse_entry_schema(collection_name, entry_schema);
+        }
 
-    // Check for file-based collection
-    if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
-        &collection_def.additional_properties
-    {
-        log::debug!("[Schema] File-based collection detected");
-        return parse_entry_schema(collection_name, entry_schema);
+        // Standard collection
+        log::debug!("[Schema] Standard collection detected");
+        return parse_entry_schema(collection_name, collection_def);
     }
 
-    // Standard collection
-    log::debug!("[Schema] Standard collection detected");
-    parse_entry_schema(collection_name, collection_def)
+    // Try Astro 6 format: flat schema with properties at root
+    // { "$schema": "...", "type": "object", "properties": { ... }, "required": [...] }
+    if let Ok(schema) = serde_json::from_str::<JsonSchemaDefinition>(json_schema) {
+        log::debug!("[Schema] Detected Astro 6 format (flat schema)");
+
+        // Check for file-based collection
+        if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
+            &schema.additional_properties
+        {
+            log::debug!("[Schema] File-based collection detected");
+            return parse_entry_schema(collection_name, entry_schema);
+        }
+
+        // Standard collection
+        log::debug!("[Schema] Standard collection detected");
+        return parse_entry_schema(collection_name, &schema);
+    }
+
+    Err(format!(
+        "Failed to parse JSON schema for {collection_name} in either Astro 5 or Astro 6 format"
+    ))
 }
 
 /// Parse an entry schema definition
@@ -725,7 +747,7 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         return handle_object_type(field_schema);
     }
 
-    // Handle primitives with special formats (email, url)
+    // Handle primitives with special formats (email, url, date-time, date)
     if let Some(type_) = &field_schema.type_ {
         if let StringOrArray::String(s) = type_ {
             if s == "string" {
@@ -743,6 +765,16 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
                         "uri" => {
                             return Ok(FieldTypeInfo {
                                 field_type: "url".to_string(),
+                                sub_type: None,
+                                enum_values: None,
+                                reference_collection: None,
+                                array_reference_collection: None,
+                            })
+                        }
+                        // Astro 6 uses simple format instead of anyOf for dates
+                        "date-time" | "date" => {
+                            return Ok(FieldTypeInfo {
+                                field_type: "date".to_string(),
                                 sub_type: None,
                                 enum_values: None,
                                 reference_collection: None,
@@ -1866,4 +1898,233 @@ mod tests {
     }
 
     // --- END INTEGRATION TESTS ---
+
+    // --- ASTRO 6 FORMAT TESTS ---
+
+    #[test]
+    fn test_parse_astro6_flat_json_schema() {
+        // Astro 6 generates flat schemas without $ref/definitions
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "title": { "type": "string" },
+                "draft": { "default": false, "type": "boolean" },
+                "$schema": { "type": "string" }
+            },
+            "required": ["title"]
+        }"##;
+
+        let result = parse_json_schema("notes", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        assert_eq!(schema.collection_name, "notes");
+        // $schema property should be skipped
+        assert_eq!(schema.fields.len(), 2);
+
+        let title = schema.fields.iter().find(|f| f.name == "title").unwrap();
+        assert_eq!(title.field_type, "string");
+        assert!(title.required);
+
+        let draft = schema.fields.iter().find(|f| f.name == "draft").unwrap();
+        assert_eq!(draft.field_type, "boolean");
+        assert!(!draft.required); // has default
+    }
+
+    #[test]
+    fn test_parse_astro6_date_time_format() {
+        // Astro 6 uses simple format: "date-time" instead of anyOf with three formats
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "pubDate": { "type": "string", "format": "date-time" },
+                "updatedDate": { "type": "string", "format": "date-time" }
+            },
+            "required": ["pubDate"]
+        }"##;
+
+        let result = parse_json_schema("articles", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let pub_date = schema.fields.iter().find(|f| f.name == "pubDate").unwrap();
+        assert_eq!(pub_date.field_type, "date");
+        assert!(pub_date.required);
+
+        let updated_date = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "updatedDate")
+            .unwrap();
+        assert_eq!(updated_date.field_type, "date");
+    }
+
+    #[test]
+    fn test_parse_astro6_real_world_notes_schema() {
+        // Based on actual Astro 6 generated schema from dannyis-astro
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "title": { "type": "string" },
+                "sourceURL": {
+                    "description": "Original URL for link posts",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "slug": {
+                    "description": "Custom URL slug (defaults to filename)",
+                    "type": "string"
+                },
+                "draft": { "default": false, "type": "boolean" },
+                "description": { "type": "string" },
+                "pubDate": { "type": "string", "format": "date-time" },
+                "tags": { "type": "array", "items": { "type": "string" } },
+                "styleguide": {
+                    "description": "Styleguide page; excluded from RSS and indexes",
+                    "type": "boolean"
+                },
+                "$schema": { "type": "string" }
+            },
+            "required": ["title", "pubDate"]
+        }"##;
+
+        let result = parse_json_schema("notes", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        assert_eq!(schema.collection_name, "notes");
+        // 8 fields (excluding $schema)
+        assert_eq!(schema.fields.len(), 8);
+
+        // Verify key field types
+        let source_url = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "sourceURL")
+            .unwrap();
+        assert_eq!(source_url.field_type, "url");
+        assert_eq!(
+            source_url.description,
+            Some("Original URL for link posts".to_string())
+        );
+
+        let pub_date = schema.fields.iter().find(|f| f.name == "pubDate").unwrap();
+        assert_eq!(pub_date.field_type, "date");
+        assert!(pub_date.required);
+
+        let tags = schema.fields.iter().find(|f| f.name == "tags").unwrap();
+        assert_eq!(tags.field_type, "array");
+        assert_eq!(tags.sub_type, Some("string".to_string()));
+
+        let draft = schema.fields.iter().find(|f| f.name == "draft").unwrap();
+        assert_eq!(draft.field_type, "boolean");
+        assert!(!draft.required); // has default value
+    }
+
+    #[test]
+    fn test_parse_astro6_enum_and_uri_fields() {
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": ["medium", "external"]
+                },
+                "redirectURL": {
+                    "type": "string",
+                    "format": "uri"
+                }
+            },
+            "required": []
+        }"##;
+
+        let result = parse_json_schema("articles", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let platform = schema.fields.iter().find(|f| f.name == "platform").unwrap();
+        assert_eq!(platform.field_type, "enum");
+        assert_eq!(
+            platform.enum_values,
+            Some(vec!["medium".to_string(), "external".to_string()])
+        );
+
+        let redirect = schema
+            .fields
+            .iter()
+            .find(|f| f.name == "redirectURL")
+            .unwrap();
+        assert_eq!(redirect.field_type, "url");
+    }
+
+    #[test]
+    fn test_parse_astro6_file_based_collection() {
+        // Astro 6 file-based collection uses additionalProperties
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "$schema": { "type": "string" }
+            },
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "url": { "type": "string", "format": "uri" }
+                },
+                "required": ["id", "title", "url"]
+            }
+        }"##;
+
+        let result = parse_json_schema("toolboxPages", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        assert_eq!(schema.collection_name, "toolboxPages");
+        assert_eq!(schema.fields.len(), 3);
+
+        let url = schema.fields.iter().find(|f| f.name == "url").unwrap();
+        assert_eq!(url.field_type, "url");
+        assert!(url.required);
+    }
+
+    #[test]
+    fn test_astro5_format_still_works() {
+        // Ensure existing Astro 5 format continues to work
+        let json_schema = r##"{
+            "$ref": "#/definitions/blog",
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "definitions": {
+                "blog": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "pubDate": {
+                            "anyOf": [
+                                { "type": "string", "format": "date-time" },
+                                { "type": "string", "format": "date" },
+                                { "type": "string", "format": "unix-time" }
+                            ]
+                        }
+                    },
+                    "required": ["title", "pubDate"]
+                }
+            }
+        }"##;
+
+        let result = parse_json_schema("blog", json_schema);
+        assert!(result.is_ok());
+
+        let schema = result.unwrap();
+        let pub_date = schema.fields.iter().find(|f| f.name == "pubDate").unwrap();
+        assert_eq!(pub_date.field_type, "date");
+        assert!(pub_date.required);
+    }
+
+    // --- END ASTRO 6 FORMAT TESTS ---
 }
