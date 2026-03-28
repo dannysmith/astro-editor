@@ -358,6 +358,7 @@ pub fn run() {
                 }
             }
             // macOS: Reopen window when dock icon is clicked
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen {
                 has_visible_windows,
                 ..
