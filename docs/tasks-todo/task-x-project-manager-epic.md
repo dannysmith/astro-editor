@@ -22,6 +22,7 @@ Specific pain points:
 ```
 Astro Project (on disk)
 ├── content.config.ts → defines ContentCollections with optional Zod schemas
+├── .astro/collections/ → Generated astro schemas
 ├── src/content/
 │   ├── blog/          → content folder (may or may not match a collection name)
 │   ├── docs/          → content folder
@@ -57,18 +58,39 @@ Four-pane dialog:
 
 The Collections pane already shows effective values with inheritance indicators, but it's not discoverable and doesn't surface schema information.
 
+### Target Architecture
+
+**Two-tier settings** replacing the current three-tier model:
+
+1. **Collection setting** (if user has explicitly set one)
+2. **Global default** (user-configurable in Preferences, pre-populated with Astro conventions)
+
+No project-level settings. Project records in the registry store metadata only (name, path, timestamps), not settings.
+
+**Preferences dialog** (⌘,): General, Defaults, Advanced
+- **Defaults pane** holds global defaults for collection-applicable settings (paths, file type, etc.)
+- Pre-populated with current hard-coded Astro defaults
+- Text fields fall back to hard-coded defaults when cleared
+
+**Projects dialog** (separate): Project list + per-collection settings + schema viewer
+- Collection settings show "set" vs "unset (using global default: X)"
+- "Copy to all collections" stamps one collection's explicit values onto others
+
+Changing a global default automatically affects all collections that haven't been explicitly configured.
+
 ---
 
 ## Decisions Made
 
 These are settled based on discussion in #82:
 
-- **Push most settings to collection level.** Simplify/eliminate the three-tier cascade where possible. Collections own their settings; project-level settings become minimal.
+- **Two-tier settings: global defaults → collection.** Eliminate the project-level settings tier entirely. Collections either have an explicit setting or fall back to the global default. Global defaults are user-configurable in a new "Defaults" pane in Preferences (pre-populated with Astro conventions). Project records store metadata only (name, path, timestamps).
 - **No `.astro-editor` config file in repos.** AE stores its settings in app data, not in the user's project. AE should be a nice interface on top of an existing project, not intrude on it.
 - **Don't validate all project paths on startup.** Only check when the user tries to open a project (per Louise's suggestion). Show errors at that point.
 - **"Copy settings to all collections" solves the setup friction.** No need for templates or bulk operations. If you've configured one collection well, you can copy that config.
 - **Minimal intrusion during normal use.** Settings/project management should be tucked away. It should surface during first-run and when adding a new project, but not encroach on the writing experience.
 - **Project list should be simple.** VSCode/Zed-style project picker — search, open, delete. Not a dashboard.
+- **Separate Projects dialog.** Preferences (⌘,) stays focused on global app behaviour (General + Advanced). A new "Projects" dialog handles project list, collection settings, schema viewer, and mapping UI. The current "Project Settings" and "Collections" panes move out of Preferences.
 
 ---
 
@@ -94,19 +116,21 @@ The mapping between Content Folders and Schema Collections is the crux of the co
 
 Each AE Collection should own these settings, with clear "set" vs "unset (using default/inferred)" status:
 
-| Setting | Description | Default/Inference |
-|---------|-------------|-------------------|
-| Content directory path | Where to find content files | Inferred from collection glob pattern or Astro convention |
-| Assets directory path | Where to find/create assets | Astro convention |
-| MDX components directory | Where to find MDX components | Astro convention |
-| Absolute vs relative asset paths | How to write asset/link paths | Relative |
-| Draft field | Which boolean field controls draft status | Auto-detect field named "draft" |
-| Title field | Which field to use for search, sidebar title, top frontmatter slot | Auto-detect field named "title" |
-| Description field | Which field gets special treatment in search/frontmatter | Auto-detect field named "description" |
-| Default sort field + order | Which field to sort by in sidebar, and asc/desc | Date field, descending |
-| Default file type | MD or MDX for new files | MD |
-| Filename pattern for new files | How to generate filenames (#87) | Date-based (current behaviour) |
-| Ignore list | Patterns for files to ignore (gitignore-style) | None |
+| Setting | Description | Default/Inference | Exists Today? |
+|---------|-------------|-------------------|---------------|
+| Content directory path | Where to find content files | Inferred from collection glob pattern or Astro convention | Yes |
+| Assets directory path | Where to find/create assets | Astro convention | Yes |
+| MDX components directory | Where to find MDX components | Astro convention | Project-level only |
+| Absolute vs relative asset paths | How to write asset/link paths | Relative | Yes |
+| Published date field | Which date field to display in sidebar, use for date-based features | Auto-detect field named "date", "pubDate", or "publishedDate" | Yes |
+| Draft field | Which boolean field controls draft status | Auto-detect field named "draft" | Yes |
+| Title field | Which field to use for search, sidebar title, top frontmatter slot | Auto-detect field named "title" | Yes |
+| Description field | Which field gets special treatment in search/frontmatter | Auto-detect field named "description" | Yes |
+| Default sort field + order | Which field to sort by in sidebar, and asc/desc | Published date field, descending | No |
+| Default file type | MD or MDX for new files | MD | Yes |
+| URL pattern | Template for content link URLs (e.g. `"/writing/{slug}"`) | None | Yes |
+| Filename pattern for new files | How to generate filenames (#87) | Date-based (current behaviour) | No |
+| Ignore list | Patterns for files to ignore (gitignore-style) | None | No |
 
 For each setting, the UI should show:
 - Whether it's **set** (user explicitly configured) or **unset** (falling back to default/inference)
@@ -159,12 +183,12 @@ This gives users confidence that AE understands their schema correctly and helps
 
 These should be resolved during Phase 1 (Design):
 
-1. **Where does the Project Manager UI live?** Options: new pane in Preferences, separate window/modal, replaces Preferences entirely. Leaning towards integrating into a redesigned Preferences.
-2. **What happens to project-level settings?** If most settings move to collection level, what remains at the project level? Just root path and content config path?
-3. **Settings migration**: How do we handle existing projects with project-level settings? Auto-migrate to collection level? Prompt users?
-4. **Schema refresh**: When should AE re-parse `content.config.ts`? On project open only? File watcher? Manual button?
-5. **Editing non-current projects**: Can we edit settings for projects without fully opening them? What minimal data do we need?
-6. **Filename pattern UX for #87**: Hold file write until field is set, or rename after? What patterns are supported?
+1. ~~**Where does the Project Manager UI live?**~~ **Decided:** Separate "Projects" dialog, distinct from Preferences. Preferences keeps General + Advanced only. Projects dialog handles project list, per-project config, collection settings, schema viewer, mapping UI.
+2. ~~**What happens to project-level settings?**~~ **Decided:** Eliminated entirely. Two-tier model: global defaults (Preferences "Defaults" pane) → collection settings (Projects dialog). Project records are metadata only. "Copy to all collections" handles the "I want the same config across this project" use case.
+3. ~~**Settings migration**~~ **Decided:** Automatic migration from v2 → v3 on app startup/project open, no user input needed. We own these files. Bump the version key in the JSON files. Migration logic: take any project-level settings and push them down as explicit collection-level settings for all collections in that project, then remove the project-level settings. Must be factored into Phase 2.
+4. ~~**Schema refresh**~~ **Decided:** On project open (current behaviour) + manual "Refresh Schema" button in the Projects dialog. No file watcher — config changes rarely and the added complexity isn't worth it.
+5. ~~**Editing non-current projects**~~ **Decided:** Deferred. V1 only supports editing settings/viewing schema for the current project. The project list shows all projects (open, remove, switch), but collection settings and schema viewer require the project to be open. Can revisit later if there's demand.
+6. **Filename pattern UX for #87**: Leaning towards rename-after rather than deferring file write (safer). Detail to be worked out in Phase 5.
 
 ---
 
