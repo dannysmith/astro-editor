@@ -60,23 +60,23 @@ The Collections pane already shows effective values with inheritance indicators,
 
 ### Target Architecture
 
-**Two-tier settings** replacing the current three-tier model:
+**Simplified settings** replacing the current three-tier model. No project-level settings — project records store metadata only.
 
-1. **Collection setting** (if user has explicitly set one)
-2. **Global default** (user-configurable in Preferences, pre-populated with Astro conventions)
+Each collection setting resolves via one of three fallback paths depending on the setting type:
 
-No project-level settings. Project records in the registry store metadata only (name, path, timestamps), not settings.
+1. **Path/format settings** (content dir, assets dir, MDX dir, file type, absolute paths): collection → **global default** (user-configurable in Preferences "Defaults" pane, pre-populated with Astro conventions)
+2. **Field mappings** (draft, title, description, published date): collection → **auto-detected from schema** (e.g. looks for a field named "draft") → **hard-coded convention**
+3. **Collection-only settings** (sort field/order, URL pattern, filename pattern, ignore list): collection → **none** (simply unset if not configured)
 
 **Preferences dialog** (⌘,): General, Defaults, Advanced
-- **Defaults pane** holds global defaults for collection-applicable settings (paths, file type, etc.)
+- **Defaults pane** holds global defaults for path/format settings only
 - Pre-populated with current hard-coded Astro defaults
 - Text fields fall back to hard-coded defaults when cleared
+- Changing a global default automatically affects all collections that haven't been explicitly configured
 
 **Projects dialog** (separate): Project list + per-collection settings + schema viewer
-- Collection settings show "set" vs "unset (using global default: X)"
+- Collection settings show "set" vs "unset" with the effective value and where it came from (global default, auto-detected, or hard-coded)
 - "Copy to all collections" stamps one collection's explicit values onto others
-
-Changing a global default automatically affects all collections that haven't been explicitly configured.
 
 ---
 
@@ -181,7 +181,7 @@ The Projects dialog replaces the current open-project flow. Accessed via ⌘O, F
 - Per-collection setting for filename pattern
 - Options should include: date-based (current), field-based (e.g. slugified title), manual entry
 - May require deferring file write until the relevant field is filled, or renaming after
-- Detail to be worked out in Phase 3
+- Detail to be worked out in Phase 5
 
 ---
 
@@ -212,7 +212,7 @@ Deliverables:
 - Resolution of the open questions above
 - Updated requirements based on design decisions
 
-This phase is mostly discussion, documentation, and sketching — not code.
+This phase is mostly discussion, documentation, and sketching — not code. **Status: complete** — all deliverables settled in the design discussion that produced this document.
 
 #### UI Layout: Projects Dialog
 
@@ -315,8 +315,7 @@ Three files, same as today. Project registry and global settings gain new fields
     "ideCommand": "",
     "theme": "system",
     "highlights": { "nouns": false, "verbs": false, "adjectives": false, "adverbs": false, "conjunctions": false },
-    "autoSaveDelay": 2,
-    "defaultFileType": "md"
+    "autoSaveDelay": 2
   },
   "appearance": {
     "headingColor": { "light": "#191919", "dark": "#cccccc" },
