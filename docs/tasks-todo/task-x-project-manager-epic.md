@@ -142,7 +142,7 @@ For each setting, the UI should show:
 The UI should show the **full schema as parsed by AE** for each collection:
 
 - Each field: name, type, optionality, constraints, default value, description
-- How AE interprets each field (e.g. "used as date picker", "rendered as textarea", "image field with preview")
+- How AE interprets each field in the frontmatter sidebar (e.g. "used as date picker", "rendered as textarea", "image field with preview")
 - Warnings for fields AE can't fully represent (e.g. complex union types, custom Zod refinements)
 - Which loader the collection uses (glob, file, etc.)
 - Parse errors, if any, with helpful messages
@@ -161,8 +161,7 @@ This gives users confidence that AE understands their schema correctly and helps
 - Show all projects in the registry
 - Allow opening, removing (with confirmation), and adding projects
 - Show current project distinctly
-- If a project's path no longer exists, show error when user tries to open it (not on startup)
-- Simple search/filter for users with many projects
+- If a project's path no longer exists, show error when user tries to open it
 
 ### R6: Copy Collection Settings
 
@@ -225,7 +224,6 @@ This phase is mostly discussion, documentation, and sketching — not code.
 - Schema viewer (R3)
 - Schema-to-folder mapping UI (R4)
 - "Copy settings" action (R6)
-- Integrate with existing Preferences or replace as decided in Phase 1
 
 ### Phase 4: Project Management
 
