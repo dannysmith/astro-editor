@@ -158,10 +158,17 @@ This gives users confidence that AE understands their schema correctly and helps
 
 ### R5: Project List & Switcher
 
-- Show all projects in the registry
-- Allow opening, removing (with confirmation), and adding projects
-- Show current project distinctly
-- If a project's path no longer exists, show error when user tries to open it
+The Projects dialog replaces the current open-project flow. Accessed via ⌘O, File > Open, and the sidebar folder icon.
+
+**Project Grid** (landing view):
+- Card grid showing all registered projects
+- Each card shows: project name, path, last opened date, number of collections, warning/error badges (e.g. schema parse errors)
+- Current project shown distinctly (e.g. highlighted border, "Current" badge)
+- **Open** button on each card → opens that project in the main editor
+- **Settings cog** on current project card → drills into project settings view (V1: current project only; non-current projects get this later)
+- **Right-click context menu**: Reveal in Finder, Open in IDE, Copy Path, Remove from Astro Editor (with confirmation)
+- **Add Project** button → opens file browser to choose an Astro project directory
+- If a project's path no longer exists, show error when user tries to open it (not checked on startup)
 
 ### R6: Copy Collection Settings
 
@@ -207,40 +214,201 @@ Deliverables:
 
 This phase is mostly discussion, documentation, and sketching — not code.
 
-### Phase 2: Settings Architecture Refactor
+#### UI Layout: Projects Dialog
 
-**Goal**: Implement the new data model and settings backend without changing UI.
+The Projects dialog is a two-level interface:
 
-- Restructure settings persistence (Rust + TypeScript types)
-- Migrate existing settings to new format
-- Expose schema information needed for R3
-- Ensure backwards compatibility or clean migration path
+**Level 1 — Project Grid** (landing page):
 
-### Phase 3: Collection Settings UI
+```
+┌─────────────────────────────────────────────────────────┐
+│ Projects                                            ✕   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌─────────────────────┐  ┌─────────────────────┐      │
+│  │ My Blog      ● Current │ │ Docs Site             │      │
+│  │ ~/projects/my-blog  │  │ ~/projects/docs      │      │
+│  │ 4 collections       │  │ 2 collections        │      │
+│  │ Last: today         │  │ Last: 3 days ago     │      │
+│  │                     │  │                      │      │
+│  │  [Open]  [⚙]       │  │  [Open]              │      │
+│  └─────────────────────┘  └──────────────────────┘      │
+│                                                         │
+│  ┌─────────────────────┐                                │
+│  │ Portfolio     ⚠     │   Right-click any card:        │
+│  │ ~/projects/folio    │   • Reveal in Finder           │
+│  │ 1 collection        │   • Open in IDE                │
+│  │ Last: 2 weeks ago   │   • Copy Path                  │
+│  │ Schema parse error  │   • Remove from Astro Editor   │
+│  │  [Open]             │                                │
+│  └─────────────────────┘                                │
+│                                                         │
+│  [+ Add Project]                                        │
+└─────────────────────────────────────────────────────────┘
+```
 
-**Goal**: Build the core settings UI for collections.
+Replaces current open-project flow. Accessed via ⌘O, File > Open, sidebar folder icon.
+Settings cog (⚙) only shown on current project in V1.
 
-- Collection settings panel (R2)
-- Schema viewer (R3)
-- Schema-to-folder mapping UI (R4)
-- "Copy settings" action (R6)
+**Level 2 — Project Settings** (drill-down from cog):
 
-### Phase 4: Project Management
+```
+┌─────────────────────────────────────────────────────────┐
+│ ← Projects  ·  My Blog                             ✕   │
+├──────────────┬──────────────────────────────────────────┤
+│              │                                          │
+│ COLLECTIONS  │  blog                                    │
+│              │                                          │
+│  blog      ✓ │  ┌─ Settings ──────────────────────────┐ │
+│  notes     ✓ │  │ Content dir   src/content/blog/     │ │
+│  ideas     ⚠ │  │ Assets dir    ○ using default       │ │
+│  schemaless  │  │ Draft field   draft ✓               │ │
+│              │  │ Title field   title ✓               │ │
+│              │  │ Sort          date, desc             │ │
+│              │  │ File type     mdx (set)              │ │
+│              │  │ URL pattern   /blog/{slug}           │ │
+│              │  │ ...                                  │ │
+│              │  └─────────────────────────────────────┘ │
+│              │                                          │
+│              │  ┌─ Schema ────────────────────────────┐ │
+│              │  │ title    string    required          │ │
+│              │  │ date     date      required          │ │
+│              │  │ draft    boolean   optional          │ │
+│              │  │ image    image()   optional          │ │
+│              │  │ tags     string[]  optional          │ │
+│              │  └─────────────────────────────────────┘ │
+│              │                                          │
+│              │  [Copy settings to all]  [Refresh Schema]│
+└──────────────┴──────────────────────────────────────────┘
+```
 
-**Goal**: Add project list and lifecycle features.
+Sidebar: collections for the current project with status indicators (✓ mapped, ⚠ warning, ✗ error).
+Main pane: selected collection's settings (R2) + schema viewer (R3).
+Back button returns to project grid.
 
-- Project list/switcher (R5)
-- Add/remove projects
-- First-run experience for new installs
-- Stale project handling
+#### Settings File Structure (v3)
 
-### Phase 5: New File Naming
+Three files, same as today. Project registry and global settings gain new fields; per-project files are restructured.
 
-**Goal**: Implement configurable filename patterns (#87).
+**`project-registry.json`** — unchanged, metadata only:
+```json
+{
+  "version": 3,
+  "lastOpenedProject": "abc-123",
+  "projects": {
+    "abc-123": {
+      "id": "abc-123",
+      "name": "My Blog",
+      "path": "/Users/me/projects/my-blog",
+      "lastOpened": "2026-03-30T12:00:00Z",
+      "created": "2026-01-15T09:00:00Z"
+    }
+  }
+}
+```
 
-- Per-collection filename pattern setting (already in R2)
-- Filename generation logic
-- UX for field-based naming (deferred write or rename)
+**`global-settings.json`** — adds `defaults` section for collection-applicable defaults:
+```json
+{
+  "version": 3,
+  "general": {
+    "ideCommand": "",
+    "theme": "system",
+    "highlights": { "nouns": false, "verbs": false, "adjectives": false, "adverbs": false, "conjunctions": false },
+    "autoSaveDelay": 2,
+    "defaultFileType": "md"
+  },
+  "appearance": {
+    "headingColor": { "light": "#191919", "dark": "#cccccc" },
+    "editorBaseFontSize": 18
+  },
+  "defaults": {
+    "contentDirectory": "src/content/",
+    "assetsDirectory": "src/assets/",
+    "mdxComponentsDirectory": "src/components/mdx/",
+    "defaultFileType": "md",
+    "useAbsoluteAssetPaths": false
+  }
+}
+```
+
+**`projects/{id}.json`** — collection settings only, keyed by Astro collection name:
+```json
+{
+  "version": 3,
+  "collections": {
+    "blog": {
+      "contentDirectory": "src/content/blog/",
+      "assetsDirectory": "src/assets/blog/",
+      "mdxComponentsDirectory": null,
+      "useAbsoluteAssetPaths": null,
+      "defaultFileType": "mdx",
+      "publishedDateField": "date",
+      "draftField": "draft",
+      "titleField": "title",
+      "descriptionField": null,
+      "sortField": "date",
+      "sortOrder": "desc",
+      "urlPattern": "/blog/{slug}",
+      "filenamePattern": null,
+      "ignoreList": null
+    },
+    "docs": {}
+  }
+}
+```
+
+Missing key or `null` = unset (falls back to global default). Should ALWAYS create all keys and nullify those unset. Empty object `{}` = all settings unset.
+
+#### Migration (v2 → v3)
+
+Automatic on app startup / project open. No user interaction required.
+
+1. **Global settings**: Add `defaults` section, populated from current hard-coded Astro defaults. Bump version to 3.
+2. **Per-project files**: Take project-level settings (`pathOverrides`, `frontmatterMappings`, `defaultFileType`, `useAbsoluteAssetPaths`) and push them down as explicit values on every collection in that project. Remove project-level settings. Restructure collection settings to new flat shape. Bump version to 3.
+3. **Project registry**: Bump version to 3 (structure unchanged).
+
+### Phase 2: Settings Backend Refactor
+
+**Goal**: Implement the two-tier settings model and migrate existing data. No new UI beyond the Defaults pane.
+
+- New TypeScript types and Rust types for two-tier model (global defaults → collection)
+- Restructure settings persistence to match new file format
+- v2 → v3 automatic migration logic
+- Update `usePreferences`, `useEffectiveSettings` and related hooks for two-tier resolution
+- Refactor Preferences dialog: remove "Project Settings" and "Collections" panes, add "Defaults" pane
+- Expose schema field information needed for R3 (may require Rust-side changes)
+
+### Phase 3: Projects Dialog — Project Grid
+
+**Goal**: Build the new Projects dialog with the project card grid (Level 1). Replace current open-project flow.
+
+- New Projects dialog component with card grid layout
+- Rewire ⌘O, File > Open, and sidebar folder icon to open the Projects dialog
+- Project cards showing name, path, last opened, collection count, error/warning badges
+- Current project indicator
+- Open and Add Project actions
+- Right-click context menu: Reveal in Finder, Open in IDE, Copy Path, Remove from AE
+- Settings cog on current project (drills into Phase 4 UI, placeholder until then)
+
+### Phase 4: Projects Dialog — Collection Settings & Schema
+
+**Goal**: Build the collection settings drill-down (Level 2). This is the core value of the epic.
+
+- Level 2 layout: back button, collections sidebar, main detail pane
+- Collection settings panel with set/unset indicators and effective values (R2)
+- Schema viewer showing parsed fields, types, how AE interprets each one (R3)
+- Schema-to-folder mapping status and override (R4)
+- "Copy settings to all collections" action (R6)
+- "Refresh Schema" button
+
+### Phase 5: New File Naming (#87)
+
+**Goal**: Implement configurable filename patterns per collection.
+
+- Filename pattern setting in collection settings (already defined in R2)
+- Filename generation logic (date-based, field-based, manual)
+- Rename-after UX when field value changes
 
 ---
 
