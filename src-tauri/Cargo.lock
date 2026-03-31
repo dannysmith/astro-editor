@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "astro-editor"
-version = "1.0.11"
+version = "1.0.12"
 dependencies = [
  "chrono",
  "dirs",
