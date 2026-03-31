@@ -403,8 +403,9 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     if lines.is_empty() || lines[0] != "---" {
         // No frontmatter, but might have imports at the top
         let (imports, mut body_content) = extract_imports_from_content(&lines);
-        // Preserve trailing newline that lines() dropped
-        if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
+        // Preserve trailing newline that lines() dropped.
+        // lines() always drops exactly one trailing \n, so always add one back.
+        if original_ends_with_newline && !body_content.is_empty() {
             body_content.push('\n');
         }
         return Ok(MarkdownContent {
@@ -449,8 +450,9 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
 
     let (imports, mut body_content) = extract_imports_from_content(&remaining_lines);
 
-    // Preserve trailing newline that lines() dropped
-    if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
+    // Preserve trailing newline that lines() dropped.
+    // lines() always drops exactly one trailing \n, so always add one back.
+    if original_ends_with_newline && !body_content.is_empty() {
         body_content.push('\n');
     }
 
@@ -720,12 +722,6 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
         result.push_str(content);
     }
 
-    // Ensure file ends with at least one newline (POSIX convention)
-    // but preserve any extra trailing newlines the user added
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
     Ok(result)
 }
 
@@ -760,12 +756,6 @@ fn rebuild_markdown_with_raw_frontmatter(
         result.push_str(content);
     }
 
-    // Ensure file ends with at least one newline (POSIX convention)
-    // but preserve any extra trailing newlines the user added
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
     Ok(result)
 }
 
@@ -787,12 +777,6 @@ fn rebuild_markdown_content_only(imports: &str, content: &str) -> Result<String,
             result.push('\n');
         }
         result.push_str(content);
-    }
-
-    // Ensure file ends with at least one newline (POSIX convention)
-    // but preserve any extra trailing newlines the user added
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
     }
 
     Ok(result)
@@ -2827,5 +2811,81 @@ X"#;
         let parsed = result.unwrap();
         assert_eq!(parsed.content, "X");
         assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
+    }
+
+    // --- Trailing newline round-trip tests ---
+    // These verify that save -> reload preserves trailing whitespace exactly,
+    // preventing the editor scroll jump bug (full doc replacement on content mismatch).
+
+    #[test]
+    fn test_roundtrip_content_no_trailing_newline() {
+        let body = "Hello world.";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+    }
+
+    #[test]
+    fn test_roundtrip_content_single_trailing_newline() {
+        let body = "Hello world.\n";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+    }
+
+    #[test]
+    fn test_roundtrip_content_double_trailing_newline() {
+        let body = "Hello world.\n\n";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+    }
+
+    #[test]
+    fn test_roundtrip_content_triple_trailing_newline() {
+        let body = "Hello world.\n\n\n";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+    }
+
+    #[test]
+    fn test_roundtrip_content_with_imports_no_trailing_newline() {
+        let body = "Some content";
+        let imports = "import Foo from './foo'";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, imports, body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+        assert_eq!(parsed.imports, imports);
+    }
+
+    #[test]
+    fn test_roundtrip_content_with_imports_double_trailing_newline() {
+        let body = "Some content\n\n";
+        let imports = "import Foo from './foo'";
+        let raw_fm = "title: Test";
+        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, imports, body).unwrap();
+        let parsed = parse_frontmatter(&saved).unwrap();
+        assert_eq!(parsed.content, body);
+        assert_eq!(parsed.imports, imports);
+    }
+
+    #[test]
+    fn test_roundtrip_no_frontmatter_no_trailing_newline() {
+        let saved = "Just some content.";
+        let parsed = parse_frontmatter(saved).unwrap();
+        assert_eq!(parsed.content, saved);
+    }
+
+    #[test]
+    fn test_roundtrip_no_frontmatter_double_trailing_newline() {
+        let saved = "Just some content.\n\n";
+        let parsed = parse_frontmatter(saved).unwrap();
+        assert_eq!(parsed.content, saved);
     }
 }
