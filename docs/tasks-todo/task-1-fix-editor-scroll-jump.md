@@ -6,20 +6,31 @@ When editing a document, the editor viewport "jumps" away from where the user is
 
 A secondary issue: in typewriter mode, double-clicking to select a word causes a scroll during the selection, disrupting the selection. This is likely related but through a different mechanism.
 
-The user reports this appeared between v1.0.10 and v1.0.11.
+The user reports this appeared between v1.0.10 and v1.0.11, likely surfaced by the CodeMirror upgrade (`@codemirror/view` 6.39.14->6.40.0, `@codemirror/state` 6.5.4->6.6.0) which changed how viewport position is handled during full document replacements.
 
 ## Root Cause
 
-### Trailing newline loss in the save-reload round-trip
+The save-reload round-trip produces content that differs from what was in the editor. This triggers a full document replacement in CodeMirror, which destroys the scroll position (and with typewriter mode on, explicitly re-centers via `scrollIntoView`).
 
-The Rust `parse_frontmatter` function (`src-tauri/src/commands/files.rs:400`) uses `content.lines().collect()` to split a file into lines. Rust's `str::lines()` treats a final `\n` as a **line terminator**, not as creating an empty line:
+There are **two sources** of content mismatch:
 
-- `"text\n".lines()` -> `["text"]` (trailing `\n` silently dropped)
-- `"text\n\n".lines()` -> `["text", ""]` (only the LAST `\n` is dropped)
+### Source A: Save adds trailing newline that wasn't there
 
-Then `extract_imports_from_content` (`files.rs:595`) joins the content lines back with `content_lines.join("\n")`. But `["text", ""].join("\n")` produces `"text\n"`, NOT `"text\n\n"`. **One trailing newline is always lost.**
+The `rebuild_markdown_*` functions (`files.rs:765`, similar at lines 725 and 794) add a trailing `\n` for POSIX compliance when the content doesn't end with one:
 
-The compensation code at lines 452-455 only adds a `\n` when the body doesn't already end with `\n`:
+```rust
+if !result.is_empty() && !result.ends_with('\n') {
+    result.push('\n');
+}
+```
+
+When the user is typing on the last (empty) line of a document, the editor content doesn't end with `\n`. Save adds one. Reload returns content WITH the `\n`. Mismatch -> jump.
+
+### Source B: Parse loses a trailing newline
+
+The `parse_frontmatter` function (`files.rs:400`) uses `content.lines().collect()`. Rust's `str::lines()` treats a final `\n` as a line terminator, silently dropping it. Then `extract_imports_from_content` (`files.rs:595`) reconstructs the body with `content_lines.join("\n")`, which doesn't add a trailing `\n`.
+
+The compensation code at lines 452-455 only adds a `\n` back when the body doesn't already end with one:
 
 ```rust
 if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
@@ -27,73 +38,118 @@ if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_
 }
 ```
 
-So `"text\n"` round-trips correctly (lost then restored), but `"text\n\n"` becomes `"text\n"` (already ends with `\n`, no restoration). **The round-trip is lossy for content with 2+ trailing newlines.**
+This handles single trailing newlines but fails for two or more. Example: `"text\n\n"` -> `lines()` produces `["text", ""]` -> `join("\n")` produces `"text\n"` (already ends with `\n`, so no restoration) -> lost one `\n`.
 
-### How this triggers the scroll jump
+When the user presses Enter at the end of a document, content ends with `\n\n`. Save preserves it. Reload loses one `\n`. Mismatch -> jump.
 
-1. User presses Enter at end of document -> content ends with `\n\n`
-2. Auto-save fires (2s debounce) -> `saveFile()` writes to disk, sets `isDirty: false`, invalidates file content query
-3. TanStack Query refetches -> `parse_frontmatter` re-reads file -> loses one trailing `\n` -> returns different content
-4. `useEditorFileContent` effect fires (`src/hooks/useEditorFileContent.ts:29-46`) - `isDirty` is false, so it sets `editorContent` to the re-parsed (different) content
-5. Editor.tsx subscription (`src/components/editor/Editor.tsx:276-317`) detects store content != CM doc -> dispatches **full document replacement** (`changes: { from: 0, to: length, insert: newContent }`)
-6. The full doc replacement destroys CM's scroll position mapping. With **typewriter mode on**, the transaction extender (`src/lib/editor/extensions/typewriter-mode.ts:65-84`) sees `docChanged` and adds `EditorView.scrollIntoView(head, { y: 'center' })`, explicitly re-centering -> visible jump
+### How the mismatch triggers the scroll jump
 
-### Why it repeats (~5 seconds matches writing cadence)
+1. Auto-save fires -> `saveFile()` writes to disk, sets `isDirty: false`, invalidates file content query (`useEditorActions.ts:113`)
+2. TanStack Query refetches -> `parse_frontmatter` re-reads file -> returns different content
+3. `useEditorFileContent` effect fires (`useEditorFileContent.ts:29-46`) - `isDirty` is false, so it sets `editorContent` to the re-parsed (different) content
+4. Editor.tsx subscription (`Editor.tsx:276-317`) detects store content != CM doc -> dispatches full document replacement
+5. With typewriter mode on, the transaction extender (`typewriter-mode.ts:65-84`) sees `docChanged` and adds `EditorView.scrollIntoView(head, { y: 'center' })` -> viewport jumps
+
+### Why it repeats during normal writing
 
 1. Type content -> auto-save -> content ends with `\n` -> round-trip lossless -> **no jump**
-2. Press Enter (new paragraph) -> content ends with `\n\n` -> auto-save -> loses a `\n` -> **JUMP**
-3. Start typing on the new line -> content now has no trailing `\n` -> auto-save -> adds `\n` back -> **JUMP**
+2. Press Enter (new paragraph) -> content ends with `\n\n` -> auto-save -> Source B loses a `\n` -> **JUMP**
+3. Start typing on the new line -> content has no trailing `\n` -> auto-save -> Source A adds `\n` -> **JUMP**
 4. Continue typing (cursor before the `\n`) -> content ends with `\n` -> lossless -> **no jump**
 5. Press Enter again -> back to step 2
 
-Steps 2-3 happen in quick succession within the writing flow, creating the "every ~5 seconds" pattern.
+## Fix
 
-### Why it's worse near the bottom
+Two small changes in `src-tauri/src/commands/files.rs`, both needed:
 
-- New lines are most commonly created at the bottom of the document
-- The `scrollIntoView(head, { y: 'center' })` centering effect displaces the viewport most when the cursor is far from the document center
+### 1. Save side: stop adding trailing newlines
 
-### Why it appeared between v1.0.10 and v1.0.11
+Remove the POSIX trailing newline addition from all three rebuild functions. The editor should preserve the user's content exactly as-is.
 
-The trailing newline bug and the auto-save -> query invalidation -> reload path existed before v1.0.10 (the code didn't change). However, CodeMirror was upgraded: `@codemirror/view` 6.39.14->6.40.0, `@codemirror/state` 6.5.4->6.6.0. The CM6 upgrade likely changed how viewport position is handled during full document replacements, making the scroll disruption visible where it was previously absorbed.
+**`rebuild_markdown_with_raw_frontmatter`** (~line 765), **`rebuild_markdown_with_frontmatter_and_imports_ordered`** (~line 725), and **`rebuild_markdown_content_only`** (~line 794) — delete or comment out:
+
+```rust
+// REMOVE from all three functions:
+if !result.is_empty() && !result.ends_with('\n') {
+    result.push('\n');
+}
+```
+
+### 2. Parse side: fix trailing newline compensation
+
+In `parse_frontmatter`, remove the `!body_content.ends_with('\n')` guard from the compensation code. `lines()` always drops exactly one trailing `\n`; the compensation should always add exactly one back.
+
+**Line ~407** (no-frontmatter path) and **line ~453** (frontmatter path):
+
+```rust
+// BEFORE (buggy — skips compensation when body already ends with \n):
+if original_ends_with_newline && !body_content.is_empty() && !body_content.ends_with('\n') {
+
+// AFTER (always compensate for the \n that lines() dropped):
+if original_ends_with_newline && !body_content.is_empty() {
+```
+
+### 3. Tests
+
+Add round-trip tests for:
+- Content with single trailing `\n` (should preserve)
+- Content with double trailing `\n` (currently broken by Source B)
+- Content with no trailing `\n` (currently broken by Source A)
+- Content with triple trailing `\n` (edge case)
+
+### Not needed
+
+- **Frontend changes** (query invalidation, content comparison, typewriter mode annotation): With the Rust fix making the round-trip lossless, TanStack Query's structural sharing keeps the same `data` reference and the `useEditorFileContent` effect never fires. The full doc replacement never happens. These would only be defence-in-depth.
+
+## Separate: Typewriter double-click issue
+
+The typewriter ViewPlugin (`typewriter-mode.ts:110-134`) defers pointer-click centering to `mouseup`. During double-click word selection, the mouseup handler fires and dispatches `scrollIntoView` in a `requestAnimationFrame`, which scrolls during the selection operation and can disrupt the selection geometry. This needs its own fix (not blocking this task).
 
 ## Key Files
 
-- `src-tauri/src/commands/files.rs` - `parse_frontmatter()` (line 397), `extract_imports_from_content()` (line 533)
+- `src-tauri/src/commands/files.rs` - `parse_frontmatter()` (line 397), `extract_imports_from_content()` (line 533), rebuild functions (lines 679, 733, 773)
 - `src/components/editor/Editor.tsx` - Store subscription and full doc replacement (lines 276-317)
 - `src/hooks/useEditorFileContent.ts` - Syncs query data to store (lines 29-46)
 - `src/hooks/editor/useEditorActions.ts` - `saveFile()` with query invalidation (line 113)
 - `src/lib/editor/extensions/typewriter-mode.ts` - Transaction extender adding scrollIntoView (lines 65-84)
 
-## Fix Strategy
+## Background Research
 
-### Primary fix (Rust - content round-trip fidelity)
+<details>
+<summary>How the auto-save -> reload pipeline works</summary>
 
-Fix `parse_frontmatter` to preserve trailing newlines accurately. Options:
+The auto-save path: user types -> `handleChange` updates `editorContent` in Zustand store -> `scheduleAutoSave()` sets a 2s debounce timer -> timer fires `autoSaveCallback` -> `saveFile(false)` in `useEditorActions.ts`.
 
-**Option A**: Count trailing newlines in the original content (after frontmatter + imports section) and ensure the returned body has the same count. This is the most robust approach.
+`saveFile` writes to disk via `commands.saveMarkdownContent`, then sets `isDirty: false` and calls `queryClient.invalidateQueries({ queryKey: queryKeys.fileContent(...) })`. This triggers a TanStack Query background refetch.
 
-**Option B**: Change `extract_imports_from_content` to not use `lines()` + `join("\n")` for the body. Instead, calculate the byte offset where the body starts and use a string slice. This avoids the `lines()` lossyness entirely.
+The refetch calls `commands.parseMarkdownContent` which reads the file from disk and parses it via `parse_frontmatter`. The result arrives as new `data` in `useFileContentQuery`. If structurally different from the cached data, `useEditorFileContent`'s effect fires and syncs the content to the Zustand store.
 
-**Option C**: After the `join("\n")`, count how many trailing newlines the original content had vs the joined content, and add the difference back. This is a patch on the existing approach.
+The Editor.tsx subscription (line 276) listens for store changes and compares the new `editorContent` against both the previous store value AND the current CM document. If both comparisons show a difference, it dispatches a full document replacement to CodeMirror.
 
-Option B is cleanest - it avoids `lines()` entirely for the body content and preserves exact fidelity.
+The typewriter mode transaction extender intercepts ALL transactions with `docChanged` or `selection` changes and adds `EditorView.scrollIntoView(head, { y: 'center' })`, which is the direct cause of the "scrolls to middle" symptom.
+</details>
 
-### Secondary defence (Frontend - avoid unnecessary full doc replacement)
+<details>
+<summary>Rust lines() behaviour that causes Source B</summary>
 
-The `saveFile()` function invalidates `queryKeys.fileContent` after saving (`useEditorActions.ts:113`). Since we just saved the content that's already in the editor, this refetch is unnecessary for the editor (it's useful for the file list UI showing timestamps etc). Consider:
+Rust's `str::lines()` treats a final `\n` as a line terminator, not as creating a new empty line:
 
-- Not invalidating the file content query in `saveFile` (the watcher will handle external changes)
-- OR: having `useEditorFileContent` compare `data.content` with the current store `editorContent` before calling `setState`
+- `"text\n".lines()` -> `["text"]` (1 element, trailing \n dropped)
+- `"text\n\n".lines()` -> `["text", ""]` (2 elements, only the LAST \n dropped)
+- `"text\n\n\n".lines()` -> `["text", "", ""]` (3 elements, only the LAST \n dropped)
 
-### Typewriter mode fix (separate issue)
+When joined back with `join("\n")`:
+- `["text"].join("\n")` -> `"text"` (lost the \n)
+- `["text", ""].join("\n")` -> `"text\n"` (lost one \n — had \n\n, got \n)
+- `["text", "", ""].join("\n")` -> `"text\n\n"` (lost one \n — had \n\n\n, got \n\n)
 
-The transaction extender at `typewriter-mode.ts:65-84` fires on ALL `docChanged` transactions, including programmatic replacements. It should skip transactions that are programmatic/non-user-initiated. Options:
+The pattern is consistent: `lines()` always drops exactly one trailing `\n`. The fixed compensation code always adds exactly one back, achieving a net-zero loss.
+</details>
 
-- Add a custom annotation to programmatic dispatches and check for it in the extender
-- Check for `tr.isUserEvent()` to only fire on user-initiated transactions
-- Filter out transactions where the entire document is replaced (from: 0, to: length)
+<details>
+<summary>Why the issue appeared between v1.0.10 and v1.0.11</summary>
 
-## Typewriter double-click issue
+The trailing newline bugs existed before v1.0.10 — the Rust save/parse code and the auto-save -> query invalidation path didn't change between versions. The frontend changes between versions (editor view ref, Linux font handling, watcher rescan events) don't affect scroll behaviour.
 
-The typewriter ViewPlugin (`typewriter-mode.ts:110-134`) defers pointer-click centering to `mouseup`. During double-click word selection, the mouseup handler fires and dispatches `scrollIntoView` in a `requestAnimationFrame`, which scrolls during the selection operation and can disrupt the selection geometry. This needs the deferred scroll to be cancelled or delayed when a double-click/triple-click selection is in progress.
+However, CodeMirror was upgraded: `@codemirror/view` 6.39.14->6.40.0, `@codemirror/state` 6.5.4->6.6.0. The most likely explanation is that the CM6 upgrade changed how viewport position is handled during full document replacements, making the scroll disruption visible where it was previously absorbed by CM6's internal viewport management.
+</details>
