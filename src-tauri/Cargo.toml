@@ -43,7 +43,7 @@ chrono = "0.4"
 swc_common = "19"
 swc_ecma_ast = "21"
 swc_ecma_parser = "36"
-swc_ecma_visit = "21"
+swc_ecma_visit = "23"
 dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
