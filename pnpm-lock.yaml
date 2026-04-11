@@ -147,8 +147,8 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0(react@19.2.4)
       marked:
-        specifier: ^17.0.5
-        version: 17.0.5
+        specifier: ^18.0.0
+        version: 18.0.0
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -4647,8 +4647,8 @@ packages:
     engines: {node: '>= 18'}
     hasBin: true
 
-  marked@17.0.5:
-    resolution: {integrity: sha512-6hLvc0/JEbRjRgzI6wnT2P1XuM1/RrrDEX0kPt0N7jGm1133g6X7DlxFasUIx+72aKAr904GTxhSLDrd5DIlZg==}
+  marked@18.0.0:
+    resolution: {integrity: sha512-2e7Qiv/HJSXj8rDEpgTvGKsP8yYtI9xXHKDnrftrmnrJPaFNM7VRb2YCzWaX4BP1iCJ/XPduzDJZMFoqTCcIMA==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -11259,7 +11259,7 @@ snapshots:
 
   marked@15.0.12: {}
 
-  marked@17.0.5: {}
+  marked@18.0.0: {}
 
   math-intrinsics@1.1.0: {}
 
