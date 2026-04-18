@@ -138,10 +138,10 @@ All three test sites (`demo-project`, `dummy-astro-project`, `starlight-minimal`
 - [x] Run reset:testdata
 
 ### Telemetry Worker
-- [ ] Update wrangler
-- [ ] Review pinned packages
-- [ ] Test staging deployment (dry-run + actual staging)
-- [ ] Verify stats.sh works
+- [x] Update wrangler (4.72.0 → 4.83.0)
+- [x] Review pinned packages — none pinned
+- [x] Test staging deployment — dry-run passes, staging deploy succeeded
+- [x] Verify stats.sh works
 
 ### Finalization
 - [ ] Apply GitHub Actions updates (pnpm/action-setup v5, tauri-action 0.6.2, deploy-pages v5, configure-pages v6)
