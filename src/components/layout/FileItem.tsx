@@ -75,7 +75,6 @@ export const FileItem: React.FC<FileItemProps> = ({
       // Safe to setState here: guarded condition ensures this only runs on the
       // false->true transition, preventing cascading renders. This is a standard
       // React pattern for synchronizing derived state on mode transitions.
-
       setRenameValue(fullName)
       renameInitializedRef.current = false
     }
