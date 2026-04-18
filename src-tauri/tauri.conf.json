@@ -37,7 +37,8 @@
         ]
       }
     },
-    "withGlobalTauri": false
+    "withGlobalTauri": false,
+    "macOSPrivateApi": true
   },
   "bundle": {
     "createUpdaterArtifacts": true,
