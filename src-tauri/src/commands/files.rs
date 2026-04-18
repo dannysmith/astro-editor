@@ -610,13 +610,13 @@ fn normalize_dates(frontmatter: &mut IndexMap<String, Value>) {
 /// Recursively normalizes dates in a Value
 fn normalize_value(value: &mut Value) {
     match value {
-        Value::String(s) => {
+        Value::String(s)
+            if s.len() > 10 && s.contains('T') && (s.ends_with('Z') || s.contains('+')) =>
+        {
             // If string looks like ISO datetime, extract date part
-            if s.len() > 10 && s.contains('T') && (s.ends_with('Z') || s.contains('+')) {
-                if let Some(date_part) = s.split('T').next() {
-                    if date_part.len() == 10 && date_part.matches('-').count() == 2 {
-                        *s = date_part.to_string();
-                    }
+            if let Some(date_part) = s.split('T').next() {
+                if date_part.len() == 10 && date_part.matches('-').count() == 2 {
+                    *s = date_part.to_string();
                 }
             }
         }

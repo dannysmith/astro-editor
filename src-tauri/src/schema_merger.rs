@@ -355,23 +355,25 @@ fn parse_field(
             &field_schema.type_,
             Some(StringOrArray::String(s)) if s == "object"
         )
-        && field_schema.properties.is_some()
     {
-        // Flatten nested object
-        let mut nested_fields = Vec::new();
-        let nested_required: HashSet<String> = field_schema
-            .required
-            .as_ref()
-            .map(|r| r.iter().cloned().collect())
-            .unwrap_or_default();
+        if let Some(properties) = field_schema.properties.as_ref() {
+            // Flatten nested object
+            let mut nested_fields = Vec::new();
+            let nested_required: HashSet<String> = field_schema
+                .required
+                .as_ref()
+                .map(|r| r.iter().cloned().collect())
+                .unwrap_or_default();
 
-        for (nested_name, nested_schema) in field_schema.properties.as_ref().unwrap() {
-            let is_nested_required = nested_required.contains(nested_name);
-            let parsed = parse_field(nested_name, nested_schema, is_nested_required, &full_path)?;
-            nested_fields.extend(parsed);
+            for (nested_name, nested_schema) in properties {
+                let is_nested_required = nested_required.contains(nested_name);
+                let parsed =
+                    parse_field(nested_name, nested_schema, is_nested_required, &full_path)?;
+                nested_fields.extend(parsed);
+            }
+
+            return Ok(nested_fields);
         }
-
-        return Ok(nested_fields);
     }
 
     // Extract constraints
