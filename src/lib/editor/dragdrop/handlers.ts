@@ -13,8 +13,8 @@ import { FileDropPayload, DropResult } from './types'
 export const parseFileDropPayload = (
   payload: unknown
 ): { paths: string[]; position?: { x: number; y: number } } => {
-  let filePaths: string[] = []
-  let position: { x: number; y: number } | undefined = undefined
+  let filePaths: string[]
+  let position: { x: number; y: number } | undefined
 
   if (Array.isArray(payload)) {
     filePaths = payload as string[]
