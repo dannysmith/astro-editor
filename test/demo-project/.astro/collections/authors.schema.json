@@ -28,7 +28,6 @@
       "id",
       "name",
       "email"
-    ],
-    "additionalProperties": false
+    ]
   }
 }

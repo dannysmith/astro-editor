@@ -132,10 +132,10 @@ All three test sites (`demo-project`, `dummy-astro-project`, `starlight-minimal`
 - [x] Production build — compiles (DMG bundling fails on signing, same as main)
 
 ### Test Sites
-- [ ] demo-project (Astro 6.1.1 → 6.1.8)
-- [ ] dummy-astro-project (Astro 6.1.1 → 6.1.8)
-- [ ] starlight-minimal (Astro + Starlight bump)
-- [ ] Run reset:testdata
+- [x] demo-project (Astro 6.1.1 → 6.1.8)
+- [x] dummy-astro-project (Astro 6.1.1 → 6.1.8)
+- [x] starlight-minimal (Astro 6.1.1 → 6.1.8, Starlight 0.38.2 → 0.38.3)
+- [x] Run reset:testdata
 
 ### Telemetry Worker
 - [ ] Update wrangler
