@@ -152,7 +152,7 @@ async function prepareRelease() {
 
     // Final check that Rust code compiles
     console.log('\n🔍 Running final compilation check...')
-    exec('source ~/.cargo/env && cd src-tauri && cargo check')
+    exec('cd src-tauri && cargo check')
     console.log('✅ Rust compilation check passed')
 
     console.log(`\n🎉 Successfully prepared release ${tagVersion}!`)
