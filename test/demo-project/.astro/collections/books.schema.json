@@ -47,7 +47,43 @@
       "default": false,
       "type": "boolean"
     },
-    "reviewer": {},
+    "reviewer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "collection": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "collection"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "collection": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "slug",
+            "collection"
+          ]
+        }
+      ]
+    },
     "$schema": {
       "type": "string"
     }
@@ -55,8 +91,6 @@
   "required": [
     "title",
     "author",
-    "rating",
-    "draftBookReview"
-  ],
-  "additionalProperties": false
+    "rating"
+  ]
 }

@@ -40,10 +40,10 @@ tauri-plugin-process = "2.3.0"
 tauri-plugin-log = "2.0.0"
 log = "0.4"
 chrono = "0.4"
-swc_common = "19"
-swc_ecma_ast = "21"
-swc_ecma_parser = "36"
-swc_ecma_visit = "21"
+swc_common = "21"
+swc_ecma_ast = "23"
+swc_ecma_parser = "39"
+swc_ecma_visit = "23"
 dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
@@ -58,7 +58,11 @@ tempfile = "3.27"
 # macOS-only dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri = { version = "2", features = ["macos-private-api"] }
-window-vibrancy = "0.7"
+# Pinned to 0.6 to match tauri's internal version. Keeping both 0.7 and 0.6
+# in the tree after objc2 0.6.4 caused an LTO linker symbol conflict on
+# `__CLASS_NSVisualEffectViewTagged`. Call site: `apply_vibrancy` in
+# src/lib.rs. Do not bump without verifying the LTO issue is resolved.
+window-vibrancy = "0.6"
 
 # Desktop-only dependencies (excludes Android and iOS)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

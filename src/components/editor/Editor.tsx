@@ -74,7 +74,9 @@ const EditorViewComponent: React.FC = () => {
     }
   )
 
-  // Track hovered image URLs when Alt is pressed
+  // Track hovered image URLs when Alt is pressed.
+  // Passing viewRef.current is safe: useImageHover only consumes it inside effects.
+  // eslint-disable-next-line react-hooks/refs
   const hoveredImage = useImageHover(viewRef.current, isAltPressed)
 
   // Handle mode changes - use stable callback with getState() pattern
