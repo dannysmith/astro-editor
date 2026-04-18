@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Main App complete — awaiting user confirmation to start Test Sites Phase
+**Current Phase:** Finalization — awaiting user smoke test + PR
 **Branch:** deps-2026-04-18
 
 ## Research Findings
@@ -144,15 +144,17 @@ All three test sites (`demo-project`, `dummy-astro-project`, `starlight-minimal`
 - [x] Verify stats.sh works
 
 ### Finalization
-- [ ] Apply GitHub Actions updates (pnpm/action-setup v5, tauri-action 0.6.2, deploy-pages v5, configure-pages v6)
-- [ ] Check scripts/ compatibility
-- [ ] Run check:all
-- [ ] Security audit (pnpm audit)
-- [ ] Update docs (remove obsolete override notes if any)
+- [x] Apply GitHub Actions updates (pnpm/action-setup v5, tauri-action 0.6.2, deploy-pages v5, configure-pages v6)
+- [x] Check scripts/ compatibility — only small Node scripts, no updated-package deps
+- [x] Run check:all — 704 frontend + 220 Rust tests pass
+- [x] Security audit (pnpm audit) — no known vulnerabilities
+- [x] Docs are consistent (cross-platform.md already shows window-vibrancy 0.6)
 - [ ] Manual smoke test (user)
 - [ ] Push + create PR (user)
 - [ ] Merge + verify CI (user)
 - [ ] Verify dependabot PRs auto-close (user)
+
+
 
 ---
 
@@ -175,3 +177,5 @@ All three test sites (`demo-project`, `dummy-astro-project`, `starlight-minimal`
 2. **specta rc.24 requires nightly Rust** — uses unstable `debug_closure_helpers`. Stayed on rc.21/22 pins.
 
 3. **window-vibrancy LTO linker conflict** — see decision #6 above. Downgrading to 0.6 resolved it.
+
+4. **Astro 6 warns about Vite 8** — Astro officially supports Vite 7 only; Vite 8 support will come in Astro 7 (see [#15819](https://github.com/withastro/astro/pull/15819), [#16029](https://github.com/withastro/astro/issues/16029)). The only known functional regression is Cloudflare-adapter-specific and doesn't apply to our test sites. Accepted the warning — Vite override would force-downgrade the editor app's Vite. Revisit when Astro 7 ships.
