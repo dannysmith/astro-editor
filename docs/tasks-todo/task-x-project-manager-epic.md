@@ -1,257 +1,428 @@
-# Epic: Project Manager UI
+# Epic: Project & Collection Settings
 
-## Overview
+GitHub: #82, #87
 
-Build a comprehensive project management interface that allows users to view, configure, and manage all their registered projects and their content folder settings from a single, intuitive location.
+## Problem
 
-## Problem Statement
+Settings are hard to find, schema status is invisible, and the relationship between Astro content collections and AE's representation of them is unclear.
 
-### Current Pain Points
+Specific pain points:
 
-1. **Settings are scattered and hidden**: Collection-specific settings (sort fields, draft fields, path overrides) are buried under expandable menus in Preferences. Users don't discover them.
+1. **Settings are buried**: Collection-specific settings (sort fields, draft fields, path overrides) are hidden under expandable accordions in a secondary Preferences pane. Users don't discover them.
+2. **No schema visibility**: Users can't see how AE has parsed their `content.config.ts`, which fields it understands, or why something isn't working. Schema parse errors are silent.
+3. **The entity model is muddled**: The relationship between a folder on disk, an Astro content collection, a parsed schema, and AE's collection concept isn't clear in code or UI. This makes the settings hierarchy confusing.
+4. **Three-tier settings are complex**: The current default → project → collection override chain is hard to reason about. Most settings belong at the collection level.
+5. **No project management**: Users can't see which projects AE knows about, remove stale ones, or configure a project they haven't opened.
+6. **New file naming is inflexible**: Files are named by date, but filenames often become URL slugs. Users need configurable patterns per collection (#87).
 
-2. **No visibility into project registry**: Users can't see which projects the app knows about, can't delete old projects, can't edit settings for projects that aren't currently open.
+## How It Works Today
 
-3. **Schema-to-folder mapping is implicit**: When Astro site structure doesn't match conventions, users must manually configure path overrides. There's no visual way to "connect" a schema collection to a content folder.
+### Entity Model (Current)
 
-4. **Errors are opaque**: When schema parsing fails or a collection can't be mapped, users don't get clear feedback about what went wrong.
+```
+Astro Project (on disk)
+├── content.config.ts → defines ContentCollections with optional Zod schemas
+├── .astro/collections/ → Generated astro schemas
+├── src/content/
+│   ├── blog/          → content folder (may or may not match a collection name)
+│   ├── docs/          → content folder
+│   └── authors/       → content folder
 
-5. **No way to manage multiple projects**: Power users with multiple Astro sites have no way to configure them without opening each one.
+AE's Model
+├── Project Registry     → tracks all known projects (id, name, path, timestamps)
+├── Global Settings      → theme, IDE command, font size, highlights, autoSaveDelay
+├── Per-Project Settings → path overrides, frontmatter mappings, default file type
+│   └── Per-Collection Settings → subset of project settings, overridable per collection
+```
 
-### User Feedback
+### Settings Architecture (Current)
 
-> "The content list is very hard to navigate. The sorting seems haphazard. Custom settings are hidden underneath expandable menus on a secondary menu in preferences."
+Three-tier fallback for most settings:
 
-*Note: Sorting/filtering issues addressed by tasks 1 and 2. Project Manager focuses on the settings discoverability problem.*
+1. **Collection override** (if user has set one)
+2. **Project override** (if user has set one)
+3. **Hard-coded Astro defaults** (e.g. `src/content/` for content directory)
 
-> "Consider a clear visual indicator for when a content folder has successfully been assigned its corresponding collection schema."
+Persisted in app data directory:
+- `preferences/project-registry.json` — all projects metadata
+- `preferences/projects/{projectId}.json` — per-project settings (includes collection overrides)
+- `preferences/global-settings.json` — global settings
 
-*Note: Basic indicator added in task 1. Project Manager provides the full mapping UI.*
+### Preferences UI (Current)
 
-> "Build a proper project manager into the settings which shows all projects which have been opened, allows users to visually map schema content collections to content folders, and clearly shows any errors when reading or merging the schemas."
+Four-pane dialog:
+1. **General** — global settings (theme, IDE, font, highlights)
+2. **Project Settings** — project-level overrides (paths, default file type)
+3. **Collections** — expandable accordions per collection, showing inherited vs overridden values
+4. **Advanced** — debug/testing features
+
+The Collections pane already shows effective values with inheritance indicators, but it's not discoverable and doesn't surface schema information.
+
+### Target Architecture
+
+**Simplified settings** replacing the current three-tier model. No project-level settings — project records store metadata only.
+
+Each collection setting resolves via one of three fallback paths depending on the setting type:
+
+1. **Path/format settings** (content dir, assets dir, MDX dir, file type, absolute paths): collection → **global default** (user-configurable in Preferences "Defaults" pane, pre-populated with Astro conventions)
+2. **Field mappings** (draft, title, description, published date): collection → **auto-detected from schema** (e.g. looks for a field named "draft") → **hard-coded convention**
+3. **Collection-only settings** (sort field/order, URL pattern, filename pattern, ignore list): collection → **none** (simply unset if not configured)
+
+**Preferences dialog** (⌘,): General, Defaults, Advanced
+- **Defaults pane** holds global defaults for path/format settings only
+- Pre-populated with current hard-coded Astro defaults
+- Text fields fall back to hard-coded defaults when cleared
+- Changing a global default automatically affects all collections that haven't been explicitly configured
+
+**Projects dialog** (separate): Project list + per-collection settings + schema viewer
+- Collection settings show "set" vs "unset" with the effective value and where it came from (global default, auto-detected, or hard-coded)
+- "Copy to all collections" stamps one collection's explicit values onto others
 
 ---
 
-## Goals
+## Decisions Made
 
-1. **Discoverability**: Make project and collection settings obvious and easy to find
-2. **Clarity**: Show clear status of schema loading, mapping, and any errors
-3. **Control**: Allow users to explicitly map schemas to folders
-4. **Flexibility**: Support non-standard Astro site structures without friction
-5. **Management**: Enable viewing/editing settings for all registered projects
+These are settled based on discussion in #82:
+
+- **Two-tier settings: global defaults → collection.** Eliminate the project-level settings tier entirely. Collections either have an explicit setting or fall back to the global default. Global defaults are user-configurable in a new "Defaults" pane in Preferences (pre-populated with Astro conventions). Project records store metadata only (name, path, timestamps).
+- **No `.astro-editor` config file in repos.** AE stores its settings in app data, not in the user's project. AE should be a nice interface on top of an existing project, not intrude on it.
+- **Don't validate all project paths on startup.** Only check when the user tries to open a project (per Louise's suggestion). Show errors at that point.
+- **"Copy settings to all collections" solves the setup friction.** No need for templates or bulk operations. If you've configured one collection well, you can copy that config.
+- **Minimal intrusion during normal use.** Settings/project management should be tucked away. It should surface during first-run and when adding a new project, but not encroach on the writing experience.
+- **Project list should be simple.** VSCode/Zed-style project picker — search, open, delete. Not a dashboard.
+- **Separate Projects dialog.** Preferences (⌘,) stays focused on global app behaviour (General + Advanced). A new "Projects" dialog handles project list, collection settings, schema viewer, and mapping UI. The current "Project Settings" and "Collections" panes move out of Preferences.
 
 ---
 
 ## Requirements
 
-### Must Have
+### R1: Revised Entity Model
 
-#### R1: Project List View
-- Display all registered projects (from project registry)
-- Show project name, path, and last opened date
-- Indicate current project visually
-- Allow switching to a project (opens it)
-- Allow removing projects from registry (with confirmation)
-- Show if project path no longer exists (stale reference)
+Clarify the conceptual model and how it maps to code. The key entities:
 
-#### R2: Project Settings Panel
-- Edit settings for any project (not just current)
-- Path overrides (content directory, assets directory, MDX components)
-- Default file type (md/mdx)
-- Asset path preference (absolute/relative)
-- Clear inheritance from defaults
+| Entity | What it is | Where it lives |
+|--------|-----------|----------------|
+| **Astro Project** | A directory on disk containing an Astro site | Filesystem |
+| **Content Config** | `content.config.ts` defining collections with optional schemas | Filesystem |
+| **Content Folder** | A directory containing content files (may not match a collection name) | Filesystem |
+| **Content File** | A markdown/MDX file on disk | Filesystem |
+| **Schema** | A Zod schema for a content collection, as parsed by AE | Derived from content config |
+| **AE Project** | AE's record of a known project + its settings | App data / project registry |
+| **AE Collection** | AE's representation of a content collection + its settings | App data / per-project settings |
 
-#### R3: Content Folder Configuration
-- List all content folders discovered in project
-- Show schema mapping status for each folder:
-  - ✓ Mapped to schema collection
-  - ⚠ No matching schema
-  - ✗ Schema parse error
-- Display which schema collection each folder maps to
-- Allow explicit mapping override (folder → schema collection)
+The mapping between Content Folders and Schema Collections is the crux of the complexity. AE currently infers this by name matching. The new system should make this mapping explicit and visible.
 
-#### R4: Schema Status & Errors
-- Show parsed schema collections from `content.config.ts`
-- Display any parsing errors with helpful messages
-- Show which loader type each collection uses (glob, file, etc.)
-- Indicate unmapped schema collections (defined but no folder)
+### R2: Collection-Level Settings
 
-#### R5: Per-Folder Settings
-- Frontmatter field mappings (date, title, description, draft)
-- Path overrides specific to this folder
-- Default file type for this folder
-- Show which fields exist in the schema for autocomplete
+Each AE Collection should own these settings, with clear "set" vs "unset (using default/inferred)" status:
 
-### Should Have
+| Setting | Description | Default/Inference | Exists Today? |
+|---------|-------------|-------------------|---------------|
+| Content directory path | Where to find content files | Inferred from collection glob pattern or Astro convention | Yes |
+| Assets directory path | Where to find/create assets | Astro convention | Yes |
+| MDX components directory | Where to find MDX components | Astro convention | Project-level only |
+| Absolute vs relative asset paths | How to write asset/link paths | Relative | Yes |
+| Published date field | Which date field to display in sidebar, use for date-based features | Auto-detect field named "date", "pubDate", or "publishedDate" | Yes |
+| Draft field | Which boolean field controls draft status | Auto-detect field named "draft" | Yes |
+| Title field | Which field to use for search, sidebar title, top frontmatter slot | Auto-detect field named "title" | Yes |
+| Description field | Which field gets special treatment in search/frontmatter | Auto-detect field named "description" | Yes |
+| Default sort field + order | Which field to sort by in sidebar, and asc/desc | Published date field, descending | No |
+| Default file type | MD or MDX for new files | MD | Yes |
+| URL pattern | Template for content link URLs (e.g. `"/writing/{slug}"`) | None | Yes |
+| Filename pattern for new files | How to generate filenames (#87) | Date-based (current behaviour) | No |
+| Ignore list | Patterns for files to ignore (gitignore-style) | None | No |
 
-#### R6: Auto-Mapping Suggestions
-- When schema defines glob patterns, suggest matching folders
-- "This collection uses `src/posts/**` - map to `posts/` folder?"
-- One-click to accept suggestion
+For each setting, the UI should show:
+- Whether it's **set** (user explicitly configured) or **unset** (falling back to default/inference)
+- If unset, what value AE is currently using and where it came from
+- For fields like "draft": if no matching field exists in the schema, show a warning explaining that draft functionality won't work for this collection
 
-#### R7: Quick Actions
-- "Open in Finder/Explorer" for project path
-- "Open in IDE" for project
-- "Refresh schema" to re-parse content.config.ts
-- "Reset all settings" for a project
+### R3: Schema Visibility
 
-#### R8: Search/Filter
-- Search projects by name
-- Filter to show only projects with errors
-- Filter to show only projects with unmapped collections
+The UI should show the **full schema as parsed by AE** for each collection:
 
-### Could Have
+- Each field: name, type, optionality, constraints, default value, description
+- How AE interprets each field in the frontmatter sidebar (e.g. "used as date picker", "rendered as textarea", "image field with preview")
+- Warnings for fields AE can't fully represent (e.g. complex union types, custom Zod refinements)
+- Which loader the collection uses (glob, file, etc.)
+- Parse errors, if any, with helpful messages
 
-#### R9: Project Templates
-- Save current project settings as template
-- Apply template to new projects
-- Share templates (export/import)
+This gives users confidence that AE understands their schema correctly and helps them debug when it doesn't.
 
-#### R10: Bulk Operations
-- Select multiple projects
-- Delete selected from registry
-- Apply settings to multiple projects
+### R4: Schema-to-Folder Mapping
 
-#### R11: Project Health Dashboard
-- Overview of all projects
-- Aggregate stats (total files, collections, errors)
-- Quick access to projects needing attention
+- Show which schema collection maps to which content folder
+- Show unmapped collections (schema exists but no folder found) and orphan folders (folder exists but no matching schema)
+- Allow explicit mapping override when auto-detection fails
+- When a collection's glob pattern suggests a mapping, surface that as a suggestion
+
+### R5: Project List & Switcher
+
+The Projects dialog replaces the current open-project flow. Accessed via ⌘O, File > Open, and the sidebar folder icon.
+
+**Project Grid** (landing view):
+- Card grid showing all registered projects
+- Each card shows: project name, path, last opened date, number of collections, warning/error badges (e.g. schema parse errors)
+- Current project shown distinctly (e.g. highlighted border, "Current" badge)
+- **Open** button on each card → opens that project in the main editor
+- **Settings cog** on current project card → drills into project settings view (V1: current project only; non-current projects get this later)
+- **Right-click context menu**: Reveal in Finder, Open in IDE, Copy Path, Remove from Astro Editor (with confirmation)
+- **Add Project** button → opens file browser to choose an Astro project directory
+- If a project's path no longer exists, show error when user tries to open it (not checked on startup)
+
+### R6: Copy Collection Settings
+
+- "Copy this collection's settings to all other collections in this project"
+- Solves the setup friction of configuring multiple similar collections
+- Should clearly preview what will be overwritten
+
+### R7: Better New File Naming (#87)
+
+- Per-collection setting for filename pattern
+- Options should include: date-based (current), field-based (e.g. slugified title), manual entry
+- May require deferring file write until the relevant field is filled, or renaming after
+- Detail to be worked out in Phase 5
 
 ---
 
 ## Open Questions
 
-### UX Questions
+These should be resolved during Phase 1 (Design):
 
-1. **Where does this UI live?**
-   - New tab in Preferences dialog?
-   - Separate window/modal?
-   - Replace current Preferences entirely?
-   - Accessible from sidebar header?
-
-2. **How prominent should it be?**
-   - Always visible in some form?
-   - Only accessible via menu/preferences?
-   - First-run wizard for new projects?
-
-3. **How do we handle the current project vs other projects?**
-   - Same UI for both?
-   - Current project in main preferences, others in "Project Manager"?
-   - Visual distinction when editing non-current project?
-
-4. **What's the interaction model for schema-folder mapping?**
-   - Drag and drop?
-   - Dropdown selectors?
-   - Two-column list with connect lines?
-   - Table with mapping column?
-
-### Technical Questions
-
-1. **Schema refresh trigger**
-   - When should we re-parse schemas?
-   - File watcher on content.config.ts?
-   - Manual refresh button only?
-   - On project open?
-
-2. **Settings scope**
-   - Can we edit settings for closed projects without loading them fully?
-   - What minimal data do we need from a project to show its settings?
-
-3. **Error handling**
-   - How do we store/display schema parse errors?
-   - Should errors persist or be recalculated on each view?
-
-4. **Migration path**
-   - How do we handle existing projects with implicit mappings?
-   - Do we auto-migrate or prompt users?
+1. ~~**Where does the Project Manager UI live?**~~ **Decided:** Separate "Projects" dialog, distinct from Preferences. Preferences keeps General + Advanced only. Projects dialog handles project list, per-project config, collection settings, schema viewer, mapping UI.
+2. ~~**What happens to project-level settings?**~~ **Decided:** Eliminated entirely. Two-tier model: global defaults (Preferences "Defaults" pane) → collection settings (Projects dialog). Project records are metadata only. "Copy to all collections" handles the "I want the same config across this project" use case.
+3. ~~**Settings migration**~~ **Decided:** Automatic migration from v2 → v3 on app startup/project open, no user input needed. We own these files. Bump the version key in the JSON files. Migration logic: take any project-level settings and push them down as explicit collection-level settings for all collections in that project, then remove the project-level settings. Must be factored into Phase 2.
+4. ~~**Schema refresh**~~ **Decided:** On project open (current behaviour) + manual "Refresh Schema" button in the Projects dialog. No file watcher — config changes rarely and the added complexity isn't worth it.
+5. ~~**Editing non-current projects**~~ **Decided:** Deferred. V1 only supports editing settings/viewing schema for the current project. The project list shows all projects (open, remove, switch), but collection settings and schema viewer require the project to be open. Can revisit later if there's demand.
+6. **Filename pattern UX for #87**: Leaning towards rename-after rather than deferring file write (safer). Detail to be worked out in Phase 5.
 
 ---
 
-## Technical Considerations
+## Phases
 
-### Existing Infrastructure
+### Phase 1: Design & Data Model
 
-**Project Registry** (`src/lib/project-registry/`):
-- Already tracks all registered projects
-- Stores project ID, name, path, timestamps
-- Per-project settings files in `preferences/projects/{id}.json`
-- Three-tier settings fallback (collection → project → default)
+**Goal**: Settle the mental model, data structures, UI layout, and settings file format before writing implementation code.
 
-**Settings System**:
-- `usePreferences` hook for accessing/updating settings
-- `useEffectiveSettings` for resolved values
-- Deep merge for partial updates
-- Query cache invalidation on changes
+Deliverables:
+- Revised entity model with clear definitions and relationships
+- New settings file structure (what's stored where, what the JSON looks like)
+- Migration plan for existing settings
+- UI wireframes/mockups for the settings interface
+- Resolution of the open questions above
+- Updated requirements based on design decisions
 
-**Collection Data**:
-- `useCollectionsQuery` returns parsed collections with schema info
-- `complete_schema` field contains serialized Zod schema
-- Collections know their loader type and path patterns
+This phase is mostly discussion, documentation, and sketching — not code. **Status: complete** — all deliverables settled in the design discussion that produced this document.
 
-### New Components Needed
+#### UI Layout: Projects Dialog
 
-1. **ProjectListPane** - List of all registered projects
-2. **ProjectDetailPane** - Settings for a single project
-3. **ContentFolderList** - Folders with mapping status
-4. **SchemaMappingUI** - Visual mapping interface
-5. **SchemaStatusBadge** - Error/success indicators
+The Projects dialog is a two-level interface:
 
-### Data Flow
+**Level 1 — Project Grid** (landing page):
 
 ```
-Project Registry (disk)
-    ↓
-projectStore (state)
-    ↓
-useProjects() hook (list of all projects)
-    ↓
-ProjectListPane → ProjectDetailPane → ContentFolderList
-                                           ↓
-                                    SchemaMappingUI
+┌─────────────────────────────────────────────────────────┐
+│ Projects                                            ✕   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌─────────────────────┐  ┌─────────────────────┐      │
+│  │ My Blog      ● Current │ │ Docs Site             │      │
+│  │ ~/projects/my-blog  │  │ ~/projects/docs      │      │
+│  │ 4 collections       │  │ 2 collections        │      │
+│  │ Last: today         │  │ Last: 3 days ago     │      │
+│  │                     │  │                      │      │
+│  │  [Open]  [⚙]       │  │  [Open]              │      │
+│  └─────────────────────┘  └──────────────────────┘      │
+│                                                         │
+│  ┌─────────────────────┐                                │
+│  │ Portfolio     ⚠     │   Right-click any card:        │
+│  │ ~/projects/folio    │   • Reveal in Finder           │
+│  │ 1 collection        │   • Open in IDE                │
+│  │ Last: 2 weeks ago   │   • Copy Path                  │
+│  │ Schema parse error  │   • Remove from Astro Editor   │
+│  │  [Open]             │                                │
+│  └─────────────────────┘                                │
+│                                                         │
+│  [+ Add Project]                                        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Potential Challenges
+Replaces current open-project flow. Accessed via ⌘O, File > Open, sidebar folder icon.
+Settings cog (⚙) only shown on current project in V1.
 
-1. **Loading project data without opening project**: May need lightweight "peek" at project settings without full initialization
+**Level 2 — Project Settings** (drill-down from cog):
 
-2. **Schema parsing for non-current projects**: Currently schema parsing happens on project open. May need to support parsing for any project on demand.
+```
+┌─────────────────────────────────────────────────────────┐
+│ ← Projects  ·  My Blog                             ✕   │
+├──────────────┬──────────────────────────────────────────┤
+│              │                                          │
+│ COLLECTIONS  │  blog                                    │
+│              │                                          │
+│  blog      ✓ │  ┌─ Settings ──────────────────────────┐ │
+│  notes     ✓ │  │ Content dir   src/content/blog/     │ │
+│  ideas     ⚠ │  │ Assets dir    ○ using default       │ │
+│  schemaless  │  │ Draft field   draft ✓               │ │
+│              │  │ Title field   title ✓               │ │
+│              │  │ Sort          date, desc             │ │
+│              │  │ File type     mdx (set)              │ │
+│              │  │ URL pattern   /blog/{slug}           │ │
+│              │  │ ...                                  │ │
+│              │  └─────────────────────────────────────┘ │
+│              │                                          │
+│              │  ┌─ Schema ────────────────────────────┐ │
+│              │  │ title    string    required          │ │
+│              │  │ date     date      required          │ │
+│              │  │ draft    boolean   optional          │ │
+│              │  │ image    image()   optional          │ │
+│              │  │ tags     string[]  optional          │ │
+│              │  └─────────────────────────────────────┘ │
+│              │                                          │
+│              │  [Copy settings to all]  [Refresh Schema]│
+└──────────────┴──────────────────────────────────────────┘
+```
 
-3. **Stale project detection**: How to efficiently check if project paths still exist without blocking UI
+Sidebar: collections for the current project with status indicators (✓ mapped, ⚠ warning, ✗ error).
+Main pane: selected collection's settings (R2) + schema viewer (R3).
+Back button returns to project grid.
 
-4. **Settings sync**: If editing settings for current project, need to ensure main app updates
+#### Settings File Structure (v3)
+
+Three files, same as today. Project registry and global settings gain new fields; per-project files are restructured.
+
+**`project-registry.json`** — unchanged, metadata only:
+```json
+{
+  "version": 3,
+  "lastOpenedProject": "abc-123",
+  "projects": {
+    "abc-123": {
+      "id": "abc-123",
+      "name": "My Blog",
+      "path": "/Users/me/projects/my-blog",
+      "lastOpened": "2026-03-30T12:00:00Z",
+      "created": "2026-01-15T09:00:00Z"
+    }
+  }
+}
+```
+
+**`global-settings.json`** — adds `defaults` section for collection-applicable defaults:
+```json
+{
+  "version": 3,
+  "general": {
+    "ideCommand": "",
+    "theme": "system",
+    "highlights": { "nouns": false, "verbs": false, "adjectives": false, "adverbs": false, "conjunctions": false },
+    "autoSaveDelay": 2
+  },
+  "appearance": {
+    "headingColor": { "light": "#191919", "dark": "#cccccc" },
+    "editorBaseFontSize": 18
+  },
+  "defaults": {
+    "contentDirectory": "src/content/",
+    "assetsDirectory": "src/assets/",
+    "mdxComponentsDirectory": "src/components/mdx/",
+    "defaultFileType": "md",
+    "useAbsoluteAssetPaths": false
+  }
+}
+```
+
+**`projects/{id}.json`** — collection settings only, keyed by Astro collection name:
+```json
+{
+  "version": 3,
+  "collections": {
+    "blog": {
+      "contentDirectory": "src/content/blog/",
+      "assetsDirectory": "src/assets/blog/",
+      "mdxComponentsDirectory": null,
+      "useAbsoluteAssetPaths": null,
+      "defaultFileType": "mdx",
+      "publishedDateField": "date",
+      "draftField": "draft",
+      "titleField": "title",
+      "descriptionField": null,
+      "sortField": "date",
+      "sortOrder": "desc",
+      "urlPattern": "/blog/{slug}",
+      "filenamePattern": null,
+      "ignoreList": null
+    },
+    "docs": {}
+  }
+}
+```
+
+Missing key or `null` = unset (falls back to global default). Should ALWAYS create all keys and nullify those unset. Empty object `{}` = all settings unset.
+
+#### Migration (v2 → v3)
+
+Automatic on app startup / project open. No user interaction required.
+
+1. **Global settings**: Add `defaults` section, populated from current hard-coded Astro defaults. Bump version to 3.
+2. **Per-project files**: Take project-level settings (`pathOverrides`, `frontmatterMappings`, `defaultFileType`, `useAbsoluteAssetPaths`) and push them down as explicit values on every collection in that project. Remove project-level settings. Restructure collection settings to new flat shape. Bump version to 3.
+3. **Project registry**: Bump version to 3 (structure unchanged).
+
+### Phase 2: Settings Backend Refactor
+
+**Goal**: Implement the two-tier settings model and migrate existing data. No new UI beyond the Defaults pane.
+
+- New TypeScript types and Rust types for two-tier model (global defaults → collection)
+- Restructure settings persistence to match new file format
+- v2 → v3 automatic migration logic
+- Update `usePreferences`, `useEffectiveSettings` and related hooks for two-tier resolution
+- Refactor Preferences dialog: remove "Project Settings" and "Collections" panes, add "Defaults" pane
+- Expose schema field information needed for R3 (may require Rust-side changes)
+
+### Phase 3: Projects Dialog — Project Grid
+
+**Goal**: Build the new Projects dialog with the project card grid (Level 1). Replace current open-project flow.
+
+- New Projects dialog component with card grid layout
+- Rewire ⌘O, File > Open, and sidebar folder icon to open the Projects dialog
+- Project cards showing name, path, last opened, collection count, error/warning badges
+- Current project indicator
+- Open and Add Project actions
+- Right-click context menu: Reveal in Finder, Open in IDE, Copy Path, Remove from AE
+- Settings cog on current project (drills into Phase 4 UI, placeholder until then)
+
+### Phase 4: Projects Dialog — Collection Settings & Schema
+
+**Goal**: Build the collection settings drill-down (Level 2). This is the core value of the epic.
+
+- Level 2 layout: back button, collections sidebar, main detail pane
+- Collection settings panel with set/unset indicators and effective values (R2)
+- Schema viewer showing parsed fields, types, how AE interprets each one (R3)
+- Schema-to-folder mapping status and override (R4)
+- "Copy settings to all collections" action (R6)
+- "Refresh Schema" button
+
+### Phase 5: New File Naming (#87)
+
+**Goal**: Implement configurable filename patterns per collection.
+
+- Filename pattern setting in collection settings (already defined in R2)
+- Filename generation logic (date-based, field-based, manual)
+- Rename-after UX when field value changes
 
 ---
 
-## Related Work
+## Related Issues
 
-### Prerequisites
-- [ ] Fix draft field override bug (`task-1-collection-sorting-filtering-fixes.md`)
-- [ ] Change header to "Content" (same task)
-- [ ] Add schema status indicator (same task)
-
-### Can Be Done Independently
-- Sidebar sorting/filtering UI (`task-2-sidebar-sorting-filtering-ui.md`)
-- CSV collection support (`task-3-csv-collection-support.md`)
-
-### Patterns Established by Earlier Tasks
-- **Task 1**: Schema status indicator (`complete_schema` null check) - reuse for mapping status
-- **Task 2**: Dynamic UI from schema (sort options built from schema fields) - same pattern needed for field mapping UI
-- **Task 2**: Ephemeral sort/filter preferences - Project Manager could add persistence option
-
----
+- #82 — Manage Projects UI (primary issue)
+- #87 — Better "New" File Naming
+- #81 — Original discussion that spawned #82
+- #57 — `.astro-editor` config file idea (decided against)
 
 ## Success Criteria
 
-1. Users can find and modify collection settings without hunting through menus
-2. Users understand which folders have schema mappings at a glance
-3. Users with non-standard Astro structures can configure mapping without confusion
-4. Schema parsing errors are visible and actionable
-5. Users can manage multiple projects from one place
-
----
-
-## Notes
-
-This is a significant feature that touches settings persistence, schema parsing, and core UI patterns. Should be broken into smaller implementation phases once requirements are solidified.
-
-Consider doing user research or mockups before implementation to validate the UX approach.
+1. Users can find and understand collection settings without hunting
+2. Users can see exactly how AE interprets their schema
+3. Schema-folder mapping is visible and configurable
+4. Users with non-standard Astro structures can configure things without confusion
+5. Settings are simpler to reason about (collection-level, not three tiers)
+6. Multiple projects can be managed from one place
