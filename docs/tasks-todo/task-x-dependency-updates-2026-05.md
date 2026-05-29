@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Test Sites complete + committed — moving to Telemetry Worker
+**Current Phase:** Telemetry Worker complete — ready for Finalization
 **Branch:** deps-2026-05-29
 
 ## Research Findings
@@ -164,10 +164,10 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 - [x] User dev/editor verification — all sites render + load in Astro Editor OK; committed
 
 ### Telemetry Worker
-- [ ] Update wrangler (4.83.0 → 4.95.0)
-- [ ] Review pinned packages — none
-- [ ] Test staging deployment
-- [ ] Verify stats.sh works
+- [x] Update wrangler (4.83.0 → 4.95.0)
+- [x] Review pinned packages — none
+- [x] Test staging deployment — deployed OK to `astro-telemetry-staging.hi-7f5.workers.dev`
+- [x] Verify stats.sh works — fixed wrangler 4.95 banner contamination (see Issues #3)
 
 ### Finalization
 - [ ] Apply GitHub Actions updates (pnpm/action-setup v6, upload-pages-artifact v5, import-codesign-certs v7)
@@ -199,3 +199,5 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 
 1. **TS6 `baseUrl` deprecation** — see decision #1. Removed cleanly.
 2. **TS6 redundant type assertions** — `@typescript-eslint/no-unnecessary-type-assertion` flagged 23 casts as unnecessary under TS6's stronger inference. Auto-fixed; verified production-code fixes in `sorting.ts` (target var is `unknown`, casts genuinely redundant) and `sonner.tsx`.
+3. **wrangler 4.95 broke stats.sh** — wrangler 4.95 prints a new "Cloudflare agent skills are available…" banner to **stdout** (not stderr), which corrupted the `--json` output piped into `jq` (`parse error: Invalid numeric literal`). Fixed by `export CI=true` at the top of `telemetry-worker/stats.sh` (makes wrangler non-interactive; suppresses the banner — `WRANGLER_SEND_METRICS=false` does not). Verified: full stats output renders.
+4. **Pre-existing: `[env.staging]` has no d1_databases binding** — wrangler warns it's not inherited from top level, so the staging worker deploys without a DB. Left as-is (out of scope, user decision); noted for future.
