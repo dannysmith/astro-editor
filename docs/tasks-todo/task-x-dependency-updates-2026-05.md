@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Main App complete + user smoke-tested OK + committed — ready for Test Sites
+**Current Phase:** Test Sites complete + committed — moving to Telemetry Worker
 **Branch:** deps-2026-05-29
 
 ## Research Findings
@@ -157,10 +157,11 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 - [x] Committed main-app deps work
 
 ### Test Sites
-- [ ] demo-project (Astro 6.1.8 → 6.4.2)
-- [ ] dummy-astro-project (Astro 6.1.8 → 6.4.2)
-- [ ] starlight-minimal (Astro 6.1.8 → 6.4.2, Starlight 0.38.3 → 0.39.2)
-- [ ] Run reset:testdata
+- [x] demo-project (Astro 6.1.8 → 6.4.2) — `astro build` clean
+- [x] dummy-astro-project (Astro 6.1.8 → 6.4.2) — `astro sync` clean (build image-opt fails on missing Sharp, pre-existing env issue, not a regression)
+- [x] starlight-minimal (Astro 6.1.8 → 6.4.2, Starlight 0.38.3 → 0.39.2) — `astro build` clean after config fix
+- [x] Run reset:testdata
+- [x] User dev/editor verification — all sites render + load in Astro Editor OK; committed
 
 ### Telemetry Worker
 - [ ] Update wrangler (4.83.0 → 4.95.0)
@@ -190,6 +191,9 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 3. **specta / tauri-specta**: **Keep pinned** (`=rc.22` / `=rc.21`). rc.23–25 are a major architectural overhaul (Language trait removed, `export`→`collect` feature rename, reference-system rewrite, new `specta-serde` crate split). Bumping is a migration, not a routine update — out of scope.
 4. **swc crates**: **Keep pinned** (21/23/39/23; majors 23/25/41/25 available). Working fine; only used in one file (`commands/mdx_components.rs`, 6 usages). Low value, defer.
 5. **notify**: `cargo update` moved rc.3 → rc.4 within the existing `"9.0.0-rc.2"` range. Fine.
+6. **Starlight 0.38 → 0.39 breaking change**: 0.39 requires `autogenerate` sidebar entries to be wrapped in an `items` array. Updated `test/starlight-minimal/astro.config.mjs` (`autogenerate: {...}` → `items: [{ autogenerate: {...} }]`). Build verified — reference pages generate correctly.
+7. **Test sites are pnpm workspace packages** (`test/*` in `pnpm-workspace.yaml`). The root `pnpm-lock.yaml` governs them and is correctly updated (astro 6.4.2, starlight 0.39.2). The per-site `test/*/pnpm-lock.yaml` files are stale orphans (showing starlight 0.36/astro 5.14, predating April) that the workspace does not use — left untouched, out of scope.
+8. **Sharp build failure (dummy-astro-project)**: `astro build` fails image optimization with "Could not find Sharp" — Sharp is not installed anywhere in the workspace, so this predates the upgrade (not a regression). `astro sync` (what the editor relies on) works fine.
 
 ## Issues Encountered
 
