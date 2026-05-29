@@ -139,10 +139,29 @@ jobs:
           echo "Downloaded:"
           ls -la /tmp/release
 
+      - name: Create stable-named copies
+        working-directory: /tmp/release
+        run: |
+          copy_stable() {
+            local pattern="$1" dest="$2" match
+            match=$(ls $pattern 2>/dev/null | head -1)
+            if [ -z "$match" ]; then
+              echo "::error::No file matched $pattern for $RELEASE_TAG"
+              exit 1
+            fi
+            cp "$match" "$dest"
+            echo "Stable copy: $match -> $dest"
+          }
+          copy_stable '*.dmg' astro-editor-latest.dmg
+          copy_stable '*.msi' astro-editor-latest.msi
+          copy_stable '*.AppImage' astro-editor-latest.AppImage
+
       - name: Generate SHA256SUMS
         working-directory: /tmp/release
         run: |
           shopt -s nullglob
+          # Covers both versioned assets (Releases page) and stable copies
+          # (website downloads), so `sha256sum -c` works for either source.
           installers=( *.dmg *.msi *.AppImage )
           if [ ${#installers[@]} -eq 0 ]; then
             echo "::error::No installers found for $RELEASE_TAG"
@@ -151,23 +170,6 @@ jobs:
           sha256sum "${installers[@]}" > SHA256SUMS
           echo "SHA256SUMS:"
           cat SHA256SUMS
-
-      - name: Create stable-named copies
-        working-directory: /tmp/release
-        run: |
-          copy_stable() {
-            local pattern="$1" dest="$2" match
-            match=$(ls $pattern 2>/dev/null | head -1)
-            if [ -n "$match" ]; then
-              cp "$match" "$dest"
-              echo "Stable copy: $match -> $dest"
-            else
-              echo "::warning::No file matched $pattern"
-            fi
-          }
-          copy_stable '*.dmg' astro-editor-latest.dmg
-          copy_stable '*.msi' astro-editor-latest.msi
-          copy_stable '*.AppImage' astro-editor-latest.AppImage
 
       - name: Upload stable assets to release
         working-directory: /tmp/release
