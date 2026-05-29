@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Telemetry Worker complete — ready for Finalization
+**Current Phase:** Finalization — automated steps done, awaiting user smoke test + PR
 **Branch:** deps-2026-05-29
 
 ## Research Findings
@@ -170,11 +170,11 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 - [x] Verify stats.sh works — fixed wrangler 4.95 banner contamination (see Issues #3)
 
 ### Finalization
-- [ ] Apply GitHub Actions updates (pnpm/action-setup v6, upload-pages-artifact v5, import-codesign-certs v7)
-- [ ] Check scripts/ compatibility
-- [ ] Run check:all
-- [ ] Security audit (pnpm audit)
-- [ ] Update docs (remove obsolete override/version notes)
+- [x] Apply GitHub Actions updates — pnpm/action-setup v5→v6 (ci.yml + release.yml), import-codesign-certs v6→v7 (release.yml; inputs unchanged, now Node 24), upload-pages-artifact v4→v5 (deploy-website.yml; aligned with configure-pages v6 / deploy-pages v5)
+- [x] Check scripts/ compatibility — `complete-task.js` + `prepare-release.js` use only Node built-ins, nothing to break
+- [x] Run check:all — passes (704 frontend + 220 Rust tests)
+- [x] Security audit (pnpm audit) — no known vulnerabilities
+- [x] Docs — no stale version notes (`cross-platform.md` window-vibrancy 0.6 still accurate; `@lezer/common` override still required). pnpm CI pins v9 but lockfileVersion stays 9.0, so no mismatch
 - [ ] Manual smoke test (user)
 - [ ] Push + create PR (user)
 - [ ] Merge + verify CI (user)
