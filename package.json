@@ -109,7 +109,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@ast-grep/cli": "^0.42.3",
+    "@ast-grep/cli": "^0.43.0",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@semantic-release/changelog": "^6.0.3",
