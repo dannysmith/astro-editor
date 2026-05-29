@@ -2,8 +2,9 @@
 
 ## Status
 
-**Current Phase:** Finalization — automated steps done, awaiting user smoke test + PR
+**Current Phase:** Finalization — PR #226 open, awaiting user smoke test + merge
 **Branch:** deps-2026-05-29
+**PR:** https://github.com/dannysmith/astro-editor/pull/226
 
 ## Research Findings
 
@@ -175,10 +176,11 @@ All three on Astro 6.1.8 (package.json `^6.1.8`). Latest Astro is 6.4.2. Starlig
 - [x] Run check:all — passes (704 frontend + 220 Rust tests)
 - [x] Security audit (pnpm audit) — no known vulnerabilities
 - [x] Docs — no stale version notes (`cross-platform.md` window-vibrancy 0.6 still accurate; `@lezer/common` override still required). pnpm CI pins v9 but lockfileVersion stays 9.0, so no mismatch
-- [ ] Manual smoke test (user)
-- [ ] Push + create PR (user)
+- [ ] Manual smoke test (user) — targeted: editor (CodeMirror), tauri 2.11 plugins (dialog/fs/opener), vibrancy
+- [x] Push + create PR — PR #226
 - [ ] Merge + verify CI (user)
 - [ ] Verify dependabot PRs auto-close (user)
+- [ ] Move task doc to tasks-done (`pnpm task:complete dependency-updates`) after merge
 
 ---
 
