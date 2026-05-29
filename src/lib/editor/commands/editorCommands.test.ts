@@ -9,7 +9,6 @@ import {
   createSaveCommand,
   createEditorCommandRegistry,
 } from './editorCommands'
-import { HeadingLevel } from '../markdown/types'
 
 // Mock the markdown utilities
 vi.mock('../markdown/formatting', () => ({
@@ -81,7 +80,7 @@ describe('Editor Commands', () => {
 
   describe('createHeadingCommand', () => {
     it('should create a command that transforms to heading level 1', () => {
-      const command = createHeadingCommand(1 as HeadingLevel)
+      const command = createHeadingCommand(1)
       const result = command(mockView)
 
       expect(result).toBe(true)
@@ -90,7 +89,7 @@ describe('Editor Commands', () => {
     })
 
     it('should create a command that transforms to heading level 2', () => {
-      const command = createHeadingCommand(2 as HeadingLevel)
+      const command = createHeadingCommand(2)
       const result = command(mockView)
 
       expect(result).toBe(true)
@@ -99,7 +98,7 @@ describe('Editor Commands', () => {
     })
 
     it('should create a command that transforms to paragraph (level 0)', () => {
-      const command = createHeadingCommand(0 as HeadingLevel)
+      const command = createHeadingCommand(0)
       const result = command(mockView)
 
       expect(result).toBe(true)
@@ -183,7 +182,7 @@ describe('Editor Commands', () => {
       const mockSave = vi.fn()
       const registry = createEditorCommandRegistry(mockSave)
 
-      const headingCommand = registry.formatHeading(2 as HeadingLevel)
+      const headingCommand = registry.formatHeading(2)
       const result = headingCommand(mockView)
 
       expect(result).toBe(true)

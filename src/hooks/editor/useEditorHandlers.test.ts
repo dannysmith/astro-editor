@@ -77,9 +77,7 @@ describe('useEditorHandlers', () => {
     }
 
     // Cast to unknown first to satisfy TypeScript when mocking store state
-    mockGetState.mockReturnValue(
-      mockStoreState as unknown as ReturnType<typeof useEditorStore.getState>
-    )
+    mockGetState.mockReturnValue(mockStoreState)
 
     // Mock window global
     Object.defineProperty(window, 'isEditorFocused', {

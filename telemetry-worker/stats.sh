@@ -5,6 +5,11 @@
 
 set -e
 
+# Run wrangler non-interactively so its "Cloudflare agent skills are available"
+# banner (added in wrangler 4.95) isn't printed to stdout, which would otherwise
+# corrupt the --json output piped into jq below.
+export CI=true
+
 # Colors
 BOLD='\033[1m'
 DIM='\033[2m'
