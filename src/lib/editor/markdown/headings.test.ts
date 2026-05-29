@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorState, EditorSelection } from '@codemirror/state'
 import { transformLineToHeading, getHeadingLevel, isHeading } from './headings'
-import { HeadingLevel } from './types'
 
 // Mock dispatch function
 const mockDispatch = vi.fn()
@@ -28,7 +27,7 @@ describe('Markdown Headings', () => {
     it('should convert plain text to H1', () => {
       const view = createMockView('Hello world', 5)
 
-      const result = transformLineToHeading(view, 1 as HeadingLevel)
+      const result = transformLineToHeading(view, 1)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -44,7 +43,7 @@ describe('Markdown Headings', () => {
     it('should convert plain text to H2', () => {
       const view = createMockView('Hello world', 5)
 
-      const result = transformLineToHeading(view, 2 as HeadingLevel)
+      const result = transformLineToHeading(view, 2)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -60,7 +59,7 @@ describe('Markdown Headings', () => {
     it('should convert plain text to H3', () => {
       const view = createMockView('Hello world', 5)
 
-      const result = transformLineToHeading(view, 3 as HeadingLevel)
+      const result = transformLineToHeading(view, 3)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -76,7 +75,7 @@ describe('Markdown Headings', () => {
     it('should convert plain text to H4', () => {
       const view = createMockView('Hello world', 5)
 
-      const result = transformLineToHeading(view, 4 as HeadingLevel)
+      const result = transformLineToHeading(view, 4)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -92,7 +91,7 @@ describe('Markdown Headings', () => {
     it('should convert H1 to plain text', () => {
       const view = createMockView('# Hello world', 5)
 
-      const result = transformLineToHeading(view, 0 as HeadingLevel)
+      const result = transformLineToHeading(view, 0)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -108,7 +107,7 @@ describe('Markdown Headings', () => {
     it('should convert H2 to H1', () => {
       const view = createMockView('## Hello world', 5)
 
-      const result = transformLineToHeading(view, 1 as HeadingLevel)
+      const result = transformLineToHeading(view, 1)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -124,7 +123,7 @@ describe('Markdown Headings', () => {
     it('should convert H1 to H3', () => {
       const view = createMockView('# Hello world', 5)
 
-      const result = transformLineToHeading(view, 3 as HeadingLevel)
+      const result = transformLineToHeading(view, 3)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -140,7 +139,7 @@ describe('Markdown Headings', () => {
     it('should handle heading with multiple hash symbols', () => {
       const view = createMockView('##### Hello world', 5)
 
-      const result = transformLineToHeading(view, 2 as HeadingLevel)
+      const result = transformLineToHeading(view, 2)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -156,7 +155,7 @@ describe('Markdown Headings', () => {
     it('should handle heading without space after hash', () => {
       const view = createMockView('#Hello world', 5)
 
-      const result = transformLineToHeading(view, 2 as HeadingLevel)
+      const result = transformLineToHeading(view, 2)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -172,7 +171,7 @@ describe('Markdown Headings', () => {
     it('should handle empty line', () => {
       const view = createMockView('', 0)
 
-      const result = transformLineToHeading(view, 1 as HeadingLevel)
+      const result = transformLineToHeading(view, 1)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -188,7 +187,7 @@ describe('Markdown Headings', () => {
     it('should handle line with only whitespace', () => {
       const view = createMockView('   ', 1)
 
-      const result = transformLineToHeading(view, 1 as HeadingLevel)
+      const result = transformLineToHeading(view, 1)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -204,7 +203,7 @@ describe('Markdown Headings', () => {
     it('should handle multiline document', () => {
       const view = createMockView('Line 1\nLine 2\nLine 3', 8) // cursor on "Line 2"
 
-      const result = transformLineToHeading(view, 2 as HeadingLevel)
+      const result = transformLineToHeading(view, 2)
 
       expect(result).toBe(true)
       expect(mockDispatch).toHaveBeenCalledWith({
