@@ -220,16 +220,16 @@ export function sortFiles(
         valueB = b.name
         break
       case 'title':
-        valueA = a.frontmatter?.[titleField] as string | undefined
-        valueB = b.frontmatter?.[titleField] as string | undefined
+        valueA = a.frontmatter?.[titleField]
+        valueB = b.frontmatter?.[titleField]
         break
       case 'modified':
         valueA = a.last_modified
         valueB = b.last_modified
         break
       case 'order':
-        valueA = a.frontmatter?.order as number | undefined
-        valueB = b.frontmatter?.order as number | undefined
+        valueA = a.frontmatter?.order
+        valueB = b.frontmatter?.order
         break
       default:
         // Date field from frontmatter (mode = "date-{field}")
