@@ -173,8 +173,8 @@ dependencies = [
  "serde_norway",
  "specta",
  "specta-typescript",
- "swc_common",
- "swc_ecma_ast",
+ "swc_common 21.0.2",
+ "swc_ecma_ast 23.0.1",
  "swc_ecma_parser",
  "swc_ecma_visit",
  "tauri",
@@ -4661,6 +4661,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_common"
+version = "23.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ebd5f732c45e88fa1c69cf2ac65bf24e2578bfd428b74348d3346ee137b8c50"
+dependencies = [
+ "anyhow",
+ "ast_node",
+ "better_scoped_tls",
+ "bytes-str",
+ "either",
+ "from_variant",
+ "num-bigint",
+ "once_cell",
+ "rustc-hash",
+ "serde",
+ "siphasher 0.3.11",
+ "swc_atoms",
+ "swc_eq_ignore_macros",
+ "swc_visit",
+ "tracing",
+ "unicode-width",
+ "url",
+]
+
+[[package]]
 name = "swc_ecma_ast"
 version = "23.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4674,16 +4699,35 @@ dependencies = [
  "rustc-hash",
  "string_enum",
  "swc_atoms",
- "swc_common",
+ "swc_common 21.0.2",
+ "swc_visit",
+ "unicode-id-start",
+]
+
+[[package]]
+name = "swc_ecma_ast"
+version = "25.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a207e09f23885ff1f4354ebfdd4e715ccd4a68fca2e7e0df09baafbca850762e"
+dependencies = [
+ "bitflags 2.11.1",
+ "is-macro",
+ "num-bigint",
+ "once_cell",
+ "phf 0.11.3",
+ "rustc-hash",
+ "string_enum",
+ "swc_atoms",
+ "swc_common 23.0.0",
  "swc_visit",
  "unicode-id-start",
 ]
 
 [[package]]
 name = "swc_ecma_parser"
-version = "39.1.1"
+version = "41.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bca883cdbd6107a96f60a23fd90623c9a90cf37741fc08a3337cee9bbd6c4c1a"
+checksum = "303c2e32df97d5d4f2f3fc35dab367ff676668786a0d3ad496cefb0357b0bbb1"
 dependencies = [
  "bitflags 2.11.1",
  "either",
@@ -4695,8 +4739,8 @@ dependencies = [
  "smartstring",
  "stacker",
  "swc_atoms",
- "swc_common",
- "swc_ecma_ast",
+ "swc_common 23.0.0",
+ "swc_ecma_ast 25.0.0",
  "tracing",
 ]
 
@@ -4709,8 +4753,8 @@ dependencies = [
  "new_debug_unreachable",
  "num-bigint",
  "swc_atoms",
- "swc_common",
- "swc_ecma_ast",
+ "swc_common 21.0.2",
+ "swc_ecma_ast 23.0.1",
  "swc_visit",
  "tracing",
 ]
