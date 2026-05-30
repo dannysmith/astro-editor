@@ -91,7 +91,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "compromise": "^14.15.1",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "lucide-react": "^1.17.0",
     "marked": "^18.0.4",
     "next-themes": "^0.4.6",
