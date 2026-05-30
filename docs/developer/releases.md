@@ -41,45 +41,48 @@ After pushing the tag, the build workflow runs automatically:
 3. **Edit the draft** — write release notes describing the changes
 4. Click **Publish release**
 
-Publishing the release triggers two things:
-- The updater (`latest.json`) becomes available to existing users
-- The `publish-website-artifacts` workflow copies installers to the website
+Publishing the release makes the updater (`latest.json`) available to existing users.
+
+The website needs no per-release update: its download buttons link to stable GitHub Release URLs (`/releases/latest/download/astro-editor-latest.*`) that always resolve to the newest published release. Installers are **never committed to the repo** — they live only as GitHub Release assets.
 
 ## Workflow Architecture
 
 ### `release.yml` — Build & Draft
 
-Triggered by tag push (`v*`). Builds all platforms (macOS universal, Windows MSI, Linux AppImage), creates a draft GitHub Release with updater JSON (`latest.json`) attached.
+Triggered by tag push (`v*`). Two stages:
 
-Does **not** update the website — that happens only after you publish the draft.
+1. `publish-tauri` (matrix) builds all platforms (macOS universal, Windows MSI, Linux AppImage) and creates a draft GitHub Release with updater JSON (`latest.json`) attached.
+2. `publish-stable-assets` then downloads the draft's installers and adds, to the same draft Release:
+   - **Stable-named copies** (`astro-editor-latest.dmg` / `.msi` / `.AppImage`) so the website can link to permanent `/releases/latest/download/...` URLs.
+   - A **`SHA256SUMS`** file covering the versioned installers.
 
-### `publish-website-artifacts.yml` — Website Update
-
-Triggered when a release is **published** (not drafted). Downloads the release assets (DMG, MSI, AppImage) via `gh release download`, copies them to `website/` with `*-latest.*` naming, and commits to `main`.
-
-This ensures the website only serves installers from published releases, not drafts.
+Does **not** touch the website or commit anything to the repo.
 
 ### `deploy-website.yml` — Website Deployment
 
-Triggered by changes to `website/**` on `main`. Deploys the website directory to GitHub Pages. This fires automatically after `publish-website-artifacts` commits the new installers.
+Triggered by changes to `website/**` on `main` (or manual dispatch). Deploys the `website/` directory to GitHub Pages. It is **not** chained to releases: download links are static stable Release URLs, so a new release does not require redeploying the site.
 
 ### Flow Diagram
 
 ```
 Tag push (v1.0.9)
   └─→ release.yml
-        └─→ Build all platforms
-        └─→ Create draft release with latest.json
+        ├─→ publish-tauri: build all platforms
+        │     └─→ create draft release with latest.json
+        └─→ publish-stable-assets: upload stable-named copies + SHA256SUMS
               │
               ▼ (you manually publish the draft)
               │
-              └─→ publish-website-artifacts.yml
-                    └─→ Download assets from release
-                    └─→ Copy to website/ folder
-                    └─→ Commit to main
-                          │
-                          └─→ deploy-website.yml (path trigger)
-                                └─→ Deploy to GitHub Pages
+              └─→ latest.json + assets become public
+                    (website links to /releases/latest/download/... — no redeploy needed)
+```
+
+Website source changes deploy independently:
+
+```
+Edit website/** on main
+  └─→ deploy-website.yml (path trigger)
+        └─→ Deploy to GitHub Pages
 ```
 
 ## Auto-Update System
@@ -158,10 +161,12 @@ The Rust command `fetch_release_notes` (`src-tauri/src/commands/updater.rs`) cal
 - The `prepare-release` script updates all three files (`package.json`, `Cargo.toml`, `tauri.conf.json`) — use it to avoid mismatches
 - Tags should match the version: tag `v1.0.9` should correspond to version `1.0.9` in all config files
 
-**Website not updating after publish:**
-- Check that `publish-website-artifacts.yml` ran successfully after publishing
-- Verify the commit appeared on `main` with the updated website files
-- Check that `deploy-website.yml` triggered from the path change
+**Download links broken / serving an old version:**
+- Download buttons point at `/releases/latest/download/astro-editor-latest.*`. Confirm the latest **published** release has the stable-named assets (the `publish-stable-assets` job in `release.yml` uploads them).
+- If a release predates this job, backfill it: download its installers and `gh release upload <tag> astro-editor-latest.* SHA256SUMS --clobber`.
+
+**Website not deploying after a site change:**
+- `deploy-website.yml` triggers only on `website/**` changes on `main` (or manual dispatch). A new app release does not redeploy the site (and doesn't need to).
 
 ### Manual Cleanup
 

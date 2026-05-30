@@ -39,3 +39,6 @@ jscpd-report/
 
 .claude/worktrees/
 website/.astro/
+
+# Release installers are served from GitHub Releases, never committed
+website/astro-editor-latest.*

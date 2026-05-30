@@ -113,3 +113,69 @@ jobs:
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
 
+  # Publish stable-named copies of each installer plus a SHA256SUMS file to the
+  # draft release. The website links to these stable URLs
+  # (/releases/latest/download/astro-editor-latest.*), so we never commit
+  # installers to the repo. tauri-action names assets with the version, so we
+  # add fixed-name copies here.
+  publish-stable-assets:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download release installers
+        run: |
+          mkdir -p /tmp/release
+          gh release download "$RELEASE_TAG" \
+            --pattern '*.dmg' \
+            --pattern '*.msi' \
+            --pattern '*.AppImage' \
+            --dir /tmp/release
+          echo "Downloaded:"
+          ls -la /tmp/release
+
+      - name: Create stable-named copies
+        working-directory: /tmp/release
+        run: |
+          copy_stable() {
+            local pattern="$1" dest="$2" match
+            match=$(ls $pattern 2>/dev/null | head -1)
+            if [ -z "$match" ]; then
+              echo "::error::No file matched $pattern for $RELEASE_TAG"
+              exit 1
+            fi
+            cp "$match" "$dest"
+            echo "Stable copy: $match -> $dest"
+          }
+          copy_stable '*.dmg' astro-editor-latest.dmg
+          copy_stable '*.msi' astro-editor-latest.msi
+          copy_stable '*.AppImage' astro-editor-latest.AppImage
+
+      - name: Generate SHA256SUMS
+        working-directory: /tmp/release
+        run: |
+          shopt -s nullglob
+          # Covers both versioned assets (Releases page) and stable copies
+          # (website downloads), so `sha256sum -c` works for either source.
+          installers=( *.dmg *.msi *.AppImage )
+          if [ ${#installers[@]} -eq 0 ]; then
+            echo "::error::No installers found for $RELEASE_TAG"
+            exit 1
+          fi
+          sha256sum "${installers[@]}" > SHA256SUMS
+          echo "SHA256SUMS:"
+          cat SHA256SUMS
+
+      - name: Upload stable assets to release
+        working-directory: /tmp/release
+        run: |
+          shopt -s nullglob
+          to_upload=( astro-editor-latest.* SHA256SUMS )
+          gh release upload "$RELEASE_TAG" --clobber "${to_upload[@]}"
+          echo "Uploaded: ${to_upload[*]}"
+
