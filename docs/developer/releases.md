@@ -51,8 +51,8 @@ The website needs no per-release update: its download buttons link to stable Git
 
 Triggered by tag push (`v*`). Three jobs run in sequence:
 
-1. `create-release` creates a single empty **draft** GitHub Release for the tag up front and outputs its `release_id`. Creating the release in one place — rather than letting each matrix job find-or-create it — avoids a tauri-action race ([#914](https://github.com/tauri-apps/tauri-action/issues/914)) where parallel jobs can split assets across duplicate drafts and leave each draft's `latest.json` missing the other platforms.
-2. `publish-tauri` (matrix) builds every platform and uploads its bundles to that shared `release_id`:
+1. `create-release` creates a single empty **draft** GitHub Release for the tag up front and outputs its `release_id`. Creating the release in one place rather than letting each matrix job find-or-create it avoids a tauri-action race ([#914](https://github.com/tauri-apps/tauri-action/issues/914)) where parallel jobs ending at exactly the same time can create seperate draft releases.
+2. `publish-tauri` (matrix) builds every platform in parallel and uploads its bundles to the shared draft release using `release_id`:
    - **macOS** — universal `.dmg` (plus the `.app.tar.gz` updater artifact)
    - **Windows** — `.msi`
    - **Linux** — `.AppImage`, `.deb`, and `.rpm`
