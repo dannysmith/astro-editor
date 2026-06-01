@@ -166,6 +166,8 @@ jobs:
             --pattern '*.dmg' \
             --pattern '*.msi' \
             --pattern '*.AppImage' \
+            --pattern '*.deb' \
+            --pattern '*.rpm' \
             --dir /tmp/release
           echo "Downloaded:"
           ls -la /tmp/release
@@ -186,6 +188,8 @@ jobs:
           copy_stable '*.dmg' astro-editor-latest.dmg
           copy_stable '*.msi' astro-editor-latest.msi
           copy_stable '*.AppImage' astro-editor-latest.AppImage
+          copy_stable '*.deb' astro-editor-latest.deb
+          copy_stable '*.rpm' astro-editor-latest.rpm
 
       - name: Generate SHA256SUMS
         working-directory: /tmp/release
@@ -193,7 +197,7 @@ jobs:
           shopt -s nullglob
           # Covers both versioned assets (Releases page) and stable copies
           # (website downloads), so `sha256sum -c` works for either source.
-          installers=( *.dmg *.msi *.AppImage )
+          installers=( *.dmg *.msi *.AppImage *.deb *.rpm )
           if [ ${#installers[@]} -eq 0 ]; then
             echo "::error::No installers found for $RELEASE_TAG"
             exit 1
