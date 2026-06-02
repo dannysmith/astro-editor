@@ -15,7 +15,39 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # Create a single draft release up front so the parallel build matrix all
+  # uploads to one shared release. Without this, each matrix job runs
+  # find-or-create and a tauri-action race (issue #914: updateRelease strips the
+  # tag off a draft, so a parallel job can't find it and creates a second draft)
+  # can split assets across multiple drafts, each with an incomplete latest.json.
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    env:
+      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+    steps:
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Astro Editor ${tag}`,
+              body: `## Astro Editor ${tag}\n`,
+              draft: true,
+              prerelease: false,
+            })
+            return data.id
+
   publish-tauri:
+    needs: create-release
     permissions:
       contents: write
       actions: write
@@ -28,7 +60,7 @@ jobs:
           - platform: 'windows-latest'
             args: '--bundles msi'
           - platform: 'ubuntu-22.04'
-            args: '--bundles appimage'
+            args: '--bundles appimage,deb,rpm'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -51,7 +83,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -102,13 +134,12 @@ jobs:
           APPLE_API_KEY_PATH: ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
+          # Upload to the shared draft from the create-release job instead of
+          # finding-or-creating per matrix job (avoids tauri-action #914). The
+          # release name/body and draft state are set by create-release. tagName
+          # is kept so updater URLs in latest.json stay tag-pinned.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           tagName: ${{ github.ref_name || inputs.version }}
-          releaseName: 'Astro Editor ${{ github.ref_name || inputs.version }}'
-          releaseBody: |
-            ## Astro Editor ${{ github.ref_name || inputs.version }}
-
-          releaseDraft: true
-          prerelease: false
           includeUpdaterJson: true
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
@@ -135,6 +166,8 @@ jobs:
             --pattern '*.dmg' \
             --pattern '*.msi' \
             --pattern '*.AppImage' \
+            --pattern '*.deb' \
+            --pattern '*.rpm' \
             --dir /tmp/release
           echo "Downloaded:"
           ls -la /tmp/release
@@ -155,6 +188,8 @@ jobs:
           copy_stable '*.dmg' astro-editor-latest.dmg
           copy_stable '*.msi' astro-editor-latest.msi
           copy_stable '*.AppImage' astro-editor-latest.AppImage
+          copy_stable '*.deb' astro-editor-latest.deb
+          copy_stable '*.rpm' astro-editor-latest.rpm
 
       - name: Generate SHA256SUMS
         working-directory: /tmp/release
@@ -162,7 +197,7 @@ jobs:
           shopt -s nullglob
           # Covers both versioned assets (Releases page) and stable copies
           # (website downloads), so `sha256sum -c` works for either source.
-          installers=( *.dmg *.msi *.AppImage )
+          installers=( *.dmg *.msi *.AppImage *.deb *.rpm )
           if [ ${#installers[@]} -eq 0 ]; then
             echo "::error::No installers found for $RELEASE_TAG"
             exit 1
