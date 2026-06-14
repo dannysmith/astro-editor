@@ -218,6 +218,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
         maxRows={3}
         required={required}
         field={field}
+        showCopyAsSlug
       />
     )
   }
