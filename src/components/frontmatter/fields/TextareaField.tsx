@@ -3,6 +3,7 @@ import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
+import { CopyAsSlugLink } from './CopyAsSlugLink'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
@@ -12,6 +13,7 @@ interface TextareaFieldProps extends FieldProps {
   minRows?: number
   maxRows?: number
   field?: SchemaField
+  showCopyAsSlug?: boolean
 }
 
 export const TextareaField: React.FC<TextareaFieldProps> = ({
@@ -23,6 +25,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   maxRows = 6,
   required,
   field,
+  showCopyAsSlug = false,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
   const updateFrontmatterField = useEditorStore(
@@ -49,6 +52,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
         value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
       />
+      {showCopyAsSlug && <CopyAsSlugLink text={valueToString(value)} />}
     </FieldWrapper>
   )
 }
