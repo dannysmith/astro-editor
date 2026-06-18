@@ -51,6 +51,8 @@ reqwest = { version = "0.13", features = ["json"] }
 uuid = { version = "1.23", features = ["v4"] }
 tauri-plugin-os = "2.3.2"
 tauri-plugin-window-state = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [dev-dependencies]
 tempfile = "3.27"

@@ -84,6 +84,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["astro-editor"]
+      }
+    },
     "opener": {
       "requireLiteralLeadingDot": false
     },

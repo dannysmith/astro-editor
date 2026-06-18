@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { info, error as logError } from '@tauri-apps/plugin-log'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useQueryClient } from '@tanstack/react-query'
 import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
@@ -8,6 +9,52 @@ import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'
 import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
 import { deserializeCompleteSchema } from '../../lib/schema'
+import {
+  projectRegistryManager,
+  getEffectiveContentDirectory,
+} from '../../lib/project-registry'
+import { findOwningProjectPath } from '../../lib/deep-link'
+import { ASTRO_PATHS } from '../../lib/constants'
+
+/**
+ * Waits until the project store reflects `targetPath` as the active project with
+ * its settings loaded. Resolves `false` if that doesn't happen within `timeoutMs`.
+ *
+ * `setProject` is fire-and-forget, so deep-link handling must wait for the switch
+ * to complete before resolving/opening a file in the new project.
+ */
+function waitForProjectReady(
+  targetPath: string,
+  timeoutMs = 8000
+): Promise<boolean> {
+  const state = useProjectStore.getState()
+  if (state.projectPath === targetPath && state.currentProjectSettings) {
+    return Promise.resolve(true)
+  }
+
+  return new Promise<boolean>(resolve => {
+    const handles: {
+      unsubscribe?: () => void
+      timer?: ReturnType<typeof setTimeout>
+    } = {}
+
+    handles.timer = setTimeout(() => {
+      handles.unsubscribe?.()
+      resolve(false)
+    }, timeoutMs)
+
+    handles.unsubscribe = useProjectStore.subscribe(current => {
+      if (
+        current.projectPath === targetPath &&
+        current.currentProjectSettings
+      ) {
+        clearTimeout(handles.timer)
+        handles.unsubscribe?.()
+        resolve(true)
+      }
+    })
+  })
+}
 
 /**
  * Editor action hooks following the Hybrid Action Hooks pattern.
@@ -161,5 +208,93 @@ export function useEditorActions() {
     [queryClient]
   )
 
-  return { saveFile }
+  /**
+   * Opens a file from an `astro-editor://open?path=...` deep link.
+   *
+   * Resolves the file against the *known* projects (the registry), switching
+   * projects if needed, then reuses `openFile` — the same path the sidebar uses.
+   */
+  const openFileByPath = useCallback(async (filePath: string) => {
+    // Bring the window forward immediately so the app visibly responds.
+    try {
+      const win = getCurrentWindow()
+      await win.show()
+      await win.unminimize()
+      await win.setFocus()
+    } catch {
+      // Best-effort — focusing should never block opening the file.
+    }
+
+    // Only Markdown/MDX files are openable.
+    const lower = filePath.toLowerCase()
+    if (!lower.endsWith('.md') && !lower.endsWith('.mdx')) {
+      toast.error('Astro Editor can only open .md or .mdx files')
+      return
+    }
+
+    // Find the known project that owns this file (initializing the registry if
+    // this is a cold start that raced ahead of normal initialization).
+    let knownProjectPaths: string[]
+    try {
+      knownProjectPaths = Object.values(
+        projectRegistryManager.getRegistry().projects
+      ).map(p => p.path)
+    } catch {
+      await projectRegistryManager.initialize()
+      knownProjectPaths = Object.values(
+        projectRegistryManager.getRegistry().projects
+      ).map(p => p.path)
+    }
+
+    const owningProjectPath = findOwningProjectPath(knownProjectPaths, filePath)
+    if (!owningProjectPath) {
+      toast.error("That file isn't in a project Astro Editor knows about", {
+        description:
+          'Open the project once, then links to its files will work.',
+      })
+      return
+    }
+
+    // Switch to the owning project if it isn't already active, then wait for it.
+    const isCurrentProject =
+      useProjectStore.getState().projectPath === owningProjectPath
+    if (!isCurrentProject) {
+      useProjectStore.getState().setProject(owningProjectPath)
+      const ready = await waitForProjectReady(owningProjectPath)
+      if (!ready) {
+        toast.error('Failed to open the project for that link')
+        return
+      }
+    }
+
+    // Resolve the file to a FileEntry within the project (reuses the Rust scan).
+    const { currentProjectSettings } = useProjectStore.getState()
+    const contentDirectory = getEffectiveContentDirectory(
+      currentProjectSettings
+    )
+    const result = await commands.resolveFileEntry(
+      filePath,
+      owningProjectPath,
+      contentDirectory !== ASTRO_PATHS.CONTENT_DIR ? contentDirectory : null
+    )
+
+    if (result.status === 'error') {
+      toast.error("Couldn't open that file", { description: result.error })
+      await logError(`Deep link resolve failed: ${result.error}`)
+      return
+    }
+
+    if (!result.data) {
+      // Project is now open, but the file isn't part of a loadable collection.
+      toast.warning("Couldn't find that file in the project", {
+        description: 'It may not be part of a content collection.',
+      })
+      return
+    }
+
+    useEditorStore.getState().openFile(result.data)
+    await info(`Deep link opened file: ${result.data.id}`)
+  }, [])
+
+  return { saveFile, openFileByPath }
 }

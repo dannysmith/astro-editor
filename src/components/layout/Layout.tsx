@@ -23,6 +23,7 @@ import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
 import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
+import { useDeepLink } from '../../hooks/useDeepLink'
 import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
@@ -110,7 +111,7 @@ export const Layout: React.FC = () => {
   }, [])
 
   // Get editor actions (Hybrid Action Hooks pattern)
-  const { saveFile } = useEditorActions()
+  const { saveFile, openFileByPath } = useEditorActions()
   const { createNewFile: createNewFileWithQuery } = useCreateFile()
 
   // Register auto-save callback with store
@@ -129,6 +130,7 @@ export const Layout: React.FC = () => {
   useMenuEvents(createNewFileWithQuery, handleSetPreferencesOpen)
   useSquareCornersEffect()
   useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
+  useDeepLink(openFileByPath)
 
   // Enable query-based file loading
   useEditorFileContent()

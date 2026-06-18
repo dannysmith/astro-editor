@@ -18,6 +18,9 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
     "core:path:default",
     "core:menu:default",
     "opener:default",
@@ -42,6 +45,7 @@
     "log:default",
     "os:default",
     "window-state:default",
+    "deep-link:default",
     {
       "identifier": "fs:scope",
       "allow": [
