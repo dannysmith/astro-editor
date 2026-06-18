@@ -239,6 +239,26 @@ async scanProjectWithContentDir(projectPath: string, contentDirectory: string | 
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Resolves an absolute file path to a `FileEntry` within the given project, if the
+ * file is a Markdown/MDX item owned by one of the project's content collections.
+ * 
+ * Used by the deep-link handler (`astro-editor://open?path=...`). `file_path` is
+ * untrusted input, so we canonicalize and verify it lives inside `project_path`
+ * before touching collections, guarding against `../` traversal.
+ * 
+ * Returns `Ok(None)` when the path is valid and inside the project but isn't a
+ * Markdown item owned by a loadable collection (the caller opens the project and
+ * shows a "couldn't find that file" toast).
+ */
+async resolveFileEntry(filePath: string, projectPath: string, contentDirectory: string | null) : Promise<Result<FileEntry | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resolve_file_entry", { filePath, projectPath, contentDirectory }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async scanCollectionFiles(collectionPath: string) : Promise<Result<FileEntry[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("scan_collection_files", { collectionPath }) };
