@@ -94,6 +94,7 @@ These docs are technical reference docs for users rather than guides. Their job 
   - draft?
   - slug (used when inserting links to other content items if a URL override is set)
 - [ ] Overrides - Reference for **exactly** what each path/field override field does
+- [ ] The URL Scheme
 - [ ] Advanced Preferences & Project Store (The preferences JSON files etc)
 - [ ] How YAML is read/written/formatted
 
