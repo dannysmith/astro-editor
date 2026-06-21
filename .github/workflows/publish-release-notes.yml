@@ -1,0 +1,71 @@
+name: Publish Release Notes to Website
+
+# When a GitHub Release is published, turn its notes into a page on the
+# Starlight site. Binaries are NOT touched here — they are served directly
+# from the GitHub Release assets via stable URLs (see release.yml). This
+# workflow only generates/commits the release-notes MDX page (and any inline
+# attachment images) and then triggers a website deploy.
+#
+# The generation logic lives in website/scripts/generate-release-pages.ts
+# (the single source of truth). It skips releases that already have a page,
+# so re-runs and manual dispatches are safe no-ops.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit + push the generated page to main
+  actions: write # trigger deploy-website.yml
+
+jobs:
+  publish-release-notes:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # bun runs the TypeScript directly; the script only uses Node built-ins
+      # (plus the gh CLI + curl, both present on the runner), so no install is
+      # needed. --all is non-interactive: it never prompts in CI.
+      - name: Generate release pages
+        working-directory: website
+        run: bun scripts/generate-release-pages.ts --all
+
+      - name: Commit and push new release pages
+        id: commit
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add website/src/content/docs/releases
+          git add website/public/releases 2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "No new release pages to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TAG="${{ github.event.release.tag_name }}"
+          MSG="chore(website): publish release notes"
+          [ -n "$TAG" ] && MSG="$MSG for $TAG"
+          git commit -m "$MSG"
+
+          git pull --rebase origin main
+          git push origin main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with GITHUB_TOKEN does not trigger other workflows, so the
+      # path filter on deploy-website.yml won't fire — dispatch it explicitly.
+      - name: Trigger website deploy
+        if: steps.commit.outputs.changed == 'true'
+        run: gh workflow run deploy-website.yml --ref main

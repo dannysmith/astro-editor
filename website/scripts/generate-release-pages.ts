@@ -52,9 +52,9 @@ function formatDate(iso: string): string {
  * - Strip "Installation Instructions" boilerplate section
  * - Strip leading H2 title that duplicates the frontmatter title
  *
- * NOTE: This logic is duplicated in .github/workflows/publish-website-artifacts.yml
- * (the "Generate release page" step). If you change this, update that workflow too
- * (and vice versa).
+ * This script is the single source of truth for release-page generation. The
+ * .github/workflows/publish-release-notes.yml workflow runs it on every
+ * published release; there is no duplicated logic to keep in sync.
  */
 function sanitiseBody(body: string): string {
   let text = body
