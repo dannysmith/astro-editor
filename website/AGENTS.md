@@ -10,7 +10,7 @@ Public-facing documentation website for Astro Editor, built with Astro + Starlig
 
 ## Stack
 
-- **Framework**: Astro 5.x with Starlight 0.37.x
+- **Framework**: Astro 6.x with Starlight 0.40.x
 - **Theme**: starlight-theme-flexoki (blue accent)
 - **Plugins**: starlight-llms-txt, starlight-kbd
 - **Package Manager**: bun (independent of root project's pnpm workspace)
@@ -64,7 +64,7 @@ The sidebar is manually defined in `astro.config.mjs` using explicit `slug` entr
 
 - **Main docs** are grouped by topic (e.g. `editor/`, `editing/`, `frontmatter/`, `preferences/`). Most sections have an `overview.mdx` as their first page. Some topics (`philosophy`, `command-palette`, `troubleshooting`) are single top-level pages.
 - **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, special field behaviours, override settings, etc. These document *what* things do, not how to use them.
-- **Releases** (`releases/`) are auto-generated per GitHub release by the `publish-website-artifacts.yml` workflow. The releases index page at `src/pages/releases/index.astro` lists them sorted by date. Don't create release pages by hand.
+- **Releases** (`releases/`) are generated from GitHub releases by the `scripts/generate-release-pages.ts` script (run manually, e.g. `npx tsx scripts/generate-release-pages.ts [--all] [--dry-run]`). The releases index page at `src/pages/releases/index.astro` lists them sorted by date. Don't create release pages by hand.
 - **Privacy policy** (`privacy.mdx`) and **getting-started.mdx** live at the docs root.
 
 ## Writing Style

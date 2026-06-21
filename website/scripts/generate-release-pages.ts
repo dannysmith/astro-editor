@@ -120,7 +120,11 @@ function escapeLineOutsideCode(line: string): string {
 /**
  * Download GitHub user-attachment images to local public/releases/ and rewrite URLs.
  */
-function localiseImages(body: string, version: string, dryRun: boolean): string {
+function localiseImages(
+  body: string,
+  version: string,
+  dryRun: boolean
+): string {
   const pattern = /https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+/g
   const urls = [...new Set(body.match(pattern) || [])]
 
@@ -245,7 +249,11 @@ async function main() {
       }
     }
 
-    release.body = localiseImages(release.body, versionFromTag(release.tagName), dryRun)
+    release.body = localiseImages(
+      release.body,
+      versionFromTag(release.tagName),
+      dryRun
+    )
     const content = generatePage(release)
 
     if (dryRun) {
