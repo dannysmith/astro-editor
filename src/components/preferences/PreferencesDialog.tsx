@@ -88,12 +88,18 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
   const { hasProject } = usePreferences()
   const navigationItems = getNavigationItems(hasProject)
 
-  // Reset to general pane if current pane becomes unavailable
+  // Reset to general pane if current pane becomes unavailable.
+  // Depend on primitives (not the recreated-each-render navigationItems array)
+  // and recompute availability inside.
   React.useEffect(() => {
-    if (!navigationItems.some(item => item.id === activePane)) {
+    const isAvailable = getNavigationItems(hasProject).some(
+      item => item.id === activePane
+    )
+    if (!isAvailable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePane('general')
     }
-  }, [navigationItems, activePane])
+  }, [hasProject, activePane])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

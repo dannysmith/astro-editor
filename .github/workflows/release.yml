@@ -15,7 +15,39 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # Create a single draft release up front so the parallel build matrix all
+  # uploads to one shared release. Without this, each matrix job runs
+  # find-or-create and a tauri-action race (issue #914: updateRelease strips the
+  # tag off a draft, so a parallel job can't find it and creates a second draft)
+  # can split assets across multiple drafts, each with an incomplete latest.json.
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    env:
+      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+    steps:
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Astro Editor ${tag}`,
+              body: `## Astro Editor ${tag}\n`,
+              draft: true,
+              prerelease: false,
+            })
+            return data.id
+
   publish-tauri:
+    needs: create-release
     permissions:
       contents: write
       actions: write
@@ -28,14 +60,14 @@ jobs:
           - platform: 'windows-latest'
             args: '--bundles msi'
           - platform: 'ubuntu-22.04'
-            args: '--bundles appimage'
+            args: '--bundles appimage,deb,rpm'
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
           run_install: false
@@ -51,7 +83,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -72,7 +104,7 @@ jobs:
 
       - name: Import Code-Signing Certificates
         if: matrix.platform == 'macos-14'
-        uses: apple-actions/import-codesign-certs@v6
+        uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -88,7 +120,7 @@ jobs:
           chmod 600 ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
 
       - name: Build and release
-        uses: tauri-apps/tauri-action@v0.6.1
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
@@ -102,14 +134,83 @@ jobs:
           APPLE_API_KEY_PATH: ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
+          # Upload to the shared draft from the create-release job instead of
+          # finding-or-creating per matrix job (avoids tauri-action #914). The
+          # release name/body and draft state are set by create-release. tagName
+          # is kept so updater URLs in latest.json stay tag-pinned.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           tagName: ${{ github.ref_name || inputs.version }}
-          releaseName: 'Astro Editor ${{ github.ref_name || inputs.version }}'
-          releaseBody: |
-            ## Astro Editor ${{ github.ref_name || inputs.version }}
-
-          releaseDraft: true
-          prerelease: false
           includeUpdaterJson: true
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
+
+  # Publish stable-named copies of each installer plus a SHA256SUMS file to the
+  # draft release. The website links to these stable URLs
+  # (/releases/latest/download/astro-editor-latest.*), so we never commit
+  # installers to the repo. tauri-action names assets with the version, so we
+  # add fixed-name copies here.
+  publish-stable-assets:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download release installers
+        run: |
+          mkdir -p /tmp/release
+          gh release download "$RELEASE_TAG" \
+            --pattern '*.dmg' \
+            --pattern '*.msi' \
+            --pattern '*.AppImage' \
+            --pattern '*.deb' \
+            --pattern '*.rpm' \
+            --dir /tmp/release
+          echo "Downloaded:"
+          ls -la /tmp/release
+
+      - name: Create stable-named copies
+        working-directory: /tmp/release
+        run: |
+          copy_stable() {
+            local pattern="$1" dest="$2" match
+            match=$(ls $pattern 2>/dev/null | head -1)
+            if [ -z "$match" ]; then
+              echo "::error::No file matched $pattern for $RELEASE_TAG"
+              exit 1
+            fi
+            cp "$match" "$dest"
+            echo "Stable copy: $match -> $dest"
+          }
+          copy_stable '*.dmg' astro-editor-latest.dmg
+          copy_stable '*.msi' astro-editor-latest.msi
+          copy_stable '*.AppImage' astro-editor-latest.AppImage
+          copy_stable '*.deb' astro-editor-latest.deb
+          copy_stable '*.rpm' astro-editor-latest.rpm
+
+      - name: Generate SHA256SUMS
+        working-directory: /tmp/release
+        run: |
+          shopt -s nullglob
+          # Covers both versioned assets (Releases page) and stable copies
+          # (website downloads), so `sha256sum -c` works for either source.
+          installers=( *.dmg *.msi *.AppImage *.deb *.rpm )
+          if [ ${#installers[@]} -eq 0 ]; then
+            echo "::error::No installers found for $RELEASE_TAG"
+            exit 1
+          fi
+          sha256sum "${installers[@]}" > SHA256SUMS
+          echo "SHA256SUMS:"
+          cat SHA256SUMS
+
+      - name: Upload stable assets to release
+        working-directory: /tmp/release
+        run: |
+          shopt -s nullglob
+          to_upload=( astro-editor-latest.* SHA256SUMS )
+          gh release upload "$RELEASE_TAG" --clobber "${to_upload[@]}"
+          echo "Uploaded: ${to_upload[*]}"
 

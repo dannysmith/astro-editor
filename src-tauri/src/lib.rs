@@ -13,7 +13,10 @@ use tauri::{
     Emitter, Manager,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-use tauri_plugin_window_state::{AppHandleExt as _, StateFlags, WindowExt as _};
+use tauri_plugin_window_state::{AppHandleExt as _, StateFlags};
+
+#[cfg(target_os = "macos")]
+use tauri_plugin_window_state::WindowExt as _;
 
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
@@ -42,7 +45,27 @@ pub fn run() {
 
     let builder = bindings::generate_bindings();
 
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut tauri_builder = tauri::Builder::default();
+
+    // The single-instance plugin MUST be registered first. On Windows/Linux a deep
+    // link spawns a new process with the URL as a CLI argument; this plugin forwards
+    // that to the already-running instance (via the `deep-link` feature) and focuses
+    // it, instead of opening a second window. macOS is already single-instance.
+    #[cfg(desktop)]
+    {
+        tauri_builder =
+            tauri_builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+            }));
+    }
+
+    tauri_builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -348,26 +371,23 @@ pub fn run() {
                 label,
                 event: tauri::WindowEvent::CloseRequested { api, .. },
                 ..
-            } => {
-                if cfg!(target_os = "macos") && label == "main" {
-                    api.prevent_close();
-                    let _ = app_handle.save_window_state(StateFlags::all());
-                    if let Some(window) = app_handle.get_webview_window(&label) {
-                        let _ = window.hide();
-                    }
+            } if cfg!(target_os = "macos") && label == "main" => {
+                api.prevent_close();
+                let _ = app_handle.save_window_state(StateFlags::all());
+                if let Some(window) = app_handle.get_webview_window(&label) {
+                    let _ = window.hide();
                 }
             }
             // macOS: Reopen window when dock icon is clicked
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen {
                 has_visible_windows,
                 ..
-            } => {
-                if !has_visible_windows {
-                    if let Some(window) = app_handle.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.restore_state(StateFlags::all());
-                        let _ = window.set_focus();
-                    }
+            } if !has_visible_windows => {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.restore_state(StateFlags::all());
+                    let _ = window.set_focus();
                 }
             }
             tauri::RunEvent::Exit => {

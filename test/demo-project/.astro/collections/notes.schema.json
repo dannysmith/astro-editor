@@ -52,8 +52,7 @@
       },
       "required": [
         "category"
-      ],
-      "additionalProperties": false
+      ]
     },
     "coverImage": {
       "type": "object",
@@ -65,8 +64,7 @@
           "type": "string",
           "maxLength": 200
         }
-      },
-      "additionalProperties": false
+      }
     },
     "$schema": {
       "type": "string"
@@ -74,8 +72,6 @@
   },
   "required": [
     "title",
-    "draft",
     "pubDate"
-  ],
-  "additionalProperties": false
+  ]
 }

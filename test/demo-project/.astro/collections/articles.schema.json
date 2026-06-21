@@ -49,11 +49,83 @@
         "external"
       ]
     },
-    "author": {},
+    "author": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "collection": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "collection"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "collection": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "slug",
+            "collection"
+          ]
+        }
+      ]
+    },
     "relatedArticles": {
       "maxItems": 3,
       "type": "array",
-      "items": {}
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "collection": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "collection"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "collection": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "collection"
+            ]
+          }
+        ]
+      }
     },
     "$schema": {
       "type": "string"
@@ -61,8 +133,6 @@
   },
   "required": [
     "title",
-    "draft",
     "pubDate"
-  ],
-  "additionalProperties": false
+  ]
 }

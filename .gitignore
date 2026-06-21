@@ -42,4 +42,7 @@ website/dist/
 website/.astro/
 website/node_modules/
 
+# Release installers are served from GitHub Releases, never committed
+website/astro-editor-latest.*
+
 .claude/worktrees/

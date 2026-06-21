@@ -14,6 +14,7 @@ import {
 import { useEditorStore } from './editorStore'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
+import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
 
 interface ProjectState {
   // Core identifiers
@@ -295,6 +296,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   loadPersistedProject: async () => {
     try {
       await get().initializeProjectRegistry()
+
+      // If the app was launched by a deep link, let it choose which project to
+      // open instead of restoring the last one (avoids opening the wrong project
+      // then switching). Bounded wait so we never hang on normal startup.
+      if (await wasStartupClaimedByDeepLink()) {
+        await info(
+          'Astro Editor [PROJECT_SETUP] Deep link claimed startup - skipping persisted project load'
+        )
+        return
+      }
 
       // Try to load the last opened project from registry
       const lastProjectId = projectRegistryManager.getLastOpenedProjectId()

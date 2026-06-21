@@ -53,11 +53,15 @@ pub async fn scan_mdx_components(
     let mdx_dir = project_root.join(&mdx_dir_path);
 
     // Validate the MDX directory is within project bounds
-    if mdx_dir.exists() {
-        let _validated_mdx_dir = validate_project_path(&mdx_dir, project_root)?;
-    } else {
-        // Keep this one log for production debugging
+    if !mdx_dir.exists() {
         eprintln!("[MDX] Directory not found: {}", mdx_dir.display());
+        return Ok(vec![]);
+    }
+    if let Err(e) = validate_project_path(&mdx_dir, project_root) {
+        eprintln!(
+            "[MDX] Directory outside project bounds: {}: {e}",
+            mdx_dir.display()
+        );
         return Ok(vec![]);
     }
 

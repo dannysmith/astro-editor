@@ -793,6 +793,74 @@ pub async fn scan_collection_files_recursive(
     collect_files_recursive(&path, &collection_name, &collection_root)
 }
 
+/// Resolves an absolute file path to a `FileEntry` within the given project, if the
+/// file is a Markdown/MDX item owned by one of the project's content collections.
+///
+/// Used by the deep-link handler (`astro-editor://open?path=...`). `file_path` is
+/// untrusted input, so we canonicalize and verify it lives inside `project_path`
+/// before touching collections, guarding against `../` traversal.
+///
+/// Returns `Ok(None)` when the path is valid and inside the project but isn't a
+/// Markdown item owned by a loadable collection (the caller opens the project and
+/// shows a "couldn't find that file" toast).
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_file_entry(
+    file_path: String,
+    project_path: String,
+    content_directory: Option<String>,
+) -> Result<Option<FileEntry>, String> {
+    // Canonicalize the project root (must exist).
+    let project_canon =
+        std::fs::canonicalize(&project_path).map_err(|e| format!("Invalid project path: {e}"))?;
+
+    // Canonicalize the target file. A missing file resolves to None (not an error).
+    let file_canon = match std::fs::canonicalize(&file_path) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+
+    // Security: the file must live inside the project root.
+    if !file_canon.starts_with(&project_canon) {
+        return Err("File is not inside the project".to_string());
+    }
+
+    // Only Markdown/MDX files are openable.
+    let is_markdown = file_canon
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("md") || e.eq_ignore_ascii_case("mdx"))
+        .unwrap_or(false);
+    if !is_markdown {
+        return Ok(None);
+    }
+
+    // Reuse the existing project scan to discover collections and their roots.
+    let collections = scan_project_with_content_dir(project_path, content_directory).await?;
+
+    // Find the collection whose directory is the most specific ancestor of the file.
+    let owning = collections
+        .into_iter()
+        .filter_map(|collection| {
+            let collection_canon = std::fs::canonicalize(&collection.path).ok()?;
+            if file_canon.starts_with(&collection_canon) {
+                Some((collection_canon, collection))
+            } else {
+                None
+            }
+        })
+        .max_by_key(|(canon, _)| canon.as_os_str().len());
+
+    match owning {
+        Some((collection_canon, collection)) => Ok(Some(FileEntry::new(
+            file_canon,
+            collection.name,
+            collection_canon,
+        ))),
+        None => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -972,5 +1040,163 @@ mod tests {
                 "MicrosoftEdge should NOT be blocked (no trailing slash match)"
             );
         }
+    }
+
+    // --- resolve_file_entry tests ---
+
+    /// Creates a temp project with a `src/content/<collection>/<relative>` markdown
+    /// file and returns the temp dir plus the absolute file path.
+    fn make_project_with_file(relative: &str) -> (tempfile::TempDir, PathBuf) {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("src").join("content").join(relative);
+        std::fs::create_dir_all(file_path.parent().unwrap()).unwrap();
+        std::fs::write(&file_path, "# Hello\n").unwrap();
+        (temp, file_path)
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_happy_path() {
+        let (temp, file_path) = make_project_with_file("blog/post.md");
+
+        let result = resolve_file_entry(
+            file_path.to_string_lossy().to_string(),
+            temp.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let entry = result.expect("expected the file to resolve");
+        assert_eq!(entry.collection, "blog");
+        assert_eq!(entry.name, "post");
+        assert_eq!(entry.extension, "md");
+        assert_eq!(entry.id, "blog/post");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_nested_path() {
+        let (temp, file_path) = make_project_with_file("blog/2024/january/post.mdx");
+
+        let result = resolve_file_entry(
+            file_path.to_string_lossy().to_string(),
+            temp.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let entry = result.expect("expected the nested file to resolve");
+        assert_eq!(entry.collection, "blog");
+        assert_eq!(entry.extension, "mdx");
+        assert_eq!(entry.id, "blog/2024/january/post");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_outside_project_is_rejected() {
+        // File lives in a completely separate directory.
+        let other = tempfile::TempDir::new().unwrap();
+        let outside_file = other.path().join("secret.md");
+        std::fs::write(&outside_file, "secret").unwrap();
+
+        let project = tempfile::TempDir::new().unwrap();
+
+        let result = resolve_file_entry(
+            outside_file.to_string_lossy().to_string(),
+            project.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await;
+
+        assert!(result.is_err(), "file outside the project must be rejected");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_traversal_is_rejected() {
+        // A `..` path that escapes the project root must be rejected after canonicalization.
+        let parent = tempfile::TempDir::new().unwrap();
+        let project_dir = parent.path().join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let secret = parent.path().join("secret.md");
+        std::fs::write(&secret, "secret").unwrap();
+
+        let traversal = project_dir.join("..").join("secret.md");
+
+        let result = resolve_file_entry(
+            traversal.to_string_lossy().to_string(),
+            project_dir.to_string_lossy().to_string(),
+            None,
+        )
+        .await;
+
+        assert!(result.is_err(), "path traversal must be rejected");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_non_markdown_returns_none() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp
+            .path()
+            .join("src")
+            .join("content")
+            .join("blog")
+            .join("data.json");
+        std::fs::create_dir_all(file_path.parent().unwrap()).unwrap();
+        std::fs::write(&file_path, "{}").unwrap();
+
+        let result = resolve_file_entry(
+            file_path.to_string_lossy().to_string(),
+            temp.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            result.is_none(),
+            "non-markdown files should resolve to None"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_nonexistent_returns_none() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let missing = temp
+            .path()
+            .join("src")
+            .join("content")
+            .join("blog")
+            .join("ghost.md");
+
+        let result = resolve_file_entry(
+            missing.to_string_lossy().to_string(),
+            temp.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_none(), "missing files should resolve to None");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_file_entry_not_in_collection_returns_none() {
+        // A markdown file inside the project but outside any content collection.
+        let temp = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir_all(temp.path().join("src").join("content").join("blog")).unwrap();
+        let readme = temp.path().join("README.md");
+        std::fs::write(&readme, "# Readme").unwrap();
+
+        let result = resolve_file_entry(
+            readme.to_string_lossy().to_string(),
+            temp.path().to_string_lossy().to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            result.is_none(),
+            "markdown outside a collection should resolve to None"
+        );
     }
 }

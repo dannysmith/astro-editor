@@ -49,7 +49,7 @@ fn filter_and_combine_releases(
         .collect();
 
     // Sort reverse chronologically (newest first)
-    relevant.sort_by(|a, b| b.0.cmp(&a.0));
+    relevant.sort_by_key(|b| std::cmp::Reverse(b.0));
 
     relevant
         .into_iter()
