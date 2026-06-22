@@ -6,8 +6,8 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 ### Getting Started
 
-- [ ] Quick Start
-- [ ] Installation
+- [x] Quick Start
+- [x] Installation
 - [ ] Philosophy
   - Intro
   - The first bit of the demo video but simplified
