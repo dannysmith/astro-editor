@@ -129,6 +129,7 @@ export default defineConfig({
             { slug: 'reference/keyboard-shortcuts' },
             { slug: 'reference/special-fields' },
             { slug: 'reference/overrides' },
+            { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
             { slug: 'reference/yaml' },
           ],
