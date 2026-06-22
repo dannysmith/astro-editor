@@ -1,8 +1,42 @@
 ---
 title: 'Installation'
-description: 'Install Astro Editor on macOS, Windows, or Linux'
+description: 'Download and install Astro Editor on macOS, Windows, or Linux'
 ---
 
-This page will cover installing Astro Editor on each supported platform.
+import { LinkButton, Aside } from '@astrojs/starlight/components'
 
-Documentation is coming soon.
+Astro Editor is available for macOS, Windows, and Linux.See the [Releases](/releases/) page for release notes and previous versions.
+
+## macOS
+
+<LinkButton href="https://github.com/dannysmith/astro-editor/releases/latest/download/astro-editor-latest.dmg" icon="cloud-download" iconPlacement="start">
+  Download for macOS (.dmg)
+</LinkButton>
+
+Or install with [Homebrew](https://brew.sh/):
+
+```bash
+brew install --cask astro-editor
+```
+
+## Windows
+
+<LinkButton href="https://github.com/dannysmith/astro-editor/releases/latest/download/astro-editor-latest.msi" icon="cloud-download" iconPlacement="start">
+  Download for Windows (.msi)
+</LinkButton>
+
+## Linux
+
+<Aside type="caution" title="Linux builds are in beta">
+Linux support is currently in beta and you may run into rough edges. Please [report any issues](https://github.com/dannysmith/astro-editor/issues) you find.
+</Aside>
+
+<LinkButton href="https://github.com/dannysmith/astro-editor/releases/latest/download/astro-editor-latest.AppImage" icon="cloud-download" iconPlacement="start">
+  Download AppImage
+</LinkButton>
+<LinkButton href="https://github.com/dannysmith/astro-editor/releases/latest/download/astro-editor-latest.deb" icon="cloud-download" iconPlacement="start" variant="secondary">
+  Download .deb
+</LinkButton>
+<LinkButton href="https://github.com/dannysmith/astro-editor/releases/latest/download/astro-editor-latest.rpm" icon="cloud-download" iconPlacement="start" variant="secondary">
+  Download .rpm
+</LinkButton>
