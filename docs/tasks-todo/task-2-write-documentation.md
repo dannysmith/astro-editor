@@ -49,10 +49,9 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Overview
   - Opening a Project & Viewing Collections
   - What's shown + MDX label + Subfolders etc
-- [ ] Drafts (+ Drafts filter)
-- [ ] Filtering and sorting
+  - Creating new files
+- [ ] Drafts, filtering and sorting
 - [ ] IDE Integration & Context Menu
-- [ ] Creating new files
 
 ### Frontmatter & Schemas (Right Sidebar)
 
@@ -72,10 +71,6 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
   - draft?
   - slug (used when inserting links to other content items if a URL override is set)
 
-### The Command Palette
-
-- [ ] The Command Pelette
-
 ### Preferences
 
 - [ ] Preferences
@@ -91,6 +86,7 @@ These docs are technical reference docs for users rather than guides. Their job 
 - [ ] Keyboard Shortcuts - Full list of shortcuts
 - [ ] Overrides - Reference for **exactly** what each path/field override field does
 - [x] The URL Scheme
+- [ ] The Command Pelette
 - [ ] Advanced Preferences & Project Store (The preferences JSON files etc)
 - [ ] How YAML is read/written/formatted
 
