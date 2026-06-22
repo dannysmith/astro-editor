@@ -3,27 +3,31 @@ title: 'Getting Started'
 description: 'Introduction to Astro Editor and an overview of the main window'
 ---
 
-Astro Editor provides a clean, pleasant user experience for authoring and editing [Markdown](https://www.markdownguide.org/) & [MDX](https://mdxjs.com/) files in the content collections of local [Astro](https://astro.build/) sites.
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+Astro Editor is a desktop app for writing and editing the [Markdown](https://www.markdownguide.org/) and [MDX](https://mdxjs.com/) content in your local [Astro](https://astro.build/) project. It understands your content collections, so your files and their frontmatter show up ready to edit.
 
 ## Quick Start
 
-Getting started with Astro Editor takes just a few steps. The application is designed to work with existing Astro projects that use content collections.
+<Steps>
 
-1. **Open an Astro Project**: Use `File > Open Project` to select your Astro project directory. Astro Editor will automatically scan for content collections defined in your `src/content/config.ts` or `src/content.config.ts` file.
+1. **Install Astro Editor.** Download and install the app for your platform. See [Installation](/getting-started/installation/) for the details.
 
-2. **Select a Collection**: Once your project opens, you'll see your content collections listed in the left sidebar. Click on any collection name to view the files it contains.
+2. **Open your project.** Choose `File > Open Project` and pick your Astro project's folder. Astro Editor scans it for content collections defined in `src/content/config.ts` or `src/content.config.ts`.
 
-3. **Open a File**: Click on any markdown or MDX file in the file list to open it in the main editor. The editor will show your content without the frontmatter, which appears in the right sidebar.
+   <Aside type="note" title="Run astro sync first">
+   Astro Editor builds its frontmatter forms from the schema information Astro generates for your collections. As long as you've run `astro sync` (or `astro dev` / `astro build`) in the project at least once, that information will be there. If your fields don't show up the way you expect, run `astro sync` and reopen the project.
+   </Aside>
 
-4. **Start Writing**: Begin editing. Your changes are automatically saved every 2 seconds, and you can manually save anytime with `Cmd+S`.
+3. **Pick a collection and open a file.** Your collections appear in the left sidebar. Click one to see its files, then click any file to open it. The prose opens in the main editor, and its frontmatter appears in the right sidebar.
 
-5. **Edit Frontmatter**: Use the right sidebar to edit metadata fields. These forms are automatically generated from your Astro content collection schemas.
+4. **Start writing.** Edit your content in the middle and its metadata on the right. Changes save automatically every couple of seconds, and you can save anytime with `Cmd+S`.
 
-That's it. Astro Editor handles project discovery, file management, and frontmatter editing automatically based on your existing Astro setup.
+</Steps>
 
 ## Interface Overview
 
-Astro Editor uses a clean three-panel layout designed to minimize distractions while providing easy access to files and metadata:
+Astro Editor uses a pretty simple three-panel layout. You can hide either sidebar for distraction-free writing.
 
 | Interface Area    | Purpose                                                                      |
 | ----------------- | ---------------------------------------------------------------------------- |
@@ -31,5 +35,3 @@ Astro Editor uses a clean three-panel layout designed to minimize distractions w
 | **Main Editor**   | Clean writing space with markdown syntax highlighting                        |
 | **Right Sidebar** | Dynamic frontmatter forms generated from your Astro collection schemas       |
 | **Top Bar**       | Project name, window controls, and menu access                               |
-
-Both sidebars can be hidden using `Cmd+1` (left) and `Cmd+2` (right) for distraction-free writing. The panels remember their sizes and visibility between sessions.
