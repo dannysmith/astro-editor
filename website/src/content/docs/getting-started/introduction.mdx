@@ -5,7 +5,7 @@ description: 'The interface, a simple example, and what Astro Editor needs from 
 
 import { FileTree, Aside } from '@astrojs/starlight/components';
 
-To properly understand how Astro Editor works with Astro projects, we need to look at 
+Astro Editor is an interface for the content in your [Astro](https://astro.build/) project — the [philosophy page](/getting-started/philosophy/) explains why that matters. To see how it fits together in practice, it helps to look at an example.
 
 Let's imagine we have an Astro site with two content collections: **articles** and **notes**, defined in `content.config.ts` like this:
 
@@ -34,28 +34,29 @@ const notes = defineCollection({
       draft: z.boolean().default(false),
       description: z.string().optional(),
       tags: z.array(z.string()).optional(),
+    }),
 });
 ```
 
-We can expect a note to look something like this in VSCode...
+We can expect a note to look something like this in [VSCode](https://code.visualstudio.com/)...
 
-![alt text](../../../assets/ae-intro-vscode-screenshot.png)
+![A note open in VSCode, showing YAML frontmatter, an import line, and a sidebar full of non-content project files](../../../assets/ae-intro-vscode-screenshot.png)
 
-This is not a pleasent interface for writing content.
+This is not a pleasant interface for writing content.
 
 1. VSCode isn't meant for content editing: we have all sorts of distracting UI plus a load of non-content files in the sidebar.
 2. The frontmatter is a distraction when writing, and we have to remember the name and types of any fields we want to add.
 3. The first line in the content is an `import` for an Astro component we're using further down.
 
-This same file is shown like this is Astro Editor...
+This same file is shown like this in Astro Editor...
 
-![alt text](../../../assets/ai-intro-screenshot.png)
+![The same note open in Astro Editor, with frontmatter moved to the right sidebar and only content collection items shown in the left sidebar](../../../assets/ai-intro-screenshot.png)
 
 1. The content is centre-stage and we can only see actual items in our content collections.
 2. The frontmatter and `import`s are hidden.
-3. The frontmatter is instead shown in the right sidebar, and even though there's no `slug` or `description` in the file's frontmatter there are empty fileds for them in the sidebar because Astro Editor has read the schema and knows those fields are available for notes.
+3. The frontmatter is instead shown in the right sidebar, and even though there's no `slug` or `description` in the file's frontmatter there are empty fields for them in the sidebar because Astro Editor has read the schema and knows those fields are available for notes.
 
-### Astro Project Structure
+## Astro Project Structure
 
 By default, Astro Editor expects your project to look something like this:
 
@@ -66,7 +67,7 @@ By default, Astro Editor expects your project to look something like this:
       - articles Assets for use in articles
         - image1.png
       - notes Assets for use in notes
-        - attacchment2.pdf
+        - attachment2.pdf
         - image2.png
     - content
       - articles Articles content collection
@@ -84,29 +85,29 @@ By default, Astro Editor expects your project to look something like this:
 
 - The schema in `content.config.ts` provides information on the content collections and their frontmatter fields.
 - The `content/<collection>/` directories are where we look for the actual content files of each collection.
-- The `assets/<collection>/` directories are where we add images and files dragged into the editor, or uploaded to *image* frontmatter fields.
-- The `components/mdx/` directory contains components like `Callout.astro`, which can be easily inserted into content using the [MDX Combonent builder]().
+- The `assets/<collection>/` directories are where we add images and files dragged into the editor, or uploaded to [*image* frontmatter fields](/frontmatter/field-types/#image-fields).
+- The `components/mdx/` directory contains components like `Callout.astro`, which can be easily inserted into content using the [MDX component builder](/editor/mdx-components/).
 
-<Aside>
-The paths for these directories are configurable in the [Preferences](/preferences/).
+<Aside type="tip">
+The paths for these directories are configurable per project and per collection in [Preferences](/preferences/).
 </Aside>
 
 ## The Interface
 
 Astro Editor uses a simple three-panel layout.
 
-![alt text](../../../assets/pane-overview.png)
+![Astro Editor's three-panel layout, with the left sidebar, main editor, and right frontmatter sidebar all visible](../../../assets/pane-overview.png)
 
 | Interface Area    | Purpose                                                                      |
 | ----------------- | ---------------------------------------------------------------------------- |
-| **Left Sidebar**  | Browse, sort and filter collections and files |
-| **Main Editor**   | The main editor window                        |
-| **Right Sidebar** | Frontmatter editor       |
+| **[Left Sidebar](/file-management/overview/)**  | Browse, sort and filter collections and files |
+| **[Main Editor](/editor/overview/)**   | The main editor window                        |
+| **[Right Sidebar](/frontmatter/overview/)** | Frontmatter editor       |
 | **Toolbar**       | Minimal UI controls                              |
 
-With both sidebars hidden and [Focus Mode]() switched on, we get an extremely clean interface for working with our content.
+With both sidebars hidden and [Focus Mode](/editor/focus-and-typewriter/#focus-mode) switched on, we get an extremely clean interface for working with our content.
 
-![alt text](../../../assets/clean-editor-view.png)
+![Astro Editor with both sidebars hidden and Focus Mode enabled, showing a minimal, distraction-free writing surface](../../../assets/clean-editor-view.png)
 
 ## Astro Site Requirements
 

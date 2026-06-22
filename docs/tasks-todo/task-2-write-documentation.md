@@ -8,18 +8,18 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 - [x] Quick Start
 - [x] Installation
-- [ ] Philosophy
+- [x] Philosophy
   - Intro
   - The first bit of the demo video but simplified
   - Core Principles
-- [ ] Introduction to AE
+- [x] Introduction to AE
   - The Interface
   - A Simple Example - example schema, file tree and file + how they look in the editor
   - Astro Requirements
 
 ### The Editor
 
-- [ ] Overview
+- [x] Overview
   - Intro
   - Auto-Save
   - How it looks & what's not shown

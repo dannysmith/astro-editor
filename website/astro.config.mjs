@@ -95,13 +95,13 @@ export default defineConfig({
             { slug: 'frontmatter/special-fields' },
           ],
         },
-        { slug: 'command-palette' },
         { slug: 'preferences' },
         {
           label: 'Reference',
           collapsed: true,
           items: [
             { slug: 'reference/keyboard-shortcuts' },
+            { slug: 'reference/commands' },
             { slug: 'reference/overrides' },
             { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
