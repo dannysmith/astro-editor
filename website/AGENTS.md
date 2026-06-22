@@ -24,7 +24,10 @@ website/
 ├── src/
 │   ├── assets/                # Images, logos (processed by Astro)
 │   ├── components/
-│   │   └── Footer.astro       # Custom footer (Starlight override)
+│   │   ├── Footer.astro       # Custom footer (Starlight override)
+│   │   ├── AEDemo.astro       # Animated "typing" editor demo (see Components)
+│   │   ├── Figure.astro       # Captioned image
+│   │   └── aedemo/            # AEDemo internals (highlighter + animator)
 │   ├── content/
 │   │   └── docs/              # Documentation content (.mdx files)
 │   │       ├── privacy.mdx
@@ -58,17 +61,68 @@ bun run format       # Prettier format
 - Release pages also have a `date` field
 - File naming: kebab-case
 
+## Components
+
+Custom components live in `src/components/`. Import them at the top of an `.mdx` file, adjusting the relative depth to the file's location (e.g. `../../../components/` for a page in `docs/editor/`).
+
+### AEDemo — animated editor demo
+
+`AEDemo` renders a faux Astro Editor pane that types markdown out and styles it exactly as the app does (dimmed syntax marks, iA Writer font, editor colours). Prefer it over recording GIFs when showing off markdown or editor behaviour.
+
+```mdx
+import AEDemo from '../../../components/AEDemo.astro'
+
+Inline: <AEDemo inline code="This is **bold text** here" />
+
+<AEDemo code={`# A heading
+
+Some **bold** and *italic* text, plus \`inline code\`.
+
+- a list item
+`} />
+```
+
+- `code` (required) — the markdown to type. Use a template literal with `\n` for multi-line block examples.
+- `inline` (optional) — render inline (flows in a sentence) instead of as a block pane.
+- `speed` (optional) — milliseconds per character (default 48).
+- Supports CommonMark: headings, bold, italic, inline code, links/images, lists, blockquotes, fenced code blocks, horizontal rules. It does **not** support GFM (tables, task lists, strikethrough) — neither does the app (see issue #266). Don't write demos using those.
+- Honours `prefers-reduced-motion` and server-renders a styled final state, so it degrades gracefully without JS. The iA Writer fonts it relies on live in `public/fonts/`.
+
+### Figure — captioned image
+
+Starlight/Astro have no built-in figure component. `Figure` wraps an optimised image with an optional caption — import the image asset and pass it as `src`.
+
+```mdx
+import Figure from '../../../components/Figure.astro'
+import shot from '../../../assets/my-shot.png'
+
+<Figure src={shot} alt="Required, descriptive alt text" caption="Optional caption." />
+```
+
+## Starlight Components
+
+Prefer Starlight's built-in components over hand-rolled markup. Import from `@astrojs/starlight/components` and use them where they fit:
+
+- **`Steps`** — numbered, sequential instructions (install → open → write).
+- **`Aside`** (`note` / `tip` / `caution` / `danger`) — callouts. Don't put backticks in the `title` attribute; it renders as plain text.
+- **`FileTree`** — directory/file structure diagrams.
+- **`Tabs` / `TabItem`** — alternative paths, e.g. per-OS instructions.
+- **`LinkButton`** — prominent download/CTA links. The built-in icon set is small (~19 icons, no OS logos); `cloud-download` suits downloads.
+- **`Card` / `CardGrid` / `LinkCard`** — feature grids and "next steps" navigation.
+
+Always give images real, descriptive alt text (never the placeholder "alt text"). Internal links use absolute, trailing-slash paths (e.g. `/preferences/`).
+
 ## Documentation Structure
 
 The sidebar is manually defined in `astro.config.mjs` using explicit `slug` entries. Sections are organised into directories under `src/content/docs/`.
 
-- **Main docs** are grouped by topic (e.g. `editor/`, `editing/`, `frontmatter/`, `preferences/`). Most sections have an `overview.mdx` as their first page. Some topics (`philosophy`, `command-palette`, `troubleshooting`) are single top-level pages.
-- **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, special field behaviours, override settings, etc. These document *what* things do, not how to use them.
+- **Main docs** are grouped by topic directory (e.g. `getting-started/`, `editor/`, `file-management/`, `frontmatter/`). Most sections have an `overview.mdx` as their first page.
+- **Single top-level pages** live at the docs root: `getting-started.mdx` (Quick Start), `preferences.mdx`, and `privacy.mdx`.
+- **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, the command list, override settings, the URL scheme, YAML handling, troubleshooting, etc. These document *what* things do, not how to use them.
 - **Releases** (`releases/`) are generated from GitHub releases by the `scripts/generate-release-pages.ts` script (run manually, e.g. `npx tsx scripts/generate-release-pages.ts [--all] [--dry-run]`). The releases index page at `src/pages/releases/index.astro` lists them sorted by date. Don't create release pages by hand.
-- **Privacy policy** (`privacy.mdx`) and **getting-started.mdx** live at the docs root.
 
 ## Writing Style
 
 - Active voice, second person, present tense
 - No time estimates
-- Use Starlight components (Tabs, Aside, Steps, etc.) where appropriate
+- Reach for the components above (Starlight's and our own) rather than hand-rolled markup — see [Components](#components) and [Starlight Components](#starlight-components)
