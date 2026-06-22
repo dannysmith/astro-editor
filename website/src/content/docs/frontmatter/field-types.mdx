@@ -1,0 +1,143 @@
+---
+title: 'Field Types'
+description: 'Frontmatter field types — basic, nested, image, reference, and required fields'
+---
+
+## Basic Fields
+
+Astro Editor converts schema definitions into appropriate form controls. The mapping works as follows:
+
+| Zod Schema Type           | Form Control      | Behavior                                   |
+| ------------------------- | ----------------- | ------------------------------------------ |
+| `z.string()`              | Single-line input | Standard text input                        |
+| `z.string().optional()`   | Single-line input | Empty field allowed, no validation         |
+| `z.enum(['a', 'b', 'c'])` | Dropdown select   | Shows all enum options                     |
+| `z.boolean()`             | Toggle switch     | True/false with visual switch              |
+| `z.date()`                | Date picker       | Native date selection widget               |
+| `z.number()`              | Number input      | Numeric validation and steppers            |
+| `z.array(z.string())`     | Tag input         | Add/remove tags with keyboard              |
+| `z.reference('authors')`  | Dropdown select   | Select from another collection (see below) |
+| `image()`                 | Image picker      | File picker with preview (see below)       |
+| `z.object({ ... })`       | Grouped fields    | Nested fields in a fieldset (see below)    |
+
+## Nested Fields
+
+When your schema includes nested objects, the frontmatter sidebar groups the related fields together for better organization.
+
+**In your schema:**
+
+```typescript
+const blog = defineCollection({
+  schema: z.object({
+    metadata: z.object({
+      category: z.string(),
+      priority: z.number().optional(),
+      deadline: z.date().optional(),
+    }),
+  }),
+})
+```
+
+**In the frontmatter sidebar:**
+
+Nested object fields are displayed in a fieldset with:
+
+- A header showing the object name (e.g., "Metadata")
+- Indentation and a left border for visual grouping
+- All nested fields rendered with their appropriate controls
+
+This makes it easy to see which fields belong together and maintains the logical structure of your content.
+
+## Image Fields
+
+Image fields use Astro's special `image()` helper to handle images in your content collections. The frontmatter sidebar provides a complete image management experience.
+
+**In your schema:**
+
+```typescript
+import { defineCollection, z } from 'astro:content'
+
+const blog = defineCollection({
+  schema: ({ image }) => z.object({
+    cover: image().optional(),
+    thumbnail: image(),
+  }),
+})
+```
+
+**In the frontmatter sidebar:**
+
+When you have an image field, you'll see:
+
+- **Current image preview**: A small thumbnail of the current image (if one is set)
+- **Current path**: The path to the image file, displayed as text
+- **File picker button**: Click to browse and select an image, or drag and drop an image directly onto the button
+- **Edit button**: Click to switch to a text input field where you can manually type or paste a path directly
+- **Clear button**: Remove the current image
+
+### How Image Copying Works
+
+When you select or drag an image into an image field, Astro Editor:
+
+1. Copies the image to your collection's configured assets directory
+2. Renames it following the same pattern as the current file (YYYY-MM-DD-name.ext)
+3. Updates the frontmatter with a **relative path** to the copied image (default behavior)
+4. Shows a preview immediately
+
+### Path Configuration
+
+- **Default behavior**: Images use relative paths (e.g., `./image.png`), making your content more portable
+- **Override option**: Configure absolute paths (relative to project root) on a per-project or per-collection basis in preferences
+- This applies to both image fields in frontmatter and images dragged into the editor
+
+### Special Cases
+
+- If the image is already inside your Astro project's directory structure, it's not copied - Astro Editor uses the path as-is
+- Manual path editing (via the edit button) allows you to reference images that are already in place
+- Image paths are validated - you'll see an error if the path doesn't exist or is outside your project
+
+**Known limitation**: Image fields nested inside object fields (like `metadata.image: image()`) currently show as text fields. This is a known issue that will be fixed in a future release.
+
+## Reference Fields
+
+Reference fields let you link content collection entries together. For example, you might have an `authors` collection and want to reference an author from your blog posts.
+
+**In your schema:**
+
+```typescript
+const blog = defineCollection({
+  schema: z.object({
+    author: z.reference('authors'), // Single reference
+    contributors: z.array(z.reference('authors')), // Multiple references
+  }),
+})
+```
+
+**In the frontmatter sidebar:**
+
+- Single references (`z.reference()`) show as a dropdown where you can select one item from the referenced collection
+- Array references (`z.array(z.reference())`) show as a multi-select or tag input where you can select multiple items
+
+**What gets displayed:** The dropdown shows the `name` field from each referenced item, or falls back to the `id` if no name field exists. This works for both markdown-based collections and data file collections (like `authors.json`).
+
+## Required Fields, Descriptions & Constraints
+
+### Field Descriptions
+
+When you add descriptions to your schema fields, they appear in the frontmatter sidebar to guide your editing. Any field using `.describe()` in your schema will display that description below the input field in gray text. This is helpful for explaining what the field is for or providing usage examples.
+
+```typescript
+title: z.string().describe('The main heading for your article')
+```
+
+### Field Constraints
+
+Character limits, min/max values, and other constraints from your schema are enforced in the form. For example:
+
+- `z.string().min(10).max(100)` - Shows character counter and prevents saving if out of range
+- `z.number().min(1).max(10)` - Number input with validation
+- `z.string().length(50)` - Enforces exact length
+
+### Required Fields
+
+Required schema fields show an asterisk (\*) next to their label and prevent saving if empty.

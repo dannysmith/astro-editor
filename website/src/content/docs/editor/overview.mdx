@@ -1,10 +1,21 @@
 ---
 title: 'The Editor'
-description: 'Overview of the editor — appearance, responsive typography, and hanging headers'
+description: 'Overview of the editor — appearance, auto-save, and styling'
 ---
 
 The editor window shows the entire contents of your markdown or MDX files with the exception of the YAML frontmatter and any JSX `import` lines immediately following the frontmatter. It's designed to provide an extremely clean writing interface, especially when both sidebars are closed. It provides markdown syntax highlighting.
 
-## Editing Modes
+A number of writing "modes" can be toggled while editing, which alter how the editor displays your content. These are generally compatible with each other and can be toggled independently — see [Focus & Typewriter Modes](/editor/focus-and-typewriter/) and [Copyedit Modes](/editor/copyedit-modes/).
 
-A number of "modes" can be toggled while writing/editing, which alter how the editor displays your content. These are generally compatible with each other (they can be toggled on and off independently).
+## Auto-Save
+
+Astro Editor automatically saves your work with two complementary mechanisms:
+
+1. **Pause-based save**: Automatically saves your changes after you stop typing (configurable in preferences, default is 2 seconds)
+2. **Flow-state backup**: An additional save occurs every 10 seconds while you're actively typing, ensuring content is written to disk during extended writing sessions
+
+You can manually save at any time using `Cmd+S`.
+
+## Styling
+
+_Documentation coming soon — responsive typography, hanging headers, typeface, and heading colours._

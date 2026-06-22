@@ -1,0 +1,110 @@
+---
+title: 'Preferences'
+description: 'Astro Editor preferences — General, Project, Collections, and Advanced panes'
+---
+
+Open preferences with `Cmd+,` or via the application menu. Settings are organised into a few panes, described below.
+
+## General Pane
+
+Global preferences apply across all projects:
+
+**Theme**: Choose between light mode, dark mode, or system theme (follows macOS setting).
+
+**Heading Colors**: Customize the color of markdown headings in the editor. Separate color pickers for dark theme and light theme allow you to personalize your writing environment while maintaining good contrast in both modes.
+
+**IDE Command**: Configure the command used for "Open in IDE" functionality. Common values:
+
+- `code` for Visual Studio Code
+- `cursor` for Cursor
+- `subl` for Sublime Text
+
+**Auto-save Delay**: Configure how frequently Astro Editor automatically saves your work (default is 2 seconds).
+
+**Default File Type for New Files**: Choose whether newly created files use Markdown (`.md`) or MDX (`.mdx`) format. Applies across all projects unless overridden at the project or collection level.
+
+**Copyedit Highlighting**: Choose which parts of speech to highlight in copyedit mode.
+
+**Important**: Global settings contain ONLY truly global preferences (theme, IDE command, copyedit highlights, auto-save delay, default file type). There are no global defaults for project or collection settings.
+
+## Project Pane
+
+Each project has its own settings that apply to the entire project. The Project pane is only visible when a project is open.
+
+### Path Overrides
+
+Customize directory locations if your project uses non-standard paths:
+
+- **Content Directory**: Default is `src/content/`, but you might use `content/` or `docs/`
+- **Assets Directory**: Default is `src/assets/`, useful for projects using `public/images/` or `static/`
+- **MDX Components Directory**: Default is `src/components/mdx/`, can be changed if your components are elsewhere
+
+Project-level path overrides apply to all collections unless a collection has its own override.
+
+### File Defaults
+
+- **Default File Type for New Files**: Override the global default for newly created files in this project. Choose between Markdown (`.md`) or MDX (`.mdx`), or inherit the global setting.
+
+### Field Mappings
+
+Configure which fields Astro Editor should use for common purposes:
+
+- **Title Field**: Which field to display as the title in the file list (default: `title`)
+- **Date Field**: Which field(s) to use for sorting files by date (e.g., `pubDate`, `date`, or `publishedDate`)
+- **Description Field**: Which field should render as a multi-line textarea (default: `description`)
+- **Draft Field**: Which boolean field indicates draft status (default: `draft`)
+
+## Collections Pane
+
+You can configure settings for individual collections, allowing different collections to have different paths and field mappings. This is useful when different parts of your site have different structures.
+
+### When to Use Collection Settings
+
+- Blog posts in `content/blog/` while docs remain in `src/content/docs/`
+- Different collections using different field names (e.g., blog uses `publishDate`, docs use `date`)
+- Collection-specific asset directories (e.g., blog images in `public/blog-images/`)
+
+### Path Overrides (per collection)
+
+- **Content Directory**: Where this collection's files are located (absolute path from project root)
+  - Example: `content/blog/` means files are in `<project_root>/content/blog/`, not `<project_root>/src/content/blog/`
+- **Assets Directory**: Where this collection's assets should be copied (absolute path from project root)
+  - Example: `public/blog-images/` for blog, `public/docs-images/` for docs
+- **MDX Components Directory**: Where this collection's MDX components are located
+  - Example: `src/components/blog/` for blog-specific components
+
+### File Defaults (per collection)
+
+- **Default File Type for New Files**: Override the project/global default for newly created files in this collection. Useful when one collection uses MDX while others use Markdown.
+  - Example: Blog collection uses `.mdx` for interactive components, docs collection uses `.md` for simple content
+
+### Image Path Strategy (per collection)
+
+- **Use Relative Paths for Images**: By default, images dragged into the editor or added to image fields use relative paths (e.g., `./image.png`), making content more portable. Disable this option to use absolute paths (relative to project root, e.g., `/src/assets/image.png`) instead.
+  - Can be configured at project level (applies to all collections) or per collection (overrides project setting)
+  - Useful when different collections have different portability requirements
+
+### Content Links (per collection)
+
+- **Link URL Pattern**: Define the URL pattern used when inserting links via the Content Linker. Enter a pattern like `/blog/{slug}` where `{slug}` is replaced with the content item's slug or ID. When set, the Content Linker uses this pattern to create clean URLs (e.g., `[My Post](/blog/my-post)`). When left empty, links use relative file paths instead.
+
+### Frontmatter Field Mappings (per collection)
+
+- **Title Field**: Which field to use for file titles in sidebar (e.g., `title` or `heading`)
+- **Date Field**: Which field(s) to use for sorting files (e.g., `publishDate` or `["pubDate", "date"]`)
+- **Description Field**: Which field to style as a textarea (e.g., `description` or `summary`)
+- **Draft Field**: Which boolean field indicates draft status (e.g., `draft` or `published`)
+
+### How Settings Work (Three-Tier Fallback)
+
+When Astro Editor needs a setting (like content directory), it looks in this order:
+
+1. **Collection setting** (if configured for this collection)
+2. **Project setting** (if configured at project level)
+3. **Hard-coded default** (built into the app)
+
+**Example**: If you set project content directory to `content/`, all collections use `content/`. But if you configure the "blog" collection to use `content/blog-posts/`, only the blog collection uses that path while other collections still use `content/`.
+
+## Advanced Pane
+
+_Documentation coming soon._

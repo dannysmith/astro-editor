@@ -1,0 +1,51 @@
+---
+title: 'Introduction to Astro Editor'
+description: 'The interface, a simple example, and what Astro Editor needs from your project'
+---
+
+## The Interface
+
+Astro Editor uses a pretty simple three-panel layout. You can hide either sidebar for distraction-free writing.
+
+| Interface Area    | Purpose                                                                      |
+| ----------------- | ---------------------------------------------------------------------------- |
+| **Left Sidebar**  | Browse collections and files, with draft indicators and context menu options |
+| **Main Editor**   | Clean writing space with markdown syntax highlighting                        |
+| **Right Sidebar** | Dynamic frontmatter forms generated from your Astro collection schemas       |
+| **Top Bar**       | Project name, window controls, and menu access                               |
+
+Hide either sidebar with `Cmd+1` (left) and `Cmd+2` (right) for distraction-free writing. The panels remember their sizes and visibility between sessions.
+
+## A Simple Example
+
+By default, Astro Editor expects the following structure in your Astro project:
+
+```
+my-astro-site
+└── src
+    ├── assets
+    │   └── mycollection
+    │       └── image1.png
+    ├── content
+    │   └── mycollection
+    │       └── blog-post.mdx
+    ├── components
+    │   └── mdx
+    │       └── ExampleAstroComponent.astro
+    └── content.config.ts
+```
+
+The paths to the _Assets_, _Content_, and _MDX Components_ directories (relative to the project root) are configurable per project and per collection (see [Preferences](/preferences/)).
+
+## Astro Requirements
+
+Astro Editor will only work properly with Astro projects which:
+
+- Are using Astro 5+ _(it might work with Astro 4+ but you should expect a few bugs)_
+- Use Astro [Content Collections](https://docs.astro.build/en/guides/content-collections/) and have a `src/content/config.ts` or `src/content.config.ts` file.
+- Have at least one collection defined with `defineCollection`. It **must** use the `glob` loader and have a `schema`.
+- Have all collections in a single directory: `src/content/[collectionname]`
+
+Content collections can contain non-markdown/MDX files, but they will not be shown in the editor.
+
+Some features require you to have certain properties in your schema. A date field is required for proper ordering in the file list. A boolean field is required to show and filter drafts. A text field is required to show titles in the sidebar. Etc.

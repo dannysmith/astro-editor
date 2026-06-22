@@ -6,44 +6,43 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 ### Getting Started
 
-- [ ] Intro & Overview (of the Main Window)
-- [ ] Fundamental Concepts
-- [ ] A Simple Example - example schema, file tree and file + how they look in the editor
-- [ ] Installation - mention cross-platform stuff
-- [ ] Opening a Project - briefly mention how to configure most common path overrides
-
-### Philosophy (single page: `philosophy.mdx`)
-
-- [ ] Overview and Why - The first bit of the demo video but simplified
-- [ ] Core Principles
+- [ ] Quick Start
+- [ ] Installation
+- [ ] Philosophy
+  - Intro
+  - The first bit of the demo video but simplified
+  - Core Principles
+- [ ] Introduction to AE
+  - The Interface
+  - A Simple Example - example schema, file tree and file + how they look in the editor
+  - Astro Requirements
 
 ### The Editor
 
 - [ ] Overview
+  - Intro
+  - Auto-Save
   - How it looks & what's not shown
-  - responsive typography
-  - hanging headers
-  - Custom heading color & font size
-- [ ] Focus mode
-- [ ] Typewriter mode
-- [ ] Copyedit modes
-- [ ] Auto-Saving
-
-### Editing Features
-
-- [ ] Overview
+  - Styling: responsive typography, hanging headersng & typeface etc
+- [ ] Markdown Formatting
   - Basic Markdown Features
   - Headers (Keyboard shortcut)
-- [ ] Inserting Links (single page: `editing/links.mdx`)
+- [ ] Links
   - Cmd+K and paste over text
   - Clicking links
-- [ ] Inserting links to other content items (Content Linker)
-- [ ] Inserting and Previewing Images & Files (single page: `editing/images-and-files.mdx`)
+  - Inserting links to other content items (Content Linker)
+- [ ] Images & Files
   - Inserting images and files
   - Previewing images on hover
-- [ ] Inserting Components in MDX files (single page: `editing/mdx-components.mdx`)
+- [ ] MDX components
   - "MDX" Astro Components
   - React/Vue/Svelte Components
+- [ ] Focus & Typewriter Modes
+  - Distractionless mode
+  - Focus mode
+  - Typewriter mode
+- [ ] Copyedit modes
+
 
 ### File Management (Left Sidebar)
 
@@ -60,41 +59,38 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 - [ ] Overview
   - Intro & Screenshot
   - How schemas & frontmatter are parsed/ordered in the sidebar
-- [ ] Basic Field Types (& their Display)
-  - [ ] Nested fields
-- [ ] Image Fields
-- [ ] Reference Fields
-- [ ] Special Fields
-    - Title
-    - Description
-- [ ] Required Fields & Descriptions
-- [ ] Examples
-
-### Preferences
-
-- [ ] General Pane
-- [ ] Project Pane
-- [ ] Collections Pane
-- [ ] Advanced Pane
-
-### Other Bits
-
-- [ ] The Command Palette
-- [ ] Troubleshooting
-
-## Reference Section
-
-These docs are technical reference docs for users rather than guides. Their job is not to teach.
-
-- [ ] Keyboard Shortcuts - Full list of shortcuts
+- [ ] Field Types
+  - Basic fields (table)
+  - Nested fields
+  - Image Fields
+  - Reference Fields
+  - Required Fields, Descriptions & Constraitns
 - [ ] Special Fields - reference for special field names & their behaviours
   - title
   - description
   - pubdate/date
   - draft?
   - slug (used when inserting links to other content items if a URL override is set)
+
+### The Command Palette
+
+- [ ] The Command Pelette
+
+### Preferences
+
+- [ ] Preferences
+  - General Pane
+  - Project Pane
+  - Collections Pane
+  - Advanced Pane
+
+## Reference Section
+
+These docs are technical reference docs for users rather than guides. Their job is not to teach.
+
+- [ ] Keyboard Shortcuts - Full list of shortcuts
 - [ ] Overrides - Reference for **exactly** what each path/field override field does
-- [ ] The URL Scheme
+- [x] The URL Scheme
 - [ ] Advanced Preferences & Project Store (The preferences JSON files etc)
 - [ ] How YAML is read/written/formatted
 

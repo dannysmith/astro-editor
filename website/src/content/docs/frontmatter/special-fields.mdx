@@ -1,10 +1,26 @@
 ---
 title: 'Special Fields'
-description: 'Special frontmatter fields — title and description'
+description: 'Special frontmatter field names and their behaviours'
 ---
 
-**Title Fields**: If your schema has a field named `title` (or configured in project settings), it renders as a larger, bold textarea that automatically expands as you type. Title fields always appear first in the panel, regardless of their position in the schema.
+Astro Editor gives certain frontmatter fields special treatment. Which field names count as "special" can be remapped per project or per collection in [Preferences](/preferences/).
 
-**Description Fields**: Fields named `description` get a multi-line textarea that grows based on content length.
+## Title
 
-**Required Fields**: Required schema fields show an asterisk (\*) next to their label and prevent saving if empty.
+If your schema has a field named `title` (or whichever field is configured in project settings), it renders as a larger, bold textarea that automatically expands as you type. Title fields always appear first in the panel, regardless of their position in the schema, and are used as the file's title in the sidebar.
+
+## Description
+
+Fields named `description` get a multi-line textarea that grows based on content length.
+
+## Date (pubDate / date)
+
+_Documentation coming soon._ The configured date field is used to sort files in the sidebar (newest first). Defaults to `pubDate`, `date`, or `publishedDate`.
+
+## Draft
+
+_Documentation coming soon._ The configured boolean draft field controls the draft badge and the drafts filter in the sidebar. Defaults to `draft`.
+
+## Slug
+
+_Documentation coming soon._ Used when inserting links to other content items via the Content Linker if a URL pattern override is set for the collection.
