@@ -3,44 +3,41 @@ title: 'Special Fields'
 description: 'The frontmatter fields Astro Editor treats specially, and what they drive'
 ---
 
-Astro Editor singles out a few frontmatter fields by name and uses them across the app — in the file list, in sorting and filtering, and in the editor. The **title**, **date**, **description**, and **draft** fields can each be remapped per project or per collection in [Preferences](/preferences/#field-mappings); the precise override rules are covered in [Overrides](/reference/overrides/).
+Astro Editor treats a few frontmatter fields specially – both in the frontmatter sidebar and elsewhere. The **title**, **date**, **description**, and **draft** fields can each be remapped per project or per collection in the [Preferences](/preferences/#field-mappings) – the precise override rules are covered in [Overrides](/reference/overrides/).
 
 ## Title
 
-Defaults to `title`. The title field does a lot of work:
+Represents the item's **title**. Uses `title` by default but can be overridden in the preferences. The title field is special in the following ways:
 
-- **File list** — shown as each file's name in the [sidebar](/file-management/overview/), falling back to the filename when it's empty.
-- **Frontmatter panel** — rendered as a larger, bold, auto-expanding text area, always pinned to the top of the panel, with a **Copy as slug** action that copies a URL-friendly version of the title to your clipboard.
-- **Sorting** — it's the **Title** [sort option](/file-management/drafts-filtering-and-sorting/), and the alphabetical tiebreaker the **Default** sort uses for files that share a date or have none.
+- **File list** — shown as each file's name in the [sidebar](/file-management/overview/), falling back to the filename when unset.
+- **Frontmatter panel** — rendered as a larger, bold, auto-expanding input which always appears at the top of the panel. A **Copy as slug** button is shown below which copies a URL-friendly version of the title to your clipboard.
+- **Sorting** — used as the **Title** [sort option](/file-management/drafts-filtering-and-sorting/), and the alphabetical tiebreaker which the **Default** sort uses for files that share a date or have none.
 - **Filtering** — the filter box matches against the title as well as the filename.
 - **Content Finder** — entries are listed and searched by their title.
 - **New files** — a `title` field is pre-filled with a placeholder like "New Article".
 
 ## Date
 
-Defaults to `date`. The date field is what the file list is sorted by:
+Represents the item's primary **date** – usually its published date. Uses `date` by default but can be overridden in the preferences. The date field is used here:
 
-- **File list** — shown next to each file, and used by the **Default** sort (newest first), with undated files floated to the top.
-- **New files** — a `date`, `pubDate`, or `publishedDate` field is set to today's date.
+- **File list** — shown next to each file if set, and used by the **Default** sort (newest first).
+- **New files** — set to today's date when new files are created.
 
 <Aside>
-If your posts use a date field that isn't called `date` (such as `pubDate`), set it in [Preferences](/preferences/#field-mappings) so sorting works as you'd expect.
+If your posts use a date field that isn't called `date` (such as `pubDate`), set it in the [Preferences](/preferences/#field-mappings) so sorting works as you'd expect.
 </Aside>
 
 ## Description
 
-Defaults to `description`. This one is purely cosmetic: the configured field is rendered as a taller, multi-line text area that grows as you type. It has no effect on the file list, sorting, or filtering.
+This one is purely cosmetic: a field named `description` (or whatever's configured in the overrides) is rendered as an expanding multi-line textarea in the sidebar.
 
 ## Draft
 
-Defaults to `draft`. A file counts as a draft only when this field is exactly `true`.
+Signifies that a content item is a **draft**. Defaults to `draft` but can be overridden. A file counts as a draft only when this field is set and is exactly `true`. It's used for:
 
-- **File list** — draft files show a **Draft** badge.
-- **Filtering** — the "Show Drafts Only" toggle uses this field. See [Drafts, Filtering & Sorting](/file-management/drafts-filtering-and-sorting/).
+- **File list** — draft files show a **Draft** badge in the sidebar.
+- **Draft filtering** — the "Show Drafts Only" toggle uses this field. See [Drafts, Filtering & Sorting](/file-management/drafts-filtering-and-sorting/).
 
 ## Slug
 
-Unlike the fields above, `slug` isn't a configurable mapping — Astro Editor always looks for a field named exactly `slug`. It's used in two places:
-
-- **Content links** — when a collection has a URL pattern configured, the `{slug}` placeholder is filled from the file's `slug` field, falling back to the file's id when there isn't one. See [Overrides](/reference/overrides/).
-- **Copy as slug** — the action on the title field (above) generates a slug from the title text; it copies to the clipboard and doesn't write anything to a `slug` field.
+Unlike the fields above, `slug` isn't a configurable mapping. Astro Editor always looks for a field named exactly `slug` and uses it only when a collection has a URL pattern configured: the `{slug}` placeholder is filled from the `slug` field rather than the file's `id`. See [Overrides](/reference/overrides/) for more.
