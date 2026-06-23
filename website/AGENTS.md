@@ -85,6 +85,7 @@ Some **bold** and *italic* text, plus \`inline code\`.
 - `code` (required) — the markdown to type. Use a template literal with `\n` for multi-line block examples.
 - `inline` (optional) — render inline (flows in a sentence) instead of as a block pane.
 - `speed` (optional) — milliseconds per character (default 48).
+- `animate` (optional) — `loop` (default) types out, holds, and repeats; `once` types out a single time then stops; `none` shows the finished state with no animation.
 - Supports CommonMark: headings, bold, italic, inline code, links/images, lists, blockquotes, fenced code blocks, horizontal rules. It does **not** support GFM (tables, task lists, strikethrough) — neither does the app (see issue #266). Don't write demos using those.
 - Honours `prefers-reduced-motion` and server-renders a styled final state, so it degrades gracefully without JS. The iA Writer fonts it relies on live in `public/fonts/`.
 

@@ -5,6 +5,9 @@
  * string on every tick (so formatting "snaps" into place as marks complete,
  * just like the real editor), holds the finished state, then loops.
  *
+ * - The `data-animate` mode chooses the behaviour: `loop` (default) types,
+ *   holds, and repeats; `once` types a single time and stops; `none` skips
+ *   the animation entirely and renders the final state.
  * - Block demos write into the `.ae-anim` overlay; the sibling `.ae-sizer`
  *   holds the box at its final height so the page never reflows.
  * - Plays only while in view (IntersectionObserver pauses/resumes it).
@@ -37,11 +40,17 @@ function createAnim(container: HTMLElement): Controller {
     ? container
     : (container.querySelector<HTMLElement>('.ae-anim') ?? container)
 
-  if (prefersReduced()) {
+  const animate = (container.dataset.animate ?? 'loop') as
+    | 'loop'
+    | 'once'
+    | 'none'
+
+  if (animate === 'none' || prefersReduced()) {
     target.innerHTML = renderMarkdown(code, { inline })
     return { resume() {}, pause() {} }
   }
 
+  const loop = animate === 'loop'
   const speed = Number(container.dataset.speed) || 48
   const HOLD_END = 2400
   const HOLD_START = 600
@@ -49,6 +58,7 @@ function createAnim(container: HTMLElement): Controller {
   let i = 0
   let mode: 'start' | 'typing' | 'end' = 'start'
   let timer: number | undefined
+  let done = false // 'once' has finished — don't restart on resume
 
   const paint = () => {
     target.innerHTML = frame(code.slice(0, i), inline)
@@ -73,7 +83,11 @@ function createAnim(container: HTMLElement): Controller {
         timer = window.setTimeout(advance, delay)
       } else {
         mode = 'end'
-        timer = window.setTimeout(advance, HOLD_END)
+        if (loop) {
+          timer = window.setTimeout(advance, HOLD_END)
+        } else {
+          done = true // 'once' — leave the finished state on screen
+        }
       }
       return
     }
@@ -88,7 +102,7 @@ function createAnim(container: HTMLElement): Controller {
 
   return {
     resume() {
-      if (timer === undefined) advance()
+      if (!done && timer === undefined) advance()
     },
     pause() {
       if (timer !== undefined) {

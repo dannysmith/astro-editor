@@ -21,9 +21,16 @@ interface Props {
   inline?: boolean
   /** Milliseconds per character (default 48). */
   speed?: number
+  /**
+   * Animation behaviour (default `loop`):
+   * - `loop` — type out, hold, and repeat
+   * - `once` — type out a single time, then stop
+   * - `none` — show the finished state with no animation
+   */
+  animate?: 'loop' | 'once' | 'none'
 }
 
-const { code, inline = false, speed } = Astro.props
+const { code, inline = false, speed, animate = 'loop' } = Astro.props
 const ssr = renderMarkdown(code, { inline })
 ---
 
@@ -34,6 +41,7 @@ const ssr = renderMarkdown(code, { inline })
       data-aedemo={JSON.stringify(code)}
       data-inline="true"
       data-speed={speed}
+      data-animate={animate}
       set:html={ssr}
     />
   ) : (
@@ -42,6 +50,7 @@ const ssr = renderMarkdown(code, { inline })
       data-aedemo={JSON.stringify(code)}
       data-inline="false"
       data-speed={speed}
+      data-animate={animate}
     >
       <div class="ae-sizer" aria-hidden="true" set:html={ssr} />
       <div class="ae-anim" set:html={ssr} />
