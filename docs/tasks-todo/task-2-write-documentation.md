@@ -24,34 +24,35 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
   - Auto-Save
   - How it looks & what's not shown
   - Styling: responsive typography, hanging headersng & typeface etc
-- [ ] Markdown Formatting
+- [x] Markdown Formatting
   - Basic Markdown Features
   - Headers (Keyboard shortcut)
-- [ ] Links
+- [x] Links
   - Cmd+K and paste over text
   - Clicking links
   - Inserting links to other content items (Content Linker)
-- [ ] Images & Files
+- [x] Images & Files
   - Inserting images and files
   - Previewing images on hover
-- [ ] MDX components
+- [x] MDX components
   - "MDX" Astro Components
   - React/Vue/Svelte Components
-- [ ] Focus & Typewriter Modes
+- [x] Focus & Typewriter Modes
   - Distractionless mode
   - Focus mode
   - Typewriter mode
-- [ ] Copyedit modes
+- [x] Copyedit modes
 
 
 ### File Management (Left Sidebar)
 
-- [ ] Overview
+- [x] Overview
   - Opening a Project & Viewing Collections
   - What's shown + MDX label + Subfolders etc
   - Creating new files
-- [ ] Drafts, filtering and sorting
-- [ ] IDE Integration & Context Menu
+  - Context Menu
+- [x] Drafts, filtering and sorting
+- [x] IDE Integration
 
 ### Frontmatter & Schemas (Right Sidebar)
 
@@ -93,3 +94,7 @@ These docs are technical reference docs for users rather than guides. Their job 
 ## Releases Section
 
 This is already implemented.
+
+## Other Files
+
+- [x] Privacy
