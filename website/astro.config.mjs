@@ -15,8 +15,9 @@ export default defineConfig({
         starlightLlmsTxt(),
         starlightKbd({
           types: [
-            { id: 'mac', label: 'macOS', default: true },
-            { id: 'windows', label: 'Windows' },
+            { id: 'mac', label: 'macOS', detector: 'apple', default: true },
+            { id: 'windows', label: 'Windows', detector: 'windows' },
+            { id: 'linux', label: 'Linux', detector: 'linux' },
           ],
         }),
       ],
