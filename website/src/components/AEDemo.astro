@@ -142,11 +142,13 @@ const ssr = renderMarkdown(code, { inline })
     .ae-codeline {
       font-family: var(--ae-mono);
       background: var(--ae-codebg);
+      margin-top: 0;
     }
     .ae-hr {
       color: var(--ae-mdtag);
     }
 
+    /* To override styles from starlight */
     .ae-anim {
       margin-top: 0;
     }
@@ -154,8 +156,8 @@ const ssr = renderMarkdown(code, { inline })
     .ae-caret {
       display: inline-block;
       width: 2px;
-      height: 1.1em;
-      margin-left: 1px;
+      height: 1.3em;
+      margin-left: 3px;
       vertical-align: text-bottom;
       background: var(--ae-caret);
       animation: ae-caret-blink 1s steps(1) infinite;
@@ -196,6 +198,10 @@ const ssr = renderMarkdown(code, { inline })
   }
 
   .ae-demo-inline {
+    background: var(--ae-bg);
+    border: 1px solid color-mix(in srgb, var(--ae-text) 3%, transparent);
+    padding: 0.15em 0.3em;
+    border-radius: 3px;
     white-space: pre-wrap;
     font-size: 0.95em;
   }
