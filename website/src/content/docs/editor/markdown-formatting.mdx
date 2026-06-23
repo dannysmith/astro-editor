@@ -5,17 +5,17 @@ description: 'The markdown syntax and formatting shortcuts the editor understand
 
 import AEDemo from '../../../components/AEDemo.astro'
 
-The editor is a **markdown source editor**, not a preview. You always see the real markdown, but the syntax characters (the `#`, `*`, `` ` `` and so on) are dimmed so they stay out of your way, while the text they affect is styled to match. A few common edits also have keyboard shortcuts — see [Keyboard Shortcuts](/reference/keyboard-shortcuts/) for the complete list.
+The editor is a **markdown source editor** not a preview, so you always see the actual characters in your file. Syntax highlighting is mostly just dimming markers like `**` so they don't distract from the words you're writing, and subtly styling some elements so documents are easier to scan. Common edits have the keyboard shortcuts you'd expect (see [Keyboard Shortcuts](/reference/keyboard-shortcuts/)).
 
 ## Headings
 
-Start a line with one to six `#` characters. The `#` marks are dimmed, and when there's room they "hang" in the left margin so your heading text stays aligned with the body. Heading colour is configurable in [Preferences](/preferences/).
+Headings all rendered the same, regardless of level. When there's room, hash-style heading markers "hang" in the left margin so the text stays aligned with the body copy. Heading colour is one of the few [configurable preferences](/preferences/) because it can hugely improve scanability when working with long documents.
 
 <AEDemo code={`# Heading 1
 ## Heading 2
 ### Heading 3`} />
 
-Rather than typing the `#` yourself, you can transform the current line:
+You can transform the current line into a heading with the same shortcuts as in [Notion](https://notion.so).
 
 | Shortcut | Action |
 | --- | --- |
