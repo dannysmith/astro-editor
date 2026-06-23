@@ -3,53 +3,55 @@ title: 'File Management'
 description: 'Overview of the left sidebar — collections, file list, and subfolders'
 ---
 
-The left sidebar provides your primary interface for navigating between files and collections in your Astro project.
+import fileManager1 from '../../../assets/file-manager-1.png'
+import fileManager2 from '../../../assets/file-manager-2.png'
+import fileManager3 from '../../../assets/file-manager-3.png'
+
+The left sidebar is your primary interface for navigating between files and collections in your Astro project.
 
 ## Opening a Project
 
-Use `File > Open Project` to select your Astro project directory. Astro Editor will automatically scan for content collections defined in your `src/content/config.ts` or `src/content.config.ts` file.
+Use `File > Open Project` or the *folder icon* in the sidebar to select and open your Astro project directory. Astro Editor will automatically scan for content collections and display them in the sidebar.
 
-**Directory Restrictions**: For security reasons, Astro Editor cannot open projects located in certain system directories. If you attempt to open a project in one of these locations, you'll see an error message asking you to choose a different location.
+<Figure src={fileManager1} alt="The left sidebar listing the content collections found in an open Astro project" caption="Astro Editor scans the project and lists its content collections in the sidebar." />
 
-## Collections and File Organization
+<Aside>
+For security reasons, Astro Editor cannot open projects located in certain system directories. If you attempt to open a project in one of these locations, you'll see an error.
+</Aside>
 
-**Collection Selection**: Click on any collection name to view its files. The currently selected collection is highlighted, and its files appear below.
+## Navigating between files
 
-**Subfolder Support**: Collections can be organized into subdirectories, and Astro Editor fully supports this structure. When you open a collection, you'll see:
+Clicking on a collection name will show its files in the sidebar. Subdirectories are also shown and can be navigated as you'd expect.
 
-- **Subdirectories** listed at the top (sorted alphabetically)
-- **Files** listed below subdirectories (sorted by date)
+<Figure src={fileManager2} alt="The sidebar showing the markdown files inside a collection, with a subdirectory listed above them" caption="Clicking a collection shows its files; any subdirectories appear above them." />
 
-To navigate into a subdirectory, simply click on it. The sidebar header shows breadcrumb navigation so you always know where you are.
+### What's shown in the sidebar
 
-**Breadcrumb Navigation**: When you're inside a subdirectory, the header shows a breadcrumb trail. Click any segment to jump to that level:
+<Figure src={fileManager3} alt="A file entry in the sidebar showing its title, date, and MDX and draft badges" caption="Each file shows its title, date, and any relevant badges." />
 
-```
-Articles / 2024 / January
-```
+The sidebar shows the following information for each file:
 
-- Click "Articles" to return to the collection root
-- Click "2024" to go up one level
-- "January" shows your current location (not clickable)
+| Item | Description |
+| --- | --- |
+| **Title** | Taken from the `title` frontmatter field (or whatever *title* field is configured in the [preferences](/preferences/#field-mappings)). The filename is shown if none exists. |
+| **Date** | Publication date (or whatever *pubDate* field is configured in the preferences) if it exists. |
+| **MDX Badge** | For files of that type. |
+| **Draft Badge** | For files with `draft: true` (or whatever *draft* field is configured in the preferences). |
+| **Filename** | Including the file extension. |
 
-**Back Navigation**: The back button is context-aware:
+### The Context Menu
 
-- In a subdirectory: Goes up one level
-- At collection root: Returns to collections list
-- Use it to quickly navigate up the hierarchy
+Right-clicking a file in the left sidebar gives you the following options:
 
-**File Ordering**: Files are automatically sorted by their publication date (newest first), using the date field configured in your project settings (defaults to `pubDate`, `date`, or `publishedDate`). Files without dates appear at the top of the list.
-
-**File Display**: Each file shows:
-
-- **Title**: Taken from the `title` frontmatter field, or the filename if no title exists
-- **Date**: Publication date in a readable format (e.g., "Dec 15, 2023")
-- **Draft Badge**: Yellow "Draft" indicator for files marked as drafts
+| Action | Description |
+| --- | --- |
+| **Rename** | Edit the filename. |
+| **Duplicate** | Create a duplicate of the file with a new name. |
+| **Reveal in Finder** | Open the file's location in your OS's file explorer. |
+| **Copy Path** | Copy the absolute file path to the clipboard. |
+| **Open in IDE** | Open the file in your [configured IDE](/file-management/ide-integration/). Only shown when one is configured. |
+| **Delete** | Delete the file. |
 
 ## Creating New Files
 
-Use <Kbd mac="Cmd+N" windows="Ctrl+N" /> or the "New File" button to create a new file. The file is created in the currently active location:
-
-- If you're in a subdirectory, the file is created there
-- If you're at the collection root, the file is created at the root
-- The file will have default frontmatter values from your collection schema
+When a collection is open, you can create a new file with <Kbd mac="Cmd+N" windows="Ctrl+N" /> or the "New File" button in the toolbar. If you're in a subdirectory, the file is created there. If you're at the collection root, the file is created at the root. The file will have default [frontmatter](/frontmatter/overview/) values from your collection schema.
