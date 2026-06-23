@@ -3,13 +3,15 @@ title: 'Frontmatter & Schemas'
 description: 'Overview of the right sidebar — how schemas and frontmatter are parsed and displayed'
 ---
 
-The frontmatter sidebar automatically generates editing forms based on your Astro content collection schemas. This means you get proper validation, appropriate input types, and a clean editing experience without any manual configuration.
+The frontmatter sidebar automatically generates a form based on your Astro content collection schema and the frontmatter present in the file. This means you get appropriate input types and a clean editing experience without any manual configuration.
+
+![alt text](../../../assets/frontmatter-sidebar-overview.png)
 
 ## How Schema Parsing Works
 
 Astro Editor uses a flexible multi-source approach to read your content collection schemas, ensuring maximum compatibility with different Astro project setups.
 
-**Primary Method: JSON Schema Files** (Recommended)
+**Primary Method: JSON Schema Files**
 
 Astro Editor first looks for JSON schema files in your project. These can be in two locations:
 
@@ -37,3 +39,7 @@ If JSON schema files aren't found, Astro Editor falls back to parsing your Zod s
 Fields appear in the sidebar in the same order they're defined in your Zod schema. When you create a new file, any default values specified in your schema are automatically applied in the panel.
 
 The frontmatter is written to your file in the same order it's shown in the schema, with any non-schema fields shown in alphabetical order by field name.
+
+## Fields not in your schema
+
+TODO: describe how fields not present in the schema but are present in the front matter of show what order they come in, etcetera. 
