@@ -44,7 +44,10 @@ function renderInline(text: string): string {
         mark(']') +
         mark(`(${m[2]})`)
     } else if ((m = /^\*\*([^*]+)\*\*/.exec(rest))) {
-      out += mark('**') + `<strong class="ae-strong">${esc(m[1])}</strong>` + mark('**')
+      out +=
+        mark('**') +
+        `<strong class="ae-strong">${esc(m[1])}</strong>` +
+        mark('**')
     } else if ((m = /^\*([^*\s][^*]*)\*/.exec(rest))) {
       out += mark('*') + `<em class="ae-em">${esc(m[1])}</em>` + mark('*')
     } else {
@@ -58,7 +61,10 @@ function renderInline(text: string): string {
 }
 
 /** Render a full markdown string (block mode) or a single fragment (inline). */
-export function renderMarkdown(src: string, opts: HighlightOptions = {}): string {
+export function renderMarkdown(
+  src: string,
+  opts: HighlightOptions = {}
+): string {
   if (opts.inline) return renderInline(src)
 
   const lines = src.split('\n')

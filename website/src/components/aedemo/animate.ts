@@ -102,12 +102,12 @@ function createAnim(container: HTMLElement): Controller {
 function init(): void {
   document
     .querySelectorAll<HTMLElement>('[data-aedemo]:not([data-aedemo-init])')
-    .forEach(el => {
+    .forEach((el) => {
       el.dataset.aedemoInit = '1'
       const anim = createAnim(el)
       const io = new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
+        (entries) => {
+          entries.forEach((entry) => {
             if (entry.isIntersecting) anim.resume()
             else anim.pause()
           })
