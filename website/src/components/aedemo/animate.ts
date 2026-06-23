@@ -5,60 +5,98 @@
  * string on every tick (so formatting "snaps" into place as marks complete,
  * just like the real editor), holds the finished state, then loops.
  *
- * Respects `prefers-reduced-motion` (renders the final state, no animation)
- * and only starts once the element scrolls into view.
+ * - Block demos write into the `.ae-anim` overlay; the sibling `.ae-sizer`
+ *   holds the box at its final height so the page never reflows.
+ * - Plays only while in view (IntersectionObserver pauses/resumes it).
+ * - Respects `prefers-reduced-motion` (renders the final state, no animation).
  */
 import { renderMarkdown } from './highlight'
 
 const CARET = '<span class="ae-caret"></span>'
-const reducedMotion = () =>
+const prefersReduced = () =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-function frame(code: string, inline: boolean, caret: boolean): string {
-  let html = renderMarkdown(code, { inline })
-  if (!caret) return html
+function frame(code: string, inline: boolean): string {
+  const html = renderMarkdown(code, { inline })
   if (inline) return html + CARET
-  // Place the caret inside the last line so it sits at the end of the text,
+  // Put the caret inside the last line so it sits at the end of the text,
   // not on a new line below the block.
   const idx = html.lastIndexOf('</div>')
   return idx >= 0 ? html.slice(0, idx) + CARET + html.slice(idx) : html + CARET
 }
 
-function animate(el: HTMLElement): void {
-  const code = JSON.parse(el.dataset.aedemo || '""') as string
-  const inline = el.dataset.inline === 'true'
+interface Controller {
+  resume(): void
+  pause(): void
+}
 
-  if (reducedMotion()) {
-    el.innerHTML = renderMarkdown(code, { inline })
-    return
+function createAnim(container: HTMLElement): Controller {
+  const code = JSON.parse(container.dataset.aedemo || '""') as string
+  const inline = container.dataset.inline === 'true'
+  const target = inline
+    ? container
+    : (container.querySelector<HTMLElement>('.ae-anim') ?? container)
+
+  if (prefersReduced()) {
+    target.innerHTML = renderMarkdown(code, { inline })
+    return { resume() {}, pause() {} }
   }
 
-  const speed = Number(el.dataset.speed) || 48
-  const holdAtEnd = 2400
-  const holdAtStart = 600
+  const speed = Number(container.dataset.speed) || 48
+  const HOLD_END = 2400
+  const HOLD_START = 600
+
+  let i = 0
+  let mode: 'start' | 'typing' | 'end' = 'start'
   let timer: number | undefined
 
-  const type = (i: number): void => {
-    el.innerHTML = frame(code.slice(0, i), inline, true)
-    if (i < code.length) {
-      const justTyped = code[i - 1]
-      const delay =
-        justTyped === '\n' ? speed * 3 : speed * (0.6 + Math.random() * 0.9)
-      timer = window.setTimeout(() => type(i + 1), delay)
-    } else {
-      timer = window.setTimeout(restart, holdAtEnd)
+  const paint = () => {
+    target.innerHTML = frame(code.slice(0, i), inline)
+  }
+
+  const advance = (): void => {
+    timer = undefined
+    if (mode === 'start') {
+      i = 0
+      mode = 'typing'
+      paint()
+      timer = window.setTimeout(advance, HOLD_START)
+      return
     }
+    if (mode === 'typing') {
+      if (i < code.length) {
+        i += 1
+        paint()
+        const justTyped = code[i - 1]
+        const delay =
+          justTyped === '\n' ? speed * 3 : speed * (0.6 + Math.random() * 0.9)
+        timer = window.setTimeout(advance, delay)
+      } else {
+        mode = 'end'
+        timer = window.setTimeout(advance, HOLD_END)
+      }
+      return
+    }
+    // mode === 'end' → loop back to the start
+    mode = 'start'
+    advance()
   }
 
-  const restart = (): void => {
-    el.innerHTML = frame('', inline, true)
-    timer = window.setTimeout(() => type(1), holdAtStart)
+  // Start with an empty pane (avoids a flash of the full SSR content when the
+  // demo first scrolls into view); the sizer keeps the height reserved.
+  paint()
+
+  return {
+    resume() {
+      if (timer === undefined) advance()
+    },
+    pause() {
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+        timer = undefined
+      }
+    },
   }
-
-  restart()
-
-  // Pause/resume isn't needed for a first pass; just clean up if removed.
-  el.addEventListener('aedemo:stop', () => window.clearTimeout(timer))
 }
 
 function init(): void {
@@ -66,16 +104,15 @@ function init(): void {
     .querySelectorAll<HTMLElement>('[data-aedemo]:not([data-aedemo-init])')
     .forEach(el => {
       el.dataset.aedemoInit = '1'
+      const anim = createAnim(el)
       const io = new IntersectionObserver(
         entries => {
           entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              io.disconnect()
-              animate(el)
-            }
+            if (entry.isIntersecting) anim.resume()
+            else anim.pause()
           })
         },
-        { threshold: 0.3 }
+        { threshold: 0.2 }
       )
       io.observe(el)
     })

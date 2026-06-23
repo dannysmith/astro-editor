@@ -7,8 +7,10 @@
  *   <AEDemo inline code="This is **bold text** here" />
  *   <AEDemo code={`# Title\n\nSome **markdown**...`} />
  *
- * The server renders the final styled state (works without JS / for reduced
- * motion); the client script replaces it with the typing animation.
+ * Block demos reserve their final height (a hidden "sizer" copy) so the page
+ * doesn't reflow as the animation loops. The server renders the final styled
+ * state (works without JS / for reduced motion); the client script overlays
+ * the typing animation and only plays while the demo is in view.
  */
 import { renderMarkdown } from './aedemo/highlight'
 
@@ -23,16 +25,29 @@ interface Props {
 
 const { code, inline = false, speed } = Astro.props
 const ssr = renderMarkdown(code, { inline })
-const Tag = inline ? 'span' : 'div'
 ---
 
-<Tag
-  class:list={['ae-demo', inline ? 'ae-demo-inline' : 'ae-demo-block']}
-  data-aedemo={JSON.stringify(code)}
-  data-inline={String(inline)}
-  data-speed={speed}
-  set:html={ssr}
-/>
+{
+  inline ? (
+    <span
+      class="ae-demo ae-demo-inline"
+      data-aedemo={JSON.stringify(code)}
+      data-inline="true"
+      data-speed={speed}
+      set:html={ssr}
+    />
+  ) : (
+    <div
+      class="ae-demo ae-demo-block"
+      data-aedemo={JSON.stringify(code)}
+      data-inline="false"
+      data-speed={speed}
+    >
+      <div class="ae-sizer" aria-hidden="true" set:html={ssr} />
+      <div class="ae-anim" set:html={ssr} />
+    </div>
+  )
+}
 
 <style is:global>
   @font-face {
@@ -58,7 +73,7 @@ const Tag = inline ? 'span' : 'div'
   }
 
   .ae-demo {
-    --ae-carat: rgba(0, 195, 255, 1);
+    --ae-caret: rgba(0, 195, 255, 1);
     --ae-bg: rgba(247, 247, 247, 1);
     --ae-text: rgba(25, 25, 25, 1);
     --ae-mdtag: rgba(179, 181, 176, 1);
@@ -66,37 +81,118 @@ const Tag = inline ? 'span' : 'div'
     --ae-link: rgba(53, 118, 182, 1);
     --ae-underline: rgba(214, 212, 209, 1);
     --ae-heading: var(--ae-text);
+    --ae-mono: 'iA Writer Mono Web', ui-monospace, monospace;
     font-family:
-      'iA Writer Duo Web', 'iA Writer Duo', -apple-system, 'Segoe UI', Roboto,
+      'iA Writer Duo Web',
+      'iA Writer Duo',
+      -apple-system,
+      'Segoe UI',
+      Roboto,
       sans-serif;
     font-weight: 490;
     color: var(--ae-text);
-  }
 
-  [data-theme='dark'] .ae-demo {
-    --ae-bg: rgba(26, 26, 26, 1);
-    --ae-text: rgba(204, 204, 204, 1);
-    --ae-mdtag: rgba(122, 122, 120, 1);
-    --ae-codebg: rgba(37, 37, 37, 0.6);
-    --ae-link: rgba(124, 159, 192, 1);
-    --ae-underline: rgba(84, 84, 82, 1);
-    font-weight: 480;
+    [data-theme='dark'] & {
+      --ae-bg: rgba(26, 26, 26, 1);
+      --ae-text: rgba(204, 204, 204, 1);
+      --ae-mdtag: rgba(122, 122, 120, 1);
+      --ae-codebg: rgba(37, 37, 37, 0.6);
+      --ae-link: rgba(124, 159, 192, 1);
+      --ae-underline: rgba(84, 84, 82, 1);
+      font-weight: 480;
+    }
+
+    .ae-mark {
+      color: var(--ae-mdtag);
+    }
+    .ae-strong {
+      font-weight: 700;
+    }
+    .ae-em {
+      font-style: italic;
+    }
+    .ae-code {
+      font-family: var(--ae-mono);
+      background: var(--ae-codebg);
+      padding: 0.05em 0.3em;
+      border-radius: 3px;
+    }
+    .ae-link {
+      color: var(--ae-link);
+      text-decoration: underline;
+      text-decoration-color: var(--ae-underline);
+    }
+    .ae-heading {
+      font-weight: 700;
+      color: var(--ae-heading);
+    }
+    .ae-h1 {
+      font-size: 1.5em;
+    }
+    .ae-h2 {
+      font-size: 1.3em;
+    }
+    .ae-h3 {
+      font-size: 1.15em;
+    }
+    .ae-quote {
+      color: var(--ae-mdtag);
+      font-style: italic;
+    }
+    .ae-codeline {
+      font-family: var(--ae-mono);
+      background: var(--ae-codebg);
+    }
+    .ae-hr {
+      color: var(--ae-mdtag);
+    }
+
+    .ae-anim {
+      margin-top: 0;
+    }
+
+    .ae-caret {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      background: var(--ae-caret);
+      animation: ae-caret-blink 1s steps(1) infinite;
+    }
   }
 
   .ae-demo-block {
-    display: block;
+    position: relative;
+    box-sizing: border-box;
     margin: 1.5rem 0;
-    padding: 1rem 1.25rem;
+    padding: 0;
+    overflow: hidden;
     background: var(--ae-bg);
     border: 1px solid color-mix(in srgb, var(--ae-text) 12%, transparent);
     border-radius: 0.6rem;
     font-size: 0.95rem;
     line-height: 1.65;
-    overflow-x: auto;
-  }
-  .ae-demo-block .ae-line {
-    white-space: pre-wrap;
-    min-height: 1.65em;
+
+    /* The hidden sizer reserves the final height; the anim overlays it so the
+       box never changes size as the animation types and loops. */
+    .ae-sizer,
+    .ae-anim {
+      box-sizing: border-box;
+      padding: 1rem 1.25rem;
+    }
+    .ae-sizer {
+      visibility: hidden;
+    }
+    .ae-anim {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .ae-line {
+      white-space: pre-wrap;
+      min-height: 1.65em;
+    }
   }
 
   .ae-demo-inline {
@@ -104,60 +200,6 @@ const Tag = inline ? 'span' : 'div'
     font-size: 0.95em;
   }
 
-  .ae-demo .ae-mark {
-    color: var(--ae-mdtag);
-  }
-  .ae-demo .ae-strong {
-    font-weight: 700;
-  }
-  .ae-demo .ae-em {
-    font-style: italic;
-  }
-  .ae-demo .ae-code {
-    font-family: 'iA Writer Mono Web', ui-monospace, monospace;
-    background: var(--ae-codebg);
-    padding: 0.05em 0.3em;
-    border-radius: 3px;
-  }
-  .ae-demo .ae-link {
-    color: var(--ae-link);
-    text-decoration: underline;
-    text-decoration-color: var(--ae-underline);
-  }
-  .ae-demo .ae-heading {
-    font-weight: 700;
-    color: var(--ae-heading);
-  }
-  .ae-demo .ae-h1 {
-    font-size: 1.5em;
-  }
-  .ae-demo .ae-h2 {
-    font-size: 1.3em;
-  }
-  .ae-demo .ae-h3 {
-    font-size: 1.15em;
-  }
-  .ae-demo .ae-quote {
-    color: var(--ae-mdtag);
-    font-style: italic;
-  }
-  .ae-demo .ae-codeline {
-    font-family: 'iA Writer Mono Web', ui-monospace, monospace;
-    background: var(--ae-codebg);
-  }
-  .ae-demo .ae-hr {
-    color: var(--ae-mdtag);
-  }
-
-  .ae-demo .ae-caret {
-    display: inline-block;
-    width: 2px;
-    height: 1.1em;
-    margin-left: 1px;
-    vertical-align: text-bottom;
-    background: var(--ae-carat);
-    animation: ae-caret-blink 1s steps(1) infinite;
-  }
   @keyframes ae-caret-blink {
     50% {
       opacity: 0;
