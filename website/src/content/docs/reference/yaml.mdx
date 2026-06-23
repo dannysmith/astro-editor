@@ -3,6 +3,32 @@ title: 'How YAML is Handled'
 description: 'Reference for how YAML frontmatter is read, written, and formatted'
 ---
 
-This page will document how Astro Editor reads, writes, and formats YAML frontmatter.
+Astro Editor splits each file into its YAML frontmatter, any component imports, and the body, edits them separately, and stitches them back together on save. This page describes exactly how the frontmatter half of that is read and written, because the rules occasionally surprise people.
 
-Documentation is coming soon.
+## Reading frontmatter
+
+When a file opens, Astro Editor looks for a frontmatter block — a `---` on the very first line, the YAML in between, and a closing `---`. The block has to start on line one: a blank line or any other content before it means the file is treated as having no frontmatter.
+
+The fields are parsed into the [frontmatter form](/frontmatter/overview/), keeping their original order. Any `import` or `export` lines immediately after the frontmatter (the ones MDX files use to pull in components) are recognised and hidden from the editor, then put back when you save.
+
+## Writing frontmatter
+
+How the frontmatter is written depends on whether you touched it:
+
+- **If you only edited the body**, the original frontmatter block is written back **exactly as it was** — same order, same quoting, same comments, character for character.
+- **If you edited any frontmatter field**, the whole block is re-generated from scratch. This is where formatting gets normalised.
+
+That second case is the important one. Re-generating the block means:
+
+- **Field order changes.** Fields are written in your schema's order first, then any fields not in the schema, alphabetically. (With no schema, everything is alphabetical.)
+- **Comments are dropped.** YAML comments aren't part of the data, so they don't survive a rewrite.
+- **Quoting and spacing are normalised.** Astro Editor doesn't preserve your exact style — strings are left unquoted unless they need quoting, indentation is standardised, and an inline array like `[a, b]` is rewritten as a block list.
+- **Date-times are shortened to dates.** A value like `2024-01-15T09:30:00Z` becomes `2024-01-15`; the time is discarded.
+
+<Aside type="caution">
+Because editing a single field rewrites the whole block, comments in your frontmatter and any hand-tuned formatting will be lost the first time you change anything in that file's frontmatter through Astro Editor. The body of your document is never touched this way.
+</Aside>
+
+## Types
+
+Values keep their YAML types as you'd expect: `true` / `false` stay booleans, numbers stay numbers, and quoted and unquoted strings are both read as text. These round-trip back to bare `true`, `false`, and numbers when the block is re-generated.

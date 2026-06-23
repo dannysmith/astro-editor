@@ -3,14 +3,41 @@ title: 'Advanced Preferences & Project Store'
 description: 'Reference for preferences JSON files and the project store'
 ---
 
-## Settings Storage
+Astro Editor stores all of its settings as plain JSON files on your machine. You rarely need to touch them, but knowing where they live helps with backups and troubleshooting.
 
-Settings are automatically saved to your system:
+## Where settings are stored
 
-- **Location**: `~/Library/Application Support/is.danny.astroeditor/`
-- **Global Settings**: Theme, IDE command, and other app-wide preferences
-- **Project Registry**: Remembers all opened projects and their metadata
-- **Project Files**: Individual settings files for each project (includes collection overrides)
-- **Auto-Recovery**: Settings persist across app restarts and crashes
+Everything lives in the app's data directory:
 
-Projects are identified by their `package.json` name and automatically migrate if you move the project folder.
+| Platform | Location |
+| --- | --- |
+| macOS | `~/Library/Application Support/is.danny.astroeditor/` |
+| Windows | `%LOCALAPPDATA%\is.danny.astroeditor\` |
+| Linux | `~/.local/share/is.danny.astroeditor/` |
+
+You can open this folder from the **Advanced** tab in [Preferences](/preferences/) via **Open Preferences Folder**.
+
+## What's in there
+
+Settings sit in a `preferences/` subfolder:
+
+| File | What it holds |
+| --- | --- |
+| `preferences/global-settings.json` | App-wide settings: theme, IDE command, heading colours, auto-save delay, copyedit highlights, and the default file type |
+| `preferences/project-registry.json` | The list of projects you've opened, with their metadata and which was last open |
+| `preferences/projects/<project-id>.json` | One file per project: its [overrides](/reference/overrides/) and any per-collection settings |
+
+Two sibling folders hold operational data rather than settings: `recovery/` keeps short-lived copies of unsaved work, and `crash-reports/` keeps crash diagnostics.
+
+## How projects are identified
+
+Each project's id is derived from the `name` in its `package.json` (with a short hash appended if two projects would otherwise collide). If a project can't be read, the folder name is used instead.
+
+Because the id is tied to the package name rather than the folder path, **moving or renaming a project folder keeps its settings**. The next time you open it, Astro Editor matches it by name and quietly updates the stored path.
+
+## The Advanced preferences tab
+
+The **Advanced** tab in Preferences is for diagnostics and maintenance, not day-to-day settings. It shows the application and preferences versions, and offers two actions:
+
+- **Open Preferences Folder** — reveal the directory described above.
+- **Reset All Preferences** — delete every stored setting and restart the app. This is destructive and can't be undone, so it asks you to confirm first. It's the thing to reach for if your settings ever end up in a bad state.
