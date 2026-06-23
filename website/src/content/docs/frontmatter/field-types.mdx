@@ -3,6 +3,9 @@ title: 'Field Types'
 description: 'How each schema field type becomes a control in the frontmatter sidebar'
 ---
 
+import nestedFieldExample from '../../../assets/nested-field-example.png'
+import nestedImageField from '../../../assets/nested-image-field.png'
+
 Every field in your collection [schema](/frontmatter/overview/) becomes a control in the frontmatter sidebar. This page covers how each type is rendered.
 
 ## Basic fields
@@ -49,6 +52,8 @@ As above, the asterisk is a prompt, not a gate — saving isn't blocked when a r
 
 ## Nested fields
 
+<Figure src={nestedFieldExample} alt="A nested object rendered in the frontmatter sidebar as a labelled, indented group of fields" caption="A nested object's fields, grouped and indented under their own heading of 'Metadata'." />
+
 A `z.object({ … })` groups its fields into a labelled section in the sidebar, indented under a heading taken from the object's name.
 
 ```ts
@@ -65,6 +70,8 @@ const blog = defineCollection({
 Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would as top-level fields.
 
 ## Image fields
+
+<Figure src={nestedImageField} alt="An image field in the frontmatter sidebar showing a thumbnail preview above the image path, with edit and clear buttons" caption="An image field: a thumbnail preview with controls to edit the path or clear the image. This one happens to also be a nested field." />
 
 A field using Astro's `image()` helper becomes an image control with a thumbnail preview, rather than a plain path input.
 
