@@ -86,8 +86,7 @@ const ssr = renderMarkdown(code, { inline })
     --ae-bg: rgba(247, 247, 247, 1);
     --ae-text: rgba(25, 25, 25, 1);
     --ae-mdtag: rgba(179, 181, 176, 1);
-    --ae-codebg: rgba(238, 238, 238, 0.6);
-    --ae-link: rgba(53, 118, 182, 1);
+    --ae-codebg: rgba(238, 238, 238, 0.5);
     --ae-underline: rgba(214, 212, 209, 1);
     --ae-heading: var(--ae-text);
     --ae-mono: 'iA Writer Mono Web', ui-monospace, monospace;
@@ -105,8 +104,7 @@ const ssr = renderMarkdown(code, { inline })
       --ae-bg: rgba(26, 26, 26, 1);
       --ae-text: rgba(204, 204, 204, 1);
       --ae-mdtag: rgba(122, 122, 120, 1);
-      --ae-codebg: rgba(37, 37, 37, 0.6);
-      --ae-link: rgba(124, 159, 192, 1);
+      --ae-codebg: rgba(37, 37, 37, 0.5);
       --ae-underline: rgba(84, 84, 82, 1);
       font-weight: 480;
     }
@@ -127,7 +125,7 @@ const ssr = renderMarkdown(code, { inline })
       border-radius: 3px;
     }
     .ae-link {
-      color: var(--ae-link);
+      color: var(--ae-mdtag);
       text-decoration: underline;
       text-decoration-color: var(--ae-underline);
     }
@@ -135,14 +133,12 @@ const ssr = renderMarkdown(code, { inline })
       font-weight: 700;
       color: var(--ae-heading);
     }
-    .ae-h1 {
-      font-size: 1.5em;
-    }
-    .ae-h2 {
-      font-size: 1.3em;
-    }
-    .ae-h3 {
-      font-size: 1.15em;
+    /* The app does not scale headings — they share the body size and are
+       only bold. The hash marks take the heading colour (not the dimmed
+       mdtag used for other syntax marks). */
+    .ae-heading-mark {
+      color: var(--ae-heading);
+      font-weight: 700;
     }
     .ae-quote {
       color: var(--ae-mdtag);

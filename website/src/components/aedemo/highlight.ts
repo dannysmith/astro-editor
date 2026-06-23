@@ -86,7 +86,7 @@ export function renderMarkdown(
     let m: RegExpExecArray | null
     if ((m = /^(#{1,6})\s+(.*)$/.exec(line))) {
       const level = m[1].length
-      html += `<div class="ae-line ae-heading ae-h${level}">${mark(m[1])} ${renderInline(m[2])}</div>`
+      html += `<div class="ae-line ae-heading ae-h${level}"><span class="ae-mark ae-heading-mark">${esc(m[1])}</span> ${renderInline(m[2])}</div>`
     } else if ((m = /^>\s?(.*)$/.exec(line))) {
       html += `<div class="ae-line">${mark('>')} <span class="ae-quote">${renderInline(m[1])}</span></div>`
     } else if ((m = /^(\s*)([-*+])\s+(.*)$/.exec(line))) {
