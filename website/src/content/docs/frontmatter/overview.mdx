@@ -11,7 +11,7 @@ The frontmatter sidebar automatically generates a form based on your Astro conte
 
 To build the form, Astro Editor needs to understand your collection's schema. It reads that schema from two places and combines them.
 
-### 1. The generated JSON schema (primary source)
+### 1. The generated JSON schema
 
 When Astro runs [`astro sync`](https://docs.astro.build/en/reference/cli-reference/#astro-sync) — which also happens automatically when you run `astro dev` or `astro build` — it writes a JSON Schema file for each collection into `.astro/collections/`, for example `.astro/collections/blog.schema.json`. This is Astro Editor's main source of truth, and it describes almost everything the form needs:
 
@@ -50,7 +50,7 @@ const blog = defineCollection({
 
 Here, `title` and `draft` (and their types, limits, and defaults) come from the generated JSON schema, while `cover` and `author` are recognised as an image picker and a reference dropdown by reading the config file itself. See [Field Types](/frontmatter/field-types/) for how each type maps to a control.
 
-### When there's no JSON schema (fallback)
+### When there's no JSON schema
 
 If the generated JSON schema is missing or can't be read, Astro Editor falls back to reading your Zod schema on its own and inferring the fields from it. This handles most everyday schemas, but it's more limited than the JSON schema: it can miss or misread fields in schemas that are complex, built dynamically, spread in from other objects, or imported from a third-party package (Starlight's schemas, for instance). Running `astro sync` resolves nearly all of these, because it produces the complete JSON schema for Astro Editor to read.
 

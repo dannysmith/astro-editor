@@ -1,26 +1,46 @@
 ---
 title: 'Special Fields'
-description: 'Special frontmatter field names and their behaviours'
+description: 'The frontmatter fields Astro Editor treats specially, and what they drive'
 ---
 
-Astro Editor gives certain frontmatter fields special treatment. Which field names count as "special" can be remapped per project or per collection in [Preferences](/preferences/).
+Astro Editor singles out a few frontmatter fields by name and uses them across the app — in the file list, in sorting and filtering, and in the editor. The **title**, **date**, **description**, and **draft** fields can each be remapped per project or per collection in [Preferences](/preferences/#field-mappings); the precise override rules are covered in [Overrides](/reference/overrides/).
 
 ## Title
 
-If your schema has a field named `title` (or whichever field is configured in project settings), it renders as a larger, bold textarea that automatically expands as you type. Title fields always appear first in the panel, regardless of their position in the schema, and are used as the file's title in the sidebar.
+Defaults to `title`. The title field does a lot of work:
+
+- **File list** — shown as each file's name in the [sidebar](/file-management/overview/), falling back to the filename when it's empty.
+- **Frontmatter panel** — rendered as a larger, bold, auto-expanding text area, always pinned to the top of the panel, with a **Copy as slug** action that copies a URL-friendly version of the title to your clipboard.
+- **Sorting** — it's the **Title** [sort option](/file-management/drafts-filtering-and-sorting/), and the alphabetical tiebreaker the **Default** sort uses for files that share a date or have none.
+- **Filtering** — the filter box matches against the title as well as the filename.
+- **Content Finder** — entries are listed and searched by their title.
+- **New files** — a `title` field is pre-filled with a placeholder like "New Article".
+
+## Date
+
+Defaults to `date`. The date field is what the file list is sorted by:
+
+- **File list** — shown next to each file, and used by the **Default** sort (newest first), with undated files floated to the top.
+- **New files** — a `date`, `pubDate`, or `publishedDate` field is set to today's date.
+
+<Aside>
+If your posts use a date field that isn't called `date` (such as `pubDate`), set it in [Preferences](/preferences/#field-mappings) so sorting works as you'd expect.
+</Aside>
 
 ## Description
 
-Fields named `description` get a multi-line textarea that grows based on content length.
-
-## Date (pubDate / date)
-
-_Documentation coming soon._ The configured date field is used to sort files in the sidebar (newest first). Defaults to `pubDate`, `date`, or `publishedDate`.
+Defaults to `description`. This one is purely cosmetic: the configured field is rendered as a taller, multi-line text area that grows as you type. It has no effect on the file list, sorting, or filtering.
 
 ## Draft
 
-_Documentation coming soon._ The configured boolean draft field controls the draft badge and the drafts filter in the sidebar. Defaults to `draft`.
+Defaults to `draft`. A file counts as a draft only when this field is exactly `true`.
+
+- **File list** — draft files show a **Draft** badge.
+- **Filtering** — the "Show Drafts Only" toggle uses this field. See [Drafts, Filtering & Sorting](/file-management/drafts-filtering-and-sorting/).
 
 ## Slug
 
-_Documentation coming soon._ Used when inserting links to other content items via the Content Finder if a URL pattern override is set for the collection.
+Unlike the fields above, `slug` isn't a configurable mapping — Astro Editor always looks for a field named exactly `slug`. It's used in two places:
+
+- **Content links** — when a collection has a URL pattern configured, the `{slug}` placeholder is filled from the file's `slug` field, falling back to the file's id when there isn't one. See [Overrides](/reference/overrides/).
+- **Copy as slug** — the action on the title field (above) generates a slug from the title text; it copies to the clipboard and doesn't write anything to a `slug` field.
