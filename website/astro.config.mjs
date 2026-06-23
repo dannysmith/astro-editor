@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight'
 import starlightThemeFlexoki from 'starlight-theme-flexoki'
 import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightKbd from 'starlight-kbd'
+import AutoImport from 'astro-auto-import'
 
 // https://astro.build/config
 export default defineConfig({
@@ -111,6 +112,30 @@ export default defineConfig({
         {
           label: 'Releases',
           link: '/releases/',
+        },
+      ],
+    }),
+    // Auto-import commonly used components into all MDX files so they don't
+    // need importing by hand. Keep this list in sync with website/AGENTS.md.
+    // NOTE: must come AFTER starlight() — Starlight registers the MDX
+    // integration internally, and the auto-imports only attach if this runs
+    // after that. (A harmless "@astrojs/mdx initialized BEFORE
+    // astro-auto-import" warning is printed during build as a result.)
+    AutoImport({
+      imports: [
+        './src/components/Figure.astro',
+        './src/components/AEDemo.astro',
+        {
+          'starlight-kbd/components': ['Kbd'],
+          '@astrojs/starlight/components': [
+            'LinkCard',
+            'Aside',
+            'FileTree',
+            'LinkButton',
+            'Steps',
+            'Tabs',
+            'TabItem',
+          ],
         },
       ],
     }),

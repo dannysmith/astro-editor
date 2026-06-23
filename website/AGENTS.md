@@ -63,15 +63,23 @@ bun run format       # Prettier format
 
 ## Components
 
-Custom components live in `src/components/`. Import them at the top of an `.mdx` file, adjusting the relative depth to the file's location (e.g. `../../../components/` for a page in `docs/editor/`).
+Custom components live in `src/components/`.
+
+### Auto-imported components
+
+These components are **auto-imported into every `.mdx` file** via `astro-auto-import` (configured in `astro.config.mjs`). Use them directly — **do not** add an `import` statement for them, as a manual import collides with the injected one and breaks the build:
+
+- `AEDemo`, `Figure` (custom, from `src/components/`)
+- `Kbd` (from `starlight-kbd/components`)
+- `LinkCard`, `Aside`, `FileTree`, `LinkButton`, `Steps`, `Tabs`, `TabItem` (from `@astrojs/starlight/components`)
+
+Any other component (e.g. Starlight's `Card` / `CardGrid`) still needs a manual import. To add a component to the auto-import list, edit the `AutoImport` config in `astro.config.mjs` and update this section to match.
 
 ### AEDemo — animated editor demo
 
 `AEDemo` renders a faux Astro Editor pane that types markdown out and styles it exactly as the app does (dimmed syntax marks, iA Writer font, editor colours). Prefer it over recording GIFs when showing off markdown or editor behaviour.
 
 ```mdx
-import AEDemo from '../../../components/AEDemo.astro'
-
 Inline: <AEDemo inline code="This is **bold text** here" />
 
 <AEDemo code={`# A heading
@@ -91,10 +99,9 @@ Some **bold** and *italic* text, plus \`inline code\`.
 
 ### Figure — captioned image
 
-Starlight/Astro have no built-in figure component. `Figure` wraps an optimised image with an optional caption — import the image asset and pass it as `src`.
+Starlight/Astro have no built-in figure component. `Figure` wraps an optimised image with an optional caption. `Figure` itself is auto-imported, but you still import the image asset and pass it as `src`.
 
 ```mdx
-import Figure from '../../../components/Figure.astro'
 import shot from '../../../assets/my-shot.png'
 
 <Figure src={shot} alt="Required, descriptive alt text" caption="Optional caption." />
@@ -102,14 +109,14 @@ import shot from '../../../assets/my-shot.png'
 
 ## Starlight Components
 
-Prefer Starlight's built-in components over hand-rolled markup. Import from `@astrojs/starlight/components` and use them where they fit:
+Prefer Starlight's built-in components over hand-rolled markup. Most are auto-imported (see [Auto-imported components](#auto-imported-components)) — use them where they fit:
 
 - **`Steps`** — numbered, sequential instructions (install → open → write).
 - **`Aside`** (`note` / `tip` / `caution` / `danger`) — callouts. Don't put backticks in the `title` attribute; it renders as plain text.
 - **`FileTree`** — directory/file structure diagrams.
 - **`Tabs` / `TabItem`** — alternative paths, e.g. per-OS instructions.
 - **`LinkButton`** — prominent download/CTA links. The built-in icon set is small (~19 icons, no OS logos); `cloud-download` suits downloads.
-- **`Card` / `CardGrid` / `LinkCard`** — feature grids and "next steps" navigation.
+- **`Card` / `CardGrid` / `LinkCard`** — feature grids and "next steps" navigation. Only `LinkCard` is auto-imported; `Card` / `CardGrid` need a manual import.
 
 Always give images real, descriptive alt text (never the placeholder "alt text"). Internal links use absolute, trailing-slash paths (e.g. `/preferences/`).
 
