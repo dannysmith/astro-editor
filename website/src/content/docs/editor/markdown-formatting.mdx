@@ -3,11 +3,11 @@ title: 'Markdown Formatting'
 description: 'The markdown syntax and formatting shortcuts the editor understands'
 ---
 
-The editor is a **markdown source editor** not a preview, so you always see the actual characters in your file. Syntax highlighting is mostly just dimming markers like `**` so they don't distract from the words you're writing, and subtly styling some elements so documents are easier to scan. Common edits have the keyboard shortcuts you'd expect (see [Keyboard Shortcuts](/reference/keyboard-shortcuts/)).
+The editor is a **markdown source editor**, not a preview, so you always see the actual characters in your file. Syntax highlighting is mostly just dimming markers like `**` so they don't distract from the words you're writing, and subtly styling some elements so documents are easier to scan. Common edits have the keyboard shortcuts you'd expect (see [Keyboard Shortcuts](/reference/keyboard-shortcuts/)).
 
 ## Headings
 
-Headings all rendered the same, regardless of level. When there's room, hash-style heading markers "hang" in the left margin so the text stays aligned with the body copy. Heading colour is one of the few [configurable preferences](/preferences/) because it can hugely improve scanability when working with long documents.
+Headings are all rendered the same, regardless of level. When there's room, hash-style heading markers "hang" in the left margin so the text stays aligned with the body copy. Heading colour is one of the few [configurable preferences](/preferences/) because it can hugely improve scannability when working with long documents.
 
 <AEDemo code={`# Heading 1
 ## Heading 2
@@ -22,20 +22,13 @@ You can transform the current line into a heading with the same shortcuts as in 
 
 ## Bold & Italic
 
-Wrap text in `**` for bold and `*` for italic.
+Wrap text in `**` for bold and `*` for italic. You can use <Kbd mac="Cmd+B" windows="Ctrl+B" /> and <Kbd mac="Cmd+I" windows="Ctrl+I" /> as you'd expect.
 
-<AEDemo code="this is **bold** and this is *italic*" />.
-
-| Shortcut | Action |
-| --- | --- |
-| <Kbd mac="Cmd+B" windows="Ctrl+B" /> | Wrap the selection in `**` (bold) |
-| <Kbd mac="Cmd+I" windows="Ctrl+I" /> | Wrap the selection in `*` (italic) |
-
-Both shortcuts toggle — run them again on the same selection to remove the formatting.
+<AEDemo code="this is **bold** and this is *italic*" />
 
 ## Lists
 
-Unordered lists start with `-`, `*`, or `+`; ordered lists start with a number followed by a dot. Just start typing — there's no shortcut needed.
+Ordered and unordered lists work as you'd expect in a markdown editor, and you can indent/outdent with <Kbd mac="Cmd+[" windows="Ctrl+[" /> and <Kbd mac="Cmd+]" windows="Ctrl+]" />.
 
 <AEDemo code={`- First item
 - Second item
@@ -45,15 +38,27 @@ Unordered lists start with `-`, `*`, or `+`; ordered lists start with a number f
 
 ## Links
 
-Write links with standard markdown, or use <Kbd mac="Cmd+K" windows="Ctrl+K" /> to wrap the selected text in a link and drop your cursor into the URL. Hold <Kbd mac="Opt" windows="Alt" /> and click any link to open it in your browser.
+Markdown links are highlighted like this:
 
 <AEDemo code="[Astro Editor](https://astroeditor.danny.is)" />
 
-To link to another item in your content collections, use the Content Linker (<Kbd mac="Cmd+Shift+K" windows="Ctrl+Shift+K" />) — see [Links](/editor/links/) for more.
+You can use <Kbd mac="Cmd+K" windows="Ctrl+K" /> to wrap selected text in an empty markdown link or insert one at the cursor. Pasting a valid URL over selected text will wrap it in a link to that URL.
+
+Holding <Kbd mac="Opt" windows="Alt" /> while clicking a URL will open it in your browser.
+
+To link to another item in your content collections, use the [Content Linker](/editor/links/#content-linker).
+
+## Images
+
+Markdown images are shown like links.
+
+<AEDemo code="![Picture of a cat](https://astroeditor.danny.is/cat.jpg)" />
+
+Holding <Kbd mac="Opt" windows="Alt" /> while hovering will [show a small preview](/editor/images-and-files/).
 
 ## Inline Code & Code Blocks
 
-Wrap inline code in single backticks; it's shown in Astro Editor's monospace font with a subtle background. Fenced code blocks (three backticks) get a tinted background across the whole block.
+Inline code (using backticks) and fenced code blocks are shown in a monospace font with a background to differentiate them from non-code. Code is deliberately not syntax-highlighted (see [Philosophy](/getting-started/philosophy/)).
 
 <AEDemo code={`Use the \`glob()\` loader in your config.
 
@@ -61,14 +66,9 @@ Wrap inline code in single backticks; it's shown in Astro Editor's monospace fon
 const articles = defineCollection({ /* ... */ })
 \`\`\``} />
 
-Code **inside** fenced blocks is deliberately not syntax-highlighted by language — Astro Editor is a writing tool, not a coding one. See the [Philosophy](/getting-started/philosophy/) page for why.
 
 ## Blockquotes
 
-Start a line with `>`. The whole quoted line is shown in grey italics.
+Blockquotes are shown in grey, italicised.
 
 <AEDemo code="> A quote stands out from the surrounding text." />
-
-## Other Syntax
-
-The editor also styles images (`![alt](src)` — hold <Kbd mac="Opt" windows="Alt" /> and hover to [preview them](/editor/images-and-files/)), horizontal rules (`---`), and inline HTML.
