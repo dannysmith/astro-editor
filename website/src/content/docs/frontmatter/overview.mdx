@@ -5,41 +5,63 @@ description: 'Overview of the right sidebar — how schemas and frontmatter are 
 
 The frontmatter sidebar automatically generates a form based on your Astro content collection schema and the frontmatter present in the file. This means you get appropriate input types and a clean editing experience without any manual configuration.
 
-![alt text](../../../assets/frontmatter-sidebar-overview.png)
+![The frontmatter sidebar showing a generated form with fields for a post's metadata](../../../assets/frontmatter-sidebar-overview.png)
 
 ## How Schema Parsing Works
 
-Astro Editor uses a flexible multi-source approach to read your content collection schemas, ensuring maximum compatibility with different Astro project setups.
+To build the form, Astro Editor needs to understand your collection's schema. It reads that schema from two places and combines them.
 
-**Primary Method: JSON Schema Files**
+### 1. The generated JSON schema (primary source)
 
-Astro Editor first looks for JSON schema files in your project. These can be in two locations:
+When Astro runs [`astro sync`](https://docs.astro.build/en/reference/cli-reference/#astro-sync) — which also happens automatically when you run `astro dev` or `astro build` — it writes a JSON Schema file for each collection into `.astro/collections/`, for example `.astro/collections/blog.schema.json`. This is Astro Editor's main source of truth, and it describes almost everything the form needs:
 
-1. **Astro-generated schemas**: Files in `.astro/collections/` directory (like `blog.schema.json`)
-2. **Custom schema files**: `content.config.json` or `content/config.json` in your project root
+- field types (string, number, boolean, date, array, object, enum)
+- constraints (min/max, minimum/maximum length, regex patterns)
+- descriptions (from `.describe()`)
+- default values, and which fields are required
+- nested objects, flattened into dotted paths like `coverImage.image`
 
-To ensure Astro-generated files are available:
+Astro Editor watches this folder, so whenever these files are regenerated the form updates automatically.
 
-1. Run `pnpm run dev` or `astro sync` in your project directory
-2. Astro will automatically generate schema files in `.astro/collections/`
-3. Astro Editor reads these schemas and builds the frontmatter forms
+<Aside type="tip">
+If a field isn't appearing, or its type or validation looks wrong, the usual fix is to run `astro sync` (or just start your dev server) to regenerate these files. Astro Editor will pick up the changes on its own.
+</Aside>
 
-**Support for Schema Imports**
+### 2. Your Zod schema (for Astro-specific helpers)
 
-Astro Editor supports `content.config.json` files that import schemas from other sources. This is particularly useful for sites using frameworks like [Starlight](https://starlight.astro.build/), which provide their own schema definitions. If your project imports schemas rather than defining them inline, Astro Editor can still read and use them.
+A JSON schema can't describe two of Astro's helpers, so Astro Editor *also* reads your Zod schema directly — from `src/content.config.ts` or `src/content/config.ts` — purely to find them:
 
-**Fallback Method: Zod Schema Parsing**
+- `image()` — shown as an image picker
+- `reference('collection')` — shown as a dropdown that links to another collection
 
-If JSON schema files aren't found, Astro Editor falls back to parsing your Zod schema definitions directly from `src/content/config.ts` or `src/content.config.ts`. This works for most cases but has limitations with complex schemas, dynamically built schemas, or third-party schema definitions.
+Take a schema like this:
 
-**Best Practice**: Always run `astro sync` after modifying your content collection schemas to ensure Astro Editor has the latest field definitions.
+```ts title="src/content.config.ts"
+const blog = defineCollection({
+  schema: ({ image }) =>
+    z.object({
+      title: z.string().max(100), // type and 100-char limit come from the JSON schema
+      draft: z.boolean().default(false), // type and default come from the JSON schema
+      cover: image(), // recognised by reading this file
+      author: reference('authors'), // recognised by reading this file
+    }),
+})
+```
+
+Here, `title` and `draft` (and their types, limits, and defaults) come from the generated JSON schema, while `cover` and `author` are recognised as an image picker and a reference dropdown by reading the config file itself. See [Field Types](/frontmatter/field-types/) for how each type maps to a control.
+
+### When there's no JSON schema (fallback)
+
+If the generated JSON schema is missing or can't be read, Astro Editor falls back to reading your Zod schema on its own and inferring the fields from it. This handles most everyday schemas, but it's more limited than the JSON schema: it can miss or misread fields in schemas that are complex, built dynamically, spread in from other objects, or imported from a third-party package (Starlight's schemas, for instance). Running `astro sync` resolves nearly all of these, because it produces the complete JSON schema for Astro Editor to read.
+
+If neither source is available, no schema-driven form is generated and you'll simply see the file's existing frontmatter fields.
 
 ## Field Order and Defaults
 
-Fields appear in the sidebar in the same order they're defined in your Zod schema. When you create a new file, any default values specified in your schema are automatically applied in the panel.
+Fields appear in the sidebar in the order they're defined in your schema, except the title field, which is always shown first. When you create a new file, any default values from your schema are pre-filled in the panel.
 
-The frontmatter is written to your file in the same order it's shown in the schema, with any non-schema fields shown in alphabetical order by field name.
+The frontmatter is written to your file in the same order it's defined in the schema, with any fields that aren't in the schema written after them, in alphabetical order by field name.
 
 ## Fields not in your schema
 
-TODO: describe how fields not present in the schema but are present in the front matter of show what order they come in, etcetera. 
+Frontmatter fields that aren't part of the schema are never discarded. They're still shown in the sidebar — below the schema fields and sorted alphabetically — and they're kept when you save. Because there's no schema to describe them, they're shown as plain text inputs (a list of text values becomes a tag field), rather than as typed controls like date pickers or toggles.
