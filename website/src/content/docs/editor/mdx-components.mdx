@@ -3,25 +3,52 @@ title: 'MDX Components'
 description: 'Insert Astro, React, Vue, and Svelte components in MDX files'
 ---
 
-When editing an MDX file, <Kbd mac="Cmd+/" windows="Ctrl+/" /> will open the component builder. This shows all the components inside your configured `/components/mdx` directory.
+Many Astro sites contain components which are specifically designed for use in MDX content files. Here's a simple example.
 
-**Framework Support**: The component builder works with components written in multiple frameworks:
+```astro title="Highlight.astro"
+<span class="highlight"><slot /></span>
+
+<style>
+  .highlight {
+    background: var(--color-highlight-bg);
+    padding: 0 8px 4px;
+  }
+</style>
+```
+
+Which we might use like this.
+
+```mdx title="my-post.mdx"
+This is some <Highlight>text I wanna highlight</Highlight>.
+```
+
+We can probably remember how to use a simple component like this, but using more complex components which accept multiple props can often mean opening a code editor and looking at the component file before we can use it.
+
+## The MDX Component Builder
+
+Astro Editor helps with using thes kinds of components by providing an inteface for searching and inserting them into MDX content files. When editing an MDX file, <Kbd mac="Cmd+/" windows="Ctrl+/" /> will open a palette showing all the components inside your configured *MDX directory*. You filter the results by typing, as you'd expect.
+
+![alt text](../../../assets/mdx-builder-1.png)
+
+Hitting Enter will open an interface showing the available props and their types along with a preview of what will be inserted.
+
+![alt text](../../../assets/mdx-builder-2.png)
+
+Optional props can be toggled on or off and <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> will insert the component into your document with your cursor in the first editable prop or slot. You can use <Kbd mac="Tab" windows="Tab" /> to move between them.
+
+![alt text](../../../assets/mdx-builder-3.png)
+
+<Aside>
+While Astro Editor will insert the component itself, it **won't add an import below the frontmatter**. While this is definitely coder-mode stuff, it's not great when in writer mode because if you're running a dev server to preview as you write the page will break until you switch to a code editor and add the missing import.
+
+We may add this in a future release but in the meantime, consider adding [Astro Auto Import](https://github.com/delucis/astro-auto-import) to your site and having it import all the components in your `mdx/` directory.
+</Aside>
+
+## What are "MDX" Components?
+
+Any component meant to be used as above. By default, Astro Editor looks in `src/components/mdx/` and its subdirectories but you can configure this in the preferences. The component builder automatically detects which props and slots are available by reading the component's source code and works with well-formed components written in:
 
 - **Astro** (`.astro` files)
 - **React** (`.tsx`, `.jsx` files)
 - **Vue** (`.vue` files)
 - **Svelte** (`.svelte` files)
-
-Each component in the list shows a small badge indicating which framework it's written in, along with an icon for quick visual identification.
-
-**Using the component builder:**
-
-1. Press <Kbd mac="Cmd+/" windows="Ctrl+/" /> in any MDX file
-2. Browse or search for a component
-3. Select a component to see its configuration options
-4. Toggle the props you want to include
-5. Press <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> to insert the component into your document
-
-After insertion, you can tab through the various prop values to fill them in. The component builder automatically detects which props are available by reading the component's source code.
-
-**Subdirectory Support**: Components can be organized in subdirectories within your MDX components folder. Astro Editor scans recursively and shows all available components regardless of how deeply nested they are.
