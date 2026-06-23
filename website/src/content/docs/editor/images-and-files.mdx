@@ -3,18 +3,47 @@ title: 'Images & Files'
 description: 'Insert and preview images and files in the editor'
 ---
 
-## Inserting Images and Files
+Images can be added by typing a markdown image tag, but you obviously need to know the URL or path to it. If you keep your images in `src/assets/` as Astro [recommends](https://docs.astro.build/en/guides/images/), adding something like a screenshot requires you to stop writing, rename the image to something sensible (and unique), move it into `src/assets/` and then add the image tag to your content file. All of which is super annoying.
 
+## Dragging Images into Astro Editor
 
+Astro Editor helps with this by allowing you to drag images and files into the editor. Dragging a file called `My Nice Photo (1).png` from somewhere like your desktop into a file in the editor will do the following:
 
-## Image Previews
+<Steps>
 
-When you're editing in the main editor, you can quickly preview images by holding <Kbd mac="Opt" windows="Alt" /> and hovering over any image path or URL. A preview will appear in the bottom right corner of the editor.
+1. **Copy it to your project**
+  
+   The file will be copied to wherever you keep your assets. By default, this is `src/assets/<collectionname>/`, but this can be configured in the [preferences](/preferences/#path-overrides).
 
-**How it works:**
+2. **Rename it**
+   
+   The filename is downcased, spaces are replaced with dashes, and characters like brackets are stripped. The current date is prepended. This is done at the same time as Step 1, so we end up with `2026-06-23-my-nice-photo-1.png` in our assets directory.
 
-- **Remote images**: Any http:// or https:// URL shows a preview
-- **Absolute paths**: Paths like `/src/assets/article/image.png` (relative to your project root)
-- **Relative paths**: Paths like `./image.png` or `../images/photo.jpg` (resolved relative to the current file)
+   If a file of that name already exists, `-1` will be appended (or incremented if already present) to ensure uniqueness.
 
-**Note**: Preview for relative paths works in most cases but may be unreliable in unusual folder structures. For the most reliable results, use absolute paths from your project root.
+3. **Insert the markdown link**
+   
+   A markdown image tag will be inserted in your content file. For this example it would look something like this:
+
+   ```markdown
+   ![My Nice Photo (1).png](../../../assets/mycollection/2026-06-23-my-nice-photo-1.png)
+   ```
+</Steps>
+
+Dragging other files (PDFs etc) works identically, except that a markdown **link** is inserted instead of an image tag.
+
+<Aside>
+By default, these images use paths relative to the current file, matching Astro's conventions. If you'd rather use absolute paths from the project root instead (e.g. `/src/assets/thing/image.png`), you can enable this in the [preferences](/preferences/#image-path-strategy-per-collection).
+</Aside>
+
+## Previewing images
+
+When in the main editor, you can quickly preview images by holding <Kbd mac="Opt" windows="Alt" /> and hovering over any image path or URL. A preview will appear in the bottom right corner of the editor.
+
+![A hovered image path showing a preview popover in the bottom-right corner of the editor](../../../assets/image-preview-demo.png)
+
+Relative paths like `./image.png` or `../images/photo.jpg` are resolved relative to the current file, while absolute paths like `/src/assets/article/image.png` are resolved relative to your project root.
+
+<Aside>
+Previews for relative paths work in most cases but can be unreliable in unusual folder structures.
+</Aside>
