@@ -3,21 +3,17 @@ title: 'Troubleshooting'
 description: 'Common issues and how to resolve them'
 ---
 
-If something isn't working, Astro Editor keeps detailed logs you can read or send on for support. They contain only technical information — file and folder paths, app operations, schema-parsing details, and error messages — never the contents of your documents.
+If something isn't working as it should you might find this information helpful when debugging or raising issues on GitHub.
 
-## Finding the log file
+## Logging
 
-Astro Editor writes a rolling log file to your system's standard logs location:
+Astro Editor writes a rolling log to your system's standard logs location:
 
 | Platform | Path |
 | --- | --- |
 | macOS | `~/Library/Logs/is.danny.astroeditor/Astro Editor.log` |
 | Windows | `%LOCALAPPDATA%\is.danny.astroeditor\logs\Astro Editor.log` |
 | Linux | `~/.local/share/is.danny.astroeditor/logs/Astro Editor.log` |
-
-To send it on, copy that file and attach it to your report along with a description of the problem and what you were doing.
-
-## Watching logs live (macOS)
 
 On macOS you can watch logs as they happen, which is useful for reproducing a specific problem:
 
@@ -40,10 +36,3 @@ Most log lines are tagged with a category, which you can search for to narrow th
 | `[PROJECT_DISCOVERY]` | Detecting project metadata |
 | `[SCHEMA_MERGER]` / `[JSON_SCHEMA]` | Building frontmatter schemas |
 | `[JS_ERROR]` / `[PROMISE_REJECTION]` | Frontend crashes |
-
-## Resetting corrupted preferences
-
-If the app misbehaves in a way that looks settings-related, the **Advanced** tab in [Preferences](/preferences/) (<Kbd mac="Cmd+," windows="Ctrl+," />) has two maintenance actions:
-
-- **Open Preferences Folder** — reveals the folder where your settings are stored (see [Advanced Preferences](/reference/advanced-preferences/)), in case you want to inspect or back them up.
-- **Reset All Preferences** — deletes all stored settings and restarts the app. This is destructive and can't be undone, so it asks you to confirm first.
