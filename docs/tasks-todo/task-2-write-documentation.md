@@ -56,16 +56,16 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 ### Frontmatter & Schemas (Right Sidebar)
 
-- [ ] Overview
+- [x] Overview
   - Intro & Screenshot
   - How schemas & frontmatter are parsed/ordered in the sidebar
-- [ ] Field Types
+- [x] Field Types
   - Basic fields (table)
   - Nested fields
   - Image Fields
   - Reference Fields
   - Required Fields, Descriptions & Constraitns
-- [ ] Special Fields - reference for special field names & their behaviours
+- [x] Special Fields - reference for special field names & their behaviours
   - title
   - description
   - pubdate/date
@@ -84,12 +84,12 @@ Write the actual documentation for Astro Editor to the starlight site in `websit
 
 These docs are technical reference docs for users rather than guides. Their job is not to teach.
 
-- [ ] Keyboard Shortcuts - Full list of shortcuts
-- [ ] Overrides - Reference for **exactly** what each path/field override field does
+- [x] Keyboard Shortcuts - Full list of shortcuts
+- [x] Overrides - Reference for **exactly** what each path/field override field does
 - [x] The URL Scheme
-- [ ] The Command Pelette
-- [ ] Advanced Preferences & Project Store (The preferences JSON files etc)
-- [ ] How YAML is read/written/formatted
+- [x] The Command Pelette
+- [x] Advanced Preferences & Project Store (The preferences JSON files etc)
+- [x] How YAML is read/written/formatted
 
 ## Releases Section
 
@@ -98,3 +98,14 @@ This is already implemented.
 ## Other Files
 
 - [x] Privacy
+
+## Reviews
+- [ ] Full review of docs for anything I've missed.
+- [ ] Full review of docs for spelling and grammar and correctness and cross-linking and external linking
+- [ ] Review of docs for opportunities to use Starlight and Astro features better
+- [ ] Manual review of styling: underlines under headings? Amy other tweaks to the theme?
+- [ ] Update releases with latest releases
+- [ ] Remove old user-guide
+- [ ] Rejig homepage so it includes linux builds and the like - we'll rebuild once this is merged.
+- [ ] Nail down and push and code review
+- [ ] Merge
