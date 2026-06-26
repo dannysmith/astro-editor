@@ -111,7 +111,7 @@ In the dropdown, each entry is labelled by the first of its `title`, `name`, or 
 
 ### Referencing data collections
 
-References also work with **data collections** — those defined with a `file()` loader pointing at a JSON file (a classic `authors.json`, say) rather than a folder of markdown.
+References also work with **data collections** — those defined with a `file()` loader pointing at a JSON file (a classic `authors.json`, say) rather than a folder of Markdown.
 
 ```ts title="content.config.ts"
 const authors = defineCollection({
@@ -122,6 +122,6 @@ const authors = defineCollection({
 
 Astro Editor reads these so they can be referenced, with a few limits worth knowing:
 
-- Data collections **don't appear in the sidebar** and can't be edited in Astro Editor — they're read only to populate reference dropdowns.
+- Data collections **don't appear in the sidebar** and can't be edited in Astro Editor — they're read-only to populate reference dropdowns.
 - Only the `file()` loader is recognised, and the file must be a **JSON array**.
 - Every item needs an `id` (or `slug`) to identify it.

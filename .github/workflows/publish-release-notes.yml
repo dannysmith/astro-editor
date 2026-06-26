@@ -26,12 +26,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout main
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: main
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       # bun runs the TypeScript directly; the script only uses Node built-ins
       # (plus the gh CLI + curl, both present on the runner), so no install is
@@ -42,6 +42,8 @@ jobs:
 
       - name: Commit and push new release pages
         id: commit
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -55,7 +57,7 @@ jobs:
             exit 0
           fi
 
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="$RELEASE_TAG"
           MSG="chore(website): publish release notes"
           [ -n "$TAG" ] && MSG="$MSG for $TAG"
           git commit -m "$MSG"
