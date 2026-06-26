@@ -39,6 +39,7 @@
 
 import { EditorView, dropCursor, drawSelection } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
+import { GFM } from '@lezer/markdown'
 import { syntaxHighlighting } from '@codemirror/language'
 import { history } from '@codemirror/commands'
 import { closeBrackets } from '@codemirror/autocomplete'
@@ -84,8 +85,12 @@ export const createExtensions = (config: ExtensionConfig) => {
     ),
 
     // Language support
+    // GFM enables tables, task lists, strikethrough, and autolinks (issue #266).
+    // We add the GFM bundle rather than switching to `base: markdownLanguage`
+    // so we get GFM only, without subscript/superscript/emoji (single `~x~`
+    // would otherwise become subscript, which is hostile to prose writing).
     markdown({
-      extensions: [markdownStyleExtension],
+      extensions: [markdownStyleExtension, GFM],
     }),
     syntaxHighlighting(comprehensiveHighlightStyle),
     history(),
