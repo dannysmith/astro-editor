@@ -1,0 +1,19 @@
+---
+title: 'v1.0.9'
+description: 'Astro Editor v1.0.9'
+date: 2026-02-16
+slug: 'releases/v1.0.9'
+---
+
+### New Features
+
+- The updater now shows release notes and provides more control over when and how to update (you can skip a version etc).
+- You can now search for other content items with `Cmd+Shift+K`. Pressing enter will open it in the editor. Pressing `Cmd+Enter` will insert a markdown link to the document under the cursor in the current doc. By default, it will insert a relative path to the markdown file which will probably need fixing in your code editor. You can override this behaviour on a per-collection basis in the preferences: If your astro site publishes `src/content/articles/foo.md` to `/writing/foo`, you can set the Articles URL setting to `/writing/{slug}` and the correct path will be used in the markdown link. This will use the target file's `slug` frontmatter fields (if it exists) or the filename without its extension.
+
+### BugFixes
+
+- 1.0.8 introduced a bug where the left and right sidebar could be fully collapsed by dragging them into the sides of the window, but could not be shown again with the keyboard shortcuts or toolbar icons. This is now fixed.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.0.9)

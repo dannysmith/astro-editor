@@ -1,0 +1,21 @@
+---
+title: 'v1.0.2'
+description: 'Astro Editor v1.0.2'
+date: 2025-12-07
+slug: 'releases/v1.0.2'
+---
+
+### Typewriter mode removed (for now)
+
+A buggy implementation of "typewriter mode" was completely removed. This was a very old feature which was only available via the command palette, and which kept the current line vertically entered in the editor window. It did not work reliably or performantly, and was prone to causing weird UI behaviour when switched on. I will eventually reimplement this in a more considered way in a future release.
+
+### Bugfixes
+
+- Scrollbars are properly rendered in dark mode.
+- Frontmatter fields which are `nullish()` properly preserve their types when being written to YAML.
+- Frontmatter is not written to disk unless it has been changed in the frontmatter panel by the user. Just opening (or editing the content) of a file will no longer rewrite your frontmatter.
+- Lots of under-the-hood improvements.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.0.2)

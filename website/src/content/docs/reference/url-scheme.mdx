@@ -1,0 +1,25 @@
+---
+title: 'The URL Scheme'
+description: 'Reference for the astro-editor:// URL scheme'
+---
+
+A local URL scheme is available at `astro-editor://`. It supports the following actions.
+
+## `open`
+
+Opens a given file path in Astro Editor, provided it is the path of a content collection item in a project which Astro Editor already knows about.
+
+| Argument | Description |
+| -------- | ----------- |
+| `path` | Absolute path to the file. URL-encode it if it contains spaces or characters with special meaning in URLs (such as `#`, `&`, or `?`). |
+
+Running the command below will do the following:
+
+```bash
+open "astro-editor://open?path=/Users/you/my-astro-project/src/content/posts/my-post.mdx"
+```
+
+1. Launch Astro Editor if it isn't already running.
+2. Check the provided path against projects in the Astro Editor registry.
+3. Check the provided path points to a valid content collection item in that project.
+4. Open the relevant project and collection in Astro Editor, and open the file for editing.

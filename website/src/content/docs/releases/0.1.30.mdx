@@ -1,0 +1,28 @@
+---
+title: 'v0.1.30'
+description: 'Astro Editor v0.1.30'
+date: 2025-10-23
+slug: 'releases/v0.1.30'
+---
+
+### New Features
+
+- Holding option/alt when hovering over an image URL or path in the editor shows a preview in the bottom right. This works for remote images (ie a URL), absolute paths relative to the Astro project route, and relative paths. Relative paths may not work reliably for unusual or complex Astro folder structures.
+- Fields which use Astro's `image()` helper in their `content.config.json` schema will render an image picker and preview in the frontmatter sidebar.
+   - Images can be dragged to the button or selected from the file picker. They will be copied to the collections configured assets directory (and renamed appropriately) and the path (absolute relative to the project root) will be added to the frontmatter.
+  - Images added from *within* the astro site are not copied to `assets` - their absolute path is inserted as-is.
+   - Image paths can be manually edited like any other text field by clicking the edit button.
+   - Image previews support remote images (ie a URL), absolute paths relative to the Astro project route, and relative paths. Relative paths may not work reliably for unusual or complex Astro folder structures.
+   - Fields using Astro's `image()` helper which are nested inside an `object()` in the schema currently show as simple text fields in the UI. This will be fixed in a future release.
+
+### Bugfixes
+
+- Ligatures in iA Writer Duo are disabled. Fixes an issue where the editor would visually add extra spaces in some paragraphs.
+- Updates to frontmatter fields which affect the file browser sidebar (draft, title, published date) now correctly update the sidebar.
+- Text fields and textareas in the frontmatter panel now have auto-capitalise and spellcheck disabled.
+- Fixed some visual display bugs in dark mode.
+- Minor performance improvements to schema parsing and rendering.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v0.1.30)

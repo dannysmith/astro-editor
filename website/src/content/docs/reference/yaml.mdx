@@ -1,0 +1,31 @@
+---
+title: 'How YAML is Handled'
+description: 'Reference for how YAML frontmatter is read, written, and formatted'
+---
+
+When Astro Editor reads a markdown/MDX file it splits it into three parts: the **YAML frontmatter**, any component **imports**, and the **body**. These are handled separately, with any changes to them stitched back together and saved to disk. This page describes exactly how the frontmatter half of that is read and written, because the rules occasionally surprise people.
+
+## Reading frontmatter
+
+When a file opens, Astro Editor looks for a frontmatter block: a **first** line of `---` followed by some YAML and a closing `---` on its own line. If the first line is not `---` the file is treated as having no frontmatter.
+
+The YAML is then parsed and used to populate the fields in the [frontmatter panel](/frontmatter/overview/). While these fields will appear ordered by the **schema**, the file's frontmatter will not be reordered to match until a change is made. Any frontmatter fields which don't appear in the schema will be shown at the bottom.
+
+## Writing frontmatter
+
+How the frontmatter is written depends on whether you've touched it or not. If you edit the body of a document without touching the frontmatter, the original frontmatter block is written back exactly as it was.
+
+**If you edit ANY frontmatter field**, the whole block is re-generated according to Astro Editor's rules. This means:
+
+- Fields are written **according to your schema's order**, followed by any non-schema fields alphabetically.
+- Any YAML comments are removed.
+- Quoting and spacing are normalised according to Astro Editor's conventions: strings are left unquoted unless they need quoting, indentation is standardised, some inline arrays are rewritten.
+- Datetimes are shortened to ISO dates (values like `2024-01-15T09:30:00Z` become `2024-01-15`).
+
+<Aside type="caution">
+Because editing a single field rewrites the whole block, comments in your frontmatter and any hand-tuned formatting will be lost the first time you change anything in that file's frontmatter through Astro Editor.
+</Aside>
+
+## Types
+
+Values keep their YAML types as you'd expect: `true` / `false` stay booleans, numbers stay numbers, and quoted and unquoted strings are both read as text. These round-trip back to bare `true`, `false`, and numbers when the block is re-generated.

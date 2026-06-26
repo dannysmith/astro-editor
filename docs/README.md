@@ -41,7 +41,8 @@ These files live in `docs/` and are predominantly for humans.
 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidance for contributors to this project.
 - **[SECURITY.md](SECURITY.md)** - Standard security policy
-- **[user-guide.md](user-guide.md)** - End-user documentation for the application
+
+End-user documentation now lives on the [documentation site](https://astroeditor.danny.is/getting-started/) (built from `website/`).
 
 ## Developer Documentation
 

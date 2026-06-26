@@ -1,0 +1,127 @@
+---
+title: 'Field Types'
+description: 'How each schema field type becomes a control in the frontmatter sidebar'
+---
+
+import nestedFieldExample from '../../../assets/nested-field-example.png'
+import nestedImageField from '../../../assets/nested-image-field.png'
+
+Every field in your collection [schema](/frontmatter/overview/) becomes a control in the frontmatter sidebar. This page covers how each type is rendered.
+
+## Basic fields
+
+| Schema field | Example | In the sidebar |
+| --- | --- | --- |
+| Text | `z.string()` | A single-line text input |
+| Number | `z.number()` | A number input |
+| Boolean | `z.boolean()` | A toggle switch |
+| Date | `z.date()` | A date picker |
+| Enum | `z.enum(['draft', 'published'])` | A dropdown of the listed options |
+| List of text | `z.array(z.string())` | A tag input you add to and remove from |
+| Email | `z.string().email()` | A single-line input, hinted as an email |
+| URL | `z.string().url()` | A single-line input, hinted as a URL |
+
+A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). Lists of non-text values (dates, objects, and so on) fall back to a raw YAML editor.
+
+## Descriptions, defaults & constraints
+
+Astro Editor surfaces the extra information in your schema as guidance beneath each field:
+
+- `.describe('…')` — shown as help text under the field
+- `.default(…)` — shown as a hint, and pre-filled into new files
+- `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters" or "Pattern: …"
+
+```ts
+title: z.string().min(3).max(100).describe('The headline for the post')
+```
+
+<Aside type="caution">
+These are shown to help you, but Astro Editor does **not** stop you saving frontmatter that breaks them — it saves as you type. The real validation happens when Astro builds your site, which is where an out-of-range value or a missing required field gets caught.
+</Aside>
+
+## Required fields
+
+A field that isn't `.optional()` (and has no `.default()`) is required, and shows a red asterisk (`*`) next to its label.
+
+```ts
+title: z.string(),              // required → shows *
+summary: z.string().optional(), // optional → no *
+```
+
+As above, the asterisk is a prompt, not a gate — saving isn't blocked when a required field is empty.
+
+## Nested fields
+
+<Figure src={nestedFieldExample} alt="A nested object rendered in the frontmatter sidebar as a labelled, indented group of fields" caption="A nested object's fields, grouped and indented under their own heading of 'Metadata'." />
+
+A `z.object({ … })` groups its fields into a labelled section in the sidebar, indented under a heading taken from the object's name.
+
+```ts title="content.config.ts"
+const blog = defineCollection({
+  schema: z.object({
+    seo: z.object({
+      ogTitle: z.string().optional(),
+      noIndex: z.boolean().optional(),
+    }),
+  }),
+})
+```
+
+Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would use as top-level fields.
+
+## Image fields
+
+<Figure src={nestedImageField} alt="An image field in the frontmatter sidebar showing a thumbnail preview above the image path, with edit and clear buttons" caption="An image field: a thumbnail preview with controls to edit the path or clear the image. This one happens to also be a nested field." />
+
+A field using Astro's `image()` helper becomes an image control with a thumbnail preview, rather than a plain path input.
+
+```ts title="content.config.ts"
+const blog = defineCollection({
+  schema: ({ image }) =>
+    z.object({
+      cover: image(),
+    }),
+})
+```
+
+When you drop or pick an image, it's copied, renamed, and pathed in exactly the same way as [dragging an image into the editor](/editor/images-and-files/) — including the relative-versus-absolute path setting. On top of that, an image field gives you:
+
+- An **edit** button to type or paste a path by hand. A path entered this way is used as-is — it isn't copied or checked, so a wrong path simply won't preview.
+- A **clear** button to remove the current image.
+
+<Aside>
+An `image()` nested inside an object (for example `cover.image`) currently shows as a plain text field. This is a known limitation.
+</Aside>
+
+## Reference fields
+
+`reference()` links one collection's entries to another's. A single reference is a dropdown; an array of references is a multi-select.
+
+```ts title="content.config.ts" {4,5}
+// articles can point at entries in the notes collection
+const articles = defineCollection({
+  schema: z.object({
+    relatedNote: reference('notes'), // one note
+    sources: z.array(reference('notes')), // several notes
+  }),
+})
+```
+
+In the dropdown, each entry is labelled by the first of its `title`, `name`, or `slug` frontmatter, falling back to its id or filename. The value written to your frontmatter is always the entry's **id**.
+
+### Referencing data collections
+
+References also work with **data collections** — those defined with a `file()` loader pointing at a JSON file (a classic `authors.json`, say) rather than a folder of Markdown.
+
+```ts title="content.config.ts"
+const authors = defineCollection({
+  loader: file('src/data/authors.json'),
+  schema: z.object({ name: z.string() }),
+})
+```
+
+Astro Editor reads these so they can be referenced, with a few limits worth knowing:
+
+- Data collections **don't appear in the sidebar** and can't be edited in Astro Editor — they're read-only to populate reference dropdowns.
+- Only the `file()` loader is recognised, and the file must be a **JSON array**.
+- Every item needs an `id` (or `slug`) to identify it.

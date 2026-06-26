@@ -1,0 +1,42 @@
+{
+  "name": "astro-editor-website",
+  "description": "Documentation website for Astro Editor",
+  "version": "0.0.1",
+  "private": true,
+  "author": "Danny Smith",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check && bun run lint && bun run format:check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.40.0",
+    "astro": "^6.4.8",
+    "astro-auto-import": "^0.5.1",
+    "sharp": "^0.34.2",
+    "starlight-kbd": "^0.4.0",
+    "starlight-llms-txt": "^0.10.0",
+    "starlight-page-actions": "^0.6.1",
+    "starlight-theme-flexoki": "^0.2.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-plugin-astro": "^1.7.0",
+    "prettier": "^3.8.4",
+    "prettier-plugin-astro": "^0.14.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  }
+}

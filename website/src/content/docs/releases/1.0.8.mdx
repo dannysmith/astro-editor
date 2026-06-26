@@ -1,0 +1,23 @@
+---
+title: 'v1.0.8'
+description: 'Astro Editor v1.0.8'
+date: 2026-02-14
+slug: 'releases/v1.0.8'
+---
+
+### New Features
+
+- New Typewriter mode which can be toggled via the button in the menubar or the command palette. Keeps the cursor vertically centred in the editor at all times.
+- The "Open in IDE" feature now supports any editor, not just the six previously whitelisted options. Instead of selecting from a dropdown, you can now enter any command in the preferences: use simple commands like `code` or `cursor` if they're in a standard location, or provide the full path to your editor's binary (eg. `/usr/local/bin/nvim` or `~/bin/my-editor`) if not. This resolves issues where editors weren't detected on Windows or installed in non-standard locations. Your existing IDE preference *should* continue to work without any changes.
+- If no project is loaded, the welcome screen shows an "Open Project" button - thanks to @nickradford (#116)
+
+### Bugfixes & Minor Improvements
+
+- `Cmd + P` should work reliably on Windows now.
+- Removed "Save" from the command palette
+- Fixed bug where typing in text inputs in the preferences would always jump the cursor to the end of the input.
+- Various dependency updates.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.0.8)

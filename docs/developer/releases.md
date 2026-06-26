@@ -43,7 +43,9 @@ After pushing the tag, the build workflow runs automatically:
 
 Publishing the release makes the updater (`latest.json`) available to existing users.
 
-The website needs no per-release update: its download buttons link to stable GitHub Release URLs (`/releases/latest/download/astro-editor-latest.*`) that always resolve to the newest published release. Installers are **never committed to the repo** — they live only as GitHub Release assets.
+Publishing also fires `publish-release-notes.yml`, which automatically turns the release notes you just wrote into a page in the website's Releases section (see [Workflow Architecture](#workflow-architecture)). You don't need to edit the site by hand.
+
+**Download links** need no per-release update: the download buttons link to stable GitHub Release URLs (`/releases/latest/download/astro-editor-latest.*`) that always resolve to the newest published release. Installers are **never committed to the repo** — they live only as GitHub Release assets.
 
 ## Workflow Architecture
 
@@ -62,11 +64,21 @@ Triggered by tag push (`v*`). Three jobs run in sequence:
    - **Stable-named copies** (`astro-editor-latest.dmg` / `.msi` / `.AppImage` / `.deb` / `.rpm`) so the website can link to permanent `/releases/latest/download/...` URLs.
    - A **`SHA256SUMS`** file covering both the versioned installers and the stable-named copies.
 
-The release is left as a **draft** for you to publish by hand (see [Publish the Draft Release](#step-2-publish-the-draft-release)). The workflow does **not** touch the website or commit anything to the repo.
+The release is left as a **draft** for you to publish by hand (see [Publish the Draft Release](#step-2-publish-the-draft-release)). `release.yml` itself does **not** touch the website or commit anything to the repo.
+
+### `publish-release-notes.yml` — Release Notes → Website
+
+Triggered when a GitHub Release is **published** (or via manual dispatch). It adds the release's notes to the website's Releases section:
+
+1. Runs `website/scripts/generate-release-pages.ts --all`, which fetches releases via the `gh` CLI, sanitises each body for MDX (strips the duplicate H2 title, the "Installation Instructions" boilerplate, and "Full Changelog" links; escapes curly braces outside code), downloads any inline GitHub attachment images into `website/public/releases/`, and writes `website/src/content/docs/releases/<version>.mdx`. Releases that already have a page are **skipped**, so re-runs and manual dispatches are safe no-ops.
+2. Commits the new page (and images) and pushes to `main` as the `github-actions[bot]`.
+3. Dispatches `deploy-website.yml` to rebuild the site. (A push made with `GITHUB_TOKEN` does not trigger other workflows, so the deploy is dispatched explicitly rather than relying on the `website/**` path filter.)
+
+This handles **only** release notes — binaries are never involved, since downloads come from stable GitHub Release URLs.
 
 ### `deploy-website.yml` — Website Deployment
 
-Triggered by changes to `website/**` on `main` (or manual dispatch). Deploys the `website/` directory to GitHub Pages. It is **not** chained to releases: download links are static stable Release URLs, so a new release does not require redeploying the site.
+Triggered by changes to `website/**` on `main`, by manual dispatch, or by `publish-release-notes.yml` after a release. Deploys the `website/` directory to GitHub Pages. Download links themselves are static stable Release URLs, so they never go stale — the only per-release site change is the new release-notes page.
 
 ### Flow Diagram
 
@@ -80,11 +92,15 @@ Tag push (v1.0.9)
               │
               ▼ (you manually publish the draft)
               │
-              └─→ latest.json + assets become public
-                    (website links to /releases/latest/download/... — no redeploy needed)
+              ├─→ latest.json + assets become public
+              │     (downloads link to /releases/latest/download/... — never stale)
+              │
+              └─→ publish-release-notes.yml  (on: release published)
+                    └─→ generate-release-pages.ts → commit <version>.mdx to main
+                          └─→ dispatch deploy-website.yml → Deploy to GitHub Pages
 ```
 
-Website source changes deploy independently:
+Website source changes also deploy independently:
 
 ```
 Edit website/** on main

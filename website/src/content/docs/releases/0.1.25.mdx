@@ -1,0 +1,24 @@
+---
+title: 'v0.1.25'
+description: 'Astro Editor v0.1.25'
+date: 2025-10-13
+slug: 'releases/v0.1.25'
+---
+
+- Added support for subfolders. The file browser now shows subfolders and their contents within content collections.
+- The default paths for `src/content`, assets and "MDX components" directories can now be configured on a per-project basis in the preferences.
+- The default or project settings paths for content, assets and "MDX" components directories can be overridden on a per-collection basis in the preferences.
+- Frontmatter mappings for title, pubDate, description and draft are now configured on a per-collection basis and persisted in the project settings.
+- Simplified preferences storage system and project registry and introduced system to migrate old settings files to new. Preferences system is now more robust when the preferences JSON files have missing data.
+- Added debug panel to preferences pane to help with support requests.
+- Copyedit highlights are now off by default for new installations.
+- Rebuilt and simplified schema parser so Astro's generated schema files and the Zod schemas in `content.config.ts` are properly parsed and merged in Rust before being passed in a sensible shape into the front-end.
+- Added support for `reference()` fields, which can either reference single items in other collections, or multiple items.
+- Added support for reading JSON-file-based content collections *only when they are referenced by another collection*. So given an `authors.json` file with the appropriate schema which is referenced in an `articles` collection, Author can be selected from a dropdown in the frontmatter panel.
+- Improved support for field descriptions and nested fields in sidebar UI.
+- Fixed bug where auto-updater would update regardless of user input. Added menu item to check for updates.
+- Upgraded dependencies, and minor technical improvements.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v0.1.25)

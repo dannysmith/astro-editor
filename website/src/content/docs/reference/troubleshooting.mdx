@@ -1,0 +1,38 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and how to resolve them'
+---
+
+If something isn't working as it should, you might find this information helpful when debugging or raising issues on GitHub.
+
+## Logging
+
+Astro Editor writes a rolling log to your system's standard logs location:
+
+| Platform | Path |
+| --- | --- |
+| macOS | `~/Library/Logs/is.danny.astroeditor/Astro Editor.log` |
+| Windows | `%LOCALAPPDATA%\is.danny.astroeditor\logs\Astro Editor.log` |
+| Linux | `~/.local/share/is.danny.astroeditor/logs/Astro Editor.log` |
+
+On macOS you can watch logs as they happen, which is useful for reproducing a specific problem:
+
+<Steps>
+
+1. Open **Console.app** (Applications → Utilities → Console).
+2. Type `Astro Editor` into the search bar.
+3. Reproduce the issue — for example, try opening the project again.
+4. Select the relevant rows and copy them.
+
+</Steps>
+
+Most log lines are tagged with a category, which you can search for to narrow things down:
+
+| Tag | Covers |
+| --- | --- |
+| `[PROJECT_SETUP]` | Opening a project and setting it up |
+| `[PROJECT_SCAN]` | Discovering collections and files |
+| `[PROJECT_REGISTRY]` | Remembering and migrating projects |
+| `[PROJECT_DISCOVERY]` | Detecting project metadata |
+| `[SCHEMA_MERGER]` / `[JSON_SCHEMA]` | Building frontmatter schemas |
+| `[JS_ERROR]` / `[PROMISE_REJECTION]` | Frontend crashes |

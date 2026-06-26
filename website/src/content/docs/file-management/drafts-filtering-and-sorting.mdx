@@ -1,0 +1,38 @@
+---
+title: 'Drafts, Filtering & Sorting'
+description: 'Filter and sort your content files'
+---
+
+import draftFilter from '../../../assets/file-manager-drafts-filter.png'
+import fileFilter from '../../../assets/file-manager-filter.png'
+import sortDropdown from '../../../assets/file-manager-sort.png'
+
+You can use the "Show Drafts Only" toggle in the sidebar to filter the file list so it shows only draft files. This filter works across all subdirectories within the current collection. Files are automatically detected as drafts when their `draft` frontmatter field (or [configured equivalent](/preferences/#frontmatter-mappings)) is set to `true`.
+
+<Figure src={draftFilter} alt="The file list filtered to show only draft files, with the sidebar header highlighted" caption="The 'Show Drafts Only' toggle limits the list to drafts; the header changes colour while it's active." />
+
+## Filtering
+
+You can also filter the list by typing. Click the filter button and start typing — the list narrows to files whose **filename or title** matches what you've entered (matching is case-insensitive). The sidebar header changes colour while a filter is in place.
+
+<Figure src={fileFilter} alt="The file list narrowed by a search term typed into the filter box" caption="Filtering matches against both the filename and the title field." />
+
+## Sorting
+
+By default, files are sorted by publication date, newest first. This uses whichever date field is configured for the collection — the `date` field by default, which you can change in [preferences](/preferences/#frontmatter-mappings). Files without a date appear at the top of the list.
+
+Pick the sort field from the dropdown. For every option except Default, an arrow button beside it flips the direction between ascending and descending.
+
+<Figure src={sortDropdown} alt="The sort dropdown open, showing the available sort options for a collection" caption="The sort menu lists the built-in options plus any date fields from the collection's schema." />
+
+These sort options are always available:
+
+- **Default** — publication date, newest first, with undated files at the top
+- **Title** — the configured title field, alphabetically
+- **Filename** — the filename, alphabetically
+- **Last Modified** — when the file was last changed on disk
+
+On top of those:
+
+- Every **date** field in the collection's schema gets its own option (a `publishedDate` field appears as "Published Date", for example).
+- If the schema has a numeric field named `order`, you'll also get an **Order** option.

@@ -22,6 +22,8 @@
 - Comprehensive keyboard shortcuts and menu integration
 - Toast notifications throughout the app
 
+**Note:** The `website/` directory is an independent project that uses **bun** (not pnpm). It is not part of the pnpm workspace. See `website/AGENTS.md` for its own instructions.
+
 ## Core Rules
 
 ### New Sessions

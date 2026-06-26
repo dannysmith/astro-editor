@@ -1,0 +1,62 @@
+---
+title: 'Commands'
+description: 'Reference for the commands available in the Astro Editor command palette'
+---
+
+You can open the [command palette](/editor/overview/#the-command-palette) with <Kbd mac="Cmd+P" windows="Ctrl+P" /> from anywhere in the app and type to fuzzy-search across commands. For example, typing "foc" finds "Toggle Focus Mode".
+
+Commands are grouped under the headings below. Some commands only appear when they're relevant — file commands need an open file, IDE commands need a [configured IDE](/file-management/ide-integration/) etc.
+
+## File
+
+| Command | Available when | Description |
+| --- | --- | --- |
+| **New File** | A collection is selected | Create a new file in the selected collection |
+| **Close File** | A file is open | Close the current file |
+
+## Navigation
+
+| Command | Available when | Description |
+| --- | --- | --- |
+| **Toggle Sidebar** | Always | Show or hide the left sidebar |
+| **Toggle Frontmatter Panel** | Always | Show or hide the frontmatter panel |
+| **Find Content** | A project is open | Open the [Content Finder](/editor/links/#internal-links) to search content and open a file or insert a link |
+| **Open Collection: _name_** | That collection isn't already selected | Switch to a different collection (one command per collection) |
+
+## Project
+
+| Command | Available when | Description |
+| --- | --- | --- |
+| **Open Project** | Always | Select a new project folder |
+| **Reload Collections** | A project is open | Re-scan the project's collections and files |
+
+## Settings
+
+| Command | Description |
+| --- | --- |
+| **Open Preferences** | Open application preferences |
+| **Toggle Focus Mode** | Dim all text except the current sentence |
+| **Toggle Typewriter Mode** | Keep the cursor line centred in the viewport |
+
+## Highlights
+
+These toggle the [copyedit highlighting modes](/editor/copyedit-modes/). Each command's label flips between **Show** and **Hide** depending on what's currently on.
+
+| Command | Description |
+| --- | --- |
+| **Show / Hide Noun Highlights** | Toggle noun highlighting |
+| **Show / Hide Verb Highlights** | Toggle verb highlighting |
+| **Show / Hide Adjective Highlights** | Toggle adjective highlighting |
+| **Show / Hide Adverb Highlights** | Toggle adverb highlighting |
+| **Show / Hide Conjunction Highlights** | Toggle conjunction highlighting |
+| **Show / Hide All Highlights** | Toggle every part-of-speech highlight together |
+
+## IDE
+
+These need an [IDE to be configured](/file-management/ide-integration/).
+
+| Command | Available when | Description |
+| --- | --- | --- |
+| **Open Project in IDE** | A project is open | Open the current project in your IDE |
+| **Open Collection in IDE** | A collection is selected | Open the current collection's folder in your IDE |
+| **Open File in IDE** | A file is open | Open the current file in your IDE |

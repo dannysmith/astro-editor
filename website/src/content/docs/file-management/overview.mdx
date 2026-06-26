@@ -1,0 +1,57 @@
+---
+title: 'File Management'
+description: 'Overview of the left sidebar — collections, file list, and subfolders'
+---
+
+import fileManager1 from '../../../assets/file-manager-1.png'
+import fileManager2 from '../../../assets/file-manager-2.png'
+import fileManager3 from '../../../assets/file-manager-3.png'
+
+The left sidebar is your primary interface for navigating between files and collections in your Astro project.
+
+## Opening a Project
+
+Use `File > Open Project` or the *folder icon* in the sidebar to select and open your Astro project directory. Astro Editor will automatically scan for content collections and display them in the sidebar.
+
+<Figure src={fileManager1} alt="The left sidebar listing the content collections found in an open Astro project" caption="Astro Editor scans the project and lists its content collections in the sidebar." />
+
+<Aside type="caution">
+For security reasons, Astro Editor cannot open projects located in certain system directories. If you attempt to open a project in one of these locations, you'll see an error.
+</Aside>
+
+## Navigating between files
+
+Clicking on a collection name will show its files in the sidebar. Subdirectories are also shown and can be navigated as you'd expect.
+
+<Figure src={fileManager2} alt="The sidebar showing the markdown files inside a collection, with a subdirectory listed above them" caption="Clicking a collection shows its files; any subdirectories appear above them." />
+
+### What's shown in the sidebar
+
+<Figure src={fileManager3} alt="A file entry in the sidebar showing its title, date, and MDX and draft badges" caption="Each file shows its title, date, and any relevant badges." />
+
+The sidebar shows the following information for each file:
+
+| Item | Description |
+| --- | --- |
+| **Title** | Taken from the `title` frontmatter field (or whatever *title* field is configured in the [preferences](/preferences/#frontmatter-mappings)). The filename is shown if none exists. |
+| **Date** | Publication date (or whatever *pubDate* field is configured in the preferences) if it exists. |
+| **MDX Badge** | For files of that type. |
+| **Draft Badge** | For files with `draft: true` (or whatever *draft* field is configured in the preferences). |
+| **Filename** | Including the file extension. |
+
+### The Context Menu
+
+Right-clicking a file in the left sidebar gives you the following options:
+
+| Action | Description |
+| --- | --- |
+| **Rename** | Edit the filename. |
+| **Duplicate** | Create a duplicate of the file with a new name. |
+| **Reveal in Finder** | Open the file's location in your OS's file explorer. |
+| **Copy Path** | Copy the absolute file path to the clipboard. |
+| **Open in IDE** | Open the file in your [configured IDE](/file-management/ide-integration/). Only shown when one is configured. |
+| **Delete** | Delete the file. |
+
+## Creating New Files
+
+When a collection is open, you can create a new file with <Kbd mac="Cmd+N" windows="Ctrl+N" /> or the "New File" button in the toolbar. If you're in a subdirectory, the file is created there. If you're at the collection root, the file is created at the root. The file will have default [frontmatter](/frontmatter/overview/) values from your collection schema.
