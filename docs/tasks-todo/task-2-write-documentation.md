@@ -101,16 +101,16 @@ This is already implemented.
 
 ## Reviews
 - [x] Full review of docs for anything I've missed.
-- [ ] Full review of docs for spelling and grammar and correctness and cross-linking and external linking
-- [ ] Review of docs for opportunities to use Starlight and Astro features better
+- [x] Full review of docs for spelling and grammar and correctness and cross-linking and external linking
+- [x] Add https://github.com/dlcastillop/starlight-page-actions
+- [x] Rejig homepage so it includes linux builds and the like - we'll rebuild properly once this is merged to main.
+- [x] Update releases with latest releases
+- [x] Review of docs for opportunities to use Starlight and Astro features better
   - Asides (we can use `:::` format and perhaps use the available types better, we can also use custom titles and icons?)
   - Blockquotes and `<details>`.
   - Expressive code features: line highlights, filenames, titles
   - Starlight components: Cards & LinkCards, Steps, Badges, LinkCards, Tabs - Do not overuse these for the sake of it
-- [ ] Add https://github.com/dlcastillop/starlight-page-actions
 - [ ] Manual review of styling: underlines under headings? Amy other tweaks to the theme?
-- [ ] Update releases with latest releases
 - [ ] Remove old user-guide
-- [ ] Rejig homepage so it includes linux builds and the like - we'll rebuild properly once this is merged.
-- [ ] Nail down and push and code review
+- [ ] Code Review
 - [ ] Merge
