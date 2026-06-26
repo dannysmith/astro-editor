@@ -1,0 +1,7 @@
+/* Custom tweaks on top of the Flexoki theme. Lean on Starlight/Flexoki
+   defaults wherever possible. */
+
+.sl-markdown-content .sl-heading-wrapper {
+  border-bottom: 1px solid var(--sl-color-hairline);
+  padding-bottom: 0.2em;
+}

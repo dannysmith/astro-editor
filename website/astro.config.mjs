@@ -31,6 +31,7 @@ export default defineConfig({
       ],
       title: 'Astro Editor',
       description: 'Schema-aware markdown editor for Astro content collections',
+      customCss: ['./src/styles/custom.css'],
       components: {
         Footer: './src/components/Footer.astro',
       },
