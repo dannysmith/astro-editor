@@ -5,6 +5,7 @@ import starlightThemeFlexoki from 'starlight-theme-flexoki'
 import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightKbd from 'starlight-kbd'
 import AutoImport from 'astro-auto-import'
+import starlightPageActions from 'starlight-page-actions'
 
 // https://astro.build/config
 export default defineConfig({
@@ -20,6 +21,12 @@ export default defineConfig({
             { id: 'windows', label: 'Windows', detector: 'windows' },
             { id: 'linux', label: 'Linux', detector: 'linux' },
           ],
+        }),
+        starlightPageActions({
+          baseUrl: 'https://astroeditor.danny.is/',
+          actions: {
+            chatgpt: false,
+          },
         }),
       ],
       title: 'Astro Editor',

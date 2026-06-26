@@ -25,6 +25,7 @@
     "sharp": "^0.34.2",
     "starlight-kbd": "^0.4.0",
     "starlight-llms-txt": "^0.10.0",
+    "starlight-page-actions": "^0.6.1",
     "starlight-theme-flexoki": "^0.2.2",
     "zod": "^4.4.3"
   },
