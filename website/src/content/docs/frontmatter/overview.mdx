@@ -36,7 +36,7 @@ A JSON schema can't describe two of Astro's helpers, so Astro Editor *also* read
 
 Take a schema like this:
 
-```ts title="src/content.config.ts"
+```ts title="src/content.config.ts" {6,7}
 const blog = defineCollection({
   schema: ({ image }) =>
     z.object({

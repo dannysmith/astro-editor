@@ -35,7 +35,7 @@ Astro Editor surfaces the extra information in your schema as guidance beneath e
 title: z.string().min(3).max(100).describe('The headline for the post')
 ```
 
-<Aside>
+<Aside type="caution">
 These are shown to help you, but Astro Editor does **not** stop you saving frontmatter that breaks them — it saves as you type. The real validation happens when Astro builds your site, which is where an out-of-range value or a missing required field gets caught.
 </Aside>
 
@@ -56,7 +56,7 @@ As above, the asterisk is a prompt, not a gate — saving isn't blocked when a r
 
 A `z.object({ … })` groups its fields into a labelled section in the sidebar, indented under a heading taken from the object's name.
 
-```ts
+```ts title="content.config.ts"
 const blog = defineCollection({
   schema: z.object({
     seo: z.object({
@@ -75,7 +75,7 @@ Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using
 
 A field using Astro's `image()` helper becomes an image control with a thumbnail preview, rather than a plain path input.
 
-```ts
+```ts title="content.config.ts"
 const blog = defineCollection({
   schema: ({ image }) =>
     z.object({
@@ -97,7 +97,7 @@ An `image()` nested inside an object (for example `cover.image`) currently shows
 
 `reference()` links one collection's entries to another's. A single reference is a dropdown; an array of references is a multi-select.
 
-```ts
+```ts title="content.config.ts" {4,5}
 // articles can point at entries in the notes collection
 const articles = defineCollection({
   schema: z.object({
@@ -113,7 +113,7 @@ In the dropdown, each entry is labelled by the first of its `title`, `name`, or 
 
 References also work with **data collections** — those defined with a `file()` loader pointing at a JSON file (a classic `authors.json`, say) rather than a folder of markdown.
 
-```ts
+```ts title="content.config.ts"
 const authors = defineCollection({
   loader: file('src/data/authors.json'),
   schema: z.object({ name: z.string() }),

@@ -3,11 +3,13 @@ title: 'Introduction to Astro Editor'
 description: 'The interface, a simple example, and what Astro Editor needs from your project'
 ---
 
+import { Card, CardGrid } from '@astrojs/starlight/components'
+
 Astro Editor is an interface for the content in your [Astro](https://astro.build/) project — the [philosophy page](/getting-started/philosophy/) explains why that matters. To see how it fits together in practice, it helps to look at an example.
 
 Let's imagine we have an Astro site with two content collections: **articles** and **notes**, defined in `content.config.ts` like this:
 
-```ts
+```ts title="content.config.ts"
 const articles = defineCollection({
   loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/articles' }),
   schema: ({ image }) =>
@@ -96,12 +98,12 @@ Astro Editor uses a simple three-panel layout.
 
 ![Astro Editor's three-panel layout, with the left sidebar, main editor, and right frontmatter sidebar all visible](../../../assets/pane-overview.png)
 
-| Interface Area    | Purpose                                                                      |
-| ----------------- | ---------------------------------------------------------------------------- |
-| **[Left Sidebar](/file-management/overview/)**  | Browse, sort and filter collections and files |
-| **[Main Editor](/editor/overview/)**   | The main editor window                        |
-| **[Right Sidebar](/frontmatter/overview/)** | Frontmatter editor       |
-| **Toolbar**       | Minimal UI controls                              |
+<CardGrid>
+  <LinkCard title="Left Sidebar" href="/file-management/overview/" description="Browse, sort, and filter collections and files." />
+  <LinkCard title="Main Editor" href="/editor/overview/" description="The main writing surface." />
+  <LinkCard title="Right Sidebar" href="/frontmatter/overview/" description="Edit the file's frontmatter." />
+  <Card title="Toolbar">Minimal UI controls.</Card>
+</CardGrid>
 
 With both sidebars hidden and [Focus Mode](/editor/focus-and-typewriter/#focus-mode) switched on, we get an extremely clean interface for working with our content.
 

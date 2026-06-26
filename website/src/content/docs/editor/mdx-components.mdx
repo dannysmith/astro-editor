@@ -42,7 +42,7 @@ Optional props can be toggled on or off and <Kbd mac="Cmd+Enter" windows="Ctrl+E
 
 For components written in a framework (React, Vue, or Svelte), the configure step also lets you pick a [client directive](https://docs.astro.build/en/reference/directives-reference/#client-directives) — `client:load`, `client:idle`, `client:visible`, `client:media`, or `client:only`. This controls when (and whether) Astro hydrates the component in the browser, and gets added to the inserted tag. `client:idle` is recommended for most cases. Astro components don't need one, so the option only appears for framework components.
 
-<Aside>
+<Aside type="caution">
 While Astro Editor will insert the component itself, it **won't add an import below the frontmatter**. While this is definitely coder-mode stuff, it's not great when in writer mode because, if you're running a dev server to preview as you write, the page will break until you switch to a code editor and add the missing import.
 
 We may add this in a future release, but in the meantime, consider adding [Astro Auto Import](https://github.com/delucis/astro-auto-import) to your site and having it import all the components in your `mdx/` directory.

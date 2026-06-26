@@ -18,7 +18,7 @@ Otherwise, give the full path to the executable (e.g. `/usr/local/bin/nvim`). A 
 
 Once a command is set, the "Open in IDE" features below become available. Until then, they stay hidden.
 
-<Aside title="Keep it to a single command">
+<Aside type="caution" title="Keep it to a single command">
 The IDE Command must be a single executable — a name or a path, with no extra arguments or flags. `code` works, but `code --reuse-window` does not, because the whole string is treated as the name of one program. Astro Editor runs it directly rather than through a shell, so shell features like `&&`, `|`, and `;` won't work either, and the path being opened is checked for unsafe characters first.
 </Aside>
 
