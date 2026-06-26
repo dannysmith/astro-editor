@@ -25,9 +25,15 @@ Settings sit in a `preferences/` subfolder:
 | --- | --- |
 | `preferences/global-settings.json` | App-wide settings: theme customisation, configured IDE command, heading colours, auto-save delay and the default type for new files. |
 | `preferences/project-registry.json` | The list of projects you've opened, with their metadata and which was last open |
-| `preferences/projects/<project-id>.json` | One file per project containing  project and collection [overrides](/reference/overrides/) |
+| `preferences/projects/<project-id>.json` | One file per project containing project and collection [overrides](/reference/overrides/) |
 
 Two sibling folders hold operational data rather than settings: `recovery/` keeps short-lived copies of unsaved work, and `crash-reports/` keeps crash diagnostics.
+
+## Recovery
+
+Astro Editor auto-saves as you write, but as a safety net it also writes a recovery copy of your work if a save ever _fails_ — for example if the file becomes unwritable. Each copy is saved to the `recovery/` folder (a structured `.json` and a readable `.md` version) so your writing isn't lost.
+
+There's no in-app "restore" step — the files simply sit in that folder for you to copy back by hand if you ever need them.
 
 ## How projects are identified
 
@@ -37,7 +43,7 @@ Because the id is tied to the package name rather than the folder path, **moving
 
 ## The Advanced preferences tab
 
-The **Advanced** tab in Preferences is for diagnostics and maintenance. It shows the application and preferences version and offers two actions:
+The **Advanced** tab in Preferences is for diagnostics and maintenance. It shows the application and preferences versions and offers two actions:
 
 - **Open Preferences Folder** — open the directory described above in your file explorer.
 - **Reset All Preferences** — delete every stored setting and restart the app. This is destructive and can't be undone but can be useful if your settings have somehow become corrupted.

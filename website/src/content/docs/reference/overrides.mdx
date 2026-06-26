@@ -3,7 +3,7 @@ title: 'Overrides'
 description: 'Reference for path and field override settings'
 ---
 
-Astro Editor assumes a "standard" Astro project structure and defaults to some commonly-used frontmatter field names. If your project differs from these defaults, you can override them in the[Preferences](/preferences/) — either for the whole project or for a single content collection.
+Astro Editor assumes a "standard" Astro project structure and defaults to some commonly-used frontmatter field names. If your project differs from these defaults, you can override them in the [Preferences](/preferences/) — either for the whole project or for a single content collection.
 
 Most of these overrides resolve through a three-tier fallback:
 
@@ -27,14 +27,14 @@ The MDX components directory can only be set per project — it has no collectio
 
 ## Frontmatter field mappings
 
-These tell Astro Editor which frontmatter field to treat as each [special field](/frontmatter/special-fields/). All can be set per project and/or overridden per collection.
+These tell Astro Editor which frontmatter field to treat as each [special field](/frontmatter/special-fields/). They're configured per collection.
 
 | Setting | Default | Controls |
 | --- | --- | --- |
 | **Title Field** | `title` | The field used as the file's *title*. Must be a string. |
-| **Published Date Field** | `date` | The field as the file's *date*. Must be of type date. |
+| **Published Date Field** | `date` | The field used to order the file list and shown in that list. Must be of type date. |
 | **Description Field** | `description` | The field rendered as the description in the frontmatter panel. |
-| **Draft Field** | `draft` | The field used as the file's *date*. Must be a boolean. |
+| **Draft Field** | `draft` | The field used to mark a file as a *draft*. Must be a boolean. |
 
 ## Image paths
 

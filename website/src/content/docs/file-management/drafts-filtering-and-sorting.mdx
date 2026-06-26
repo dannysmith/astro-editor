@@ -7,7 +7,7 @@ import draftFilter from '../../../assets/file-manager-drafts-filter.png'
 import fileFilter from '../../../assets/file-manager-filter.png'
 import sortDropdown from '../../../assets/file-manager-sort.png'
 
-You can use the "Show Drafts Only" toggle in the sidebar to filter the file list so it shows only draft files. This filter works across all subdirectories within the current collection. Files are automatically detected as drafts when their `draft` frontmatter field (or [configured equivalent](/preferences/#field-mappings)) is set to `true`.
+You can use the "Show Drafts Only" toggle in the sidebar to filter the file list so it shows only draft files. This filter works across all subdirectories within the current collection. Files are automatically detected as drafts when their `draft` frontmatter field (or [configured equivalent](/preferences/#frontmatter-mappings)) is set to `true`.
 
 <Figure src={draftFilter} alt="The file list filtered to show only draft files, with the sidebar header highlighted" caption="The 'Show Drafts Only' toggle limits the list to drafts; the header changes colour while it's active." />
 
@@ -19,7 +19,7 @@ You can also filter the list by typing. Click the filter button and start typing
 
 ## Sorting
 
-By default, files are sorted by publication date, newest first. This uses whichever date field is configured for the collection — the `date` field by default, which you can change in [preferences](/preferences/#field-mappings). Files without a date appear at the top of the list.
+By default, files are sorted by publication date, newest first. This uses whichever date field is configured for the collection — the `date` field by default, which you can change in [preferences](/preferences/#frontmatter-mappings). Files without a date appear at the top of the list.
 
 Pick the sort field from the dropdown. For every option except Default, an arrow button beside it flips the direction between ascending and descending.
 
