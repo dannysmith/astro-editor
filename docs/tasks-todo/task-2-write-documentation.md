@@ -110,7 +110,7 @@ This is already implemented.
   - Blockquotes and `<details>`.
   - Expressive code features: line highlights, filenames, titles
   - Starlight components: Cards & LinkCards, Steps, Badges, LinkCards, Tabs - Do not overuse these for the sake of it
-- [ ] Manual review of styling: underlines under headings? Amy other tweaks to the theme?
+- [x] Manual review of styling: underlines under headings? Amy other tweaks to the theme?
 - [ ] Remove old user-guide
 - [ ] Code Review
 - [ ] Merge

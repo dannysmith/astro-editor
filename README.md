@@ -76,7 +76,7 @@ brew install --cask astro-editor
 
 ## Documentation
 
-- **[User Guide](docs/user-guide.md)** - Complete feature documentation
+- **[Documentation](https://astroeditor.danny.is/getting-started/)** - Complete feature documentation
 - **[Contributing](docs/CONTRIBUTING.md)** - Development setup and guidelines
 
 ## Disclaimer
