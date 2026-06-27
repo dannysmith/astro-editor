@@ -269,7 +269,32 @@ pub fn run() {
                 ],
             )?;
 
-            let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &view_menu])?;
+            let help_menu = Submenu::with_items(
+                app,
+                "Help",
+                true,
+                &[
+                    &MenuItem::with_id(
+                        app,
+                        "help_user_guide",
+                        "Astro Editor User Guide",
+                        true,
+                        None::<&str>,
+                    )?,
+                    &MenuItem::with_id(
+                        app,
+                        "help_keyboard_shortcuts",
+                        "Keyboard Shortcuts",
+                        true,
+                        None::<&str>,
+                    )?,
+                ],
+            )?;
+
+            let menu = Menu::with_items(
+                app,
+                &[&app_menu, &file_menu, &edit_menu, &view_menu, &help_menu],
+            )?;
             app.set_menu(menu)?;
 
             // Store menu state for later access
@@ -328,6 +353,12 @@ pub fn run() {
                 }
                 "preferences" => {
                     let _ = app.emit("menu-preferences", ());
+                }
+                "help_user_guide" => {
+                    let _ = app.emit("menu-help-user-guide", ());
+                }
+                "help_keyboard_shortcuts" => {
+                    let _ = app.emit("menu-help-keyboard-shortcuts", ());
                 }
                 "quit" => {
                     app.exit(0);

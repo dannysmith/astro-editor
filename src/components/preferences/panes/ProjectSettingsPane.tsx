@@ -16,6 +16,8 @@ import {
 import { usePreferences } from '../../../hooks/usePreferences'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
+import { DocsLink } from '../DocsLink'
+import { DOCS_URLS } from '../../../lib/docs-urls'
 
 export const ProjectSettingsPane: React.FC = () => {
   const { currentProjectSettings, updateProject, projectName, globalSettings } =
@@ -69,7 +71,8 @@ export const ProjectSettingsPane: React.FC = () => {
         <p className="text-sm text-muted-foreground -mt-3 mb-2">
           Override default Astro paths for{' '}
           <span className="font-medium">{projectName}</span>. Paths should be
-          relative to the project root.
+          relative to the project root.{' '}
+          <DocsLink href={DOCS_URLS.overrides}>Learn more</DocsLink>
         </p>
 
         <Field>

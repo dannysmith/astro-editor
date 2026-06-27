@@ -14,12 +14,16 @@ import {
   AlignVerticalSpaceAround,
   Highlighter,
   Link,
+  BookOpen,
+  Keyboard,
 } from 'lucide-react'
+import { openPath } from '@tauri-apps/plugin-opener'
 import { AppCommand, CommandContext } from './types'
 import type { Collection } from '@/types'
 import { toast } from '../toast'
 import { openInIde } from '../ide'
 import { openProjectViaDialog } from '../projects/actions'
+import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
 /**
@@ -270,6 +274,35 @@ export function getHighlightCommands(context: CommandContext): AppCommand[] {
 }
 
 /**
+ * Help-related commands. These open the documentation site in the user's
+ * default browser, so they intentionally have no keyboard shortcut.
+ */
+export const helpCommands: AppCommand[] = [
+  {
+    id: 'open-user-guide',
+    label: 'User Guide',
+    description: 'Open the Astro Editor documentation in your browser',
+    icon: BookOpen,
+    group: 'help',
+    execute: async () => {
+      await openPath(DOCS_URLS.userGuide)
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'open-keyboard-shortcuts',
+    label: 'Keyboard Shortcuts',
+    description: 'Open the keyboard shortcuts reference in your browser',
+    icon: Keyboard,
+    group: 'help',
+    execute: async () => {
+      await openPath(DOCS_URLS.keyboardShortcuts)
+    },
+    isAvailable: () => true,
+  },
+]
+
+/**
  * Generate dynamic collection commands based on available collections
  */
 export function generateCollectionCommands(
@@ -374,6 +407,7 @@ export function getAllCommands(context: CommandContext): AppCommand[] {
     ...viewModeCommands,
     ...highlightCommands,
     ...ideCommands,
+    ...helpCommands,
     ...collectionCommands,
   ].filter(command => command.isAvailable(context))
 }

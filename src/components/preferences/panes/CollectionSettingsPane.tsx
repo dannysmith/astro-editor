@@ -29,6 +29,8 @@ import type { SchemaField } from '../../../lib/schema'
 import type { CollectionSettings } from '../../../lib/project-registry/types'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
+import { DocsLink } from '../DocsLink'
+import { DOCS_URLS } from '../../../lib/docs-urls'
 
 export const CollectionSettingsPane: React.FC = () => {
   const {
@@ -291,7 +293,8 @@ export const CollectionSettingsPane: React.FC = () => {
         </p>
         <p className="text-sm text-muted-foreground">
           <strong>Fallback chain:</strong> Collection override → Project setting
-          → Default value
+          → Default value.{' '}
+          <DocsLink href={DOCS_URLS.overrides}>Learn more</DocsLink>
         </p>
       </div>
 

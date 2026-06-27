@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { openPath } from '@tauri-apps/plugin-opener'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { globalCommandRegistry } from '../lib/editor/commands'
 import { openProjectViaDialog } from '../lib/projects/actions'
+import { DOCS_URLS } from '../lib/docs-urls'
 import type { HeadingLevel } from '../lib/editor/markdown/types'
 
 /**
@@ -104,11 +106,22 @@ export function useMenuEvents(
         openPreferencesRef.current(true)
       })
 
+      // Help (opens documentation in the default browser)
+      const helpUnlisteners = await Promise.all([
+        listen('menu-help-user-guide', () => {
+          void openPath(DOCS_URLS.userGuide)
+        }),
+        listen('menu-help-keyboard-shortcuts', () => {
+          void openPath(DOCS_URLS.keyboardShortcuts)
+        }),
+      ])
+
       unlistenFunctions.push(
         ...fileUnlisteners,
         ...viewUnlisteners,
         ...formatUnlisteners,
-        preferencesUnlistener
+        preferencesUnlistener,
+        ...helpUnlisteners
       )
     }
 

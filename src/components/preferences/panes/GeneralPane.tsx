@@ -18,6 +18,8 @@ import { usePreferences } from '../../../hooks/usePreferences'
 import { useTheme } from '../../../lib/theme-provider'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
+import { DocsLink } from '../DocsLink'
+import { DOCS_URLS } from '../../../lib/docs-urls'
 
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
@@ -103,7 +105,8 @@ export const GeneralPane: React.FC = () => {
             <FieldDescription>
               The command to launch your editor. Use <code>code</code> or{' '}
               <code>cursor</code> if installed in a standard location, or
-              provide the full path (e.g., <code>/usr/local/bin/nvim</code>).
+              provide the full path (e.g., <code>/usr/local/bin/nvim</code>).{' '}
+              <DocsLink href={DOCS_URLS.ideIntegration}>Learn more</DocsLink>
             </FieldDescription>
           </FieldContent>
         </Field>

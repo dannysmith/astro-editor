@@ -88,6 +88,7 @@ export function useCommandPalette() {
       { key: 'settings', heading: 'Settings' },
       { key: 'highlight', heading: 'Highlights' },
       { key: 'ide', heading: 'IDE' },
+      { key: 'help', heading: 'Help' },
     ]
 
     return groupOrder

@@ -21,6 +21,8 @@ import {
 import { getDiagnosticContext } from '../../../lib/diagnostics'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { SettingsSection } from '../SettingsSection'
+import { DocsLink } from '../DocsLink'
+import { DOCS_URLS } from '../../../lib/docs-urls'
 
 export const DebugPane: React.FC = () => {
   const [appVersion, setAppVersion] = useState<string>('...')
@@ -77,7 +79,8 @@ export const DebugPane: React.FC = () => {
           Advanced Settings
         </h2>
         <p className="text-sm text-muted-foreground">
-          Developer and diagnostic tools. Use with caution.
+          Developer and diagnostic tools. Use with caution.{' '}
+          <DocsLink href={DOCS_URLS.advancedPreferences}>Learn more</DocsLink>
         </p>
       </div>
 
