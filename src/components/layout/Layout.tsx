@@ -25,6 +25,7 @@ import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
 import { useDeepLink } from '../../hooks/useDeepLink'
 import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
+import { useExternalLinkHandler } from '../../hooks/useExternalLinkHandler'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
 import { commands } from '../../lib/bindings'
@@ -131,6 +132,7 @@ export const Layout: React.FC = () => {
   useSquareCornersEffect()
   useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
   useDeepLink(openFileByPath)
+  useExternalLinkHandler()
 
   // Enable query-based file loading
   useEditorFileContent()
