@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { error as logError } from '@tauri-apps/plugin-log'
-import { getExternalUrlFromClick } from '../lib/external-links'
+import { classifyLinkClick } from '../lib/external-links'
 
 /**
  * App-wide safety net that routes external links to the OS default browser.
@@ -16,16 +16,19 @@ import { getExternalUrlFromClick } from '../lib/external-links'
 export function useExternalLinkHandler() {
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
-      const url = getExternalUrlFromClick(event)
-      if (!url) return
+      const action = classifyLinkClick(event)
+      if (action.type === 'ignore') return
 
-      // We fully handle external links here. Stop propagation so component-level
-      // handlers (e.g. DocsLink) don't also fire and open the URL twice.
+      // We fully handle external/blocked links here. Stop propagation so
+      // component-level handlers (e.g. DocsLink) don't also fire.
       event.preventDefault()
       event.stopPropagation()
-      void openUrl(url).catch(err => {
-        void logError(`Failed to open external URL: ${String(err)}`)
-      })
+
+      if (action.type === 'open') {
+        void openUrl(action.url).catch(err => {
+          void logError(`Failed to open external URL: ${String(err)}`)
+        })
+      }
     }
 
     // Capture phase so we intercept before any component-level navigation.

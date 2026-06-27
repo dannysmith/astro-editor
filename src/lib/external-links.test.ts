@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { getExternalUrlFromClick } from './external-links'
+import { classifyLinkClick } from './external-links'
 
 /**
  * Build a minimal MouseEvent-like object whose `target` is a real DOM element,
@@ -33,72 +33,108 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('getExternalUrlFromClick', () => {
-  it('returns the URL for an external https link', () => {
+describe('classifyLinkClick', () => {
+  it('opens external https links', () => {
     const a = makeAnchor('https://example.com/page')
-    expect(getExternalUrlFromClick(clickEvent(a))).toBe(
-      'https://example.com/page'
-    )
+    expect(classifyLinkClick(clickEvent(a))).toEqual({
+      type: 'open',
+      url: 'https://example.com/page',
+    })
   })
 
-  it('returns the URL for an external http link', () => {
+  it('opens external http links', () => {
     const a = makeAnchor('http://example.com/')
-    expect(getExternalUrlFromClick(clickEvent(a))).toBe('http://example.com/')
+    expect(classifyLinkClick(clickEvent(a))).toEqual({
+      type: 'open',
+      url: 'http://example.com/',
+    })
   })
 
-  it('returns the URL for mailto and tel links', () => {
+  it('opens mailto and tel links', () => {
     const mail = makeAnchor('mailto:hi@danny.is')
-    expect(getExternalUrlFromClick(clickEvent(mail))).toBe('mailto:hi@danny.is')
+    expect(classifyLinkClick(clickEvent(mail))).toEqual({
+      type: 'open',
+      url: 'mailto:hi@danny.is',
+    })
 
     const tel = makeAnchor('tel:+15551234567')
-    expect(getExternalUrlFromClick(clickEvent(tel))).toBe('tel:+15551234567')
+    expect(classifyLinkClick(clickEvent(tel))).toEqual({
+      type: 'open',
+      url: 'tel:+15551234567',
+    })
   })
 
   it('resolves clicks on elements nested inside the anchor', () => {
     const a = makeAnchor('https://example.com/nested')
     const span = document.createElement('span')
     a.appendChild(span)
-    expect(getExternalUrlFromClick(clickEvent(span))).toBe(
-      'https://example.com/nested'
-    )
+    expect(classifyLinkClick(clickEvent(span))).toEqual({
+      type: 'open',
+      url: 'https://example.com/nested',
+    })
+  })
+
+  it('blocks unsafe / webview-navigating schemes', () => {
+    expect(
+      classifyLinkClick(clickEvent(makeAnchor('javascript:alert(1)')))
+    ).toEqual({ type: 'block' })
+    expect(
+      classifyLinkClick(clickEvent(makeAnchor('file:///etc/passwd')))
+    ).toEqual({ type: 'block' })
+    expect(
+      classifyLinkClick(clickEvent(makeAnchor('data:text/html,<h1>hi</h1>')))
+    ).toEqual({ type: 'block' })
   })
 
   it('ignores same-origin (in-app) links', () => {
     const a = makeAnchor(`${window.location.origin}/internal`)
-    expect(getExternalUrlFromClick(clickEvent(a))).toBeNull()
+    expect(classifyLinkClick(clickEvent(a))).toEqual({ type: 'ignore' })
+  })
+
+  it('ignores same-origin hash links', () => {
+    const a = makeAnchor(`${window.location.origin}/#section`)
+    expect(classifyLinkClick(clickEvent(a))).toEqual({ type: 'ignore' })
   })
 
   it('ignores clicks that are not on an anchor', () => {
     const div = document.createElement('div')
     document.body.appendChild(div)
-    expect(getExternalUrlFromClick(clickEvent(div))).toBeNull()
+    expect(classifyLinkClick(clickEvent(div))).toEqual({ type: 'ignore' })
   })
 
   it('ignores anchors without an href', () => {
     const a = document.createElement('a')
     document.body.appendChild(a)
-    expect(getExternalUrlFromClick(clickEvent(a))).toBeNull()
+    expect(classifyLinkClick(clickEvent(a))).toEqual({ type: 'ignore' })
   })
 
   it('ignores non-primary-button clicks', () => {
     const a = makeAnchor('https://example.com/')
-    expect(getExternalUrlFromClick(clickEvent(a, { button: 1 }))).toBeNull()
+    expect(classifyLinkClick(clickEvent(a, { button: 1 }))).toEqual({
+      type: 'ignore',
+    })
   })
 
   it('ignores modified clicks (cmd/ctrl/alt/shift)', () => {
     const a = makeAnchor('https://example.com/')
-    expect(getExternalUrlFromClick(clickEvent(a, { metaKey: true }))).toBeNull()
-    expect(getExternalUrlFromClick(clickEvent(a, { ctrlKey: true }))).toBeNull()
-    expect(getExternalUrlFromClick(clickEvent(a, { altKey: true }))).toBeNull()
-    expect(
-      getExternalUrlFromClick(clickEvent(a, { shiftKey: true }))
-    ).toBeNull()
+    expect(classifyLinkClick(clickEvent(a, { metaKey: true }))).toEqual({
+      type: 'ignore',
+    })
+    expect(classifyLinkClick(clickEvent(a, { ctrlKey: true }))).toEqual({
+      type: 'ignore',
+    })
+    expect(classifyLinkClick(clickEvent(a, { altKey: true }))).toEqual({
+      type: 'ignore',
+    })
+    expect(classifyLinkClick(clickEvent(a, { shiftKey: true }))).toEqual({
+      type: 'ignore',
+    })
   })
 
   it('ignores clicks that have already been handled', () => {
     const a = makeAnchor('https://example.com/')
     expect(
-      getExternalUrlFromClick(clickEvent(a, { defaultPrevented: true }))
-    ).toBeNull()
+      classifyLinkClick(clickEvent(a, { defaultPrevented: true }))
+    ).toEqual({ type: 'ignore' })
   })
 })
