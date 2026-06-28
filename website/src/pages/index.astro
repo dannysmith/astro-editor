@@ -1,13 +1,36 @@
 ---
 import Layout from '@layouts/Layout.astro'
+import { Image, getImage } from 'astro:assets'
 import SiteHeader from '../components/SiteHeader.astro'
 import SiteFooter from '../components/SiteFooter.astro'
 import DownloadButton from '../components/DownloadButton.astro'
+import AEDemo from '../components/AEDemo.astro'
+import vscodeShot from '../assets/main-demo-image-vscode.png'
+import aeLight from '../assets/main-demo-image-light.png'
+import aeDark from '../assets/main-demo-image-dark.png'
 
 const RELEASE_BASE =
   'https://github.com/dannysmith/astro-editor/releases/latest/download'
 const debUrl = `${RELEASE_BASE}/astro-editor-latest.deb`
 const rpmUrl = `${RELEASE_BASE}/astro-editor-latest.rpm`
+
+// The Astro Editor shot spans the hero (~1040px, 2x ≈ 2080); VS Code is smaller.
+const heroImageWidths = [640, 1024, 1536, 2048]
+
+// Dark variant of the Astro Editor screenshot, served via a <picture> source
+// when the visitor's OS is in dark mode (the page follows prefers-color-scheme).
+const aeDarkOptimised = await getImage({
+  src: aeDark,
+  format: 'webp',
+  widths: heroImageWidths,
+})
+
+// The focused-writing surface typed out by the hero demo.
+const heroDemo = `# The case for boring tools
+
+I used to keep my drafts in one app and the frontmatter in another. Every switch broke my train of thought.
+
+Now I just *write*. The words stay in front of me and everything else gets out of the way.`
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -51,11 +74,62 @@ const structuredData = {
 
   <main>
     <section id="hero" class="section section--hero">
-      <div class="container">
-        <h1>Hero</h1>
-        <p class="placeholder">
-          VS Code ↔ Astro Editor contrast + focused-writing demo — Phase 3
+      <div class="container hero">
+        <p class="eyebrow">For Astro content collections</p>
+        <h1>Writer mode for your Astro content.</h1>
+        <p class="hero-sub">
+          A native, distraction-free markdown editor that understands Astro
+          content collections. It reads your Zod schemas, turns frontmatter into
+          clean forms, and gets out of the way so you can write. Your files stay
+          exactly where they are.
         </p>
+
+        <div class="hero-cta">
+          <DownloadButton platform="macos" />
+          <DownloadButton platform="windows" />
+          <a class="docs-link" href="/getting-started/">Read the docs →</a>
+        </div>
+
+        <div class="hero-visual">
+          <picture class="shot shot--app">
+            <source
+              srcset={aeDarkOptimised.srcSet.attribute}
+              sizes="(max-width: 1099px) 92vw, 1040px"
+              media="(prefers-color-scheme: dark)"
+              type="image/webp"
+            />
+            <Image
+              src={aeLight}
+              alt="The same file open in Astro Editor: a file list on the left, a schema-aware frontmatter form with a cover image on the right, and clean prose in the middle."
+              loading="eager"
+              widths={heroImageWidths}
+              sizes="(max-width: 1099px) 92vw, 1040px"
+            />
+          </picture>
+
+          <p class="contrast-text">
+            The same file in VS Code looks like this — a less-than-ideal
+            environment for writer mode.
+          </p>
+
+          <div class="shot shot--vscode">
+            <Image
+              src={vscodeShot}
+              alt="The same content file open in VS Code — a wall of raw YAML frontmatter above the prose, surrounded by editor chrome."
+              loading="lazy"
+              widths={heroImageWidths}
+              sizes="(max-width: 880px) 92vw, 820px"
+            />
+          </div>
+        </div>
+
+        <div class="focus-demo">
+          <p class="focus-demo-lead">
+            …and when you want to disappear into the writing — panels hidden,
+            focus mode on, everything but the current line dimmed away.
+          </p>
+          <AEDemo code={heroDemo} />
+        </div>
       </div>
     </section>
 
@@ -161,6 +235,100 @@ const structuredData = {
 
   .section--hero {
     border-top: none;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    text-align: center;
+  }
+
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  .hero h1 {
+    margin-top: 1rem;
+    margin-inline: auto;
+    max-width: 16ch;
+  }
+
+  .hero-sub {
+    margin: 1.25rem auto 0;
+    max-width: 42rem;
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  .hero-cta {
+    margin-top: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .docs-link {
+    color: var(--color-text);
+    font-weight: 500;
+    padding: 0.5rem 0.25rem;
+
+    &:hover {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+  }
+
+  .hero-visual {
+    margin-top: 3.5rem;
+  }
+
+  /* Screenshots are captured on macOS and already carry their own window
+     shadow, so they're rendered bare — no frame, border, or background. */
+  .shot {
+    display: block;
+    margin-inline: auto;
+
+    :global(img) {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  .shot--app {
+    max-width: 1040px;
+  }
+
+  .shot--vscode {
+    max-width: 820px;
+  }
+
+  .contrast-text {
+    margin: 2.75rem auto;
+    max-width: 34rem;
+    font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .focus-demo {
+    margin-top: 4rem;
+    max-width: 42rem;
+    margin-inline: auto;
+    text-align: left;
+  }
+
+  .focus-demo-lead {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
   }
 
   .download-section {
