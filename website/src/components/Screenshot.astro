@@ -33,10 +33,23 @@ const {
 const darkOptimised = darkSrc
   ? await getImage({ src: darkSrc, format: 'webp', widths })
   : null
+
+// Full-resolution webp for the lightbox (highest resolution we have).
+const fullLight = await getImage({ src, format: 'webp' })
+const fullDark = darkSrc
+  ? await getImage({ src: darkSrc, format: 'webp' })
+  : null
 ---
 
 <figure class="screenshot">
-  <div class="screenshot-frame">
+  <button
+    class="screenshot-frame screenshot-trigger"
+    type="button"
+    data-lightbox-src={fullLight.src}
+    data-lightbox-src-dark={fullDark?.src}
+    data-lightbox-alt={alt}
+    aria-label={`Open full-size image: ${alt}`}
+  >
     {
       darkOptimised ? (
         <picture>
@@ -64,7 +77,7 @@ const darkOptimised = darkSrc
         />
       )
     }
-  </div>
+  </button>
   {caption && <figcaption>{caption}</figcaption>}
 </figure>
 
@@ -74,6 +87,9 @@ const darkOptimised = darkSrc
   }
 
   .screenshot-frame {
+    display: block;
+    width: 100%;
+    padding: 0;
     border-radius: 0.6rem;
     border: 1px solid var(--color-border);
     overflow: hidden;
@@ -84,6 +100,26 @@ const darkOptimised = darkSrc
       display: block;
       width: 100%;
       height: auto;
+    }
+  }
+
+  .screenshot-trigger {
+    cursor: zoom-in;
+    transition: box-shadow 0.15s ease;
+  }
+
+  .screenshot-trigger:hover {
+    box-shadow: 0 14px 38px rgb(0 0 0 / 0.2);
+  }
+
+  .screenshot-trigger:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screenshot-trigger {
+      transition: none;
     }
   }
 
