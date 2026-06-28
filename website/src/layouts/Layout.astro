@@ -121,4 +121,46 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site)
       text-decoration: underline;
     }
   }
+
+  /* Shared homepage layout primitives — used by index.astro and the
+     homepage components (FeatureSection, etc.). */
+  :root {
+    --home-container: 1100px;
+    --home-pad-x: 1.5rem;
+    --home-section-y: 6rem;
+  }
+
+  .container {
+    width: 100%;
+    max-width: var(--home-container);
+    margin-inline: auto;
+    padding-inline: var(--home-pad-x);
+  }
+
+  .section {
+    padding-block: var(--home-section-y);
+    border-top: 1px solid var(--color-border);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 900px) {
+    :root {
+      --home-section-y: 4rem;
+    }
+  }
+
+  @media (max-width: 600px) {
+    :root {
+      --home-pad-x: 1.25rem;
+      --home-section-y: 3rem;
+    }
+  }
 </style>

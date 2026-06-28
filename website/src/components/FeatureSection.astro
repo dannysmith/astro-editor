@@ -1,0 +1,99 @@
+---
+/**
+ * FeatureSection — an alternating text / media row for the homepage.
+ *
+ * Default slot = the text column (lead paragraph, lists, etc.).
+ * `media` slot = the visual (a <Screenshot>, slider, demo…).
+ * `reverse` puts the media on the left on desktop. On mobile the text always
+ * comes first.
+ */
+interface Props {
+  id?: string
+  eyebrow?: string
+  title: string
+  reverse?: boolean
+}
+const { id, eyebrow, title, reverse = false } = Astro.props
+---
+
+<section
+  id={id}
+  class:list={['section', 'feature', { 'feature--reverse': reverse }]}
+>
+  <div class="container feature-grid">
+    <div class="feature-text">
+      {eyebrow && <p class="feature-eyebrow">{eyebrow}</p>}
+      <h2>{title}</h2>
+      <slot />
+    </div>
+    <div class="feature-media">
+      <slot name="media" />
+    </div>
+  </div>
+</section>
+
+<style>
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+
+  .feature-media {
+    order: 1;
+  }
+
+  .feature-text {
+    order: 0;
+  }
+
+  .feature--reverse .feature-media {
+    order: 0;
+  }
+
+  .feature--reverse .feature-text {
+    order: 1;
+  }
+
+  .feature-eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-text :global(h2) {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-text :global(p) {
+    margin-top: 1rem;
+    color: var(--color-text-muted);
+    font-size: 1.0625rem;
+  }
+
+  @media (max-width: 860px) {
+    .feature-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    .feature-text {
+      order: 0;
+    }
+
+    .feature-media,
+    .feature--reverse .feature-media {
+      order: 1;
+    }
+
+    .feature--reverse .feature-text {
+      order: 0;
+    }
+  }
+</style>

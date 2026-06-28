@@ -1,0 +1,149 @@
+---
+/**
+ * ThemeCompareSlider — a drag-to-reveal comparison of the same screenshot in
+ * light and dark themes. Both images must be the same dimensions.
+ *
+ * Works without JS (defaults to a 50/50 split); JS makes the divider draggable.
+ * The range input keeps it keyboard-accessible.
+ */
+import { Image } from 'astro:assets'
+import type { ImageMetadata } from 'astro'
+
+interface Props {
+  lightSrc: ImageMetadata
+  darkSrc: ImageMetadata
+  alt: string
+  sizes?: string
+  widths?: number[]
+}
+
+const {
+  lightSrc,
+  darkSrc,
+  alt,
+  sizes = '(max-width: 860px) 92vw, 520px',
+  widths = [520, 780, 1040],
+} = Astro.props
+---
+
+<div class="compare" style="--pos: 50%">
+  <Image
+    class="compare-base"
+    src={darkSrc}
+    alt={alt}
+    widths={widths}
+    sizes={sizes}
+    loading="lazy"
+  />
+  <div class="compare-top" aria-hidden="true">
+    <Image src={lightSrc} alt="" widths={widths} sizes={sizes} loading="lazy" />
+  </div>
+
+  <div class="compare-divider"></div>
+  <span class="compare-label compare-label--light">Light</span>
+  <span class="compare-label compare-label--dark">Dark</span>
+
+  <input
+    class="compare-range"
+    type="range"
+    min="0"
+    max="100"
+    value="50"
+    aria-label="Reveal the light or dark theme"
+  />
+</div>
+
+<style>
+  .compare {
+    position: relative;
+    line-height: 0;
+  }
+
+  .compare :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .compare-top {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    /* Reveal the left portion (light) up to the divider position. */
+    clip-path: inset(0 calc(100% - var(--pos)) 0 0);
+  }
+
+  .compare-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--pos);
+    width: 2px;
+    transform: translateX(-1px);
+    background: var(--color-bg);
+    box-shadow: 0 0 0 1px var(--color-border);
+    pointer-events: none;
+  }
+
+  .compare-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  }
+
+  .compare-label {
+    position: absolute;
+    top: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .compare-label--light {
+    left: 0.75rem;
+  }
+
+  .compare-label--dark {
+    right: 0.75rem;
+  }
+
+  /* The range input sits over the whole image and drives --pos via JS. */
+  .compare-range {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: ew-resize;
+  }
+
+  .compare-range:focus-visible {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.compare').forEach((el) => {
+    const range = el.querySelector<HTMLInputElement>('.compare-range')
+    if (!range) return
+    range.addEventListener('input', () => {
+      el.style.setProperty('--pos', `${range.value}%`)
+    })
+  })
+</script>

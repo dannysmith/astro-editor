@@ -5,9 +5,19 @@ import SiteHeader from '../components/SiteHeader.astro'
 import SiteFooter from '../components/SiteFooter.astro'
 import DownloadButton from '../components/DownloadButton.astro'
 import AEDemo from '../components/AEDemo.astro'
+import FeatureSection from '../components/FeatureSection.astro'
+import Screenshot from '../components/Screenshot.astro'
+import ThemeCompareSlider from '../components/ThemeCompareSlider.astro'
 import vscodeShot from '../assets/main-demo-image-vscode.png'
 import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
+import frontmatterShot from '../assets/frontmatter-sidebar-overview.png'
+import coverFieldShot from '../assets/nested-image-field.png'
+import mdxShot from '../assets/mdx-builder-1.png'
+import imagePreviewShot from '../assets/image-preview-demo.png'
+import copyeditShot from '../assets/copyedit-highlights.png'
+import commandPaletteShot from '../assets/command-palette.png'
+import draftsShot from '../assets/file-manager-drafts-filter.png'
 
 const RELEASE_BASE =
   'https://github.com/dannysmith/astro-editor/releases/latest/download'
@@ -162,42 +172,145 @@ const structuredData = {
       </div>
     </section>
 
-    <section id="frontmatter" class="section">
-      <div class="container">
-        <h2>Working with frontmatter</h2>
-        <p class="placeholder">Schema-aware forms — Phase 4</p>
-      </div>
-    </section>
+    <FeatureSection
+      id="frontmatter"
+      eyebrow="Frontmatter"
+      title="Forms built from your schema, not guesswork"
+    >
+      <p>
+        Astro Editor reads your collection's Zod schema and renders the right
+        control for every field — text inputs, date pickers, enum dropdowns, tag
+        arrays, booleans, nested objects.
+      </p>
+      <p>
+        Every field in the schema shows up, even the ones a file doesn't have
+        yet. No more digging through <code>content.config.ts</code> to remember what's
+        required, what's optional, or what an enum's allowed values were.
+      </p>
+      <Screenshot
+        slot="media"
+        src={frontmatterShot}
+        alt="Astro Editor with the markdown editor on the left and a frontmatter panel on the right showing Title, Source URL, Slug, Draft, Description, Pub Date, Tags and Category fields generated from the schema."
+        caption="Fields generated from the collection schema, right beside the editor."
+      />
+    </FeatureSection>
 
-    <section id="writing" class="section">
-      <div class="container">
-        <h2>Designed for writing</h2>
-        <p class="placeholder">
-          Light/dark slider, focus &amp; typewriter — Phase 4
-        </p>
-      </div>
-    </section>
+    <FeatureSection
+      id="writing"
+      eyebrow="Designed for writing"
+      title="A writing surface, not a code editor"
+      reverse
+    >
+      <p>
+        Typography inspired by iA Writer, a focus mode that dims everything but
+        the sentence you're on, and typewriter scrolling that keeps your cursor
+        in a comfortable spot on screen.
+      </p>
+      <ul class="feature-list">
+        <li>Focus mode &amp; typewriter scrolling</li>
+        <li>Keyboard shortcuts for every formatting command</li>
+        <li>Paste a URL over selected text to make a link</li>
+        <li>⌥-hover any link or image path to preview it</li>
+        <li>Beautiful in light and dark — drag the handle to compare</li>
+      </ul>
+      <ThemeCompareSlider
+        slot="media"
+        lightSrc={aeLight}
+        darkSrc={aeDark}
+        alt="The same Astro Editor window shown in light and dark themes."
+      />
+    </FeatureSection>
 
-    <section id="mdx" class="section">
-      <div class="container">
-        <h2>Inserting MDX components</h2>
-        <p class="placeholder">MDX inserter sequence — Phase 4</p>
-      </div>
-    </section>
+    <FeatureSection
+      id="mdx"
+      eyebrow="MDX components"
+      title="Insert components without leaving the keyboard"
+    >
+      <p>
+        In an MDX file, open the component inserter, search your project's
+        components, and drop one in. Astro Editor reads each component's props
+        and walks you through filling them — tab from field to field.
+      </p>
+      <p>
+        Astro, React, Vue, and Svelte components all show up side by side, each
+        tagged with its framework.
+      </p>
+      <Screenshot
+        slot="media"
+        src={mdxShot}
+        alt="Astro Editor's component inserter open over an MDX file, listing components including InfoBox (Vue), Callout (Astro), Card (Vue), BookmarkCard (Astro) and Alert (React)."
+        caption="Search and insert components from across your project's frameworks."
+      />
+    </FeatureSection>
 
-    <section id="images" class="section">
-      <div class="container">
-        <h2>Working with images</h2>
-        <p class="placeholder">Drag, rename, link, hover preview — Phase 4</p>
+    <FeatureSection
+      id="images"
+      eyebrow="Images"
+      title="Drop in an image, get a clean link"
+      reverse
+    >
+      <p>
+        Drag an image into the editor and Astro Editor copies it into the right
+        assets folder, gives it a web-safe name, and inserts a relative link —
+        no manual file wrangling.
+      </p>
+      <p>
+        The same smart image handling powers schema image fields in the
+        frontmatter panel, and ⌥-hovering any image path pops up an instant
+        preview.
+      </p>
+      <div slot="media" class="media-stack">
+        <Screenshot
+          src={imagePreviewShot}
+          alt="An image path in the editor being hovered, with a thumbnail preview floating in the bottom-right corner of the window."
+          caption="⌥-hover an image path or URL to preview it in the corner."
+        />
+        <Screenshot
+          src={coverFieldShot}
+          alt="A schema-driven Cover Image field showing an image path, a Change Image button, a thumbnail preview and an Alt text input."
+          caption="The same handling in a schema image field — drag-and-drop with a live thumbnail."
+        />
       </div>
-    </section>
+    </FeatureSection>
 
     <section id="features" class="section">
       <div class="container">
-        <h2>And more</h2>
-        <p class="placeholder">
-          Drafts, copyedit modes, command palette — Phase 4
-        </p>
+        <h2 class="section-heading">And the day-to-day stuff, too</h2>
+        <div class="cards">
+          <article class="card">
+            <Screenshot
+              src={draftsShot}
+              alt="The file list sidebar filtered to drafts, with two files marked by red Draft badges, alongside filter and sort controls."
+            />
+            <h3>Drafts, filtering &amp; sorting</h3>
+            <p>
+              Spot drafts at a glance, filter them in or out, and sort
+              collections by name or date.
+            </p>
+          </article>
+          <article class="card">
+            <Screenshot
+              src={copyeditShot}
+              alt="Prose in the editor with words colour-coded by part of speech — nouns, verbs, adjectives, adverbs and conjunctions in different colours."
+            />
+            <h3>Copyedit modes</h3>
+            <p>
+              Colour-code parts of speech to catch overused adverbs and tighten
+              your prose.
+            </p>
+          </article>
+          <article class="card">
+            <Screenshot
+              src={commandPaletteShot}
+              alt="Astro Editor's command palette open over a document, listing File and Navigation commands like New File, Close File and Toggle Sidebar."
+            />
+            <h3>Command palette</h3>
+            <p>
+              The whole app is keyboard-navigable. Open the palette to jump
+              anywhere or run any command.
+            </p>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -213,26 +326,8 @@ const structuredData = {
 </Layout>
 
 <style>
-  /* Shared layout tokens for the homepage. Palette comes from Layout.astro's
-     Flexoki variables (which already swap on prefers-color-scheme). */
-  :root {
-    --home-container: 1100px;
-    --home-pad-x: 1.5rem;
-    --home-section-y: 6rem;
-  }
-
-  .container {
-    width: 100%;
-    max-width: var(--home-container);
-    margin-inline: auto;
-    padding-inline: var(--home-pad-x);
-  }
-
-  .section {
-    padding-block: var(--home-section-y);
-    border-top: 1px solid var(--color-border);
-  }
-
+  /* Layout primitives (.container, .section, --home-* tokens) and the Flexoki
+     palette live in Layout.astro's global styles. */
   .section--hero {
     border-top: none;
   }
@@ -331,6 +426,70 @@ const structuredData = {
     text-align: center;
   }
 
+  /* ---- Feature sections ---- */
+  .feature-list {
+    margin-top: 1.25rem;
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .feature-list li {
+    position: relative;
+    padding-left: 1.4rem;
+  }
+
+  .feature-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .media-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* ---- "And more" cards ---- */
+  .section-heading {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .card h3 {
+    margin-top: 1.25rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .card p {
+    margin-top: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 860px) {
+    .cards {
+      grid-template-columns: 1fr;
+      max-width: 28rem;
+      margin-inline: auto;
+    }
+  }
+
   .download-section {
     text-align: center;
   }
@@ -426,20 +585,5 @@ const structuredData = {
     margin-top: 0.75rem;
     color: var(--color-text-muted);
     font-style: italic;
-  }
-
-  /* Tablet */
-  @media (max-width: 900px) {
-    :root {
-      --home-section-y: 4rem;
-    }
-  }
-
-  /* Mobile */
-  @media (max-width: 600px) {
-    :root {
-      --home-pad-x: 1.25rem;
-      --home-section-y: 3rem;
-    }
   }
 </style>
