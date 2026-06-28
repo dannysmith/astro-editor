@@ -8,6 +8,7 @@ import AEDemo from '../components/AEDemo.astro'
 import FeatureSection from '../components/FeatureSection.astro'
 import Screenshot from '../components/Screenshot.astro'
 import ThemeCompareSlider from '../components/ThemeCompareSlider.astro'
+import YouTubeFacade from '../components/YouTubeFacade.astro'
 import vscodeShot from '../assets/main-demo-image-vscode.png'
 import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
@@ -315,9 +316,14 @@ const structuredData = {
     </section>
 
     <section id="video" class="section">
-      <div class="container">
-        <h2>See it in action</h2>
-        <p class="placeholder">YouTube facade — Phase 5</p>
+      <div class="container video-section">
+        <h2 class="section-heading">See it in action</h2>
+        <div class="video-frame">
+          <YouTubeFacade
+            id="SJkXD59gQ5U"
+            title="Astro Editor — a walkthrough"
+          />
+        </div>
       </div>
     </section>
   </main>
@@ -456,6 +462,11 @@ const structuredData = {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  .video-frame {
+    max-width: 820px;
+    margin-inline: auto;
   }
 
   /* ---- "And more" cards ---- */
