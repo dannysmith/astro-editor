@@ -13,8 +13,9 @@ import Lightbox from '../components/Lightbox.astro'
 import vscodeShot from '../assets/main-demo-image-vscode.png'
 import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
+import aeFocusLight from '../assets/main-demo-image-distractionless-light.png'
+import aeFocusDark from '../assets/main-demo-image-distractionless-dark.png'
 import frontmatterShot from '../assets/frontmatter-sidebar-overview.png'
-import coverFieldShot from '../assets/nested-image-field.png'
 import mdxShot from '../assets/mdx-builder-1.png'
 import imagePreviewShot from '../assets/image-preview-demo.png'
 import copyeditShot from '../assets/copyedit-highlights.png'
@@ -33,6 +34,13 @@ const heroImageWidths = [640, 1024, 1536, 2048]
 // when the visitor's OS is in dark mode (the page follows prefers-color-scheme).
 const aeDarkOptimised = await getImage({
   src: aeDark,
+  format: 'webp',
+  widths: heroImageWidths,
+})
+
+// Dark variant of the distraction-free shot shown above the typing demo.
+const aeFocusDarkOptimised = await getImage({
+  src: aeFocusDark,
   format: 'webp',
   widths: heroImageWidths,
 })
@@ -140,7 +148,26 @@ const structuredData = {
             …and when you want to disappear into the writing — panels hidden,
             focus mode on, everything but the current line dimmed away.
           </p>
-          <AEDemo code={heroDemo} />
+
+          <picture class="shot shot--app focus-demo-shot">
+            <source
+              srcset={aeFocusDarkOptimised.srcSet.attribute}
+              sizes="(max-width: 1099px) 92vw, 1040px"
+              media="(prefers-color-scheme: dark)"
+              type="image/webp"
+            />
+            <Image
+              src={aeFocusLight}
+              alt="Astro Editor in distraction-free mode: both sidebars and the toolbar hidden, with focus mode dimming everything but the current line."
+              loading="lazy"
+              widths={heroImageWidths}
+              sizes="(max-width: 1099px) 92vw, 1040px"
+            />
+          </picture>
+
+          <div class="focus-demo-anim">
+            <AEDemo code={heroDemo} />
+          </div>
         </div>
       </div>
     </section>
@@ -267,11 +294,6 @@ const structuredData = {
           alt="An image path in the editor being hovered, with a thumbnail preview floating in the bottom-right corner of the window."
           caption="⌥-hover an image path or URL to preview it in the corner."
         />
-        <Screenshot
-          src={coverFieldShot}
-          alt="A schema-driven Cover Image field showing an image path, a Change Image button, a thumbnail preview and an Alt text input."
-          caption="The same handling in a schema image field — drag-and-drop with a live thumbnail."
-        />
       </div>
     </FeatureSection>
 
@@ -283,6 +305,8 @@ const structuredData = {
             <Screenshot
               src={draftsShot}
               alt="The file list sidebar filtered to drafts, with two files marked by red Draft badges, alongside filter and sort controls."
+              sizes="(max-width: 860px) 92vw, 340px"
+              widths={[340, 510, 680]}
             />
             <h3>Drafts, filtering &amp; sorting</h3>
             <p>
@@ -294,6 +318,8 @@ const structuredData = {
             <Screenshot
               src={copyeditShot}
               alt="Prose in the editor with words colour-coded by part of speech — nouns, verbs, adjectives, adverbs and conjunctions in different colours."
+              sizes="(max-width: 860px) 92vw, 340px"
+              widths={[340, 510, 680]}
             />
             <h3>Copyedit modes</h3>
             <p>
@@ -305,6 +331,8 @@ const structuredData = {
             <Screenshot
               src={commandPaletteShot}
               alt="Astro Editor's command palette open over a document, listing File and Navigation commands like New File, Close File and Toggle Sidebar."
+              sizes="(max-width: 860px) 92vw, 340px"
+              widths={[340, 510, 680]}
             />
             <h3>Command palette</h3>
             <p>
@@ -423,16 +451,24 @@ const structuredData = {
 
   .focus-demo {
     margin-top: 4rem;
-    max-width: 42rem;
-    margin-inline: auto;
-    text-align: left;
   }
 
   .focus-demo-lead {
+    max-width: 42rem;
+    margin-inline: auto;
     color: var(--color-text-muted);
     font-size: 1rem;
-    margin-bottom: 0.5rem;
     text-align: center;
+  }
+
+  .focus-demo-shot {
+    margin-top: 1.5rem;
+  }
+
+  .focus-demo-anim {
+    max-width: 42rem;
+    margin: 2rem auto 0;
+    text-align: left;
   }
 
   /* ---- Feature sections ---- */

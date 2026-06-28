@@ -33,11 +33,18 @@ const { id, eyebrow, title, reverse = false } = Astro.props
 </section>
 
 <style>
+  /* The media column is wider than the text column so screenshots read big.
+     The ratio flips with `reverse` so the media stays the wide side either
+     way (the order rules below put media in the correct cell). */
   .feature-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3.5rem;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 3rem;
     align-items: center;
+  }
+
+  .feature--reverse .feature-grid {
+    grid-template-columns: 1.6fr 1fr;
   }
 
   .feature-media {
