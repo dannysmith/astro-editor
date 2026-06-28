@@ -1,26 +1,53 @@
 ---
 import Layout from '@layouts/Layout.astro'
+import SiteHeader from '../components/SiteHeader.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+import DownloadButton from '../components/DownloadButton.astro'
+
+const RELEASE_BASE =
+  'https://github.com/dannysmith/astro-editor/releases/latest/download'
+const debUrl = `${RELEASE_BASE}/astro-editor-latest.deb`
+const rpmUrl = `${RELEASE_BASE}/astro-editor-latest.rpm`
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Astro Editor',
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: ['macOS', 'Windows', 'Linux'],
+  description:
+    'A focused, schema-aware markdown editor for Astro content collections.',
+  url: 'https://astroeditor.danny.is/',
+  author: {
+    '@type': 'Person',
+    name: 'Danny Smith',
+    url: 'https://danny.is',
+  },
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  downloadUrl: 'https://astroeditor.danny.is/',
+}
 ---
 
 <Layout
   title="Astro Editor — A focused markdown editor for Astro content collections"
   description="Astro Editor is a native, distraction-free markdown editor that reads your Astro content collection schemas and turns frontmatter into clean, schema-aware forms. For writer mode, not coder mode."
 >
+  <script
+    type="application/ld+json"
+    is:inline
+    slot="head"
+    set:html={JSON.stringify(structuredData)}
+  />
+
   {
     /*
-    Homepage scaffold (Phase 1).
+    Homepage (built up phase by phase).
     Section order: Header → Hero → Download → Frontmatter → Designed for Writing
     → MDX Components → Working with Images → Other Features → Video → Footer.
-    Each <section> is an empty placeholder; later phases fill them in and the
-    header/footer/download blocks become extracted components.
   */
   }
 
-  <header class="site-header">
-    <div class="container">
-      <p class="placeholder">Header / nav — Phase 2</p>
-    </div>
-  </header>
+  <SiteHeader />
 
   <main>
     <section id="hero" class="section section--hero">
@@ -33,9 +60,31 @@ import Layout from '@layouts/Layout.astro'
     </section>
 
     <section id="download" class="section">
-      <div class="container">
+      <div class="container download-section">
         <h2>Download</h2>
-        <p class="placeholder">Download buttons — Phase 2</p>
+        <p class="lede">
+          Free and open source. Native builds for macOS, Windows, and Linux.
+        </p>
+
+        <div class="downloads">
+          <div class="primary-row">
+            <DownloadButton platform="macos" />
+            <DownloadButton platform="windows" />
+          </div>
+
+          <div class="linux">
+            <DownloadButton platform="linux" />
+            <p class="linux-alt">
+              Linux is in beta. Also available as a{' '}
+              <a href={debUrl}>.deb</a> or <a href={rpmUrl}>.rpm</a> package.
+            </p>
+          </div>
+
+          <p class="brew">
+            Or install via Homebrew:
+            <code>brew install --cask astro-editor</code>
+          </p>
+        </div>
       </div>
     </section>
 
@@ -86,11 +135,7 @@ import Layout from '@layouts/Layout.astro'
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p class="placeholder">Footer — Phase 2</p>
-    </div>
-  </footer>
+  <SiteFooter />
 </Layout>
 
 <style>
@@ -118,15 +163,81 @@ import Layout from '@layouts/Layout.astro'
     border-top: none;
   }
 
-  .site-header {
-    padding-block: 1.25rem;
-    border-bottom: 1px solid var(--color-border);
+  .download-section {
+    text-align: center;
   }
 
-  .site-footer {
-    padding-block: 2.5rem;
-    border-top: 1px solid var(--color-border);
+  .lede {
+    margin-top: 0.75rem;
+    margin-bottom: 2rem;
     color: var(--color-text-muted);
+    font-size: 1.0625rem;
+  }
+
+  .downloads {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .primary-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .linux {
+    width: 100%;
+    max-width: 36rem;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .linux-alt {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-align: center;
+
+    a {
+      color: var(--color-text-muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+
+      &:hover {
+        color: var(--color-text);
+      }
+    }
+  }
+
+  .brew {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-align: center;
+
+    code {
+      margin-left: 0.35rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.3rem;
+      background: var(--color-bg-2);
+      border: 1px solid var(--color-border);
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--color-text);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .primary-row {
+      width: 100%;
+    }
   }
 
   h1 {

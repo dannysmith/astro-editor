@@ -1,0 +1,226 @@
+---
+import { Image } from 'astro:assets'
+import logo from '../assets/icon.png'
+
+const navLinks = [
+  { label: 'Features', href: '#frontmatter' },
+  { label: 'Designed for writing', href: '#writing' },
+  { label: 'Docs', href: '/getting-started/' },
+]
+const githubUrl = 'https://github.com/dannysmith/astro-editor'
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <a class="brand" href="/">
+      <Image src={logo} alt="Astro Editor logo" width={32} height={32} />
+      <span>Astro Editor</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Primary">
+      {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
+      <a
+        class="icon-link"
+        href={githubUrl}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Astro Editor on GitHub"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+          ></path>
+        </svg>
+      </a>
+      <a class="nav-cta" href="#download">Download</a>
+    </nav>
+
+    <button
+      class="nav-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="mobile-menu"
+      aria-label="Open menu"
+    >
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <line class="bar-top" x1="3" y1="6" x2="21" y2="6"></line>
+        <line class="bar-mid" x1="3" y1="12" x2="21" y2="12"></line>
+        <line class="bar-bot" x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+
+  <div id="mobile-menu" class="mobile-menu" hidden>
+    <nav class="container" aria-label="Mobile">
+      {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
+      <a href={githubUrl} target="_blank" rel="noreferrer">GitHub</a>
+      <a class="nav-cta" href="#download">Download</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 0.875rem;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 1.05rem;
+
+    &:hover {
+      text-decoration: none;
+      color: var(--color-text);
+    }
+
+    img {
+      border-radius: 0.45rem;
+    }
+  }
+
+  .desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    a {
+      color: var(--color-text-muted);
+      font-size: 0.95rem;
+
+      &:hover {
+        color: var(--color-text);
+        text-decoration: none;
+      }
+    }
+  }
+
+  .icon-link {
+    display: inline-flex;
+  }
+
+  .nav-cta {
+    padding: 0.45rem 0.9rem;
+    border-radius: 0.5rem;
+    background: var(--color-accent);
+    color: #fff !important;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--color-accent-hover);
+    }
+  }
+
+  .nav-toggle {
+    display: none;
+    padding: 0.35rem;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    border-radius: 0.4rem;
+
+    &:hover {
+      background: var(--color-bg-2);
+    }
+  }
+
+  .mobile-menu {
+    border-top: 1px solid var(--color-border);
+
+    nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding-block: 0.75rem;
+    }
+
+    a {
+      padding: 0.65rem 0.25rem;
+      color: var(--color-text);
+      font-size: 1rem;
+
+      &:hover {
+        text-decoration: none;
+      }
+    }
+
+    .nav-cta {
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .desktop-nav {
+      display: none;
+    }
+
+    .nav-toggle {
+      display: inline-flex;
+    }
+  }
+</style>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>('.nav-toggle')
+  const menu = document.getElementById('mobile-menu')
+
+  if (toggle && menu) {
+    const setOpen = (open: boolean) => {
+      toggle.setAttribute('aria-expanded', String(open))
+      toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu')
+      menu.hidden = !open
+    }
+
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true')
+    })
+
+    // Close when a menu link is chosen.
+    menu.querySelectorAll('a').forEach((a) => {
+      a.addEventListener('click', () => setOpen(false))
+    })
+
+    // Close on Escape.
+    document.addEventListener('keydown', (e) => {
+      if (
+        e.key === 'Escape' &&
+        toggle.getAttribute('aria-expanded') === 'true'
+      ) {
+        setOpen(false)
+        toggle.focus()
+      }
+    })
+  }
+</script>
