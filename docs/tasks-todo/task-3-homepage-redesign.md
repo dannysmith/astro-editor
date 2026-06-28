@@ -70,6 +70,107 @@ We should embed the YouTube video which is currently at the top somewhere nearer
 - We can refer to the documentation in `website/src/content/docs/` for A load of information about like philosophy and what features we have. And obviously while it's fine to like repeat some of what's in there we shouldn't be repeating reams of text here right because this is for getting people to wanna go read those docs or wanna download it and have a try with it right.
 - While this is designed to get people interested, remember that the audience for this are gonna be developers working locally with their own Astros sites. And also remember that we don't want to be writing a whole bunch of nonsense marketing speak in here, partly because of the fact that these are developers and this is an open source project. And partly because I'm not into AI slop and marketing slop.
 
+## Approach & Decisions
+
+Agreed up front:
+
+- **Styling:** Scoped Astro `<style>` blocks driven by the Flexoki CSS variables already in `src/layouts/Layout.astro`. **No Tailwind** — the current homepage's `https://cdn.tailwindcss.com` gets removed. This matches the taskdn homepage pattern (`~/dev/taskdn/website/src/pages/index.astro`) and the docs site's aesthetic.
+- **Fonts:** Start with `system-ui` and revisit once there's an initial design (Phase 3). A web font (e.g. Google Fonts, or self-hosted via Fontsource to stay off a CDN) is fine if it clearly serves the design — we'll decide then, not now. The iA Writer fonts already live locally in `public/fonts/` for `AEDemo` regardless.
+- **Build from scratch:** Start from a near-empty `index.astro` (just the `Layout` + an empty `<main>`) and grow it phase by phase, rather than editing the existing page down. The old homepage is reference material, not a starting point.
+- **Theme:** Follow the visitor's OS preference automatically via `light-dark()` (no manual toggle, no JS, no FOUC). The "Designed for Writing" section still shows *both* themes explicitly via a compare slider regardless of the visitor's setting.
+- **Media — Lean first:** Astro `<Image>` screenshots as the backbone, `AEDemo` for writing-surface motion, one tiny custom light/dark compare slider, and a click-to-load YouTube facade. No GIFs or bespoke animations in v1. Bespoke HTML/CSS animations and selective GIFs come later as a purely additive phase — each one drops in to replace a screenshot that's already working, so the launch is never blocked on capture/encoding.
+
+### Why we're not blocked on assets
+
+`src/assets/` already holds curated, high-quality screenshots — including the *paired* shots the brief calls for. We migrate everything onto these via Astro `<Image>` and stop referencing the older `public/*.png` set.
+
+The key new additions are the three `main-demo-image-*` shots: the **same content file** rendered in Astro Editor light, Astro Editor dark, and VS Code — all the same dimensions, both AE sidebars open, showing rich frontmatter (including a cover image field). One set does triple duty: the hero VS Code↔AE contrast, the light/dark compare slider (identical but for colour → a clean swipe/swap), and a frontmatter showcase.
+
+| Section | Existing assets in `src/assets/` |
+|---|---|
+| Hero contrast | `main-demo-image-vscode.png` (looks horribly complex) ↔ `main-demo-image-light.png` / `main-demo-image-dark.png` (clean, both sidebars open) |
+| Light/dark compare | `main-demo-image-light.png` **+** `main-demo-image-dark.png` (identical except colour) |
+| Frontmatter | `main-demo-image-{light,dark}.png` (sidebar + cover image field), `frontmatter-sidebar-overview.png`, `nested-field-example.png`, `nested-image-field.png` |
+| Writing | `focus-mode.png`, `typewriter-mode.png`, `clean-editor-view.png`, `image-preview-demo.png` |
+| MDX inserter | `mdx-builder-1.png`, `mdx-builder-2.png`, `mdx-builder-3.png` |
+| Other features | `command-palette.png`, `copyedit-highlights.png`, `file-manager-{filter,drafts-filter,sort,1,2,3}.png` |
+
+The only genuinely motion-specific things (image drag-and-drop, paste-URL-over-selection) are handled by `AEDemo` or deferred to the optional later phase.
+
+### Per-feature media strategy (v1)
+
+- **Hero** → static VS Code ↔ Astro Editor contrast using the `main-demo-image-*` set (same file, so the contrast is honest) + an `AEDemo` typing out a clean, focused writing surface. No GIF.
+- **Frontmatter** → screenshots. Form/interaction-heavy; a clean annotated screenshot conveys "schema fields appear even when absent from your frontmatter" better than motion.
+- **Designed for Writing** → a small custom light/dark compare slider (clip-path + range input, no dependency) over `main-demo-image-light.png` / `main-demo-image-dark.png` (pixel-aligned, so the swipe is seamless), plus `AEDemo` for focus/typewriter.
+- **MDX inserter** → the three `mdx-builder` shots as a short sequence.
+- **Working with Images** → screenshots for v1; flag a drag-drop GIF as later polish (the one place motion genuinely adds information).
+- **Other features** → screenshot cards.
+- **Video** → embedded near the bottom as a click-to-load facade (thumbnail + play button swaps in the iframe), not an eager YouTube iframe — better perf, fits the privacy-first ethos.
+
+### Page structure & components to extract
+
+Final section order: **Header/Nav → Hero → Download → Frontmatter → Designed for Writing → MDX Components → Working with Images → Other Features → Video → Footer.**
+
+New components under `website/src/components/` (lean on `AEDemo`, `Figure`, and Astro `<Image>` where they already fit):
+
+- `SiteHeader.astro` — responsive nav with mobile menu (logo, Features, Docs, GitHub, Download).
+- `SiteFooter.astro` — footer (Privacy, Docs, GitHub, Download, copyright).
+- `DownloadButtons.astro` — the macOS / Windows / Linux-beta download block, reused in hero + download section.
+- `FeatureSection.astro` — alternating media/text section wrapper (`title`, body slot, media slot, `reverse` prop), mirroring taskdn's `.product` pattern.
+- `WindowChrome.astro` / `Screenshot.astro` — a framed screenshot wrapper (mirror taskdn's `WindowChrome.astro`).
+- `ThemeCompareSlider.astro` — light/dark before/after slider.
+- `YouTubeFacade.astro` — click-to-load video embed.
+
+`Layout.astro` is reused as-is (its Flexoki vars + `light-dark()` already do what we need); we just stop overriding it to dark-only in `index.astro`. If the page needs a couple more semantic tokens (accent, hairline), add them to `Layout.astro`'s `:root` rather than inline.
+
 ## Implementation Plan
 
-TBC
+Each phase is independently reviewable. No phase depends on assets that don't already exist (except the clearly-flagged optional Phase 6).
+
+### Phase 1 — Foundations & scaffolding
+
+- Replace `index.astro` wholesale with a near-empty shell: `Layout` + an empty `<main>`. The old page is not edited down — it's gone, kept only as reference. (No CDN Tailwind, Google Fonts, dark-only overrides, or aurora/starfield carry over.)
+- Add empty placeholder sections (semantic HTML) for each part of the final structure so later phases have somewhere to slot into.
+- Establish shared scoped-style conventions: container max-width, section vertical rhythm, spacing scale, responsive breakpoints (reuse taskdn's `900px` / `600px` breakpoints as a starting point).
+- Confirm `Layout.astro`'s `light-dark()` vars render correctly without the dark-only override; add any missing semantic tokens (accent, hairline) to its `:root`.
+
+### Phase 2 — Chrome: header, footer, download
+
+- `SiteHeader.astro` — responsive nav + accessible mobile menu (keyboard-navigable, focus-trapped), GitHub icon link, Docs link, Download CTA.
+- `SiteFooter.astro` — links to Privacy, Docs, GitHub, Download + copyright.
+- `DownloadButtons.astro` — extract the macOS (Universal), Windows, and Linux-beta (AppImage/.deb/.rpm) buttons + Homebrew snippet from the current page; keep the real release-asset URLs.
+- Simplify nav anchors to the new section set (no need to preserve `#features` / `#how` for external links).
+- Preserve/clean up SEO: keep the `SoftwareApplication` JSON-LD and per-page meta via the `head` slot; confirm OG/Twitter tags resolve. (OG image itself is out of scope for now.)
+
+### Phase 3 — Hero
+
+- Rewrite the headline and subhead in an honest, developer-to-developer voice (no marketing slop, no "CMS experience your content deserves"). Lead from the philosophy: *writer mode vs coder mode*, an interface for the content files you already have.
+- VS Code ↔ Astro Editor contrast: `main-demo-image-vscode.png` against `main-demo-image-light.png`/`dark.png` — framed `<Image>`s side-by-side on desktop, stacked on mobile. Same file in both, so the "look how much calmer this is" point lands honestly.
+- `AEDemo` typing out the clean, focused writing surface (sidebars shut) directly below the contrast.
+- Primary download CTA (reuse `DownloadButtons` or a condensed variant).
+
+### Phase 4 — Main feature sections
+
+Build `FeatureSection.astro`, then each feature as an alternating section:
+
+- **Working with Frontmatter** — schema-aware forms generated from the Zod schema; emphasise that schema fields show up *even when not yet present in the file's frontmatter*, plus smart image fields. Assets: `frontmatter-sidebar-overview.png`, `nested-field-example.png`, `nested-image-field.png`.
+- **Designed for Writing** — `ThemeCompareSlider` over `main-demo-image-light.png` / `main-demo-image-dark.png`; `AEDemo` for focus + typewriter; concise list for beautiful typography, editing shortcuts, paste-URL-over-selection, link hovering, image-preview-on-hover.
+- **Inserting MDX Components** — short sequence of `mdx-builder-1/2/3.png` with brief copy (unique feature, minimal explanation).
+- **Working with Images** — drag-in → rename → copy-to-correct-place → link inserted; cover frontmatter image fields and Option-hover preview here. Assets: `nested-image-field.png`, `image-preview-demo.png`.
+- **Other Features** — compact card grid: Drafts/Filtering/Sorting (`file-manager-*`), Copyedit modes (`copyedit-highlights.png`, brief note on colour-coded parts of speech), Command Palette (`command-palette.png`, "the whole thing is keyboard-navigable").
+
+### Phase 5 — Video & launch polish
+
+- `YouTubeFacade.astro` near the bottom (thumbnail + play button → swap in the iframe on click).
+- Responsive QA across mobile / tablet / desktop; verify the alternating sections and hero contrast reflow cleanly.
+- Accessibility pass: descriptive alt text on every image, correct heading order, visible focus states, keyboard-operable mobile menu, `prefers-reduced-motion` respected (already honoured by `AEDemo`; ensure the slider and any transitions do too).
+- Light/dark visual QA in both OS settings.
+- Run `bun run check` (type check + lint + format) and a Lighthouse/SEO pass.
+
+### Phase 6 — Bespoke animations & GIFs (optional, additive)
+
+Each item below is a drop-in replacement for a working screenshot, guarded by `prefers-reduced-motion`:
+
+- Candidate bespoke HTML/CSS animations: paste-URL-over-selection, command palette, MDX inserter flow.
+- Candidate GIFs (where motion carries real information): image drag-and-drop into the editor.
+- Maintain a capture checklist for any new screenshots/GIFs and add them to `src/assets/`.
