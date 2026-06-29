@@ -1,0 +1,128 @@
+---
+/**
+ * HeroDownload — the OS-aware download CTA for the hero.
+ *
+ * An inline script detects the visitor's OS and sets `data-os` on <html>
+ * before paint; CSS then reveals just the relevant button (+ its extra line):
+ *   - mac     → macOS button + Homebrew line
+ *   - windows → Windows button
+ *   - linux   → Linux button + .deb/.rpm line
+ * No-JS / unknown platforms fall back to macOS. The full Download section
+ * lower down always shows every option.
+ */
+import DownloadButton from './DownloadButton.astro'
+
+const BASE =
+  'https://github.com/dannysmith/astro-editor/releases/latest/download'
+const debUrl = `${BASE}/astro-editor-latest.deb`
+const rpmUrl = `${BASE}/astro-editor-latest.rpm`
+---
+
+<script is:inline>
+  ;(function () {
+    const p =
+      (navigator.userAgentData && navigator.userAgentData.platform) ||
+      navigator.platform ||
+      ''
+    const ua = navigator.userAgent || ''
+    let os = 'other'
+    if (/mac/i.test(p) || (/Mac/.test(ua) && !/iPhone|iPad|iPod/.test(ua)))
+      os = 'mac'
+    else if (/win/i.test(p) || /Windows/.test(ua)) os = 'windows'
+    else if (/linux/i.test(p) || (/Linux/.test(ua) && !/Android/.test(ua)))
+      os = 'linux'
+    document.documentElement.setAttribute('data-os', os)
+  })()
+</script>
+
+<div class="hero-download">
+  <div class="hero-cta">
+    <span class="os-btn os-btn--mac"><DownloadButton platform="macos" /></span>
+    <span class="os-btn os-btn--windows"
+      ><DownloadButton platform="windows" /></span
+    >
+    <span class="os-btn os-btn--linux"><DownloadButton platform="linux" /></span
+    >
+    <a class="docs-link" href="/getting-started/">Read the docs →</a>
+  </div>
+
+  <p class="os-note os-note--mac">
+    Or install via Homebrew:
+    <code>brew install --cask astro-editor</code>
+  </p>
+  <p class="os-note os-note--linux">
+    Linux is in beta. Also available as a <a href={debUrl}>.deb</a> or
+    <a href={rpmUrl}>.rpm</a> package.
+  </p>
+</div>
+
+<style>
+  .hero-cta {
+    margin-top: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .docs-link {
+    color: var(--color-text);
+    font-weight: 500;
+    padding: 0.5rem 0.25rem;
+
+    &:hover {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+  }
+
+  .os-btn,
+  .os-note {
+    display: none;
+  }
+
+  .os-note {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-align: center;
+
+    code {
+      margin-left: 0.35rem;
+    }
+
+    a {
+      color: var(--color-text-muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+
+      &:hover {
+        color: var(--color-text);
+      }
+    }
+  }
+
+  /* Reveal per detected OS. No-JS / unknown falls back to macOS. */
+  :global(html[data-os='mac']) .os-btn--mac,
+  :global(html[data-os='other']) .os-btn--mac,
+  :global(html:not([data-os])) .os-btn--mac {
+    display: contents;
+  }
+  :global(html[data-os='mac']) .os-note--mac,
+  :global(html[data-os='other']) .os-note--mac,
+  :global(html:not([data-os])) .os-note--mac {
+    display: block;
+  }
+
+  :global(html[data-os='windows']) .os-btn--windows {
+    display: contents;
+  }
+
+  :global(html[data-os='linux']) .os-btn--linux {
+    display: contents;
+  }
+  :global(html[data-os='linux']) .os-note--linux {
+    display: block;
+  }
+</style>
