@@ -5,3 +5,9 @@
   border-bottom: 1px solid var(--sl-color-hairline);
   padding-bottom: 0.2em;
 }
+
+/* The shared DownloadButton (used on docs pages too) needs its own vertical
+   rhythm in Starlight content, where it isn't part of a flex group. */
+.sl-markdown-content .download-btn {
+  margin-block: 1.5rem;
+}

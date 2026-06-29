@@ -105,14 +105,17 @@ const c = config[platform]
     border-radius: 0.625rem;
     font-weight: 500;
     line-height: 1.2;
-    background: var(--color-accent);
+    /* Falls back to the Flexoki blue when --color-accent isn't defined, so the
+       button also works on Starlight docs pages (not just the homepage). */
+    background: var(--color-accent, light-dark(#205ea6, #4385be));
     color: #fff;
+    text-decoration: none;
     transition:
       background-color 0.15s ease,
       color 0.15s ease;
 
     &:hover {
-      background: var(--color-accent-hover);
+      background: var(--color-accent-hover, light-dark(#4385be, #5b9fd3));
       color: #fff;
       text-decoration: none;
     }
