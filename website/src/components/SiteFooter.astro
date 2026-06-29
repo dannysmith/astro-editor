@@ -1,9 +1,10 @@
 ---
 import { Image } from 'astro:assets'
 import logo from '../assets/icon.png'
+import { GITHUB_REPO } from '../consts'
 
 const year = new Date().getFullYear()
-const githubUrl = 'https://github.com/dannysmith/astro-editor'
+const githubUrl = GITHUB_REPO
 
 const footerLinks = [
   { label: 'Download', href: '#download' },

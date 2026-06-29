@@ -11,11 +11,7 @@
  * lower down always shows every option.
  */
 import DownloadButton from './DownloadButton.astro'
-
-const BASE =
-  'https://github.com/dannysmith/astro-editor/releases/latest/download'
-const debUrl = `${BASE}/astro-editor-latest.deb`
-const rpmUrl = `${BASE}/astro-editor-latest.rpm`
+import { DOWNLOADS } from '../consts'
 ---
 
 <script is:inline>
@@ -51,8 +47,8 @@ const rpmUrl = `${BASE}/astro-editor-latest.rpm`
     <code>brew install --cask astro-editor</code>
   </p>
   <p class="os-note os-note--linux">
-    Linux is in beta. Also available as a <a href={debUrl}>.deb</a> or
-    <a href={rpmUrl}>.rpm</a> package.
+    Linux is in beta. Also available as a <a href={DOWNLOADS.linuxDeb}>.deb</a> or
+    <a href={DOWNLOADS.linuxRpm}>.rpm</a> package.
   </p>
 </div>
 

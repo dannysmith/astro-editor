@@ -9,6 +9,7 @@ import Screenshot from '../components/Screenshot.astro'
 import ThemeCompareSlider from '../components/ThemeCompareSlider.astro'
 import YouTubeFacade from '../components/YouTubeFacade.astro'
 import Lightbox from '../components/Lightbox.astro'
+import { DOWNLOADS } from '../consts'
 import vscodeShot from '../assets/main-demo-image-vscode.png'
 import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
@@ -20,11 +21,6 @@ import imagePreviewShot from '../assets/image-preview-demo.png'
 import copyeditShot from '../assets/copyedit-highlights.png'
 import commandPaletteShot from '../assets/command-palette.png'
 import draftsShot from '../assets/file-manager-drafts-filter.png'
-
-const RELEASE_BASE =
-  'https://github.com/dannysmith/astro-editor/releases/latest/download'
-const debUrl = `${RELEASE_BASE}/astro-editor-latest.deb`
-const rpmUrl = `${RELEASE_BASE}/astro-editor-latest.rpm`
 
 // The Astro Editor shot spans the hero (~1040px, 2x ≈ 2080); VS Code is smaller.
 const heroImageWidths = [640, 1024, 1536, 2048]
@@ -334,7 +330,8 @@ const structuredData = {
             <DownloadButton platform="linux" />
             <p class="linux-alt">
               Linux is in beta. Also available as a{' '}
-              <a href={debUrl}>.deb</a> or <a href={rpmUrl}>.rpm</a> package.
+              <a href={DOWNLOADS.linuxDeb}>.deb</a> or
+              <a href={DOWNLOADS.linuxRpm}>.rpm</a> package.
             </p>
           </div>
         </div>
@@ -371,14 +368,6 @@ const structuredData = {
     text-align: center;
   }
 
-  .eyebrow {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-accent);
-  }
-
   .hero h1 {
     margin-top: 1rem;
     margin-inline: auto;
@@ -392,17 +381,10 @@ const structuredData = {
     color: var(--color-text-muted);
   }
 
-  /* Screenshots are captured on macOS and already carry their own window
-     shadow, so they're rendered bare — no frame, border, or background. */
+  /* Hero shots are bare <Screenshot>s; this just centres them and caps width
+     (the image fill / reset is handled by Screenshot and the global img rule). */
   .shot {
-    display: block;
     margin-inline: auto;
-
-    :global(img) {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
   }
 
   .shot--app {
@@ -476,7 +458,6 @@ const structuredData = {
   .feature-list {
     margin-top: 1.25rem;
     list-style: none;
-    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;

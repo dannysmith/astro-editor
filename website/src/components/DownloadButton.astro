@@ -7,6 +7,8 @@
  *
  *   <DownloadButton platform="macos" />
  */
+import { DOWNLOADS } from '../consts'
+
 type Platform = 'macos' | 'windows' | 'linux'
 
 interface Props {
@@ -14,28 +16,25 @@ interface Props {
 }
 const { platform } = Astro.props
 
-const BASE =
-  'https://github.com/dannysmith/astro-editor/releases/latest/download'
-
 const config: Record<
   Platform,
   { href: string; title: string; sub: string; label: string }
 > = {
   macos: {
-    href: `${BASE}/astro-editor-latest.dmg`,
+    href: DOWNLOADS.mac,
     title: 'Download for macOS',
     sub: 'Universal (Intel & Apple Silicon)',
     label:
       'Download Astro Editor for macOS (Universal — Intel & Apple Silicon)',
   },
   windows: {
-    href: `${BASE}/astro-editor-latest.msi`,
+    href: DOWNLOADS.windows,
     title: 'Download for Windows',
     sub: 'Windows Installer',
     label: 'Download Astro Editor for Windows',
   },
   linux: {
-    href: `${BASE}/astro-editor-latest.AppImage`,
+    href: DOWNLOADS.linuxAppImage,
     title: 'Download for Linux',
     sub: 'AppImage package',
     label: 'Download Astro Editor for Linux (AppImage)',

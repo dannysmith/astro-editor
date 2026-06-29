@@ -28,7 +28,7 @@ const { id, eyebrow, title, reverse = false, flush = false } = Astro.props
 >
   <div class="container feature-grid">
     <div class="feature-text">
-      {eyebrow && <p class="feature-eyebrow">{eyebrow}</p>}
+      {eyebrow && <p class="eyebrow feature-eyebrow">{eyebrow}</p>}
       <h2>{title}</h2>
       <slot />
     </div>
@@ -57,28 +57,13 @@ const { id, eyebrow, title, reverse = false, flush = false } = Astro.props
     border-top: none;
   }
 
-  .feature-media {
-    order: 1;
-  }
-
-  .feature-text {
-    order: 0;
-  }
-
+  /* DOM order is text → media (the default desktop layout). On reverse, the
+     media moves ahead of the text into the (now-wide) first column. */
   .feature--reverse .feature-media {
-    order: 0;
-  }
-
-  .feature--reverse .feature-text {
-    order: 1;
+    order: -1;
   }
 
   .feature-eyebrow {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-accent);
     margin-bottom: 0.75rem;
   }
 
@@ -95,21 +80,14 @@ const { id, eyebrow, title, reverse = false, flush = false } = Astro.props
   }
 
   @media (max-width: 860px) {
-    .feature-grid {
+    .feature-grid,
+    .feature--reverse .feature-grid {
       grid-template-columns: 1fr;
       gap: 2rem;
     }
 
-    .feature-text {
-      order: 0;
-    }
-
-    .feature-media,
+    /* Stack text-first on mobile, even for reversed rows. */
     .feature--reverse .feature-media {
-      order: 1;
-    }
-
-    .feature--reverse .feature-text {
       order: 0;
     }
   }

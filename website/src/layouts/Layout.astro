@@ -151,6 +151,25 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site)
     border: 1px solid var(--color-border);
   }
 
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Small accent label above section/feature headings. */
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
   @media (max-width: 900px) {
     :root {
       --home-section-y: 4rem;

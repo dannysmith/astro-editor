@@ -1,13 +1,14 @@
 ---
 import { Image } from 'astro:assets'
 import logo from '../assets/icon.png'
+import { GITHUB_REPO } from '../consts'
 
 const navLinks = [
   { label: 'Features', href: '#frontmatter' },
   { label: 'Designed for writing', href: '#writing' },
   { label: 'Docs', href: '/getting-started/' },
 ]
-const githubUrl = 'https://github.com/dannysmith/astro-editor'
+const githubUrl = GITHUB_REPO
 ---
 
 <header class="site-header">
