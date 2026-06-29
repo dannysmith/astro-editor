@@ -4,7 +4,7 @@ import logo from '../assets/icon.png'
 import { GITHUB_REPO } from '../consts'
 
 const navLinks = [
-  { label: 'Features', href: '#frontmatter' },
+  { label: 'Features', href: '#features' },
   { label: 'Designed for writing', href: '#writing' },
   { label: 'Docs', href: '/getting-started/' },
 ]
@@ -189,6 +189,14 @@ const githubUrl = GITHUB_REPO
 
     .nav-toggle {
       display: inline-flex;
+    }
+  }
+
+  /* Above the mobile breakpoint the desktop nav takes over, so force the
+     mobile panel closed even if it was left open before a resize. */
+  @media (min-width: 761px) {
+    .mobile-menu {
+      display: none;
     }
   }
 </style>

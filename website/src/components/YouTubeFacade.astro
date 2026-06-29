@@ -123,6 +123,9 @@ const { id, title } = Astro.props
           'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
         iframe.allowFullscreen = true
         el.replaceChildren(iframe)
+        // The activating button is gone — move focus into the player so
+        // keyboard users aren't dropped back to the top of the document.
+        iframe.focus()
       },
       { once: true }
     )
