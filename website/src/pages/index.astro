@@ -47,6 +47,7 @@ const structuredData = {
 <Layout
   title="Astro Editor — A focused markdown editor for Astro content collections"
   description="Astro Editor is a native, distraction-free markdown editor that reads your Astro content collection schemas and turns frontmatter into clean, schema-aware forms. For writer mode, not coder mode."
+  image="/og-image.png"
 >
   <script
     type="application/ld+json"
@@ -96,7 +97,7 @@ const structuredData = {
         <p class="hero-step">
           When you want to focus on writing to the exclusion of all else, you
           can hide the sidebars and use the <a
-            href="/editor/focus-and-typewriter">Focus & Typewriter</a
+            href="/editor/focus-and-typewriter/">Focus & Typewriter</a
           > features to write in a distraction-free environment...
         </p>
 
@@ -149,11 +150,12 @@ const structuredData = {
       flush
     >
       <p>
-        Astro Editor reads your collection's schemas and renders the right
-        control for every field — text inputs, date pickers, enum dropdowns, tag
-        arrays, boolean switches, nested objects and the like. Image fields
-        include previews and <code>reference()</code> fields render as dropdowns of
-        the referenced collection.
+        Astro Editor reads your
+        <a href="/frontmatter/overview/">collection's schemas</a> and renders the
+        right control for every field — text inputs, date pickers, enum dropdowns,
+        tag arrays, boolean switches, nested objects and the like. Image fields include
+        previews and <code>reference()</code> fields render as dropdowns of the referenced
+        collection.
       </p>
       <p>
         Every field in the schema shows up even if it's not yet in the file's
@@ -219,7 +221,7 @@ const structuredData = {
         If you use components like <code>&lt;Aside&gt;</code> in your MDX content
         files, Astro Editor makes it easier to find and insert them <em
           >as you're writing</em
-        >. The <a href="/editor/mdx-components">Component Inserter</a> shows a subset
+        >. The <a href="/editor/mdx-components/">Component Inserter</a> shows a subset
         of the components in your project and lets you insert them with a few keystrokes.
       </p>
       <Screenshot
@@ -245,8 +247,8 @@ const structuredData = {
         site.
       </p>
       <p>
-        The same smart image handling also powers schema image fields in the
-        frontmatter panel.
+        The same <a href="/editor/images-and-files/">smart image handling</a> also
+        powers schema image fields in the frontmatter panel.
       </p>
       <p>
         Holding ⌥ while hovering any image path pops up a preview in the corner,
@@ -274,7 +276,9 @@ const structuredData = {
             />
             <h3>Drafts, filtering &amp; sorting</h3>
             <p>
-              Filter and sort your content collections. See and filter drafts
+              Filter and sort your content collections. See and filter
+              <a href="/file-management/drafts-filtering-and-sorting/">drafts</a
+              >
               with ease.
             </p>
           </article>
@@ -287,8 +291,9 @@ const structuredData = {
             />
             <h3>Copyedit modes</h3>
             <p>
-              Colour-code parts of speech like nouns, verbs, adjectives, adverbs
-              and conjunctions to help with editing & rewriting.
+              Colour-code <a href="/editor/copyedit-modes/">parts of speech</a>
+              like nouns, verbs, adjectives, adverbs and conjunctions to help with
+              editing & rewriting.
             </p>
           </article>
           <article class="card">
@@ -300,8 +305,9 @@ const structuredData = {
             />
             <h3>Global command palette</h3>
             <p>
-              The whole app is keyboard-navigable. Open the palette to jump
-              anywhere or run any command.
+              The whole app is keyboard-navigable. Open
+              <a href="/reference/commands/">the palette</a> to jump anywhere or run
+              any command.
             </p>
           </article>
         </div>

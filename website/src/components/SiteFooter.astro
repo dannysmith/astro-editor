@@ -9,6 +9,7 @@ const githubUrl = GITHUB_REPO
 const footerLinks = [
   { label: 'Download', href: '#download' },
   { label: 'Docs', href: '/getting-started/' },
+  { label: 'Releases', href: '/releases/' },
   { label: 'Privacy', href: '/privacy/' },
   { label: 'GitHub', href: githubUrl },
 ]
@@ -25,7 +26,10 @@ const footerLinks = [
       {footerLinks.map((l) => <a href={l.href}>{l.label}</a>)}
     </nav>
 
-    <p class="copyright">&copy; {year} Danny Smith</p>
+    <p class="copyright">
+      &copy; {year}
+      <a href="https://danny.is">Danny Smith</a>
+    </p>
   </div>
 </footer>
 
@@ -80,6 +84,15 @@ const footerLinks = [
 
   .copyright {
     font-size: 0.8125rem;
+
+    a {
+      color: var(--color-text-muted);
+
+      &:hover {
+        color: var(--color-text);
+        text-decoration: none;
+      }
+    }
   }
 
   @media (max-width: 600px) {
