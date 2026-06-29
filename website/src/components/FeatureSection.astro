@@ -1,0 +1,94 @@
+---
+/**
+ * FeatureSection — an alternating text / media row for the homepage.
+ *
+ * Default slot = the text column (lead paragraph, lists, etc.).
+ * `media` slot = the visual (a <Screenshot>, slider, demo…).
+ * `reverse` puts the media on the left on desktop. On mobile the text always
+ * comes first.
+ */
+interface Props {
+  id?: string
+  eyebrow?: string
+  title: string
+  reverse?: boolean
+  /** Drop the top divider — use on the first feature after a group heading. */
+  flush?: boolean
+}
+const { id, eyebrow, title, reverse = false, flush = false } = Astro.props
+---
+
+<section
+  id={id}
+  class:list={[
+    'section',
+    'feature',
+    { 'feature--reverse': reverse, 'feature--flush': flush },
+  ]}
+>
+  <div class="container feature-grid">
+    <div class="feature-text">
+      {eyebrow && <p class="eyebrow feature-eyebrow">{eyebrow}</p>}
+      <h2>{title}</h2>
+      <slot />
+    </div>
+    <div class="feature-media">
+      <slot name="media" />
+    </div>
+  </div>
+</section>
+
+<style>
+  /* The media column is wider than the text column so screenshots read big.
+     The ratio flips with `reverse` so the media stays the wide side either
+     way (the order rules below put media in the correct cell). */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .feature--reverse .feature-grid {
+    grid-template-columns: 1.6fr 1fr;
+  }
+
+  .feature--flush {
+    border-top: none;
+  }
+
+  /* DOM order is text → media (the default desktop layout). On reverse, the
+     media moves ahead of the text into the (now-wide) first column. */
+  .feature--reverse .feature-media {
+    order: -1;
+  }
+
+  .feature-eyebrow {
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-text :global(h2) {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-text :global(p) {
+    margin-top: 1rem;
+    color: var(--color-text-muted);
+    font-size: 1.0625rem;
+  }
+
+  @media (max-width: 860px) {
+    .feature-grid,
+    .feature--reverse .feature-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    /* Stack text-first on mobile, even for reversed rows. */
+    .feature--reverse .feature-media {
+      order: 0;
+    }
+  }
+</style>

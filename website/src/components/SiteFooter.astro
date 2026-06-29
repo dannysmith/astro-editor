@@ -1,0 +1,104 @@
+---
+import { Image } from 'astro:assets'
+import logo from '../assets/icon.png'
+import { GITHUB_REPO } from '../consts'
+
+const year = new Date().getFullYear()
+const githubUrl = GITHUB_REPO
+
+const footerLinks = [
+  { label: 'Download', href: '#download' },
+  { label: 'Docs', href: '/getting-started/' },
+  { label: 'Releases', href: '/releases/' },
+  { label: 'Privacy', href: '/privacy/' },
+  { label: 'GitHub', href: githubUrl },
+]
+---
+
+<footer class="site-footer">
+  <div class="container bar">
+    <a class="brand" href="/">
+      <Image src={logo} alt="Astro Editor logo" width={28} height={28} />
+      <span>Astro Editor</span>
+    </a>
+
+    <nav class="footer-nav" aria-label="Footer">
+      {footerLinks.map((l) => <a href={l.href}>{l.label}</a>)}
+    </nav>
+
+    <p class="copyright">
+      &copy; {year}
+      <a href="https://danny.is">Danny Smith</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding-block: 2.25rem;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text);
+    font-weight: 500;
+    font-size: 0.95rem;
+
+    &:hover {
+      text-decoration: none;
+      color: var(--color-text);
+    }
+
+    img {
+      border-radius: 0.4rem;
+    }
+  }
+
+  .footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+
+    a {
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+
+      &:hover {
+        color: var(--color-text);
+        text-decoration: none;
+      }
+    }
+  }
+
+  .copyright {
+    font-size: 0.8125rem;
+
+    a {
+      color: var(--color-text-muted);
+
+      &:hover {
+        color: var(--color-text);
+        text-decoration: none;
+      }
+    }
+  }
+
+  @media (max-width: 600px) {
+    .bar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
