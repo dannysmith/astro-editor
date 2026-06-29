@@ -12,13 +12,19 @@ interface Props {
   eyebrow?: string
   title: string
   reverse?: boolean
+  /** Drop the top divider — use on the first feature after a group heading. */
+  flush?: boolean
 }
-const { id, eyebrow, title, reverse = false } = Astro.props
+const { id, eyebrow, title, reverse = false, flush = false } = Astro.props
 ---
 
 <section
   id={id}
-  class:list={['section', 'feature', { 'feature--reverse': reverse }]}
+  class:list={[
+    'section',
+    'feature',
+    { 'feature--reverse': reverse, 'feature--flush': flush },
+  ]}
 >
   <div class="container feature-grid">
     <div class="feature-text">
@@ -45,6 +51,10 @@ const { id, eyebrow, title, reverse = false } = Astro.props
 
   .feature--reverse .feature-grid {
     grid-template-columns: 1.6fr 1fr;
+  }
+
+  .feature--flush {
+    border-top: none;
   }
 
   .feature-media {

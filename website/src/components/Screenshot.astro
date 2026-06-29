@@ -2,10 +2,11 @@
 /**
  * Screenshot — a framed app screenshot for the homepage feature sections.
  *
- * Unlike the hero's bare macOS shots (which carry their own window shadow),
- * the feature screenshots are captured edge-to-edge, so they get a subtle
- * border + shadow frame here. Pass `darkSrc` to serve a dark-mode variant via
- * a <picture> source (the page follows prefers-color-scheme).
+ * Feature screenshots are captured edge-to-edge, so they get a subtle border +
+ * shadow frame. Pass `bare` for shots that already carry their own window
+ * shadow (the hero macOS shots) — they keep the click-to-zoom lightbox but
+ * drop the frame. Pass `darkSrc` to serve a dark-mode variant via a <picture>
+ * source (the page follows prefers-color-scheme).
  */
 import { Image, getImage } from 'astro:assets'
 import type { ImageMetadata } from 'astro'
@@ -15,6 +16,7 @@ interface Props {
   alt: string
   darkSrc?: ImageMetadata
   caption?: string
+  bare?: boolean
   sizes?: string
   widths?: number[]
   loading?: 'lazy' | 'eager'
@@ -25,6 +27,7 @@ const {
   alt,
   darkSrc,
   caption,
+  bare = false,
   sizes = '(max-width: 860px) 92vw, 640px',
   widths = [640, 960, 1280],
   loading = 'lazy',
@@ -43,7 +46,7 @@ const fullDark = darkSrc
 
 <figure class="screenshot">
   <button
-    class="screenshot-frame screenshot-trigger"
+    class:list={['screenshot-frame', 'screenshot-trigger', { bare }]}
     type="button"
     data-lightbox-src={fullLight.src}
     data-lightbox-src-dark={fullDark?.src}
@@ -103,6 +106,16 @@ const fullDark = darkSrc
     }
   }
 
+  /* Bare shots already carry their own window shadow — drop the frame but keep
+     the click-to-zoom affordance. */
+  .screenshot-frame.bare {
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    background: none;
+    box-shadow: none;
+  }
+
   .screenshot-trigger {
     cursor: zoom-in;
     transition: box-shadow 0.15s ease;
@@ -110,6 +123,10 @@ const fullDark = darkSrc
 
   .screenshot-trigger:hover {
     box-shadow: 0 14px 38px rgb(0 0 0 / 0.2);
+  }
+
+  .screenshot-frame.bare:hover {
+    box-shadow: none;
   }
 
   .screenshot-trigger:focus-visible {

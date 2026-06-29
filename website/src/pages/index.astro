@@ -1,6 +1,5 @@
 ---
 import Layout from '@layouts/Layout.astro'
-import { Image, getImage } from 'astro:assets'
 import SiteHeader from '../components/SiteHeader.astro'
 import SiteFooter from '../components/SiteFooter.astro'
 import DownloadButton from '../components/DownloadButton.astro'
@@ -29,21 +28,6 @@ const rpmUrl = `${RELEASE_BASE}/astro-editor-latest.rpm`
 
 // The Astro Editor shot spans the hero (~1040px, 2x ≈ 2080); VS Code is smaller.
 const heroImageWidths = [640, 1024, 1536, 2048]
-
-// Dark variant of the Astro Editor screenshot, served via a <picture> source
-// when the visitor's OS is in dark mode (the page follows prefers-color-scheme).
-const aeDarkOptimised = await getImage({
-  src: aeDark,
-  format: 'webp',
-  widths: heroImageWidths,
-})
-
-// Dark variant of the distraction-free shot shown above the typing demo.
-const aeFocusDarkOptimised = await getImage({
-  src: aeFocusDark,
-  format: 'webp',
-  widths: heroImageWidths,
-})
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -84,65 +68,81 @@ const structuredData = {
         <h1>Writer mode for your Astro content.</h1>
         <p class="hero-sub">
           A beautiful distraction-free markdown editor for working with Astro
-          content collections, designed specifically for <strong>writing</strong> not coding. It uses your Astro config and Zod schemas to show frontmatter as proper forms, makes adding images & components easy and <strong>gets out of the way when you wanna just write</strong>.
+          content collections, designed specifically for <strong>writing</strong
+          > not coding. It uses your Astro config and Zod schemas to show frontmatter
+          as proper forms, makes adding images & components easy and <strong
+            >gets out of the way when you wanna just write</strong
+          >.
         </p>
 
         <HeroDownload />
 
-        <picture class="shot shot--app">
-          <source
-            srcset={aeDarkOptimised.srcSet.attribute}
-            sizes="(max-width: 1099px) 92vw, 1040px"
-            media="(prefers-color-scheme: dark)"
-            type="image/webp"
-          />
-          <Image
+        <div class="shot shot--app">
+          <Screenshot
+            bare
             src={aeLight}
+            darkSrc={aeDark}
             alt="The same file open in Astro Editor: a file list on the left, a schema-aware frontmatter form with a cover image on the right, and clean prose in the middle."
             loading="eager"
             widths={heroImageWidths}
             sizes="(max-width: 1099px) 92vw, 1040px"
           />
-        </picture>
+        </div>
 
         <p class="hero-step">
-          Astro Editor works with local markdown & MDX files in Astro <a href="https://docs.astro.build/en/guides/content-collections/">Content Collections</a>. It reads your <code>content.config.ts</code> to understand your collections and schemas and only shows you the stuff relevant to actually working with your content files.
+          Astro Editor works with local markdown & MDX files in Astro <a
+            href="https://docs.astro.build/en/guides/content-collections/"
+            >Content Collections</a
+          >. It reads your <code>content.config.ts</code> to understand your collections
+          and schemas and only shows you the stuff relevant to actually working with
+          your content files.
         </p>
         <p class="hero-step">
-          When you want to focus on writing to the exclusion of all else, you can hide the sidebars and use the <a href="/editor/focus-and-typewriter">Focus & Typeriter</a> features to write in a distraction-free environment...
+          When you want to focus on writing to the exclusion of all else, you
+          can hide the sidebars and use the <a
+            href="/editor/focus-and-typewriter">Focus & Typewriter</a
+          > features to write in a distraction-free environment...
         </p>
 
-        <picture class="shot shot--app">
-          <source
-            srcset={aeFocusDarkOptimised.srcSet.attribute}
-            sizes="(max-width: 1099px) 92vw, 1040px"
-            media="(prefers-color-scheme: dark)"
-            type="image/webp"
-          />
-          <Image
+        <div class="shot shot--app">
+          <Screenshot
+            bare
             src={aeFocusLight}
+            darkSrc={aeFocusDark}
             alt="Astro Editor in distraction-free mode: both sidebars and the toolbar hidden, with focus mode dimming everything but the current line."
             loading="lazy"
             widths={heroImageWidths}
             sizes="(max-width: 1099px) 92vw, 1040px"
           />
-        </picture>
+        </div>
 
         <div class="vscode-box">
+          <h2 class="vscode-heading">Why not just use VS Code?</h2>
           <p>
-            The two screenshots above show an entry in a `books` collection. Here's the same file open in VSCode. Astro Editor exists because this is an awful environment for writing prose in. See <a href="/getting-started/philosophy/">the philosophy page</a> for more on this.
+            The two screenshots above show an entry in a <code>books</code>
+            collection. Here's the same file open in VS Code. Astro Editor exists
+            because this is an awful environment for writing prose in. See
+            <a href="/getting-started/philosophy/">the philosophy page</a> for more
+            on this.
           </p>
 
           <div class="shot shot--vscode">
-            <Image
+            <Screenshot
+              bare
               src={vscodeShot}
               alt="The same content file open in VS Code — a wall of raw YAML frontmatter above the prose, surrounded by editor chrome."
               loading="lazy"
               widths={heroImageWidths}
-              sizes="(max-width: 880px) 92vw, 820px"
+              sizes="(max-width: 980px) 92vw, 880px"
             />
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="section features-header">
+      <div class="container">
+        <h2 class="features-title">Features</h2>
       </div>
     </section>
 
@@ -150,15 +150,20 @@ const structuredData = {
       id="frontmatter"
       eyebrow="Frontmatter"
       title="Forms built from your schemas"
+      flush
     >
       <p>
         Astro Editor reads your collection's schemas and renders the right
         control for every field — text inputs, date pickers, enum dropdowns, tag
-        arrays, boolean switches, nested objects and the like. Image fields include previews and <code>reference()</code> fields render as dropdowns of the referenced collection.
+        arrays, boolean switches, nested objects and the like. Image fields
+        include previews and <code>reference()</code> fields render as dropdowns of
+        the referenced collection.
       </p>
       <p>
-        Every field in the schema shows up even if it's not yet in the file's frontmatter. So o more digging through <code>content.config.ts</code> to remember what's
-        required, what's optional, or what an enum's allowed values are.
+        Every field in the schema shows up even if it's not yet in the file's
+        frontmatter. So no more digging through <code>content.config.ts</code> to
+        remember what's required, what's optional, or what an enum's allowed values
+        are.
       </p>
       <Screenshot
         slot="media"
@@ -175,15 +180,31 @@ const structuredData = {
       reverse
     >
       <p>
-        Designed to keep you in a state of flow when you're writing, Astro Editor is designed for <strong><a href="/getting-started/philosophy/">writer mode</a></strong> and a includes:
+        Designed to keep you in a state of flow when you're writing, Astro
+        Editor is designed for <strong
+          ><a href="/getting-started/philosophy/">writer mode</a></strong
+        > and includes:
       </p>
       <ul class="feature-list">
-        <li>Carefully-designed typography inspired by <a href="https://ia.net/writer">iA Writer</a></li>
-        <li>A focus mode that dims everything but the sentence you're currently writing</li>
+        <li>
+          Carefully-designed typography inspired by <a
+            href="https://ia.net/writer">iA Writer</a
+          >
+        </li>
+        <li>
+          A focus mode that dims everything but the sentence you're currently
+          writing
+        </li>
         <li>Typewriter mode, which keeps your cursor vertically centered</li>
-        <li>Tiny little quality-of-life things: paste URLs over selected text to insert a link</li>
+        <li>
+          Tiny little quality-of-life things: paste URLs over selected text to
+          insert a link
+        </li>
         <li>Keyboard shortcuts for everything</li>
-        <li><kbd>⌥</kbd> hover any image path to preview, <kbd>⌘</kbd> click to open any URL</li>
+        <li>
+          <kbd>⌥</kbd> hover any image path to preview, <kbd>⌘</kbd> click to open
+          any URL
+        </li>
       </ul>
       <ThemeCompareSlider
         slot="media"
@@ -199,7 +220,11 @@ const structuredData = {
       title="Insert components without leaving the keyboard"
     >
       <p>
-        If you use components like <code>&lt;Aside&gt;</code> in your MDX content files, Astro Editor makes it easier to find and insert them <em>as you're writing</em>.  The <a href="/editor/mdx-components">Component Inserter</a> shows a subset of the components in your project and lets you insert them with a few keystroke.
+        If you use components like <code>&lt;Aside&gt;</code> in your MDX content
+        files, Astro Editor makes it easier to find and insert them <em
+          >as you're writing</em
+        >. The <a href="/editor/mdx-components">Component Inserter</a> shows a subset
+        of the components in your project and lets you insert them with a few keystrokes.
       </p>
       <Screenshot
         slot="media"
@@ -216,12 +241,21 @@ const structuredData = {
       reverse
     >
       <p>
-        Dragging an image into the editor copies it into the right assets folder, gives it a web-safe name, and inserts the appropriate markdown code in your document. Naming conflicts and the like are handled for you, so you can drag as many screenshots and random images into your content as you like and they'll end up in the right place in your Astro site.
+        Dragging an image into the editor copies it into the right assets
+        folder, gives it a web-safe name, and inserts the appropriate markdown
+        code in your document. Naming conflicts and the like are handled for
+        you, so you can drag as many screenshots and random images into your
+        content as you like and they'll end up in the right place in your Astro
+        site.
       </p>
       <p>
-        The same smart image handling also powers schema image fields in the frontmatter panel.
+        The same smart image handling also powers schema image fields in the
+        frontmatter panel.
       </p>
-      <p>Holding ⌥ while hovering anny image path pops up a preview in the corner, so it's a tiny bit easier to check you're image paths are right.</p>
+      <p>
+        Holding ⌥ while hovering any image path pops up a preview in the corner,
+        so it's a tiny bit easier to check your image paths are right.
+      </p>
       <div slot="media" class="media-stack">
         <Screenshot
           src={imagePreviewShot}
@@ -244,7 +278,8 @@ const structuredData = {
             />
             <h3>Drafts, filtering &amp; sorting</h3>
             <p>
-              Filter and sort your content collections. See and filter drafts eith ease.
+              Filter and sort your content collections. See and filter drafts
+              with ease.
             </p>
           </article>
           <article class="card">
@@ -256,7 +291,8 @@ const structuredData = {
             />
             <h3>Copyedit modes</h3>
             <p>
-              Colour-code parts of speech like nounds, verbs, adjectives, adverbs and conjunctions to help with editing & rewriting.
+              Colour-code parts of speech like nouns, verbs, adjectives, adverbs
+              and conjunctions to help with editing & rewriting.
             </p>
           </article>
           <article class="card">
@@ -266,7 +302,7 @@ const structuredData = {
               sizes="(max-width: 860px) 92vw, 340px"
               widths={[340, 510, 680]}
             />
-            <h3>Global Command palette</h3>
+            <h3>Global command palette</h3>
             <p>
               The whole app is keyboard-navigable. Open the palette to jump
               anywhere or run any command.
@@ -278,9 +314,9 @@ const structuredData = {
 
     <section id="download" class="section">
       <div class="container download-section">
-        <h2>Download</h2>
+        <h2>Download Astro Editor</h2>
         <p class="lede">
-          Free and open source. Native builds for macOS, Windows, and Linux.
+          Native builds for macOS, Windows, and Linux. Free and open source.
         </p>
 
         <div class="downloads">
@@ -289,6 +325,11 @@ const structuredData = {
             <DownloadButton platform="windows" />
           </div>
 
+          <p class="brew">
+            Or install via Homebrew:
+            <code>brew install --cask astro-editor</code>
+          </p>
+
           <div class="linux">
             <DownloadButton platform="linux" />
             <p class="linux-alt">
@@ -296,11 +337,6 @@ const structuredData = {
               <a href={debUrl}>.deb</a> or <a href={rpmUrl}>.rpm</a> package.
             </p>
           </div>
-
-          <p class="brew">
-            Or install via Homebrew:
-            <code>brew install --cask astro-editor</code>
-          </p>
         </div>
       </div>
     </section>
@@ -390,24 +426,53 @@ const structuredData = {
     color: var(--color-text-muted);
   }
 
-  /* A recessed card that sets the VS Code "before" apart from the app shots. */
+  /* A faintly red-tinted, left-aligned card that sets the VS Code "before"
+     apart from the bare, centred app shots above it. */
   .vscode-box {
+    --vscode-tint: light-dark(#af3029, #d14d41); /* Flexoki red */
     margin: 4rem auto 0;
     max-width: 940px;
     padding: 2rem;
+    text-align: left;
     border-radius: 1rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-2);
+    border: 1px solid
+      color-mix(in srgb, var(--vscode-tint) 22%, var(--color-border));
+    background: color-mix(in srgb, var(--vscode-tint) 7%, var(--color-bg));
+  }
+
+  .vscode-heading {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--color-text);
   }
 
   .vscode-box p {
-    max-width: 40rem;
-    margin: 0 auto 1.5rem;
-    font-size: 1.125rem;
+    max-width: 46rem;
+    margin: 0.75rem 0 1.5rem;
+    font-size: 1.0625rem;
     color: var(--color-text-muted);
   }
 
+  .vscode-box .shot--vscode {
+    max-width: 100%;
+  }
+
   /* ---- Feature sections ---- */
+  /* Group heading above the run of feature sections. Its top border is the
+     divider from the hero; the first feature is `flush` so no line sits
+     between this heading and it. */
+  .features-header {
+    padding-bottom: 0;
+    text-align: center;
+  }
+
+  .features-title {
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+
   .feature-list {
     margin-top: 1.25rem;
     list-style: none;
@@ -442,33 +507,6 @@ const structuredData = {
   .video-frame {
     max-width: 820px;
     margin-inline: auto;
-  }
-
-  /* ---- How it fits ---- */
-  .fit-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2.5rem;
-  }
-
-  .fit-item h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-  }
-
-  .fit-item p {
-    margin-top: 0.6rem;
-    color: var(--color-text-muted);
-    font-size: 1rem;
-  }
-
-  @media (max-width: 760px) {
-    .fit-grid {
-      grid-template-columns: 1fr;
-      gap: 1.75rem;
-      max-width: 32rem;
-      margin-inline: auto;
-    }
   }
 
   /* ---- "And more" cards ---- */
@@ -591,12 +629,5 @@ const structuredData = {
     font-size: clamp(1.5rem, 4vw, 2rem);
     font-weight: 700;
     letter-spacing: -0.01em;
-  }
-
-  /* Temporary scaffold marker — removed as each section is built out. */
-  .placeholder {
-    margin-top: 0.75rem;
-    color: var(--color-text-muted);
-    font-style: italic;
   }
 </style>
