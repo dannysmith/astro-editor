@@ -6,7 +6,7 @@ This document outlines the color system implementation in Astro Editor, includin
 
 The app uses a hybrid approach combining:
 - **CSS Variables** for semantic theme tokens (shadcn/ui system)
-- **Tailwind Dark Mode Classes** for explicit light/dark styling where needed
+- **Semantic Tailwind utilities** generated from CSS variables
 - **Custom Status Colors** for draft indicators and validation states
 
 ## CSS Variables (Primary System)
@@ -25,11 +25,14 @@ The app uses a hybrid approach combining:
   --muted-foreground: hsl(0 0% 45%);
   --accent: hsl(0 0% 96%);
   --accent-foreground: hsl(0 0% 10%);
+  --overlay: hsl(0 0% 0% / 0.5);
+  --titlebar-background: hsl(0 0% 98%);
   
   /* Status colors */
   --color-draft: 37 99% 25%; /* orange-600 */
   --color-required: 0 84% 60%; /* red-500 */
   --color-warning: 45 93% 47%; /* yellow-500 */
+  --color-active: 217 91% 60%;
 }
 ```
 
@@ -47,17 +50,19 @@ The app uses a hybrid approach combining:
   --color-draft: 33 100% 70%; /* Lighter orange */
   --color-required: 0 91% 71%; /* Lighter red */
   --color-warning: 48 96% 80%; /* Lighter yellow */
+  --color-active: 213 94% 68%;
 }
 ```
 
-## Tailwind Dark Mode Classes
+## Semantic Tailwind Utilities
 
-For components where CSS variables don't provide sufficient control, we use Tailwind's `dark:` variant classes:
+Tailwind v4 exposes theme variables from `@theme inline`, so components should use semantic utilities instead of literal color utilities:
 
 ### Text Colors
-- **Primary text**: `text-gray-900 dark:text-white`
-- **Secondary text**: `text-gray-700 dark:text-gray-300`
+- **Primary text**: `text-foreground`
+- **Secondary text/icons**: `text-muted-foreground`
 - **Muted text**: Uses `text-muted-foreground` (CSS variable)
+- **Active toolbar state**: `text-active`
 
 ### When to Use Each Approach
 
@@ -65,42 +70,42 @@ For components where CSS variables don't provide sufficient control, we use Tail
 - shadcn/ui components
 - Text that should automatically adapt to theme
 - Description text, helper text
+- Overlay, title bar, and window chrome colors
 
-**Use Tailwind Dark Classes (`text-gray-900 dark:text-white`) for:**
-- Form field labels and input text
-- Component titles and headings
-- Navigation elements
-- Any text that doesn't render correctly with CSS variables
+**Use explicit `dark:` classes only when:**
+- The color is intentionally not part of the theme token system
+- A third-party component cannot consume CSS variables correctly
+- The exception is documented near the usage
 
 ## Component Implementation
 
 ### Form Components
-All form inputs and labels use explicit dark mode classes:
+All form controls use semantic text and placeholder tokens:
 
 ```tsx
 // Input/Textarea components
-className="text-gray-900 dark:text-white placeholder:text-muted-foreground"
+className="text-foreground placeholder:text-muted-foreground"
 
 // Select triggers (dropdowns)
-className="text-gray-900 dark:text-white"
+className="text-foreground"
 
 // Field labels
-<label className="text-sm font-medium text-gray-900 dark:text-white">
+<label className="text-sm font-medium text-foreground">
   {label}
 </label>
 ```
 
 ### Navigation Components
-Sidebar and title bar elements use dark mode classes:
+Sidebar and title bar elements use semantic tokens:
 
 ```tsx
 // Collection titles, file names
-<span className="font-medium text-gray-900 dark:text-white">
+<span className="font-medium text-foreground">
   {title}
 </span>
 
 // Icon buttons
-<Button className="text-gray-700 dark:text-gray-300">
+<Button className="text-muted-foreground">
   <Icon />
 </Button>
 ```
@@ -110,22 +115,13 @@ Sidebar and title bar elements use dark mode classes:
 macOS-style window controls maintain consistent colors across both themes:
 
 ```css
-/* Same colors in both light and dark mode */
 .traffic-light-close {
-  background: #ff5f57; /* Red */
-  border-color: #e0443e;
-}
-
-.traffic-light-minimize {
-  background: #ffbd2e; /* Yellow */
-  border-color: #dea123;
-}
-
-.traffic-light-maximize {
-  background: #28ca42; /* Green */
-  border-color: #1aac29;
+  background: var(--traffic-light-close);
+  border-color: var(--traffic-light-close-border);
 }
 ```
+
+The literal macOS colors live only in `App.css` token declarations. Usage sites should reference the `--traffic-light-*` variables.
 
 ## Status Color System
 
@@ -152,10 +148,10 @@ macOS-style window controls maintain consistent colors across both themes:
 ### Usage in Components
 ```tsx
 // Draft indicator
-<span className="text-[var(--color-draft)]">(Draft)</span>
+<span className="text-draft">(Draft)</span>
 
 // Required field
-<span className="text-[var(--color-required)]">*</span>
+<span className="text-required">*</span>
 ```
 
 ## Theme Provider Integration
@@ -221,7 +217,8 @@ Components use `placeholder:text-muted-foreground` in Tailwind classes.
 
 ### 1. Consistency
 - Use CSS variables for semantic colors when possible
-- Use Tailwind dark classes only when CSS variables don't work
+- Use generated semantic utilities (`text-foreground`, `bg-warning`) instead of literal palette utilities
+- Use Tailwind dark classes only when CSS variables don't work, and document why
 - Maintain consistent text color patterns across similar components
 
 ### 2. Accessibility
@@ -232,6 +229,7 @@ Components use `placeholder:text-muted-foreground` in Tailwind classes.
 ### 3. Maintenance
 - Keep color definitions centralized in CSS variables
 - Document any custom color usage
+- Add new semantic variables before adding component-level color literals
 - Test with system theme changes
 
 ## Color Testing
@@ -247,7 +245,7 @@ To verify dark mode implementation:
 
 During the dark mode implementation, we moved from:
 - Blue-tinted backgrounds → Neutral grey backgrounds
-- CSS-only color system → Hybrid CSS variables + Tailwind classes
+- CSS-only color system → CSS variables exposed through semantic Tailwind utilities
 - Inconsistent text colors → Standardized text color patterns
 
-This hybrid approach provides the flexibility needed for complex UI components while maintaining the benefits of a semantic color system.
+This approach keeps future theme work focused on swapping token values rather than editing component classes.
