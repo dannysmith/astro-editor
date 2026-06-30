@@ -91,42 +91,12 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
     <div
       className="image-preview-container"
       style={{
-        position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        maxWidth: '300px',
-        maxHeight: '300px',
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        border: '1px solid rgba(0, 0, 0, 0.1)',
-        borderRadius: '8px',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-        padding: '12px',
-        zIndex: 1000,
         opacity: loadingState === 'idle' ? 0 : 1,
-        transition: 'opacity 0.2s ease-in-out',
-        backdropFilter: 'blur(10px)',
       }}
     >
       {loadingState === 'loading' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '100px',
-            minHeight: '100px',
-          }}
-        >
-          <div
-            style={{
-              width: '24px',
-              height: '24px',
-              border: '2px solid rgba(0, 0, 0, 0.1)',
-              borderTopColor: 'rgba(0, 0, 0, 0.6)',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }}
-          />
+        <div className="image-preview-loading">
+          <div className="image-preview-spinner" />
         </div>
       )}
 
@@ -134,25 +104,12 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
         <img
           src={imageUrl}
           alt="Preview"
-          style={{
-            maxWidth: '100%',
-            maxHeight: '276px', // 300px - (12px padding * 2)
-            objectFit: 'contain',
-            display: 'block',
-          }}
+          className="image-preview-image"
           onError={() => {
             setLoadingState('error')
           }}
         />
       )}
-
-      <style>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   )
 }
