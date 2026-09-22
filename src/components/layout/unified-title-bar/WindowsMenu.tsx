@@ -118,7 +118,7 @@ export const WindowsMenu: React.FC = () => {
         <Button
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-muted-foreground"
           title="Menu"
         >
           <MoreHorizontal className="size-4" />

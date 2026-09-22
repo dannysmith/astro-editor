@@ -65,6 +65,8 @@
 /* Common Colors */
 :root {
   --editor-color-carat: rgba(0, 195, 255, 1);
+  --editor-color-snippet-border: rgba(0, 0, 0, 0.05);
+  --editor-color-snippet-border-active: rgba(0, 0, 0, 0.1);
 }
 
 /* Light Mode Colors */
@@ -219,4 +221,50 @@
   color: var(--editor-color-mdtag);
   font-style: italic;
   font-family: var(--editor-font-family-italic);
+}
+
+.image-preview-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: 300px;
+  max-height: 300px;
+  background-color: var(--floating-preview-background);
+  border: 1px solid var(--floating-preview-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px var(--floating-preview-shadow);
+  padding: 12px;
+  z-index: 1000;
+  transition: opacity 0.2s ease-in-out;
+  backdrop-filter: blur(10px);
+}
+
+.image-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  min-height: 100px;
+}
+
+.image-preview-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--spinner-track);
+  border-top-color: var(--spinner-active);
+  border-radius: 50%;
+  animation: image-preview-spin 0.8s linear infinite;
+}
+
+.image-preview-image {
+  max-width: 100%;
+  max-height: 276px;
+  object-fit: contain;
+  display: block;
+}
+
+@keyframes image-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
