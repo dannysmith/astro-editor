@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Create draft release
         id: create-release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = process.env.RELEASE_TAG
