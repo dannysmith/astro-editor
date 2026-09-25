@@ -46,3 +46,4 @@ website/node_modules/
 website/astro-editor-latest.*
 
 .claude/worktrees/
+docs/tasks-todo/temporary/
