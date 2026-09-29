@@ -70,7 +70,9 @@
   --border: hsl(0 0% 90%);
   --input: hsl(0 0% 90%);
   --ring: hsl(0 0% 10%);
+  --overlay: hsl(0 0% 0% / 0.5);
   --radius: 0.5rem;
+  --titlebar-background: hsl(0 0% 98%);
   --sidebar: var(--card);
   --sidebar-foreground: hsl(0 0% 20%);
   --sidebar-primary: hsl(0 0% 10%);
@@ -91,6 +93,34 @@
   --color-required: 0 84% 60%; /* red-500 equivalent */
   --color-warning: 45 93% 47%; /* yellow-500 equivalent */
   --color-warning-bg: 55 92% 95%; /* yellow-50 equivalent */
+  --color-warning-foreground: 0 0% 100%;
+  --color-active: 217 91% 60%;
+  --color-framework-astro: 21 90% 48%;
+  --color-framework-react: 221 83% 53%;
+  --color-framework-vue: 142 76% 36%;
+  --color-framework-svelte: 0 72% 51%;
+
+  --traffic-light-border: rgba(0, 0, 0, 0.08);
+  --traffic-light-shadow: rgba(0, 0, 0, 0.1);
+  --traffic-light-symbol: rgba(0, 0, 0, 0.75);
+  --traffic-light-close: #ff5f56;
+  --traffic-light-close-border: #e0443e;
+  --traffic-light-close-hover: #ff453a;
+  --traffic-light-minimize: #ffbd30;
+  --traffic-light-minimize-border: #dea123;
+  --traffic-light-minimize-hover: #ffb524;
+  --traffic-light-maximize: #28ca42;
+  --traffic-light-maximize-border: #1aac29;
+  --traffic-light-maximize-hover: #1fb932;
+  --traffic-light-unfocused: #c4c4c4;
+  --traffic-light-unfocused-border: #a0a0a0;
+  --traffic-light-unfocused-hover: #b8b8b8;
+
+  --floating-preview-background: rgba(255, 255, 255, 0.98);
+  --floating-preview-border: rgba(0, 0, 0, 0.1);
+  --floating-preview-shadow: rgba(0, 0, 0, 0.15);
+  --spinner-track: rgba(0, 0, 0, 0.1);
+  --spinner-active: rgba(0, 0, 0, 0.6);
 }
 
 .dark {
@@ -114,6 +144,7 @@
   --border: hsl(0 0% 18%);
   --input: hsl(0 0% 18%);
   --ring: hsl(0 0% 70%);
+  --titlebar-background: hsl(0 0% 0%);
   --sidebar: hsl(0 0% 8%);
   --sidebar-foreground: hsl(0 0% 90%);
   --sidebar-primary: hsl(0 0% 50%);
@@ -134,6 +165,16 @@
   --color-required: 0 91% 71%; /* Lighter red for dark */
   --color-warning: 48 96% 80%; /* Lighter yellow for dark */
   --color-warning-bg: 48 100% 6%; /* Dark yellow background */
+  --color-warning-foreground: 0 0% 100%;
+  --color-active: 213 94% 68%;
+  --color-framework-astro: 27 96% 61%;
+  --color-framework-react: 213 94% 68%;
+  --color-framework-vue: 142 69% 58%;
+  --color-framework-svelte: 0 91% 71%;
+
+  --traffic-light-unfocused: #5a5a5a;
+  --traffic-light-unfocused-border: #4a4a4a;
+  --traffic-light-unfocused-hover: #6a6a6a;
 }
 
 /* Square corners mode - used on Windows/Linux in fullscreen */
@@ -178,6 +219,12 @@
   --color-required: hsl(var(--color-required));
   --color-warning: hsl(var(--color-warning));
   --color-warning-bg: hsl(var(--color-warning-bg));
+  --color-warning-foreground: hsl(var(--color-warning-foreground));
+  --color-active: hsl(var(--color-active));
+  --color-framework-astro: hsl(var(--color-framework-astro));
+  --color-framework-react: hsl(var(--color-framework-react));
+  --color-framework-vue: hsl(var(--color-framework-vue));
+  --color-framework-svelte: hsl(var(--color-framework-svelte));
 }
 
 @layer base {
@@ -278,42 +325,42 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    border: 0.5px solid var(--traffic-light-border);
     transition: background-color 0.12s ease;
     font-size: 8px;
     font-weight: 700;
     line-height: 1;
-    box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0.5px 1px var(--traffic-light-shadow);
   }
 
   .traffic-light-close {
-    background: #ff5f56;
-    border-color: #e0443e;
+    background: var(--traffic-light-close);
+    border-color: var(--traffic-light-close-border);
   }
   .traffic-light-close:hover {
-    background: #ff453a;
+    background: var(--traffic-light-close-hover);
   }
 
   .traffic-light-minimize {
-    background: #ffbd30;
-    border-color: #dea123;
+    background: var(--traffic-light-minimize);
+    border-color: var(--traffic-light-minimize-border);
   }
   .traffic-light-minimize:hover {
-    background: #ffb524;
+    background: var(--traffic-light-minimize-hover);
   }
 
   .traffic-light-maximize {
-    background: #28ca42;
-    border-color: #1aac29;
+    background: var(--traffic-light-maximize);
+    border-color: var(--traffic-light-maximize-border);
   }
   .traffic-light-maximize:hover {
-    background: #1fb932;
+    background: var(--traffic-light-maximize-hover);
   }
 
   .traffic-light .symbol {
     opacity: 0;
     transition: opacity 0.12s ease;
-    color: rgba(0, 0, 0, 0.75);
+    color: var(--traffic-light-symbol);
     position: absolute;
     top: 50%;
     left: 50%;
@@ -351,28 +398,14 @@ body {
   .window-unfocused .traffic-light-close,
   .window-unfocused .traffic-light-minimize,
   .window-unfocused .traffic-light-maximize {
-    background: #c4c4c4 !important;
-    border-color: #a0a0a0 !important;
+    background: var(--traffic-light-unfocused) !important;
+    border-color: var(--traffic-light-unfocused-border) !important;
   }
 
   .window-unfocused .traffic-light-close:hover,
   .window-unfocused .traffic-light-minimize:hover,
   .window-unfocused .traffic-light-maximize:hover {
-    background: #b8b8b8 !important;
-  }
-
-  /* Dark mode unfocused state */
-  .dark.window-unfocused .traffic-light-close,
-  .dark.window-unfocused .traffic-light-minimize,
-  .dark.window-unfocused .traffic-light-maximize {
-    background: #5a5a5a !important;
-    border-color: #4a4a4a !important;
-  }
-
-  .dark.window-unfocused .traffic-light-close:hover,
-  .dark.window-unfocused .traffic-light-minimize:hover,
-  .dark.window-unfocused .traffic-light-maximize:hover {
-    background: #6a6a6a !important;
+    background: var(--traffic-light-unfocused-hover) !important;
   }
 }
 
