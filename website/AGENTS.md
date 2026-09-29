@@ -40,7 +40,8 @@ website/
 │   │   └── releases/
 │   │       └── index.astro    # Releases list (StarlightPage)
 │   └── content.config.ts      # Content collection schema
-└── public/                    # Static assets (copied as-is to dist/)
+├── public/                    # Static assets (copied as-is to dist/)
+└── video/                     # Homepage intro video source (see video/README.md)
 ```
 
 ## Commands
@@ -52,7 +53,12 @@ bun run preview      # Preview production build
 bun run check        # Type check + lint + format check
 bun run lint         # ESLint
 bun run format       # Prettier format
+bun run video        # Re-render the homepage intro video (see video/README.md)
 ```
+
+## Intro Video
+
+The homepage video (`public/astro-editor-intro.mp4`) is built from source in `video/`: an HTML page rendered frame by frame with Playwright and ffmpeg, plus a synthesised soundtrack. Read `video/README.md` before changing it. Don't edit the MP4 or its poster (`src/assets/intro-video-poster.jpg`) by hand; regenerate them with `bun run video`.
 
 ## Content Conventions
 

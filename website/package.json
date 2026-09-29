@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "video": "node video/render.mjs && node video/synth.mjs && node video/publish.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.40.0",
@@ -34,6 +35,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.5.0",
     "eslint-plugin-astro": "^1.7.0",
+    "playwright-core": "^1.63.0",
     "prettier": "^3.8.4",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3",
