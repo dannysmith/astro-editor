@@ -2699,8 +2699,7 @@ Content"#;
 
         let result = parse_frontmatter(content);
         // Should either parse correctly or fail gracefully (not corrupt)
-        if result.is_ok() {
-            let parsed = result.unwrap();
+        if let Ok(parsed) = result {
             assert!(parsed.frontmatter.contains_key("title"));
         }
     }

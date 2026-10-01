@@ -458,7 +458,7 @@ pub async fn load_file_based_collection(
             debug!("Astro Editor [FILE_COLLECTION] Regex pattern: {pattern}");
             debug!(
                 "Astro Editor [FILE_COLLECTION] Config content (first 500 chars): {}",
-                &content.chars().take(500).collect::<String>()
+                content.chars().take(500).collect::<String>()
             );
 
             if let Ok(re) = Regex::new(&pattern) {

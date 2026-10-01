@@ -691,8 +691,15 @@ fn handle_primitive_type(type_: &StringOrArray) -> Result<FieldTypeInfo, String>
                 array_reference_collection: None,
             }),
         },
-        StringOrArray::Array(_) => {
-            // Multiple types - treat as string for now
+        StringOrArray::Array(types) => {
+            // Nullable primitive (e.g., z.number().nullish() → type: ["number", "null"] in Zod 4.5+)
+            match types.as_slice() {
+                [t, n] | [n, t] if n == "null" && t != "null" => {
+                    return handle_primitive_type(&StringOrArray::String(t.clone()));
+                }
+                _ => {}
+            }
+            // Other multiple types - treat as string for now
             Ok(FieldTypeInfo {
                 field_type: "string".to_string(),
                 sub_type: None,
@@ -1391,6 +1398,38 @@ mod tests {
         let schema = result.unwrap();
         let field = schema.fields.iter().find(|f| f.name == "featured").unwrap();
         assert_eq!(field.field_type, "boolean");
+    }
+
+    #[test]
+    fn test_parse_type_array_nullable_primitives() {
+        // Zod 4.5+ emits bare nullable primitives as a type array instead of anyOf
+        // (e.g., z.number().nullish() → "type": ["number", "null"])
+        let json_schema = r##"{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "lat": { "type": ["number", "null"] },
+                "lng": { "type": ["null", "number"] },
+                "featured": { "type": ["boolean", "null"] },
+                "subtitle": { "type": ["string", "null"] },
+                "mixed": { "type": ["string", "number", "null"] }
+            },
+            "required": []
+        }"##;
+
+        let schema = parse_json_schema("locations", json_schema).unwrap();
+        let field_type = |name: &str| {
+            let field = schema.fields.iter().find(|f| f.name == name).unwrap();
+            assert!(!field.required);
+            field.field_type.clone()
+        };
+
+        assert_eq!(field_type("lat"), "number");
+        assert_eq!(field_type("lng"), "number");
+        assert_eq!(field_type("featured"), "boolean");
+        assert_eq!(field_type("subtitle"), "string");
+        // Unions of several types still fall back to string
+        assert_eq!(field_type("mixed"), "string");
     }
 
     #[test]
