@@ -1,7 +1,7 @@
 
-import __ASTRO_IMAGE_IMPORT_Z14GLdR from "./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2023-12-05-schema-testing-article.md";
-import __ASTRO_IMAGE_IMPORT_RzyDo from "./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md";
-import __ASTRO_IMAGE_IMPORT_10N1oH from "/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md";
-import __ASTRO_IMAGE_IMPORT_Z24TCSx from "/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Fnotes%2Ftest-nested-image.md";
-export default new Map([["./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2023-12-05-schema-testing-article.md", __ASTRO_IMAGE_IMPORT_Z14GLdR], ["./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md", __ASTRO_IMAGE_IMPORT_RzyDo], ["/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md", __ASTRO_IMAGE_IMPORT_10N1oH], ["/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Fnotes%2Ftest-nested-image.md", __ASTRO_IMAGE_IMPORT_Z24TCSx]]);
+import __ASTRO_IMAGE_IMPORT_0 from "./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2023-12-05-schema-testing-article.md";
+import __ASTRO_IMAGE_IMPORT_1 from "./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md";
+import __ASTRO_IMAGE_IMPORT_2 from "/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md";
+import __ASTRO_IMAGE_IMPORT_3 from "/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Fnotes%2Ftest-nested-image.md";
+export default new Map([["./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2023-12-05-schema-testing-article.md", __ASTRO_IMAGE_IMPORT_0], ["./imagetest.png?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md", __ASTRO_IMAGE_IMPORT_1], ["/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Farticles%2F2025-01-22-image-preview-test.md", __ASTRO_IMAGE_IMPORT_2], ["/src/assets/articles/styleguide-image.jpg?astroContentImageFlag=&importer=src%2Fcontent%2Fnotes%2Ftest-nested-image.md", __ASTRO_IMAGE_IMPORT_3]]);
 		

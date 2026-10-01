@@ -50,6 +50,9 @@
     "reviewer": {
       "anyOf": [
         {
+          "type": "number"
+        },
+        {
           "type": "string"
         },
         {
