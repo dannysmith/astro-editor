@@ -18,11 +18,7 @@
     "**/*.spec.{ts,tsx}"
   ],
   "ignoreDependencies": [
-    "@tauri-apps/cli",
-    "@typescript-eslint/eslint-plugin",
-    "@typescript-eslint/parser",
-    "eslint-plugin-prettier",
-    "@testing-library/user-event"
+    "@tauri-apps/cli"
   ],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": true
