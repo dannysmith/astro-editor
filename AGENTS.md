@@ -172,7 +172,7 @@ Use `/check` to verify work quality before completing tasks:
 Use `/knip-cleanup` to clean up unused dependencies, files, and exports:
 - Runs knip to detect unused items
 - Preserves shadcn/ui components (future use)
-- Keeps Radix dependencies used by shadcn components
+- Keeps the `radix-ui` package used by shadcn components
 - Protects Tauri/Rust-called exports
 - Auto-removes safe items
 - Asks user about ambiguous items
