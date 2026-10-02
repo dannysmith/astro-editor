@@ -68,7 +68,7 @@ This guide covers the Rust-based schema parsing and merging architecture that po
 **Example Output**:
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
     "title": {
@@ -90,9 +90,9 @@ This guide covers the Rust-based schema parsing and merging architecture that po
 }
 ```
 
-**Parsed by**: `parse_json_schema()` in `src-tauri/src/schema_merger.rs`
+**Parsed by**: `parse_json_schema()` in `src-tauri/src/schema_merger.rs`. It supports the Astro 5 format (`$ref`/`definitions`) and the flat Astro 6/7 format above, plus both forms Zod uses for nullable fields (`anyOf` with a `null` branch, and Zod 4.5+'s `"type": ["number", "null"]`).
 
-📖 **For comprehensive details on Astro's JSON schema generation, see [astro-generated-conentcollection-schemas.md](./astro-generated-conentcollection-schemas.md)**
+📖 **For comprehensive details on Astro's JSON schema generation, see [astro-generated-contentcollection-schemas.md](./astro-generated-contentcollection-schemas.md)**
 
 ### 2. Zod Schema (Enhancement Source)
 

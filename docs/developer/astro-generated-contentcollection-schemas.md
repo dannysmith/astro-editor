@@ -9,12 +9,15 @@
 5. [Advanced Patterns](#advanced-patterns)
 6. [Special Astro Features](#special-astro-features)
 7. [Edge Cases and Gotchas](#edge-cases-and-gotchas)
+8. [Version Differences (Astro 6+, Zod 4.5+)](#version-differences-astro-6-zod-45)
 
 ## Overview
 
 Astro automatically generates JSON Schema Draft 7 files for each content collection defined in `src/content.config.ts`. These schemas are placed in `.astro/collections/<collection-name>.schema.json` and are used for IDE validation and autocomplete.
 
 **Key Principle**: The generated JSON schemas are NOT a direct 1:1 mapping of Zod schemas. Instead, they represent the **runtime validation requirements** that frontmatter data must satisfy.
+
+> **Note:** The examples in this document use the Astro 5 format (Zod 3, draft-07, `$ref`/`definitions`). Astro 6 and 7 generate the same information in a slightly different shape — see [Version Differences](#version-differences-astro-6-zod-45). The editor supports all of these formats.
 
 ## File Structure
 
@@ -975,6 +978,24 @@ NOT:
 ### 6. No Definition Reuse
 
 Even though the root uses `$ref` to reference definitions, **nested schemas do not**. Everything is inlined, which can lead to duplication if the same schema is used in multiple places.
+
+## Version Differences (Astro 6+, Zod 4.5+)
+
+Astro 6 moved to Zod 4 and generates schemas with `z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' })`. Astro 7 uses the same generator. The differences from the Astro 5 format above:
+
+- **Flat root**: no `$ref`/`definitions` wrapper. The collection's `type`, `properties` and `required` sit at the top level, with `"$schema": "https://json-schema.org/draft/2020-12/schema"`.
+- **Dates**: a single `{ "type": "string", "format": "date-time" }` instead of the three-way `anyOf`.
+- **References** (Astro 7): the `anyOf` gains a `{ "type": "number" }` branch alongside the string and `{id|slug, collection}` object branches.
+- **Nullable primitives** (Zod 4.5+): when every branch of a nullable union is a bare `{type}`, Zod collapses it into a type array. Which form you get depends on the installed Zod version, not the Astro version — Astro 6 projects pick up Zod 4.5+ on fresh installs.
+
+| Zod schema                                   | Zod ≤4.4                                    | Zod ≥4.5                    |
+| -------------------------------------------- | ------------------------------------------- | --------------------------- |
+| `z.number().nullish()`                       | `anyOf: [{type: number}, {type: null}]`     | `type: ["number", "null"]`  |
+| `z.boolean().nullable()`                     | `anyOf: [{type: boolean}, {type: null}]`    | `type: ["boolean", "null"]` |
+| `z.string().nullish()`                       | `anyOf: [{type: string}, {type: null}]`     | `type: ["string", "null"]`  |
+| `.int()`, enums, arrays, dates, constrained  | `anyOf: [{...}, {type: null}]`              | unchanged (`anyOf`)         |
+
+`parse_json_schema()` detects the root format (Astro 5 `$ref` vs flat), and `determine_field_type()` handles both the `anyOf` and type-array forms of nullable fields.
 
 ## Summary of Transformation Rules
 

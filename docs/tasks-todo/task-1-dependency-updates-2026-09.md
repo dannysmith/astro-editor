@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Step 1 done (uncommitted) — next up is Step 2
+**Current Phase:** Steps 1–2 done — next up is Step 3
 **Branch:** deps-2026-10-01
 
 This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.12, several test-tooling majors, a CI overhaul, and a live schema-parsing bug for current users.
@@ -26,28 +26,28 @@ This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.1
 ### Step 2 — Test fixtures + website → Astro 7
 
 Fixtures:
-- [ ] `git rm` the stale `test/*/pnpm-lock.yaml` files (pnpm ignores them because `test/*` are workspace members; root `pnpm-lock.yaml` governs them. Dependabot security PRs keep targeting these orphans)
-- [ ] Rename `test/demo-project/package.json` `name` from `dummy-astro-project` to `demo-project`
-- [ ] demo-project + dummy-astro-project: `astro ^7.3.5` (no config changes expected)
-- [ ] starlight-minimal: `astro ^7.3.5`, `@astrojs/starlight ^0.42.4`, `sharp ^0.35.5`
-- [ ] `pnpm install` at root, `astro sync` in each fixture, commit regenerated `.astro/collections`
-- [ ] Add `z.number().nullish()` and `z.boolean().nullish()` fields to dummy-astro-project to exercise the Step 1 fix against real Astro 7 output
-- [ ] `pnpm run reset:testdata`
-- [ ] User: open each fixture in Astro Editor, check collections + frontmatter forms (esp. the new nullish fields)
+- [x] `git rm` the stale `test/*/pnpm-lock.yaml` files (pnpm ignores them because `test/*` are workspace members; root `pnpm-lock.yaml` governs them. Dependabot security PRs keep targeting these orphans)
+- [x] Rename `test/demo-project/package.json` `name` from `dummy-astro-project` to `demo-project`
+- [x] demo-project + dummy-astro-project: `astro ^7.3.5` (no config changes expected)
+- [x] starlight-minimal: `astro ^7.3.5`, `@astrojs/starlight ^0.42.4`, `sharp ^0.35.5`
+- [x] `pnpm install` at root, `astro sync` in each fixture, commit regenerated `.astro/collections`
+- [x] Add `rating: z.number().nullish()` and `pinned: z.boolean().nullish()` to dummy-astro-project `notes` to exercise the Step 1 fix against real Astro 7 output
+- [x] `pnpm run reset:testdata`
+- [ ] User (deferred to final smoke test): open each fixture in Astro Editor, check collections + frontmatter forms (esp. `notes` → `rating`/`pinned`). Parser output for every fixture schema already verified in a throwaway Rust test
 
 Website (bun) — all Starlight-ecosystem packages must move together (each drops Astro 6 / older Starlight):
-- [ ] `astro ^7.3.5`, `@astrojs/starlight ^0.42.4`, `astro-auto-import ^0.6.0`, `starlight-llms-txt ^0.12.0`, `starlight-theme-flexoki ^0.3.0`, `starlight-page-actions ^0.7.1`, `sharp ^0.35.5`, `starlight-kbd` (already latest 0.4.0)
-- [ ] Dev: `eslint-plugin-astro ^3.2.1`, `prettier-plugin-astro ^1.1.0`, `@astrojs/check ^0.9.10`, eslint/prettier/typescript-eslint minors. **Keep TypeScript 6** (`@astrojs/check` peers `^5 || ^6`)
-- [ ] Remove unused direct `zod` dependency (nothing imports it; `content.config.ts` uses `astro/zod`)
-- [ ] Bump `website/.nvmrc` 22.12.0 → 24 (eslint-plugin-astro 3 Node floor)
-- [ ] Update stale AutoImport ordering comment at `website/astro.config.mjs:128-131` (Sätteri makes ordering irrelevant)
-- [ ] `compressHTML` now defaults to `'jsx'` — drops whitespace between inline elements on separate lines. ~7 likely spots in `src/pages/index.astro`, ~2 in `src/components/HeroDownload.astro`. Check visually or set `compressHTML: true`
-- [ ] `bun run build` + `bun run check`; `prettier --write .` as a separate commit (plugin v1 rewrite will reformat `.astro` files)
-- [ ] Update `website/src/content/docs/getting-started/introduction.mdx:116` ("Astro 5+") if needed
+- [x] `astro ^7.3.5`, `@astrojs/starlight ^0.42.4`, `astro-auto-import ^0.6.0`, `starlight-llms-txt ^0.12.0`, `starlight-theme-flexoki ^0.3.0`, `starlight-page-actions ^0.7.1`, `sharp ^0.35.5`, `starlight-kbd` (already latest 0.4.0)
+- [x] Dev: `eslint-plugin-astro ^3.2.1`, `prettier-plugin-astro ^1.1.0`, `@astrojs/check ^0.9.10`, eslint/prettier/typescript-eslint minors. **Keep TypeScript 6** (`@astrojs/check` peers `^5 || ^6`)
+- [x] Remove unused direct `zod` dependency (nothing imports it; `content.config.ts` uses `astro/zod`)
+- [x] Bump `website/.nvmrc` 22.12.0 → 24 (eslint-plugin-astro 3 Node floor)
+- [x] Update stale AutoImport ordering comment at `website/astro.config.mjs:128-131` (Sätteri makes ordering irrelevant)
+- [x] `compressHTML` now defaults to `'jsx'` — drops whitespace between inline elements on separate lines. ~7 likely spots in `src/pages/index.astro`, ~2 in `src/components/HeroDownload.astro`. Check visually or set `compressHTML: true`
+- [x] `bun run build` + `bun run check`; `prettier --write .` as a separate commit (plugin v1 rewrite will reformat `.astro` files)
+- [x] `introduction.mdx:116` ("Astro 5+") — still accurate, left as is
 
 Docs:
-- [ ] Fix misspelled `docs/developer/astro-generated-conentcollection-schemas.md` → `...-contentcollection-...` (AGENTS.md already uses the correct name). It still describes Astro 5's draft-07 `$ref` format — update for the flat Astro 6/7 format and the Zod 4.5 type-array form
-- [ ] `docs/developer/schema-system.md` — same
+- [x] Fix misspelled `docs/developer/astro-generated-conentcollection-schemas.md` → `...-contentcollection-...` (AGENTS.md already uses the correct name). It still describes Astro 5's draft-07 `$ref` format — update for the flat Astro 6/7 format and the Zod 4.5 type-array form
+- [x] `docs/developer/schema-system.md` — same
 
 ### Step 3 — Main app deps
 
@@ -203,3 +203,10 @@ Non-dependency PRs #274 (semantic colour tokens), #173 (project settings rework)
 
 1. **Frontend tests fail on Node 25+** (`updateStore.test.ts`: `Cannot read properties of undefined (reading 'getItem')`). Node 25+ has a built-in `localStorage` global that's `undefined` without `--localstorage-file` and shadows jsdom's. Local is Node 26; CI only passes because `lts/*` is still 24 (flips to 26 on 2026-10-28). Fixed with `execArgv: ['--no-experimental-webstorage']` in `vitest.config.ts`. When upgrading to Vitest 5 (3d), check whether it handles this itself and the flag can go.
 2. **Verified Zod 4.6.5 output directly**: only bare `number`/`boolean`/`string` collapse to `type: [T, "null"]`. `.int()` (has min/max), enums, arrays, dates, and constrained/formatted strings keep `anyOf`.
+3. **Website whitespace (`compressHTML`)**: Astro 7's `'jsx'` default ran words together across Starlight, starlight-kbd and our own components (e.g. `Danny Smith·Privacy Policy`, `CmdShiftF` in kbd groups). Set `compressHTML: true`; a text diff of all 68 built pages against the Astro 6 build then matched exactly, apart from Starlight 0.42's new mobile "Menu" label.
+4. **prettier-plugin-astro 1 reformat changed rendered output**: it formats for `'jsx'` whitespace semantics by default, which introduced a visible stray space (`Content Collections .` on the homepage). Fixed by setting `astroCompressHTML: true` in `prettier.config.js` to mirror the Astro config; builds with and without the reformat now render identical text on all pages.
+5. **Rolldown `MODULE_LEVEL_DIRECTIVE` warnings** (65 per website build) for Astro's dead `"use astro:head-inject"` directive. Filtered in `astro.config.mjs` via `vite.build.rolldownOptions.onwarn`; remove once [withastro/astro#18088](https://github.com/withastro/astro/pull/18088) ships.
+6. **Website prints Starlight content warnings** (`collection "i18n" does not exist`, `Entry docs → 404 was not found`) — new with Starlight 0.42, also seen in starlight-minimal. Harmless; the 404 page renders the same text as before.
+7. **`starlight-page-actions` pulls in a second Vite (7.3.6)** via `vite-plugin-virtual`'s peer range. Harmless — that plugin only imports `path`.
+8. **Fixture lockfile side effect**: Astro 7 brings esbuild 0.28, so Vite's optional esbuild peer in the root lockfile moved 0.27.7 → 0.28.2.
+9. **dummy-astro-project `astro build`** still fails image optimisation on missing Sharp (pre-existing since May). `astro sync`, which the editor relies on, works.
