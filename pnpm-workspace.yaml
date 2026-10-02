@@ -3,8 +3,13 @@ packages:
   - test/*
   - '!telemetry-worker'
 
-onlyBuiltDependencies:
-  - '@ast-grep/cli'
-  - '@tailwindcss/oxide'
-  - esbuild
-  - sharp
+# Keep a single @lezer/common across CodeMirror packages. Mismatched copies
+# break syntax highlighting (Tag/Tree objects from different versions differ).
+overrides:
+  '@lezer/common': ^1.5.0
+
+allowBuilds:
+  '@ast-grep/cli': true
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: true

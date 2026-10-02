@@ -151,9 +151,5 @@
     "vite": "^8.0.14",
     "vitest": "^4.1.7"
   },
-  "pnpm": {
-    "overrides": {
-      "@lezer/common": "^1.5.0"
-    }
-  }
+  "packageManager": "pnpm@10.34.6"
 }
