@@ -34,29 +34,27 @@ const { code, inline = false, speed, animate = 'loop' } = Astro.props
 const ssr = renderMarkdown(code, { inline })
 ---
 
-{
-  inline ? (
-    <span
-      class="ae-demo ae-demo-inline"
-      data-aedemo={JSON.stringify(code)}
-      data-inline="true"
-      data-speed={speed}
-      data-animate={animate}
-      set:html={ssr}
-    />
-  ) : (
-    <div
-      class="ae-demo ae-demo-block"
-      data-aedemo={JSON.stringify(code)}
-      data-inline="false"
-      data-speed={speed}
-      data-animate={animate}
-    >
-      <div class="ae-sizer" aria-hidden="true" set:html={ssr} />
-      <div class="ae-anim" set:html={ssr} />
-    </div>
-  )
-}
+{inline ? (
+  <span
+    class="ae-demo ae-demo-inline"
+    data-aedemo={JSON.stringify(code)}
+    data-inline="true"
+    data-speed={speed}
+    data-animate={animate}
+    set:html={ssr}
+  />
+) : (
+  <div
+    class="ae-demo ae-demo-block"
+    data-aedemo={JSON.stringify(code)}
+    data-inline="false"
+    data-speed={speed}
+    data-animate={animate}
+  >
+    <div class="ae-sizer" aria-hidden="true" set:html={ssr} />
+    <div class="ae-anim" set:html={ssr} />
+  </div>
+)}
 
 <style is:global>
   @font-face {

@@ -41,9 +41,7 @@ function createAnim(container: HTMLElement): Controller {
     : (container.querySelector<HTMLElement>('.ae-anim') ?? container)
 
   const animate = (container.dataset.animate ?? 'loop') as
-    | 'loop'
-    | 'once'
-    | 'none'
+    'loop' | 'once' | 'none'
 
   if (animate === 'none' || prefersReduced()) {
     target.innerHTML = renderMarkdown(code, { inline })
