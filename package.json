@@ -89,7 +89,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@ast-grep/cli": "^0.43.0",
+    "@ast-grep/cli": "^0.45.3",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
@@ -107,7 +107,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "jscpd": "^4.3.0",
+    "jscpd": "^5.4.0",
     "jsdom": "^30.1.1",
     "knip": "^6.39.0",
     "prettier": "^3.8.3",
