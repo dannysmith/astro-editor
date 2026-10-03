@@ -8,7 +8,7 @@ Astro Editor supports macOS, Windows, and Linux. This guide documents the patter
 
 | Platform | Title Bar | Window Chrome | Dependencies |
 |----------|-----------|---------------|--------------|
-| macOS | Custom (traffic lights) | `decorations: false`, vibrancy | `window-vibrancy` |
+| macOS | Custom (traffic lights) | `decorations: false`, vibrancy via `windowEffects` | None |
 | Windows | Custom (controls on right) | `decorations: false` | None |
 | Linux | Native + toolbar | `decorations: true` | None |
 
@@ -24,11 +24,9 @@ Platform-specific dependencies are handled using Cargo's target-specific depende
 # Note: macos-private-api is kept here because tauri-build's feature check
 # runs before Cargo resolves target-specific deps. It's a no-op on other platforms.
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
-
-# macOS-only dependencies
-[target.'cfg(target_os = "macos")'.dependencies]
-window-vibrancy = "0.6"
 ```
+
+macOS window vibrancy uses Tauri's built-in `windowEffects` in `tauri.macos.conf.json` (see [macOS Configuration](#macos-configuration-taurimacosconfjson)), so no macOS-only crates are needed.
 
 ### Conditional Code in Rust
 
@@ -37,14 +35,12 @@ Use `#[cfg()]` attributes for platform-specific code:
 ```rust
 // Conditional import
 #[cfg(target_os = "macos")]
-use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+use tauri_plugin_window_state::WindowExt as _;
 
 // Conditional execution
 #[cfg(target_os = "macos")]
 {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0));
-    }
+    // macOS-only setup
 }
 ```
 
@@ -107,6 +103,7 @@ The base config uses safe cross-platform defaults (serves as fallback if no plat
       "minHeight": 700,
       "decorations": false,
       "transparent": true,
+      "windowEffects": { "effects": ["hudWindow"], "radius": 12 },
       "shadow": true
     }],
     "macOSPrivateApi": true
