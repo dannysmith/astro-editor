@@ -18,7 +18,8 @@
     "**/*.spec.{ts,tsx}"
   ],
   "ignoreDependencies": [
-    "@tauri-apps/cli"
+    "@tauri-apps/cli",
+    "@testing-library/user-event"
   ],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": true

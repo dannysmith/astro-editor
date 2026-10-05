@@ -95,7 +95,7 @@ See `docs/README.md` for the complete categorized list.
 ### Documentation & Versions
 
 - **Context7 First**: Always use Context7 for framework docs before WebSearch
-- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v4.x
+- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v5.x
 - **Progress Tracking**: Update current task in `docs/tasks-todo` after major work
 
 ## Specialized Agents
@@ -221,7 +221,7 @@ The script automatically:
   - **Client State:** Zustand for UI state and editing state
 - **Styling:** Tailwind v4 + shadcn/ui
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
-  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `pnpm.overrides` in package.json to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `pnpm why @lezer/common` and `pnpm why @lezer/highlight`.
+  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `pnpm-workspace.yaml` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `pnpm why @lezer/common` and `pnpm why @lezer/highlight`.
 - **Testing:** Vitest + React Testing Library, Cargo
 - **Quality:** ESLint (with React Compiler rules), Prettier, Clippy
 
