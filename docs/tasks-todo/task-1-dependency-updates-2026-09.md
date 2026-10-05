@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Steps 1–5 done except the user-only items (smoke test, telemetry staging deploy, tauri-action tag test, push/PR)
+**Current Phase:** All done except push + PR + merge
 **Branch:** deps-2026-10-01
 
 This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.12, several test-tooling majors, a CI overhaul, and a live schema-parsing bug for current users.
@@ -17,18 +17,18 @@ This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.1
 
 Everything else is done and committed on `deps-2026-10-01`. These need Danny:
 
-1. **Retest dev reloads** with the Tailwind/Vite watcher fix (see Issues Encountered #13): restart `pnpm run tauri:dev`, open `test/demo-project`, edit + save a file, change frontmatter. The app should no longer reload. Leave the fixtures' `astro dev` servers running while testing — they used to trigger reloads too
-2. **Smoke test** in `tauri:dev`:
-   - [ ] Vibrancy + rounded corners look the same as before (now via `windowEffects` config)
-   - [ ] Editor: syntax highlighting incl. GFM tables and checklists
-   - [ ] Select dropdowns (close animation now plays), dialogs, tooltips, dropdown menus (unified `radix-ui` package)
-   - [ ] Clipboard (copy/paste), file dialogs, deep links, window size/position restored on relaunch
-   - [ ] External file changes picked up (edit a file outside the app) — notify rc.5
-   - [ ] Update check runs without errors
-   - [ ] `test/dummy-astro-project` → `notes`: `rating` is a number field, `pinned` is a toggle (Zod 4.5 nullable fix)
-   - [ ] Open `test/demo-project` and `test/starlight-minimal`: collections + frontmatter forms load
-3. **Telemetry worker**: `pnpm run deploy:staging` and `./stats.sh` in `telemetry-worker/` (need Cloudflare auth)
-4. **tauri-action v1 decision**: verify with a throwaway tag from this branch (Claude can push it on request; check draft release + `latest.json`; delete both after) — or drop commit `654b491a`
+1. ✅ **Retest dev reloads** with the Tailwind/Vite watcher fix (see Issues Encountered #13): restart `pnpm run tauri:dev`, open `test/demo-project`, edit + save a file, change frontmatter. The app should no longer reload. Leave the fixtures' `astro dev` servers running while testing — they used to trigger reloads too
+2. ✅ **Smoke test** in `tauri:dev`:
+   - [x] Vibrancy + rounded corners look the same as before (now via `windowEffects` config)
+   - [x] Editor: syntax highlighting incl. GFM tables and checklists
+   - [x] Select dropdowns (close animation now plays), dialogs, tooltips, dropdown menus (unified `radix-ui` package)
+   - [x] Clipboard (copy/paste), file dialogs, deep links, window size/position restored on relaunch
+   - [x] External file changes picked up (edit a file outside the app) — notify rc.5
+   - [x] Update check runs without errors
+   - [x] `test/dummy-astro-project` → `notes`: `rating` is a number field, `pinned` is a toggle (Zod 4.5 nullable fix)
+   - [x] Open `test/demo-project` and `test/starlight-minimal`: collections + frontmatter forms load
+3. ✅ **Telemetry worker**: `pnpm run deploy:staging` and `./stats.sh` in `telemetry-worker/` (need Cloudflare auth)
+4. ~~tauri-action v1 decision~~ — dropped (reverted), moved to `task-x-tauri-action-v1.md`
 5. **Push + PR**: add the `ci` label, CI green, merge with a **merge commit** (not squash), close superseded Dependabot PRs, `pnpm task:complete dependency-updates`
 
 ## Plan
@@ -103,18 +103,17 @@ Docs:
 
 - [x] `actions/checkout` v7 (SHA-pinned v7.0.1 in `publish-release-notes.yml`, kept its SHA-pinning style), `actions/setup-node` v7, `actions/github-script` v9. All other actions already latest
 - [x] `node-version: 'lts/*'` left as is — tests now pass on Node 26
-- [x] `tauri-action` v1.0.0 in `release.yml` + `ci.yml` (separate commit): `uploadUpdaterJson`, dropped `updaterJsonKeepUniversal` and `tagName`
-- [ ] **tauri-action v1 verification (user decision)**: throwaway tag from this branch → check draft handling, `latest.json` URLs, and that an installed client updates from it; delete tag + draft afterwards. Or drop commit `654b491a`
+- [x] ~~`tauri-action` v1.0.0~~ — committed then reverted: can't be verified end to end before a real release (draft assets need auth). Moved to `task-x-tauri-action-v1.md`
 - [x] Dependabot `bun` entry for `/website`
 - [x] Telemetry worker: wrangler 4.95 → 4.147, `wrangler deploy --dry-run` OK
-- [ ] User: `pnpm run deploy:staging` and `./stats.sh` in `telemetry-worker/` (need Cloudflare auth)
+- [x] User: `pnpm run deploy:staging` and `./stats.sh` both work. Wrangler warns that `env.staging` has no `d1_databases` binding (bindings aren't inherited) — pre-existing; staging intentionally doesn't touch the production DB
 
 ### Step 5 — Finalize
 
 - [x] `pnpm audit` / `bun audit`: refreshed `devalue`, `postcss-selector-parser`, `braces` within range. Remaining: `http-cache-semantics` (via Astro, build-time only, no patched release). The app's own dependencies have no findings
 - [x] Docs updated (AGENTS.md versions + override location, testing.md, cross-platform.md, knip-cleanup command)
 - [x] Final `check:all` — 737 frontend + 228 Rust tests pass
-- [ ] User smoke test (see 3b/3c + Step 2 fixture check)
+- [x] User smoke test (see 3b/3c + Step 2 fixture check)
 - [ ] Push + PR; add `ci` label so the build job runs; CI green
 - [ ] Merge with a **merge commit** (not squash)
 - [ ] Close superseded Dependabot PRs; `pnpm task:complete dependency-updates`
