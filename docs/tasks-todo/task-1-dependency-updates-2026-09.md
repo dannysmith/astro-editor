@@ -13,6 +13,24 @@ This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.1
 - tauri-action v1 can't be exercised by PR CI (release only runs on `v*` tags). Verify it with a throwaway tag from this branch before merging, or drop that change from the PR.
 - Merging deploys the website (`deploy-website.yml` runs on pushes to `main` touching `website/**`).
 
+## Remaining user actions
+
+Everything else is done and committed on `deps-2026-10-01`. These need Danny:
+
+1. **Retest dev reloads** with the Tailwind/Vite watcher fix (see Issues Encountered #13): restart `pnpm run tauri:dev`, open `test/demo-project`, edit + save a file, change frontmatter. The app should no longer reload. Leave the fixtures' `astro dev` servers running while testing — they used to trigger reloads too
+2. **Smoke test** in `tauri:dev`:
+   - [ ] Vibrancy + rounded corners look the same as before (now via `windowEffects` config)
+   - [ ] Editor: syntax highlighting incl. GFM tables and checklists
+   - [ ] Select dropdowns (close animation now plays), dialogs, tooltips, dropdown menus (unified `radix-ui` package)
+   - [ ] Clipboard (copy/paste), file dialogs, deep links, window size/position restored on relaunch
+   - [ ] External file changes picked up (edit a file outside the app) — notify rc.5
+   - [ ] Update check runs without errors
+   - [ ] `test/dummy-astro-project` → `notes`: `rating` is a number field, `pinned` is a toggle (Zod 4.5 nullable fix)
+   - [ ] Open `test/demo-project` and `test/starlight-minimal`: collections + frontmatter forms load
+3. **Telemetry worker**: `pnpm run deploy:staging` and `./stats.sh` in `telemetry-worker/` (need Cloudflare auth)
+4. **tauri-action v1 decision**: verify with a throwaway tag from this branch (Claude can push it on request; check draft release + `latest.json`; delete both after) — or drop commit `654b491a`
+5. **Push + PR**: add the `ci` label, CI green, merge with a **merge commit** (not squash), close superseded Dependabot PRs, `pnpm task:complete dependency-updates`
+
 ## Plan
 
 ### Step 1 — Hotfix
@@ -215,3 +233,4 @@ Non-dependency PRs #274 (semantic colour tokens), #173 (project settings rework)
 10. **Sandbox `EPERM` during `pnpm install --force`**: the sandbox blocks writing a package's `.idea/` files, leaving `node_modules` half-installed. Re-running outside the sandbox fixed it.
 11. **typescript-eslint 8.71 `unbound-method`** now flags `expect(window.dispatchEvent)` in `useEditorHandlers.test.ts`; suppressed per-line like the other tests.
 12. **Bundle grew ~66 KB minified / 23 KB gzip** in the JS sweep — React DOM 19.3 (+78 KB pre-minify) and react-resizable-panels 4.14 (+33 KB). Upstream, expected.
+13. **App fully reloads on every save in `tauri:dev`** (when the open project is `test/demo-project` or `test/starlight-minimal`, or while the fixtures' `astro dev` servers run). Cause: Tailwind's Vite plugin uses automatic source detection from the repo root (respecting `.gitignore`), so it scanned the test fixtures, website and docs; when a scanned non-module file changes it sends a `full-reload`. Only `temp-dummy-astro-project` (gitignored) was immune, which is why this went unnoticed. Same logic in `@tailwindcss/vite` 4.3.0 and 4.3.3, so not caused by this upgrade. Fix: `@import 'tailwindcss' source('.')` in `src/App.css` (scan `src/` only), plus Vite `server.watch.ignored` now covers all of `test/` and `website/`. Built CSS drops ~9 KB of classes that only appeared in docs/website/fixtures; no class used in `src/` was lost (checked token by token).
