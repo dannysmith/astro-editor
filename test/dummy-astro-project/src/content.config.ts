@@ -50,6 +50,8 @@ const notes = defineCollection({
       status: z.enum(['draft', 'review', 'published']).nullish(),
       keywords: z.array(z.string()).nullish(),
       scores: z.array(z.number()).nullish(),
+      rating: z.number().nullish(),
+      pinned: z.boolean().nullish(),
       metadata: z
         .object({
           category: z.string().describe('Category for organizing notes'),

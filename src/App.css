@@ -1,4 +1,6 @@
-@import 'tailwindcss';
+/* Only scan src/ for classes. Scanning the whole repo picks up test fixtures,
+   so files the editor writes there would trigger full page reloads in dev. */
+@import 'tailwindcss' source('.');
 @import 'tw-animate-css';
 
 /* Utility: hide scrollbars (WebKit + standards) */

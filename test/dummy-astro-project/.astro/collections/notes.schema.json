@@ -73,6 +73,18 @@
         }
       ]
     },
+    "rating": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pinned": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
     "metadata": {
       "type": "object",
       "properties": {

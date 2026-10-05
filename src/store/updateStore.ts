@@ -2,12 +2,7 @@ import { create } from 'zustand'
 import type { Update } from '@tauri-apps/plugin-updater'
 
 type DialogMode =
-  | 'checking'
-  | 'available'
-  | 'downloading'
-  | 'ready'
-  | 'no-update'
-  | 'error'
+  'checking' | 'available' | 'downloading' | 'ready' | 'no-update' | 'error'
 
 const SKIPPED_VERSION_KEY = 'astro-editor-skipped-update-version'
 

@@ -14,6 +14,10 @@
         "center": true,
         "decorations": false,
         "transparent": true,
+        "windowEffects": {
+          "effects": ["hudWindow"],
+          "radius": 12
+        },
         "alwaysOnTop": false,
         "shadow": true,
         "dragDropEnabled": true

@@ -53,24 +53,14 @@ const fullDark = darkSrc
     data-lightbox-alt={alt}
     aria-label={`Open full-size image: ${alt}`}
   >
-    {
-      darkOptimised ? (
-        <picture>
-          <source
-            srcset={darkOptimised.srcSet.attribute}
-            sizes={sizes}
-            media="(prefers-color-scheme: dark)"
-            type="image/webp"
-          />
-          <Image
-            src={src}
-            alt={alt}
-            widths={widths}
-            sizes={sizes}
-            loading={loading}
-          />
-        </picture>
-      ) : (
+    {darkOptimised ? (
+      <picture>
+        <source
+          srcset={darkOptimised.srcSet.attribute}
+          sizes={sizes}
+          media="(prefers-color-scheme: dark)"
+          type="image/webp"
+        />
         <Image
           src={src}
           alt={alt}
@@ -78,8 +68,16 @@ const fullDark = darkSrc
           sizes={sizes}
           loading={loading}
         />
-      )
-    }
+      </picture>
+    ) : (
+      <Image
+        src={src}
+        alt={alt}
+        widths={widths}
+        sizes={sizes}
+        loading={loading}
+      />
+    )}
   </button>
   {caption && <figcaption>{caption}</figcaption>}
 </figure>

@@ -4,11 +4,7 @@ import { useUIStore } from '../store/uiStore'
 import { updateCopyeditModePartsOfSpeech } from '../lib/editor/extensions/copyedit-mode'
 
 type PartOfSpeech =
-  | 'nouns'
-  | 'verbs'
-  | 'adjectives'
-  | 'adverbs'
-  | 'conjunctions'
+  'nouns' | 'verbs' | 'adjectives' | 'adverbs' | 'conjunctions'
 
 const PARTS_OF_SPEECH: PartOfSpeech[] = [
   'nouns',

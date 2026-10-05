@@ -10,7 +10,7 @@ Public-facing documentation website for Astro Editor, built with Astro + Starlig
 
 ## Stack
 
-- **Framework**: Astro 6.x with Starlight 0.40.x
+- **Framework**: Astro 7.x with Starlight 0.42.x
 - **Theme**: starlight-theme-flexoki (blue accent)
 - **Plugins**: starlight-llms-txt, starlight-kbd
 - **Package Manager**: bun (independent of root project's pnpm workspace)

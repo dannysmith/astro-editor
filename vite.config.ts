@@ -56,11 +56,12 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell vite to ignore watching `src-tauri` and test data
+      // 3. tell vite to ignore watching `src-tauri`, the website and test data
       ignored: [
         '**/src-tauri/**',
-        '**/test/dummy-astro-project/**',
+        '**/test/**',
         '**/temp-dummy-astro-project/**',
+        '**/website/**',
       ],
     },
   },

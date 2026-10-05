@@ -96,7 +96,7 @@ fn is_blocked_directory(path: &Path) -> bool {
     }
 
     // Also check for home directory patterns
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = std::env::home_dir() {
         let home_str = home.to_string_lossy().replace('\\', "/");
 
         #[cfg(not(target_os = "windows"))]
@@ -458,7 +458,7 @@ pub async fn load_file_based_collection(
             debug!("Astro Editor [FILE_COLLECTION] Regex pattern: {pattern}");
             debug!(
                 "Astro Editor [FILE_COLLECTION] Config content (first 500 chars): {}",
-                &content.chars().take(500).collect::<String>()
+                content.chars().take(500).collect::<String>()
             );
 
             if let Ok(re) = Regex::new(&pattern) {
@@ -1012,7 +1012,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_is_blocked_directory_windows_appdata_microsoft() {
         // Test home-based AppData/Microsoft blocking rules
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = std::env::home_dir() {
             let home_str = home.to_string_lossy();
 
             // These paths under AppData/*/Microsoft should be blocked
