@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Steps 1–2 done — next up is Step 3
+**Current Phase:** Steps 1–5 done except the user-only items (smoke test, telemetry staging deploy, tauri-action tag test, push/PR)
 **Branch:** deps-2026-10-01
 
 This round is bigger than usual: Astro 7 for the fixtures and website, Tauri 2.12, several test-tooling majors, a CI overhaul, and a live schema-parsing bug for current users.
@@ -52,59 +52,61 @@ Docs:
 ### Step 3 — Main app deps
 
 **3a. Housekeeping**
-- [ ] Add `"packageManager": "pnpm@10.34.6"` to root `package.json`; remove `version: 9` from `pnpm/action-setup` in `ci.yml` + `release.yml` (action reads `packageManager`)
-- [ ] Remove `semantic-release`, `@semantic-release/changelog`, `@semantic-release/git`, `.releaserc.json` (unused — releases go `prepare-release.js` → tag → tauri-action)
-- [ ] Remove `eslint-plugin-react` + its config in `eslint.config.js` (we enable zero of its rules; no ESLint 10 support)
-- [ ] Remove unused deps: `zod`, `react-hook-form`, `@hookform/resolvers`, `next-themes`, `date-fns`, `autoprefixer`, `postcss` — and their entries in `knip.json` `ignoreDependencies`. Check the other `ignoreDependencies` entries while there
-- [ ] Optional (pnpm ≥10.26 in CI first): move `pnpm.overrides` into `pnpm-workspace.yaml`, `onlyBuiltDependencies` → `allowBuilds`. Makes a later pnpm 11 move painless
+- [x] `"packageManager": "pnpm@10.34.6"`; removed `version: 9` from `pnpm/action-setup` in `ci.yml` + `release.yml`
+- [x] Moved `pnpm.overrides` into `pnpm-workspace.yaml`; `onlyBuiltDependencies` → `allowBuilds`
+- [x] Removed `semantic-release`, `@semantic-release/changelog`, `@semantic-release/git`, `.releaserc.json`
+- [x] Removed `eslint-plugin-react` + its config
+- [x] Removed unused `zod`, `react-hook-form`, `@hookform/resolvers`, `next-themes`, `date-fns`, `autoprefixer`, `postcss`
+- [x] Also removed `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser` (bundled by `typescript-eslint`) and `eslint-plugin-prettier` (only `eslint-config-prettier` is used). `@testing-library/user-event` was removed then restored — `docs/developer/testing.md` uses it in its component-test examples
 
 **3b. JS minor/patch sweep**
-- [ ] `pnpm update` (CodeMirror, Radix, React 19.3 + types, lucide 1.48, TanStack, zustand, Vite 8.3, `@vitejs/plugin-react` 6.1.1, `@rolldown/plugin-babel`, Tailwind 4.3.3, ESLint 10.11, typescript-eslint 8.71, knip 6.38, marked, etc.) — **excluding `@tauri-apps/*`** (done in 3c)
-- [ ] `@lezer/markdown` `1.6.4` → `^1.7.2`, `@codemirror/lang-markdown` → `^6.5.2`, then `pnpm dedupe`. Verify `pnpm why @lezer/markdown` / `pnpm why @lezer/common` each show a single version. Keep the `@lezer/common` override
-- [ ] Migrate to unified `radix-ui` package: `pnpm dlx shadcn@latest migrate radix` (shadcn's recommended setup since mid-2025). `@radix-ui/react-icons` isn't part of it — only used in `breadcrumb.tsx`
-- [ ] `check:all`
-- [ ] Manual: GFM table/checklist highlighting, Select close animation (now actually plays)
+- [x] `pnpm update` within ranges (excluding `@tauri-apps/*` and Prettier). lucide ended up on 1.50; typecheck confirms all icons exist
+- [x] `@lezer/markdown` → `^1.7.2`, `pnpm dedupe`. Lockfile has a single version of every `@lezer/*` and `@codemirror/*` package
+- [x] Migrated to unified `radix-ui` (`shadcn migrate radix --yes`), removed all individual `@radix-ui/react-*` packages except `react-icons`. No duplicate Radix internals in the lockfile; bundle size unchanged
+- [x] `check:all`; two new `unbound-method` lint errors in `useEditorHandlers.test.ts` suppressed (matches the pattern used elsewhere)
+- [ ] User (smoke test): GFM table/checklist highlighting, Select close animation (now actually plays)
 
-**3c. Tauri 2.12 + Rust** — single commit; the Tauri CLI refuses to build if JS and Rust minor versions differ
-- [ ] `cargo update` (tauri 2.12, tauri-build 2.7, all `tauri-plugin-*`, tokio, serde, regex, uuid, reqwest…)
-- [ ] All `@tauri-apps/*` JS packages to matching 2.12.x / plugin minors
-- [ ] **Replace `window-vibrancy` with Tauri's built-in effects API**: `src-tauri/src/lib.rs:~307` `apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0))` → `window.set_effects(EffectsBuilder::new().effect(Effect::HudWindow).radius(12.0).build())`. Tauri's macOS impl calls the same `apply_vibrancy` internally. Delete the crate + pin comment from `Cargo.toml`; update `docs/developer/cross-platform.md`. Fallback if it doesn't look identical: pin `window-vibrancy = "0.8.1"` (tauri 2.12 uses `^0.8.1`, so versions align). **Keeping 0.6 with tauri 2.12 will bring back the LTO symbol conflict**
-- [ ] swc `21/23/39/23` → `26/29/45/29` (no code changes needed; verified in a scratch copy — all 228 Rust tests passed)
-- [ ] `notify = "=9.0.0-rc.5"` (pin exactly; still pre-release)
-- [ ] `dirs` — drop it and use `std::env::home_dir()` (fixed in Rust 1.85, un-deprecated in 1.87). Used in `project.rs:99`, `project.rs:1015` (test), `ide.rs:104`. Otherwise `dirs = "7"`
-- [ ] `check:all` + `pnpm run tauri:build` — confirm the **universal** release build links (only native aarch64 was tested)
-- [ ] User smoke test: vibrancy looks identical, clipboard, dialogs, deep links, file watching (notify rc.5 coalesces nested watches — `watcher.rs` watches the content config inside the recursive content-dir watch), window state, updater check
+**3c. Tauri 2.12 + Rust**
+- [x] `cargo update` → tauri 2.12.1, all plugins; matching `@tauri-apps/*` JS versions (verified major.minor match for every plugin)
+- [x] **window-vibrancy replaced with config**: `windowEffects: { effects: ["hudWindow"], radius: 12 }` in `tauri.macos.conf.json` (applied at window creation; same `apply_vibrancy(HudWindow, None, 12.0)` call internally). Removed the crate, the pin comment and the Rust call; updated `cross-platform.md`
+- [x] swc 26/29/45/29 (no code changes), `notify = "=9.0.0-rc.5"`, `dirs` dropped for `std::env::home_dir()`
+- [x] `check:all` + universal release build (`tauri build --target universal-apple-darwin --no-bundle`) links cleanly with LTO; binary has `x86_64 arm64`
+- [ ] User smoke test: vibrancy looks identical, clipboard, dialogs, deep links, file watching (notify rc.5 coalesces nested watches), window state, updater check
 
 **3d. Test stack + dev tools**
-- [ ] `vitest` + `@vitest/coverage-v8` 5.0.2 (exact peer — bump together), `jsdom ^30.1.1` (not 30.0.x/30.1.0 — regressions), `@testing-library/jest-dom ^7.0.1`, `@types/node ^26`. Vitest 5 notes: `clearMocks` defaults to true, unawaited async assertions fail, coverage globs are relative
-- [ ] `jscpd ^5` (Rust rewrite, same config/report format; no longer follows symlinks) — run `pnpm jscpd` to confirm
-- [ ] `@ast-grep/cli ^0.45` — run `ast:lint` to confirm
-- [ ] `check:all`
+- [x] Vitest 5 + coverage-v8 5, jsdom 30.1, jest-dom 7, `@types/node` 26. `src/test/setup.ts` now imports `@testing-library/jest-dom/vitest` (the bare import no longer augments Vitest's types in v7). Vitest 5 handles Node's built-in `localStorage`, so the Step 1 `execArgv` workaround was removed
+- [x] jscpd 5.4 (report path unchanged), ast-grep 0.45.3 (clean)
+- [x] `check:all`
 
 **3e. Prettier 3.9**
-- [ ] Bump prettier + `pnpm format` as its own commit (TS union formatting + micromark v4 Markdown parser will churn some files)
+- [x] Bumped + reformatted (4 files, union types). `coverage/` added to `.gitignore` (Vitest 5 coverage run appended it)
 
 ### Step 4 — CI + auxiliary
 
-- [ ] `actions/checkout` v6 → v7, `actions/setup-node` v6 → v7, `actions/github-script` v8 → v9 (no workflow changes needed)
-- [ ] Consider pinning `node-version` explicitly (24 or 26) — `lts/*` flips from 24 to 26 on 2026-10-28
-- [ ] Make `publish-release-notes.yml` consistent with the others (it pins by SHA; others use tags)
-- [ ] `tauri-apps/tauri-action` v0.6.2 → v1.0.0 in `release.yml`:
-  - `includeUpdaterJson` → `uploadUpdaterJson`; remove `updaterJsonKeepUniversal` (always on now)
-  - `latest.json` URLs change from `browser_download_url` to `api.github.com/.../releases/assets/{id}` — the "tagName keeps URLs tag-pinned" comment goes stale; `tagName` can go since we pass `releaseId`
-  - `.app.tar.gz` names now include the version (`publish-stable-assets` unaffected)
-  - Verify with a throwaway tag from this branch **before merging**: draft handling, `latest.json` contents, and that an installed client can update from it. Delete the tag + draft release afterwards. If this can't be verified, drop the tauri-action bump from the PR
-- [ ] Add a Dependabot `package-ecosystem: "bun"` entry for `/website` (currently not covered)
-- [ ] Telemetry worker: wrangler 4.95 → 4.143, `wrangler deploy --dry-run`, staging deploy, `./stats.sh`
+- [x] `actions/checkout` v7 (SHA-pinned v7.0.1 in `publish-release-notes.yml`, kept its SHA-pinning style), `actions/setup-node` v7, `actions/github-script` v9. All other actions already latest
+- [x] `node-version: 'lts/*'` left as is — tests now pass on Node 26
+- [x] `tauri-action` v1.0.0 in `release.yml` + `ci.yml` (separate commit): `uploadUpdaterJson`, dropped `updaterJsonKeepUniversal` and `tagName`
+- [ ] **tauri-action v1 verification (user decision)**: throwaway tag from this branch → check draft handling, `latest.json` URLs, and that an installed client updates from it; delete tag + draft afterwards. Or drop commit `654b491a`
+- [x] Dependabot `bun` entry for `/website`
+- [x] Telemetry worker: wrangler 4.95 → 4.147, `wrangler deploy --dry-run` OK
+- [ ] User: `pnpm run deploy:staging` and `./stats.sh` in `telemetry-worker/` (need Cloudflare auth)
 
 ### Step 5 — Finalize
 
-- [ ] `pnpm audit`
-- [ ] Update `AGENTS.md` / `docs/developer/` for anything removed (window-vibrancy, lezer pin notes, semantic-release)
-- [ ] Final `check:all` + user smoke test
+- [x] `pnpm audit` / `bun audit`: refreshed `devalue`, `postcss-selector-parser`, `braces` within range. Remaining: `http-cache-semantics` (via Astro, build-time only, no patched release). The app's own dependencies have no findings
+- [x] Docs updated (AGENTS.md versions + override location, testing.md, cross-platform.md, knip-cleanup command)
+- [x] Final `check:all` — 737 frontend + 228 Rust tests pass
+- [ ] User smoke test (see 3b/3c + Step 2 fixture check)
 - [ ] Push + PR; add `ci` label so the build job runs; CI green
 - [ ] Merge with a **merge commit** (not squash)
 - [ ] Close superseded Dependabot PRs; `pnpm task:complete dependency-updates`
+
+### Follow-ups (not in this PR)
+
+- **knip is misconfigured**: with pnpm workspaces it ignores the top-level `entry`/`project` and reports 24 "unused files" (incl. live code like copyedit mode) and 10 "unused deps" (incl. `compromise`). Pre-existing; fix the config (move to `workspaces["."]`) before trusting `/knip-cleanup`
+- `.claude/commands/knip-cleanup.md` previously listed `zod`, `react-hook-form`, `@hookform/resolvers`, `next-themes`, `date-fns` as deps to keep (presumably for future shadcn form/calendar/toast components). Updated to match their removal — re-add via `shadcn add` if those components are ever needed
+- `compromise` is ~557 KB unminified in the main bundle — candidate for lazy-loading with copyedit mode
+- Website still prints Starlight's `i18n` / `404` content warnings; remove the Rolldown `onwarn` filter once withastro/astro#18088 ships
 
 ## Holds
 
@@ -192,8 +194,8 @@ Non-dependency PRs #274 (semantic colour tokens), #173 (project settings rework)
 
 ## Decisions Log
 
-1. **window-vibrancy**: Try replacing with Tauri's `set_effects`; fall back to pinning 0.8.1 if the effect isn't identical
-2. **Unused deps**: Remove (explained to user; reconfirm when reaching 3a)
+1. **window-vibrancy**: Replaced with `windowEffects` in `tauri.macos.conf.json` (simpler than `set_effects` in Rust — no code at all). Fall back to pinning 0.8.1 if the effect doesn't look identical
+2. **Unused deps**: Removed (user confirmed)
 3. **Radix**: Migrate to unified `radix-ui` package in 3b
 4. **Open non-Dependabot PRs** (#274, #173, #272): Leave; rework after this update
 5. **TypeScript 7, specta rc.25, pnpm 11/12**: Hold (see Holds)
@@ -210,3 +212,6 @@ Non-dependency PRs #274 (semantic colour tokens), #173 (project settings rework)
 7. **`starlight-page-actions` pulls in a second Vite (7.3.6)** via `vite-plugin-virtual`'s peer range. Harmless — that plugin only imports `path`.
 8. **Fixture lockfile side effect**: Astro 7 brings esbuild 0.28, so Vite's optional esbuild peer in the root lockfile moved 0.27.7 → 0.28.2.
 9. **dummy-astro-project `astro build`** still fails image optimisation on missing Sharp (pre-existing since May). `astro sync`, which the editor relies on, works.
+10. **Sandbox `EPERM` during `pnpm install --force`**: the sandbox blocks writing a package's `.idea/` files, leaving `node_modules` half-installed. Re-running outside the sandbox fixed it.
+11. **typescript-eslint 8.71 `unbound-method`** now flags `expect(window.dispatchEvent)` in `useEditorHandlers.test.ts`; suppressed per-line like the other tests.
+12. **Bundle grew ~66 KB minified / 23 KB gzip** in the JS sweep — React DOM 19.3 (+78 KB pre-minify) and react-resizable-panels 4.14 (+33 KB). Upstream, expected.
