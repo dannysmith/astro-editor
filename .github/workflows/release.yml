@@ -119,7 +119,7 @@ jobs:
           chmod 600 ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
 
       - name: Build and release
-        uses: tauri-apps/tauri-action@v1.0.0
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
@@ -135,9 +135,12 @@ jobs:
         with:
           # Upload to the shared draft from the create-release job instead of
           # finding-or-creating per matrix job (avoids tauri-action #914). The
-          # release name/body and draft state are set by create-release.
+          # release name/body and draft state are set by create-release. tagName
+          # is kept so updater URLs in latest.json stay tag-pinned.
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          uploadUpdaterJson: true
+          tagName: ${{ github.ref_name || inputs.version }}
+          includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
 
   # Publish stable-named copies of each installer plus a SHA256SUMS file to the
