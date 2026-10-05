@@ -351,10 +351,7 @@ fn parse_field(
 
     // Handle nested objects - recursively flatten
     if field_type_info.field_type == "unknown"
-        && matches!(
-            &field_schema.type_,
-            Some(StringOrArray::String(s)) if s == "object"
-        )
+        && non_null_type(&field_schema.type_) == Some("object")
     {
         if let Some(properties) = field_schema.properties.as_ref() {
             // Flatten nested object
@@ -651,63 +648,57 @@ fn handle_object_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo
     })
 }
 
-/// Handle primitive types (string, integer, number, boolean)
-fn handle_primitive_type(type_: &StringOrArray) -> Result<FieldTypeInfo, String> {
-    match type_ {
-        StringOrArray::String(s) => match s.as_str() {
-            "string" => Ok(FieldTypeInfo {
-                field_type: "string".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            }),
-            "integer" => Ok(FieldTypeInfo {
-                field_type: "integer".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            }),
-            "number" => Ok(FieldTypeInfo {
-                field_type: "number".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            }),
-            "boolean" => Ok(FieldTypeInfo {
-                field_type: "boolean".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            }),
-            _ => Ok(FieldTypeInfo {
-                field_type: "unknown".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            }),
+/// The single non-null JSON type of a field: `"number"` for both `"type": "number"` and
+/// Zod 4.5+'s nullable form `"type": ["number", "null"]`. None if there's no type or
+/// it's a union of several types.
+fn non_null_type(type_: &Option<StringOrArray>) -> Option<&str> {
+    match type_.as_ref()? {
+        StringOrArray::String(s) => Some(s.as_str()),
+        StringOrArray::Array(types) => match types.as_slice() {
+            [t, n] | [n, t] if n == "null" && t != "null" => Some(t.as_str()),
+            _ => None,
         },
-        StringOrArray::Array(types) => {
-            // Nullable primitive (e.g., z.number().nullish() → type: ["number", "null"] in Zod 4.5+)
-            match types.as_slice() {
-                [t, n] | [n, t] if n == "null" && t != "null" => {
-                    return handle_primitive_type(&StringOrArray::String(t.clone()));
-                }
-                _ => {}
-            }
-            // Other multiple types - treat as string for now
-            Ok(FieldTypeInfo {
-                field_type: "string".to_string(),
-                sub_type: None,
-                enum_values: None,
-                reference_collection: None,
-                array_reference_collection: None,
-            })
-        }
+    }
+}
+
+/// Handle primitive types (string, integer, number, boolean)
+fn handle_primitive_type(type_: &str) -> Result<FieldTypeInfo, String> {
+    match type_ {
+        "string" => Ok(FieldTypeInfo {
+            field_type: "string".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }),
+        "integer" => Ok(FieldTypeInfo {
+            field_type: "integer".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }),
+        "number" => Ok(FieldTypeInfo {
+            field_type: "number".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }),
+        "boolean" => Ok(FieldTypeInfo {
+            field_type: "boolean".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }),
+        _ => Ok(FieldTypeInfo {
+            field_type: "unknown".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }),
     }
 }
 
@@ -740,62 +731,68 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         });
     }
 
+    let single_type = non_null_type(&field_schema.type_);
+
     // Handle arrays
-    if matches!(
-        &field_schema.type_,
-        Some(StringOrArray::String(s)) if s == "array"
-    ) {
+    if single_type == Some("array") {
         return handle_array_type(field_schema);
     }
 
     // Handle objects
-    if matches!(
-        &field_schema.type_,
-        Some(StringOrArray::String(s)) if s == "object"
-    ) {
+    if single_type == Some("object") {
         return handle_object_type(field_schema);
     }
 
     // Handle primitives with special formats (email, url, date-time, date)
-    if let Some(type_) = &field_schema.type_ {
-        if let StringOrArray::String(s) = type_ {
-            if s == "string" {
-                if let Some(format) = &field_schema.format {
-                    match format.as_str() {
-                        "email" => {
-                            return Ok(FieldTypeInfo {
-                                field_type: "email".to_string(),
-                                sub_type: None,
-                                enum_values: None,
-                                reference_collection: None,
-                                array_reference_collection: None,
-                            })
-                        }
-                        "uri" => {
-                            return Ok(FieldTypeInfo {
-                                field_type: "url".to_string(),
-                                sub_type: None,
-                                enum_values: None,
-                                reference_collection: None,
-                                array_reference_collection: None,
-                            })
-                        }
-                        // Astro 6 uses simple format instead of anyOf for dates
-                        "date-time" | "date" => {
-                            return Ok(FieldTypeInfo {
-                                field_type: "date".to_string(),
-                                sub_type: None,
-                                enum_values: None,
-                                reference_collection: None,
-                                array_reference_collection: None,
-                            })
-                        }
-                        _ => {}
-                    }
+    if single_type == Some("string") {
+        if let Some(format) = &field_schema.format {
+            match format.as_str() {
+                "email" => {
+                    return Ok(FieldTypeInfo {
+                        field_type: "email".to_string(),
+                        sub_type: None,
+                        enum_values: None,
+                        reference_collection: None,
+                        array_reference_collection: None,
+                    })
                 }
+                "uri" => {
+                    return Ok(FieldTypeInfo {
+                        field_type: "url".to_string(),
+                        sub_type: None,
+                        enum_values: None,
+                        reference_collection: None,
+                        array_reference_collection: None,
+                    })
+                }
+                // Astro 6 uses simple format instead of anyOf for dates
+                "date-time" | "date" => {
+                    return Ok(FieldTypeInfo {
+                        field_type: "date".to_string(),
+                        sub_type: None,
+                        enum_values: None,
+                        reference_collection: None,
+                        array_reference_collection: None,
+                    })
+                }
+                _ => {}
             }
         }
+    }
+
+    if let Some(type_) = single_type {
         return handle_primitive_type(type_);
+    }
+
+    // Unions of several types - treat as string for now
+    if field_schema.type_.is_some() {
+        return Ok(FieldTypeInfo {
+            field_type: "string".to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        });
     }
 
     Ok(FieldTypeInfo {
@@ -1412,24 +1409,36 @@ mod tests {
                 "lng": { "type": ["null", "number"] },
                 "featured": { "type": ["boolean", "null"] },
                 "subtitle": { "type": ["string", "null"] },
-                "mixed": { "type": ["string", "number", "null"] }
+                "mixed": { "type": ["string", "number", "null"] },
+                "scores": { "type": ["array", "null"], "items": { "type": "number" } },
+                "meta": {
+                    "type": ["null", "object"],
+                    "properties": { "category": { "type": "string" } },
+                    "additionalProperties": false
+                }
             },
             "required": []
         }"##;
 
         let schema = parse_json_schema("locations", json_schema).unwrap();
-        let field_type = |name: &str| {
+        let field = |name: &str| {
             let field = schema.fields.iter().find(|f| f.name == name).unwrap();
             assert!(!field.required);
-            field.field_type.clone()
+            field
         };
 
-        assert_eq!(field_type("lat"), "number");
-        assert_eq!(field_type("lng"), "number");
-        assert_eq!(field_type("featured"), "boolean");
-        assert_eq!(field_type("subtitle"), "string");
+        assert_eq!(field("lat").field_type, "number");
+        assert_eq!(field("lng").field_type, "number");
+        assert_eq!(field("featured").field_type, "boolean");
+        assert_eq!(field("subtitle").field_type, "string");
         // Unions of several types still fall back to string
-        assert_eq!(field_type("mixed"), "string");
+        assert_eq!(field("mixed").field_type, "string");
+        // Nullable arrays keep their item type
+        assert_eq!(field("scores").field_type, "array");
+        assert_eq!(field("scores").sub_type.as_deref(), Some("number"));
+        // Nullable nested objects are still flattened
+        assert_eq!(field("meta.category").field_type, "string");
+        assert!(!schema.fields.iter().any(|f| f.name == "meta"));
     }
 
     #[test]
