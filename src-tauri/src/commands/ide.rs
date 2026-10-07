@@ -101,7 +101,7 @@ fn get_augmented_path() -> String {
 /// Expands tilde (~) to the user's home directory
 fn expand_tilde(cmd: &str) -> String {
     if cmd.starts_with("~/") {
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = std::env::home_dir() {
             return format!("{}{}", home.display(), &cmd[1..]);
         }
     }
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(expand_tilde("/usr/bin/vim"), "/usr/bin/vim");
 
         // Test tilde expansion (if home dir is available)
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = std::env::home_dir() {
             let expected = format!("{}/bin/editor", home.display());
             assert_eq!(expand_tilde("~/bin/editor"), expected);
         }

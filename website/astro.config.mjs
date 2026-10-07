@@ -10,6 +10,27 @@ import starlightPageActions from 'starlight-page-actions'
 // https://astro.build/config
 export default defineConfig({
   site: 'https://astroeditor.danny.is',
+  // Astro 7's default ('jsx') drops whitespace between inline elements on
+  // separate lines, which runs words together in our components and plugins.
+  compressHTML: true,
+  vite: {
+    build: {
+      rolldownOptions: {
+        // Astro prepends a dead "use astro:head-inject" directive to MDX modules,
+        // which Rolldown warns about once per MDX page. Remove once
+        // withastro/astro#18088 is released.
+        onwarn(warning, defaultHandler) {
+          if (
+            warning.code === 'MODULE_LEVEL_DIRECTIVE' &&
+            warning.message.includes('"use astro:head-inject"')
+          ) {
+            return
+          }
+          defaultHandler(warning)
+        },
+      },
+    },
+  },
   integrations: [
     starlight({
       plugins: [
@@ -125,10 +146,6 @@ export default defineConfig({
     }),
     // Auto-import commonly used components into all MDX files so they don't
     // need importing by hand. Keep this list in sync with website/AGENTS.md.
-    // NOTE: must come AFTER starlight() — Starlight registers the MDX
-    // integration internally, and the auto-imports only attach if this runs
-    // after that. (A harmless "@astrojs/mdx initialized BEFORE
-    // astro-auto-import" warning is printed during build as a result.)
     AutoImport({
       imports: [
         './src/components/Figure.astro',

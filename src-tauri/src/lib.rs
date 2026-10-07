@@ -18,9 +18,6 @@ use tauri_plugin_window_state::{AppHandleExt as _, StateFlags};
 #[cfg(target_os = "macos")]
 use tauri_plugin_window_state::WindowExt as _;
 
-#[cfg(target_os = "macos")]
-use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-
 // Import for PATH environment fix in production builds
 // use fix_path_env;
 
@@ -299,14 +296,6 @@ pub fn run() {
 
             // Store menu state for later access
             app.manage(Mutex::new(menu_state));
-
-            // Apply window vibrancy with rounded corners on macOS
-            #[cfg(target_os = "macos")]
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0));
-                }
-            }
 
             // Handle menu events
             app.on_menu_event(move |app, event| match event.id().as_ref() {

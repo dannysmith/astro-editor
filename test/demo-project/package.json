@@ -1,5 +1,5 @@
 {
-  "name": "dummy-astro-project",
+  "name": "demo-project",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -9,6 +9,6 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^6.4.2"
+    "astro": "^7.3.5"
   }
 }

@@ -35,10 +35,11 @@ import { DOWNLOADS } from '../consts'
   <div class="hero-cta">
     <span class="os-btn os-btn--mac"><DownloadButton platform="macos" /></span>
     <span class="os-btn os-btn--windows"
-      ><DownloadButton platform="windows" /></span
-    >
-    <span class="os-btn os-btn--linux"><DownloadButton platform="linux" /></span
-    >
+      ><DownloadButton platform="windows"
+    /></span>
+    <span class="os-btn os-btn--linux"
+      ><DownloadButton platform="linux"
+    /></span>
     <a class="docs-link" href="/getting-started/">Read the docs →</a>
   </div>
 
@@ -47,8 +48,8 @@ import { DOWNLOADS } from '../consts'
     <code>brew install --cask astro-editor</code>
   </p>
   <p class="os-note os-note--linux">
-    Linux is in beta. Also available as a <a href={DOWNLOADS.linuxDeb}>.deb</a> or
-    <a href={DOWNLOADS.linuxRpm}>.rpm</a> package.
+    Linux is in beta. Also available as a <a href={DOWNLOADS.linuxDeb}>.deb</a>
+    or <a href={DOWNLOADS.linuxRpm}>.rpm</a> package.
   </p>
 </div>
 

@@ -52,6 +52,9 @@
     "author": {
       "anyOf": [
         {
+          "type": "number"
+        },
+        {
           "type": "string"
         },
         {
@@ -91,6 +94,9 @@
       "type": "array",
       "items": {
         "anyOf": [
+          {
+            "type": "number"
+          },
           {
             "type": "string"
           },

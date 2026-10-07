@@ -64,7 +64,6 @@ const structuredData = {
     slot="head"
     set:html={JSON.stringify(structuredData)}
   />
-
   <SiteHeader />
 
   <main>
@@ -74,11 +73,11 @@ const structuredData = {
         <h1>Writer mode for your Astro content.</h1>
         <p class="hero-sub">
           A beautiful distraction-free markdown editor for working with Astro
-          content collections, designed specifically for <strong>writing</strong
-          > not coding. It uses your Astro config and Zod schemas to show frontmatter
-          as proper forms, makes adding images & components easy and <strong
-            >gets out of the way when you wanna just write</strong
-          >.
+          content collections, designed specifically for
+          <strong>writing</strong> not coding. It uses your Astro config and Zod
+          schemas to show frontmatter as proper forms, makes adding images &
+          components easy and
+          <strong>gets out of the way when you wanna just write</strong>.
         </p>
 
         <HeroDownload />
@@ -109,18 +108,18 @@ const structuredData = {
         </div>
 
         <p class="hero-step">
-          Astro Editor works with local markdown & MDX files in Astro <a
-            href="https://docs.astro.build/en/guides/content-collections/"
+          Astro Editor works with local markdown & MDX files in Astro
+          <a href="https://docs.astro.build/en/guides/content-collections/"
             >Content Collections</a
-          >. It reads your <code>content.config.ts</code> to understand your collections
-          and schemas and only shows you the stuff relevant to actually working with
-          your content files.
+          >. It reads your <code>content.config.ts</code> to understand your
+          collections and schemas and only shows you the stuff relevant to
+          actually working with your content files.
         </p>
         <p class="hero-step">
           When you want to focus on writing to the exclusion of all else, you
-          can hide the sidebars and use the <a
-            href="/editor/focus-and-typewriter/">Focus & Typewriter</a
-          > features to write in a distraction-free environment...
+          can hide the sidebars and use the
+          <a href="/editor/focus-and-typewriter/">Focus & Typewriter</a>
+          features to write in a distraction-free environment...
         </p>
 
         <div class="shot shot--app">
@@ -139,10 +138,10 @@ const structuredData = {
           <h2 class="vscode-heading">Why not just use VS Code?</h2>
           <p>
             The two screenshots above show an entry in a <code>books</code>
-            collection. Here's the same file open in VS Code. Astro Editor exists
-            because this is an awful environment for writing prose in. See
-            <a href="/getting-started/philosophy/">the philosophy page</a> for more
-            on this.
+            collection. Here's the same file open in VS Code. Astro Editor
+            exists because this is an awful environment for writing prose in.
+            See <a href="/getting-started/philosophy/">the philosophy page</a>
+            for more on this.
           </p>
 
           <div class="shot shot--vscode">
@@ -173,17 +172,17 @@ const structuredData = {
     >
       <p>
         Astro Editor reads your
-        <a href="/frontmatter/overview/">collection's schemas</a> and renders the
-        right control for every field — text inputs, date pickers, enum dropdowns,
-        tag arrays, boolean switches, nested objects and the like. Image fields include
-        previews and <code>reference()</code> fields render as dropdowns of the referenced
-        collection.
+        <a href="/frontmatter/overview/">collection's schemas</a> and renders
+        the right control for every field — text inputs, date pickers, enum
+        dropdowns, tag arrays, boolean switches, nested objects and the like.
+        Image fields include previews and <code>reference()</code> fields render
+        as dropdowns of the referenced collection.
       </p>
       <p>
         Every field in the schema shows up even if it's not yet in the file's
-        frontmatter. So no more digging through <code>content.config.ts</code> to
-        remember what's required, what's optional, or what an enum's allowed values
-        are.
+        frontmatter. So no more digging through <code>content.config.ts</code>
+        to remember what's required, what's optional, or what an enum's allowed
+        values are.
       </p>
       <Screenshot
         slot="media"
@@ -201,15 +200,14 @@ const structuredData = {
     >
       <p>
         Designed to keep you in a state of flow when you're writing, Astro
-        Editor is designed for <strong
-          ><a href="/getting-started/philosophy/">writer mode</a></strong
-        > and includes:
+        Editor is designed for
+        <strong><a href="/getting-started/philosophy/">writer mode</a></strong>
+        and includes:
       </p>
       <ul class="feature-list">
         <li>
-          Carefully-designed typography inspired by <a
-            href="https://ia.net/writer">iA Writer</a
-          >
+          Carefully-designed typography inspired by
+          <a href="https://ia.net/writer">iA Writer</a>
         </li>
         <li>
           A focus mode that dims everything but the sentence you're currently
@@ -222,8 +220,8 @@ const structuredData = {
         </li>
         <li>Keyboard shortcuts for everything</li>
         <li>
-          <kbd>⌥</kbd> hover any image path to preview, <kbd>⌘</kbd> click to open
-          any URL
+          <kbd>⌥</kbd> hover any image path to preview, <kbd>⌘</kbd> click to
+          open any URL
         </li>
       </ul>
       <ThemeCompareSlider
@@ -240,11 +238,12 @@ const structuredData = {
       title="Insert components without leaving the keyboard"
     >
       <p>
-        If you use components like <code>&lt;Aside&gt;</code> in your MDX content
-        files, Astro Editor makes it easier to find and insert them <em
-          >as you're writing</em
-        >. The <a href="/editor/mdx-components/">Component Inserter</a> shows a subset
-        of the components in your project and lets you insert them with a few keystrokes.
+        If you use components like <code>&lt;Aside&gt;</code> in your MDX
+        content files, Astro Editor makes it easier to find and insert them
+        <em>as you're writing</em>. The
+        <a href="/editor/mdx-components/">Component Inserter</a> shows a subset
+        of the components in your project and lets you insert them with a few
+        keystrokes.
       </p>
       <Screenshot
         slot="media"
@@ -269,8 +268,8 @@ const structuredData = {
         site.
       </p>
       <p>
-        The same <a href="/editor/images-and-files/">smart image handling</a> also
-        powers schema image fields in the frontmatter panel.
+        The same <a href="/editor/images-and-files/">smart image handling</a>
+        also powers schema image fields in the frontmatter panel.
       </p>
       <p>
         Holding ⌥ while hovering any image path pops up a preview in the corner,
@@ -299,7 +298,8 @@ const structuredData = {
             <h3>Drafts, filtering &amp; sorting</h3>
             <p>
               Filter and sort your content collections. See and filter
-              <a href="/file-management/drafts-filtering-and-sorting/">drafts</a
+              <a href="/file-management/drafts-filtering-and-sorting/"
+                >drafts</a
               >
               with ease.
             </p>
@@ -314,8 +314,8 @@ const structuredData = {
             <h3>Copyedit modes</h3>
             <p>
               Colour-code <a href="/editor/copyedit-modes/">parts of speech</a>
-              like nouns, verbs, adjectives, adverbs and conjunctions to help with
-              editing & rewriting.
+              like nouns, verbs, adjectives, adverbs and conjunctions to help
+              with editing & rewriting.
             </p>
           </article>
           <article class="card">
@@ -328,8 +328,8 @@ const structuredData = {
             <h3>Global command palette</h3>
             <p>
               The whole app is keyboard-navigable. Open
-              <a href="/reference/commands/">the palette</a> to jump anywhere or run
-              any command.
+              <a href="/reference/commands/">the palette</a> to jump anywhere or
+              run any command.
             </p>
           </article>
         </div>

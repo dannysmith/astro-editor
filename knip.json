@@ -19,16 +19,6 @@
   ],
   "ignoreDependencies": [
     "@tauri-apps/cli",
-    "zod",
-    "@hookform/resolvers",
-    "react-hook-form",
-    "next-themes",
-    "date-fns",
-    "@typescript-eslint/eslint-plugin",
-    "@typescript-eslint/parser",
-    "autoprefixer",
-    "postcss",
-    "eslint-plugin-prettier",
     "@testing-library/user-event"
   ],
   "ignoreExportsUsedInFile": true,

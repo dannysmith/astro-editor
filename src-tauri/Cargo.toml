@@ -29,7 +29,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_norway = "0.9.42"
 tokio = { version = "1", features = ["full"] }
-notify = "9.0.0-rc.2"
+notify = "=9.0.0-rc.5"
 walkdir = "2"
 rfd = "0.17"
 regex = "1.10"
@@ -40,11 +40,10 @@ tauri-plugin-process = "2.3.0"
 tauri-plugin-log = "2.0.0"
 log = "0.4"
 chrono = "0.4"
-swc_common = "21"
-swc_ecma_ast = "23"
-swc_ecma_parser = "39"
-swc_ecma_visit = "23"
-dirs = "6"
+swc_common = "26"
+swc_ecma_ast = "29"
+swc_ecma_parser = "45"
+swc_ecma_visit = "29"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
 reqwest = { version = "0.13", features = ["json"] }
@@ -59,13 +58,7 @@ tempfile = "3.27"
 
 # macOS-only dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
-tauri = { version = "2", features = ["macos-private-api"] }
-# Pinned to 0.6 to match tauri's internal version. Having both 0.7 and 0.6 in
-# the tree causes an LTO linker symbol conflict on
-# `__CLASS_NSVisualEffectViewTagged` (call site: `apply_vibrancy` in src/lib.rs).
-# Re-tested against tauri 2.11.2 (May 2026) — conflict still recurs, tauri still
-# bundles 0.6 internally. Do not bump without verifying the LTO issue is resolved.
-window-vibrancy = "0.6"
+tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
 
 # Desktop-only dependencies (excludes Android and iOS)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

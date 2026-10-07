@@ -31,18 +31,14 @@ function formatDate(date: Date): string {
   <p>All releases.</p>
 
   <ul class="release-list">
-    {
-      sortedReleases.map((release) => (
-        <li>
-          <a href={`/${release.id}/`}>{release.data.title}</a>
-          <span class="release-meta">
-            <time datetime={release.data.date!.toISOString()}>
-              {formatDate(release.data.date!)}
-            </time>
-          </span>
-        </li>
-      ))
-    }
+    {sortedReleases.map((release) => <li>
+      <a href={`/${release.id}/`}>{release.data.title}</a>
+      <span class="release-meta">
+        <time datetime={release.data.date!.toISOString()}>
+          {formatDate(release.data.date!)}
+        </time>
+      </span>
+    </li>)}
   </ul>
 </StarlightPage>
 

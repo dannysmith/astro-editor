@@ -9,7 +9,7 @@ description: 'Run knip and intelligently clean up unused code and dependencies'
 
 Run knip to find unused files, dependencies, and exports, then intelligently clean up the codebase while preserving:
 - shadcn/ui components (future use)
-- Radix dependencies used by shadcn components
+- The `radix-ui` package used by shadcn components
 - Barrel exports (intentionally export everything)
 - Tauri/Rust-called exports
 
@@ -28,12 +28,10 @@ Capture and parse the output.
 Check which shadcn/ui components exist (used or unused):
 
 ```bash
-grep -r "from '@radix-ui" src/components/ui/*.tsx
+grep -r "from 'radix-ui'" src/components/ui/*.tsx
 ```
 
-Build a mapping of:
-- Which Radix packages are imported by shadcn components
-- Which shadcn components are unused (from knip output)
+Note which shadcn components are unused (from knip output).
 
 ### 3. Check Tauri/Rust Integration
 
@@ -53,14 +51,13 @@ Exports that might be called from Rust:
 
 **KEEP (DO NOT REMOVE):**
 - All files in `src/components/ui/` (shadcn/ui components - future use)
-- Radix dependencies used by ANY shadcn component (used or unused)
+- `radix-ui` (and `@radix-ui/react-icons` while `breadcrumb.tsx` uses it)
 - All barrel exports (`index.ts` files exporting other modules)
 - Any exports confirmed to be called from Rust/Tauri
-- Dependencies: `@tauri-apps/*`, `zod`, `react-hook-form`, `@hookform/resolvers`, `next-themes`, `date-fns`
+- Dependencies: `@tauri-apps/*`
 
 **SAFE TO AUTO-REMOVE:**
 - Unused non-shadcn files that have no imports anywhere
-- Radix dependencies NOT used by any shadcn component
 - Dependencies with zero usage in codebase
 - Unused devDependencies for tools we don't use
 
@@ -98,18 +95,9 @@ For items with <70% confidence, present the information and ask user to decide.
 
 ## Intelligence Guidelines
 
-### shadcn/ui Radix Dependency Mapping
+### shadcn/ui Radix Dependency
 
-Common mappings (check actual imports in files):
-- `alert.tsx` → `@radix-ui/react-alert-dialog`
-- `dropdown-menu.tsx` → `@radix-ui/react-dropdown-menu`
-- `hover-card.tsx` → `@radix-ui/react-hover-card`
-- `radio-group.tsx` → `@radix-ui/react-radio-group`
-- `scroll-area.tsx` → `@radix-ui/react-scroll-area`
-- `toggle.tsx` → `@radix-ui/react-toggle`
-- `toggle-group.tsx` → `@radix-ui/react-toggle-group`
-
-**DO NOT** remove a Radix package if the corresponding shadcn component exists, even if unused.
+shadcn components import every Radix primitive from the unified `radix-ui` package (e.g. `import { Dialog as DialogPrimitive } from 'radix-ui'`). **DO NOT** remove `radix-ui` while any shadcn component exists, even if unused.
 
 ### Tauri Integration Detection
 
