@@ -49,3 +49,6 @@ website/astro-editor-latest.*
 .claude/worktrees/
 docs/tasks-todo/temporary/
 coverage/
+
+# Astro 7 dev server runtime state (pid, port, start time)
+**/.astro/dev.json
