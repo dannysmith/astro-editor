@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "astro-editor"
-version = "1.0.17"
+version = "1.0.18"
 dependencies = [
  "chrono",
  "indexmap 2.14.2",
