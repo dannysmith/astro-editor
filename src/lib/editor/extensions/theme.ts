@@ -86,19 +86,19 @@ export const createEditorTheme = () => {
       cursor: 'default',
     },
     '.cm-snippetField': {
-      border: '1px solid rgba(0, 0, 0, 0.05)',
+      border: '1px solid var(--editor-color-snippet-border)',
       backgroundColor: 'var(--editor-color-background)',
       borderRadius: '1px',
       padding: '1px',
       color: 'var(--editor-color-text)',
     },
     '.cm-snippetFieldPosition': {
-      borderLeft: '1px solid rgba(0, 0, 0, 0.05)',
+      borderLeft: '1px solid var(--editor-color-snippet-border)',
     },
     // Active/focused snippet field
     '.cm-snippetField.cm-focused': {
       backgroundColor: 'var(--editor-color-background)',
-      border: '1px solid rgba(0, 0, 0, 0.1)',
+      border: '1px solid var(--editor-color-snippet-border-active)',
     },
     // Syntax mark styling - overrides default processingInstruction from @lezer/markdown
     // See syntax-mark-decorations.ts for why this is needed
