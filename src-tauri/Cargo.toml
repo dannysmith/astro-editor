@@ -42,7 +42,7 @@ log = "0.4"
 chrono = "0.4"
 swc_common = "26"
 swc_ecma_ast = "29"
-swc_ecma_parser = "45"
+swc_ecma_parser = "46"
 swc_ecma_visit = "29"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
