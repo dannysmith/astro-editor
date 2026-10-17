@@ -20,8 +20,8 @@
     "video": "node video/render.mjs && node video/synth.mjs && node video/publish.mjs"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.5",
-    "astro": "^7.3.5",
+    "@astrojs/starlight": "^0.42.6",
+    "astro": "^7.3.8",
     "astro-auto-import": "^0.6.0",
     "sharp": "^0.35.5",
     "starlight-kbd": "^0.4.0",
@@ -32,12 +32,12 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.11.0",
+    "eslint": "^10.12.0",
     "eslint-plugin-astro": "^3.2.1",
-    "playwright-core": "^1.63.0",
-    "prettier": "^3.9.9",
-    "prettier-plugin-astro": "^1.1.0",
+    "playwright-core": "^1.64.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-astro": "^1.1.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.0"
+    "typescript-eslint": "^8.71.2"
   }
 }
