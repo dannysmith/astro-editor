@@ -6,6 +6,17 @@ This guide documents common UI patterns and best practices specific to Astro Edi
 
 As we discover new patterns and solutions, they should be documented here to ensure consistency and prevent duplicate problem-solving.
 
+### Design Principles
+
+The app should feel like a native macOS app, in the spirit of iA Writer. Great Mac apps are defined as much by what they don't show as by what they do.
+
+- **Keyboard-first**: every action reachable from the keyboard, with visible focus states
+- **Subtle motion**: short, quiet transitions; never jarring or decorative
+- **Consistent spacing** on a 4px/8px grid
+- **Native materials**: respect the window vibrancy and system light/dark appearance rather than painting over them
+- **Native interactions**: context menus, native dialogs and menus via Tauri where they exist
+- **Typography**: iA Writer Duo/Mono with system fallbacks, comfortable line length (roughly 45–75 characters) in the editor
+
 ## shadcn/ui Usage
 
 Astro Editor uses [shadcn/ui](https://ui.shadcn.com/) as the foundation for UI components. shadcn/ui provides unstyled, accessible components built on [Radix UI](https://www.radix-ui.com/) that we customize to match our design system.

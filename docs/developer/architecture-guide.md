@@ -604,7 +604,7 @@ For in-depth coverage of specific topics, see these guides:
 
 ## Quick Start for New Sessions
 
-1. **Read** `docs/TASKS.md` for current work
+1. **Check** `docs/tasks-todo/` for current work
 2. **Check** git status and recent commits
 3. **Reference** this guide for core patterns
 4. **Consult** specialized guides when working on specific features

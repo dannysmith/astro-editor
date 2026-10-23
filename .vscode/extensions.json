@@ -4,8 +4,6 @@
     "rust-lang.rust-analyzer",
     "esbenp.prettier-vscode",
     "bradlc.vscode-tailwindcss",
-    "tailwindlabs.tailwindcss-intellisense",
-    "dbaeumer.vscode-eslint",
-    "ms-vscode.vscode-typescript-tslint-plugin"
+    "dbaeumer.vscode-eslint"
   ]
 }

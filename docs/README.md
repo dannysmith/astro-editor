@@ -102,9 +102,8 @@ Specific feature implementations that serve as references for similar work.
 
 ## Task Management
 
-- **[tasks.md](tasks.md)** - Task Management Instructions & Rules for AI Agents.
 - **[tasks-done/](tasks-done/)** - Completed tasks. Historical record of completed features and improvements. Will obviously contain outdated information.
-- **[tasks-todo/](tasks-todo/)** - Pending project tasks: the backlog. See [tasks.md](tasks.md) for how this works.
+- **[tasks-todo/](tasks-todo/)** - Pending project tasks: the backlog. Named `task-[number]-[name].md`; the lowest number is next and `x` means unprioritised.
 
 ## Archive
 

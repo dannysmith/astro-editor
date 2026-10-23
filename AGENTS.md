@@ -28,7 +28,7 @@
 
 ### New Sessions
 
-- Read @docs/TASKS.md for task management
+- Check `docs/tasks-todo/` for the current task (see [Task Management](#task-management))
 - Review `docs/developer/architecture-guide.md` for essential patterns
 - Consult specialized guides when working on specific features (see [Documentation Structure](#documentation-structure))
 - Check git status and project structure
@@ -43,7 +43,7 @@
 4. **Batch Operations**: Use multiple tool calls in single responses
 5. **Match Code Style**: Follow existing formatting and patterns
 6. **Test Coverage**: Write comprehensive tests for business logic
-7. **Quality Gates**: Run `pnpm run check:all` after significant changes
+7. **Quality Gates**: Before finishing significant work, check it against `docs/developer/architecture-guide.md`, remove leftover debug code, unnecessary comments and remnants of failed approaches, then run `pnpm run check:all` and fix any errors
 8. **No Dev Server**: Ask user to run and report back
 9. **No Unsolicited Commits**: Only when explicitly requested
 10. **Documentation**: Update `docs/developer/` guides for new patterns
@@ -98,119 +98,16 @@ See `docs/README.md` for the complete categorized list.
 - **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v5.x
 - **Progress Tracking**: Update current task in `docs/tasks-todo` after major work
 
-## Specialized Agents
+## Skills
 
-The project has six specialized agents to help with complex implementation challenges:
+Project skills live in `.claude/skills/`:
 
-### Project-Integrated Agents
+- **deps-update** - Interactive dependency update session across the whole repo, tracked in a task doc
+- **codebase-hygiene** - Find unused code/dependencies (knip) and duplication (jscpd), and clean up what the user approves
 
-**1. macos-ui-engineer** - Use when:
+## Task Management
 
-- Implementing native-feeling macOS UI patterns
-- Working on typography, spacing, or visual hierarchy
-- Creating or refining components that need to feel authentically Mac-like
-- Applying Apple HIG principles to interface design
-
-**2. react-performance-architect** - Use when:
-
-- Reviewing React components for performance issues
-- Implementing complex state management patterns
-- Addressing render cascades or unnecessary re-renders
-- Optimizing React hook usage and component architecture
-
-**3. rust-test-engineer** - Use when:
-
-- Writing comprehensive tests for Tauri backend code
-- Testing file operations, schema parsing, or Rust commands
-- Ensuring proper test coverage for business logic
-- Creating integration tests for Tauri-frontend communication
-
-**4. typescript-test-engineer** - Use when:
-
-- Writing tests for React components, hooks, or TypeScript modules
-- Testing Zustand stores, TanStack Query hooks, or complex business logic
-- Ensuring comprehensive test coverage for frontend code
-- Creating test utilities and fixtures
-
-### External Expert Consultants
-
-**5. tauri-v2-expert** - Call in when:
-
-- Facing complex Tauri v2 architectural decisions
-- Debugging difficult IPC or native integration issues
-- Implementing advanced Tauri features (plugins, multi-window, system integration)
-- Optimizing performance or solving platform-specific problems
-
-**6. codemirror-6-specialist** - Call in when:
-
-- Implementing complex CodeMirror extensions or customizations
-- Debugging editor state management or React integration issues
-- Building advanced editor features (collaborative editing, custom parsers, etc.)
-- Optimizing editor performance or solving rendering problems
-
-### Orchestration Guidelines
-
-- **Use project-integrated agents** for implementation work within established patterns
-- **Call external consultants** when facing novel problems or needing deep expertise
-- **Combine agents** when problems span multiple domains (e.g., performance + UI)
-- **Agents can collaborate** - one may recommend consulting another for specialized aspects
-
-## Custom Commands
-
-### /check - Quality Control
-
-Use `/check` to verify work quality before completing tasks:
-- Checks adherence to architecture-guide.md patterns
-- Removes unnecessary comments and console.logs
-- Runs `pnpm run check:all` (includes ast-grep architectural linting) and fixes errors
-- Cleans up leftover code from failed approaches
-
-**When to use**: Before completing significant features or refactoring work.
-
-### /knip-cleanup - Intelligent Unused Code Cleanup
-
-Use `/knip-cleanup` to clean up unused dependencies, files, and exports:
-- Runs knip to detect unused items
-- Preserves shadcn/ui components (future use)
-- Keeps the `radix-ui` package used by shadcn components
-- Protects Tauri/Rust-called exports
-- Auto-removes safe items
-- Asks user about ambiguous items
-
-**When to use**: Periodically during refactoring sessions to keep codebase clean.
-
-### /review-duplicates - Intelligent Duplicate Code Review
-
-Use `/review-duplicates` to find and review duplicated code:
-- Runs jscpd to detect code duplication
-- Categorizes duplicates by type (business logic, patterns, utilities)
-- Assesses risk level (high/medium/low)
-- Distinguishes intentional from problematic duplication
-- Provides refactoring recommendations
-- All refactoring is manual and user-approved
-
-**When to use**: Periodically during refactoring sessions to identify extraction opportunities.
-
-### Task Management
-
-Use the task completion script to mark tasks as done:
-
-```bash
-# Complete a task (move from tasks-todo to tasks-done with today's date)
-pnpm task:complete <task-name>
-
-# Examples:
-pnpm task:complete frontend-performance
-pnpm task:complete 2
-```
-
-The script automatically:
-- Finds matching tasks by partial name or number
-- Strips the `task-[number]-` prefix
-- Adds completion date: `task-YYYY-MM-DD-`
-- Moves from `tasks-todo/` to `tasks-done/`
-
-**See `docs/TASKS.md` for full task management workflow.**
+Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date.
 
 ## Technology Stack
 

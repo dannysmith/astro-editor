@@ -27,7 +27,7 @@ This document provides guidelines and information for contributors.
 ### Before Making Changes
 
 1. Read `docs/developer/architecture-guide.md` for core patterns
-2. Check `docs/TASKS.md` for current work
+2. Check `docs/tasks-todo/` for current work
 3. Review existing code for established patterns
 
 ### Code Quality
