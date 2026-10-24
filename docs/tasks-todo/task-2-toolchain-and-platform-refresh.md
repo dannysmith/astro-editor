@@ -111,11 +111,17 @@ Oxfmt:
 
 ## Phase 3: TypeScript 7
 
-- [ ] `typescript` → latest 7.x. Use 7.1 if it's final by then, but 7.0 is fine because nothing needs the JS API any more
-- [ ] TS 7 defaults `types` to `[]`. Check that Vitest globals (`globals: true`) and Node types still resolve in `tsconfig.json` / `tsconfig.node.json`, and add an explicit `types` only if needed
-- [ ] `typecheck` and `build` keep using `tsc --noEmit`. Don't also turn on Oxlint's `typeCheck`, which would duplicate it
-- [ ] Check knip and `tauri-specta`'s generated output still work
-- [ ] `website/` stays on TS 6 (`@astrojs/check` needs the JS API), so this only affects the main app
+- [x] `typescript` → latest 7.x. Use 7.1 if it's final by then, but 7.0 is fine because nothing needs the JS API any more
+- [x] TS 7 defaults `types` to `[]`. Check that Vitest globals (`globals: true`) and Node types still resolve in `tsconfig.json` / `tsconfig.node.json`, and add an explicit `types` only if needed
+- [x] `typecheck` and `build` keep using `tsc --noEmit`. Don't also turn on Oxlint's `typeCheck`, which would duplicate it
+- [x] Check knip and `tauri-specta`'s generated output still work
+- [x] `website/` stays on TS 6 (`@astrojs/check` needs the JS API), so this only affects the main app
+
+**Phase 3 notes:**
+
+- On 7.0.2; 7.1 is still beta. `tsc --noEmit` passed first time with no tsconfig changes, and a probe file confirmed it reports errors
+- No `types` entry needed: every test imports from `vitest` explicitly, and `src/` uses no Node globals
+- No package in the tree declares a `typescript` peer range, so there are no peer conflicts. knip, Vitest, the build and tsgolint (which bundles its own tsgo) are unaffected
 
 ## Phase 4: Dependency sweep
 
