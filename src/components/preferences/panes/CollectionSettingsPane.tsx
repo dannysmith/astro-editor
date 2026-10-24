@@ -241,7 +241,7 @@ export const CollectionSettingsPane: React.FC = () => {
             <SelectItem key={field.name} value={field.name}>
               {field.name}
               {!field.required && (
-                <span className="text-muted-foreground ml-1">(optional)</span>
+                <span className="ml-1 text-muted-foreground">(optional)</span>
               )}
             </SelectItem>
           ))}
@@ -253,11 +253,11 @@ export const CollectionSettingsPane: React.FC = () => {
   if (collections.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-          <h2 className="text-base font-semibold mb-1 text-heading">
+        <div className="mb-6 rounded-lg border bg-muted/50 p-4">
+          <h2 className="mb-1 text-base font-semibold text-heading">
             Collection Settings
             {projectName && (
-              <span className="text-muted-foreground font-normal ml-2">
+              <span className="ml-2 font-normal text-muted-foreground">
                 · {projectName}
               </span>
             )}
@@ -268,7 +268,7 @@ export const CollectionSettingsPane: React.FC = () => {
           </p>
         </div>
 
-        <div className="text-sm text-muted-foreground p-4 border rounded-lg">
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
           No collections found. Collection settings will appear when a project
           with collections is loaded.
         </div>
@@ -278,16 +278,16 @@ export const CollectionSettingsPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-heading">
+      <div className="mb-6 rounded-lg border bg-muted/50 p-4">
+        <h2 className="mb-1 text-base font-semibold text-heading">
           Collection Settings
           {projectName && (
-            <span className="text-muted-foreground font-normal ml-2">
+            <span className="ml-2 font-normal text-muted-foreground">
               · {projectName}
             </span>
           )}
         </h2>
-        <p className="text-sm text-muted-foreground mb-2">
+        <p className="mb-2 text-sm text-muted-foreground">
           Configure collection-specific overrides for frontmatter mappings and
           paths. These settings override project-level defaults.
         </p>
@@ -319,7 +319,7 @@ export const CollectionSettingsPane: React.FC = () => {
               onOpenChange={() => toggleCollection(collection.name)}
             >
               <div className="rounded-lg border bg-card">
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-accent/50 transition-colors">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 transition-colors hover:bg-accent/50">
                   <div className="flex items-center gap-2">
                     {isExpanded ? (
                       <ChevronDown className="h-4 w-4 text-gray-700 dark:text-gray-300" />
@@ -330,7 +330,7 @@ export const CollectionSettingsPane: React.FC = () => {
                       {collection.name}
                     </span>
                     {hasOverrides && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
                         Custom
                       </span>
                     )}
@@ -338,7 +338,7 @@ export const CollectionSettingsPane: React.FC = () => {
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="p-4 pt-0 space-y-6">
+                  <div className="space-y-6 p-4 pt-0">
                     {/* Path Overrides Section */}
                     <SettingsSection title="Path Overrides">
                       <Field>
@@ -593,7 +593,7 @@ export const CollectionSettingsPane: React.FC = () => {
 
                     {/* Reset Button */}
                     {hasOverrides && (
-                      <div className="pt-2 border-t">
+                      <div className="border-t pt-2">
                         <Button
                           variant="outline"
                           size="sm"

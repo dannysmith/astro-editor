@@ -123,8 +123,8 @@ export const FrontmatterPanel: React.FC = () => {
   }, [allFields])
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 p-4 overflow-y-auto">
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto p-4">
         {currentFile ? (
           allFields.length > 0 ? (
             <div className="space-y-6">
@@ -148,14 +148,14 @@ export const FrontmatterPanel: React.FC = () => {
                 .map(([parentPath, fields]) => (
                   <div key={parentPath} className="space-y-4">
                     {/* Parent section header */}
-                    <h3 className="text-sm font-medium text-foreground pt-2">
+                    <h3 className="pt-2 text-sm font-medium text-foreground">
                       {camelCaseToTitleCase(
                         parentPath!.split('.').pop() || parentPath!
                       )}
                     </h3>
 
                     {/* Nested fields with indentation */}
-                    <div className="pl-4 border-l-2 border-border space-y-4">
+                    <div className="space-y-4 border-l-2 border-border pl-4">
                       {fields.map(({ fieldName, schemaField }) => (
                         <FrontmatterField
                           key={fieldName}
@@ -189,14 +189,14 @@ export const FrontmatterPanel: React.FC = () => {
                 ))}
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <p className="text-sm text-muted-foreground">
                 No frontmatter fields found.
               </p>
             </div>
           )
         ) : (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
               Select a file to edit its frontmatter.
             </p>

@@ -51,11 +51,11 @@ export const ProjectSettingsPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-heading">
+      <div className="mb-6 rounded-lg border bg-muted/50 p-4">
+        <h2 className="mb-1 text-base font-semibold text-heading">
           Project Settings
           {projectName && (
-            <span className="text-muted-foreground font-normal ml-2">
+            <span className="ml-2 font-normal text-muted-foreground">
               · {projectName}
             </span>
           )}
@@ -68,7 +68,7 @@ export const ProjectSettingsPane: React.FC = () => {
       </div>
 
       <SettingsSection title="Path Overrides">
-        <p className="text-sm text-muted-foreground -mt-3 mb-2">
+        <p className="-mt-3 mb-2 text-sm text-muted-foreground">
           Override default Astro paths for{' '}
           <span className="font-medium">{projectName}</span>. Paths should be
           relative to the project root.{' '}

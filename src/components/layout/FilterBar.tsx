@@ -72,10 +72,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const currentSortOption = sortOptions.find(opt => opt.id === sortMode)
 
   return (
-    <div className="flex flex-col gap-2 p-2 border-b bg-muted/20">
+    <div className="flex flex-col gap-2 border-b bg-muted/20 p-2">
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
           type="text"
@@ -83,14 +83,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           value={searchQuery}
           onChange={handleSearchChange}
           onKeyDown={handleKeyDown}
-          className="h-7 pl-7 pr-7 text-xs"
+          className="h-7 pr-7 pl-7 text-xs"
         />
         {searchQuery && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearSearch}
-            className="absolute right-0.5 top-1/2 -translate-y-1/2 size-6 p-0 hover:bg-transparent"
+            className="absolute top-1/2 right-0.5 size-6 -translate-y-1/2 p-0 hover:bg-transparent"
           >
             <X className="size-3 text-muted-foreground" />
           </Button>
@@ -99,14 +99,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
       {/* Sort Controls */}
       <div className="flex items-center gap-1.5">
-        <ArrowUpDown className="size-3 text-muted-foreground flex-shrink-0" />
+        <ArrowUpDown className="size-3 flex-shrink-0 text-muted-foreground" />
         <Select value={sortMode} onValueChange={onSortModeChange}>
-          <SelectTrigger size="sm" className="h-6 text-xs flex-1 min-w-0 px-2">
+          <SelectTrigger size="sm" className="h-6 min-w-0 flex-1 px-2 text-xs">
             <SelectValue>
               <span className="flex items-center gap-2">
                 <span>{currentSortOption?.label || 'Default'}</span>
                 {currentSortOption && getSortTypeLabel(currentSortOption) && (
-                  <span className="text-[10px] text-muted-foreground/60 font-normal">
+                  <span className="text-[10px] font-normal text-muted-foreground/60">
                     {getSortTypeLabel(currentSortOption)}
                   </span>
                 )}
@@ -122,10 +122,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   value={option.id}
                   className="text-xs"
                 >
-                  <span className="flex items-center justify-between w-full gap-3">
+                  <span className="flex w-full items-center justify-between gap-3">
                     <span>{option.label}</span>
                     {typeLabel && (
-                      <span className="text-[10px] text-muted-foreground/60 font-normal">
+                      <span className="text-[10px] font-normal text-muted-foreground/60">
                         {typeLabel}
                       </span>
                     )}

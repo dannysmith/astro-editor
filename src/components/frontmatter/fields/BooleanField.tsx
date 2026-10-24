@@ -52,7 +52,7 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
       <div className="flex items-center justify-between gap-3">
         <FieldLabel>
           {label}
-          {isRequired && <span className="text-required ml-1">*</span>}
+          {isRequired && <span className="ml-1 text-required">*</span>}
         </FieldLabel>
         <Switch
           checked={getBooleanValue(value)}

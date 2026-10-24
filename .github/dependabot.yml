@@ -5,13 +5,13 @@ version: 2
 
 updates:
   # JS dependencies (main app)
-  - package-ecosystem: "bun"
-    directory: "/"
+  - package-ecosystem: 'bun'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "saturday"
-      time: "09:00"
-      timezone: "Europe/London"
+      interval: 'weekly'
+      day: 'saturday'
+      time: '09:00'
+      timezone: 'Europe/London'
     # Group minor/patch updates to reduce PR noise
     groups:
       development-dependencies:
@@ -25,80 +25,80 @@ updates:
           - minor
           - patch
     labels:
-      - "dependencies"
-      - "npm"
+      - 'dependencies'
+      - 'npm'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     open-pull-requests-limit: 10
 
   # Rust/Cargo dependencies (Tauri backend)
-  - package-ecosystem: "cargo"
-    directory: "/src-tauri"
+  - package-ecosystem: 'cargo'
+    directory: '/src-tauri'
     schedule:
-      interval: "weekly"
-      day: "saturday"
-      time: "09:00"
-      timezone: "Europe/London"
+      interval: 'weekly'
+      day: 'saturday'
+      time: '09:00'
+      timezone: 'Europe/London'
     groups:
       rust-dependencies:
         update-types:
           - minor
           - patch
     labels:
-      - "dependencies"
-      - "rust"
+      - 'dependencies'
+      - 'rust'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     open-pull-requests-limit: 5
 
   # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "monthly"
+      interval: 'monthly'
     labels:
-      - "dependencies"
-      - "github-actions"
+      - 'dependencies'
+      - 'github-actions'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
 
   # Telemetry worker (separate Cloudflare Worker)
-  - package-ecosystem: "bun"
-    directory: "/telemetry-worker"
+  - package-ecosystem: 'bun'
+    directory: '/telemetry-worker'
     schedule:
-      interval: "weekly"
-      day: "saturday"
-      time: "09:00"
-      timezone: "Europe/London"
+      interval: 'weekly'
+      day: 'saturday'
+      time: '09:00'
+      timezone: 'Europe/London'
     groups:
       all-dependencies:
         update-types:
           - minor
           - patch
     labels:
-      - "dependencies"
-      - "npm"
-      - "telemetry"
+      - 'dependencies'
+      - 'npm'
+      - 'telemetry'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     open-pull-requests-limit: 3
 
   # Documentation website (Astro + Starlight, uses bun)
-  - package-ecosystem: "bun"
-    directory: "/website"
+  - package-ecosystem: 'bun'
+    directory: '/website'
     schedule:
-      interval: "weekly"
-      day: "saturday"
-      time: "09:00"
-      timezone: "Europe/London"
+      interval: 'weekly'
+      day: 'saturday'
+      time: '09:00'
+      timezone: 'Europe/London'
     groups:
       all-dependencies:
         update-types:
           - minor
           - patch
     labels:
-      - "dependencies"
-      - "website"
+      - 'dependencies'
+      - 'website'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     open-pull-requests-limit: 3

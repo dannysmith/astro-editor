@@ -77,8 +77,8 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
   return (
     <div className="relative w-full max-w-[200px]">
       {loadingState === 'loading' && (
-        <div className="flex items-center justify-center h-24 bg-muted/30 rounded-md border border-border">
-          <div className="size-6 border-2 border-muted-foreground/20 border-t-muted-foreground/60 rounded-full animate-spin" />
+        <div className="flex h-24 items-center justify-center rounded-md border border-border bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
         </div>
       )}
 
@@ -86,7 +86,7 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
         <img
           src={imageUrl}
           alt="Preview"
-          className="max-w-full max-h-[150px] object-contain rounded-md border border-border"
+          className="max-h-[150px] max-w-full rounded-md border border-border object-contain"
           onError={() => {
             setLoadingState('error')
           }}

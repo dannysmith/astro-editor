@@ -49,7 +49,14 @@ async function handleEvent(request, env, corsHeaders) {
       return new Response(
         JSON.stringify({
           error: 'Missing required fields',
-          required: ['appId', 'uuid', 'version', 'event', 'platform', 'timestamp'],
+          required: [
+            'appId',
+            'uuid',
+            'version',
+            'event',
+            'platform',
+            'timestamp',
+          ],
         }),
         {
           status: 400,
@@ -63,22 +70,37 @@ async function handleEvent(request, env, corsHeaders) {
 
     // Basic validation
     if (typeof appId !== 'string' || appId.length > 100) {
-      return new Response('Invalid appId', { status: 400, headers: corsHeaders })
+      return new Response('Invalid appId', {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
     if (typeof uuid !== 'string' || uuid.length > 100) {
       return new Response('Invalid uuid', { status: 400, headers: corsHeaders })
     }
     if (typeof version !== 'string' || version.length > 50) {
-      return new Response('Invalid version', { status: 400, headers: corsHeaders })
+      return new Response('Invalid version', {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
     if (typeof event !== 'string' || event.length > 50) {
-      return new Response('Invalid event', { status: 400, headers: corsHeaders })
+      return new Response('Invalid event', {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
     if (typeof platform !== 'string' || platform.length > 50) {
-      return new Response('Invalid platform', { status: 400, headers: corsHeaders })
+      return new Response('Invalid platform', {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
     if (typeof timestamp !== 'string' || !isValidISO8601(timestamp)) {
-      return new Response('Invalid timestamp', { status: 400, headers: corsHeaders })
+      return new Response('Invalid timestamp', {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
 
     // Insert into D1

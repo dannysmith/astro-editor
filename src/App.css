@@ -320,9 +320,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-family:
-      system-ui,
-      -apple-system;
+    font-family: system-ui, -apple-system;
   }
 
   /* Show all symbols when hovering over the group */

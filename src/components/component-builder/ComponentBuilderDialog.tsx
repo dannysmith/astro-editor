@@ -226,7 +226,7 @@ export function ComponentBuilderDialog() {
                         onSelect={() => selectComponent(component)}
                         className="cursor-pointer"
                       >
-                        <div className="flex items-center justify-between w-full gap-2">
+                        <div className="flex w-full items-center justify-between gap-2">
                           <div className="flex flex-col">
                             <span>{component.name}</span>
                             {component.description && (
@@ -263,7 +263,7 @@ export function ComponentBuilderDialog() {
       )}
       {step === 'configure' && selectedComponent && (
         <>
-          <div className="flex items-center gap-2 px-3 pb-2 pt-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 px-3 pt-3 pb-2 text-sm text-muted-foreground">
             <ArrowLeft className="h-3 w-3" />
             <span>Configure &lt;{selectedComponent?.name} /&gt;</span>
           </div>
@@ -372,14 +372,14 @@ export function ComponentBuilderDialog() {
 
           {/* Preview section */}
           <div className="border-t px-3 py-3">
-            <div className="text-xs text-muted-foreground mb-1">Preview:</div>
-            <code className="text-xs block bg-muted px-2 py-1 rounded">
+            <div className="mb-1 text-xs text-muted-foreground">Preview:</div>
+            <code className="block rounded bg-muted px-2 py-1 text-xs">
               {generatePreview()}
             </code>
           </div>
 
           {/* Keyboard shortcuts */}
-          <div className="border-t px-3 py-2 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
             <div className="flex gap-3">
               <span>
                 <CommandShortcut>⌘↵</CommandShortcut> Insert

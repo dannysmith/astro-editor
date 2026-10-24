@@ -44,7 +44,7 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
     <Field orientation={layout}>
       <FieldLabel>
         {label}
-        {required && <span className="text-required ml-1">*</span>}
+        {required && <span className="ml-1 text-required">*</span>}
       </FieldLabel>
       <FieldContent>
         {children}

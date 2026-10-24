@@ -208,4 +208,3 @@ jobs:
           to_upload=( astro-editor-latest.* SHA256SUMS )
           gh release upload "$RELEASE_TAG" --clobber "${to_upload[@]}"
           echo "Uploaded: ${to_upload[*]}"
-

@@ -33,7 +33,7 @@ export const CopyAsSlugLink: React.FC<CopyAsSlugLinkProps> = ({ text }) => {
     <button
       type="button"
       onClick={handleClick}
-      className="text-muted-foreground hover:text-foreground w-fit text-xs"
+      className="w-fit text-xs text-muted-foreground hover:text-foreground"
     >
       Copy as slug
     </button>

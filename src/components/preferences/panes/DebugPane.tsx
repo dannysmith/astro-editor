@@ -74,8 +74,8 @@ export const DebugPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-heading">
+      <div className="mb-6 rounded-lg border bg-muted/50 p-4">
+        <h2 className="mb-1 text-base font-semibold text-heading">
           Advanced Settings
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -88,7 +88,7 @@ export const DebugPane: React.FC = () => {
         <Field>
           <FieldLabel>Application Version</FieldLabel>
           <FieldContent>
-            <div className="text-sm text-muted-foreground font-mono">
+            <div className="font-mono text-sm text-muted-foreground">
               {appVersion}
             </div>
           </FieldContent>
@@ -97,7 +97,7 @@ export const DebugPane: React.FC = () => {
         <Field>
           <FieldLabel>Preferences Version</FieldLabel>
           <FieldContent>
-            <div className="text-sm text-muted-foreground font-mono">
+            <div className="font-mono text-sm text-muted-foreground">
               {preferencesVersion}
             </div>
           </FieldContent>
@@ -142,7 +142,7 @@ export const DebugPane: React.FC = () => {
                 <p className="text-sm">
                   ⚠️ Warning: This will permanently delete:
                 </p>
-                <ul className="text-sm list-disc pl-6 space-y-1">
+                <ul className="list-disc space-y-1 pl-6 text-sm">
                   <li>All global preferences</li>
                   <li>All project-specific settings</li>
                   <li>Project registry and recent projects list</li>
@@ -162,7 +162,7 @@ export const DebugPane: React.FC = () => {
                   />
                   <label
                     htmlFor="reset-confirm"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     I understand this cannot be undone
                   </label>

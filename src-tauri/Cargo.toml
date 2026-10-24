@@ -65,8 +65,8 @@ tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-updater = "2"
 
 [profile.release]
-codegen-units = 1        # Better LLVM optimization
-lto = true               # Link-time optimizations
-opt-level = "s"          # Prioritize small binary size
-panic = "abort"          # Disable panic handlers
-strip = true             # Remove debug symbols
+codegen-units = 1 # Better LLVM optimization
+lto = true # Link-time optimizations
+opt-level = "s" # Prioritize small binary size
+panic = "abort" # Disable panic handlers
+strip = true # Remove debug symbols

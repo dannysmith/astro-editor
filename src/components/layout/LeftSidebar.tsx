@@ -337,7 +337,7 @@ export const LeftSidebar: React.FC = () => {
   }, [selectedCollection, currentSubdirectory])
 
   return (
-    <div className="h-full flex flex-col border-r bg-background">
+    <div className="flex h-full flex-col border-r bg-background">
       {/* Header */}
       <div className={cn('border-b p-3', headerBgClass)}>
         <div className="flex items-center gap-2">
@@ -371,12 +371,12 @@ export const LeftSidebar: React.FC = () => {
               <FolderOpen className="size-4" />
             </Button>
           )}
-          <div className="text-sm font-medium text-foreground flex-1 min-w-0 flex items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1 text-sm font-medium text-foreground">
             {/* Collection name (always clickable to go to root) */}
             {selectedCollection && currentSubdirectory ? (
               <button
                 onClick={() => handleBreadcrumbClick(null)}
-                className="hover:underline cursor-pointer truncate"
+                className="cursor-pointer truncate hover:underline"
               >
                 {headerTitle}
               </button>
@@ -393,15 +393,15 @@ export const LeftSidebar: React.FC = () => {
 
               return (
                 <React.Fragment key={pathUpToSegment}>
-                  <ChevronRight className="size-3 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
                   {isLast ? (
-                    <span className="text-muted-foreground truncate">
+                    <span className="truncate text-muted-foreground">
                       {segment}
                     </span>
                   ) : (
                     <button
                       onClick={() => handleBreadcrumbClick(pathUpToSegment)}
-                      className="hover:underline cursor-pointer truncate"
+                      className="cursor-pointer truncate hover:underline"
                     >
                       {segment}
                     </button>
@@ -418,7 +418,7 @@ export const LeftSidebar: React.FC = () => {
                 {showDraftsOnly && (
                   <Badge
                     variant="outline"
-                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-draft border-draft opacity-80"
+                    className="h-4 border-draft px-1.5 py-0 text-[10px] font-normal text-draft opacity-80"
                   >
                     DRAFTS
                   </Badge>
@@ -426,7 +426,7 @@ export const LeftSidebar: React.FC = () => {
                 {searchActive && !collectionViewState.filterBarExpanded && (
                   <Badge
                     variant="outline"
-                    className="h-4 px-1.5 py-0 text-[10px] font-normal text-filter border-filter opacity-80"
+                    className="h-4 border-filter px-1.5 py-0 text-[10px] font-normal text-filter opacity-80"
                   >
                     FILTERED
                   </Badge>
@@ -520,9 +520,9 @@ export const LeftSidebar: React.FC = () => {
                 <button
                   key={collection.name}
                   onClick={() => handleCollectionClick(collection)}
-                  className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors"
+                  className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent"
                 >
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex w-full items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-foreground">
                         {collection.name}
@@ -542,14 +542,14 @@ export const LeftSidebar: React.FC = () => {
                       {fileCount} item{fileCount !== 1 ? 's' : ''}
                     </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 font-mono">
+                  <div className="mt-1 font-mono text-xs text-muted-foreground">
                     {collection.path.split('/').pop()}
                   </div>
                 </button>
               )
             })}
             {collections.length === 0 && (
-              <div className="p-4 text-center text-muted-foreground text-sm">
+              <div className="p-4 text-center text-sm text-muted-foreground">
                 No collections found. Open an Astro project to get started.
               </div>
             )}
@@ -559,7 +559,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {/* Loading State */}
             {isLoadingDirectory && (
-              <div className="p-4 text-center text-muted-foreground text-sm">
+              <div className="p-4 text-center text-sm text-muted-foreground">
                 Loading directory...
               </div>
             )}
@@ -567,10 +567,10 @@ export const LeftSidebar: React.FC = () => {
             {/* Error State */}
             {hasDirectoryError && (
               <div className="p-4 text-center">
-                <div className="text-sm text-destructive mb-2">
+                <div className="mb-2 text-sm text-destructive">
                   Failed to load directory
                 </div>
-                <div className="text-xs text-muted-foreground mb-3">
+                <div className="mb-3 text-xs text-muted-foreground">
                   {directoryError instanceof Error
                     ? directoryError.message
                     : 'Unknown error occurred'}
@@ -595,10 +595,10 @@ export const LeftSidebar: React.FC = () => {
                     <button
                       key={dir.relative_path}
                       onClick={() => handleSubdirectoryClick(dir.relative_path)}
-                      className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2 mb-1"
+                      className="mb-1 flex w-full items-center gap-2 rounded-md p-3 text-left transition-colors hover:bg-accent"
                     >
-                      <Folder className="size-4 text-muted-foreground flex-shrink-0" />
-                      <span className="font-medium text-foreground truncate">
+                      <Folder className="size-4 flex-shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium text-foreground">
                         {dir.name}
                       </span>
                     </button>
@@ -624,7 +624,7 @@ export const LeftSidebar: React.FC = () => {
                 })}
                 {filteredAndSortedFiles.length === 0 &&
                   subdirectories.length === 0 && (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
+                    <div className="p-4 text-center text-sm text-muted-foreground">
                       {collectionViewState.searchQuery
                         ? 'No files match your search.'
                         : showDraftsOnly
