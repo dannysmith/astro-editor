@@ -75,27 +75,39 @@ Steps:
 
 Oxlint:
 
-- [ ] `bunx @oxlint/migrate --type-aware`, and read `--details` for anything it couldn't migrate
-- [ ] Keep our current rules:
+- [x] `bunx @oxlint/migrate --type-aware`, and read `--details` for anything it couldn't migrate
+- [x] Keep our current rules:
   - `no-unused-vars` with `argsIgnorePattern: ^_`;
   - `no-explicit-any` as a warning;
   - `no-console` as a warning;
   - `prefer-const` and `no-var`;
   - fail on warnings (`--deny-warnings`);
   - report unused disable directives.
-- [ ] Port the ESLint ignores, e.g. `src/lib/bindings.ts`, the fixtures, `website/` and `telemetry-worker/`
-- [ ] React Compiler rules: run the old ESLint and Oxlint against the same code and compare findings before deleting ESLint. If the native rules miss things, run `eslint-plugin-react-hooks` through `jsPlugins`
-- [ ] Check the existing `eslint-disable` comments (about 77) still apply under Oxlint, or convert them
-- [ ] Remove `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks` (unless used through `jsPlugins`), `eslint-config-prettier` and `eslint.config.js`
+- [x] Port the ESLint ignores, e.g. `src/lib/bindings.ts`, the fixtures, `website/` and `telemetry-worker/`
+- [x] React Compiler rules: run the old ESLint and Oxlint against the same code and compare findings before deleting ESLint. If the native rules miss things, run `eslint-plugin-react-hooks` through `jsPlugins`
+- [x] Check the existing `eslint-disable` comments (about 77) still apply under Oxlint, or convert them
+- [x] Remove `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks` (unless used through `jsPlugins`), `eslint-config-prettier` and `eslint.config.js`
 
 Oxfmt:
 
-- [ ] `bunx oxfmt --migrate prettier`. Port `.prettierignore`, then delete `.prettierrc`, `.prettierignore` and `prettier`
-- [ ] **Decision:** keep the current format scope (`src/**` only) or widen it?
-- [ ] **Decision:** turn on Oxfmt's built-in Tailwind class sorting? If yes, do it in the same reformat commit so the churn happens once
-- [ ] Reformat in a single commit, and add that commit to `.git-blame-ignore-revs`
-- [ ] Update the `lint`, `lint:fix`, `format`, `format:check`, `check:all` and `fix:all` scripts
-- [ ] `.vscode`: swap the ESLint/Prettier extensions for `oxc.oxc-vscode` and set it as the formatter
+- [x] `bunx oxfmt --migrate prettier`. Port `.prettierignore`, then delete `.prettierrc`, `.prettierignore` and `prettier`
+- [x] **Decision:** code and config: `src/`, root configs, `.github`, `scripts`, `src-tauri` JSON/TOML and the ast-grep rules. Not markdown, `website/` (own Prettier) or `test/` fixtures. `src-tauri/tauri.conf.json` is excluded because `prepare-release.js` rewrites it with `JSON.stringify`
+- [x] **Decision:** Tailwind class sorting on (`sortTailwindcss.stylesheet: ./src/App.css`), applied in the reformat commit
+- [x] Reformat in a single commit, and add that commit to `.git-blame-ignore-revs`
+- [x] Update the `lint`, `lint:fix`, `format`, `format:check`, `check:all` and `fix:all` scripts
+- [x] `.vscode`: swap the ESLint/Prettier extensions for `oxc.oxc-vscode` and set it as the formatter
+
+**Phase 2 notes:**
+
+- **Parity check:** in a scratch worktree with every disable comment stripped, ESLint and Oxlint reported the same findings. The only differences:
+  - `exhaustive-deps` is reported on the hook call line instead of the deps array;
+  - tsgolint doesn't flag `expect(window.dispatchEvent)` for `unbound-method` (2 test cases).
+
+  The native React Compiler rules matched exactly, so no `jsPlugins` fallback is needed.
+- **Suppressions opt the whole component out:** any `react-hooks/*` suppression makes the React Compiler skip the entire component. Oxlint's rules follow that, which is why the `react-hooks/refs` directive in `Editor.tsx` showed as unused (the component also suppresses `exhaustive-deps`). This also means **the `Editor` component has never been compiled by React Compiler**. Worth looking at in the architecture review. Now documented in `performance-patterns.md`
+- Disable comments were converted with `@oxlint/migrate --replace-eslint-comments`, which keeps the `@typescript-eslint/*` and `react-hooks/*` rule names (Oxlint accepts them)
+- Type-aware linting is set in the config (`options.typeAware`), so plain `oxlint` runs it
+- The reformat touched 56 files and is listed in `.git-blame-ignore-revs`. Oxfmt matched Prettier almost exactly: only 5 `src/` files changed before Tailwind sorting
 
 ## Phase 3: TypeScript 7
 
