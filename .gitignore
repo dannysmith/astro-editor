@@ -34,8 +34,12 @@ dist-ssr
 # Test data (temporary project for manual testing)
 temp-dummy-astro-project/
 
+# Test fixtures are installed on demand; don't commit their lockfiles
+test/*/bun.lock
+
 # Code quality reports
 jscpd-report/
+bundle-stats.html
 
 # Website build artifacts
 website/dist/

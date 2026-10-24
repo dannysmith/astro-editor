@@ -18,12 +18,12 @@ Cloudflare Worker for collecting anonymous telemetry from Astro Editor. Only col
 ## Available Scripts
 
 ```bash
-pnpm run dev              # Start local dev server
-pnpm run deploy           # Deploy to production
-pnpm run tail             # View live logs
-pnpm run test:local       # Test local endpoint
-pnpm run d1:create        # Create D1 database
-pnpm run d1:migrate       # Run database migrations
+bun run dev              # Start local dev server
+bun run deploy           # Deploy to production
+bun run tail             # View live logs
+bun run test:local       # Test local endpoint
+bun run d1:create        # Create D1 database
+bun run d1:migrate       # Run database migrations
 ```
 
 ## Common Queries
@@ -31,13 +31,13 @@ pnpm run d1:migrate       # Run database migrations
 ### Get all telemetry
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command " SELECT * FROM telemetry_events WHERE app_id = 'astro-editor' ORDER BY created_at DESC"
+bunx wrangler d1 execute astro-telemetry --remote --command " SELECT * FROM telemetry_events WHERE app_id = 'astro-editor' ORDER BY created_at DESC"
 ```
 
 ### Total installs
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "
+bunx wrangler d1 execute astro-telemetry --remote --command "
   SELECT COUNT(DISTINCT uuid) as total_installs
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -47,7 +47,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 ### Users by platform
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "
+bunx wrangler d1 execute astro-telemetry --remote --command "
   SELECT platform, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -59,7 +59,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 ### Users per current version
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "
+bunx wrangler d1 execute astro-telemetry --remote --command "
   SELECT version, COUNT(*) as users
   FROM (
     SELECT uuid, version
@@ -76,7 +76,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 ### Daily active users (last 30 days)
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "
+bunx wrangler d1 execute astro-telemetry --remote --command "
   SELECT DATE(created_at) as date, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -90,7 +90,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 ### New users this week
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "
+bunx wrangler d1 execute astro-telemetry --remote --command "
   SELECT COUNT(DISTINCT uuid) as new_users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -105,7 +105,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --command "
 ### Export data
 
 ```bash
-pnpm wrangler d1 execute astro-telemetry --remote --command "SELECT * FROM telemetry_events" --json > export.json
+bunx wrangler d1 execute astro-telemetry --remote --command "SELECT * FROM telemetry_events" --json > export.json
 ```
 
 ## Testing Production

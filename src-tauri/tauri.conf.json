@@ -4,9 +4,9 @@
   "version": "1.0.19",
   "identifier": "is.danny.astroeditor",
   "build": {
-    "beforeDevCommand": "pnpm run dev",
+    "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm run build",
+    "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist",
     "removeUnusedCommands": true
   },

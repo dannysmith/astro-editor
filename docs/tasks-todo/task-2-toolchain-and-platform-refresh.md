@@ -34,25 +34,38 @@ Everything we rely on has a bun equivalent:
 
 Steps:
 
-- [ ] Root `package.json`:
+- [x] Root `package.json`:
   - `"packageManager": "bun@1.4.x"`;
   - `"overrides": { "@lezer/common": "^1.5.0" }`, keeping the explanatory comment somewhere sensible;
   - `trustedDependencies`. It **replaces** bun's default allowlist, so list everything that needs a build script. Expect `@ast-grep/cli`, `@tailwindcss/oxide` and `esbuild`, and check with `bun pm untrusted`.
-- [ ] `bunfig.toml` with a minimum release age. pnpm 11+ has one by default and bun doesn't; check the exact key in bun's docs.
-- [ ] Delete `pnpm-workspace.yaml` and `pnpm-lock.yaml`, then `bun install`. Check `bun why @lezer/common` and `bun why @lezer/highlight` show a single version, and that `@codemirror/*` is deduplicated
-- [ ] Fixtures: each runs `bun install` on demand. Gitignore `test/*/bun.lock`. Update `reset:testdata` and the fixture READMEs
-- [ ] Replace `pnpm run` with `bun run` in the `package.json` scripts, `tauri.conf.json` (`beforeDevCommand` / `beforeBuildCommand`) and `scripts/prepare-release.js`
-- [ ] `telemetry-worker/`: switch to bun (delete its `pnpm-lock.yaml`; update `stats.sh` and the README). Update the root `stats` script
-- [ ] CI (`ci.yml`, `release.yml`):
+- [x] `bunfig.toml` with a minimum release age. pnpm 11+ has one by default and bun doesn't; check the exact key in bun's docs.
+- [x] Delete `pnpm-workspace.yaml` and `pnpm-lock.yaml`, then `bun install`. Check `bun why @lezer/common` and `bun why @lezer/highlight` show a single version, and that `@codemirror/*` is deduplicated
+- [x] Fixtures: each runs `bun install` on demand. Gitignore `test/*/bun.lock`. Update `reset:testdata` and the fixture READMEs
+- [x] Replace `pnpm run` with `bun run` in the `package.json` scripts, `tauri.conf.json` (`beforeDevCommand` / `beforeBuildCommand`) and `scripts/prepare-release.js`
+- [x] `telemetry-worker/`: switch to bun (delete its `pnpm-lock.yaml`; update `stats.sh` and the README). Update the root `stats` script
+- [x] CI (`ci.yml`, `release.yml`):
   - swap `pnpm/action-setup` and the pnpm cache for `oven-sh/setup-bun@v2`;
   - `bun install --frozen-lockfile`;
   - `bun run check:all`;
   - keep `setup-node`.
-- [ ] `.github/dependabot.yml`: `/` from `npm` to `bun`. Drop `exclude-paths: test/**` if the fixtures no longer have lockfiles
-- [ ] `.coderabbit.yml`: `!pnpm-lock.yaml` → `!bun.lock`
-- [ ] knip: run it and confirm the output now makes sense (no live files reported unused, `compromise` not reported unused). Fix the config if not
-- [ ] Mechanical `pnpm` → `bun` replacement in AGENTS.md, README, `docs/CONTRIBUTING.md`, `docs/SECURITY.md`, `docs/developer/*` and the skills. Task 4 does the real rewrite
-- [ ] `bun run check:all`; Danny runs `bun run tauri dev`
+- [x] `.github/dependabot.yml`: `/` from `npm` to `bun`. Drop `exclude-paths: test/**` if the fixtures no longer have lockfiles
+- [x] `.coderabbit.yml`: `!pnpm-lock.yaml` → `!bun.lock`
+- [x] knip: run it and confirm the output now makes sense (no live files reported unused, `compromise` not reported unused). Fix the config if not
+- [x] Mechanical `pnpm` → `bun` replacement in AGENTS.md, README, `docs/CONTRIBUTING.md`, `docs/SECURITY.md`, `docs/developer/*` and the skills. Task 4 does the real rewrite
+- [x] `bun run check:all` (737 frontend + 228 Rust tests), `bun run build`
+- [x] Danny runs `bun run tauri dev`
+
+**Phase 1 notes:**
+
+- `bun install` migrated `pnpm-lock.yaml`, so every resolved version stayed the same. With no workspace, bun uses the hoisted linker. Only `@ast-grep/cli` needed `trustedDependencies`; esbuild and sharp left the tree with the fixtures
+- Single `@lezer/common` (1.5.3), `@lezer/highlight` (1.2.5) and `@codemirror/*` versions confirmed
+- `telemetry-worker` resolved fresh (its lockfile was deleted first), so wrangler moved 4.147 → 4.152 within range
+- knip's bogus results weren't caused by the workspace. `copyedit-mode.css` sat next to the `copyedit-mode/` directory, and knip resolved `./copyedit-mode` to the CSS file, which made the whole copyedit module (and `compromise`) look unused. Fixed by moving the CSS into the directory. Also added `.css` to the knip project so CSS imports such as `tw-animate-css` are followed, and dropped the ignores knip flagged as redundant
+- knip's remaining findings are real, for a later `codebase-hygiene` pass:
+  - unused files: `DebugScreen.tsx`, `store/mdxComponentsStore.ts`, `hooks/mutations/useSaveFileMutation.ts` and `useDeleteFileMutation.ts` (only referenced by `src/test/mock-hooks.ts`), and the unused barrels `components/icons/index.ts`, `hooks/commands/index.ts`, `hooks/settings/index.ts`, `lib/commands/index.ts`, `lib/editor/index.ts`, `lib/editor/markdown/index.ts` and `lib/index.ts`
+  - unused deps: `@tauri-apps/plugin-window-state` (JS side; the Rust plugin is used) and `@tauri-apps/plugin-clipboard-manager` (Phase 6)
+  - unused shadcn components are task 3's job
+  - 79 unused exports and 23 unused exported types
 
 ## Phase 2: ESLint + Prettier → Oxlint + Oxfmt
 

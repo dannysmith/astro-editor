@@ -22,7 +22,7 @@
 - Comprehensive keyboard shortcuts and menu integration
 - Toast notifications throughout the app
 
-**Note:** The `website/` directory is an independent project that uses **bun** (not pnpm). It is not part of the pnpm workspace. See `website/AGENTS.md` for its own instructions.
+**Note:** The `website/` directory is an independent project that is not part of the main app's dependency tree. See `website/AGENTS.md` for its own instructions.
 
 ## Core Rules
 
@@ -43,7 +43,7 @@
 4. **Batch Operations**: Use multiple tool calls in single responses
 5. **Match Code Style**: Follow existing formatting and patterns
 6. **Test Coverage**: Write comprehensive tests for business logic
-7. **Quality Gates**: Before finishing significant work, check it against `docs/developer/architecture-guide.md`, remove leftover debug code, unnecessary comments and remnants of failed approaches, then run `pnpm run check:all` and fix any errors
+7. **Quality Gates**: Before finishing significant work, check it against `docs/developer/architecture-guide.md`, remove leftover debug code, unnecessary comments and remnants of failed approaches, then run `bun run check:all` and fix any errors
 8. **No Dev Server**: Ask user to run and report back
 9. **No Unsolicited Commits**: Only when explicitly requested
 10. **Documentation**: Update `docs/developer/` guides for new patterns
@@ -118,7 +118,7 @@ Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is 
   - **Client State:** Zustand for UI state and editing state
 - **Styling:** Tailwind v4 + shadcn/ui
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
-  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `pnpm-workspace.yaml` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `pnpm why @lezer/common` and `pnpm why @lezer/highlight`.
+  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `package.json` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `bun why @lezer/common` and `bun why @lezer/highlight`.
 - **Testing:** Vitest + React Testing Library, Cargo
 - **Quality:** ESLint (with React Compiler rules), Prettier, Clippy
 
@@ -131,7 +131,7 @@ Commands use **tauri-specta** for end-to-end type safety. TypeScript bindings ar
 **Adding a new command:**
 1. Define in Rust with `#[tauri::command]` and `#[specta::specta]`
 2. Add to `src-tauri/src/bindings.rs` `collect_commands![]`
-3. Run `pnpm tauri dev` briefly - bindings regenerate automatically in debug mode
+3. Run `bun run tauri dev` briefly - bindings regenerate automatically in debug mode
 4. Commit the updated `src/lib/bindings.ts`
 5. Add JSDoc to `src/types/domain.ts` if exposing a new type
 
@@ -318,14 +318,14 @@ useHotkeys(
 ## Development Commands & Organization
 
 ```bash
-pnpm run dev              # Start dev server
-pnpm run tauri:build      # Build app
-pnpm run check:all        # All checks (TS + Rust + ast-grep + tests) - RUN BEFORE COMMITS
-pnpm run fix:all          # Auto-fix all issues
-pnpm run ast:lint         # Run ast-grep architectural linting
-pnpm run ast:fix          # Auto-fix ast-grep violations (where possible)
-pnpm run test             # Watch mode
-pnpm run test:run         # Run once
+bun run dev              # Start dev server
+bun run tauri:build      # Build app
+bun run check:all        # All checks (TS + Rust + ast-grep + tests) - RUN BEFORE COMMITS
+bun run fix:all          # Auto-fix all issues
+bun run ast:lint         # Run ast-grep architectural linting
+bun run ast:fix          # Auto-fix ast-grep violations (where possible)
+bun run test             # Watch mode
+bun run test:run         # Run once
 ```
 
 **Component Organization**: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports, domain-based grouping

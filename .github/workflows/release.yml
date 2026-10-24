@@ -66,17 +66,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          run_install: false
+          bun-version-file: package.json
 
+      # Vitest and the Tauri CLI still run on Node
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -93,7 +92,7 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Install Rust targets for universal binary
         if: matrix.platform == 'macos-14'

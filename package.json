@@ -33,17 +33,17 @@
     "rust:clippy:fix": "cd src-tauri && cargo clippy --fix --allow-dirty",
     "rust:test": "cd src-tauri && cargo test",
     "tauri": "tauri",
-    "tauri:dev": "pnpm run tauri dev",
-    "tauri:build": "pnpm run tauri build",
-    "tauri:check": "pnpm run typecheck && pnpm run rust:clippy",
-    "test:all": "pnpm run test:run && pnpm run rust:test",
-    "check:all": "pnpm run typecheck && pnpm run lint && pnpm run ast:lint && pnpm run format:check && pnpm run rust:fmt:check && pnpm run rust:clippy && pnpm run test:run && pnpm run rust:test",
-    "fix:all": "pnpm run lint:fix && pnpm run ast:fix && pnpm run format && pnpm run rust:fmt && pnpm run rust:clippy:fix",
+    "tauri:dev": "bun run tauri dev",
+    "tauri:build": "bun run tauri build",
+    "tauri:check": "bun run typecheck && bun run rust:clippy",
+    "test:all": "bun run test:run && bun run rust:test",
+    "check:all": "bun run typecheck && bun run lint && bun run ast:lint && bun run format:check && bun run rust:fmt:check && bun run rust:clippy && bun run test:run && bun run rust:test",
+    "fix:all": "bun run lint:fix && bun run ast:fix && bun run format && bun run rust:fmt && bun run rust:clippy:fix",
     "reset:testdata": "rm -rf temp-dummy-astro-project && cp -r test/dummy-astro-project temp-dummy-astro-project",
     "prepare-release": "node scripts/prepare-release.js",
     "knip": "knip",
     "jscpd": "jscpd src src-tauri/src",
-    "stats": "cd telemetry-worker && pnpm run stats && cd .."
+    "stats": "cd telemetry-worker && bun run stats && cd .."
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -118,5 +118,11 @@
     "vite": "^8.3.2",
     "vitest": "^5.0.3"
   },
-  "packageManager": "pnpm@10.34.6"
+  "packageManager": "bun@1.4.4",
+  "overrides": {
+    "@lezer/common": "^1.5.0"
+  },
+  "trustedDependencies": [
+    "@ast-grep/cli"
+  ]
 }

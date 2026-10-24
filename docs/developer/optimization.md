@@ -66,7 +66,7 @@ See [performance-patterns.md](./performance-patterns.md) for:
 ### Analyze Current Bundle
 
 ```bash
-pnpm run build
+bun run build
 # Opens bundle-stats.html automatically (rollup-plugin-visualizer)
 ```
 
@@ -106,7 +106,7 @@ Total JS: ~1.2MB minified (~350KB gzipped)
 | Memory usage (idle) | ~150MB | <300MB | ✅ Good |
 
 **Measurement**:
-- Bundle size: `pnpm run build && du -sh dist/`
+- Bundle size: `bun run build && du -sh dist/`
 - Startup time: macOS Activity Monitor
 - Memory: macOS Activity Monitor → Memory column
 

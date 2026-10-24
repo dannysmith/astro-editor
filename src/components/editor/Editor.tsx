@@ -16,7 +16,7 @@ import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
-import '../../lib/editor/extensions/copyedit-mode.css'
+import '../../lib/editor/extensions/copyedit-mode/copyedit-mode.css'
 
 // Extend window to include editor focus tracking
 declare global {

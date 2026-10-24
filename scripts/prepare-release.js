@@ -91,7 +91,7 @@ async function prepareRelease() {
 
     // Run all checks first
     console.log('\n🔍 Running pre-release checks...')
-    exec('pnpm run check:all')
+    exec('bun run check:all')
     console.log('✅ All checks passed')
 
     // Update package.json
@@ -128,9 +128,9 @@ async function prepareRelease() {
     )
     console.log(`   ${oldTauriVersion} → ${cleanVersion}`)
 
-    // Run npm install to update lock files
+    // Run bun install to update the lockfile
     console.log('\n📦 Updating lock files...')
-    exec('pnpm install', { silent: true })
+    exec('bun install', { silent: true })
     console.log('✅ Lock files updated')
 
     // Verify configurations

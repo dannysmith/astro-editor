@@ -7,7 +7,7 @@ reviews:
   path_filters:
     - "!**/*.md"
     - "!test/**"
-    - "!pnpm-lock.yaml"
+    - "!bun.lock"
     - "!src/lib/bindings.ts"
 
 issue_enrichment:

@@ -4,17 +4,14 @@
 version: 2
 
 updates:
-  # NPM dependencies (main project only)
-  - package-ecosystem: "npm"
+  # JS dependencies (main app)
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "saturday"
       time: "09:00"
       timezone: "Europe/London"
-    # Exclude test Astro projects - these are only for testing the editor
-    exclude-paths:
-      - "test/**"
     # Group minor/patch updates to reduce PR noise
     groups:
       development-dependencies:
@@ -66,7 +63,7 @@ updates:
       prefix: "chore(deps)"
 
   # Telemetry worker (separate Cloudflare Worker)
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/telemetry-worker"
     schedule:
       interval: "weekly"
