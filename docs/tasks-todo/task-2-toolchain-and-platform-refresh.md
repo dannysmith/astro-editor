@@ -4,7 +4,7 @@ Move to bun, Oxlint and Oxfmt, and TypeScript 7. Then clear the held dependency 
 
 ## Branch strategy
 
-- **Branch:** `modernise-2026-10`, shared with task 3 (Base UI).
+- **Branch:** `modernise-2026-10`, shared with task 3 (Base UI). Task 2 goes up as its own PR; task 3 starts on a fresh branch after merge.
 - One commit (or a small group) per phase. Merge with a **merge commit**, not a squash, so phases stay bisectable and revertable.
 - The bun phase changes `release.yml`, so this can't go on `main`. PR CI with the `ci` label runs the full build matrix before a release depends on it.
 - If the branch gets unwieldy, merge after Phase 8 and start task 3 on a fresh branch.
@@ -239,8 +239,8 @@ PR #274 (semantic colour tokens) is out of scope. It gets re-implemented later o
 
 ## Phase 8: Verify
 
-- [ ] `bun run check:all`
-- [ ] Production build: `bun run tauri build --bundles app --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'`
+- [x] `bun run check:all`
+- [x] Production build: `bun run tauri build --bundles app --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'`
 - [ ] Danny smoke-tests the `.app`:
   - vibrancy, rounded corners and window chrome;
   - editor syntax highlighting, including GFM tables and checklists;
@@ -252,6 +252,12 @@ PR #274 (semantic colour tokens) is out of scope. It gets re-implemented later o
   - placeholder and draft colours in light and dark mode.
 - [ ] Push, PR with the `ci` label, CI green on all platforms
 - [ ] Either merge with a merge commit, or continue straight into task 3 on the same branch
+
+**Phase 8 notes:**
+
+- Danny smoke-tested each phase in `tauri dev` as it landed (Phases 1, 2, 4, 5, 6 and 7)
+- The production build surfaced a new Vite 8.3 warning: `__dirname` isn't supported by the upcoming native config loader. Both Vite configs now use `import.meta.dirname`
+- Built `.app` (arm64, unsigned, 9.8 MiB) copied to `~/Desktop/Astro Editor modernise-2026-10/` for a final check
 
 ## Holds (after this task)
 
