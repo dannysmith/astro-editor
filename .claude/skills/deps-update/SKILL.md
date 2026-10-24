@@ -42,7 +42,8 @@ One commit (or a small group) per phase. Run `check:all` after each.
 
 ## Known hazards
 
-- **`@lezer/*` versions**: there must be exactly one `@lezer/common` and one `@lezer/highlight` in the tree. Mismatches silently break syntax highlighting. Check after every JS update
+- **`@lezer/*` and `@codemirror/*` versions**: there must be exactly one copy of each in the tree. Mismatches silently break syntax highlighting (or typecheck, for `@codemirror/view`). In-range updates can leave older copies nested under other packages, which a top-level version check misses. Look for nested lockfile entries (see AGENTS.md) after every JS update, and regenerate the lockfile if there are any
+- **Peer auto-installs**: package managers install peers automatically and pick the newest version in the peer range, so a minor bump can silently pull in a major (this is how Babel 8 nearly arrived under the React Compiler). Scan the update output for major jumps in packages that aren't direct dependencies
 - **tauri-specta**: regenerates `src/lib/bindings.ts` in debug builds. Diff it after any specta or Rust model change
 - **Release pipeline**: changes to `release.yml` or tauri-action can't be fully tested by PR CI, since release only runs on tags. Plan how to verify them or split them into their own task
 - **Bundle size**: note significant increases (the visualizer writes `bundle-stats.html` on build)

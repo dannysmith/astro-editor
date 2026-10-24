@@ -125,7 +125,7 @@ Oxfmt:
 
 ## Phase 4: Dependency sweep
 
-- [ ] JS minor/patch updates:
+- [x] JS minor/patch updates:
   - `radix-ui` 1.8;
   - `lucide-react`;
   - `@tanstack/react-query`;
@@ -133,10 +133,20 @@ Oxfmt:
   - `react-resizable-panels`;
   - Vite, Vitest, jsdom, knip;
   - ast-grep 0.51.
-- [ ] `@codemirror/language` 6.13 and `@lezer/markdown` 1.8: re-check that there's a single `@lezer/*` version afterwards
-- [ ] Tauri: `cargo update` (tauri 2.12.5 and the plugins), with matching `@tauri-apps/*` JS versions. Every plugin's major.minor must match between JS and Rust
-- [ ] `notify` `=9.0.0-rc.5` → `=9.0.0-rc.6` (fixes intermittent macOS FSEvents hangs during rapid watch/unwatch)
-- [ ] `bun run check:all`
+- [x] `@codemirror/language` 6.13 and `@lezer/markdown` 1.8: re-check that there's a single `@lezer/*` version afterwards
+- [x] Tauri: `cargo update` (tauri 2.12.5 and the plugins), with matching `@tauri-apps/*` JS versions. Every plugin's major.minor must match between JS and Rust
+- [x] `notify` `=9.0.0-rc.5` → `=9.0.0-rc.6` (fixes intermittent macOS FSEvents hangs during rapid watch/unwatch)
+- [x] `bun run check:all`
+
+**Phase 4 notes:**
+
+- **Duplicate copies:** `bun update` left older `@codemirror/view` and `@lezer/markdown` copies nested under `@codemirror/lang-markdown` and others. Typecheck caught it (private-property mismatches). The earlier top-level-only lockfile check missed it. Regenerating `bun.lock` fixed it: a single copy of every `@codemirror/*` and `@lezer/*` package, and 90 fewer packages overall. AGENTS.md and the deps-update skill now give a check for nested copies
+- **Babel:** the update auto-installed `@babel/core` 8 as the peer of `@rolldown/plugin-babel` (its range allows 8). `babel-plugin-react-compiler` 1.0 is built against Babel 7 (`@babel/types ^7.26`), so `@babel/core ^7.29.7` is now a direct devDependency. Documented in AGENTS.md
+- Versions: tauri 2.12.5, every plugin's JS and Rust major.minor matched, notify rc.6, radix-ui 1.8.1, ast-grep 0.51, `@codemirror/language` 6.13, `@lezer/markdown` 1.8
+- Plugin release notes checked:
+  - fs 2.7.1 changed how the `write-all` / `write-files` permission sets expand. We grant individual `allow-*` permissions, so it doesn't affect us
+  - fs 2.7.0 adds `scopeDroppedPaths` (default `true`), which is moot while the fs scope is `**`. Revisit in Phase 6
+  - updater 2.14 and clipboard 2.5 are Linux fixes and new APIs only
 
 ## Phase 5: specta / tauri-specta
 

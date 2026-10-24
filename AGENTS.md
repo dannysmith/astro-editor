@@ -113,12 +113,13 @@ Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is 
 
 - **Framework:** Tauri v2 (Rust + React)
 - **Frontend:** React 19 + TypeScript (strict) with React Compiler
+  - `@babel/core` is a direct devDependency pinned to 7. It's only a peer of `@rolldown/plugin-babel` (which allows 8), but `babel-plugin-react-compiler` is built against Babel 7
 - **State:** Hybrid approach:
   - **Server State:** TanStack Query v5 for data fetching/caching
   - **Client State:** Zustand for UI state and editing state
 - **Styling:** Tailwind v4 + shadcn/ui
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
-  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `package.json` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `bun why @lezer/common` and `bun why @lezer/highlight`.
+  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `package.json` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. The same goes for `@codemirror/*` (duplicate `@codemirror/view` breaks typecheck). `bun update` can leave older copies nested under other packages; `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing, and if it doesn't, regenerate the lockfile (`rm -rf node_modules bun.lock && bun install`).
 - **Testing:** Vitest + React Testing Library, Cargo
 - **Quality:** Oxlint (type-aware, with React Compiler rules), Oxfmt, ast-grep, Clippy
 
