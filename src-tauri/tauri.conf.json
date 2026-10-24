@@ -37,8 +37,7 @@
         ]
       }
     },
-    "withGlobalTauri": false,
-    "macOSPrivateApi": true
+    "withGlobalTauri": false
   },
   "bundle": {
     "createUpdaterArtifacts": true,
@@ -93,9 +92,6 @@
     },
     "opener": {
       "requireLiteralLeadingDot": false
-    },
-    "shell": {
-      "open": true
     },
     "updater": {
       "active": true,

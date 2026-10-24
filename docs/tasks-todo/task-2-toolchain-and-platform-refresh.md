@@ -182,16 +182,29 @@ We've held this since rc.22 because rc.25 stack-overflowed when exporting `serde
 
 ## Phase 6: Tauri config and capabilities
 
-- [ ] Remove `macOSPrivateApi` from `tauri.conf.json` and `tauri.macos.conf.json`, and the `macos-private-api` feature from `Cargo.toml`. They've done nothing since 2.12.1
-- [ ] Remove the duplicate `tauri` dependency in `Cargo.toml`'s macOS target section
-- [ ] Remove `plugins.shell` from `tauri.conf.json`, which is left over from before the opener plugin
-- [ ] Fix the `Cargo.toml` metadata (`description = "A Tauri App"`, `authors = ["you"]`)
-- [ ] Trim capabilities to what the **frontend** calls; plugin calls made from Rust need no capability:
+- [x] Remove `macOSPrivateApi` from `tauri.conf.json` and `tauri.macos.conf.json`, and the `macos-private-api` feature from `Cargo.toml`. They've done nothing since 2.12.1
+- [x] Remove the duplicate `tauri` dependency in `Cargo.toml`'s macOS target section
+- [x] Remove `plugins.shell` from `tauri.conf.json`, which is left over from before the opener plugin
+- [x] Fix the `Cargo.toml` metadata (`description = "A Tauri App"`, `authors = ["you"]`)
+- [x] Trim capabilities to what the **frontend** calls; plugin calls made from Rust need no capability:
   - fs: the frontend only uses `remove` → `fs:allow-remove` plus the scope;
   - drop the `core:*:default` entries already covered by `core:default` (keep the specific `core:window:allow-*` ones);
   - drop the `updater:allow-*` and `process:allow-restart` entries covered by their `:default`, and the duplicate `updater:default` in `desktop.json`;
   - clipboard is only used through our own Rust command (`copy_text_to_clipboard`). Drop the clipboard capabilities, and the `@tauri-apps/plugin-clipboard-manager` JS package if nothing imports it.
-- [ ] Danny checks transparency, vibrancy and rounded corners still look identical
+- [x] Danny checks transparency, vibrancy and rounded corners still look identical (plus window controls, delete with confirm dialog, project picker, opener, updater, clipboard and window-state restore: all fine)
+
+**Phase 6 notes:**
+
+- `macOSPrivateApi` and the `macos-private-api` feature were confirmed as no-ops in the Tauri 2.12.5 source ("No-op since Tauri 2.12.1"). Removed from both configs and `Cargo.toml`, along with the macOS-target duplicate `tauri` dependency. `cross-platform.md` is updated; its tauri-build gotcha is now stated generally (keep config-required features on the base `tauri` dependency)
+- Capabilities went from 44 entries to 24, plus `desktop.json` removed. Each removal was checked against the default sets in `gen/schemas/acl-manifests.json` and the frontend's actual `@tauri-apps/*` imports:
+  - **covered by `core:default`:** `core:app/event/window/path/menu:default`
+  - **covered by their `:default`:** the `updater:allow-*` entries and `process:allow-restart`
+  - **frontend never imports these plugins:** clipboard-manager (only used through our `copy_text_to_clipboard` command), window-state (Rust-only)
+  - **frontend only calls fs `remove`:** dropped `fs:default` and the read/write/dir/exists/mkdir entries
+  - **unchanged:** every specific `core:window:allow-*` entry, the fs and opener scopes, and dialog, opener, log, os and deep-link
+- Removed the unused JS packages `@tauri-apps/plugin-clipboard-manager` and `@tauri-apps/plugin-window-state`; their Rust crates stay
+- fs `scopeDroppedPaths` left at its default; moot while the fs scope is `**`
+- Spotted while auditing, unchanged: `dialog:default` doesn't include `allow-ask`, yet the context-menu delete uses `ask()`. It goes through the `message` command, and the smoke test should confirm that
 
 ## Phase 7: Tailwind and CSS cleanup
 

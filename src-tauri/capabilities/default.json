@@ -5,9 +5,6 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "core:app:default",
-    "core:event:default",
-    "core:window:default",
     "core:window:allow-close",
     "core:window:allow-minimize",
     "core:window:allow-start-dragging",
@@ -21,51 +18,64 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-unminimize",
-    "core:path:default",
-    "core:menu:default",
     "opener:default",
-    "clipboard-manager:default",
-    "clipboard-manager:allow-write-text",
-    "fs:default",
     "fs:allow-remove",
-    "fs:allow-read-file",
-    "fs:allow-read-text-file",
-    "fs:allow-write-file",
-    "fs:allow-write-text-file",
-    "fs:allow-read-dir",
-    "fs:allow-exists",
-    "fs:allow-mkdir",
     "dialog:default",
     "updater:default",
-    "updater:allow-check",
-    "updater:allow-download",
-    "updater:allow-install",
     "process:default",
-    "process:allow-restart",
     "log:default",
     "os:default",
-    "window-state:default",
     "deep-link:default",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "**" }],
+      "allow": [
+        {
+          "path": "**"
+        }
+      ],
       "deny": [
-        { "path": "/System/**" },
-        { "path": "/usr/**" },
-        { "path": "/etc/**" },
-        { "path": "/bin/**" },
-        { "path": "/sbin/**" },
-        { "path": "/Library/Frameworks/**" },
-        { "path": "/Library/Extensions/**" },
-        { "path": "$HOME/Library/Keychains/**" },
-        { "path": "$HOME/.ssh/**" },
-        { "path": "$HOME/.aws/**" },
-        { "path": "$HOME/.docker/**" }
+        {
+          "path": "/System/**"
+        },
+        {
+          "path": "/usr/**"
+        },
+        {
+          "path": "/etc/**"
+        },
+        {
+          "path": "/bin/**"
+        },
+        {
+          "path": "/sbin/**"
+        },
+        {
+          "path": "/Library/Frameworks/**"
+        },
+        {
+          "path": "/Library/Extensions/**"
+        },
+        {
+          "path": "$HOME/Library/Keychains/**"
+        },
+        {
+          "path": "$HOME/.ssh/**"
+        },
+        {
+          "path": "$HOME/.aws/**"
+        },
+        {
+          "path": "$HOME/.docker/**"
+        }
       ]
     },
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "**" }]
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
     }
   ]
 }

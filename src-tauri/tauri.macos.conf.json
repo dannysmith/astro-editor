@@ -22,7 +22,6 @@
         "shadow": true,
         "dragDropEnabled": true
       }
-    ],
-    "macOSPrivateApi": true
+    ]
   }
 }
