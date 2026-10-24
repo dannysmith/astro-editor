@@ -120,7 +120,7 @@ export function useEditorActions() {
         const result = await commands.saveMarkdownContent(
           currentFile.path,
           isFrontmatterDirty
-            ? (frontmatter as Partial<Record<string, JsonValue>>)
+            ? (frontmatter as Record<string, JsonValue>)
             : null,
           isFrontmatterDirty ? null : rawFrontmatter,
           editorContent,

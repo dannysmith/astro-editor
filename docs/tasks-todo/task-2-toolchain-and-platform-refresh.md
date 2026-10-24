@@ -152,18 +152,33 @@ Oxfmt:
 
 We've held this since rc.22 because rc.25 stack-overflowed when exporting `serde_json::Value`. Both that bug (specta#498) and the `i64`-in-Value BigInt error (#500) are fixed in the 2026-10-21 releases.
 
-- [ ] Read the specta and tauri-specta changelogs for rc.23 to rc.26 first. Known breaking changes:
+- [x] Read the specta and tauri-specta changelogs for rc.23 to rc.26 first. Known breaking changes:
   - the new `Typescript` exporter API (`bindings.rs`);
   - stricter untagged-enum output;
   - serde phases (can be turned off with `disable_serde_phases`);
   - BigInt handling.
-- [ ] Pin `tauri-specta = "=2.0.0-rc.26"`, `specta = "=2.0.0-rc.26"` (**not** rc.27, which tauri-specta doesn't accept) and `specta-typescript` at the version tauri-specta rc.26 requires (`^0.0.13`)
-- [ ] Regenerate `src/lib/bindings.ts`; it regenerates in debug mode on `tauri dev`. Expected fallout from earlier research:
+- [x] Pin `tauri-specta = "=2.0.0-rc.26"`, `specta = "=2.0.0-rc.26"` (**not** rc.27, which tauri-specta doesn't accept) and `specta-typescript` at the version tauri-specta rc.26 requires (`^0.0.13`)
+- [x] Regenerate `src/lib/bindings.ts`; it regenerates in debug mode on `tauri dev`. Expected fallout from earlier research:
   - no exported `Result<T, E>`, which breaks the re-export at `src/types/domain.ts:119`;
   - `JsonValue` may be inlined (used in `useSaveFileMutation.ts`, `useEditorActions.ts` and `lib/recovery/*`);
   - possibly a `_Serialize` / `_Deserialize` split for `Collection`.
-- [ ] `serde_json::Value` is used in `schema_merger.rs` and `file_entry.rs`, so check those types export cleanly
-- [ ] If rc.26 turns out broken, revert this phase, record why in the holds table and move on
+- [x] `serde_json::Value` is used in `schema_merger.rs` and `file_entry.rs`, so check those types export cleanly
+- [x] ~~If rc.26 turns out broken, revert this phase~~ (not needed)
+
+**Phase 5 notes:**
+
+- Pinned `tauri-specta =2.0.0-rc.26`, `specta =2.0.0-rc.26` and `specta-typescript =0.0.13`, all published 2026-10-21. No Rust code changes were needed beyond the builder options below
+- **Regenerating bindings without the app:** added an ignored test, `cd src-tauri && cargo test export_bindings -- --ignored`. On rc.22 it reproduced the committed `bindings.ts` byte for byte
+- **BigInt check (decision):** the new exporter refuses `i64`/`u64`-style types because `JSON.parse` truncates above 2^53. Affected exports:
+  - `FileEntry.last_modified: Option<u64>` (Unix seconds)
+  - `serde_json::Value` in `FileEntry.frontmatter`, `MarkdownContent.frontmatter`, the `frontmatter` args of `update_frontmatter` / `save_markdown_content`, and `save_recovery_data` / `save_crash_report`
+
+  `serde_json::Value` can't be annotated per field, and that's the case where Specta's docs say the global opt-out "might be required". We use `.dangerously_cast_bigints_to_number()`, which gives the same runtime and the same types as rc.22. The cost is that new 64-bit fields won't be flagged; the reasoning is in a comment in `bindings.rs`. (`min_length`/`max_length` in `schema_merger.rs` aren't exported; they reach the frontend inside a JSON string)
+- **Serde phases off:** `.disable_serde_phases()`. Phases emit `X_Serialize | X_Deserialize` for every struct, but the frontend never sends these structs to Rust, so the split only added churn. With phases off, the exported types match rc.22 except:
+  - `JsonValue` → `Value` (re-exported as `JsonValue` from `src/types/domain.ts`, so consumers are unchanged)
+  - frontmatter maps are `{ [key]: Value }` rather than `Partial<…>`; the two casts in `useSaveFileMutation.ts` / `useEditorActions.ts` were updated
+  - no exported `Result` type (our re-export was unused, so it was removed)
+- Commands are now arrow-function properties wrapped by a shared `typedError` helper. Runtime semantics are identical: same `{ status, data | error }` shape, `Error` instances still rethrown, and infallible commands still return bare values. The `unbound-method` suppression in `fileProcessing.test.ts` became unused and was removed
 
 ## Phase 6: Tauri config and capabilities
 

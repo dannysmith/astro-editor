@@ -107,16 +107,10 @@ export type {
    */
   AppInfo,
   /**
-   * JSON-compatible value type.
+   * JSON-compatible value type (serde_json::Value).
    * Used for dynamic frontmatter data.
    */
-  JsonValue,
-  /**
-   * Result type for Tauri commands.
-   * Success: { status: "ok", data: T }
-   * Error: { status: "error", error: E }
-   */
-  Result,
+  Value as JsonValue,
 } from '@/lib/bindings'
 
 // Re-export commands for convenience
