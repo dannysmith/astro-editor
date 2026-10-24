@@ -210,19 +210,32 @@ We've held this since rc.22 because rc.25 stack-overflowed when exporting `serde
 
 PR #274 (semantic colour tokens) is out of scope. It gets re-implemented later on top of this work.
 
-- [ ] Delete `tailwind.config.js` (Tailwind 4 only loads it through `@config`, which we don't use) and set `components.json` `tailwind.config` to `""`
-- [ ] **Double-wrapped colours.** `body`, `#root` and the `::placeholder` rules in `src/App.css` use `hsl(var(--x))` where `--x` is already `hsl(...)`. That's invalid, so the declarations are silently ignored, which means:
+- [x] Delete `tailwind.config.js` (Tailwind 4 only loads it through `@config`, which we don't use) and set `components.json` `tailwind.config` to `""`
+- [x] **Double-wrapped colours.** `body`, `#root` and the `::placeholder` rules in `src/App.css` use `hsl(var(--x))` where `--x` is already `hsl(...)`. That's invalid, so the declarations are silently ignored, which means:
   - `body` and `#root` backgrounds are currently transparent, and **the vibrancy effect may depend on that**;
   - the `#root` border isn't drawn.
 
   Take screenshots first, then make the intended behaviour explicit (probably transparent backgrounds) rather than "fixing" them to opaque. Fix the placeholder colour and check it.
-- [ ] **Mixed token formats.** `--heading`, `--color-draft`, `--color-filter`, `--color-required` and `--color-warning` are bare v3-style HSL triplets. `--color-draft` is also the name `@theme inline` redefines, so the generated utilities only work because hand-written `@layer utilities` rules come later. Fix it:
+- [x] **Mixed token formats.** `--heading`, `--color-draft`, `--color-filter`, `--color-required` and `--color-warning` are bare v3-style HSL triplets. `--color-draft` is also the name `@theme inline` redefines, so the generated utilities only work because hand-written `@layer utilities` rules come later. Fix it:
   - rename them to full colour values (`--draft: hsl(...)`);
   - map them in `@theme inline` (`--color-draft: var(--draft)`);
   - delete the hand-written `.text-*` / `.bg-*` / `.border-*` utilities;
   - check every usage, including opacity modifiers.
-- [ ] Remove the duplicate `* { @apply border-border }` (it appears twice)
-- [ ] Optional: derive `--radius-*` from `--radius` the way shadcn does now. No OKLCH conversion; our tokens are neutral greys
+- [x] Remove the duplicate `* { @apply border-border }` (it appears twice)
+- [x] Optional: derive `--radius-*` from `--radius` the way shadcn does now. No OKLCH conversion; our tokens are neutral greys
+
+**Phase 7 notes:**
+
+- `hsl(var(--x))` with `--x` already `hsl(...)` is invalid *at computed-value time*, so the property computes as `unset` rather than the declaration being skipped. So:
+  - `body` and `#root` backgrounds computed as transparent, which the vibrancy relies on;
+  - the `#root` border never drew.
+
+  The declarations were removed, so rendering is identical, and a comment explains why they stay transparent
+- **Placeholders:** the rule now uses `var(--muted-foreground)`. Before, placeholders without shadcn's `placeholder:` class inherited the full text colour. The redundant `-webkit-` / `-moz-` copies are removed
+- **Status tokens:** these are now full colour values (`--draft`, `--filter`, …), mapped via `@theme inline`, and the hand-written utilities are deleted. The built CSS has no `hsl(var(` left. This fixed a real bug: `hover:bg-draft/80` and `hover:bg-filter/50`/`/80` were generated from the *text* colour, because the plain `bg-*` classes were hand-written but their variants weren't. On hover, the active Drafts/filter buttons turned into tan/dark squares behind dark icons (visible in Danny's before screenshot). Background tints are now `bg-draft-bg` / `bg-filter-bg`, hover variants included (`LeftSidebar.tsx`)
+- Fixed the same `hsl(var())` bug in the shadcn sidebar's outline-variant shadow
+- `color-system.md` is updated, including the two rules that caused all this: use tokens as `var(--x)`, and don't name `:root` variables `--color-*`
+- CSS bundle: 104.2 → 103.1 kB
 
 ## Phase 8: Verify
 

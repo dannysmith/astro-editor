@@ -289,8 +289,8 @@ export const LeftSidebar: React.FC = () => {
   // Determine header background class based on composable states
   // Priority: drafts (intentional filter) > search (hides files) > default
   const headerBgClass = useMemo(() => {
-    if (showDraftsOnly) return 'bg-draft'
-    if (searchActive) return 'bg-filter'
+    if (showDraftsOnly) return 'bg-draft-bg'
+    if (searchActive) return 'bg-filter-bg'
     return 'bg-muted/30'
   }, [showDraftsOnly, searchActive])
 
@@ -350,9 +350,9 @@ export const LeftSidebar: React.FC = () => {
                 'size-7 p-0 flex-shrink-0',
                 // Match header background color for hover state
                 showDraftsOnly
-                  ? 'text-draft hover:bg-draft/50'
+                  ? 'text-draft hover:bg-draft-bg/50'
                   : searchActive
-                    ? 'text-filter hover:bg-filter/50'
+                    ? 'text-filter hover:bg-filter-bg/50'
                     : 'text-muted-foreground hover:bg-muted'
               )}
               title="Back"
@@ -452,9 +452,9 @@ export const LeftSidebar: React.FC = () => {
                   'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
                   // Color priority: own active state > header color > expanded/sorted > default
                   searchActive
-                    ? 'text-filter bg-filter hover:bg-filter/80'
+                    ? 'text-filter bg-filter-bg hover:bg-filter-bg/80'
                     : showDraftsOnly
-                      ? 'text-draft hover:bg-draft/50'
+                      ? 'text-draft hover:bg-draft-bg/50'
                       : collectionViewState.filterBarExpanded || sortActive
                         ? 'text-foreground bg-accent hover:bg-accent/80'
                         : 'text-muted-foreground hover:bg-muted'
@@ -475,9 +475,9 @@ export const LeftSidebar: React.FC = () => {
                   'size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 flex-shrink-0',
                   // Color priority: own active state > header color > default
                   showDraftsOnly
-                    ? 'text-draft bg-draft hover:bg-draft/80'
+                    ? 'text-draft bg-draft-bg hover:bg-draft-bg/80'
                     : searchActive
-                      ? 'text-filter hover:bg-filter/50'
+                      ? 'text-filter hover:bg-filter-bg/50'
                       : 'text-muted-foreground hover:bg-muted'
                 )}
                 title={showDraftsOnly ? 'Show All Files' : 'Show Drafts Only'}

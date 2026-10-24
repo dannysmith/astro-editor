@@ -27,9 +27,9 @@ The app uses a hybrid approach combining:
   --accent-foreground: hsl(0 0% 10%);
   
   /* Status colors */
-  --color-draft: 37 99% 25%; /* orange-600 */
-  --color-required: 0 84% 60%; /* red-500 */
-  --color-warning: 45 93% 47%; /* yellow-500 */
+  --draft: hsl(37 99% 25%); /* orange-600 */
+  --required: hsl(0 84% 60%); /* red-500 */
+  --warning: hsl(45 93% 47%); /* yellow-500 */
 }
 ```
 
@@ -44,9 +44,9 @@ The app uses a hybrid approach combining:
   --muted-foreground: hsl(0 0% 60%);
   
   /* Adjusted status colors for dark mode */
-  --color-draft: 33 100% 70%; /* Lighter orange */
-  --color-required: 0 91% 71%; /* Lighter red */
-  --color-warning: 48 96% 80%; /* Lighter yellow */
+  --draft: hsl(33 100% 70%); /* Lighter orange */
+  --required: hsl(0 91% 71%); /* Lighter red */
+  --warning: hsl(48 96% 80%); /* Lighter yellow */
 }
 ```
 
@@ -129,34 +129,22 @@ macOS-style window controls maintain consistent colors across both themes:
 
 ## Status Color System
 
-### Draft Indicators
-```css
-/* Light mode */
---color-draft: 37 99% 25%; /* orange-600 */
---color-draft-bg: 33 100% 96%; /* orange-50 */
+Status tokens (`--draft`, `--draft-bg`, `--filter`, `--filter-bg`, `--required`, `--warning`, `--warning-bg`, plus `--heading`) are full colour values defined in `:root` and `.dark`, and mapped into Tailwind in `@theme inline` (`--color-draft: var(--draft)` etc.), so they work as normal utilities with variants and opacity modifiers.
 
-/* Dark mode */
---color-draft: 33 100% 70%; /* Lighter orange */
---color-draft-bg: 33 100% 8%; /* Dark orange background */
-```
+Each token name means one colour for every utility (`text-`, `bg-`, `border-`), so strong colours and their background tints are separate tokens:
 
-### Required Field Indicators
-```css
-/* Light mode */
---color-required: 0 84% 60%; /* red-500 */
-
-/* Dark mode */
---color-required: 0 91% 71%; /* Lighter red */
-```
-
-### Usage in Components
 ```tsx
-// Draft indicator
-<span className="text-[var(--color-draft)]">(Draft)</span>
+// Draft label: strong colour
+<span className="text-draft">Draft</span>
+
+// Draft-filtered header: background tint, with a lighter hover
+<div className="bg-draft-bg hover:bg-draft-bg/80">…</div>
 
 // Required field
-<span className="text-[var(--color-required)]">*</span>
+<span className="text-required">*</span>
 ```
+
+Don't name a `:root` variable `--color-*`: that namespace belongs to `@theme`, and a clash silently breaks the generated utilities.
 
 ## Theme Provider Integration
 
@@ -210,10 +198,12 @@ Standardized across all input components:
 
 ```css
 ::placeholder {
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   opacity: 1;
 }
 ```
+
+Tokens are already full `hsl(...)` values, so use them as `var(--token)`. Wrapping one in `hsl(var(--token))` is invalid, and the browser silently drops the declaration.
 
 Components use `placeholder:text-muted-foreground` in Tailwind classes.
 
