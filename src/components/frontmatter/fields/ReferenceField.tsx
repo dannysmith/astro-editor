@@ -193,7 +193,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                             handleRemoveItem(opt.value, e)
                           }
                         }}
-                        className="rounded-full outline-hidden ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                        className="cursor-pointer rounded-full ring-offset-background outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
                         aria-label="Remove"
                       >
                         <X className="h-3 w-3" />

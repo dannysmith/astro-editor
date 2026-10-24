@@ -67,12 +67,12 @@ export const DebugScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">CodeMirror Debug View</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="mb-6 text-2xl font-bold">CodeMirror Debug View</h1>
 
         <div className="mb-4">
           <button
-            className="px-4 py-2 bg-yellow-500 dark:bg-yellow-600 text-white rounded hover:bg-yellow-600 dark:hover:bg-yellow-700"
+            className="rounded bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700"
             onClick={() => {
               if (viewRef.current) {
                 insertSnippet(
@@ -86,7 +86,7 @@ export const DebugScreen: React.FC = () => {
           </button>
         </div>
 
-        <div className="border border-border rounded-lg overflow-hidden bg-card">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div ref={editorRef} className="h-[600px]" />
         </div>
       </div>

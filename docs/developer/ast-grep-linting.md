@@ -2,11 +2,11 @@
 
 ## Overview
 
-ast-grep is a structural code search and linting tool that enforces architectural patterns that ESLint cannot detect. It's particularly valuable for AI agents because it provides immediate, machine-readable feedback on architectural violations.
+ast-grep is a structural code search and linting tool that enforces architectural patterns that Oxlint cannot detect. It's particularly valuable for AI agents because it provides immediate, machine-readable feedback on architectural violations.
 
 ## Why ast-grep?
 
-**Traditional linters (ESLint) can't enforce:**
+**Traditional linters (Oxlint) can't enforce:**
 - Directory boundaries (hooks in hooks/, not lib/)
 - Structural patterns (destructuring from stores)
 - Complex architectural rules (getState() pattern)
@@ -21,7 +21,7 @@ ast-grep is a structural code search and linting tool that enforces architectura
 ## Installation
 
 ```bash
-pnpm add -D @ast-grep/cli
+bun add -d @ast-grep/cli
 ```
 
 ## Configuration
@@ -127,16 +127,16 @@ const value = useEditorStore(state => state.value)
 
 ```bash
 # Scan codebase for violations
-pnpm run ast:lint
+bun run ast:lint
 
 # Auto-fix violations (where possible)
-pnpm run ast:fix
+bun run ast:fix
 
 # Run all checks (includes ast-grep)
-pnpm run check:all
+bun run check:all
 
 # Run all fixes (includes ast-grep)
-pnpm run fix:all
+bun run fix:all
 ```
 
 ### Integration with /check Command
@@ -145,14 +145,14 @@ The `/check` command automatically runs `ast:lint` as part of its quality contro
 
 1. Checks adherence to architecture-guide.md
 2. Removes unnecessary comments/console.logs
-3. Runs `pnpm check:all` (which includes ast-grep)
+3. Runs `bun run check:all` (which includes ast-grep)
 
 ### CI/CD Integration
 
 ast-grep is integrated into `check:all` pipeline and will fail builds if violations are found:
 
 ```bash
-pnpm run check:all
+bun run check:all
 # Runs: typecheck → lint → ast:lint → format:check → clippy → tests
 ```
 
@@ -232,7 +232,7 @@ npx ast-grep test
 If you see "ast-grep shim file was executed":
 
 ```bash
-pnpm rebuild @ast-grep/cli
+bun pm trust @ast-grep/cli
 # or
 cd node_modules/@ast-grep/cli && node postinstall.js
 ```
@@ -286,7 +286,7 @@ The project includes `knip.json` configured to:
 
 ```bash
 # Run knip manually
-pnpm run knip
+bun run knip
 
 # Intelligent cleanup (recommended)
 /knip-cleanup
@@ -329,7 +329,7 @@ The project includes `.jscpd.json` configured to:
 
 ```bash
 # Run jscpd manually
-pnpm run jscpd
+bun run jscpd
 
 # Intelligent review (recommended)
 /review-duplicates

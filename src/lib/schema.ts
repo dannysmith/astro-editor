@@ -96,7 +96,7 @@ export function deserializeCompleteSchema(
       parsed.collectionName.trim() === ''
     ) {
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.error(
           'Failed to deserialize complete schema: collectionName is required and must be a non-empty string'
         )
@@ -106,7 +106,7 @@ export function deserializeCompleteSchema(
 
     if (!Array.isArray(parsed.fields)) {
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.error(
           'Failed to deserialize complete schema: fields must be an array'
         )
@@ -138,7 +138,7 @@ export function deserializeCompleteSchema(
     }
   } catch (error) {
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to deserialize complete schema:', error)
     }
     return null

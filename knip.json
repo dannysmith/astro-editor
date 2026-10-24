@@ -1,26 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "src/main.tsx"
-  ],
-  "project": [
-    "src/**/*.{ts,tsx}"
-  ],
-  "ignore": [
-    "dist/**",
-    "build/**",
-    "test/**",
-    "temp-dummy-astro-project/**",
-    "website/**",
-    "telemetry-worker/**",
-    "src/test/**",
-    "**/*.test.{ts,tsx}",
-    "**/*.spec.{ts,tsx}"
-  ],
-  "ignoreDependencies": [
-    "@tauri-apps/cli",
-    "@testing-library/user-event"
-  ],
+  "entry": ["src/main.tsx"],
+  "project": ["src/**/*.{ts,tsx,css}"],
+  "ignore": ["src/test/**"],
+  "ignoreDependencies": ["@testing-library/user-event"],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": true
 }

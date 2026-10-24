@@ -1,5 +1,5 @@
 # Starlight Starter Kit: Basics
 
 ```
-pnpm create astro@latest -- --template starlight
+bun create astro@latest -- --template starlight
 ```

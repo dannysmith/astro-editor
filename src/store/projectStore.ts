@@ -327,7 +327,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             toast.info('Previous project no longer available', {
               description: 'The last opened project could not be found.',
             })
-            // eslint-disable-next-line no-console
+            // oxlint-disable-next-line no-console
             console.warn(
               'Saved project path no longer valid:',
               projectMetadata.path,
@@ -345,7 +345,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // Ignore errors - localStorage cleanup is optional
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.warn('Failed to load persisted project:', error)
     }
   },

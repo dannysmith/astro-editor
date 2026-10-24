@@ -26,7 +26,9 @@ const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'file:'])
  * - `ignore`: leave the click to its default behaviour
  */
 export type LinkClickAction =
-  { type: 'open'; url: string } | { type: 'block' } | { type: 'ignore' }
+  | { type: 'open'; url: string }
+  | { type: 'block' }
+  | { type: 'ignore' }
 
 const IGNORE: LinkClickAction = { type: 'ignore' }
 

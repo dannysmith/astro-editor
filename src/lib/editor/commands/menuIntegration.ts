@@ -41,7 +41,7 @@ export const updateFormatMenuState = async (
   try {
     await commands.updateFormatMenuState(enabled)
   } catch (error) {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.error('Failed to update format menu state:', error)
   }
 }

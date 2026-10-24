@@ -111,7 +111,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (autoSaveCallback) {
       await autoSaveCallback(showToast)
     } else {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.warn('saveFile called but no callback registered')
     }
   },

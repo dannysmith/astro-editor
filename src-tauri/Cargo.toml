@@ -1,8 +1,8 @@
 [package]
 name = "astro-editor"
 version = "1.0.19"
-description = "A Tauri App"
-authors = ["you"]
+description = "A markdown editor for Astro content collections"
+authors = ["Danny Smith"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,18 +18,18 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 
 # Type-safe Tauri commands with auto-generated TypeScript bindings
-specta = { version = "=2.0.0-rc.22", features = ["indexmap", "serde_json"] }
-specta-typescript = "0.0.9"
-tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+specta = { version = "=2.0.0-rc.26", features = ["indexmap", "serde_json"] }
+specta-typescript = "=0.0.13"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_norway = "0.9.42"
 tokio = { version = "1", features = ["full"] }
-notify = "=9.0.0-rc.5"
+notify = "=9.0.0-rc.6"
 walkdir = "2"
 rfd = "0.17"
 regex = "1.10"
@@ -56,17 +56,13 @@ tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 [dev-dependencies]
 tempfile = "3.27"
 
-# macOS-only dependencies
-[target.'cfg(target_os = "macos")'.dependencies]
-tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
-
 # Desktop-only dependencies (excludes Android and iOS)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 
 [profile.release]
-codegen-units = 1        # Better LLVM optimization
-lto = true               # Link-time optimizations
-opt-level = "s"          # Prioritize small binary size
-panic = "abort"          # Disable panic handlers
-strip = true             # Remove debug symbols
+codegen-units = 1 # Better LLVM optimization
+lto = true # Link-time optimizations
+opt-level = "s" # Prioritize small binary size
+panic = "abort" # Disable panic handlers
+strip = true # Remove debug symbols

@@ -83,16 +83,16 @@
   --sidebar-ring: hsl(0 0% 40%);
 
   /* Heading color - higher contrast than foreground */
-  --heading: 0 0% 5%;
+  --heading: hsl(0 0% 5%);
 
   /* Status colors */
-  --color-draft: 37 99% 25%; /* orange-600 equivalent */
-  --color-draft-bg: 33 100% 96%; /* orange-50 equivalent */
-  --color-filter: 201 96% 32%; /* cyan-700 equivalent */
-  --color-filter-bg: 195 100% 96%; /* cyan-50 equivalent */
-  --color-required: 0 84% 60%; /* red-500 equivalent */
-  --color-warning: 45 93% 47%; /* yellow-500 equivalent */
-  --color-warning-bg: 55 92% 95%; /* yellow-50 equivalent */
+  --draft: hsl(37 99% 25%); /* orange-600 equivalent */
+  --draft-bg: hsl(33 100% 96%); /* orange-50 equivalent */
+  --filter: hsl(201 96% 32%); /* cyan-700 equivalent */
+  --filter-bg: hsl(195 100% 96%); /* cyan-50 equivalent */
+  --required: hsl(0 84% 60%); /* red-500 equivalent */
+  --warning: hsl(45 93% 47%); /* yellow-500 equivalent */
+  --warning-bg: hsl(55 92% 95%); /* yellow-50 equivalent */
 }
 
 .dark {
@@ -126,16 +126,16 @@
   --sidebar-ring: hsl(0 0% 50%);
 
   /* Heading color - higher contrast than foreground */
-  --heading: 0 0% 98%;
+  --heading: hsl(0 0% 98%);
 
   /* Status colors - dark mode */
-  --color-draft: 33 100% 70%; /* Lighter orange for dark */
-  --color-draft-bg: 33 100% 8%; /* Dark orange background */
-  --color-filter: 195 100% 70%; /* Lighter cyan for dark */
-  --color-filter-bg: 201 100% 8%; /* Dark cyan background */
-  --color-required: 0 91% 71%; /* Lighter red for dark */
-  --color-warning: 48 96% 80%; /* Lighter yellow for dark */
-  --color-warning-bg: 48 100% 6%; /* Dark yellow background */
+  --draft: hsl(33 100% 70%); /* Lighter orange for dark */
+  --draft-bg: hsl(33 100% 8%); /* Dark orange background */
+  --filter: hsl(195 100% 70%); /* Lighter cyan for dark */
+  --filter-bg: hsl(201 100% 8%); /* Dark cyan background */
+  --required: hsl(0 91% 71%); /* Lighter red for dark */
+  --warning: hsl(48 96% 80%); /* Lighter yellow for dark */
+  --warning-bg: hsl(48 100% 6%); /* Dark yellow background */
 }
 
 /* Square corners mode - used on Windows/Linux in fullscreen */
@@ -173,18 +173,18 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-heading: var(--heading);
-  --color-draft: hsl(var(--color-draft));
-  --color-draft-bg: hsl(var(--color-draft-bg));
-  --color-filter: hsl(var(--color-filter));
-  --color-filter-bg: hsl(var(--color-filter-bg));
-  --color-required: hsl(var(--color-required));
-  --color-warning: hsl(var(--color-warning));
-  --color-warning-bg: hsl(var(--color-warning-bg));
+  --color-draft: var(--draft);
+  --color-draft-bg: var(--draft-bg);
+  --color-filter: var(--filter);
+  --color-filter-bg: var(--filter-bg);
+  --color-required: var(--required);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
 
   svg {
@@ -192,17 +192,7 @@
   }
 
   ::placeholder {
-    color: hsl(var(--muted-foreground));
-    opacity: 1;
-  }
-
-  ::-webkit-input-placeholder {
-    color: hsl(var(--muted-foreground));
-    opacity: 1;
-  }
-
-  ::-moz-placeholder {
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
     opacity: 1;
   }
 }
@@ -233,8 +223,8 @@ body {
     'DejaVu Sans',
     sans-serif
   );
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  /* No background: body and #root stay transparent so the macOS window
+     vibrancy (windowEffects) shows through. Panels paint their own. */
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -257,8 +247,6 @@ body {
   width: 100vw;
   overflow: hidden;
   border-radius: var(--app-corner-radius);
-  background: hsl(var(--background));
-  border: 0.5px solid hsl(var(--border));
 }
 
 /* macOS Traffic Light Styling */
@@ -320,9 +308,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-family:
-      system-ui,
-      -apple-system;
+    font-family: system-ui, -apple-system;
   }
 
   /* Show all symbols when hovering over the group */
@@ -439,52 +425,6 @@ a {
 /* Utility class for when pointer cursor is explicitly needed */
 .cursor-pointer {
   cursor: pointer !important;
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-}
-
-@layer utilities {
-  /* Heading text color */
-  .text-heading {
-    color: hsl(var(--heading));
-  }
-
-  /* Status text colors */
-  .text-draft {
-    color: hsl(var(--color-draft));
-  }
-  .text-filter {
-    color: hsl(var(--color-filter));
-  }
-  .text-required {
-    color: hsl(var(--color-required));
-  }
-  .text-warning {
-    color: hsl(var(--color-warning));
-  }
-
-  /* Status background colors */
-  .bg-draft {
-    background-color: hsl(var(--color-draft-bg));
-  }
-  .bg-filter {
-    background-color: hsl(var(--color-filter-bg));
-  }
-  .bg-warning {
-    background-color: hsl(var(--color-warning-bg));
-  }
-
-  /* Status border colors */
-  .border-draft {
-    border-color: hsl(var(--color-draft));
-  }
-  .border-filter {
-    border-color: hsl(var(--color-filter));
-  }
 }
 
 /* Focus Mode Toggle Styling */

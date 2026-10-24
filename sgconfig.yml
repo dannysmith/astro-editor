@@ -3,8 +3,8 @@ ruleDirs:
 
 languageGlobs:
   typescript:
-    - "src/**/*.ts"
-    - "src/**/*.tsx"
+    - 'src/**/*.ts'
+    - 'src/**/*.tsx'
 
 # Configure output format
 output:

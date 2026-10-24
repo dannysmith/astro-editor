@@ -26,7 +26,7 @@ export function useFileBasedCollectionQuery(
       )
       if (result.status === 'error') {
         // Collection might not be file-based or doesn't exist
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.debug(
           `[FileBasedCollection] Could not load ${collectionName}:`,
           result.error

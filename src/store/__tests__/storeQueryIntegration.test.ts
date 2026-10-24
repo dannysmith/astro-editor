@@ -361,7 +361,7 @@ describe('Store ↔ Query Integration Tests', () => {
           } catch (error) {
             // On error, keep isDirty as true (don't change it)
             // Real implementation saves recovery data and doesn't throw
-            // eslint-disable-next-line no-console
+            // oxlint-disable-next-line no-console
             console.error('Save failed:', error)
           }
         }

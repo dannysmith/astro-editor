@@ -125,17 +125,17 @@ export const FileItem: React.FC<FileItemProps> = ({
         !isSelected && 'hover:bg-accent'
       )}
     >
-      <div className="flex items-start justify-between w-full gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm leading-tight truncate text-foreground">
+      <div className="flex w-full items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm leading-tight font-medium text-foreground">
             {title}
           </div>
           {publishedDate && (
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="mt-1 text-xs text-muted-foreground">
               {formatDate(publishedDate)}
             </div>
           )}
-          <div className="text-xs font-mono text-muted-foreground mt-1">
+          <div className="mt-1 font-mono text-xs text-muted-foreground">
             {isRenaming ? (
               <input
                 ref={inputRef}
@@ -144,7 +144,7 @@ export const FileItem: React.FC<FileItemProps> = ({
                 onChange={e => setRenameValue(e.target.value)}
                 onKeyDown={handleRenameKeyDown}
                 onBlur={handleRenameBlur}
-                className="bg-background border border-border rounded px-1 py-0.5 text-xs font-mono w-full text-foreground"
+                className="w-full rounded border border-border bg-background px-1 py-0.5 font-mono text-xs text-foreground"
                 autoFocus
                 onClick={e => e.stopPropagation()}
               />
@@ -157,12 +157,12 @@ export const FileItem: React.FC<FileItemProps> = ({
         </div>
         <div className="flex flex-col gap-1">
           {isFileDraft && (
-            <Badge variant="destructive" className="text-xs px-1 py-0">
+            <Badge variant="destructive" className="px-1 py-0 text-xs">
               Draft
             </Badge>
           )}
           {isMdx && (
-            <Badge variant="outline" className="text-xs px-1 py-0">
+            <Badge variant="outline" className="px-1 py-0 text-xs">
               MDX
             </Badge>
           )}

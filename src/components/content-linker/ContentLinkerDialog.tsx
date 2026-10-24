@@ -86,7 +86,7 @@ export function ContentLinkerDialog() {
           fileMapRef.current = map
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.error('Failed to fetch content files:', error)
         if (!cancelled) {
           setAllFiles([])
@@ -103,7 +103,7 @@ export function ContentLinkerDialog() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectPath, collectionsKey])
 
   // Get the currently highlighted item's value from the DOM.
@@ -211,22 +211,22 @@ export function ContentLinkerDialog() {
                     onSelect={() => handleSelect(value)}
                     className="cursor-pointer"
                   >
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <div className="flex flex-col min-w-0">
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <div className="flex min-w-0 flex-col">
                         <span className="truncate">{title}</span>
                         {title !== file.name && (
-                          <span className="text-xs text-muted-foreground truncate">
+                          <span className="truncate text-xs text-muted-foreground">
                             {file.name}.{file.extension}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         <Badge variant="outline" className="text-xs">
                           {file.collection}
                         </Badge>
                         <Badge
                           variant="secondary"
-                          className="text-xs font-mono"
+                          className="font-mono text-xs"
                         >
                           .{file.extension}
                         </Badge>
@@ -241,7 +241,7 @@ export function ContentLinkerDialog() {
       </CommandList>
 
       {/* Footer hint bar */}
-      <div className="border-t px-3 py-2 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
         <div className="flex gap-3">
           <span>
             <CommandShortcut>↩</CommandShortcut> Open

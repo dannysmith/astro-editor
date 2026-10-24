@@ -111,7 +111,7 @@ export function useEditorActions() {
               schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
             }
           } catch (error) {
-            // eslint-disable-next-line no-console
+            // oxlint-disable-next-line no-console
             console.warn('Could not get schema field order:', error)
           }
         }
@@ -120,7 +120,7 @@ export function useEditorActions() {
         const result = await commands.saveMarkdownContent(
           currentFile.path,
           isFrontmatterDirty
-            ? (frontmatter as Partial<Record<string, JsonValue>>)
+            ? (frontmatter as Record<string, JsonValue>)
             : null,
           isFrontmatterDirty ? null : rawFrontmatter,
           editorContent,

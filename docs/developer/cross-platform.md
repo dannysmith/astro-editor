@@ -21,9 +21,7 @@ Platform-specific dependencies are handled using Cargo's target-specific depende
 ```toml
 [dependencies]
 # Base tauri features (cross-platform)
-# Note: macos-private-api is kept here because tauri-build's feature check
-# runs before Cargo resolves target-specific deps. It's a no-op on other platforms.
-tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 ```
 
 macOS window vibrancy uses Tauri's built-in `windowEffects` in `tauri.macos.conf.json` (see [macOS Configuration](#macos-configuration-taurimacosconfjson)), so no macOS-only crates are needed.
@@ -105,8 +103,7 @@ The base config uses safe cross-platform defaults (serves as fallback if no plat
       "transparent": true,
       "windowEffects": { "effects": ["hudWindow"], "radius": 12 },
       "shadow": true
-    }],
-    "macOSPrivateApi": true
+    }]
   }
 }
 ```
@@ -292,7 +289,7 @@ await appWindow.close()
 
 **Problem:** `tauri-build` checks Cargo.toml features against config values before Cargo resolves target-specific dependencies.
 
-**Workaround:** Keep `macos-private-api` in base `[dependencies]` even though it's macOS-specific. It's a no-op on other platforms but satisfies the build-time check.
+**Workaround:** Declare any Tauri feature that a config value requires (e.g. `protocol-asset` for `assetProtocol`) on the base `tauri` dependency, never only in a target-specific section. (Transparent windows and `windowEffects` no longer need `macOSPrivateApi` / `macos-private-api`, which have been no-ops since Tauri 2.12.1.)
 
 ## Testing Cross-Platform
 

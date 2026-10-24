@@ -722,19 +722,19 @@ it('should display error message on failure', async () => {
 
 ```bash
 # Run all tests in watch mode
-pnpm run test
+bun run test
 
 # Run tests once (CI mode)
-pnpm run test:run
+bun run test:run
 
 # Run tests with coverage
-pnpm run test:coverage
+bun run test:coverage
 
 # Run specific test file
-pnpm run test src/components/MyComponent.test.tsx
+bun run test src/components/MyComponent.test.tsx
 
 # Run tests matching pattern
-pnpm run test:run --grep "ArrayField"
+bun run test:run --grep "ArrayField"
 ```
 
 ### Rust Tests
@@ -760,7 +760,7 @@ cargo test --test integration_tests
 
 ```bash
 # Run all checks including tests
-pnpm run check:all
+bun run check:all
 ```
 
 ## Testing Strategy Summary

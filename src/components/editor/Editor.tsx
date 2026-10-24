@@ -16,7 +16,7 @@ import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
-import '../../lib/editor/extensions/copyedit-mode.css'
+import '../../lib/editor/extensions/copyedit-mode/copyedit-mode.css'
 
 // Extend window to include editor focus tracking
 declare global {
@@ -76,7 +76,6 @@ const EditorViewComponent: React.FC = () => {
 
   // Track hovered image URLs when Alt is pressed.
   // Passing viewRef.current is safe: useImageHover only consumes it inside effects.
-  // eslint-disable-next-line react-hooks/refs
   const hoveredImage = useImageHover(viewRef.current, isAltPressed)
 
   // Handle mode changes - use stable callback with getState() pattern
@@ -219,7 +218,7 @@ const EditorViewComponent: React.FC = () => {
       } catch (error) {
         // Ignore errors in setting up Tauri listeners
         if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
+          // oxlint-disable-next-line no-console
           console.error('Failed to setup Tauri drag-drop listener:', error)
         }
       }
@@ -244,7 +243,7 @@ const EditorViewComponent: React.FC = () => {
       }
     }
     // CRITICAL: Empty dependency array - only create once!
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Load content when file changes (initial empty content from openFile)

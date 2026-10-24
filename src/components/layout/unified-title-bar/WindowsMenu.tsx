@@ -77,7 +77,7 @@ export const WindowsMenu: React.FC = () => {
       const isFullscreen = await window.isFullscreen()
       await window.setFullscreen(!isFullscreen)
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to toggle fullscreen:', error)
       toast.error('Failed to toggle fullscreen')
     }
@@ -118,7 +118,7 @@ export const WindowsMenu: React.FC = () => {
         <Button
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
           title="Menu"
         >
           <MoreHorizontal className="size-4" />

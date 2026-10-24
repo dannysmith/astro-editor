@@ -54,7 +54,7 @@ export class CommandRegistry {
         return (command as (view: EditorView) => boolean)(this.editorView)
       }
     } catch {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error(`Failed to execute command ${commandName}`)
       return false
     }

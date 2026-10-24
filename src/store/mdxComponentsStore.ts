@@ -28,7 +28,7 @@ export const useMdxComponentsStore = create<MdxComponentsState>(set => ({
 
       set({ components: result.data, isLoading: false })
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to load MDX components:', error)
       set({
         error:

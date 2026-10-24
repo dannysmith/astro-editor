@@ -28,7 +28,7 @@ This guide covers performance optimization patterns critical for maintaining opt
 The compiler automatically:
 - **Memoizes components and hooks** based on their dependencies
 - **Optimizes granularly** - can memoize values conditionally (better than manual memoization)
-- **Enforces Rules of React** through stricter ESLint rules
+- **Enforces Rules of React** through lint rules
 - **Prevents unnecessary re-renders** without manual intervention
 
 ### What Compiler Does NOT Optimize
@@ -68,9 +68,9 @@ function ComplexComponent({ largeDataset }) {
 }
 ```
 
-### React Compiler ESLint Rules
+### React Compiler Lint Rules
 
-The compiler enforces React's Rules through new ESLint rules:
+Oxlint ports the compiler's validation passes as `react/*` lint rules:
 
 ```typescript
 // ❌ set-state-in-effect - Warns about setState in effects
@@ -98,6 +98,8 @@ useEffect(() => {
   doSomething(prop)
 }, [prop])
 ```
+
+**Suppressions opt the whole component out.** A `// oxlint-disable…` comment for any `react-hooks/*` rule makes the React Compiler skip the entire component it appears in, so the component isn't memoized and the other compiler lint rules stop checking it. Oxlint then reports any other `react-hooks/*` suppressions in that component as unused. Prefer fixing the code over suppressing; when a suppression is unavoidable, know it costs the whole component.
 
 ### Opting Out with "use no memo"
 
@@ -729,7 +731,7 @@ useEffect(() => {
     // Safe to setState here: guarded condition ensures this only runs on the
     // false->true transition, preventing cascading renders. This is a standard
     // React pattern for synchronizing derived state on mode transitions.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // oxlint-disable-next-line react-hooks/set-state-in-effect
     setRenameValue(fullName)
     renameInitializedRef.current = false
   }

@@ -270,7 +270,7 @@ describe('Frontmatter Field Utilities', () => {
       })
 
       it('should handle sparse arrays', () => {
-        const sparse = ['a', , , 'b'] // eslint-disable-line no-sparse-arrays
+        const sparse = ['a', , , 'b'] // oxlint-disable-line no-sparse-arrays
         expect(valueToString(sparse)).toBe('a,,,b')
       })
 
