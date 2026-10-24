@@ -74,7 +74,7 @@ export const CollectionSettingsPane: React.FC = () => {
             fieldsMap.set(collection.name, schema.fields)
           }
         } catch (error) {
-          // eslint-disable-next-line no-console
+          // oxlint-disable-next-line no-console
           console.warn(`Failed to parse schema for ${collection.name}:`, error)
         }
       }

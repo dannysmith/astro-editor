@@ -290,7 +290,7 @@ describe('Paste Handlers', () => {
       const result = handlePaste(view, event)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(event.clipboardData!.getData).toHaveBeenCalledWith('text/plain')
     })
 

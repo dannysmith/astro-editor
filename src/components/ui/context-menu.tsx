@@ -89,7 +89,7 @@ export class FileContextMenu {
               )
               await openPath(directory)
             } catch (error) {
-              // eslint-disable-next-line no-console
+              // oxlint-disable-next-line no-console
               console.error('Failed to reveal in file manager:', error)
             }
           })()
@@ -107,7 +107,7 @@ export class FileContextMenu {
                 throw new Error(result.error)
               }
             } catch (error) {
-              // eslint-disable-next-line no-console
+              // oxlint-disable-next-line no-console
               console.error('Failed to copy path:', error)
             }
           })()
@@ -151,7 +151,7 @@ export class FileContextMenu {
                 onRefresh()
               }
             } catch (error) {
-              // eslint-disable-next-line no-console
+              // oxlint-disable-next-line no-console
               console.error('Failed to duplicate file:', error)
             }
           })()
@@ -167,7 +167,7 @@ export class FileContextMenu {
               onRename(file)
             }
           } catch (error) {
-            // eslint-disable-next-line no-console
+            // oxlint-disable-next-line no-console
             console.error('Failed to initiate rename:', error)
           }
         },
@@ -206,7 +206,7 @@ export class FileContextMenu {
                 }
               }
             } catch (error) {
-              // eslint-disable-next-line no-console
+              // oxlint-disable-next-line no-console
               console.error('Failed to delete file:', error)
             }
           })()
@@ -231,7 +231,7 @@ export class FileContextMenu {
       // Show the menu at the specified position
       await menu.popup(new LogicalPosition(position.x, position.y))
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to show context menu:', error)
     }
   }

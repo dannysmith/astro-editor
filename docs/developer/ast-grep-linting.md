@@ -2,11 +2,11 @@
 
 ## Overview
 
-ast-grep is a structural code search and linting tool that enforces architectural patterns that ESLint cannot detect. It's particularly valuable for AI agents because it provides immediate, machine-readable feedback on architectural violations.
+ast-grep is a structural code search and linting tool that enforces architectural patterns that Oxlint cannot detect. It's particularly valuable for AI agents because it provides immediate, machine-readable feedback on architectural violations.
 
 ## Why ast-grep?
 
-**Traditional linters (ESLint) can't enforce:**
+**Traditional linters (Oxlint) can't enforce:**
 - Directory boundaries (hooks in hooks/, not lib/)
 - Structural patterns (destructuring from stores)
 - Complex architectural rules (getState() pattern)

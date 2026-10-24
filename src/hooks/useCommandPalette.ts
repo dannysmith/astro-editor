@@ -54,7 +54,7 @@ export function useCommandPalette() {
   // Get all available commands based on current context
   const commands = useMemo(
     () => getAllCommands(context),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
     [
       context.currentFile?.id,
       context.selectedCollection,

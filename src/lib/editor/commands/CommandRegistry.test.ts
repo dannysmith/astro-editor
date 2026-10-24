@@ -110,7 +110,7 @@ describe('CommandRegistry', () => {
 
     it('should return false when command does not exist', () => {
       // Remove a command to test non-existent command
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       delete (mockCommands as any).toggleBold
 
       const result = registry.execute('toggleBold')

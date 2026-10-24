@@ -25,7 +25,7 @@ export const parseFileDropPayload = (
     filePaths = payloadObj.paths || []
     position = payloadObj.position
   } else {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.error('Unexpected payload format:', payload)
     return { paths: [] }
   }

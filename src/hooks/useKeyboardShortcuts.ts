@@ -131,7 +131,7 @@ export function useKeyboardShortcuts(
         .isFullscreen()
         .then(isFullscreen => tauriWindow.setFullscreen(!isFullscreen))
         .catch(error => {
-          // eslint-disable-next-line no-console
+          // oxlint-disable-next-line no-console
           console.error('Failed to toggle fullscreen:', error)
           toast.error('Failed to toggle fullscreen')
         })

@@ -111,7 +111,7 @@ export function useEditorActions() {
               schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
             }
           } catch (error) {
-            // eslint-disable-next-line no-console
+            // oxlint-disable-next-line no-console
             console.warn('Could not get schema field order:', error)
           }
         }

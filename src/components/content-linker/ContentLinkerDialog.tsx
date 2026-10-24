@@ -86,7 +86,7 @@ export function ContentLinkerDialog() {
           fileMapRef.current = map
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.error('Failed to fetch content files:', error)
         if (!cancelled) {
           setAllFiles([])
@@ -103,7 +103,7 @@ export function ContentLinkerDialog() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectPath, collectionsKey])
 
   // Get the currently highlighted item's value from the DOM.

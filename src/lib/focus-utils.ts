@@ -30,7 +30,7 @@ export function focusEditor(): boolean {
 
     return false
   } catch (error) {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.warn('Failed to focus editor:', error)
     return false
   }

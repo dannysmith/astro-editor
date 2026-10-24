@@ -120,7 +120,7 @@ Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is 
 - **Editor:** CodeMirror 6 (vanilla) with custom extensions
   - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `package.json` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. Check with `bun why @lezer/common` and `bun why @lezer/highlight`.
 - **Testing:** Vitest + React Testing Library, Cargo
-- **Quality:** ESLint (with React Compiler rules), Prettier, Clippy
+- **Quality:** Oxlint (type-aware, with React Compiler rules), Oxfmt, ast-grep, Clippy
 
 **CRITICAL:** Use Tauri v2 docs only. Always use modern Rust formatting: `format!("{variable}")`
 
@@ -148,7 +148,7 @@ if (result.status === 'error') throw new Error(result.error)
 
 **Key Points**:
 - Compiler handles memoization automatically - don't add manual memoization unless profiling shows a need
-- Enforces Rules of React through stricter ESLint rules
+- Enforces Rules of React through lint rules (Oxlint's `react/*` React Compiler rules)
 - **"use no memo" directive**: Opt-out specific components if needed (document why)
 - **Zustand patterns unchanged**: Selector syntax and `getState()` remain critical for performance
 

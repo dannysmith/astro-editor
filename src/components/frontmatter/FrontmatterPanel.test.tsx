@@ -24,14 +24,14 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
 describe('FrontmatterPanel Component', () => {
   // Helper to set up collections mock
   const mockCollectionsQuery = (collections: Collection[] = []) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    // oxlint-disable-next-line @typescript-eslint/no-unsafe-argument
     vi.mocked(useCollectionsQuery).mockReturnValue({
       data: collections,
       isLoading: false,
       isError: false,
       error: null,
       refetch: vi.fn(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
   }
 

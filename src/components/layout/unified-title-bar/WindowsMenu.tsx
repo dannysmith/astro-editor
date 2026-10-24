@@ -77,7 +77,7 @@ export const WindowsMenu: React.FC = () => {
       const isFullscreen = await window.isFullscreen()
       await window.setFullscreen(!isFullscreen)
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to toggle fullscreen:', error)
       toast.error('Failed to toggle fullscreen')
     }

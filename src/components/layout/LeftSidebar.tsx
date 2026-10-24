@@ -261,7 +261,7 @@ export const LeftSidebar: React.FC = () => {
 
       setRenamingFileId(null)
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('Failed to rename file:', error)
     }
   }

@@ -78,7 +78,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       const { currentFile: currentFileNow } = useEditorStore.getState()
       if (currentFileNow?.id !== startingFileId) {
         if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
+          // oxlint-disable-next-line no-console
           console.warn(
             '[ImageField] File switched during image processing - aborting frontmatter update to prevent data corruption'
           )

@@ -36,7 +36,7 @@ export const FrontmatterPanel: React.FC = () => {
     const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
 
     if (import.meta.env.DEV && parsed) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.log(
         `[Schema] Loaded complete schema for: ${parsed.collectionName}`
       )

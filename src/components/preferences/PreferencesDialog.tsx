@@ -96,7 +96,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
       item => item.id === activePane
     )
     if (!isAvailable) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // oxlint-disable-next-line react-hooks/set-state-in-effect
       setActivePane('general')
     }
   }, [hasProject, activePane])

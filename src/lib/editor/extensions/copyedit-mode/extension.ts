@@ -122,7 +122,7 @@ function createPosDecorations(
     marks.sort((a, b) => a.from - b.from)
   } catch (error) {
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error('[CopyeditMode] Error in NLP processing:', error)
     }
   }

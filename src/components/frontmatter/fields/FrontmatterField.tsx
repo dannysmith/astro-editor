@@ -74,7 +74,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     // fieldValue comes from Zustand store - while we use selector syntax correctly,
     // the compiler flags it as potentially mutable. This memoization is valid to
     // avoid expensive .every() calls on re-renders.
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+    // oxlint-disable-next-line react-hooks/preserve-manual-memoization
   }, [isArrayReference, isComplexArray, fieldType, hasFieldSchema, fieldValue])
 
   // Handle boolean fields

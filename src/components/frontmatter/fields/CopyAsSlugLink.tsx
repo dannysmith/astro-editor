@@ -23,7 +23,7 @@ export const CopyAsSlugLink: React.FC<CopyAsSlugLinkProps> = ({ text }) => {
           throw new Error(result.error)
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
+        // oxlint-disable-next-line no-console
         console.error('Failed to copy slug:', error)
       }
     })()

@@ -8,5 +8,8 @@
   "files.associations": {
     "*.css": "tailwindcss",
     "*.mdx": "markdown"
+  },
+  "[typescript][typescriptreact][javascript][json][jsonc][tailwindcss][css][yaml]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }
