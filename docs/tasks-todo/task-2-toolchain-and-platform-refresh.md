@@ -255,6 +255,10 @@ PR #274 (semantic colour tokens) is out of scope. It gets re-implemented later o
 
 **Phase 8 notes:**
 
+- **PR CI:** Linux failed. deep-link 2.6.2 (from Phase 4) builds `ini::ParseOption` without the fields rust-ini 0.21.3 requires, an upstream bug (#3710, fixed in #3711, unreleased). That code is Linux-only, so macOS and Windows passed. Cargo.lock now holds deep-link at 2.6.1 and single-instance at 2.5.2 (2.5.4 requires deep-link 2.6.2), both as on `main`. JS `@tauri-apps/plugin-deep-link` stays 2.6.2, which still matches on major.minor
+- **CodeRabbit:**
+  - It said `core:default` widened the capability. False: `core:default` was already the first entry before; the removed entries were redundant subsets of it
+  - It flagged `opener:allow-open-path` with scope `**`. That grant predates this PR and is unchanged here. It's a fair hardening idea (move URL callers to `openUrl` and scope folder opening), so it's left for the architecture/security review
 - Danny smoke-tested each phase in `tauri dev` as it landed (Phases 1, 2, 4, 5, 6 and 7)
 - The production build surfaced a new Vite 8.3 warning: `__dirname` isn't supported by the upcoming native config loader. Both Vite configs now use `import.meta.dirname`
 - Built `.app` (arm64, unsigned, 9.8 MiB) copied to `~/Desktop/Astro Editor modernise-2026-10/` for a final check
@@ -264,6 +268,7 @@ PR #274 (semantic colour tokens) is out of scope. It gets re-implemented later o
 | Package                     | Why hold                                                         |
 | --------------------------- | ---------------------------------------------------------------- |
 | babel-plugin-react-compiler | plugin-react's native (oxc) compiler is still experimental       |
+| tauri-plugin-deep-link 2.6.1 / tauri-plugin-single-instance 2.5.2 (Cargo.lock only) | deep-link 2.6.2 doesn't compile on Linux with rust-ini 0.21.3 (tauri-apps/plugins-workspace#3710, fixed in #3711). `cargo update` once deep-link 2.6.3 is published |
 | Tauri 3                     | Alpha                                                            |
 | Rust edition 2024           | Low value; `cargo fix` rewrites some `if let … else` badly       |
 | website TypeScript 7        | `@astrojs/check` needs the TS JS API                             |
