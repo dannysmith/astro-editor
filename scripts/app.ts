@@ -88,6 +88,8 @@ const COMMAND_FLAGS: Record<string, string[]> = {
   eval: ['timeout'],
   logs: ['source', 'level', 'since', 'grep', 'limit', 'full', 'crashes'],
 }
+// The only flags that can be given without a value
+const SWITCHES = ['list', 'full', 'crashes']
 
 function print(value: unknown) {
   console.log(
@@ -194,6 +196,15 @@ function callApi<T = unknown>(
     `if (!window.__agentBridge) throw new Error("window.__agentBridge isn't installed. Is the app's page loaded?")\n` +
     `return await window.__agentBridge.${method}(...${jsLiteral(methodArgs)})`
   return call<T>('POST', '/eval', { js, timeoutMs: API_TIMEOUT_MS })
+}
+
+/** Reads a positive whole number from a flag's value. */
+function parsePositiveInt(name: string, value: string): number {
+  const number = Number(value)
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error(`--${name} must be a positive whole number, got "${value}"`)
+  }
+  return number
 }
 
 function parseSize(value: string | true | undefined) {
@@ -480,7 +491,7 @@ const commands: Record<string, () => Promise<void>> = {
         level: parseLevel(value('level') ?? 'warn'),
         sinceMs: parseDuration(value('since') ?? '30m'),
         grep: value('grep') ? new RegExp(value('grep')!, 'i') : undefined,
-        limit: Number(value('limit') ?? 50),
+        limit: parsePositiveInt('limit', value('limit') ?? '50'),
         full: Boolean(flags.full),
       })
     )
@@ -493,7 +504,9 @@ const commands: Record<string, () => Promise<void>> = {
         'eval needs some JS, e.g. `bun run app eval document.title`'
       )
     const timeoutMs =
-      flags.timeout === undefined ? undefined : Number(flags.timeout)
+      typeof flags.timeout === 'string'
+        ? parsePositiveInt('timeout', flags.timeout)
+        : undefined
     const body = /\breturn\b/.test(js) ? js : `return (${js})`
     print(await call('POST', '/eval', { js: body, timeoutMs }))
   },
@@ -513,6 +526,15 @@ if (unknownFlags.length) {
   console.error(
     `app: ${command} doesn't take ${unknownFlags.map(f => `--${f}`).join(', ')}` +
       (allowed ? `. It takes ${allowed}` : '')
+  )
+  process.exit(1)
+}
+const bareFlags = Object.keys(flags).filter(
+  flag => flags[flag] === true && !SWITCHES.includes(flag)
+)
+if (bareFlags.length) {
+  console.error(
+    `app: ${bareFlags.map(f => `--${f}`).join(', ')} needs a value, e.g. --${bareFlags[0]}=…`
   )
   process.exit(1)
 }
