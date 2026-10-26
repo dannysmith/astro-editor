@@ -153,17 +153,36 @@ API changes that affect code outside `ui/`. Most are done with their group in Ph
 
 ## Phase 5: Finish
 
-- [ ] `components.json` `style` → the `base-*` style closest to our look. It only affects future `shadcn add` calls
-- [ ] Remove the `radix-ui` package. Confirm the lockfile has no `radix-ui` and that the only `@radix-ui/*` packages left are cmdk's
-- [ ] Update `docs/developer/ui-patterns.md` where it describes Radix behaviour or `asChild`
-- [ ] Delete the `.migration/` reports once they've been read
-- [ ] Final `bun run app styleguide` against the baseline, then replace the baseline with the Base UI shots for future work
-- [ ] Behaviour check through the bridge, in the app and on the styleguide, before handing over:
+- [x] `components.json` `style` → the `base-*` style closest to our look. It only affects future `shadcn add` calls
+  - `base-vega`: its button is `rounded-md h-9` like ours (nova is `rounded-lg h-8`; maia, lyra and mira are further off). `shadcn info` now reports `base: "base"`. The migrate skill treats `new-york` as a legacy style with no base counterpart and says to flag rather than switch, since `shadcn add` will now deliver vega's classes, not new-york's. Components added later need their classes matched to ours by hand either way
+- [x] Remove the `radix-ui` package. Confirm the lockfile has no `radix-ui` and that the only `@radix-ui/*` packages left are cmdk's
+  - Done; cmdk is the only package depending on `@radix-ui/*` (its dialog and helpers). The app reloaded without a dev server restart, and `bun run build` passes
+- [x] Update `docs/developer/ui-patterns.md` where it describes Radix behaviour or `asChild`
+  - It only named Radix in its intro. Added a short "Base UI Patterns" section (render, Select `items`, state attributes and `:where` specificity, Positioner props, exit animations and `fill-mode-forwards`, menu groups and `closeOnClick`). `ast-grep-linting.md` said Radix too. `optimization.md`'s bundle table still lists Radix, but it's a dated v0.1.32 snapshot, so it's left alone
+- [x] Delete the `.migration/` reports once they've been read
+  - None were written: the skill wasn't installed, and this doc holds the notes instead. Its reference files were reread in full at the start of Phase 5 and the codebase checked against them
+- [x] Final `bun run app styleguide` against the baseline, then replace the baseline with the Base UI shots for future work
+  - 11 of 13 sections identical in both themes; `sidebar` (Phase 1 chevron) and `dialog` (no text selection on open) as before. The Radix shots moved to `temporary/baseline-radix/`; `temporary/baseline/` now holds the Base UI shots
+- [x] Behaviour check through the bridge, in the app and on the styleguide, before handing over:
   - focus returns to the right place after closing dialogs, the preferences dialog and alert dialogs (`app eval 'document.activeElement.outerHTML'` after closing);
   - menus with checkbox or radio items: Base UI doesn't close the menu on click by default, so decide what we want;
   - keyboard navigation through menus and selects (`app key down`, `app key enter`, `app tree` for the highlighted item);
   - Select popup positioning in frontmatter fields (shots).
-- [ ] Danny's check in the real app, for what the bridge can't judge:
+  - Results:
+    - Focus: the palette opens with focus in its input; closing it or Preferences returns focus to the editor; the reset dialog's Cancel returns focus to its trigger
+    - The reset alert dialog now opens with focus on its confirmation checkbox, the first tabbable element. Radix focused Cancel. Left as Base UI does it (the base registry doesn't recreate it; `initialFocus` on the popup would)
+    - The checkbox's `id` moves to Base UI's hidden input, so `<label htmlFor>` still toggles it (checked)
+    - Menu checkbox and radio items: only the styleguide has them, so they keep Base UI's default of staying open
+    - Keyboard: the frontmatter enum Select opens and moves with arrow keys, Enter selects and returns focus to the trigger. Menus checked in Phase 3
+    - The enum Select's popup opens below its trigger, start-aligned and at least its width (`select-enum-open-*.png`)
+  - Other changes the skill lists, flagged rather than patched:
+    - menu arrow-key navigation now wraps from the last item to the first (Base UI `loopFocus` defaults on; Radix `loop` was off)
+    - popups keep 5px from the viewport edge (`collisionPadding` 5; Radix was 0, and 10 for Select)
+- [x] **Also fixed on this branch** (not caused by the migration):
+  - Frontmatter labels now name their controls. `FieldWrapper` takes `htmlFor` for text controls (inputs, textareas, the tag input; clicking the label focuses them) or `labelId` for button controls (date, enum, reference, image), which name themselves with `aria-labelledby` because `htmlFor` would make a label click open them. The date and image buttons add their own text after the label ("Pub Date 15/01/2024"). The Draft switch uses `htmlFor`; Base UI points the switch at the label itself. `tree` now shows "Title", "Tags", combobox "Platform" and switch "Draft" instead of placeholders. A table-driven test in `FrontmatterField.test.tsx` covers each field type
+  - Tag pills show a focus ring when their remove button has keyboard focus: the ring goes on the pill (`has-focus-visible:`), since the pill's `overflow-hidden` would clip one on the button. The reference picker's multi-select pills had the same clipped ring and get the same treatment
+  - Default focus rings (links, the slug button, sidebar file buttons) were the system accent colour: WebKit draws `outline-style: auto` in it and ignores `outline-color`. A base rule makes `:focus-visible` outlines solid and 3px, so they use `--ring` at 50% like the components. Checked by copying the `:focus-visible` rules to an attribute and shooting both themes (the bridge can't produce real keyboard focus); the styleguide is unchanged
+- [x] Danny's check in the real app, for what the bridge can't judge:
   - open/close animations: still tw-animate, but now driven by Base UI's `data-open` / `data-closed` and its unmount timing;
   - tooltip delays in the sidebar and title bar;
   - real mouse and keyboard feel in menus and selects;

@@ -296,7 +296,7 @@ bun run knip
 
 Use the `/knip-cleanup` slash command for intelligent cleanup:
 - Preserves shadcn/ui components (future use)
-- Keeps Radix dependencies used by shadcn components
+- Keeps Base UI dependencies used by shadcn components
 - Protects Tauri/Rust-called exports
 - Auto-removes safe items
 - Asks user about ambiguous items
