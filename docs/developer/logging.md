@@ -2,6 +2,8 @@
 
 Astro Editor uses [Tauri's log plugin](https://v2.tauri.app/plugin/log) to integrate with each platform's native logging system.
 
+Dev builds (`bun run tauri:dev`) log to `~/Library/Logs/is.danny.astroeditor.dev/` instead, and `bun run app logs` searches them. See [agent-tooling.md](agent-tooling.md).
+
 ## Getting Support Logs
 
 **For Support Issues:**

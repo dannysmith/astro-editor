@@ -135,16 +135,15 @@ All sources end up in the dev log folder (`~/Library/Logs/is.danny.astroeditor.d
 
 ## Phase 6: Skill and docs
 
-The sandbox blocks writes to `.claude/skills/`, so Danny approves or makes this one.
-
-- [ ] `.claude/skills/app-control/SKILL.md`:
-  - when to use it;
+- [x] `.claude/skills/app-control/SKILL.md` covers:
+  - when to use it, and never starting the dev server;
+  - the loop for visual work, always in light and dark;
   - the commands;
-  - the loop for visual work: change → HMR → `app shot` → read the PNG;
-  - test vault conventions and `app reset`;
+  - the test vault and `app reset`;
+  - the styleguide;
   - logs first when something breaks;
-  - what can't be captured (native menus and dialogs, vibrancy blur);
-  - always check light and dark.
-- [ ] AGENTS.md: list the skill, and mention the dev identity and `bun run app` under development commands
-- [ ] `docs/developer/`: a short note on the dev identity and the bridge, in the guide where it fits best. Task 4 does the full rewrite
-- [ ] `bun run check:all`, then a release build to confirm the bridge and `__ae` aren't in it: no `agent-bridge` symbols or strings, and no `__ae` in `dist/`
+  - limits (native menus and dialogs, vibrancy, synthetic input) and `app reload` after bridge changes;
+  - where the code lives.
+- [x] AGENTS.md: the skill is listed; development commands include `tauri:dev`, `app help` and `app logs`; there's a note on the dev identity; and the docs list includes the new guide
+- [x] `docs/developer/agent-tooling.md`: the dev identity, how the bridge works and how to add actions, the styleguide, and dev logs. Linked from `docs/README.md` and `logging.md`. Task 4 does the full docs rewrite
+- [x] `bun run check:all` passes. Release bundle (`tauri build --bundles app --no-sign`): 9.79 MiB, the same as before; no bridge strings in the binary and no `__ae` or styleguide in `dist/`. Plain `cargo build --release` fails to link (`_EMBED_INFO_PLIST` multiply defined under LTO), but `tauri build` is the supported path and works

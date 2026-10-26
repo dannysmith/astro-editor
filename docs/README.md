@@ -74,6 +74,7 @@ Other fundamenal developer documentation.
 - **[developer/editor-styles.md](developer/editor-styles.md)** - Editor color palette and typography specs
 - **[developer/recovery-system.md](developer/recovery-system.md)** - Crash recovery and auto-save resilience
 - **[developer/logging.md](developer/logging.md)** - Logging system
+- **[developer/agent-tooling.md](developer/agent-tooling.md)** - Dev identity, agent bridge (`bun run app`), styleguide and dev logs
 
 ### Implementation & Operations
 

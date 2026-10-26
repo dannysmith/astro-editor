@@ -77,6 +77,7 @@
 - `docs/developer/editor-styles.md` - CodeMirror syntax highlighting
 - `docs/developer/recovery-system.md` - Crash recovery
 - `docs/developer/logging.md` - Logging system
+- `docs/developer/agent-tooling.md` - Dev identity, agent bridge, styleguide and dev logs
 
 **Implementation** (optimization and build):
 - `docs/developer/optimization.md` - Bundle optimization and performance budgets
@@ -104,6 +105,7 @@ Project skills live in `.claude/skills/`:
 
 - **deps-update** - Interactive dependency update session across the whole repo, tracked in a task doc
 - **codebase-hygiene** - Find unused code/dependencies (knip) and duplication (jscpd), and clean up what the user approves
+- **app-control** - See and drive the running dev app (`bun run app`): screenshots in light and dark, UI outline, clicks, typing, the test vault, the styleguide and logs. Use it whenever a change affects the UI
 
 ## Task Management
 
@@ -320,6 +322,9 @@ useHotkeys(
 
 ```bash
 bun run dev              # Start dev server
+bun run tauri:dev        # Run the app in dev (Danny keeps this running; never start it)
+bun run app help         # Drive and screenshot the running dev app (see the app-control skill)
+bun run app logs         # Recent warnings and errors from Rust, the webview and tauri:dev
 bun run tauri:build      # Build app
 bun run check:all        # All checks (TS + Rust + ast-grep + tests) - RUN BEFORE COMMITS
 bun run fix:all          # Auto-fix all issues
@@ -328,6 +333,8 @@ bun run ast:fix          # Auto-fix ast-grep violations (where possible)
 bun run test             # Watch mode
 bun run test:run         # Run once
 ```
+
+**Dev builds** run as a separate app (`is.danny.astroeditor.dev`, "Astro Editor Dev") via `src-tauri/tauri.dev.conf.json`, with their own settings, data and logs, so they never touch the installed app. They also include the agent bridge and the styleguide (`localhost:1420/styleguide.html`); see `docs/developer/agent-tooling.md`.
 
 **Component Organization**: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports, domain-based grouping
 
