@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 import { info, error as logError } from '@tauri-apps/plugin-log'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useQueryClient } from '@tanstack/react-query'
 import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
@@ -209,22 +208,13 @@ export function useEditorActions() {
   )
 
   /**
-   * Opens a file from an `astro-editor://open?path=...` deep link.
+   * Opens a file by absolute path. Used by `astro-editor://open?path=...` deep
+   * links (which focus the window first) and the dev-only agent bridge.
    *
    * Resolves the file against the *known* projects (the registry), switching
    * projects if needed, then reuses `openFile` — the same path the sidebar uses.
    */
   const openFileByPath = useCallback(async (filePath: string) => {
-    // Bring the window forward immediately so the app visibly responds.
-    try {
-      const win = getCurrentWindow()
-      await win.show()
-      await win.unminimize()
-      await win.setFocus()
-    } catch {
-      // Best-effort — focusing should never block opening the file.
-    }
-
     // Only Markdown/MDX files are openable.
     const lower = filePath.toLowerCase()
     if (!lower.endsWith('.md') && !lower.endsWith('.mdx')) {

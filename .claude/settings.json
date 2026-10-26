@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(cargo test *)",
+      "Bash(cargo check *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo clippy *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "WebFetch(domain:v2.tauri.app)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowRead": [
+        "~/Library/Application Support/is.danny.astroeditor",
+        "~/Library/Application Support/is.danny.astroeditor.dev"
+      ],
+      "allowWrite": ["~/Library/Application Support/is.danny.astroeditor.dev"]
+    }
+  }
+}

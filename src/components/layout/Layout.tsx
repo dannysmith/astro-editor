@@ -13,6 +13,7 @@ import { ComponentBuilderDialog } from '../component-builder'
 import { ContentLinkerDialog } from '../content-linker'
 import { Toaster } from '../ui/sonner'
 import { PreferencesDialog } from '../preferences'
+import { AgentBridge } from '../agent-bridge'
 import { useProjectInitialization } from '../../hooks/useProjectInitialization'
 import { useRustToastBridge } from '../../hooks/useRustToastBridge'
 import { useEditorFocusTracking } from '../../hooks/useEditorFocusTracking'
@@ -277,6 +278,7 @@ export const Layout: React.FC = () => {
         onOpenChange={handleSetPreferencesOpen}
       />
       <Toaster />
+      {import.meta.env.DEV && <AgentBridge />}
     </div>
   )
 }

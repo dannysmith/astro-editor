@@ -1,3 +1,5 @@
+#[cfg(debug_assertions)]
+mod agent_bridge;
 mod bindings;
 mod commands;
 mod models;
@@ -81,9 +83,20 @@ pub fn run() {
             targets.push(tauri_plugin_log::Target::new(
                 tauri_plugin_log::TargetKind::Webview,
             ));
-            tauri_plugin_log::Builder::new()
+            #[allow(unused_mut)]
+            let mut log_builder = tauri_plugin_log::Builder::new()
                 .targets(targets)
-                .build()
+                .level(log::LevelFilter::Debug)
+                // Window and webview internals log every focus change at trace level
+                .level_for("tao", log::LevelFilter::Info)
+                .level_for("wry", log::LevelFilter::Info);
+            // `bun run app logs` reads the dev log, and the default 40 KB limit
+            // deletes it every few minutes
+            #[cfg(debug_assertions)]
+            {
+                log_builder = log_builder.max_file_size(10_000_000);
+            }
+            log_builder.build()
         })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -95,16 +108,28 @@ pub fn run() {
             log::info!("Platform: {}", std::env::consts::OS);
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
-            // Send telemetry on startup (non-blocking, fails silently)
-            let app_handle = app.handle().clone();
-            let version = package_info.version.to_string();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(app_data_dir) = app_handle.path().app_local_data_dir() {
-                    if let Err(e) = telemetry::send_telemetry_event(app_data_dir, version).await {
-                        log::warn!("Telemetry event failed (this is expected and safe to ignore): {e}");
+            // Send telemetry on startup (non-blocking, fails silently). Dev builds
+            // skip it so they don't count as installs.
+            if !cfg!(debug_assertions) {
+                let app_handle = app.handle().clone();
+                let version = package_info.version.to_string();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(app_data_dir) = app_handle.path().app_local_data_dir() {
+                        if let Err(e) = telemetry::send_telemetry_event(app_data_dir, version).await {
+                            log::warn!("Telemetry event failed (this is expected and safe to ignore): {e}");
+                        }
                     }
-                }
-            });
+                });
+            }
+
+            // Make the dev build easy to tell apart in Mission Control and the Window menu
+            #[cfg(debug_assertions)]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title("Astro Editor (Dev)");
+            }
+
+            #[cfg(debug_assertions)]
+            agent_bridge::start(app.handle());
 
             // Fix PATH environment variable for production builds
             // This ensures shell commands can find executables like 'code', 'cursor', etc.
@@ -412,6 +437,8 @@ pub fn run() {
             }
             tauri::RunEvent::Exit => {
                 log::info!("Application exiting");
+                #[cfg(debug_assertions)]
+                agent_bridge::stop(app_handle);
             }
             _ => {}
         });

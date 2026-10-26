@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link'
 import { error as logError } from '@tauri-apps/plugin-log'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { parseDeepLinkPath, resolveDeepLinkStartup } from '../lib/deep-link'
 
 /**
@@ -30,6 +31,15 @@ export function useDeepLink(openFileByPath: (path: string) => Promise<void>) {
     const handleUrl = async (url: string) => {
       const path = parseDeepLinkPath(url)
       if (path) {
+        // Bring the window forward immediately so the app visibly responds.
+        try {
+          const win = getCurrentWindow()
+          await win.show()
+          await win.unminimize()
+          await win.setFocus()
+        } catch {
+          // Best-effort — focusing should never block opening the file.
+        }
         await openFileByPathRef.current(path)
       }
     }

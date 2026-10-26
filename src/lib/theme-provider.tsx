@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from 'react'
 
-type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'light' | 'dark' | 'system'
 
 interface ThemeProviderContext {
   theme: Theme

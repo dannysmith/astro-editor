@@ -73,8 +73,11 @@ async function checkForUpdates(manual: boolean): Promise<void> {
 
 function App() {
   useEffect(() => {
-    // Check for updates 5 seconds after app loads (silently)
-    const timer = setTimeout(() => void checkForUpdates(false), 5000)
+    // Check for updates 5 seconds after app loads (silently). Dev builds skip
+    // the automatic check; the menu item still works for testing the dialog.
+    const timer = import.meta.env.DEV
+      ? undefined
+      : setTimeout(() => void checkForUpdates(false), 5000)
 
     // Listen for manual update check from menu
     const unlistenPromise = listen('menu-check-updates', () => {

@@ -21,6 +21,8 @@ Both produce false positives. Treat their output as leads to investigate, not a 
 
 If knip reports live code as unused (for example editor modes or `compromise`), the config is wrong. Fix `knip.json` before trusting anything else it says.
 
+The dev-only styleguide (`src/styleguide/`) is a knip entry, so anything it renders counts as used. To find `ui/` components or exports that only the styleguide uses, grep for their imports outside `src/styleguide/`.
+
 ## jscpd: judging duplication
 
 Duplication is only worth removing when one copy changing without the other would be a bug.

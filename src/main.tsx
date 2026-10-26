@@ -4,6 +4,10 @@ import { info, error } from '@tauri-apps/plugin-log'
 import App from './App'
 import { queryClient } from './lib/query-client'
 import { getDiagnosticContext } from './lib/diagnostics'
+import { forwardConsoleToLog } from './lib/agent-bridge/console'
+
+// Dev only: copy console output into the log file for `bun run app logs`
+if (import.meta.env.DEV) forwardConsoleToLog()
 
 // Log app startup with diagnostic context
 getDiagnosticContext()

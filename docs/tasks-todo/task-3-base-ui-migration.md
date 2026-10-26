@@ -27,10 +27,10 @@ Continue on `modernise-2026-10` after task 2. If task 2 has already been merged,
 
 ## Phase 3: Migrate components
 
-Work in this order, one commit per group, and run `bun run check:all` between groups:
+Work in this order, one commit per group, and run `bun run check:all` between groups. After each group, run `bun run app styleguide` and compare the sections it touched against the Radix baseline in `docs/tasks-todo/temporary/baseline/` (taken by task 1):
 
 1. [ ] **Leaf components:** button (Slot → `useRender`), label (Base UI has none, so it becomes a native `<label>`), separator, checkbox, switch, toggle, collapsible, badge
-2. [ ] **Overlays:** dialog, alert-dialog, sheet, popover, tooltip, dropdown-menu, context-menu, select
+2. [ ] **Overlays:** dialog, alert-dialog, sheet, popover, tooltip, dropdown-menu, select. `ui/context-menu.tsx` isn't a Radix component (it builds a native Tauri menu), so it needs no migration
 3. [ ] **Composites:** sidebar, breadcrumb
 
 These don't use Radix primitives directly and stay unchanged: calendar (react-day-picker), command (cmdk), resizable, sonner, `auto-expanding-textarea`, `spinner`, `skeleton`, `field`, `input-group`, `input` and `textarea`. `date-picker` and `tag-input` compose other `ui/` components such as popover, so they need re-testing after Phase 3.
@@ -47,8 +47,7 @@ API changes that affect code outside `ui/`:
   - `ReferenceField.tsx:166`
 - [ ] Select: `position="popper"` → `alignItemWithTrigger={false}`. `onValueChange` now receives `(value | null, details)`, so `useState<string>` setters passed directly will fail typecheck
 - [ ] TooltipProvider: `delayDuration` → `delay`. `skipDelayDuration` and `disableHoverableContent` are gone
-- [ ] Checkbox: `checked="indeterminate"` → the `indeterminate` prop
-- [ ] ContextMenu: `modal` and `Trigger disabled` are removed
+- [ ] Checkbox: `checked="indeterminate"` → the `indeterminate` prop. The current checkbox draws a tick for indeterminate, not a dash (see the styleguide's toggles section)
 - [ ] Dialog: `onOpenAutoFocus` / `onCloseAutoFocus` → `initialFocus` / `finalFocus`; the outside-click and escape handlers are consolidated
 - [ ] CSS variables: `--radix-*-trigger-width` → `--anchor-width`, `--radix-*-transform-origin` → `--transform-origin`. Search the whole of `src/`, not just `ui/`
 
