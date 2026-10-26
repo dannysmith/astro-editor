@@ -109,7 +109,8 @@ export function Styleguide() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-[var(--editor-color-background)] text-foreground">
+      {/* App.css locks html, body and #root for the app, so this scrolls instead */}
+      <div className="h-screen overflow-y-auto bg-[var(--editor-color-background)] text-foreground">
         {section ? (
           <main className="p-8">
             <h1 className="mb-6 text-lg font-semibold">{section.title}</h1>
