@@ -1,13 +1,24 @@
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-// Global watcher storage
-type WatcherMap = Arc<Mutex<HashMap<String, RecommendedWatcher>>>;
+/// A project's watcher and the generation that started it. Each start gets a new
+/// generation, so an event loop can tell a watcher that was stopped or replaced
+/// (its loop should end) from one that died (its loop should rebuild it).
+pub struct WatcherEntry {
+    generation: u64,
+    _watcher: RecommendedWatcher,
+}
+
+// Global watcher storage, keyed by project path
+type WatcherMap = Arc<Mutex<HashMap<String, WatcherEntry>>>;
+
+static NEXT_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// Debounce window: process buffered events after 500ms of no new events
 const DEBOUNCE_DURATION: Duration = Duration::from_millis(500);
@@ -89,13 +100,18 @@ pub async fn start_watching_project_with_content_dir(
     content_directory: Option<String>,
 ) -> Result<(), String> {
     let (watcher, rx) = create_project_watcher(&project_path, content_directory.as_deref())?;
+    let generation = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
 
-    // Store the watcher so it doesn't get dropped
+    // Store the watcher so it doesn't get dropped. This replaces (and drops) any
+    // earlier watcher for the same path, whose event loop then ends.
     let watcher_map: State<WatcherMap> = app.state();
-    watcher_map
-        .lock()
-        .unwrap()
-        .insert(project_path.clone(), watcher);
+    watcher_map.lock().unwrap().insert(
+        project_path.clone(),
+        WatcherEntry {
+            generation,
+            _watcher: watcher,
+        },
+    );
 
     // Clone the Arc for the spawned task
     let watcher_map_arc = app.state::<WatcherMap>().inner().clone();
@@ -108,6 +124,7 @@ pub async fn start_watching_project_with_content_dir(
             rx,
             project_path,
             content_directory,
+            generation,
         )
         .await;
     });
@@ -121,12 +138,15 @@ pub async fn start_watching_project_with_content_dir(
 /// - Events are buffered and processed after 500ms of quiet
 /// - Every 5 minutes, a rescan event is emitted as a safety net for missed changes
 /// - If the watcher dies (channel disconnects), it's automatically rebuilt
+/// - If it was stopped or replaced by a newer start (which also disconnects the
+///   channel), the loop ends
 async fn run_event_loop(
     app: AppHandle,
     watcher_map: WatcherMap,
     mut rx: Receiver<Event>,
     project_path: String,
     content_directory: Option<String>,
+    generation: u64,
 ) {
     let mut event_buffer: Vec<Event> = Vec::new();
     let mut last_rescan = Instant::now();
@@ -151,20 +171,35 @@ async fn run_event_loop(
                 }
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                // Watcher died — process remaining events then rebuild
+                // Process remaining events, then rebuild if the watcher died
                 if !event_buffer.is_empty() {
                     process_events(&app, &mut event_buffer).await;
                     event_buffer.clear();
+                }
+
+                // Held until the rebuilt watcher is stored, so a concurrent start
+                // or stop can't slip in between the check and the insert
+                let mut watchers = watcher_map.lock().unwrap();
+                let owned = watchers
+                    .get(&project_path)
+                    .is_some_and(|entry| entry.generation == generation);
+                if !owned {
+                    log::debug!("File watcher for {project_path} was stopped or replaced");
+                    break;
                 }
 
                 log::warn!("File watcher disconnected for {project_path}, attempting rebuild");
 
                 match create_project_watcher(&project_path, content_directory.as_deref()) {
                     Ok((new_watcher, new_rx)) => {
-                        watcher_map
-                            .lock()
-                            .unwrap()
-                            .insert(project_path.clone(), new_watcher);
+                        watchers.insert(
+                            project_path.clone(),
+                            WatcherEntry {
+                                generation,
+                                _watcher: new_watcher,
+                            },
+                        );
+                        drop(watchers);
                         rx = new_rx;
                         last_rescan = Instant::now();
                         log::info!("File watcher rebuilt for {project_path}");
