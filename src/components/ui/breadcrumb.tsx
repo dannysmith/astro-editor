@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Slot as SlotPrimitive } from 'radix-ui'
 import { cn } from '@/lib/utils'
-import { ChevronRightIcon, DotsHorizontalIcon } from '@radix-ui/react-icons'
+import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react'
 
 function Breadcrumb({ ...props }: React.ComponentProps<'nav'>) {
   return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />
@@ -91,7 +91,7 @@ function BreadcrumbEllipsis({
       className={cn('flex size-9 items-center justify-center', className)}
       {...props}
     >
-      <DotsHorizontalIcon className="size-4" />
+      <MoreHorizontalIcon className="size-4" />
       <span className="sr-only">More</span>
     </span>
   )

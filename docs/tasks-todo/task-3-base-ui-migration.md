@@ -28,17 +28,32 @@ Use the `app-control` skill to check the work in the running dev app rather than
   - `app logs` catches runtime errors and React warnings after each group.
 - **Hidden window:** if the dev window is behind others, CSS animations don't run. `shot` jumps them to their end state, so screenshots can't judge open/close animations. That part of the check stays with Danny.
 
+### Tooling notes
+
+Things in the agent tooling that got in the way or could be better, found during this task:
+
+- **No image diff.** Comparing with the baseline means reading both PNGs by eye. The bytes always differ, and there's no PIL or ImageMagick to compare pixels. An `app diff <a> <b>` (decode both in the webview with `createImageBitmap` and a canvas, then report the share of changed pixels, the bounding box of the changes, and optionally write a diff image) would make the "nothing should change" check in Phase 2 exact instead of 26 visual reads
+- **`app goto /` doesn't restore the open file** the way `app styleguide` does, so driving the styleguide by hand leaves the app with the project open but no file
+- **`check:all` has one sandbox-only failure** (`test_validate_app_data_path_valid`, see Phase 1)
+
 ## Branch
 
 Task 2 has been merged, so start a fresh branch from `main`. Same commit discipline: one commit per phase, merge commit.
 
 ## Phase 1: Prep
 
-- [ ] Check the baseline exists (see Tooling), and regenerate it if not
-- [ ] Read the skill and its reference files: https://github.com/shadcn-ui/ui/tree/main/skills/migrate-radix-to-base. Not installed: a copy lives in `docs/tasks-todo/temporary/migrate-radix-to-base/` (re-fetch from `raw.githubusercontent.com` if missing). Use `class-mapping.md`, `consumer-props.md`, `wrapper-shapes.md` and the per-family files as the reference
-- [ ] Find our customisations: diff each wrapper we're migrating against the stock `new-york` file (`https://ui.shadcn.com/r/styles/new-york/<component>.json`, `files[0].content`) and note what we changed, so it survives the migration
-- [ ] Delete the shadcn components nothing imports: `alert`, `button-group`, `card`, `empty`, `item`, `kbd`, `radio-group`, `scroll-area`, `toggle-group`, and `toggle` (only `toggle-group` uses it). Re-check imports (including from other `ui/` files and tests) first, and re-add them through the CLI when needed. None of them are in the styleguide
-- [ ] Replace `@radix-ui/react-icons` (used only in `ui/breadcrumb.tsx`) with lucide. Compare the `sidebar` section against the baseline
+- [x] Check the baseline exists (see Tooling), and regenerate it if not. All 26 images were there
+- [x] Read the skill and its reference files: https://github.com/shadcn-ui/ui/tree/main/skills/migrate-radix-to-base. Not installed: a copy lives in `docs/tasks-todo/temporary/migrate-radix-to-base/` (re-fetch from `raw.githubusercontent.com` if missing). `SKILL.md`, `universal-patterns.md`, `class-mapping.md`, `consumer-props.md` and `wrapper-shapes.md` read in full; the per-family files (`overlays.md`, `menus.md`, `form-controls.md`, `disclosure.md`, `display-misc.md`) are prop-by-prop tables to look things up in per group
+- [x] Find our customisations: diff each wrapper we're migrating against the stock file. Our wrappers came from `new-york-v4` (`https://ui.shadcn.com/r/styles/new-york-v4/<component>.json`, `files[0].content`), not `new-york`. Most differences are upstream drift since we installed them (stock has since gained `xs` sizes, `data-variant` attributes, alert-dialog `size`/media, `PopoverHeader` and so on); we don't want those. Git history shows our own changes, which must survive:
+  - **button:** `text-foreground` on `outline` and `ghost` (dark mode); no `shadow-xs` on `default`, `destructive` and `secondary`; `icon-sm` and `icon-lg` sizes; `variant` and `size` have no defaults in the function signature (cva's `defaultVariants` handles them)
+  - **select:** trigger has `text-gray-900 dark:text-white`; `SelectContent` defaults to `position='popper'` (stock is now `item-aligned`)
+  - **label:** `text-foreground`
+  - **dialog:** overlay has `rounded-[var(--app-corner-radius)]` so the dimmed backdrop follows the window's rounded corners
+  - **sidebar:** skeleton width uses `useState` instead of `useMemo` (React Compiler purity); the floating variant's shadow uses `var(--sidebar-border)` rather than `hsl(var(…))`
+  - **collapsible, tooltip, switch, badge, checkbox:** older stock shapes (bare re-exports, `TooltipProvider` inside `Tooltip`, `bg-primary` tooltip, no switch `size`, `rounded-md` badge, `flex` checkbox indicator), not deliberate changes. Keep what we have unless the Base UI version needs otherwise
+- [x] Delete the shadcn components nothing imports: `alert`, `button-group`, `card`, `empty`, `item`, `kbd`, `radio-group`, `scroll-area`, `toggle-group`, and `toggle` (only `toggle-group` used it). Imports re-checked across `src/`, `scripts/` and `test/` first. Removed the ScrollArea row from `ui-patterns.md`
+- [x] Replace `@radix-ui/react-icons` (used only in `ui/breadcrumb.tsx`) with lucide (`ChevronRightIcon`, `MoreHorizontalIcon`) and remove the package. The `sidebar` section matches the baseline in both themes; the separator renders `lucide-chevron-right`. The ellipsis isn't in the styleguide, and nothing uses `BreadcrumbEllipsis`
+- [x] `bun run check:all` passes, except `test_validate_app_data_path_valid`, which fails only inside the Bash sandbox (writing `settings.json` in the temp dir gets `EINVAL`, presumably the sandbox's settings-file protection) and passes outside it
 
 ## Phase 2: Dual-mode data attributes (still on Radix)
 

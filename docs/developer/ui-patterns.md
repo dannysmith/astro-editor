@@ -62,7 +62,6 @@ We customize shadcn/ui components using Tailwind classes and CSS variables:
 | Checkbox | Boolean toggles in forms | `ui/checkbox.tsx` |
 | Textarea | Multi-line text input | `ui/textarea.tsx` |
 | Separator | Visual dividers | `ui/separator.tsx` |
-| ScrollArea | Custom scrollbars | `ui/scroll-area.tsx` |
 
 ## Icon Button Patterns
 
