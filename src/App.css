@@ -182,6 +182,14 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Default focus rings (links, plain buttons) match the components' 3px ring.
+     WebKit draws the browser's `outline-style: auto` in the system accent colour,
+     ignoring outline-color */
+  :focus-visible {
+    outline-style: solid;
+    outline-width: 3px;
+  }
+
   svg {
     color: inherit;
   }

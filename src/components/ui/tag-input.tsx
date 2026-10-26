@@ -110,7 +110,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             <Badge
               key={tag.id}
               variant="secondary"
-              className="px-2 py-0.5 text-xs"
+              className="px-2 py-0.5 text-xs has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
             >
               {tag.text}
               {!disabled && (
@@ -120,7 +120,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
                     e.stopPropagation()
                     removeTag(tag.id)
                   }}
-                  className="ml-1 rounded-sm p-0.5 transition-colors hover:bg-destructive/20"
+                  className="ml-1 rounded-sm p-0.5 transition-colors outline-none hover:bg-destructive/20"
                   aria-label={`Remove ${tag.text} tag`}
                 >
                   <X className="size-3" />
