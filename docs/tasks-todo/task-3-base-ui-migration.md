@@ -105,7 +105,12 @@ Work in this order, one commit per group, and run `bun run check:all` between gr
      - menu keyboard navigation now stops on disabled items (Radix skipped them)
      - dialogs no longer select the text of the input they focus on open
      - `onValueChange` passes `null` when cleared; our handlers ignore it
-3. [ ] **Composites:** sidebar, breadcrumb (`useRender`). Section: `sidebar`; and the preferences dialog in the app. Call site: `PreferencesDialog.tsx:121` (`SidebarMenuButton asChild`)
+   - **Backdrop flash (Danny, by hand):** after closing a dialog, its backdrop reappeared briefly. The backdrop's exit fade is 150ms and the popup's is 200ms (the sheet's 300ms). Radix unmounted each part when its own animation ended; Base UI unmounts the backdrop with the popup, so between the two the faded backdrop snapped back to full opacity. Dialog, alert-dialog and sheet backdrops now hold their end state with `data-closed:fill-mode-forwards`. Checked through the bridge: on close, the backdrop's exit animation is 150ms with `fill: forwards`, the popup's 200ms, and both unmount
+3. [x] **Composites:** sidebar, breadcrumb (`useRender`). Section: `sidebar`; and the preferences dialog in the app. Call site: `PreferencesDialog.tsx:121` (`SidebarMenuButton asChild`)
+   - The five sidebar parts that took `asChild` (group label and action, menu button, action and sub-button) and `BreadcrumbLink` use `useRender` + `mergeProps`, as the base registry does. Their `data-*` attributes come from `state`, so `data-active` is now present only when active (Radix wrote `data-active="false"`). The `data-[active=true]:` and `peer-data-[active=true]/…` classes became `data-active:` and `peer-data-active/…`, whose shadcn variant matches either form
+   - `SidebarMenuButton` with a tooltip renders through `<TooltipTrigger render={render} />`, as the base registry does
+   - `PreferencesDialog`'s menu buttons wrapped a plain `<button>` with `asChild`. They now take `onClick` directly; the menu button already has `w-full`
+   - `app diff`: `sidebar` and `dialog` differ from the baseline only as before (the Phase 1 chevron; the dialog's text selection). In the app, Preferences shows the active pane highlighted, clicking "Project Settings" switches pane and moves the highlight, and Escape closes it. No `radix-ui` imports are left in `src/`
 
 When `render` gets something other than a `<button>`, Base UI triggers and buttons need `nativeButton={false}`, or they warn at runtime.
 
@@ -115,7 +120,7 @@ These don't use Radix primitives directly and stay unchanged: calendar (react-da
 
 API changes that affect code outside `ui/`. Most are done with their group in Phase 3; this phase is the final sweep (`consumer-props.md`) for anything left. The styleguide (`src/styleguide/sections.tsx`) uses several of them too:
 
-- [ ] `asChild` → `render={…}` (all done in the overlays group except `PreferencesDialog`, which goes with sidebar):
+- [x] `asChild` → `render={…}` (done in the overlays group, and `PreferencesDialog` with the sidebar, where it dropped `asChild` altogether):
   - `PreferencesDialog.tsx:121`
   - `DebugPane.tsx:140`
   - `LeftSidebar.tsx:532`

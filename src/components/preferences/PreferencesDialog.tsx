@@ -118,16 +118,11 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                     {navigationItems.map(item => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                          asChild
                           isActive={activePane === item.id}
+                          onClick={() => setActivePane(item.id)}
                         >
-                          <button
-                            onClick={() => setActivePane(item.id)}
-                            className="w-full"
-                          >
-                            <item.icon />
-                            <span>{item.name}</span>
-                          </button>
+                          <item.icon />
+                          <span>{item.name}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
