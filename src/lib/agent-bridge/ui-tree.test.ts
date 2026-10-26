@@ -144,6 +144,14 @@ describe('findByText', () => {
     expect(findByText(document.body, 'open', options)?.id).toBe('a')
   })
 
+  it('ignores elements without area, such as screen-reader-only text', () => {
+    render(`
+      <button data-no-area id="a">Close</button>
+      <button id="b">Close panel</button>
+    `)
+    expect(findByText(document.body, 'close', options)?.id).toBe('b')
+  })
+
   it('ignores hidden elements and returns null when nothing matches', () => {
     render(`<button data-hidden>Save</button>`)
     expect(findByText(document.body, 'Save', options)).toBeNull()

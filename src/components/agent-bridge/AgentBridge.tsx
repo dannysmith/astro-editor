@@ -6,7 +6,7 @@ import { useTheme } from '../../lib/theme-provider'
 import { createAgentApi } from '../../lib/agent-bridge/api'
 
 /**
- * Dev-only: installs `window.__ae` (see `lib/agent-bridge/api.ts`) for the
+ * Dev-only: installs `window.__agentBridge` (see `lib/agent-bridge/api.ts`) for the
  * agent bridge CLI, `bun run app`. Layout renders it only when
  * `import.meta.env.DEV`.
  */
@@ -23,7 +23,7 @@ export function AgentBridge() {
   })
 
   useEffect(() => {
-    window.__ae = createAgentApi({
+    window.__agentBridge = createAgentApi({
       queryClient,
       getCommandContext: () => latest.current.context,
       getTheme: () => latest.current.theme,
@@ -31,7 +31,7 @@ export function AgentBridge() {
       openFileByPath: path => latest.current.openFileByPath(path),
     })
     return () => {
-      delete window.__ae
+      delete window.__agentBridge
     }
   }, [queryClient])
 

@@ -5,8 +5,9 @@
 //! `x-agent-bridge-token` header, which keeps web pages in a browser out.
 //! `scripts/app.ts` is the client.
 //!
-//! The endpoints stay generic (eval, snapshot, window). App-specific actions live in
-//! the frontend and are reached through `/eval`.
+//! The endpoints stay generic (eval, snapshot, window size, appearance and
+//! navigation). App-specific actions live in the frontend and are reached
+//! through `/eval`.
 
 mod snapshot;
 
@@ -121,6 +122,10 @@ struct WindowRequest {
     height: Option<f64>,
     /// "light", "dark" or "system"
     theme: Option<String>,
+    /// A path on the dev server, such as `/styleguide.html`
+    url: Option<String>,
+    #[serde(default)]
+    reload: bool,
 }
 
 fn route(app: &AppHandle, method: &Method, url: &str, body: &str) -> Result<Value, String> {
@@ -164,6 +169,14 @@ fn route(app: &AppHandle, method: &Method, url: &str, body: &str) -> Result<Valu
                 };
                 window.set_theme(theme).map_err(|e| e.to_string())?;
             }
+            if let Some(path) = req.url {
+                let current = window.url().map_err(|e| e.to_string())?;
+                let url = current.join(&path).map_err(|e| e.to_string())?;
+                window.navigate(url).map_err(|e| e.to_string())?;
+            }
+            if req.reload {
+                window.reload().map_err(|e| e.to_string())?;
+            }
             window_info(&window)
         }
         _ => Err(format!("no route for {method} {url}")),
@@ -191,12 +204,12 @@ fn window_info(window: &WebviewWindow) -> Result<Value, String> {
 
 /// Runs `js` as the body of an async function in the webview and returns its
 /// JSON-serialisable result. `eval_with_callback` can't await promises, so the
-/// function's outcome is stored on `window.__agentBridge` and polled for.
+/// function's outcome is stored on `window.__agentBridgeResults` and polled for.
 fn eval(window: &WebviewWindow, js: &str, timeout: Duration) -> Result<Value, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let start = format!(
         r#"(() => {{
-  const results = (window.__agentBridge ??= {{}})
+  const results = (window.__agentBridgeResults ??= {{}})
   const settle = result => {{ results["{id}"] = {{ done: true, ...result }} }}
   results["{id}"] = {{ done: false }}
   ;(async () => {{
@@ -217,8 +230,8 @@ fn eval(window: &WebviewWindow, js: &str, timeout: Duration) -> Result<Value, St
 
     let poll = format!(
         r#"(() => {{
-  const result = window.__agentBridge?.["{id}"] ?? null
-  if (result?.done) delete window.__agentBridge["{id}"]
+  const result = window.__agentBridgeResults?.["{id}"] ?? null
+  if (result?.done) delete window.__agentBridgeResults["{id}"]
   return result
 }})()"#
     );

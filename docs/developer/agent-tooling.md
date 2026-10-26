@@ -16,10 +16,10 @@ The installed app and the dev build can run side by side without touching each o
 
 Three parts, all debug-only:
 
-- **`src-tauri/src/agent_bridge/`**: an HTTP server on `127.0.0.1` (port 1422, or a random one if that's taken) with endpoints for eval, snapshot, window and health. On startup it writes `{ port, token, pid }` to `agent-bridge.json` in the app data folder, and removes it on exit. Requests must send the token in `x-agent-bridge-token`, which keeps web pages in a browser out.
-  - **Eval:** wraps the snippet in an async function. `eval_with_callback` can't await, so the result is stored on `window.__agentBridge` and polled for.
+- **`src-tauri/src/agent_bridge/`**: an HTTP server on `127.0.0.1` (port 1422, or a random one if that's taken) with endpoints for eval, snapshot, window (size, appearance and navigation) and health. On startup it writes `{ port, token, pid }` to `agent-bridge.json` in the app data folder, and removes it on exit. Requests must send the token in `x-agent-bridge-token`, which keeps web pages in a browser out.
+  - **Eval:** wraps the snippet in an async function. `eval_with_callback` can't await, so the result is stored on `window.__agentBridgeResults` and polled for.
   - **Snapshots:** use `WKWebView.takeSnapshot`. It needs no Screen Recording permission, doesn't raise or focus the window, and works while the window is hidden. It captures the webview only, so native menus, dialogs and the vibrancy blur are missing.
-- **`src/lib/agent-bridge/`**: the `window.__ae` API the CLI calls through eval:
+- **`src/lib/agent-bridge/`**: the `window.__agentBridge` API the CLI calls through eval:
   - `page.ts` works on any page: theme, `idle`, shot mode, `tree`, `click`, `fill` and `key`;
   - `api.ts` adds the app's actions: open project or file, run commands, type, state;
   - `AgentBridge` (in `components/agent-bridge/`) installs it, and `Layout` renders that only when `import.meta.env.DEV`.

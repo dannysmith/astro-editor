@@ -1,7 +1,7 @@
 /**
  * A compact text outline of the visible UI for agents: landmarks, dialogs,
  * headings, controls and short text, each control tagged with a numbered ref
- * that `click` accepts. Far cheaper to read than a screenshot.
+ * that `click` and `fill` accept. Far cheaper to read than a screenshot.
  */
 
 /** Elements shown as a group, with their contents indented beneath them. */
@@ -255,7 +255,8 @@ export function buildUiTree(
 
 /**
  * Finds the visible interactive element whose label matches `text`, preferring
- * an exact (case-insensitive) match over a partial one.
+ * an exact (case-insensitive) match over a partial one. Applies the same
+ * visibility rules as `buildUiTree`.
  */
 export function findByText(
   root: Element,
@@ -263,13 +264,18 @@ export function findByText(
   options: UiTreeOptions = {}
 ): Element | null {
   const isVisible = options.isVisible ?? defaultIsVisible
+  const hasArea = options.hasArea ?? defaultHasArea
   const wanted = text.toLowerCase()
   const candidates = [...root.querySelectorAll(INTERACTIVE_SELECTOR)].filter(
     el => {
       const role = roleOf(el)
       // Containers match on all their text, so only controls are considered
       if (role && !CONTROL_ROLES.has(role)) return false
-      return isVisible(el) && !el.closest('[aria-hidden="true"], [inert]')
+      return (
+        isVisible(el) &&
+        hasArea(el) &&
+        !el.closest('[aria-hidden="true"], [inert]')
+      )
     }
   )
   const labelled = candidates.map(el => ({

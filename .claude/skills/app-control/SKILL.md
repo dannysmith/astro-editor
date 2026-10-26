@@ -36,7 +36,7 @@ Always check light **and** dark (`shot` does both by default). Give shots descri
 | `goto <path>` / `reload` | Load another dev-server page (`goto /` returns to the app); reload the page |
 | `styleguide [section...]` | Shoot styleguide sections in both themes, then return to the app |
 | `logs` / `logs --crashes` | See below |
-| `eval <js>` | Escape hatch: run JS in the page. `window.__ae` holds the API the commands use |
+| `eval <js>` | Escape hatch: run JS in the page. `window.__agentBridge` holds the API the commands use |
 
 ## Test vault
 
@@ -67,6 +67,6 @@ Reading logs doesn't need the app running.
 
 ## How it works
 
-- `src-tauri/src/agent_bridge/`: debug-only HTTP server on `127.0.0.1` with a per-run token in `agent-bridge.json` in the dev app data folder. Endpoints are eval, native WKWebView snapshot, and window size and appearance
-- `src/lib/agent-bridge/`: the `window.__ae` API. `page.ts` works on any page; `api.ts` adds the app actions
+- `src-tauri/src/agent_bridge/`: debug-only HTTP server on `127.0.0.1` with a per-run token in `agent-bridge.json` in the dev app data folder. Endpoints are eval, native WKWebView snapshot, and window size, appearance and navigation
+- `src/lib/agent-bridge/`: the `window.__agentBridge` API. `page.ts` works on any page; `api.ts` adds the app actions
 - `scripts/app.ts` and `scripts/app-logs.ts`: the CLI

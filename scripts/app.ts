@@ -1,5 +1,5 @@
 // Drives the running dev app through its debug-only agent bridge
-// (src-tauri/src/agent_bridge) and the `window.__ae` API it calls in the webview
+// (src-tauri/src/agent_bridge) and the `window.__agentBridge` API it calls in the webview
 // (src/lib/agent-bridge). Needs `bun run tauri:dev` to be running.
 //
 //   bun run app shot sidebar                  # light + dark PNGs in docs/tasks-todo/temporary
@@ -11,6 +11,7 @@
 import { cp, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import type { Target } from '../src/lib/agent-bridge/page'
 import { parseDuration, parseLevel, readCrashes, readLogs } from './app-logs'
 
 const USAGE = `Usage: bun run app <command> [args] [flags]
@@ -57,8 +58,7 @@ type WindowInfo = {
   scale: number
   theme: string
 }
-type AppState = { project: string | null }
-type Target = { ref?: number; text?: string; selector?: string }
+type AppState = { project: string | null; file: { path: string } | null }
 
 const root = path.join(import.meta.dir, '..')
 const VAULT = path.join(root, 'temp-dummy-astro-project')
@@ -77,6 +77,17 @@ const flags = Object.fromEntries(
     })
 ) as Record<string, string | true>
 const [command, ...params] = args.filter(a => !a.startsWith('--'))
+
+// The flags each command takes; anything else is rejected rather than ignored
+const COMMAND_FLAGS: Record<string, string[]> = {
+  shot: ['theme', 'size', 'out'],
+  styleguide: ['theme', 'size', 'out'],
+  run: ['list'],
+  click: ['text'],
+  fill: ['text'],
+  eval: ['timeout'],
+  logs: ['source', 'level', 'since', 'grep', 'limit', 'full', 'crashes'],
+}
 
 function print(value: unknown) {
   console.log(
@@ -121,12 +132,22 @@ async function bridgeInfo(): Promise<BridgeInfo> {
   return bridge
 }
 
+/** Whether a process is alive. EPERM means it exists but belongs to someone else. */
+function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
 async function call<T>(
   method: 'GET' | 'POST',
   route: string,
   body?: unknown
 ): Promise<T> {
-  const { port, token } = await bridgeInfo()
+  const { port, token, pid } = await bridgeInfo()
   let response: Response
   try {
     response = await fetch(`http://127.0.0.1:${port}${route}`, {
@@ -139,7 +160,9 @@ async function call<T>(
     })
   } catch {
     throw new Error(
-      `can't reach the bridge on port ${port}. Is \`bun run tauri:dev\` still running?`
+      isRunning(pid)
+        ? `can't reach the bridge on port ${port}. Is \`bun run tauri:dev\` still running?`
+        : "the dev app isn't running (it stopped without cleaning up). Start it with `bun run tauri:dev`"
     )
   }
   const result = (await response.json()) as {
@@ -151,11 +174,25 @@ async function call<T>(
   return result.value as T
 }
 
-/** Calls a `window.__ae` method in the webview. */
-function ae<T = unknown>(method: string, ...methodArgs: unknown[]): Promise<T> {
+/**
+ * A JavaScript literal for `value`. JSON is valid JS except for a few characters
+ * that can end a script or a line, so those are escaped.
+ */
+function jsLiteral(value: unknown): string {
+  return JSON.stringify(value).replace(
+    /[<>/\u2028\u2029]/g,
+    c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+  )
+}
+
+/** Calls a `window.__agentBridge` method in the webview. */
+function callApi<T = unknown>(
+  method: string,
+  ...methodArgs: unknown[]
+): Promise<T> {
   const js =
-    `if (!window.__ae) throw new Error("window.__ae isn't installed. Is the app's page loaded?")\n` +
-    `return await window.__ae.${method}(...${JSON.stringify(methodArgs)})`
+    `if (!window.__agentBridge) throw new Error("window.__agentBridge isn't installed. Is the app's page loaded?")\n` +
+    `return await window.__agentBridge.${method}(...${jsLiteral(methodArgs)})`
   return call<T>('POST', '/eval', { js, timeoutMs: API_TIMEOUT_MS })
 }
 
@@ -176,7 +213,7 @@ function parseTarget(): { target: Target; rest: string[] } {
   return { target: ref ? { ref: Number(ref[1]) } : { selector: first }, rest }
 }
 
-// A run timestamp (YYYYMMDD-HHMMSS), as in the website's shoot script.
+// A timestamp (YYYYMMDD-HHMMSS) shared by every shot in a run, so they sort together
 function stamp() {
   return new Date()
     .toISOString()
@@ -195,21 +232,21 @@ async function copyVault() {
 }
 
 /**
- * Runs `js` (which should load a page) and waits for the new page's `window.__ae`.
- * The eval returns before the page goes, so the old page is marked first.
+ * Loads a dev-server page (`{ url: '/styleguide.html' }`) or reloads the current
+ * one, then waits for the new page's API. The old page is marked first, so a
+ * page without the mark is the new one.
  */
-async function navigate(js: string) {
-  await call('POST', '/eval', {
-    js: `window.__aeReloading = true; setTimeout(() => ${js}, 0)`,
-  })
+async function navigate(target: { url: string } | { reload: true }) {
+  await call('POST', '/eval', { js: 'window.__agentBridgeReloading = true' })
+  await call('POST', '/window', target)
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline) {
     await Bun.sleep(200)
     const fresh = await call<boolean>('POST', '/eval', {
-      js: 'return Boolean(window.__ae) && !window.__aeReloading',
+      js: 'return Boolean(window.__agentBridge) && !window.__agentBridgeReloading',
     }).catch(() => false)
     if (fresh) {
-      await ae('idle')
+      await callApi('idle')
       return
     }
   }
@@ -230,17 +267,17 @@ async function takeShots(name: string) {
   const runStamp = stamp()
 
   const before = await call<WindowInfo>('GET', '/window')
-  const pageTheme = await ae<string>('getTheme')
+  const pageTheme = await callApi<string>('getTheme')
   try {
     if (flags.size) await call('POST', '/window', parseSize(flags.size))
-    await ae('shotMode', true)
+    await callApi('shotMode', true)
     for (const t of themes) {
       // The native appearance only affects vibrancy, which snapshots don't
       // capture. The page theme is set directly because a hidden window doesn't
       // get prefers-color-scheme changes until it renders again.
       await call('POST', '/window', { theme: t })
-      await ae('setTheme', t)
-      await ae('idle')
+      await callApi('setTheme', t)
+      await callApi('idle')
       const window = await call<WindowInfo>('GET', '/window')
       const file = path.resolve(
         root,
@@ -257,9 +294,9 @@ async function takeShots(name: string) {
       print(`${path.relative(root, file)} (${shot.width}x${shot.height}px)`)
     }
   } finally {
-    await ae('shotMode', false)
+    await callApi('shotMode', false)
     await call('POST', '/window', { theme: 'system' })
-    await ae('setTheme', pageTheme)
+    await callApi('setTheme', pageTheme)
     if (flags.size) {
       await call('POST', '/window', {
         width: before.width,
@@ -283,11 +320,11 @@ const commands: Record<string, () => Promise<void>> = {
   },
 
   async state() {
-    print(await ae('state'))
+    print(await callApi('state'))
   },
 
   async tree() {
-    print(await ae('tree'))
+    print(await callApi('tree'))
   },
 
   async shot() {
@@ -297,21 +334,21 @@ const commands: Record<string, () => Promise<void>> = {
   async 'open-project'() {
     const project = params[0] ? path.resolve(params[0]) : VAULT
     if (project === VAULT && !(await exists(VAULT))) await copyVault()
-    const state = await ae<AppState>('openProject', project)
+    const state = await callApi<AppState>('openProject', project)
     print(`opened ${state.project}`)
   },
 
   async reset() {
     await copyVault()
-    const state = await ae<AppState>('state')
-    if (state.project === VAULT) await ae('refreshProject')
+    const state = await callApi<AppState>('state')
+    if (state.project === VAULT) await callApi('refreshProject')
     print(`recreated ${path.relative(root, VAULT)}`)
   },
 
   async open() {
     const file = params[0]
     if (!file) throw new Error('open needs a file, e.g. articles/first-post.md')
-    const { project } = await ae<AppState>('state')
+    const { project } = await callApi<AppState>('state')
     const bases = path.isAbsolute(file)
       ? ['']
       : project
@@ -330,32 +367,32 @@ const commands: Record<string, () => Promise<void>> = {
     }
     if (!found)
       throw new Error(`no such file. Tried:\n  ${candidates.join('\n  ')}`)
-    await ae('openFile', found)
+    await callApi('openFile', found)
     print(`opened ${project ? path.relative(project, found) : found}`)
   },
 
   async run() {
     if (flags.list) {
-      const list = await ae<{ id: string; label: string }[]>('commands')
+      const list = await callApi<{ id: string; label: string }[]>('commands')
       print(list.map(c => `${c.id.padEnd(32)} ${c.label}`).join('\n'))
       return
     }
     if (!params[0])
       throw new Error('run needs a command id. `run --list` shows them')
-    await ae('run', params[0])
+    await callApi('run', params[0])
     print(`ran ${params[0]}`)
   },
 
   async type() {
     const text = params.join(' ')
     if (!text) throw new Error('type needs some text')
-    await ae('type', text)
+    await callApi('type', text)
     print(`typed ${text.length} characters`)
   },
 
   async key() {
     if (!params[0]) throw new Error('key needs a combo, e.g. mod+b')
-    const result = await ae<{ target: string; handled: boolean }>(
+    const result = await callApi<{ target: string; handled: boolean }>(
       'key',
       params[0]
     )
@@ -366,16 +403,16 @@ const commands: Record<string, () => Promise<void>> = {
 
   async click() {
     const { target } = parseTarget()
-    print(`clicked ${await ae<string>('click', target)}`)
+    print(`clicked ${await callApi<string>('click', target)}`)
   },
 
   async fill() {
     const { target, rest } = parseTarget()
-    print(`filled ${await ae<string>('fill', target, rest.join(' '))}`)
+    print(`filled ${await callApi<string>('fill', target, rest.join(' '))}`)
   },
 
   async reload() {
-    await navigate('location.reload()')
+    await navigate({ reload: true })
     print('reloaded')
   },
 
@@ -386,29 +423,33 @@ const commands: Record<string, () => Promise<void>> = {
         'goto needs a path on the dev server, e.g. /styleguide.html'
       )
     }
-    await navigate(`location.assign(${JSON.stringify(target)})`)
+    await navigate({ url: target })
     print(`at ${target}`)
   },
 
   async styleguide() {
+    // Loading the styleguide reloads the app, so note what was open to restore it
+    const before = await callApi<AppState>('state').catch(() => null)
     // The index page links to every section
-    await navigate(`location.assign('/styleguide.html')`)
+    await navigate({ url: '/styleguide.html' })
     const all = await call<string[]>('POST', '/eval', {
       js: 'return [...document.querySelectorAll("[data-section]")].map(a => a.dataset.section)',
     })
     const unknown = params.filter(id => !all.includes(id))
-    if (unknown.length) {
-      throw new Error(
-        `unknown sections: ${unknown.join(', ')}. Sections: ${all.join(', ')}`
-      )
-    }
     try {
+      if (unknown.length) {
+        throw new Error(
+          `unknown sections: ${unknown.join(', ')}. Sections: ${all.join(', ')}`
+        )
+      }
       for (const id of params.length ? params : all) {
-        await navigate(`location.assign('/styleguide.html?section=${id}')`)
+        await navigate({ url: `/styleguide.html?section=${id}` })
         await takeShots(`styleguide-${id}`)
       }
     } finally {
-      await navigate(`location.assign('/')`)
+      await navigate({ url: '/' })
+      if (before?.project) await callApi('openProject', before.project)
+      if (before?.file) await callApi('openFile', before.file.path)
     }
   },
 
@@ -464,6 +505,18 @@ if (!command || command === 'help' || !(command in commands)) {
   console.log(USAGE)
   process.exit(command && command !== 'help' ? 1 : 0)
 }
+const unknownFlags = Object.keys(flags).filter(
+  flag => !(COMMAND_FLAGS[command] ?? []).includes(flag)
+)
+if (unknownFlags.length) {
+  const allowed = COMMAND_FLAGS[command]?.map(f => `--${f}`).join(', ')
+  console.error(
+    `app: ${command} doesn't take ${unknownFlags.map(f => `--${f}`).join(', ')}` +
+      (allowed ? `. It takes ${allowed}` : '')
+  )
+  process.exit(1)
+}
+
 try {
   await commands[command]!()
 } catch (error) {

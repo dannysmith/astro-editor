@@ -1,5 +1,5 @@
 /**
- * The part of the dev-only `window.__ae` API that works on any page: theme,
+ * The part of the dev-only `window.__agentBridge` API that works on any page: theme,
  * idle and screenshot helpers, plus finding and driving elements. The app's
  * API (`api.ts`) builds on it; the styleguide uses it as is.
  */
@@ -12,7 +12,7 @@ export type PageApi = ReturnType<typeof createPageApi>
 
 declare global {
   interface Window {
-    __ae?: PageApi
+    __agentBridge?: PageApi
   }
 }
 
@@ -23,15 +23,14 @@ export interface Target {
   selector?: string
 }
 
-export interface PageApiDeps {
+interface PageApiDeps {
   /** Lets `idle` wait for queries to settle */
   queryClient?: QueryClient
   getTheme: () => Theme
   setTheme: (theme: Theme) => void
 }
 
-export const sleep = (ms: number) =>
-  new Promise(resolve => setTimeout(resolve, ms))
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // WebKit stops animation frames while the window is hidden behind others, so
 // this falls back to a short timeout
@@ -55,11 +54,12 @@ export async function waitFor(
 }
 
 /**
- * Waits until nothing is loading, jumps animations to their end state, then
- * waits two frames. Animations don't run while the window is hidden, and
- * screenshots want the end state anyway. Gives up waiting after `timeoutMs`.
+ * Waits until nothing is loading, jumps animations to their end state
+ * (including overlays waiting to unmount), then waits two frames. Animations
+ * don't run while the window is hidden, and screenshots want the end state
+ * anyway. Gives up waiting after `timeoutMs`.
  */
-export async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
+async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
   if (queryClient) {
     await waitFor(
       () => queryClient.isFetching() === 0 && queryClient.isMutating() === 0,
@@ -76,6 +76,17 @@ export async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
       animation.finish()
     }
   }
+  // Radix keeps a closed overlay mounted until its exit animation ends, which
+  // never happens while the window is hidden, so end it here
+  for (const el of document.querySelectorAll('[data-state="closed"]')) {
+    const { animationName } = getComputedStyle(el)
+    if (!animationName || animationName === 'none') continue
+    for (const name of animationName.split(',')) {
+      el.dispatchEvent(
+        new AnimationEvent('animationend', { animationName: name.trim() })
+      )
+    }
+  }
   await nextFrame()
   await nextFrame()
 }
@@ -84,7 +95,7 @@ export async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
  * Turns transitions off while screenshots are taken, so colour changes from a
  * theme switch land immediately rather than mid-transition.
  */
-export function setShotMode(on: boolean) {
+function setShotMode(on: boolean) {
   document.getElementById('agent-bridge-shot-mode')?.remove()
   if (!on) return
   const style = document.createElement('style')
@@ -94,7 +105,7 @@ export function setShotMode(on: boolean) {
   document.head.append(style)
 }
 
-export function describe(el: Element): string {
+function describe(el: Element): string {
   const label = labelOf(el)
   return `${roleOf(el) ?? el.tagName.toLowerCase()}${label ? ` "${label}"` : ''}`
 }
@@ -153,7 +164,6 @@ export function createPageApi(deps: PageApiDeps) {
         button: 0,
         clientX: rect.left + rect.width / 2,
         clientY: rect.top + rect.height / 2,
-        view: window,
       }
       const pointer: PointerEventInit = {
         ...mouse,

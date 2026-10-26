@@ -37,7 +37,7 @@ const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g
 const MAX_MESSAGE = 400
 const MAX_EXTRA_LINES = 4
 
-export function logDir(identifier: string) {
+function logDir(identifier: string) {
   return path.join(homedir(), 'Library/Logs', identifier)
 }
 
@@ -49,7 +49,7 @@ async function readIfExists(file: string) {
   }
 }
 
-function parsePluginLog(text: string): Entry[] {
+export function parsePluginLog(text: string): Entry[] {
   const entries: Entry[] = []
   for (const line of text.split('\n')) {
     const match = PLUGIN_LINE.exec(line)
@@ -75,7 +75,7 @@ function parsePluginLog(text: string): Entry[] {
 // Indented lines and cargo's numbered source lines (`10 |`) belong to the line before
 const CONTINUATION = /^\s|^\d+\s*\|/
 
-function parseDevLog(text: string): Entry[] {
+export function parseDevLog(text: string): Entry[] {
   const entries: Entry[] = []
   for (const raw of text.replace(ANSI, '').split('\n')) {
     const line = raw.trimEnd()
@@ -103,7 +103,7 @@ function parseDevLog(text: string): Entry[] {
 }
 
 /** Collapses consecutive entries with the same source, level and message. */
-function collapse(entries: Entry[]): Entry[] {
+export function collapse(entries: Entry[]): Entry[] {
   const collapsed: Entry[] = []
   for (const entry of entries) {
     const last = collapsed[collapsed.length - 1]
@@ -122,7 +122,7 @@ function collapse(entries: Entry[]): Entry[] {
   return collapsed
 }
 
-function format(entry: Entry, full: boolean): string {
+export function formatEntry(entry: Entry, full: boolean): string {
   const time = entry.time ? entry.time.toISOString().slice(11, 19) : '--:--:--'
   const [first = '', ...rest] = entry.message.split('\n')
   const extra = full ? rest : rest.slice(0, MAX_EXTRA_LINES)
@@ -169,10 +169,10 @@ export async function readLogs(
   const app = collapse(pluginEntries.filter(matches)).slice(-options.limit)
   const dev = collapse(devEntries.filter(matches)).slice(-options.limit)
   if (app.length)
-    sections.push(app.map(e => format(e, options.full)).join('\n'))
+    sections.push(app.map(e => formatEntry(e, options.full)).join('\n'))
   if (dev.length) {
     sections.push(
-      `── tauri dev output (this run) ──\n${dev.map(e => format(e, options.full)).join('\n')}`
+      `── tauri dev output (this run) ──\n${dev.map(e => formatEntry(e, options.full)).join('\n')}`
     )
   }
   return sections.length ? sections.join('\n\n') : 'No matching log entries.'

@@ -1,5 +1,5 @@
 /**
- * The app's dev-only `window.__ae` API, which the agent bridge CLI
+ * The app's dev-only `window.__agentBridge` API, which the agent bridge CLI
  * (`bun run app`) calls through the bridge's `/eval` endpoint. It extends the
  * page API (`page.ts`) with app actions. Installed by the `AgentBridge`
  * component; React-side dependencies are passed in so this stays testable.
@@ -61,8 +61,11 @@ export function createAgentApi(deps: AgentApiDeps) {
         selection: { from: selection?.from, to: selection?.to },
         focused: view.hasFocus,
       },
+      // Closed overlays can stay mounted briefly for their exit animation
       dialogs: [
-        ...document.querySelectorAll('[role="dialog"], [role="alertdialog"]'),
+        ...document.querySelectorAll(
+          ':is([role="dialog"], [role="alertdialog"]):not([data-state="closed"])'
+        ),
       ].map(el => labelOf(el)),
       toasts: toasts(),
       viewport: `${window.innerWidth}x${window.innerHeight}`,

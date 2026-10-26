@@ -70,7 +70,7 @@ Rust: `src-tauri/src/agent_bridge/`, compiled only under `#[cfg(debug_assertions
 
 ## Phase 3: App actions
 
-A dev-only `window.__ae` API (`src/lib/agent-bridge/api.ts`), installed by the `AgentBridge` component, which `Layout` renders only when `import.meta.env.DEV`. It reuses `useCommandContext()`, `useTheme()` and `openFileByPath`. The CLI calls it through `eval`. The production bundle has no trace of it (checked with `bun run build`).
+A dev-only `window.__agentBridge` API (`src/lib/agent-bridge/api.ts`), installed by the `AgentBridge` component, which `Layout` renders only when `import.meta.env.DEV`. It reuses `useCommandContext()`, `useTheme()` and `openFileByPath`. The CLI calls it through `eval`. The production bundle has no trace of it (checked with `bun run build`).
 
 - [x] `app shot [name] [--theme=light|dark|both] [--size=WxH]`, both themes by default:
   - turns transitions off (`shotMode`);
@@ -146,4 +146,45 @@ All sources end up in the dev log folder (`~/Library/Logs/is.danny.astroeditor.d
   - where the code lives.
 - [x] AGENTS.md: the skill is listed; development commands include `tauri:dev`, `app help` and `app logs`; there's a note on the dev identity; and the docs list includes the new guide
 - [x] `docs/developer/agent-tooling.md`: the dev identity, how the bridge works and how to add actions, the styleguide, and dev logs. Linked from `docs/README.md` and `logging.md`. Task 4 does the full docs rewrite
-- [x] `bun run check:all` passes. Release bundle (`tauri build --bundles app --no-sign`): 9.79 MiB, the same as before; no bridge strings in the binary and no `__ae` or styleguide in `dist/`. Plain `cargo build --release` fails to link (`_EMBED_INFO_PLIST` multiply defined under LTO), but `tauri build` is the supported path and works
+- [x] `bun run check:all` passes. Release bundle (`tauri build --bundles app --no-sign`): 9.79 MiB, the same as before; no bridge strings in the binary and no `__agentBridge` or styleguide in `dist/`. Plain `cargo build --release` fails to link (`_EMBED_INFO_PLIST` multiply defined under LTO), but `tauri build` is the supported path and works
+
+## Phase 7: Review follow-ups
+
+From a fresh-eyes review of the branch (comments fixed directly), plus CodeRabbit and CodeQL on PR #342.
+
+**From CodeRabbit and CodeQL**
+
+- [x] **Watcher rebuild held the map lock (CodeRabbit).** The replacement watcher is now built outside the lock. The loop re-locks, checks its generation again, and drops the new watcher if a start or stop happened meanwhile
+- [x] **Code built from strings (CodeQL alert 11).** `POST /window` takes `url` (resolved against the current page) and `reload`, using Tauri's `navigate()` / `reload()`, so `goto`, `reload` and `styleguide` no longer build JS. `callApi()` still passes arguments as a JS literal, now with `<`, `>`, `/`, U+2028 and U+2029 escaped (`jsLiteral`). `eval` runs caller-supplied JS by design
+
+**Behaviour**
+
+- [x] **Overlays closed while the window is hidden stayed mounted:** Radix waits for an exit animation that a hidden window never runs. `idle()` now sends `animationend` to closed (`data-state="closed"`) elements that have an animation, and `state.dialogs` only lists open dialogs. Checked: after `key escape` the command palette unmounts
+- [x] `findByText` applies the same area check as `tree`, so `click --text` no longer matches screen-reader-only elements
+- [x] `app styleguide` notes the open project and file first and reopens them afterwards
+- [x] `click` no longer sets `view` on its events (jsdom rejects it, and nothing reads it)
+
+**Simplification and naming**
+
+- [x] `page.ts` exports only `createPageApi`, `waitFor`, `PageApi` and `Target`. `app-logs.ts` no longer exports `logDir`
+- [x] Globals: `window.__agentBridge` (the API), `window.__agentBridgeResults` (eval results, in Rust) and `window.__agentBridgeReloading` (navigation marker). The CLI's `ae()` is now `callApi()`
+- [x] The CLI imports `Target` from `page.ts`
+
+**Robustness**
+
+- [x] The CLI rejects flags a command doesn't take (`shot doesn't take --themes. It takes --theme, --size, --out`)
+- [x] If the bridge can't be reached and the recorded pid isn't alive, the CLI says the dev app stopped without cleaning up. Untested, as it needs the dev app killed
+
+**Tests and tooling**
+
+- [x] `scripts/app-logs.test.ts` (11 tests: plugin and dev log parsing, collapsing, formatting, durations, levels, crash summaries). Vitest's default include picks up `scripts/`
+- [x] `src/lib/agent-bridge/page.test.tsx` (7 tests: click sequence and cancelled pointerdown, filling a React-controlled input, key events, releasing closed overlays), plus a `findByText` area test
+- [x] The `codebase-hygiene` skill notes that styleguide usage counts as usage for knip
+
+**Decided against**
+
+- Extending `fill` to `select` and contenteditable: no need yet
+- A shared hook for the two `window.__agentBridge` installs: two short copies are clearer
+- `eval --body`: the `return` heuristic is documented in the help
+- Concurrent bridge requests: one client at a time is fine
+- A cargo feature to keep `tiny_http` out of release builds: the binary is unchanged

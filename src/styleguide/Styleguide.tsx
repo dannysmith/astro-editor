@@ -97,13 +97,13 @@ export function Styleguide() {
     latest.current = { theme, setTheme }
   })
   useEffect(() => {
-    window.__ae = createPageApi({
+    window.__agentBridge = createPageApi({
       queryClient,
       getTheme: () => latest.current.theme,
       setTheme: theme => latest.current.setTheme(theme),
     })
     return () => {
-      delete window.__ae
+      delete window.__agentBridge
     }
   }, [])
 
