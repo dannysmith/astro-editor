@@ -1,3 +1,5 @@
+#[cfg(debug_assertions)]
+mod agent_bridge;
 mod bindings;
 mod commands;
 mod models;
@@ -114,6 +116,9 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_title("Astro Editor (Dev)");
             }
+
+            #[cfg(debug_assertions)]
+            agent_bridge::start(app.handle());
 
             // Fix PATH environment variable for production builds
             // This ensures shell commands can find executables like 'code', 'cursor', etc.
@@ -421,6 +426,8 @@ pub fn run() {
             }
             tauri::RunEvent::Exit => {
                 log::info!("Application exiting");
+                #[cfg(debug_assertions)]
+                agent_bridge::stop(app_handle);
             }
             _ => {}
         });

@@ -51,22 +51,22 @@ Done before task 3, which uses the styleguide for before/after checks of the Bas
 
 ## Phase 2: Bridge core
 
-Rust: a module under `src-tauri/src/`, registered only under `#[cfg(debug_assertions)]`.
+Rust: `src-tauri/src/agent_bridge/`, compiled only under `#[cfg(debug_assertions)]`. CLI: `scripts/app.ts`.
 
-- [ ] An HTTP server on `127.0.0.1` on a free port (try 1422 first; Vite has 1420/1421) on a background thread. Use a small crate such as `tiny_http`, or tokio, which is already a dependency
-- [ ] On startup, write `{ port, token }` to `agent-bridge.json` in the dev app data folder, and delete it on exit. Every request must send the token in a header, which stops browser pages from reaching the bridge
-- [ ] Endpoints, kept generic:
-  - `eval`: run a JS snippet and return its result, awaiting promises. Use WKWebView `callAsyncJavaScript` through `with_webview` + objc2. Check first whether Tauri 2.12 has a built-in eval-with-callback;
-  - `snapshot`: `takeSnapshot` → PNG written to a path the CLI passes. The app writes it, so the sandbox doesn't matter. Wait for a presentation update first, because WebKit can return blank images otherwise;
-  - `window`: get and set size, set native appearance (`set_theme`), and navigate (for the styleguide);
-  - `health`.
-- [ ] `scripts/app.ts` CLI skeleton:
-  - finds and reads `agent-bridge.json`;
-  - if the app isn't running, prints a clear error telling the user to start `bun run tauri:dev`;
-  - compact text output by default, `--json` when useful;
-  - `package.json` script `app`.
-- [ ] `app eval '<js>'` and `app shot`
-- [ ] Never take focus or raise the window. Confirm by driving the app while Danny types in another app
+- [x] An HTTP server (`tiny_http`, plus three small dependencies) on `127.0.0.1:1422`, falling back to a random port, on a background thread
+- [x] On startup, write `{ port, token, pid }` to `agent-bridge.json` in the dev app data folder, and delete it on exit. Every request must send the token in the `x-agent-bridge-token` header, which stops browser pages from reaching the bridge
+- [x] Endpoints, kept generic:
+  - `POST /eval`: runs a snippet as the body of an async function and returns its JSON result. Tauri 2.12's `eval_with_callback` can't await, so the snippet's result is stored on `window.__agentBridge` and polled for every 10ms. No objc2 needed;
+  - `POST /snapshot`: `takeSnapshot` via `with_webview` + objc2 → PNG at the path the CLI passes. The app writes it, so the sandbox doesn't matter. Output is at backing scale (2x on retina);
+  - `GET/POST /window`: logical size, scale, and native appearance (`light` / `dark` / `system`). Setting the appearance also flips `prefers-color-scheme` in the webview. Navigation goes through `eval` (`location.href = …`);
+  - `GET /health`.
+- [x] `scripts/app.ts` CLI (`bun run app`, or `bun run --silent app` to drop bun's script echo):
+  - finds `agent-bridge.json` using the identifier from `tauri.dev.conf.json`;
+  - tells the user to start `bun run tauri:dev` when the file is missing or the bridge doesn't answer;
+  - prints strings raw and everything else as JSON.
+- [x] `app status`, `app eval '<js>'` (an expression, or a function body if it contains `return`; `--timeout=<ms>`), `app shot [name]` and `app resize WxH`
+- [x] Release builds: `cargo clippy --release` is clean, so nothing references the bridge outside debug builds
+- [x] Never take focus or raise the window. Danny confirmed the dev window stayed put while the bridge was driven (eval, snapshot, resize, theme)
 
 ## Phase 3: App actions
 
@@ -89,7 +89,6 @@ A dev-only `window.__ae` API (e.g. `src/lib/agent-bridge/`), loaded from `main.t
 - [ ] `app type "text"`: insert at the CodeMirror cursor through a transaction, so the normal update and auto-save paths run
 - [ ] `app key mod+b`: a synthetic `keydown` on the focused element. react-hotkeys-hook and CodeMirror keymaps both accept these. Native menu accelerators don't, so use `app run`
 - [ ] `app click <selector>` / `app click --text "…"` for when no named action exists
-- [ ] `app resize WxH` (within the window's min size)
 - [ ] `app state`: a compact summary of the stores (project, collection, current file, dirty flag, panel visibility, theme)
 - [ ] `app tree`: a trimmed outline of the visible UI (landmarks, headings, buttons, inputs, list items with text) for finding things without a screenshot. Keep it short enough to read every time
 - [ ] Unit tests for the `__ae` logic (key parsing, tree trimming, command lookup)
