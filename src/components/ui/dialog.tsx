@@ -22,6 +22,8 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+// fill-mode-forwards keeps the backdrop faded out until Base UI unmounts it, once
+// the popup's longer exit animation has finished
 function DialogOverlay({
   className,
   ...props
@@ -30,7 +32,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 z-50 bg-black/50 rounded-[var(--app-corner-radius)]',
+        'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-closed:fill-mode-forwards data-open:fade-in-0 fixed inset-0 z-50 bg-black/50 rounded-[var(--app-corner-radius)]',
         className
       )}
       {...props}
