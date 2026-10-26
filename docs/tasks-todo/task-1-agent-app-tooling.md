@@ -70,28 +70,29 @@ Rust: `src-tauri/src/agent_bridge/`, compiled only under `#[cfg(debug_assertions
 
 ## Phase 3: App actions
 
-A dev-only `window.__ae` API (e.g. `src/lib/agent-bridge/`), loaded from `main.tsx` only when `import.meta.env.DEV`. The CLI calls it through `eval`. The logic lives in TypeScript, so it can be unit tested.
+A dev-only `window.__ae` API (`src/lib/agent-bridge/api.ts`), installed by the `AgentBridge` component, which `Layout` renders only when `import.meta.env.DEV`. It reuses `useCommandContext()`, `useTheme()` and `openFileByPath`. The CLI calls it through `eval`. The production bundle has no trace of it (checked with `bun run build`).
 
-- [ ] `app shot [name] [--theme light|dark|both] [--size WxH]`:
-  - sets the app theme (expose the `ThemeProvider` setter) and the native appearance;
-  - waits until the app is idle (no pending queries, two animation frames);
-  - takes a snapshot per theme, then restores the previous theme and size.
+- [x] `app shot [name] [--theme=light|dark|both] [--size=WxH]`, both themes by default:
+  - turns transitions off (`shotMode`);
+  - sets the native appearance **and** the app theme explicitly;
+  - waits for idle;
+  - snapshots;
+  - restores the theme, appearance and size.
 
-  Output is `<name>-<theme>-<WxH>-<stamp>.png`, and all shots in a run share the timestamp. During the shot, put an opaque background behind the transparent areas (a temporary class on `<html>`) so PNGs don't come out see-through.
-- [ ] `app open-project [path]`:
-  - defaults to `temp-dummy-astro-project`;
-  - copies it from `test/dummy-astro-project` if missing;
-  - calls `setProject` and waits for collections to load.
-
-  `app reset` recreates the vault, which is the same as `reset:testdata`.
-- [ ] `app open <collection>/<file>` opens a file via the same path the file list uses
-- [ ] `app run <command-id>` runs a command palette command by id. `app run --list` lists the ids available right now
-- [ ] `app type "text"`: insert at the CodeMirror cursor through a transaction, so the normal update and auto-save paths run
-- [ ] `app key mod+b`: a synthetic `keydown` on the focused element. react-hotkeys-hook and CodeMirror keymaps both accept these. Native menu accelerators don't, so use `app run`
-- [ ] `app click <selector>` / `app click --text "…"` for when no named action exists
-- [ ] `app state`: a compact summary of the stores (project, collection, current file, dirty flag, panel visibility, theme)
-- [ ] `app tree`: a trimmed outline of the visible UI (landmarks, headings, buttons, inputs, list items with text) for finding things without a screenshot. Keep it short enough to read every time
-- [ ] Unit tests for the `__ae` logic (key parsing, tree trimming, command lookup)
+  Output is `<name>-<theme>-<WxH>-<stamp>.png`, and all shots in a run share the timestamp. No opaque backing is needed: the layout root paints its own background. A `--1x` flag was considered and skipped
+- [x] `app open-project [path]`: defaults to `temp-dummy-astro-project` and copies it from `test/dummy-astro-project` (without `node_modules` / `dist`) if missing. It waits for the project registry to initialise (right after a page load it may not be), then for collections. `app reset` recreates the vault and, if it's open, closes the file, restarts the watcher and refetches everything (`refreshProject`)
+- [x] `app open <file>`: absolute, or relative to the project or its `src/content`, with an optional extension. Reuses `openFileByPath` (the deep-link handler), whose window-focusing moved into `useDeepLink` so the bridge doesn't steal focus
+- [x] `app run <command-id>` runs a command palette command by id. `app run --list` lists the ids available right now
+- [x] `app type "text"`: inserts at the CodeMirror cursor through a transaction, so the normal update and auto-save paths run
+- [x] `app key mod+b`: synthetic `keydown`/`keyup` on the focused element, reporting whether it was handled. react-hotkeys-hook and CodeMirror keymaps both accept these. Native menu accelerators don't, so use `app run`
+- [x] `app click @ref | <selector> | --text=…`: the pointer and mouse event sequence of a real click. `app fill <target> <value>` sets inputs through React's value setter
+- [x] `app state`: project, collection, file, dirty flag, panels, modes, theme, editor (lines, selection, focus), open dialogs, toasts, viewport
+- [x] `app tree`: an outline of the visible UI with numbered refs. Screen-reader-only text and empty containers are left out, and CodeMirror is summarised
+- [x] `app reload`: reloads the webview and waits for the API. Needed after changing `lib/agent-bridge` (the API object is created once) and when HMR doesn't re-mount something
+- [x] Unit tests for key parsing and the UI tree
+- [x] **Hidden windows:** when the dev window is covered by other windows, WebKit stops `requestAnimationFrame`, throttles timers, and doesn't fire media-query changes or start transitions until it next renders. Snapshots still show fresh content (taking one forces a render). So `idle()` doesn't wait on frames (it falls back to 50ms), forces a style recalc and finishes animations; `shot` sets the app theme directly
+- [x] **Found along the way:** stopping or replacing a project's file watcher brought it back, and a page reload set two watchers on the same project replacing each other forever. Fixed separately (watcher generations)
+- [ ] **Noted, not fixed:** frontmatter field labels aren't associated with their inputs, so `tree` shows placeholders instead of field names (and the Draft switch has no name). It's an accessibility gap worth fixing with the form work
 
 ## Phase 4: Logs
 
