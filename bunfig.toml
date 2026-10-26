@@ -1,0 +1,4 @@
+[install]
+# Don't install versions published in the last day, to give the registry time
+# to catch compromised releases before they reach us.
+minimumReleaseAge = "1d"

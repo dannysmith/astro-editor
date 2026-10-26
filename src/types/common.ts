@@ -24,7 +24,13 @@ export interface SelectFieldProps extends FieldProps {
 
 // Common patterns for form field handling
 export type FieldValue =
-  string | number | boolean | Date | string[] | undefined | null
+  | string
+  | number
+  | boolean
+  | Date
+  | string[]
+  | undefined
+  | null
 
 // File system related types
 export interface FileSystemEntry {

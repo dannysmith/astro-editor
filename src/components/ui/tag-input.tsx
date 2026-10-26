@@ -107,7 +107,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             <Badge
               key={tag.id}
               variant="secondary"
-              className="text-xs px-2 py-0.5"
+              className="px-2 py-0.5 text-xs"
             >
               {tag.text}
               {!disabled && (
@@ -117,7 +117,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
                     e.stopPropagation()
                     removeTag(tag.id)
                   }}
-                  className="ml-1 hover:bg-destructive/20 rounded-sm p-0.5 transition-colors"
+                  className="ml-1 rounded-sm p-0.5 transition-colors hover:bg-destructive/20"
                   aria-label={`Remove ${tag.text} tag`}
                 >
                   <X className="size-3" />
@@ -133,7 +133,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             onKeyDown={handleKeyDown}
             placeholder={tags.length === 0 ? placeholder : ''}
             disabled={disabled}
-            className="flex-1 min-w-[120px] bg-transparent border-0 outline-none placeholder:text-muted-foreground text-gray-900 dark:text-white disabled:cursor-not-allowed"
+            className="min-w-[120px] flex-1 border-0 bg-transparent text-gray-900 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed dark:text-white"
           />
         </div>
       </div>

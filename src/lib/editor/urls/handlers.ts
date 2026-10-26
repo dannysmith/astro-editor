@@ -29,7 +29,7 @@ export const handleUrlClick = async (
     await openPath(clickedUrl.url)
     return true // Prevent default click behavior
   } catch (error) {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.error('Failed to open URL:', error)
     return false
   }

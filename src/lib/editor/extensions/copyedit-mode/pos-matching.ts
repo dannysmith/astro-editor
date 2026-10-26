@@ -220,7 +220,7 @@ export function processPosType(
       import.meta.env.DEV &&
       (range.from < 0 || range.to > text.length || range.from >= range.to)
     ) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.warn('[CopyeditMode] Invalid range detected:', {
         from: range.from,
         to: range.to,

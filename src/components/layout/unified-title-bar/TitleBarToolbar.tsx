@@ -78,14 +78,14 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
       data-tauri-drag-region
       onMouseEnter={showBars}
     >
-      <div className="flex items-center gap-2 flex-1" data-tauri-drag-region>
+      <div className="flex flex-1 items-center gap-2" data-tauri-drag-region>
         {leftSlot}
 
         <Button
           onClick={toggleSidebar}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={sidebarVisible ? 'Close Sidebar' : 'Open Sidebar'}
         >
           {sidebarVisible ? (
@@ -96,7 +96,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         </Button>
 
         {projectPath ? (
-          <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+          <span className="overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
             {projectPath.split('/').pop() || projectPath}
           </span>
         ) : (
@@ -112,7 +112,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
             onClick={() => void createNewFile()}
             variant="ghost"
             size="sm"
-            className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+            className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
             title={`New ${selectedCollection} file`}
           >
             <Plus className="size-4" />
@@ -123,7 +123,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleFocusMode}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={focusModeEnabled ? 'Disable Focus Mode' : 'Enable Focus Mode'}
           aria-label={
             focusModeEnabled ? 'Disable Focus Mode' : 'Enable Focus Mode'
@@ -141,7 +141,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleTypewriterMode}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={
             typewriterModeEnabled
               ? 'Disable Typewriter Mode'
@@ -167,7 +167,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           size="sm"
           disabled={!currentFile || !isDirty}
           title={`Save${isDirty ? ' (unsaved changes)' : ''}`}
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
         >
           <Save className="size-4" />
         </Button>
@@ -176,7 +176,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleFrontmatterPanel}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 [&_svg]:transform-gpu [&_svg]:scale-100 text-gray-700 dark:text-gray-300"
+          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={
             frontmatterPanelVisible
               ? 'Close Frontmatter Panel'

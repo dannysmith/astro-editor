@@ -20,7 +20,7 @@ interface SaveFilePayload {
 const saveFile = async (payload: SaveFilePayload) => {
   const result = await commands.saveMarkdownContent(
     payload.filePath,
-    payload.frontmatter as Partial<Record<string, JsonValue>>,
+    payload.frontmatter as Record<string, JsonValue>,
     null, // rawFrontmatter
     payload.content,
     payload.imports,

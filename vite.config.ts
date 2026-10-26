@@ -19,24 +19,24 @@ export default defineConfig(async () => ({
       filename: 'bundle-stats.html',
       gzipSize: true,
       brotliSize: true,
-    })
+    }),
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
 
   // Build optimizations
   build: {
-    sourcemap: false,  // Disable source maps in production
-    minify: 'terser',  // Use terser for minification
+    sourcemap: false, // Disable source maps in production
+    minify: 'terser', // Use terser for minification
     terserOptions: {
       compress: {
-        drop_console: true,  // Remove console logs in production
-        drop_debugger: true  // Remove debugger statements
-      }
-    }
+        drop_console: true, // Remove console logs in production
+        drop_debugger: true, // Remove debugger statements
+      },
+    },
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

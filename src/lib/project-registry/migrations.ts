@@ -20,7 +20,7 @@ import { DEFAULT_PROJECT_SETTINGS } from './defaults'
 export function migrateGlobalSettingsV1toV2(
   oldSettings: Record<string, unknown>
 ): GlobalSettings {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // oxlint-disable-next-line @typescript-eslint/no-unused-vars
   const { defaultProjectSettings, version, ...rest } = oldSettings
 
   const migratedSettings: GlobalSettings = {
@@ -60,7 +60,7 @@ export function migrateGlobalSettingsV1toV2(
 export function migrateProjectDataV1toV2(
   oldProjectData: Record<string, unknown>
 ): ProjectData {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // oxlint-disable-next-line @typescript-eslint/no-unused-vars
   const { metadata, ...rest } = oldProjectData
 
   const migratedData: ProjectData = {

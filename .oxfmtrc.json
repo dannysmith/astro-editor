@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "*.lock",
+    "*.md",
+    "docs",
+    "website",
+    "test",
+    "temp-dummy-astro-project",
+    "src-tauri/tauri.conf.json",
+    "src-tauri/src/test_fixtures/enhanced_config.ts",
+    "src/lib/bindings.ts"
+  ],
+  "sortTailwindcss": {
+    "stylesheet": "./src/App.css"
+  }
+}

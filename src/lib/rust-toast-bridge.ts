@@ -65,7 +65,7 @@ export const initializeRustToastBridge = async () => {
     // Return cleanup function
     return unlisten
   } catch (error) {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.error('Failed to initialize Rust toast bridge:', error)
     return () => {} // Return empty cleanup function
   }

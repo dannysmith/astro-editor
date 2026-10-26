@@ -130,7 +130,6 @@ describe('useEditorHandlers', () => {
         result.current.handleFocus()
       })
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(window.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'editor-focus-changed',
@@ -167,7 +166,6 @@ describe('useEditorHandlers', () => {
         result.current.handleBlur()
       })
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(window.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'editor-focus-changed',

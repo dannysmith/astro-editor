@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { processFileToAssets } from './fileProcessing'
 import type { ProcessFileToAssetsOptions } from './types'

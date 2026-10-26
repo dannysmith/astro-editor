@@ -21,7 +21,7 @@ export async function openInIde(
     toast.error('Failed to open in IDE', {
       description: result.error,
     })
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.error('IDE open failed:', result.error)
     return
   }

@@ -82,9 +82,9 @@ describe('useEditorSetup', () => {
     })
 
     it('should return extensions and basic setup', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-explicit-any
       const mockExtensions: any[] = []
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-argument
       mockCreateExtensions.mockReturnValue(mockExtensions)
 
       const { result } = renderHook(() =>
@@ -115,7 +115,7 @@ describe('useEditorSetup', () => {
       })
 
       expect(mockCreateEditorCommandRegistry).toHaveBeenCalledWith(mockOnSave)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledWith(
         mockCommands,
         mockEditorView
@@ -185,7 +185,7 @@ describe('useEditorSetup', () => {
         result.current.cleanupCommands()
       })
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(1)
     })
 
@@ -238,7 +238,7 @@ describe('useEditorSetup', () => {
       })
 
       expect(mockCreateEditorCommandRegistry).toHaveBeenCalledWith(mockOnSave)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledWith(
         mockCommands,
         mockEditorView
@@ -250,7 +250,7 @@ describe('useEditorSetup', () => {
         result.current.cleanupCommands()
       })
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(1)
       expect(mockCleanupMenuCommands).toHaveBeenCalledTimes(1)
     })
@@ -266,7 +266,7 @@ describe('useEditorSetup', () => {
       })
 
       expect(mockCreateEditorCommandRegistry).toHaveBeenCalledTimes(2)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledTimes(2)
       expect(mockExportMenuCommands).toHaveBeenCalledTimes(2)
     })
@@ -281,7 +281,7 @@ describe('useEditorSetup', () => {
         result.current.cleanupCommands()
       })
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(2)
       expect(mockCleanupMenuCommands).toHaveBeenCalledTimes(2)
     })

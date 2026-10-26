@@ -80,8 +80,8 @@ export const GeneralPane: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-        <h2 className="text-base font-semibold mb-1 text-heading">
+      <div className="mb-6 rounded-lg border bg-muted/50 p-4">
+        <h2 className="mb-1 text-base font-semibold text-heading">
           Global Settings
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -159,7 +159,7 @@ export const GeneralPane: React.FC = () => {
         <Field>
           <FieldLabel>Heading Color (Light Mode)</FieldLabel>
           <FieldContent>
-            <div className="flex items-center gap-2 w-fit">
+            <div className="flex w-fit items-center gap-2">
               <input
                 type="color"
                 value={
@@ -168,7 +168,7 @@ export const GeneralPane: React.FC = () => {
                 onChange={e =>
                   handleHeadingColorChange('light', e.target.value)
                 }
-                className="w-20 h-9 cursor-pointer rounded-md border border-input bg-transparent"
+                className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"
               />
               <Button
                 variant="outline"
@@ -187,14 +187,14 @@ export const GeneralPane: React.FC = () => {
         <Field>
           <FieldLabel>Heading Color (Dark Mode)</FieldLabel>
           <FieldContent>
-            <div className="flex items-center gap-2 w-fit">
+            <div className="flex w-fit items-center gap-2">
               <input
                 type="color"
                 value={
                   globalSettings?.appearance?.headingColor?.dark || '#cccccc'
                 }
                 onChange={e => handleHeadingColorChange('dark', e.target.value)}
-                className="w-20 h-9 cursor-pointer rounded-md border border-input bg-transparent"
+                className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"
               />
               <Button
                 variant="outline"
@@ -213,7 +213,7 @@ export const GeneralPane: React.FC = () => {
         <Field>
           <FieldLabel>Editor Font Size</FieldLabel>
           <FieldContent>
-            <div className="flex items-center gap-2 w-fit">
+            <div className="flex w-fit items-center gap-2">
               <Input
                 type="number"
                 min={1}

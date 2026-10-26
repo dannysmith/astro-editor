@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Astro Editor Telemetry Stats
-# Run with: ./stats.sh or pnpm run stats
+# Run with: ./stats.sh or bun run stats
 
 set -e
 
@@ -43,12 +43,12 @@ printf "   ${BOLD}${GREEN}%-6s${RESET} ${DIM}90 days${RESET}\n" "${d90:-0}"
 printf "   ${BOLD}${GREEN}%-6s${RESET} ${DIM}365 days${RESET}\n" "${d365:-0}"
 
 header "📊 TELEMETRY USERS"
-total=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+total=$(bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT COUNT(DISTINCT uuid) as total_installs
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
 " 2>/dev/null | jq -r '.[0].results[0].total_installs')
-new_users=$(pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+new_users=$(bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT COUNT(DISTINCT uuid) as new_users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -62,7 +62,7 @@ printf "   ${BOLD}${GREEN}%-6s${RESET} total installs\n" "$total"
 printf "   ${BOLD}${YELLOW}%-6s${RESET} new this week\n" "$new_users"
 
 header "🖥️  USERS BY PLATFORM"
-pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT platform, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -73,7 +73,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
 done
 
 header "📦 CURRENT VERSION"
-pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT version, COUNT(*) as users
   FROM (
     SELECT uuid, version
@@ -89,7 +89,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
 done
 
 header "📅 DAILY ACTIVE (Last 14 Days)"
-pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT DATE(created_at) as date, COUNT(DISTINCT uuid) as users
   FROM telemetry_events
   WHERE app_id = 'astro-editor'
@@ -103,7 +103,7 @@ pnpm wrangler d1 execute astro-telemetry --remote --json --command "
 done
 
 header "🏆 POWER USERS (by days active)"
-pnpm wrangler d1 execute astro-telemetry --remote --json --command "
+bunx wrangler d1 execute astro-telemetry --remote --json --command "
   SELECT
     uuid,
     COUNT(DISTINCT DATE(created_at)) as days_active,

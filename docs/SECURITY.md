@@ -17,7 +17,7 @@ We'll respond within 48 hours and provide updates on our progress.
 When contributing:
 
 - Follow the [Tauri Security Guide](https://v2.tauri.app/security/)
-- Run `pnpm run check:all` before committing
+- Run `bun run check:all` before committing
 - Be careful with file system operations - only access user-selected project directories
 - Review Tauri command implementations for privilege escalation risks
 - Update dependencies when security patches are available

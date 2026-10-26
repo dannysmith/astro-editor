@@ -96,14 +96,14 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
       item => item.id === activePane
     )
     if (!isAvailable) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // oxlint-disable-next-line react-hooks/set-state-in-effect
       setActivePane('general')
     }
   }, [hasProject, activePane])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 md:max-h-[600px] md:max-w-[900px] lg:max-w-[1000px] font-sans">
+      <DialogContent className="overflow-hidden p-0 font-sans md:max-h-[600px] md:max-w-[900px] lg:max-w-[1000px]">
         <DialogTitle className="sr-only">Preferences</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your application preferences here.
@@ -137,7 +137,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             </SidebarContent>
           </Sidebar>
 
-          <main className="flex flex-1 flex-col overflow-hidden max-h-[600px]">
+          <main className="flex max-h-[600px] flex-1 flex-col overflow-hidden">
             <header className="flex h-16 shrink-0 items-center gap-2">
               <div className="flex items-center gap-2 px-4">
                 <Breadcrumb>

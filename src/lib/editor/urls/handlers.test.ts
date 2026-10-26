@@ -177,7 +177,7 @@ describe('URL Handlers', () => {
 
       await handleUrlClick(view, event)
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(view.posAtCoords).toHaveBeenCalledWith({ x: 123, y: 456 })
     })
 

@@ -14,7 +14,7 @@ import {
 vi.mock('../markdown/formatting', () => ({
   toggleMarkdown: vi.fn((view, marker) => {
     // Mock implementation that tracks the marker used
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+    // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     view.lastMarker = marker
     return true
   }),
@@ -24,7 +24,7 @@ vi.mock('../markdown/formatting', () => ({
 vi.mock('../markdown/headings', () => ({
   transformLineToHeading: vi.fn((view, level) => {
     // Mock implementation that tracks the level used
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+    // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     view.lastLevel = level
     return true
   }),
@@ -48,7 +48,7 @@ describe('Editor Commands', () => {
       const result = command(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastMarker).toBe('**')
     })
   })
@@ -59,7 +59,7 @@ describe('Editor Commands', () => {
       const result = command(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastMarker).toBe('*')
     })
   })
@@ -84,7 +84,7 @@ describe('Editor Commands', () => {
       const result = command(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastLevel).toBe(1)
     })
 
@@ -93,7 +93,7 @@ describe('Editor Commands', () => {
       const result = command(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastLevel).toBe(2)
     })
 
@@ -102,7 +102,7 @@ describe('Editor Commands', () => {
       const result = command(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastLevel).toBe(0)
     })
   })
@@ -152,7 +152,7 @@ describe('Editor Commands', () => {
 
       const result = registry.toggleBold(mockView)
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastMarker).toBe('**')
     })
 
@@ -162,7 +162,7 @@ describe('Editor Commands', () => {
 
       const result = registry.toggleItalic(mockView)
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastMarker).toBe('*')
     })
 
@@ -186,7 +186,7 @@ describe('Editor Commands', () => {
       const result = headingCommand(mockView)
 
       expect(result).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastLevel).toBe(2)
     })
 

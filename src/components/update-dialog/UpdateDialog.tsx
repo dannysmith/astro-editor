@@ -17,9 +17,9 @@ import './release-notes.css'
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
+    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
       <div
-        className="bg-primary h-full rounded-full transition-[width] duration-300"
+        className="h-full rounded-full bg-primary transition-[width] duration-300"
         style={{ width: `${value}%` }}
       />
     </div>
@@ -41,7 +41,7 @@ function ReleaseNotesArea() {
 
   if (hasError) {
     return (
-      <p className="text-muted-foreground py-4 text-center text-sm">
+      <p className="py-4 text-center text-sm text-muted-foreground">
         Could not load release notes.
       </p>
     )
@@ -49,7 +49,7 @@ function ReleaseNotesArea() {
 
   if (!notes) {
     return (
-      <p className="text-muted-foreground py-4 text-center text-sm">
+      <p className="py-4 text-center text-sm text-muted-foreground">
         No release notes for this version.
       </p>
     )
@@ -159,7 +159,7 @@ function DownloadingContent() {
       </DialogHeader>
       <div className="space-y-2 py-4">
         <ProgressBar value={progress} />
-        <p className="text-muted-foreground text-center text-sm">{progress}%</p>
+        <p className="text-center text-sm text-muted-foreground">{progress}%</p>
       </div>
     </>
   )

@@ -6,7 +6,7 @@ This document provides guidelines and information for contributors.
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
+- Node.js (current LTS) and bun
 - Rust 1.70+
 - macOS development environment (for Tauri)
 
@@ -15,11 +15,11 @@ This document provides guidelines and information for contributors.
 1. Clone the repository
 2. Install dependencies:
    ```bash
-   pnpm install
+   bun install
    ```
 3. Start development server:
    ```bash
-   pnpm run dev
+   bun run dev
    ```
 
 ## Development Workflow
@@ -35,8 +35,8 @@ This document provides guidelines and information for contributors.
 Always run before committing:
 
 ```bash
-pnpm run check:all  # TypeScript + Rust + tests
-pnpm run fix:all    # Auto-fix issues
+bun run check:all  # TypeScript + Rust + tests
+bun run fix:all    # Auto-fix issues
 ```
 
 ### Key Patterns
@@ -61,7 +61,7 @@ See `docs/developer/architecture-guide.md` for detailed patterns.
 
 1. Create a feature branch from `main`
 2. Make your changes following the established patterns
-3. Run `pnpm run check:all` and ensure all checks pass
+3. Run `bun run check:all` and ensure all checks pass
 4. Write or update tests as needed
 5. Update documentation if you're adding new patterns
 6. Submit a pull request with a clear description
