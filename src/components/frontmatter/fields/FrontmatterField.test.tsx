@@ -369,6 +369,31 @@ describe('FrontmatterField Orchestrator', () => {
     })
   })
 
+  describe('Labels', () => {
+    it.each([
+      [FieldType.String, 'textbox', 'Subtitle'],
+      [FieldType.Number, 'spinbutton', 'Subtitle'],
+      [FieldType.Boolean, 'switch', 'Subtitle'],
+      [FieldType.Array, 'textbox', 'Subtitle'],
+      [FieldType.Date, 'button', 'Subtitle Select date...'],
+      [FieldType.Enum, 'combobox', 'Subtitle'],
+    ])('names the %s field control after its label', (type, role, name) => {
+      const field: SchemaField = {
+        name: 'subtitle',
+        label: 'Subtitle',
+        type,
+        required: false,
+        enumValues: ['a', 'b'],
+      }
+
+      renderWithProviders(
+        <FrontmatterField name="subtitle" label="Subtitle" field={field} />
+      )
+
+      expect(screen.getByRole(role, { name })).toBeInTheDocument()
+    })
+  })
+
   describe('Edge Cases', () => {
     it('should handle undefined field gracefully', () => {
       renderWithProviders(

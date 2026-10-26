@@ -23,6 +23,8 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
     state => state.updateFrontmatterField
   )
 
+  const id = React.useId()
+
   // Check if this is a number array
   const isNumberArray =
     field?.subType === FieldType.Number || field?.subType === FieldType.Integer
@@ -80,6 +82,7 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      htmlFor={id}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -89,6 +92,7 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
       currentValue={value}
     >
       <TagInput
+        inputId={id}
         placeholder={`Enter ${label.toLowerCase()}...`}
         tags={tags}
         onTagsChange={handleTagsChange}

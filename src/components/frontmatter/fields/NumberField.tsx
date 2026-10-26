@@ -23,10 +23,12 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
+  const id = React.useId()
 
   return (
     <FieldWrapper
       label={label}
+      htmlFor={id}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -36,6 +38,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
       currentValue={value}
     >
       <Input
+        id={id}
         type="number"
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
         value={valueToString(value)}

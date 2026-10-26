@@ -28,6 +28,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
     state => state.updateFrontmatterField
   )
   const [error, setError] = React.useState<string | null>(null)
+  const id = React.useId()
 
   // Convert value to YAML-like string for display
   const displayValue = React.useMemo(() => {
@@ -64,6 +65,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      htmlFor={id}
       required={required}
       description={
         field && 'description' in field
@@ -76,6 +78,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
     >
       <div className="space-y-2">
         <AutoExpandingTextarea
+          id={id}
           value={displayValue}
           onChange={e => handleChange(e.target.value)}
           placeholder={`Enter ${label.toLowerCase()} as JSON array...`}

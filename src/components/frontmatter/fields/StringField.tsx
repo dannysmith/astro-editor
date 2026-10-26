@@ -26,10 +26,12 @@ export const StringField: React.FC<StringFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
+  const id = React.useId()
 
   return (
     <FieldWrapper
       label={label}
+      htmlFor={id}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -39,6 +41,7 @@ export const StringField: React.FC<StringFieldProps> = ({
       currentValue={value}
     >
       <Input
+        id={id}
         type={type}
         name={name}
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}

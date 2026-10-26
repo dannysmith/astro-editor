@@ -30,6 +30,8 @@ export const EnumField: React.FC<EnumFieldProps> = ({
     state => state.updateFrontmatterField
   )
 
+  const labelId = `${React.useId()}-label`
+
   const items = [
     {
       value: NONE_SENTINEL,
@@ -41,6 +43,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      labelId={labelId}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -59,7 +62,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
           updateFrontmatterField(name, finalValue)
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger aria-labelledby={labelId}>
           <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
         </SelectTrigger>
         <SelectContent>

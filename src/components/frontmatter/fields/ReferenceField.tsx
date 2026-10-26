@@ -40,6 +40,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   field,
 }) => {
   const [open, setOpen] = React.useState(false)
+  const labelId = `${React.useId()}-label`
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
@@ -154,6 +155,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      labelId={labelId}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -169,6 +171,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
               variant="outline"
               role="combobox"
               aria-expanded={open}
+              aria-labelledby={labelId}
               className={cn(
                 'w-full justify-between',
                 isMultiSelect && 'h-auto min-h-10 py-2'

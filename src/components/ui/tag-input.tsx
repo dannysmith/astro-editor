@@ -14,6 +14,8 @@ export interface TagInputProps extends Omit<
   'onChange'
 > {
   tags: Tag[]
+  /** Id for the text input, for a label's htmlFor */
+  inputId?: string
   onTagsChange: (tags: Tag[]) => void
   placeholder?: string
   maxTags?: number
@@ -26,6 +28,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
     {
       className,
       tags,
+      inputId,
       onTagsChange,
       placeholder = 'Add a tag...',
       maxTags,
@@ -126,6 +129,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             </Badge>
           ))}
           <input
+            id={inputId}
             ref={inputRef}
             type="text"
             value={inputValue}

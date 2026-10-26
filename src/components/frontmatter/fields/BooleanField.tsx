@@ -43,6 +43,7 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
     return false
   }
 
+  const id = React.useId()
   const isRequired = field ? field.required : false
   const description =
     field && 'description' in field ? field.description : undefined
@@ -50,11 +51,12 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <FieldLabel>
+        <FieldLabel htmlFor={id}>
           {label}
           {isRequired && <span className="ml-1 text-required">*</span>}
         </FieldLabel>
         <Switch
+          id={id}
           checked={getBooleanValue(value)}
           onCheckedChange={checked => updateFrontmatterField(name, checked)}
         />
