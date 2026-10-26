@@ -163,61 +163,63 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
       currentValue={value}
     >
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className={cn(
-              'w-full justify-between',
-              isMultiSelect && 'h-auto min-h-10 py-2'
-            )}
-          >
-            <div className="flex flex-1 flex-wrap gap-1">
-              {isMultiSelect ? (
-                selectedOptions.length > 0 ? (
-                  selectedOptions.map(opt => (
-                    <Badge
-                      key={opt.value}
-                      variant="secondary"
-                      className="gap-1 pr-1"
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className={cn(
+                'w-full justify-between',
+                isMultiSelect && 'h-auto min-h-10 py-2'
+              )}
+            />
+          }
+        >
+          <div className="flex flex-1 flex-wrap gap-1">
+            {isMultiSelect ? (
+              selectedOptions.length > 0 ? (
+                selectedOptions.map(opt => (
+                  <Badge
+                    key={opt.value}
+                    variant="secondary"
+                    className="gap-1 pr-1"
+                  >
+                    {opt.label}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={e => handleRemoveItem(opt.value, e)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleRemoveItem(opt.value, e)
+                        }
+                      }}
+                      className="cursor-pointer rounded-full ring-offset-background outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      aria-label="Remove"
                     >
-                      {opt.label}
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={e => handleRemoveItem(opt.value, e)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            handleRemoveItem(opt.value, e)
-                          }
-                        }}
-                        className="cursor-pointer rounded-full ring-offset-background outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        aria-label="Remove"
-                      >
-                        <X className="h-3 w-3" />
-                        <span className="sr-only">Remove</span>
-                      </span>
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">
-                    Select {label.toLowerCase()}...
-                  </span>
-                )
-              ) : selectedOption ? (
-                selectedOption.label
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Remove</span>
+                    </span>
+                  </Badge>
+                ))
               ) : (
                 <span className="text-muted-foreground">
                   Select {label.toLowerCase()}...
                 </span>
-              )}
-            </div>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
+              )
+            ) : selectedOption ? (
+              selectedOption.label
+            ) : (
+              <span className="text-muted-foreground">
+                Select {label.toLowerCase()}...
+              </span>
+            )}
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+        <PopoverContent className="w-(--anchor-width) p-0">
           <Command>
             <CommandInput placeholder={`Search ${label.toLowerCase()}...`} />
             <CommandList>

@@ -529,9 +529,11 @@ export const LeftSidebar: React.FC = () => {
                       </span>
                       {!hasSchema && (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <AlertTriangle className="size-3.5 text-muted-foreground" />
-                          </TooltipTrigger>
+                          <TooltipTrigger
+                            render={
+                              <AlertTriangle className="size-3.5 text-muted-foreground" />
+                            }
+                          />
                           <TooltipContent side="right">
                             No schema found - using defaults
                           </TooltipContent>

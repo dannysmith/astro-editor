@@ -28,14 +28,16 @@ function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-between font-normal ${className || ''}`}
-        >
-          {value ? value.toLocaleDateString() : placeholder}
-          <ChevronDownIcon className="size-4" />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className={`w-full justify-between font-normal ${className || ''}`}
+          />
+        }
+      >
+        {value ? value.toLocaleDateString() : placeholder}
+        <ChevronDownIcon className="size-4" />
       </PopoverTrigger>
       <PopoverContent className="w-auto overflow-hidden p-0" align="start">
         <Calendar

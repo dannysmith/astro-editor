@@ -30,6 +30,14 @@ export const EnumField: React.FC<EnumFieldProps> = ({
     state => state.updateFrontmatterField
   )
 
+  const items = [
+    {
+      value: NONE_SENTINEL,
+      label: <span className="text-muted-foreground">(None)</span>,
+    },
+    ...options.map(option => ({ value: option, label: option })),
+  ]
+
   return (
     <FieldWrapper
       label={label}
@@ -42,8 +50,10 @@ export const EnumField: React.FC<EnumFieldProps> = ({
       currentValue={value}
     >
       <Select
+        items={items}
         value={value && typeof value === 'string' ? value : NONE_SENTINEL}
         onValueChange={value => {
+          if (value === null) return
           // Special sentinel value means clear the field
           const finalValue = value === NONE_SENTINEL ? undefined : value
           updateFrontmatterField(name, finalValue)
@@ -53,12 +63,9 @@ export const EnumField: React.FC<EnumFieldProps> = ({
           <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={NONE_SENTINEL}>
-            <span className="text-muted-foreground">(None)</span>
-          </SelectItem>
-          {options.map(option => (
-            <SelectItem key={option} value={option}>
-              {option}
+          {items.map(item => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
             </SelectItem>
           ))}
         </SelectContent>

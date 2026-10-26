@@ -197,14 +197,17 @@ function jsLiteral(value: unknown): string {
   )
 }
 
-/** Calls a `window.__agentBridge` method in the webview. */
+/**
+ * Calls a `window.__agentBridge` method in the webview, inside `withFrames` so
+ * that UI waiting on animation frames still works while the window is hidden.
+ */
 function callApi<T = unknown>(
   method: string,
   ...methodArgs: unknown[]
 ): Promise<T> {
   const js =
     `if (!window.__agentBridge) throw new Error("window.__agentBridge isn't installed. Is the app's page loaded?")\n` +
-    `return await window.__agentBridge.${method}(...${jsLiteral(methodArgs)})`
+    `return await window.__agentBridge.withFrames(() => window.__agentBridge.${method}(...${jsLiteral(methodArgs)}))`
   return call<T>('POST', '/eval', { js, timeoutMs: API_TIMEOUT_MS })
 }
 

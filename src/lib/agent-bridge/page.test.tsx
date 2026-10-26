@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import { createPageApi } from './page'
 
-// jsdom has no font loading, Web Animations, AnimationEvent or scrolling
+// jsdom has no font loading, Web Animations or scrolling
 beforeAll(() => {
   Object.defineProperty(document, 'fonts', {
     value: { ready: Promise.resolve() },
@@ -11,13 +11,6 @@ beforeAll(() => {
   })
   document.getAnimations = () => []
   Element.prototype.scrollIntoView = () => {}
-  globalThis.AnimationEvent ??= class extends Event {
-    animationName: string
-    constructor(type: string, init: AnimationEventInit = {}) {
-      super(type, init)
-      this.animationName = init.animationName ?? ''
-    }
-  } as unknown as typeof AnimationEvent
 })
 
 afterEach(() => {
@@ -126,22 +119,24 @@ describe('key', () => {
   })
 })
 
-describe('idle', () => {
-  it('ends the exit animation of closed overlays so they can unmount', async () => {
-    document.body.innerHTML =
-      '<div role="dialog" data-state="closed" style="animation-name: exit"></div>' +
-      '<div role="dialog" data-state="open" style="animation-name: enter"></div>'
-    const ended: string[] = []
-    for (const dialog of document.querySelectorAll('[role="dialog"]')) {
-      dialog.addEventListener('animationend', e =>
-        ended.push(
-          `${dialog.getAttribute('data-state')} ${(e as AnimationEvent).animationName}`
-        )
+describe('withFrames', () => {
+  it('runs frames requested during the call when real frames have stalled', async () => {
+    const stalled = vi.fn(() => 1)
+    const original = window.requestAnimationFrame
+    window.requestAnimationFrame = stalled
+    try {
+      const ran = await api().withFrames(
+        () =>
+          new Promise<boolean>(resolve => {
+            requestAnimationFrame(() => resolve(true))
+          })
       )
+
+      expect(ran).toBe(true)
+      expect(stalled).toHaveBeenCalledOnce()
+      expect(window.requestAnimationFrame).toBe(stalled)
+    } finally {
+      window.requestAnimationFrame = original
     }
-
-    await api().idle()
-
-    expect(ended).toEqual(['closed exit'])
   })
 })

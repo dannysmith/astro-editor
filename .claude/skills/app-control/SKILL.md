@@ -64,7 +64,7 @@ Reading logs doesn't need the app running.
 - **Vibrancy isn't captured.** Snapshots show the webview, and the layout paints its own background, so this rarely matters
 - **Synthetic input:** native menu accelerators (`Cmd+1` etc.) don't fire from `key`; use `run`. Events are untrusted, so anything checking `isTrusted` ignores them
 - **After editing `src/lib/agent-bridge/`, run `app reload`.** The API object is created once per page load. Also reload if HMR hasn't picked up a change
-- **The window may be hidden behind others.** That's fine: snapshots still render. It's why `idle` doesn't wait on animation frames
+- **The window may be hidden behind others.** That's fine: snapshots still render. It's why `idle` doesn't wait on animation frames, and why every command runs inside `withFrames` (Base UI popups wait on frames to open, take focus and unmount). Plain `eval` doesn't, so drive popups with `click` and `key` rather than dispatching events from `eval`, or wrap the snippet in `await window.__agentBridge.withFrames(async () => …)`. A popup that opened while the page loaded (the styleguide's open overlays) won't take focus until the window is visible
 
 ## How it works
 
