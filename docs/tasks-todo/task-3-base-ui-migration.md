@@ -22,6 +22,7 @@ Use the `app-control` skill to check the work in the running dev app rather than
   - Overlays are rendered open on their own pages.
   - Afterwards it returns to the app and reopens the project and file.
 - **The Radix baseline** is in `docs/tasks-todo/temporary/baseline/` (26 images, taken on 2026-10-26). That folder is gitignored, so if it's missing, regenerate it **before changing anything**: `bun run app styleguide --out=docs/tasks-todo/temporary/baseline`.
+- **Comparing:** `bun run app diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary` pairs each baseline shot with the newest shot of the same name. It lists which are pixel-identical, boxes the changes in the rest, and writes diff images to `docs/tasks-todo/temporary/diff/`. Repeat shots of an unchanged page are identical, so any difference is real. Look at the diff image and the new shot for anything that differs.
 - **Driving the styleguide:** `app goto '/styleguide.html?section=menus'`, then `app tree`, `app click @n`, `app key down` / `app key escape`, `app state`. Use these to check behaviour (open and close, keyboard navigation, checked state), not just looks.
 - **In the real app:**
   - `app open-project`, `app open <file>` and `app tree` reach the frontmatter fields, the file list and the preferences dialog (`app run open-preferences`);
@@ -32,9 +33,9 @@ Use the `app-control` skill to check the work in the running dev app rather than
 
 Things in the agent tooling that got in the way or could be better, found during this task:
 
-- **No image diff.** Comparing with the baseline means reading both PNGs by eye. The bytes always differ, and there's no PIL or ImageMagick to compare pixels. An `app diff <a> <b>` (decode both in the webview with `createImageBitmap` and a canvas, then report the share of changed pixels, the bounding box of the changes, and optionally write a diff image) would make the "nothing should change" check in Phase 2 exact instead of 26 visual reads
+- [x] **No image diff → `app diff`.** Comparing with the baseline meant reading both PNGs by eye: the bytes always differ, and there's no PIL or ImageMagick. Built with `pixelmatch` and `pngjs` in the CLI (`scripts/app-diff.ts`) rather than in the webview, so it works without the app running, like `logs`. Shooting `buttons` and `menus` twice gave 0 changed pixels, even counting anti-aliasing, so it's strict by default
 - **`app goto /` doesn't restore the open file** the way `app styleguide` does, so driving the styleguide by hand leaves the app with the project open but no file
-- **`check:all` has one sandbox-only failure** (`test_validate_app_data_path_valid`, see Phase 1)
+- **An intermittent Rust test failure** (`test_validate_app_data_path_valid`, see Phase 1). Not agent tooling as such, but worth watching
 
 ## Branch
 
@@ -53,20 +54,20 @@ Task 2 has been merged, so start a fresh branch from `main`. Same commit discipl
   - **collapsible, tooltip, switch, badge, checkbox:** older stock shapes (bare re-exports, `TooltipProvider` inside `Tooltip`, `bg-primary` tooltip, no switch `size`, `rounded-md` badge, `flex` checkbox indicator), not deliberate changes. Keep what we have unless the Base UI version needs otherwise
 - [x] Delete the shadcn components nothing imports: `alert`, `button-group`, `card`, `empty`, `item`, `kbd`, `radio-group`, `scroll-area`, `toggle-group`, and `toggle` (only `toggle-group` used it). Imports re-checked across `src/`, `scripts/` and `test/` first. Removed the ScrollArea row from `ui-patterns.md`
 - [x] Replace `@radix-ui/react-icons` (used only in `ui/breadcrumb.tsx`) with lucide (`ChevronRightIcon`, `MoreHorizontalIcon`) and remove the package. The `sidebar` section matches the baseline in both themes; the separator renders `lucide-chevron-right`. The ellipsis isn't in the styleguide, and nothing uses `BreadcrumbEllipsis`
-- [x] `bun run check:all` passes, except `test_validate_app_data_path_valid`, which fails only inside the Bash sandbox (writing `settings.json` in the temp dir gets `EINVAL`, presumably the sandbox's settings-file protection) and passes outside it
+- [x] `bun run check:all` passes. The first run had one failure, `test_validate_app_data_path_valid` (`EINVAL` while creating its folders in the temp dir); it passed outside the sandbox and in six later runs inside it, so it's intermittent and the cause is unknown
 
 ## Phase 2: Dual-mode data attributes (still on Radix)
 
 - [ ] Add the `shadcn` dev dependency and `@import 'shadcn/tailwind.css'`. It defines `data-open:`, `data-closed:`, `data-checked:` and similar variants that match both Radix's `[data-state=…]` and Base UI's `[data-open]`
 - [ ] Rewrite the `data-[state=…]` classes in `src/components/ui/` to those variants
-- [ ] `bun run app styleguide` and compare every section with the baseline. Nothing should change. Commit
+- [ ] `bun run app styleguide`, then `app diff` against the baseline. Every section should be identical, except `sidebar`, whose breadcrumb chevron changed in Phase 1. Commit
 - [ ] The new variants are wrapped in `:where()`, so they're less specific than the `data-[state=…]:` classes they replace. Static shots won't show where that matters, so check combined states (such as the sidebar's `data-[state=open]:hover:`) with `app eval` on computed styles
 
 ## Phase 3: Migrate components
 
 Work in this order, one commit per group, and run `bun run check:all` between groups. Each group also migrates its own call sites from the Phase 4 list: once a wrapper is on Base UI, `asChild` and the old props stop typechecking. After each group:
 
-- run `bun run app styleguide <sections>` and compare against the baseline;
+- run `bun run app styleguide <sections>` and `app diff` against the baseline, then look at whatever differs;
 - drive the changed components on the styleguide (open, close, keyboard, checked state) and in the app;
 - check `app logs --source=js`.
 

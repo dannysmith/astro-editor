@@ -23,7 +23,7 @@ Three parts, all debug-only:
   - `page.ts` works on any page: theme, `idle`, shot mode, `tree`, `click`, `fill` and `key`;
   - `api.ts` adds the app's actions: open project or file, run commands, type, state;
   - `AgentBridge` (in `components/agent-bridge/`) installs it, and `Layout` renders that only when `import.meta.env.DEV`.
-- **`scripts/app.ts`**: the `bun run app` CLI. `scripts/app-logs.ts` reads the logs.
+- **`scripts/app.ts`**: the `bun run app` CLI. `scripts/app-logs.ts` reads the logs, and `scripts/app-diff.ts` compares screenshots (pixelmatch).
 
 To add an app action, add a method to `createAgentApi` (or `createPageApi` if it's useful on any page) and a CLI command that calls it with `ae('method', ...args)`. Prefer reusing app code (command palette commands, store actions, `openFileByPath`) over simulating clicks.
 
@@ -34,6 +34,8 @@ To add an app action, add a method to `createAgentApi` (or `createPageApi` if it
 `styleguide.html` and `src/styleguide/` make up a second Vite entry. Vite only builds `index.html`, so it never ships. It shows every UI component the app uses, in each state. One section per page (`?section=<id>`) fits the dev window, so each can be screenshotted whole; overlays are rendered open on their own pages. `bun run app styleguide` shoots every section in both themes. It runs inside the dev app's webview, so Tauri calls work; it also opens in a browser at `localhost:1420/styleguide.html`.
 
 When you add or change a shared component, add it to a section in `src/styleguide/sections.tsx`.
+
+To check a change, shoot the sections before and after and compare them with `bun run app diff <before-dir> <after-dir>`. It matches shots by name (ignoring the timestamp), reports which are identical, and writes a diff image boxing what changed for the rest. Repeat snapshots of an unchanged page are pixel-identical, so it counts any changed pixel.
 
 ## Dev logs
 
