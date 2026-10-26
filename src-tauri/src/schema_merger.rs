@@ -223,7 +223,7 @@ pub fn create_complete_schema(
         return parse_zod_schema(collection_name, zod);
     }
 
-    log::error!("[Schema] No schema available for collection: {collection_name}");
+    log::debug!("[Schema] No schema available for collection: {collection_name}");
     Err("No schema available".to_string())
 }
 

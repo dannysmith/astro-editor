@@ -289,6 +289,15 @@ fn load_json_schema_for_collection(
 
 /// Generate complete schema by merging JSON schema and Zod schema
 fn generate_complete_schema(collection: &mut Collection) {
+    // Collections without a schema are supported, so this isn't a warning
+    if collection.json_schema.is_none() && collection.schema.is_none() {
+        debug!(
+            "Astro Editor [SCHEMA_MERGER] No schema for collection: {}",
+            collection.name
+        );
+        return;
+    }
+
     match schema_merger::create_complete_schema(
         &collection.name,
         collection.json_schema.as_deref(),
