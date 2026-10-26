@@ -177,40 +177,50 @@ async fn run_event_loop(
                     event_buffer.clear();
                 }
 
-                // Held until the rebuilt watcher is stored, so a concurrent start
-                // or stop can't slip in between the check and the insert
-                let mut watchers = watcher_map.lock().unwrap();
-                let owned = watchers
-                    .get(&project_path)
-                    .is_some_and(|entry| entry.generation == generation);
-                if !owned {
+                // Stopping or replacing a watcher drops it, which also disconnects
+                // the channel, so only rebuild if this loop still owns the entry
+                let owns_entry = |watchers: &HashMap<String, WatcherEntry>| {
+                    watchers
+                        .get(&project_path)
+                        .is_some_and(|entry| entry.generation == generation)
+                };
+                if !owns_entry(&watcher_map.lock().unwrap()) {
                     log::debug!("File watcher for {project_path} was stopped or replaced");
                     break;
                 }
 
                 log::warn!("File watcher disconnected for {project_path}, attempting rebuild");
 
-                match create_project_watcher(&project_path, content_directory.as_deref()) {
-                    Ok((new_watcher, new_rx)) => {
-                        watchers.insert(
-                            project_path.clone(),
-                            WatcherEntry {
-                                generation,
-                                _watcher: new_watcher,
-                            },
-                        );
-                        drop(watchers);
-                        rx = new_rx;
-                        last_rescan = Instant::now();
-                        log::info!("File watcher rebuilt for {project_path}");
-                        let _ = app.emit("watcher-rebuilt", &project_path);
-                    }
-                    Err(e) => {
-                        log::error!("Failed to rebuild file watcher for {project_path}: {e}");
-                        let _ = app.emit("watcher-error", &project_path);
+                // Built without holding the lock, so a slow path can't block
+                // starting or stopping other projects' watchers
+                let (new_watcher, new_rx) =
+                    match create_project_watcher(&project_path, content_directory.as_deref()) {
+                        Ok(built) => built,
+                        Err(e) => {
+                            log::error!("Failed to rebuild file watcher for {project_path}: {e}");
+                            let _ = app.emit("watcher-error", &project_path);
+                            break;
+                        }
+                    };
+                {
+                    let mut watchers = watcher_map.lock().unwrap();
+                    // A start or stop may have happened while the watcher was built
+                    if !owns_entry(&watchers) {
+                        log::debug!("File watcher for {project_path} was stopped or replaced");
                         break;
                     }
+                    watchers.insert(
+                        project_path.clone(),
+                        WatcherEntry {
+                            generation,
+                            _watcher: new_watcher,
+                        },
+                    );
                 }
+                rx = new_rx;
+                last_rescan = Instant::now();
+                log::info!("File watcher rebuilt for {project_path}");
+                let _ = app.emit("watcher-rebuilt", &project_path);
             }
         }
     }
