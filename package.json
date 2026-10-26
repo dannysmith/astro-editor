@@ -33,7 +33,7 @@
     "rust:clippy:fix": "cd src-tauri && cargo clippy --fix --allow-dirty",
     "rust:test": "cd src-tauri && cargo test",
     "tauri": "tauri",
-    "tauri:dev": "bun run tauri dev",
+    "tauri:dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "tauri:build": "bun run tauri build",
     "tauri:check": "bun run typecheck && bun run rust:clippy",
     "test:all": "bun run test:run && bun run rust:test",

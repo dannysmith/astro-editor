@@ -95,16 +95,25 @@ pub fn run() {
             log::info!("Platform: {}", std::env::consts::OS);
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
-            // Send telemetry on startup (non-blocking, fails silently)
-            let app_handle = app.handle().clone();
-            let version = package_info.version.to_string();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(app_data_dir) = app_handle.path().app_local_data_dir() {
-                    if let Err(e) = telemetry::send_telemetry_event(app_data_dir, version).await {
-                        log::warn!("Telemetry event failed (this is expected and safe to ignore): {e}");
+            // Send telemetry on startup (non-blocking, fails silently). Dev builds
+            // skip it so they don't count as installs.
+            if !cfg!(debug_assertions) {
+                let app_handle = app.handle().clone();
+                let version = package_info.version.to_string();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(app_data_dir) = app_handle.path().app_local_data_dir() {
+                        if let Err(e) = telemetry::send_telemetry_event(app_data_dir, version).await {
+                            log::warn!("Telemetry event failed (this is expected and safe to ignore): {e}");
+                        }
                     }
-                }
-            });
+                });
+            }
+
+            // Make the dev build easy to tell apart in Mission Control and the Window menu
+            #[cfg(debug_assertions)]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title("Astro Editor (Dev)");
+            }
 
             // Fix PATH environment variable for production builds
             // This ensures shell commands can find executables like 'code', 'cursor', etc.

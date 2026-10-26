@@ -20,9 +20,7 @@
         "~/Library/Application Support/is.danny.astroeditor",
         "~/Library/Application Support/is.danny.astroeditor.dev"
       ],
-      "allowWrite": [
-        "~/Library/Application Support/is.danny.astroeditor.dev"
-      ]
+      "allowWrite": ["~/Library/Application Support/is.danny.astroeditor.dev"]
     }
   }
 }

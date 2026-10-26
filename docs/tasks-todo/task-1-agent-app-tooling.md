@@ -32,21 +32,22 @@ Done before task 3, which uses the styleguide for before/after checks of the Bas
 
 ## Phase 1: Separate dev and prod
 
-- [ ] `src-tauri/tauri.dev.conf.json` overlay:
+- [x] `src-tauri/tauri.dev.conf.json` overlay:
   - `identifier: is.danny.astroeditor.dev`;
-  - `productName: "Astro Editor Dev"`;
-  - `plugins.updater.active: false`.
+  - `productName: "Astro Editor Dev"`.
 
   Overlays are JSON Merge Patch and replace arrays whole, so don't touch `app.windows`. Leave the deep-link scheme alone: deep links never reach `tauri dev` on macOS.
-- [ ] `tauri:dev` script → `tauri dev --config src-tauri/tauri.dev.conf.json`. Check that the macOS platform config still applies with the overlay (vibrancy, no decorations)
-- [ ] In Rust, `#[cfg(debug_assertions)]`:
-  - skip telemetry;
-  - set the window title to `Astro Editor (Dev)`;
-  - skip the 5-second update check on the frontend (`import.meta.env.DEV`).
-- [ ] Verify what moved: app data, logs (`~/Library/Logs/is.danny.astroeditor.dev/`), window state and the single-instance socket. **Unverified:** whether WKWebView storage (localStorage: theme, panel sizes) follows the identifier for an unbundled dev binary. It's keyed by origin anyway (`localhost:1420` vs `tauri://localhost`), so it's already separate in practice
+- [x] `tauri:dev` script → `tauri dev --config src-tauri/tauri.dev.conf.json`. Check that the macOS platform config still applies with the overlay (vibrancy, no decorations)
+- [x] Debug builds:
+  - skip telemetry (Rust);
+  - set the window title to `Astro Editor (Dev)` (Rust);
+  - skip the 5-second update check (frontend, `import.meta.env.DEV`).
+
+  The updater plugin has no `active` option in v2 (the `"active": true` in `tauri.conf.json` is ignored), so the overlay can't turn it off. The manual menu check still works in dev.
+- [x] Verify what moved: app data, logs (`~/Library/Logs/is.danny.astroeditor.dev/Astro Editor Dev.log`), window state and the single-instance socket (`/tmp/is_danny_astroeditor_dev_si.sock`). WKWebView storage (localStorage: theme, panel sizes) is keyed by origin (`localhost:1420` vs `tauri://localhost`), so it's separate either way
 - [x] Copy Danny's prod `preferences/` (global settings, project registry, per-project settings) and `.window-state.json` into the dev folder. `telemetry.json` was not copied, and `crash-reports/` and `recovery/` only held `.DS_Store`
 - [x] Sandbox access in `.claude/settings.json` (Danny adds this): read/write on the dev app data folder, read-only on prod
-- [ ] Run prod and dev side by side and confirm they don't affect each other
+- [x] Run prod and dev side by side and confirm they don't affect each other
 
 ## Phase 2: Bridge core
 
@@ -96,6 +97,8 @@ A dev-only `window.__ae` API (e.g. `src/lib/agent-bridge/`), loaded from `main.t
 ## Phase 4: Logs
 
 All sources end up in the dev log folder, so one command searches everything.
+
+- [ ] Set log levels on the `tauri-plugin-log` builder. None is set today, so the log fills with `TRACE` lines from `tao` (window focus events). Use `Debug` for our crate and `Info` (or `Warn`) for dependencies in dev, and check what release builds should keep
 
 - [ ] **Webview console:** in dev, forward `console.*` to `@tauri-apps/plugin-log` with a `[console]` marker. Nothing calls `attachConsole` today; if anything ever does, this would loop, so guard against it
 - [ ] **Dev terminal:** `tauri:dev` also writes its output (Vite and cargo, including compile errors) to `tauri-dev.log` in the dev log folder, truncated each run. Keep colours in Danny's terminal (`CARGO_TERM_COLOR=always`, `FORCE_COLOR=1`) and strip them when reading. A small `scripts/tauri-dev.sh` is fine if the `package.json` one-liner gets unwieldy
