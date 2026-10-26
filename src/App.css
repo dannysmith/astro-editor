@@ -2,14 +2,9 @@
    so files the editor writes there would trigger full page reloads in dev. */
 @import 'tailwindcss' source('.');
 @import 'tw-animate-css';
-
-/* Utility: hide scrollbars (WebKit + standards) */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  scrollbar-width: none;
-}
+/* Variants such as data-open: and data-checked: that match both Radix's
+   data-state and Base UI's attributes, plus no-scrollbar */
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 

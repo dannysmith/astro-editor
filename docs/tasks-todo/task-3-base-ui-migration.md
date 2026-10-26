@@ -33,6 +33,7 @@ Use the `app-control` skill to check the work in the running dev app rather than
 
 Things in the agent tooling that got in the way or could be better, found during this task:
 
+- **HMR errors in the logs after CSS edits.** `[vite] Failed to reload /src/App.css` with `IPC custom protocol failed` shows up when a CSS change lands while the bridge is navigating (`app styleguide` right after an edit); it also happened during task 1. The shots that follow are fine. Worth knowing so it isn't mistaken for a regression, or waiting a moment before shooting after an edit
 - [x] **No image diff → `app diff`.** Comparing with the baseline meant reading both PNGs by eye: the bytes always differ, and there's no PIL or ImageMagick. Built with `pixelmatch` and `pngjs` in the CLI (`scripts/app-diff.ts`) rather than in the webview, so it works without the app running, like `logs`. Shooting `buttons` and `menus` twice gave 0 changed pixels, even counting anti-aliasing, so it's strict by default
 - **`app goto /` doesn't restore the open file** the way `app styleguide` does, so driving the styleguide by hand leaves the app with the project open but no file
 - **An intermittent Rust test failure** (`test_validate_app_data_path_valid`, see Phase 1). Not agent tooling as such, but worth watching
@@ -58,10 +59,13 @@ Task 2 has been merged, so start a fresh branch from `main`. Same commit discipl
 
 ## Phase 2: Dual-mode data attributes (still on Radix)
 
-- [ ] Add the `shadcn` dev dependency and `@import 'shadcn/tailwind.css'`. It defines `data-open:`, `data-closed:`, `data-checked:` and similar variants that match both Radix's `[data-state=…]` and Base UI's `[data-open]`
-- [ ] Rewrite the `data-[state=…]` classes in `src/components/ui/` to those variants
-- [ ] `bun run app styleguide`, then `app diff` against the baseline. Every section should be identical, except `sidebar`, whose breadcrumb chevron changed in Phase 1. Commit
-- [ ] The new variants are wrapped in `:where()`, so they're less specific than the `data-[state=…]:` classes they replace. Static shots won't show where that matters, so check combined states (such as the sidebar's `data-[state=open]:hover:`) with `app eval` on computed styles
+- [x] Add the `shadcn` dev dependency and `@import 'shadcn/tailwind.css'`. It defines `data-open:`, `data-closed:`, `data-checked:` and similar variants that match both Radix's `[data-state=…]` and Base UI's `[data-open]`. It also brings `no-scrollbar`, so our copy in `App.css` went. The only other global rule is a reduced-motion override for `.shimmer`, which we don't use. The `shadcn` package pulled in 235 packages (dev only, nothing ships). Copying the variants into `App.css` instead would avoid that, but future base-style `shadcn add` components expect the import. The import alone left every section identical to the baseline
+- [x] Rewrite the `data-[state=…]` classes in `src/components/ui/` to those variants (`open`, `closed`, `checked`, `unchecked`; `has-data-checked:` compounds fine, checked in Vite's compiled CSS). `peer-data-[state=collapsed]` in `sidebar.tsx` is the sidebar's own attribute, not Radix's, so it stays
+- [x] `bun run app styleguide`, then `app diff` against the baseline: 24 of 26 identical. The other two are `sidebar`, whose breadcrumb chevron changed in Phase 1
+- [x] Specificity: the new variants are wrapped in `:where()`, so they're less specific than the `data-[state=…]:` classes they replace. Every rewritten class that shares a property with another state variant on the same element:
+  - dropdown `SubTrigger` (`data-open:bg-accent` vs `focus:bg-accent`) and sidebar `SidebarMenuButton` (`data-open:hover:` vs `hover:` / `active:` / `data-[active=true]:`): same values, so no visible change
+  - `SidebarMenuAction` (`data-open:opacity-100` vs `md:opacity-0`) and the dark checkbox background (`dark:data-checked:bg-primary` vs `dark:bg-input/30`): equally specific now, and the data variant still comes later in the CSS, so it still wins. Nothing uses `SidebarMenuAction`
+  - **checkbox border: a real change.** `focus-visible:border-ring` and `aria-invalid:border-destructive` (0,2,0) now beat `data-checked:border-primary` (0,1,0), so a keyboard-focused checked checkbox has a ring-coloured border instead of a primary one (the focus ring itself is unchanged). This is how shadcn's base checkbox behaves too. Couldn't confirm at runtime: WebKit ignores `focus({ focusVisible: true })` and the bridge's keys are untrusted, so this rests on the compiled CSS order
 
 ## Phase 3: Migrate components
 
