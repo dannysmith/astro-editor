@@ -11,6 +11,7 @@
 import { cp, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import { parseDuration, parseLevel, readCrashes, readLogs } from './app-logs'
 
 const USAGE = `Usage: bun run app <command> [args] [flags]
 
@@ -35,7 +36,15 @@ Doing
   resize <W>x<H>          Resize the window, in logical pixels
   reload                  Reload the webview, e.g. when HMR hasn't picked up a change
   eval <js>               Run JS in the webview and print the result. An expression,
-                          or a function body if it contains "return". --timeout=<ms>`
+                          or a function body if it contains "return". --timeout=<ms>
+
+Logs (don't need the app running)
+  logs                    Recent warnings and errors from Rust, the webview (including
+                          console.*) and the tauri:dev terminal, repeats collapsed
+                          --source=rust|js|dev  --level=debug|info|warn|error (warn)
+                          --since=<30s|5m|2h|1d> (30m)  --grep=<regex>  --limit=<n> (50)
+                          --full (don't truncate)
+  logs --crashes          Recent crash reports, and a summary of the newest`
 
 type BridgeInfo = { port: number; token: string; pid: number }
 type WindowInfo = {
@@ -77,14 +86,20 @@ const exists = (p: string) =>
     () => false
   )
 
+/** The dev app's identity, which decides where its data and logs live. */
+async function devConfig() {
+  const config = path.join(root, 'src-tauri/tauri.dev.conf.json')
+  return (await Bun.file(config).json()) as {
+    identifier: string
+    productName: string
+  }
+}
+
 // The bridge writes its port and token to the dev app's data dir on startup.
 let bridge: BridgeInfo | undefined
 async function bridgeInfo(): Promise<BridgeInfo> {
   if (bridge) return bridge
-  const config = path.join(root, 'src-tauri/tauri.dev.conf.json')
-  const { identifier } = (await Bun.file(config).json()) as {
-    identifier: string
-  }
+  const { identifier } = await devConfig()
   const file = Bun.file(
     path.join(
       homedir(),
@@ -354,6 +369,30 @@ const commands: Record<string, () => Promise<void>> = {
       parseSize(params[0])
     )
     print(`window ${window.width}x${window.height}`)
+  },
+
+  async logs() {
+    const { identifier, productName } = await devConfig()
+    if (flags.crashes) {
+      print(await readCrashes([productName, 'Astro Editor']))
+      return
+    }
+    const value = (name: string) =>
+      typeof flags[name] === 'string' ? flags[name] : undefined
+    const source = value('source')
+    if (source && source !== 'rust' && source !== 'js' && source !== 'dev') {
+      throw new Error(`--source must be rust, js or dev, got "${source}"`)
+    }
+    print(
+      await readLogs(identifier, productName, {
+        source,
+        level: parseLevel(value('level') ?? 'warn'),
+        sinceMs: parseDuration(value('since') ?? '30m'),
+        grep: value('grep') ? new RegExp(value('grep')!, 'i') : undefined,
+        limit: Number(value('limit') ?? 50),
+        full: Boolean(flags.full),
+      })
+    )
   },
 
   async eval() {

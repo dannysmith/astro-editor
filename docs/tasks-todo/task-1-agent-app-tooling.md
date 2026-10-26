@@ -96,14 +96,18 @@ A dev-only `window.__ae` API (`src/lib/agent-bridge/api.ts`), installed by the `
 
 ## Phase 4: Logs
 
-All sources end up in the dev log folder, so one command searches everything.
+All sources end up in the dev log folder (`~/Library/Logs/is.danny.astroeditor.dev/`), so one command searches everything. Reading logs doesn't need the app running.
 
-- [ ] Set log levels on the `tauri-plugin-log` builder. None is set today, so the log fills with `TRACE` lines from `tao` (window focus events). Use `Debug` for our crate and `Info` (or `Warn`) for dependencies in dev, and check what release builds should keep
-
-- [ ] **Webview console:** in dev, forward `console.*` to `@tauri-apps/plugin-log` with a `[console]` marker. Nothing calls `attachConsole` today; if anything ever does, this would loop, so guard against it
-- [ ] **Dev terminal:** `tauri:dev` also writes its output (Vite and cargo, including compile errors) to `tauri-dev.log` in the dev log folder, truncated each run. Keep colours in Danny's terminal (`CARGO_TERM_COLOR=always`, `FORCE_COLOR=1`) and strip them when reading. A small `scripts/tauri-dev.sh` is fine if the `package.json` one-liner gets unwieldy
-- [ ] `app logs [--source rust|js|dev] [--level warn] [--since 5m] [--grep x] [--limit 50]`: compact lines with consecutive repeats collapsed. The default is recent warnings and errors from every source
-- [ ] `app logs --crashes` lists recent Astro Editor reports in `~/Library/Logs/DiagnosticReports` and prints the relevant part of one. The app doesn't write to the macOS system log, so it's out of scope
+- [x] Log levels on the `tauri-plugin-log` builder, for both builds: Debug overall, Info for `tao` and `wry` (which logged every window focus change at trace level). Nothing of ours logs at trace, so prod logs are unchanged. Dev builds raise the file limit from 40 KB to 10 MB: with the default `KeepOne` rotation, the dev log was being deleted every few minutes
+- [x] **Webview console:** in dev, `main.tsx` forwards `console.*` to plugin-log with a `[console]` marker (`lib/agent-bridge/console.ts`). Messages that already carry the marker are skipped, so nothing that echoes logs back to the console can loop
+- [x] **Dev terminal:** `tauri:dev` runs `scripts/tauri-dev.sh`, which on macOS tees the output (Vite, cargo, app stdout) to `tauri-dev.log`, replaced each run, with colours forced on for the terminal. Other platforms run plain `tauri dev`
+- [x] Danny restarted `bun run tauri:dev` with the new script: colours still show in the terminal, and `app logs --source=dev` reads the run
+- [x] `app logs [--source=rust|js|dev] [--level=warn] [--since=30m] [--grep=x] [--limit=50] [--full]` (`scripts/app-logs.ts`):
+  - consecutive repeats are collapsed;
+  - multi-line messages are trimmed unless `--full`;
+  - dev-terminal lines are classed by keyword, keep cargo's indented and `10 |` lines with the error, and skip the plugin-log lines the app also prints to stdout.
+- [x] `app logs --crashes` lists recent reports in `~/Library/Logs/DiagnosticReports` and summarises the newest: exception, termination reason and the crashed thread's frames. Tested against a synthetic `.ips`, since there are no real ones. The app doesn't write to the macOS system log, so that's out of scope
+- [x] Every project scan logged an ERROR and a WARN for the `schemaless` test collection. A collection without a schema is supported, so it's now a single debug line; other schema failures still warn
 
 ## Phase 5: Styleguide
 

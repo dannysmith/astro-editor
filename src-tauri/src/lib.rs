@@ -83,9 +83,20 @@ pub fn run() {
             targets.push(tauri_plugin_log::Target::new(
                 tauri_plugin_log::TargetKind::Webview,
             ));
-            tauri_plugin_log::Builder::new()
+            #[allow(unused_mut)]
+            let mut log_builder = tauri_plugin_log::Builder::new()
                 .targets(targets)
-                .build()
+                .level(log::LevelFilter::Debug)
+                // Window and webview internals log every focus change at trace level
+                .level_for("tao", log::LevelFilter::Info)
+                .level_for("wry", log::LevelFilter::Info);
+            // `bun run app logs` reads the dev log, and the default 40 KB limit
+            // deletes it every few minutes
+            #[cfg(debug_assertions)]
+            {
+                log_builder = log_builder.max_file_size(10_000_000);
+            }
+            log_builder.build()
         })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
