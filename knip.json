@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/main.tsx"],
+  "entry": ["src/main.tsx", "src/styleguide/main.tsx"],
   "project": ["src/**/*.{ts,tsx,css}"],
   "ignore": ["src/test/**"],
   "ignoreDependencies": ["@testing-library/user-event"],

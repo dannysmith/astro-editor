@@ -35,6 +35,10 @@ Doing
   fill <target> <value>   Set an input's value. Target as for click
   resize <W>x<H>          Resize the window, in logical pixels
   reload                  Reload the webview, e.g. when HMR hasn't picked up a change
+  goto <path>             Load another dev-server page in the window, e.g. /styleguide.html.
+                          \`goto /\` returns to the app
+  styleguide [section...] Screenshot styleguide sections (all by default) with shot's
+                          flags, then return to the app
   eval <js>               Run JS in the webview and print the result. An expression,
                           or a function body if it contains "return". --timeout=<ms>
 
@@ -190,6 +194,81 @@ async function copyVault() {
   })
 }
 
+/**
+ * Runs `js` (which should load a page) and waits for the new page's `window.__ae`.
+ * The eval returns before the page goes, so the old page is marked first.
+ */
+async function navigate(js: string) {
+  await call('POST', '/eval', {
+    js: `window.__aeReloading = true; setTimeout(() => ${js}, 0)`,
+  })
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    await Bun.sleep(200)
+    const fresh = await call<boolean>('POST', '/eval', {
+      js: 'return Boolean(window.__ae) && !window.__aeReloading',
+    }).catch(() => false)
+    if (fresh) {
+      await ae('idle')
+      return
+    }
+  }
+  throw new Error("the page didn't load within 15s")
+}
+
+/**
+ * Screenshots the current page in each theme from `--theme`, at `--size` if
+ * given, then restores the theme and size.
+ */
+async function takeShots(name: string) {
+  const theme = flags.theme ?? 'both'
+  if (theme !== 'light' && theme !== 'dark' && theme !== 'both') {
+    throw new Error(`--theme must be light, dark or both, got "${theme}"`)
+  }
+  const themes = theme === 'both' ? ['light', 'dark'] : [theme]
+  const out = typeof flags.out === 'string' ? flags.out : SHOT_DIR
+  const runStamp = stamp()
+
+  const before = await call<WindowInfo>('GET', '/window')
+  const pageTheme = await ae<string>('getTheme')
+  try {
+    if (flags.size) await call('POST', '/window', parseSize(flags.size))
+    await ae('shotMode', true)
+    for (const t of themes) {
+      // The native appearance only affects vibrancy, which snapshots don't
+      // capture. The page theme is set directly because a hidden window doesn't
+      // get prefers-color-scheme changes until it renders again.
+      await call('POST', '/window', { theme: t })
+      await ae('setTheme', t)
+      await ae('idle')
+      const window = await call<WindowInfo>('GET', '/window')
+      const file = path.resolve(
+        root,
+        out,
+        `${name}-${t}-${window.width}x${window.height}-${runStamp}.png`
+      )
+      const shot = await call<{ width: number; height: number }>(
+        'POST',
+        '/snapshot',
+        {
+          path: file,
+        }
+      )
+      print(`${path.relative(root, file)} (${shot.width}x${shot.height}px)`)
+    }
+  } finally {
+    await ae('shotMode', false)
+    await call('POST', '/window', { theme: 'system' })
+    await ae('setTheme', pageTheme)
+    if (flags.size) {
+      await call('POST', '/window', {
+        width: before.width,
+        height: before.height,
+      })
+    }
+  }
+}
+
 const commands: Record<string, () => Promise<void>> = {
   async status() {
     const health = await call<{ app: string; version: string; pid: number }>(
@@ -212,53 +291,7 @@ const commands: Record<string, () => Promise<void>> = {
   },
 
   async shot() {
-    const name = params[0] ?? 'app'
-    const theme = flags.theme ?? 'both'
-    if (theme !== 'light' && theme !== 'dark' && theme !== 'both') {
-      throw new Error(`--theme must be light, dark or both, got "${theme}"`)
-    }
-    const themes = theme === 'both' ? ['light', 'dark'] : [theme]
-    const out = typeof flags.out === 'string' ? flags.out : SHOT_DIR
-    const runStamp = stamp()
-
-    const before = await call<WindowInfo>('GET', '/window')
-    const appTheme = await ae<string>('getTheme')
-    try {
-      if (flags.size) await call('POST', '/window', parseSize(flags.size))
-      await ae('shotMode', true)
-      for (const t of themes) {
-        // The native appearance only affects vibrancy, which snapshots don't
-        // capture. The app theme is set directly because a hidden window doesn't
-        // get prefers-color-scheme changes until it renders again.
-        await call('POST', '/window', { theme: t })
-        await ae('setTheme', t)
-        await ae('idle')
-        const window = await call<WindowInfo>('GET', '/window')
-        const file = path.resolve(
-          root,
-          out,
-          `${name}-${t}-${window.width}x${window.height}-${runStamp}.png`
-        )
-        const shot = await call<{ width: number; height: number }>(
-          'POST',
-          '/snapshot',
-          {
-            path: file,
-          }
-        )
-        print(`${path.relative(root, file)} (${shot.width}x${shot.height}px)`)
-      }
-    } finally {
-      await ae('shotMode', false)
-      await call('POST', '/window', { theme: 'system' })
-      await ae('setTheme', appTheme)
-      if (flags.size) {
-        await call('POST', '/window', {
-          width: before.width,
-          height: before.height,
-        })
-      }
-    }
+    await takeShots(params[0] ?? 'app')
   },
 
   async 'open-project'() {
@@ -342,24 +375,41 @@ const commands: Record<string, () => Promise<void>> = {
   },
 
   async reload() {
-    // The eval returns before the reload happens, so mark the old page and wait
-    // for a page without the mark that has the API installed
-    await call('POST', '/eval', {
-      js: 'window.__aeReloading = true; setTimeout(() => location.reload(), 0)',
-    })
-    const deadline = Date.now() + 15_000
-    while (Date.now() < deadline) {
-      await Bun.sleep(200)
-      const fresh = await call<boolean>('POST', '/eval', {
-        js: 'return Boolean(window.__ae) && !window.__aeReloading',
-      }).catch(() => false)
-      if (fresh) {
-        await ae('idle')
-        print('reloaded')
-        return
-      }
+    await navigate('location.reload()')
+    print('reloaded')
+  },
+
+  async goto() {
+    const target = params[0]
+    if (!target?.startsWith('/')) {
+      throw new Error(
+        'goto needs a path on the dev server, e.g. /styleguide.html'
+      )
     }
-    throw new Error("the page didn't come back within 15s")
+    await navigate(`location.assign(${JSON.stringify(target)})`)
+    print(`at ${target}`)
+  },
+
+  async styleguide() {
+    // The index page links to every section
+    await navigate(`location.assign('/styleguide.html')`)
+    const all = await call<string[]>('POST', '/eval', {
+      js: 'return [...document.querySelectorAll("[data-section]")].map(a => a.dataset.section)',
+    })
+    const unknown = params.filter(id => !all.includes(id))
+    if (unknown.length) {
+      throw new Error(
+        `unknown sections: ${unknown.join(', ')}. Sections: ${all.join(', ')}`
+      )
+    }
+    try {
+      for (const id of params.length ? params : all) {
+        await navigate(`location.assign('/styleguide.html?section=${id}')`)
+        await takeShots(`styleguide-${id}`)
+      }
+    } finally {
+      await navigate(`location.assign('/')`)
+    }
   },
 
   async resize() {

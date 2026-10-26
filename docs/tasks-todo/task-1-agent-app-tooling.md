@@ -111,19 +111,27 @@ All sources end up in the dev log folder (`~/Library/Logs/is.danny.astroeditor.d
 
 ## Phase 5: Styleguide
 
-- [ ] `styleguide.html` + `src/styleguide/`, a second Vite entry. Vite only builds `index.html`, so it never ships; confirm with `bun run build`
-- [ ] One scrollable page: every `src/components/ui/` component with its variants and states (disabled, invalid, checked, open). Each overlay is rendered open in its own fixed-height section, so they don't overlap
-- [ ] The frontmatter field components with a seeded editor store, because task 3's Select and Checkbox changes land there
-- [ ] `?theme=light|dark` overrides the colour scheme. Otherwise it follows `prefers-color-scheme`
-- [ ] Any Tauri call that runs on render needs a stub. Keep that minimal; if a component needs much mocking, leave it out
-- [ ] `bun run shoot`, ported from the website's `scripts/shoot.mjs`:
-  - Playwright **WebKit**, which is closer to the app than Chromium;
-  - full page, widths and themes as flags;
-  - defaults to `/styleguide.html`;
-  - add `playwright` as a devDependency and install WebKit.
+- [x] `styleguide.html` + `src/styleguide/`, a second Vite entry. Vite only builds `index.html`, so it never ships (checked: `dist/` has no trace of it). knip lists it as an entry
+- [x] One page per section (`?section=<id>`), each sized to fit the dev window so it's captured whole. Big full-page images get downscaled until agents can't read them, so sections suit agents better anyway. Without `?section`, the index lists every inline section for browsing. Sections:
+  - buttons, badges, spinner, skeleton, separator;
+  - inputs, textareas, input groups, tag input, fields;
+  - checkboxes, switches, horizontal field, collapsibles;
+  - frontmatter fields;
+  - sidebar and breadcrumb (the preferences layout);
+  - command;
+  - open overlays on their own pages: select, date picker and calendar, dropdown menu, popover and tooltip, dialog, alert dialog, toasts.
 
-  Test early whether Playwright can launch WebKit inside the sandbox. If it can't, fall back to `app goto /styleguide.html` plus `app shot`, and say so in the skill
-- [ ] Take a baseline of the styleguide on Radix and keep it in `docs/tasks-todo/temporary/baseline/` for task 3. Add a step to task 3 that compares against it after each group
+  Components nothing uses (which task 3 deletes) are left out
+- [x] Frontmatter fields: the real `FrontmatterField` for each field type, with the editor store seeded, in panel-width columns
+- [x] `?theme=light|dark` overrides the theme, which is stored under its own key so it doesn't change the app's. The page imports `Editor.css` for the app's background colours
+- [x] No stubs needed: the styleguide runs in the dev app's webview, where Tauri calls work. It also opens in any browser at `localhost:1420/styleguide.html`
+- [x] **Playwright dropped:** browsers can't launch inside the sandbox (Chromium dies on a denied macOS service lookup at startup, and WebKit would hit the same), so `shoot` would need the sandbox off every run. Instead:
+  - `app goto <path>` loads any dev-server page in the window;
+  - `app styleguide [section...]` shoots each section in both themes with `shot`'s flags, then returns to the app.
+
+  All 13 sections in both themes take about 15 seconds. A sandbox `excludedCommands` entry would be the way back to Playwright if very wide or narrow widths are ever needed
+- [x] The page API (`lib/agent-bridge/page.ts`: theme, idle, shot mode, `tree`, `click`, `fill`, `key`) works on any page, so the styleguide can be driven as well as shot. The app's API builds on it
+- [x] Radix baseline in `docs/tasks-todo/temporary/baseline/` (26 images), and task 3 has a step to compare against it
 
 ## Phase 6: Skill and docs
 
