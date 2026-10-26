@@ -34,6 +34,8 @@ Use the `app-control` skill to check the work in the running dev app rather than
 Things in the agent tooling that got in the way or could be better, found during this task:
 
 - **HMR errors in the logs after CSS edits.** `[vite] Failed to reload /src/App.css` with `IPC custom protocol failed` shows up when a CSS change lands while the bridge is navigating (`app styleguide` right after an edit); it also happened during task 1. The shots that follow are fine. Worth knowing so it isn't mistaken for a regression, or waiting a moment before shooting after an edit
+- **`tree` doesn't wait for idle.** Right after opening an overlay in a hidden window, its opening animation is paused at opacity 0, so `tree` shows nothing. Running `app eval 'await window.__agentBridge.idle()'` first fixes it. `tree` (and maybe `click`) could call `idle()` first
+- **Removing a package confuses Vite's dependency optimiser.** After `@radix-ui/react-icons` was removed in Phase 1, the next re-optimisation (triggered by adding `@base-ui/react`) failed with `ENOENT … react-icons.esm.js` and the page wouldn't load until Danny restarted `tauri:dev`. Removing `radix-ui` in Phase 5 will probably need the same
 - [x] **No image diff → `app diff`.** Comparing with the baseline meant reading both PNGs by eye: the bytes always differ, and there's no PIL or ImageMagick. Built with `pixelmatch` and `pngjs` in the CLI (`scripts/app-diff.ts`) rather than in the webview, so it works without the app running, like `logs`. Shooting `buttons` and `menus` twice gave 0 changed pixels, even counting anti-aliasing, so it's strict by default
 - **`app goto /` doesn't restore the open file** the way `app styleguide` does, so driving the styleguide by hand leaves the app with the project open but no file
 - **An intermittent Rust test failure** (`test_validate_app_data_path_valid`, see Phase 1). Not agent tooling as such, but worth watching
@@ -75,7 +77,15 @@ Work in this order, one commit per group, and run `bun run check:all` between gr
 - drive the changed components on the styleguide (open, close, keyboard, checked state) and in the app;
 - check `app logs --source=js`.
 
-1. [ ] **Leaf components:** button (the real `@base-ui/react/button` primitive, as in the skill and the base registry, not `useRender`), label (Base UI has none, so it becomes a native `<label>`), separator, checkbox, switch, collapsible, badge (`useRender` + `mergeProps`). Sections: `buttons`, `inputs`, `toggles`, `frontmatter`
+1. [x] **Leaf components:** button (the real `@base-ui/react/button` primitive, as in the skill and the base registry, not `useRender`), label (Base UI has none, so it becomes a native `<label>`), separator, checkbox, switch, collapsible, badge (`useRender` + `mergeProps`). Sections: `buttons`, `inputs`, `toggles`, `frontmatter`
+   - Done to our own files, keeping our classes. `checkbox` and `switch` roots are now `<span>`s, so their `disabled:` classes became `data-disabled:`. `collapsible` keeps its bare re-exports (`Content` → `Panel`). `badge` has no `data-variant`, as before
+   - Call sites: only the styleguide's `checked="indeterminate"` → `indeterminate`. The three `onCheckedChange` handlers already took a boolean
+   - `app diff`: every section identical to the baseline (only the Phase 1 chevron differs). The DOM shows Base UI parts (`data-checked`, `data-indeterminate`, `data-disabled`)
+   - Driven on the styleguide: click toggles the checkbox and switch, disabled ones ignore clicks, Space toggles a focused checkbox, both collapsibles open and close (content unmounts when closed)
+   - Driven in the app: the reset-preferences checkbox toggles from its separate `<label htmlFor>` (Base UI puts the `id` on its hidden input) and enables the Reset button, then cancelled; a collection settings collapsible and its switch; the frontmatter Draft switch updates the store and marks the file dirty (vault reset afterwards)
+   - Behaviour change: separators are always `role="separator"`. Radix rendered our decorative ones as `role="none"`, and Base UI has no `decorative` prop
+   - Indeterminate checkboxes still draw a tick, as they did with Radix. A dash (`MinusIcon` on `data-indeterminate`) would be clearer, but that's a design change, not part of the migration
+
 2. [ ] **Overlays:** dialog, alert-dialog, sheet, popover, tooltip, dropdown-menu, select. Sections: `select`, `date`, `menus`, `popovers`, `dialog`, `alert-dialog`, `command` (its dialog), `frontmatter` (Select and the reference picker's popover)
    - [ ] **First, the agent bridge** (see Phase 4). Verifying this group depends on `state` and shots being right when the window is hidden
    - [ ] Call sites: `LeftSidebar` (tooltip), `WindowsMenu` (dropdown), `ReferenceField` (popover), `DebugPane` (alert-dialog), the styleguide's triggers, every Select and the `TooltipProvider` props
