@@ -173,7 +173,7 @@ From a fresh-eyes review of the branch (comments fixed directly), plus CodeRabbi
 **Robustness**
 
 - [x] The CLI rejects flags a command doesn't take (`shot doesn't take --themes. It takes --theme, --size, --out`)
-- [x] Flags that take a value can't be given bare (only `--list`, `--full` and `--crashes` can), and `--timeout` and `--limit` must be positive whole numbers. Before, a bare `--timeout` became 1ms and a bare `--text` was ignored (CodeRabbit)
+- [x] Flags that take a value can't be given bare (only `--list`, `--full` and `--crashes` can), and `--timeout` and `--limit` must be positive whole numbers. An empty value (`--grep=`) counts as missing. Before, a bare `--timeout` became 1ms and a bare `--text` or empty `--grep=` was ignored (CodeRabbit)
 - [x] If the bridge can't be reached and the recorded pid isn't alive, the CLI says the dev app stopped without cleaning up. Untested, as it needs the dev app killed
 
 **Tests and tooling**

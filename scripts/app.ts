@@ -529,8 +529,10 @@ if (unknownFlags.length) {
   )
   process.exit(1)
 }
+// `--grep=` counts as missing too
 const bareFlags = Object.keys(flags).filter(
-  flag => flags[flag] === true && !SWITCHES.includes(flag)
+  flag =>
+    (flags[flag] === true || flags[flag] === '') && !SWITCHES.includes(flag)
 )
 if (bareFlags.length) {
   console.error(
