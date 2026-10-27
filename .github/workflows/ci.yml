@@ -31,6 +31,10 @@ jobs:
       contents: read
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    # No debug info: faster test builds and a smaller cache. Failing tests still
+    # report file:line, but backtraces lose line numbers.
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v7
 
