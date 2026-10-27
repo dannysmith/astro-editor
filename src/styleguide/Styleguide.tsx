@@ -19,6 +19,7 @@ import {
   TogglesSection,
 } from './sections'
 import { FieldsSection } from './FieldsSection'
+import { ColoursSection } from './ColoursSection'
 
 interface Section {
   id: string
@@ -30,6 +31,7 @@ interface Section {
 
 /** Each section is sized to fit the dev window, so it can be screenshotted whole. */
 const SECTIONS: Section[] = [
+  { id: 'colours', title: 'Colour tokens', Component: ColoursSection },
   {
     id: 'buttons',
     title: 'Buttons, badges and status',
