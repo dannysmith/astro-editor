@@ -63,6 +63,7 @@ jobs:
             args: '--bundles appimage,deb,rpm'
 
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -83,13 +84,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
 
+      # No Rust cache: releases build cold. They can't restore ci.yml's cache
+      # (different job id, env vars and LTO profile), and tag-scoped caches
+      # are never read again.
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
