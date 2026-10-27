@@ -118,9 +118,9 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 
 ## Phase 3: Theme switching and docs
 
-- [x] `ThemeProvider` calls `getCurrentWindow().setTheme()` (`null` for system), with the `core:window:allow-set-theme` capability. Checked through the bridge: the native window appearance now follows Light, Dark and System. **Danny to check:** with the app set to the opposite of the OS, a right-click context menu (e.g. on a file) should match the app
+- [x] `ThemeProvider` calls `getCurrentWindow().setTheme()` (`null` for system), with the `core:window:allow-set-theme` capability. Checked through the bridge: the native window appearance now follows Light, Dark and System. Danny checked a native context menu with the app set opposite to the OS: it matches the app
 - [x] Simplified `theme-provider.tsx`. `color-scheme` can't replace the class, because Tailwind's `dark:` variant keys on `.dark`. The effect now has one `apply` function, and the manual memoisation is gone (React Compiler)
 - [x] Rewrote `docs/developer/color-system.md`
 - [x] `editor-styles.md` is Danny's hand-compiled spec, which has values the code doesn't use, so its palette stays. It now says where the tokens live
-- [x] Added "Webview Versions" to `cross-platform.md`. **For Danny:** `minimumSystemVersion` is still 10.15, but the app needs macOS 12 with Safari 17.5+ (and Tailwind v4 alone needs Big Sur's last Safari). Raising it to 12.0 stops older Macs installing a build that renders wrongly
-- [ ] Close #274 with a thank-you, open the new PR, and comment on #197 with what this unlocks
+- [x] Added "Webview Versions" to `cross-platform.md`, and raised `minimumSystemVersion` from 10.15 to 12.0, since the app needs Safari 17.5+ for `light-dark()`
+- [x] Open the PR. Danny closes #274 and comments on #197
