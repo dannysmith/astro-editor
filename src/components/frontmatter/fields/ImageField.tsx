@@ -34,6 +34,8 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
+  const id = React.useId()
+  const labelId = `${id}-label`
 
   const stringValue = typeof value === 'string' ? value : ''
   // When editing, show edit value; otherwise show current value
@@ -140,6 +142,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      labelId={labelId}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -153,6 +156,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
         {stringValue && (
           <InputGroup>
             <InputGroupInput
+              aria-labelledby={labelId}
               type="text"
               value={displayValue}
               onChange={e => setEditValue(e.target.value)}
@@ -211,6 +215,8 @@ export const ImageField: React.FC<ImageFieldProps> = ({
 
         {/* File upload button - above preview */}
         <FileUploadButton
+          id={id}
+          aria-labelledby={`${labelId} ${id}`}
           accept={[...IMAGE_EXTENSIONS]}
           onFileSelect={handleFileSelect}
           disabled={isLoading}

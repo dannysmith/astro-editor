@@ -35,13 +35,30 @@ export const ProjectSettingsPane: React.FC = () => {
     })
   }
 
-  const handleDefaultFileTypeChange = (value: string) => {
+  const handleDefaultFileTypeChange = (value: string | null) => {
+    if (!value) return
     void updateProject({
       ...currentProjectSettings,
       defaultFileType:
         value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
     })
   }
+
+  const fileTypeItems = [
+    {
+      value: 'inherited',
+      label: (
+        <span className="text-muted-foreground">
+          Use global default:{' '}
+          {globalSettings?.general?.defaultFileType === 'mdx'
+            ? 'MDX'
+            : 'Markdown'}
+        </span>
+      ),
+    },
+    { value: 'md', label: 'Markdown (.md)' },
+    { value: 'mdx', label: 'MDX (.mdx)' },
+  ]
 
   const handleAbsolutePathsChange = (checked: boolean) => {
     void updateProject({
@@ -156,6 +173,7 @@ export const ProjectSettingsPane: React.FC = () => {
           <FieldLabel>Default File Type for New Files</FieldLabel>
           <FieldContent>
             <Select
+              items={fileTypeItems}
               value={currentProjectSettings?.defaultFileType || 'inherited'}
               onValueChange={handleDefaultFileTypeChange}
             >
@@ -163,16 +181,11 @@ export const ProjectSettingsPane: React.FC = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="inherited">
-                  <span className="text-muted-foreground">
-                    Use global default:{' '}
-                    {globalSettings?.general?.defaultFileType === 'mdx'
-                      ? 'MDX'
-                      : 'Markdown'}
-                  </span>
-                </SelectItem>
-                <SelectItem value="md">Markdown (.md)</SelectItem>
-                <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+                {fileTypeItems.map(item => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FieldDescription>

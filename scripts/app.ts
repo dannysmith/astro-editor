@@ -12,6 +12,7 @@ import { cp, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import type { Target } from '../src/lib/agent-bridge/page'
+import { diffShots } from './app-diff'
 import { parseDuration, parseLevel, readCrashes, readLogs } from './app-logs'
 
 const USAGE = `Usage: bun run app <command> [args] [flags]
@@ -49,7 +50,15 @@ Logs (don't need the app running)
                           --source=rust|js|dev  --level=debug|info|warn|error (warn)
                           --since=<30s|5m|2h|1d> (30m)  --grep=<regex>  --limit=<n> (50)
                           --full (don't truncate)
-  logs --crashes          Recent crash reports, and a summary of the newest`
+  logs --crashes          Recent crash reports, and a summary of the newest
+
+Comparing (doesn't need the app running)
+  diff <a> <b>            Pixel diff of two PNGs, or of every shot in folder a against the
+                          newest shot with the same name in folder b (timestamps ignored),
+                          e.g. diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary.
+                          Any changed pixel counts. Boxes are in image pixels (2x on retina).
+                          Writes a diff image for each pair that differs
+                          --out=<dir> (docs/tasks-todo/temporary/diff)`
 
 type BridgeInfo = { port: number; token: string; pid: number }
 type WindowInfo = {
@@ -82,6 +91,7 @@ const [command, ...params] = args.filter(a => !a.startsWith('--'))
 const COMMAND_FLAGS: Record<string, string[]> = {
   shot: ['theme', 'size', 'out'],
   styleguide: ['theme', 'size', 'out'],
+  diff: ['out'],
   run: ['list'],
   click: ['text'],
   fill: ['text'],
@@ -187,14 +197,17 @@ function jsLiteral(value: unknown): string {
   )
 }
 
-/** Calls a `window.__agentBridge` method in the webview. */
+/**
+ * Calls a `window.__agentBridge` method in the webview, inside `withFrames` so
+ * that UI waiting on animation frames still works while the window is hidden.
+ */
 function callApi<T = unknown>(
   method: string,
   ...methodArgs: unknown[]
 ): Promise<T> {
   const js =
     `if (!window.__agentBridge) throw new Error("window.__agentBridge isn't installed. Is the app's page loaded?")\n` +
-    `return await window.__agentBridge.${method}(...${jsLiteral(methodArgs)})`
+    `return await window.__agentBridge.withFrames(() => window.__agentBridge.${method}(...${jsLiteral(methodArgs)}))`
   return call<T>('POST', '/eval', { js, timeoutMs: API_TIMEOUT_MS })
 }
 
@@ -494,6 +507,24 @@ const commands: Record<string, () => Promise<void>> = {
         limit: parsePositiveInt('limit', value('limit') ?? '50'),
         full: Boolean(flags.full),
       })
+    )
+  },
+
+  async diff() {
+    const [a, b] = params
+    if (!a || !b) {
+      throw new Error(
+        'diff needs two PNGs or two folders of shots, e.g. docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary'
+      )
+    }
+    const out = typeof flags.out === 'string' ? flags.out : `${SHOT_DIR}/diff`
+    print(
+      await diffShots(
+        path.resolve(a),
+        path.resolve(b),
+        path.resolve(root, out),
+        root
+      )
     )
   },
 

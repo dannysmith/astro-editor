@@ -31,10 +31,13 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
+  const generatedId = React.useId()
+  const id = name === 'title' ? 'frontmatter-title-field' : generatedId
 
   return (
     <FieldWrapper
       label={label}
+      htmlFor={id}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -44,7 +47,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
       currentValue={value}
     >
       <AutoExpandingTextarea
-        id={name === 'title' ? 'frontmatter-title-field' : undefined}
+        id={id}
         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
         className={className}
         minRows={minRows}

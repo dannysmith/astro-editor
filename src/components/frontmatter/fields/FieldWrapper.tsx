@@ -9,6 +9,10 @@ import type { FieldConstraints } from '../../../lib/schema'
 
 interface FieldWrapperProps {
   label: string
+  /** Id of a text control: clicking the label focuses it */
+  htmlFor?: string
+  /** Id for the label, for button controls that name themselves with aria-labelledby (htmlFor would click them) */
+  labelId?: string
   required?: boolean
   description?: string
   defaultValue?: unknown
@@ -21,6 +25,8 @@ interface FieldWrapperProps {
 
 export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   label,
+  htmlFor,
+  labelId,
   required,
   description,
   defaultValue,
@@ -42,7 +48,7 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
 
   return (
     <Field orientation={layout}>
-      <FieldLabel>
+      <FieldLabel htmlFor={htmlFor} id={labelId}>
         {label}
         {required && <span className="ml-1 text-required">*</span>}
       </FieldLabel>

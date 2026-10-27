@@ -223,26 +223,43 @@ export const CollectionSettingsPane: React.FC = () => {
       return val
     }
 
+    const items = [
+      {
+        value: 'inherited',
+        label: (
+          <span className="text-muted-foreground">
+            Use default: {formatInheritedValue(inheritedValue)}
+          </span>
+        ),
+      },
+      ...fields.map(field => ({
+        value: field.name,
+        label: (
+          <>
+            {field.name}
+            {!field.required && (
+              <span className="ml-1 text-muted-foreground">(optional)</span>
+            )}
+          </>
+        ),
+      })),
+    ]
+
     return (
       <Select
+        items={items}
         value={displayValue}
-        onValueChange={val => onChange(val === 'inherited' ? '' : val)}
+        onValueChange={val => {
+          if (val) onChange(val === 'inherited' ? '' : val)
+        }}
       >
         <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="inherited">
-            <span className="text-muted-foreground">
-              Use default: {formatInheritedValue(inheritedValue)}
-            </span>
-          </SelectItem>
-          {fields.map(field => (
-            <SelectItem key={field.name} value={field.name}>
-              {field.name}
-              {!field.required && (
-                <span className="ml-1 text-muted-foreground">(optional)</span>
-              )}
+          {items.map(item => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -275,6 +292,26 @@ export const CollectionSettingsPane: React.FC = () => {
       </div>
     )
   }
+
+  const fileTypeItems = [
+    {
+      value: 'inherited',
+      label: (
+        <span className="text-muted-foreground">
+          Use default:{' '}
+          {getDefaultFileType(
+            globalSettings,
+            currentProjectSettings,
+            undefined
+          ) === 'mdx'
+            ? 'MDX'
+            : 'Markdown'}
+        </span>
+      ),
+    },
+    { value: 'md', label: 'Markdown (.md)' },
+    { value: 'mdx', label: 'MDX (.mdx)' },
+  ]
 
   return (
     <div className="space-y-6">
@@ -430,11 +467,13 @@ export const CollectionSettingsPane: React.FC = () => {
                         <FieldLabel>Default File Type for New Files</FieldLabel>
                         <FieldContent>
                           <Select
+                            items={fileTypeItems}
                             value={
                               collectionOverride?.settings?.defaultFileType ||
                               'inherited'
                             }
                             onValueChange={value => {
+                              if (!value) return
                               handleDefaultFileTypeChange(
                                 collection.name,
                                 value === 'inherited'
@@ -447,20 +486,11 @@ export const CollectionSettingsPane: React.FC = () => {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="inherited">
-                                <span className="text-muted-foreground">
-                                  Use default:{' '}
-                                  {getDefaultFileType(
-                                    globalSettings,
-                                    currentProjectSettings,
-                                    undefined
-                                  ) === 'mdx'
-                                    ? 'MDX'
-                                    : 'Markdown'}
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="md">Markdown (.md)</SelectItem>
-                              <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+                              {fileTypeItems.map(item => (
+                                <SelectItem key={item.value} value={item.value}>
+                                  {item.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FieldDescription>

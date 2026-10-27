@@ -330,7 +330,7 @@ export function TogglesSection() {
           <Checkbox defaultChecked /> Checked
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked="indeterminate" /> Indeterminate
+          <Checkbox indeterminate /> Indeterminate
         </label>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox disabled /> Disabled
@@ -481,7 +481,7 @@ export function SelectSection() {
             <SelectItem value="a">A</SelectItem>
           </SelectContent>
         </Select>
-        <Select defaultValue="dark">
+        <Select items={{ dark: 'Dark' }} defaultValue="dark">
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -489,7 +489,7 @@ export function SelectSection() {
             <SelectItem value="dark">Dark</SelectItem>
           </SelectContent>
         </Select>
-        <Select defaultValue="dark">
+        <Select items={{ dark: 'Small' }} defaultValue="dark">
           <SelectTrigger size="sm" className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -515,11 +515,15 @@ export function SelectSection() {
         </Select>
       </Row>
       <Row label="Open">
-        <Select open defaultValue="system">
+        <Select
+          open
+          items={{ light: 'Light', dark: 'Dark', system: 'System' }}
+          defaultValue="system"
+        >
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent position="popper">
+          <SelectContent>
             <SelectGroup>
               <SelectLabel>Theme</SelectLabel>
               <SelectItem value="light">Light</SelectItem>
@@ -567,12 +571,12 @@ export function MenusSection() {
   const [sort, setSort] = useState('date')
   return (
     <DropdownMenu open modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">Menu</Button>
+      <DropdownMenuTrigger render={<Button variant="outline" />}>
+        Menu
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>File</DropdownMenuLabel>
         <DropdownMenuGroup>
+          <DropdownMenuLabel>File</DropdownMenuLabel>
           <DropdownMenuItem>
             <Plus /> New file
             <DropdownMenuShortcut>⌘N</DropdownMenuShortcut>
@@ -612,8 +616,8 @@ export function PopoversSection() {
   return (
     <div className="flex gap-64">
       <Popover open>
-        <PopoverTrigger asChild>
-          <Button variant="outline">Popover</Button>
+        <PopoverTrigger render={<Button variant="outline" />}>
+          Popover
         </PopoverTrigger>
         <PopoverContent align="start" className="space-y-2">
           <div className="text-sm font-medium">Insert link</div>
@@ -624,8 +628,8 @@ export function PopoversSection() {
         </PopoverContent>
       </Popover>
       <Tooltip open>
-        <TooltipTrigger asChild>
-          <Button variant="outline">Tooltip</Button>
+        <TooltipTrigger render={<Button variant="outline" />}>
+          Tooltip
         </TooltipTrigger>
         <TooltipContent>Toggle sidebar (⌘1)</TooltipContent>
       </Tooltip>

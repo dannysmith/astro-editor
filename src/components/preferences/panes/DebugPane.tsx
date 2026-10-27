@@ -137,36 +137,34 @@ export const DebugPane: React.FC = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reset All Preferences?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4">
-                <p className="text-sm">
-                  ⚠️ Warning: This will permanently delete:
-                </p>
-                <ul className="list-disc space-y-1 pl-6 text-sm">
-                  <li>All global preferences</li>
-                  <li>All project-specific settings</li>
-                  <li>Project registry and recent projects list</li>
-                </ul>
-                <p className="text-sm">
-                  The app will restart with default settings.
-                  <br />
-                  Your actual project files will not be affected.
-                </p>
-                <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox
-                    id="reset-confirm"
-                    checked={resetConfirmed}
-                    onCheckedChange={checked =>
-                      setResetConfirmed(checked === true)
-                    }
-                  />
-                  <label
-                    htmlFor="reset-confirm"
-                    className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    I understand this cannot be undone
-                  </label>
-                </div>
+            <AlertDialogDescription render={<div className="space-y-4" />}>
+              <p className="text-sm">
+                ⚠️ Warning: This will permanently delete:
+              </p>
+              <ul className="list-disc space-y-1 pl-6 text-sm">
+                <li>All global preferences</li>
+                <li>All project-specific settings</li>
+                <li>Project registry and recent projects list</li>
+              </ul>
+              <p className="text-sm">
+                The app will restart with default settings.
+                <br />
+                Your actual project files will not be affected.
+              </p>
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox
+                  id="reset-confirm"
+                  checked={resetConfirmed}
+                  onCheckedChange={checked =>
+                    setResetConfirmed(checked === true)
+                  }
+                />
+                <label
+                  htmlFor="reset-confirm"
+                  className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  I understand this cannot be undone
+                </label>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

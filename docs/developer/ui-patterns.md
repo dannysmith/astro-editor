@@ -19,7 +19,7 @@ The app should feel like a native macOS app, in the spirit of iA Writer. Great M
 
 ## shadcn/ui Usage
 
-Astro Editor uses [shadcn/ui](https://ui.shadcn.com/) as the foundation for UI components. shadcn/ui provides unstyled, accessible components built on [Radix UI](https://www.radix-ui.com/) that we customize to match our design system.
+Astro Editor uses [shadcn/ui](https://ui.shadcn.com/) as the foundation for UI components. shadcn/ui provides unstyled, accessible components built on [Base UI](https://base-ui.com/) that we customize to match our design system. `components.json` uses the `base-vega` style, the closest to our look, so `shadcn add` delivers Base UI versions.
 
 ### Component Location
 
@@ -62,7 +62,15 @@ We customize shadcn/ui components using Tailwind classes and CSS variables:
 | Checkbox | Boolean toggles in forms | `ui/checkbox.tsx` |
 | Textarea | Multi-line text input | `ui/textarea.tsx` |
 | Separator | Visual dividers | `ui/separator.tsx` |
-| ScrollArea | Custom scrollbars | `ui/scroll-area.tsx` |
+
+### Base UI Patterns
+
+- **`render`, not `asChild`:** pass the element to render as, e.g. `<PopoverTrigger render={<Button variant="outline" />}>Pick</PopoverTrigger>`. Our own polymorphic wrappers (badge, breadcrumb link, the sidebar parts) use `useRender` + `mergeProps`; `Button` uses Base UI's Button
+- **Select labels:** pass `items` (value → label) to `Select` whenever labels differ from values, or the trigger shows the raw value. Build the list once and map it into the `SelectItem`s. `onValueChange` receives `null` when cleared
+- **State styling:** use `data-open:`, `data-closed:`, `data-checked:`, `data-disabled:` and `data-active:`. They come from `shadcn/tailwind.css` and are wrapped in `:where()`, so they lose to any plain utility setting the same property. Base UI writes boolean attributes only when true (`data-active`, not `data-active="false"`). An open menu's trigger, including a submenu trigger, gets `data-popup-open`
+- **Popups** render `Portal > Positioner > Popup`. `side`, `align` and their offsets go on the Positioner (the wrappers forward them). Size with `--anchor-width`, `--available-height` and `--transform-origin`
+- **Exit animations:** popups use tw-animate's `animate-in` / `animate-out` on `data-open` / `data-closed`. Base UI unmounts a popup once its exit animations finish, and a dialog's backdrop only together with its popup, so a part whose exit animation is shorter than its popup's needs `data-closed:fill-mode-forwards` or it reappears until the unmount
+- **Menus:** `DropdownMenuLabel` must sit inside a `DropdownMenuGroup`. Checkbox and radio items don't close the menu when clicked (pass `closeOnClick` to change that)
 
 ## Icon Button Patterns
 

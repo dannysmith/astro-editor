@@ -40,6 +40,62 @@ const nextFrame = () =>
     sleep(50),
   ])
 
+/**
+ * Runs a bridge call with animation frames that can't stall. WebKit runs no
+ * frames while the window is hidden, and Base UI waits for one before opening a
+ * popup from a click, moving focus into it, or unmounting it after it closes.
+ * During the call, each frame request also fires from a timeout if the real
+ * frame doesn't come first. Installing a new function each call also makes Base
+ * UI's shared scheduler (in dev builds) re-request a frame it's still waiting
+ * on from before. Overlapping calls share one install, which the last to finish
+ * removes. Outside bridge calls, frames behave normally.
+ */
+async function withFrames<T>(fn: () => Promise<T>): Promise<T> {
+  if (activeFrameCalls++ === 0) restoreFrames = installFrameFallbacks()
+  try {
+    return await fn()
+  } finally {
+    if (--activeFrameCalls === 0) restoreFrames()
+  }
+}
+
+let activeFrameCalls = 0
+let restoreFrames = () => {}
+
+/** Wraps the frame functions for `withFrames`. Returns a function that restores them. */
+function installFrameFallbacks() {
+  const raf = window.requestAnimationFrame
+  const caf = window.cancelAnimationFrame
+  const fallbacks = new Map<number, ReturnType<typeof setTimeout>>()
+  window.requestAnimationFrame = callback => {
+    let ran = false
+    const run = (time: number) => {
+      if (ran) return
+      ran = true
+      clearTimeout(fallbacks.get(id))
+      fallbacks.delete(id)
+      callback(time)
+    }
+    const id = raf.call(window, run)
+    fallbacks.set(
+      id,
+      setTimeout(() => run(performance.now()), 20)
+    )
+    return id
+  }
+  window.cancelAnimationFrame = id => {
+    caf.call(window, id)
+    clearTimeout(fallbacks.get(id))
+    fallbacks.delete(id)
+  }
+  return () => {
+    window.requestAnimationFrame = raf
+    window.cancelAnimationFrame = caf
+    // Anything still pending waits for a real frame, so a later cancel works
+    for (const timeout of fallbacks.values()) clearTimeout(timeout)
+  }
+}
+
 /** Polls `check` until it's true. Returns false if it never is within `timeoutMs`. */
 export async function waitFor(
   check: () => boolean,
@@ -54,10 +110,9 @@ export async function waitFor(
 }
 
 /**
- * Waits until nothing is loading, jumps animations to their end state
- * (including overlays waiting to unmount), then waits two frames. Animations
- * don't run while the window is hidden, and screenshots want the end state
- * anyway. Gives up waiting after `timeoutMs`.
+ * Waits until nothing is loading, jumps animations to their end state, then
+ * waits two frames. Animations don't run while the window is hidden, and
+ * screenshots want the end state anyway. Gives up waiting after `timeoutMs`.
  */
 async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
   if (queryClient) {
@@ -74,17 +129,6 @@ async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
   for (const animation of document.getAnimations()) {
     if (animation.effect?.getComputedTiming().iterations !== Infinity) {
       animation.finish()
-    }
-  }
-  // Radix keeps a closed overlay mounted until its exit animation ends, which
-  // never happens while the window is hidden, so end it here
-  for (const el of document.querySelectorAll('[data-state="closed"]')) {
-    const { animationName } = getComputedStyle(el)
-    if (!animationName || animationName === 'none') continue
-    for (const name of animationName.split(',')) {
-      el.dispatchEvent(
-        new AnimationEvent('animationend', { animationName: name.trim() })
-      )
     }
   }
   await nextFrame()
@@ -131,13 +175,20 @@ export function createPageApi(deps: PageApiDeps) {
   }
 
   return {
+    withFrames,
     idle,
     shotMode: setShotMode,
     getTheme: () => deps.getTheme(),
     setTheme: (theme: Theme) => deps.setTheme(theme),
 
-    /** The outline described in `ui-tree.ts`. Refs are valid until the next call. */
-    tree() {
+    /**
+     * The outline described in `ui-tree.ts`. Refs are valid until the next call.
+     * Waits for idle first: an overlay that opened since the last call sits at
+     * opacity 0 in a hidden window until its animation is finished, and the
+     * outline leaves out invisible elements.
+     */
+    async tree() {
+      await idle()
       return buildUiTree(document.body, refs)
     },
 
@@ -153,6 +204,7 @@ export function createPageApi(deps: PageApiDeps) {
 
     /** Clicks an element with the pointer and mouse event sequence a real click produces. */
     async click(target: Target) {
+      await idle()
       const el = resolve(target)
       const description = describe(el)
       el.scrollIntoView({ block: 'center', inline: 'center' })
@@ -195,6 +247,7 @@ export function createPageApi(deps: PageApiDeps) {
 
     /** Sets an input or textarea's value so React sees the change. */
     async fill(target: Target, value: string) {
+      await idle()
       const el = resolve(target)
       if (
         !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)

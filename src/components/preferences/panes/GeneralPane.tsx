@@ -21,12 +21,31 @@ import { PreferencesTextInput } from '../PreferencesTextInput'
 import { DocsLink } from '../DocsLink'
 import { DOCS_URLS } from '../../../lib/docs-urls'
 
+const THEME_ITEMS = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+] as const
+
+const FILE_TYPE_ITEMS = [
+  { value: 'md', label: 'Markdown (.md)' },
+  { value: 'mdx', label: 'MDX (.mdx)' },
+] as const
+
+const AUTO_SAVE_DELAY_ITEMS = [
+  { value: '1', label: '1 second' },
+  { value: '2', label: '2 seconds' },
+  { value: '5', label: '5 seconds' },
+  { value: '10', label: '10 seconds' },
+]
+
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const { setTheme } = useTheme()
 
   const handleThemeChange = useCallback(
-    (value: 'light' | 'dark' | 'system') => {
+    (value: 'light' | 'dark' | 'system' | null) => {
+      if (!value) return
       setTheme(value)
       void updateGlobal({ general: { theme: value } })
     },
@@ -34,8 +53,9 @@ export const GeneralPane: React.FC = () => {
   )
 
   const handleDefaultFileTypeChange = useCallback(
-    (value: string) => {
-      void updateGlobal({ general: { defaultFileType: value as 'md' | 'mdx' } })
+    (value: 'md' | 'mdx' | null) => {
+      if (!value) return
+      void updateGlobal({ general: { defaultFileType: value } })
     },
     [updateGlobal]
   )
@@ -56,7 +76,8 @@ export const GeneralPane: React.FC = () => {
   )
 
   const handleAutoSaveDelayChange = useCallback(
-    (value: string) => {
+    (value: string | null) => {
+      if (!value) return
       void updateGlobal({ general: { autoSaveDelay: parseInt(value, 10) } })
     },
     [updateGlobal]
@@ -115,6 +136,7 @@ export const GeneralPane: React.FC = () => {
           <FieldLabel>Theme</FieldLabel>
           <FieldContent>
             <Select
+              items={THEME_ITEMS}
               value={globalSettings?.general?.theme || 'system'}
               onValueChange={handleThemeChange}
             >
@@ -122,9 +144,11 @@ export const GeneralPane: React.FC = () => {
                 <SelectValue placeholder="Select theme" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
+                {THEME_ITEMS.map(item => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FieldDescription>
@@ -137,6 +161,7 @@ export const GeneralPane: React.FC = () => {
           <FieldLabel>Default File Type for New Files</FieldLabel>
           <FieldContent>
             <Select
+              items={FILE_TYPE_ITEMS}
               value={globalSettings?.general?.defaultFileType || 'md'}
               onValueChange={handleDefaultFileTypeChange}
             >
@@ -144,8 +169,11 @@ export const GeneralPane: React.FC = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="md">Markdown (.md)</SelectItem>
-                <SelectItem value="mdx">MDX (.mdx)</SelectItem>
+                {FILE_TYPE_ITEMS.map(item => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FieldDescription>
@@ -246,6 +274,7 @@ export const GeneralPane: React.FC = () => {
           <FieldLabel>Auto Save Delay</FieldLabel>
           <FieldContent>
             <Select
+              items={AUTO_SAVE_DELAY_ITEMS}
               value={String(globalSettings?.general?.autoSaveDelay || 2)}
               onValueChange={handleAutoSaveDelayChange}
             >
@@ -253,10 +282,11 @@ export const GeneralPane: React.FC = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">1 second</SelectItem>
-                <SelectItem value="2">2 seconds</SelectItem>
-                <SelectItem value="5">5 seconds</SelectItem>
-                <SelectItem value="10">10 seconds</SelectItem>
+                {AUTO_SAVE_DELAY_ITEMS.map(item => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FieldDescription>

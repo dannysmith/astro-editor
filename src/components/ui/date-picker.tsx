@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/popover'
 
 interface DatePickerProps {
+  id?: string
+  'aria-labelledby'?: string
   value?: Date
   onChange?: (date: Date | undefined) => void
   placeholder?: string
@@ -19,6 +21,8 @@ interface DatePickerProps {
 }
 
 function DatePicker({
+  id,
+  'aria-labelledby': ariaLabelledBy,
   value,
   onChange,
   placeholder = 'Select date',
@@ -28,14 +32,18 @@ function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-between font-normal ${className || ''}`}
-        >
-          {value ? value.toLocaleDateString() : placeholder}
-          <ChevronDownIcon className="size-4" />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            aria-labelledby={ariaLabelledBy}
+            variant="outline"
+            className={`w-full justify-between font-normal ${className || ''}`}
+          />
+        }
+      >
+        {value ? value.toLocaleDateString() : placeholder}
+        <ChevronDownIcon className="size-4" />
       </PopoverTrigger>
       <PopoverContent className="w-auto overflow-hidden p-0" align="start">
         <Calendar

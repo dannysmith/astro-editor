@@ -22,6 +22,8 @@ interface FileDropPayload {
 }
 
 export interface FileUploadButtonProps {
+  id?: string
+  'aria-labelledby'?: string
   /** File extensions to accept (e.g., ['png', 'jpg', 'jpeg']) */
   accept: string[]
   /** Callback when file is selected (receives absolute file path) */
@@ -76,6 +78,8 @@ function isExtensionAccepted(
  * ```
  */
 export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
+  id,
+  'aria-labelledby': ariaLabelledBy,
   accept,
   onFileSelect,
   disabled = false,
@@ -260,6 +264,8 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
   return (
     <Button
       ref={buttonRef}
+      id={id}
+      aria-labelledby={ariaLabelledBy}
       variant={variant}
       size={size}
       className={className}

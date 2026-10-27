@@ -21,10 +21,13 @@ export const DateField: React.FC<DateFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
+  const id = React.useId()
+  const labelId = `${id}-label`
 
   return (
     <FieldWrapper
       label={label}
+      labelId={labelId}
       required={required}
       description={
         field && 'description' in field ? field.description : undefined
@@ -34,6 +37,8 @@ export const DateField: React.FC<DateFieldProps> = ({
       currentValue={value}
     >
       <DatePicker
+        id={id}
+        aria-labelledby={`${labelId} ${id}`}
         value={
           value && typeof value === 'string' ? parseIsoDate(value) : undefined
         }

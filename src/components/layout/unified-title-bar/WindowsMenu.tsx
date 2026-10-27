@@ -114,15 +114,17 @@ export const WindowsMenu: React.FC = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
-          title="Menu"
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+            title="Menu"
+          />
+        }
+      >
+        <MoreHorizontal className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuItem onClick={handleOpenProject}>

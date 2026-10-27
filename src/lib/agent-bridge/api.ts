@@ -61,10 +61,10 @@ export function createAgentApi(deps: AgentApiDeps) {
         selection: { from: selection?.from, to: selection?.to },
         focused: view.hasFocus,
       },
-      // Closed overlays can stay mounted briefly for their exit animation
+      // Closed popups stay mounted, marked data-closed, during their exit animation
       dialogs: [
         ...document.querySelectorAll(
-          ':is([role="dialog"], [role="alertdialog"]):not([data-state="closed"])'
+          ':is([role="dialog"], [role="alertdialog"]):not([data-closed])'
         ),
       ].map(el => labelOf(el)),
       toasts: toasts(),

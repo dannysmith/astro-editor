@@ -100,7 +100,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {/* Sort Controls */}
       <div className="flex items-center gap-1.5">
         <ArrowUpDown className="size-3 flex-shrink-0 text-muted-foreground" />
-        <Select value={sortMode} onValueChange={onSortModeChange}>
+        <Select
+          value={sortMode}
+          onValueChange={mode => mode && onSortModeChange(mode)}
+        >
           <SelectTrigger size="sm" className="h-6 min-w-0 flex-1 px-2 text-xs">
             <SelectValue>
               <span className="flex items-center gap-2">
