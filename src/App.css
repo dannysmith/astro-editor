@@ -62,7 +62,9 @@
      - card, popover: raised above the chrome — dialogs, menus, popovers
      - muted, secondary, accent: subtle fills, hover and selected rows
      - sidebar-*: only the preferences dialog's sidebar
-     The writing surface is --editor-color-background, further down */
+     The writing surface is --editor-color-background, further down.
+     Text selection outside the editor is left to the system: a custom
+     ::selection loses the grey selection of an inactive window */
   --background: light-dark(oklch(1 0 0), oklch(0.1815 0 0));
   --foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
   --card: light-dark(oklch(1 0 0), oklch(0.2044 0 0));
@@ -97,8 +99,9 @@
   --heading: light-dark(oklch(0.1579 0 0), oklch(0.9848 0 0));
   /* Icon-only buttons in the title bar and preferences */
   --icon: light-dark(oklch(0.373 0 0), oklch(0.872 0 0));
-  /* Toggled-on state of the title bar's mode buttons */
-  --active: light-dark(oklch(0.623 0.214 259.815), oklch(0.707 0.165 254.624));
+  /* Toggled-on state of the title bar's mode buttons; the same cyan as an
+     active search filter */
+  --active: var(--filter);
   /* Dims the app behind dialogs and sheets */
   --overlay: oklch(0 0 0 / 0.5);
   --image-preview: oklch(1 0 0 / 0.98);
