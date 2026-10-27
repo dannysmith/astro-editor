@@ -20,6 +20,9 @@ import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
 import { DocsLink } from '../DocsLink'
 import { DOCS_URLS } from '../../../lib/docs-urls'
+import { DEFAULT_GLOBAL_SETTINGS } from '../../../lib/project-registry/defaults'
+
+const DEFAULT_HEADING_COLOR = DEFAULT_GLOBAL_SETTINGS.appearance.headingColor
 
 const THEME_ITEMS = [
   { value: 'light', label: 'Light' },
@@ -69,8 +72,7 @@ export const GeneralPane: React.FC = () => {
 
   const handleResetHeadingColor = useCallback(
     (mode: 'light' | 'dark') => {
-      const defaultColor = mode === 'light' ? '#191919' : '#cccccc'
-      handleHeadingColorChange(mode, defaultColor)
+      handleHeadingColorChange(mode, DEFAULT_HEADING_COLOR[mode])
     },
     [handleHeadingColorChange]
   )
@@ -191,7 +193,8 @@ export const GeneralPane: React.FC = () => {
               <input
                 type="color"
                 value={
-                  globalSettings?.appearance?.headingColor?.light || '#191919'
+                  globalSettings?.appearance?.headingColor?.light ||
+                  DEFAULT_HEADING_COLOR.light
                 }
                 onChange={e =>
                   handleHeadingColorChange('light', e.target.value)
@@ -219,7 +222,8 @@ export const GeneralPane: React.FC = () => {
               <input
                 type="color"
                 value={
-                  globalSettings?.appearance?.headingColor?.dark || '#cccccc'
+                  globalSettings?.appearance?.headingColor?.dark ||
+                  DEFAULT_HEADING_COLOR.dark
                 }
                 onChange={e => handleHeadingColorChange('dark', e.target.value)}
                 className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"

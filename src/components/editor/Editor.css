@@ -62,53 +62,10 @@
   border-radius: 3px;
 }
 
-/* Common Colors */
-:root {
-  --editor-color-carat: rgba(0, 195, 255, 1);
-}
+/* Editor colours live with the other tokens in App.css */
 
-/* Light Mode Colors */
-:root {
-  --editor-color-background: rgba(247, 247, 247, 1);
-  --editor-color-text: rgba(25, 25, 25, 1);
-  --editor-color-mdtag: rgba(179, 181, 176, 1);
-  --editor-color-underline: rgba(214, 212, 209, 1);
-  --editor-color-brown: rgba(165, 101, 27, 1);
-  --editor-color-red: rgba(201, 72, 37, 1);
-  --editor-color-pink: rgba(177, 79, 159, 1);
-  --editor-color-blue: rgba(53, 118, 182, 1);
-  --editor-color-green: rgba(66, 131, 44, 1);
-  --editor-color-codeblock-background: rgba(238, 238, 238, 0.5);
-  --editor-color-selectedtext-background: rgba(185, 234, 250, 1);
-  --editor-color-heading: #191919; /* Default to text color, overridden by JS */
-
-  /* Future use */
-  --editor-color-highlight-background: rgba(252, 236, 147, 1);
-  --editor-color-highlight-underline: rgba(255, 215, 0, 1);
-  --editor-color-highlight-text: var(--editor-color-text);
-}
-
-/* Dark Mode Colors */
+/* Typography - dark mode override */
 .dark {
-  --editor-color-background: rgba(26, 26, 26, 1);
-  --editor-color-text: rgba(204, 204, 204, 1);
-  --editor-color-mdtag: rgba(122, 122, 120, 1);
-  --editor-color-underline: rgba(84, 84, 82, 1);
-  --editor-color-brown: rgba(192, 148, 86, 1);
-  --editor-color-red: rgba(216, 133, 107, 1);
-  --editor-color-pink: rgba(186, 142, 177, 1);
-  --editor-color-blue: rgba(124, 159, 192, 1);
-  --editor-color-green: rgba(131, 165, 115, 1);
-  --editor-color-codeblock-background: rgba(37, 37, 37, 0.5);
-  --editor-color-selectedtext-background: rgba(20, 68, 84, 1);
-  --editor-color-heading: #cccccc; /* Default to text color, overridden by JS */
-
-  /* Future use */
-  --editor-color-highlight-background: rgba(68, 59, 15, 1);
-  --editor-color-highlight-underline: rgba(214, 176, 0, 1);
-  --editor-color-highlight-text: rgba(220, 206, 157, 1);
-
-  /* Typography - dark mode override */
   --editor-font-weight-normal: 480;
   --editor-letter-spacing: 0.005em;
 }

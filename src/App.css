@@ -45,92 +45,124 @@
   font-display: swap;
 }
 
+/* Colour tokens. Every colour in the app is defined here, once, with its light
+   and dark values side by side. light-dark() picks one by the element's
+   color-scheme: it follows the OS until the theme provider adds .light or
+   .dark. Non-colour dark-mode overrides still go in a .dark rule.
+   Never register these with @property: WebKit and Firefox resolve a registered
+   light-dark() value wrongly. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --app-corner-radius: 12px;
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 10%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 10%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 10%);
-  --primary: hsl(0 0% 10%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(0 0% 96%);
-  --secondary-foreground: hsl(0 0% 10%);
-  --muted: hsl(0 0% 96%);
-  --muted-foreground: hsl(0 0% 45%);
-  --accent: hsl(0 0% 96%);
-  --accent-foreground: hsl(0 0% 10%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(0 0% 90%);
-  --input: hsl(0 0% 90%);
-  --ring: hsl(0 0% 10%);
   --radius: 0.5rem;
-  --sidebar: var(--card);
-  --sidebar-foreground: hsl(0 0% 20%);
-  --sidebar-primary: hsl(0 0% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(0 0% 96%);
-  --sidebar-accent-foreground: hsl(0 0% 10%);
-  --sidebar-border: hsl(0 0% 90%);
-  --sidebar-ring: hsl(0 0% 40%);
 
-  /* Heading color - higher contrast than foreground */
-  --heading: hsl(0 0% 5%);
+  /* App chrome (shadcn's tokens plus our own) */
+  --background: light-dark(hsl(0 0% 100%), hsl(0 0% 7%));
+  --foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --card: light-dark(hsl(0 0% 100%), hsl(0 0% 9%));
+  --card-foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --popover: light-dark(hsl(0 0% 100%), hsl(0 0% 9%));
+  --popover-foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --primary: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --primary-foreground: light-dark(hsl(0 0% 98%), hsl(0 0% 10%));
+  --secondary: light-dark(hsl(0 0% 96%), hsl(0 0% 12%));
+  --secondary-foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --muted: light-dark(hsl(0 0% 96%), hsl(0 0% 12%));
+  --muted-foreground: light-dark(hsl(0 0% 45%), hsl(0 0% 60%));
+  --accent: light-dark(hsl(0 0% 96%), hsl(0 0% 15%));
+  --accent-foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --destructive: light-dark(hsl(0 84.2% 60.2%), hsl(0 62.8% 30.6%));
+  --destructive-foreground: light-dark(hsl(0 0% 98%), hsl(0 0% 95%));
+  --border: light-dark(hsl(0 0% 90%), hsl(0 0% 18%));
+  --input: light-dark(hsl(0 0% 90%), hsl(0 0% 18%));
+  --ring: light-dark(hsl(0 0% 10%), hsl(0 0% 70%));
+  --sidebar: light-dark(hsl(0 0% 100%), hsl(0 0% 8%));
+  --sidebar-foreground: light-dark(hsl(0 0% 20%), hsl(0 0% 90%));
+  --sidebar-primary: light-dark(hsl(0 0% 10%), hsl(0 0% 50%));
+  --sidebar-primary-foreground: light-dark(hsl(0 0% 98%), hsl(0 0% 100%));
+  --sidebar-accent: light-dark(hsl(0 0% 96%), hsl(0 0% 14%));
+  --sidebar-accent-foreground: light-dark(hsl(0 0% 10%), hsl(0 0% 90%));
+  --sidebar-border: light-dark(hsl(0 0% 90%), hsl(0 0% 18%));
+  --sidebar-ring: light-dark(hsl(0 0% 40%), hsl(0 0% 50%));
+  /* Higher contrast than foreground */
+  --heading: light-dark(hsl(0 0% 5%), hsl(0 0% 98%));
 
-  /* Status colors */
-  --draft: hsl(37 99% 25%); /* orange-600 equivalent */
-  --draft-bg: hsl(33 100% 96%); /* orange-50 equivalent */
-  --filter: hsl(201 96% 32%); /* cyan-700 equivalent */
-  --filter-bg: hsl(195 100% 96%); /* cyan-50 equivalent */
-  --required: hsl(0 84% 60%); /* red-500 equivalent */
-  --warning: hsl(45 93% 47%); /* yellow-500 equivalent */
-  --warning-bg: hsl(55 92% 95%); /* yellow-50 equivalent */
+  /* Status */
+  --draft: light-dark(hsl(37 99% 25%), hsl(33 100% 70%));
+  --draft-bg: light-dark(hsl(33 100% 96%), hsl(33 100% 8%));
+  --filter: light-dark(hsl(201 96% 32%), hsl(195 100% 70%));
+  --filter-bg: light-dark(hsl(195 100% 96%), hsl(201 100% 8%));
+  --required: light-dark(hsl(0 84% 60%), hsl(0 91% 71%));
+  --warning: light-dark(hsl(45 93% 47%), hsl(48 96% 80%));
+  --warning-bg: light-dark(hsl(55 92% 95%), hsl(48 100% 6%));
+
+  /* Editor: the iA Writer palette, for the writing surface only. Keep all of
+     it, used or not (see docs/developer/editor-styles.md) */
+  --editor-color-carat: rgba(0, 195, 255, 1);
+  --editor-color-background: light-dark(
+    rgba(247, 247, 247, 1),
+    rgba(26, 26, 26, 1)
+  );
+  --editor-color-text: light-dark(rgba(25, 25, 25, 1), rgba(204, 204, 204, 1));
+  --editor-color-mdtag: light-dark(
+    rgba(179, 181, 176, 1),
+    rgba(122, 122, 120, 1)
+  );
+  --editor-color-underline: light-dark(
+    rgba(214, 212, 209, 1),
+    rgba(84, 84, 82, 1)
+  );
+  --editor-color-brown: light-dark(
+    rgba(165, 101, 27, 1),
+    rgba(192, 148, 86, 1)
+  );
+  --editor-color-red: light-dark(rgba(201, 72, 37, 1), rgba(216, 133, 107, 1));
+  --editor-color-pink: light-dark(
+    rgba(177, 79, 159, 1),
+    rgba(186, 142, 177, 1)
+  );
+  --editor-color-blue: light-dark(
+    rgba(53, 118, 182, 1),
+    rgba(124, 159, 192, 1)
+  );
+  --editor-color-green: light-dark(
+    rgba(66, 131, 44, 1),
+    rgba(131, 165, 115, 1)
+  );
+  --editor-color-codeblock-background: light-dark(
+    rgba(238, 238, 238, 0.5),
+    rgba(37, 37, 37, 0.5)
+  );
+  --editor-color-selectedtext-background: light-dark(
+    rgba(185, 234, 250, 1),
+    rgba(20, 68, 84, 1)
+  );
+  /* The user's heading colours from Appearance settings, set by Layout.
+     Default to the text colour */
+  --editor-color-heading: light-dark(
+    var(--heading-color-light, var(--editor-color-text)),
+    var(--heading-color-dark, var(--editor-color-text))
+  );
+  --editor-color-highlight-background: light-dark(
+    rgba(252, 236, 147, 1),
+    rgba(68, 59, 15, 1)
+  );
+  --editor-color-highlight-underline: light-dark(
+    rgba(255, 215, 0, 1),
+    rgba(214, 176, 0, 1)
+  );
+  --editor-color-highlight-text: light-dark(
+    var(--editor-color-text),
+    rgba(220, 206, 157, 1)
+  );
+}
+
+.light {
+  color-scheme: light;
 }
 
 .dark {
   color-scheme: dark;
-  --background: hsl(0 0% 7%);
-  --foreground: hsl(0 0% 90%);
-  --card: hsl(0 0% 9%);
-  --card-foreground: hsl(0 0% 90%);
-  --popover: hsl(0 0% 9%);
-  --popover-foreground: hsl(0 0% 90%);
-  --primary: hsl(0 0% 90%);
-  --primary-foreground: hsl(0 0% 10%);
-  --secondary: hsl(0 0% 12%);
-  --secondary-foreground: hsl(0 0% 90%);
-  --muted: hsl(0 0% 12%);
-  --muted-foreground: hsl(0 0% 60%);
-  --accent: hsl(0 0% 15%);
-  --accent-foreground: hsl(0 0% 90%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 95%);
-  --border: hsl(0 0% 18%);
-  --input: hsl(0 0% 18%);
-  --ring: hsl(0 0% 70%);
-  --sidebar: hsl(0 0% 8%);
-  --sidebar-foreground: hsl(0 0% 90%);
-  --sidebar-primary: hsl(0 0% 50%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(0 0% 14%);
-  --sidebar-accent-foreground: hsl(0 0% 90%);
-  --sidebar-border: hsl(0 0% 18%);
-  --sidebar-ring: hsl(0 0% 50%);
-
-  /* Heading color - higher contrast than foreground */
-  --heading: hsl(0 0% 98%);
-
-  /* Status colors - dark mode */
-  --draft: hsl(33 100% 70%); /* Lighter orange for dark */
-  --draft-bg: hsl(33 100% 8%); /* Dark orange background */
-  --filter: hsl(195 100% 70%); /* Lighter cyan for dark */
-  --filter-bg: hsl(201 100% 8%); /* Dark cyan background */
-  --required: hsl(0 91% 71%); /* Lighter red for dark */
-  --warning: hsl(48 96% 80%); /* Lighter yellow for dark */
-  --warning-bg: hsl(48 100% 6%); /* Dark yellow background */
 }
 
 /* Square corners mode - used on Windows/Linux in fullscreen */
