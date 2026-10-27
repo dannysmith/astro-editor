@@ -9,7 +9,7 @@ import { queryClient } from '../lib/query-client'
 import { ThemeProvider } from '../lib/theme-provider'
 import { Styleguide } from './Styleguide'
 import '../App.css'
-// Defines the editor colours, including the app's background
+// Editor typography variables
 import '../components/editor/Editor.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -46,8 +47,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   )
 
   useEffect(() => {
-    // null follows the OS. On macOS and Linux this is app-wide
-    void getCurrentWindow().setTheme(theme === 'system' ? null : theme)
+    // null follows the OS. On macOS and Linux this is app-wide. Skipped when
+    // the styleguide is open in a browser, where there's no window to theme
+    if (isTauri()) {
+      void getCurrentWindow().setTheme(theme === 'system' ? null : theme)
+    }
 
     const root = window.document.documentElement
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
