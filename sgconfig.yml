@@ -1,8 +1,10 @@
 ruleDirs:
   - ./.ast-grep/rules
 
+# Parse .ts as tsx too: tsx is a superset, and the typescript grammar can't
+# read JSX, so rules wouldn't see className strings
 languageGlobs:
-  typescript:
+  tsx:
     - 'src/**/*.ts'
     - 'src/**/*.tsx'
 

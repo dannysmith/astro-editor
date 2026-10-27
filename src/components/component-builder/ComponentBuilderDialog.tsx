@@ -38,21 +38,31 @@ const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
 export function ComponentBuilderDialog() {
   const projectPath = useProjectStore(state => state.projectPath)
   const { pathOverrides } = useEffectiveSettings()
-  const {
-    isOpen,
-    step,
-    selectedComponent,
-    enabledProps,
-    propSearchQuery,
-    clientDirective,
-    close,
-    selectComponent,
-    toggleProp,
-    insert,
-    back,
-    setPropSearchQuery,
-    setClientDirective,
-  } = useComponentBuilderStore()
+  const isOpen = useComponentBuilderStore(state => state.isOpen)
+  const step = useComponentBuilderStore(state => state.step)
+  const selectedComponent = useComponentBuilderStore(
+    state => state.selectedComponent
+  )
+  const enabledProps = useComponentBuilderStore(state => state.enabledProps)
+  const propSearchQuery = useComponentBuilderStore(
+    state => state.propSearchQuery
+  )
+  const clientDirective = useComponentBuilderStore(
+    state => state.clientDirective
+  )
+  const close = useComponentBuilderStore(state => state.close)
+  const selectComponent = useComponentBuilderStore(
+    state => state.selectComponent
+  )
+  const toggleProp = useComponentBuilderStore(state => state.toggleProp)
+  const insert = useComponentBuilderStore(state => state.insert)
+  const back = useComponentBuilderStore(state => state.back)
+  const setPropSearchQuery = useComponentBuilderStore(
+    state => state.setPropSearchQuery
+  )
+  const setClientDirective = useComponentBuilderStore(
+    state => state.setClientDirective
+  )
 
   // Fetch MDX components using TanStack Query with effective settings
   const { data: components = [], isLoading } = useMdxComponentsQuery(

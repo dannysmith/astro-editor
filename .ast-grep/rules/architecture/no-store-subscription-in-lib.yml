@@ -8,7 +8,7 @@ message: |
   Store subscriptions (useStore()) create React coupling and should only be used
   in React components and hooks. lib/ modules should remain pure.
 severity: error
-language: typescript
+language: tsx
 files:
   - 'src/lib/**/*.ts'
   - 'src/lib/**/*.tsx'

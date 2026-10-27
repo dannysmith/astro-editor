@@ -7,7 +7,7 @@ message: |
 
   For multiple values, use multiple selectors or useShallow for objects/arrays.
 severity: error
-language: typescript
+language: tsx
 rule:
   any:
     # Match destructuring from any Zustand store
