@@ -57,10 +57,10 @@ The app tokens (`--background`, `--foreground` and so on) are for the chrome aro
 
 ### Converting to oklch without changing colours
 
-- **The tool:** `@csstools/css-color-parser` is already in `node_modules` (pulled in by another package). It parses hex, rgba and hsl, and serialises to oklch and back.
-- **The check script:** `docs/tasks-todo/temporary/oklch-check.ts` converts every colour literal in `App.css` and `Editor.css`, then checks each round trip to 8-bit sRGB. Run it with `bun docs/tasks-todo/temporary/oklch-check.ts $PWD`. Greys come out with a `NaN` hue; write those as `0`.
-- **Precision:** 4 decimal places reproduces 82 of 84 values exactly. The other two (`hsl(0 0% 10%)` and `90%`, plus `50%` at 5 places) sit exactly on a half-step between two 8-bit values. Settle them with `app diff`.
-- **Tailwind palette values** we keep in Phase 1 are already oklch in Tailwind's theme. Reference them as `var(--color-gray-700)` rather than copying numbers.
+- **The tool:** `@csstools/css-color-parser` is already in `node_modules` (pulled in by another package). It parses hex, rgba and hsl, and serialises to oklch and back. `docs/tasks-todo/temporary/oklch-convert.ts` rewrites the token block with it.
+- **Precision:** 4 decimal places, converted from the exact float value. WebKit paints from the float rather than snapping to 8-bit first, so half-step greys like `hsl(0 0% 10%)` (25.5) can't be matched by rounding to a whole 8-bit value. The worst error at 4 places is 0.11 of one 8-bit level.
+- **Checking:** `app diff` counts any changed pixel, so it flags those rounding differences everywhere. `docs/tasks-todo/temporary/max-delta.ts <a> <b>` reports the largest per-channel change instead. After the conversion, every shot stayed within 1 level.
+- **Tailwind palette values** are copied as oklch literals rather than referenced as `var(--color-gray-700)`. Tailwind only emits the theme variables it sees used, and literals don't shift on a Tailwind upgrade.
 
 ## Checkpoints
 
@@ -70,27 +70,35 @@ Where a step says **Checkpoint**, stop and show Danny before moving on.
 - Where there are real options, shoot each one (`<topic>-a-*`, `<topic>-b-*`) and recommend one.
 - Keep the change in the working tree until Danny picks, then commit.
 
+### Tooling
+
+- **`bash docs/tasks-todo/temporary/colours-shots.sh <dir>`** shoots the app screens this task touches, plus every styleguide section, in both themes. It pins the traffic lights (focused for `app-panels`, unfocused after); window focus otherwise changes them between runs. Repeat runs are pixel-identical.
+- **Run `app reload` before shooting after an edit.** Shots taken while HMR is still applying catch transitions such as the welcome screen fading, or a different scroll position.
+- **Toast shots are occasionally caught mid-animation.** Reshoot before trusting a toasts diff.
+- **Shots that can't be taken:** the Windows caption buttons (macOS only renders the macOS title bar) and the image preview (needs a real Alt+hover).
+- **Don't use `git stash` for probes.** This repo has an old stash entry, and `git stash pop` with nothing stashed applies it.
+
 ## Phase 1: Tokens, pixel-identical
 
-Nothing should look different at the end of this phase. Prove it with `app diff`.
+Nothing should look different at the end of this phase. Prove it with `app diff`. Done on branch `semantic-colour-tokens`.
 
-- [ ] Baseline. The styleguide shots in `temporary/baseline/` don't cover the app chrome, so also shoot to `temporary/baseline-colours/`:
-  - the editor with both panels, and with both hidden;
-  - preferences, the component builder and an image preview;
-  - the window unfocused;
-  - a draft file selected with the drafts filter on.
-- [ ] Move every colour token into one block in `App.css`, which is where `components.json` points `shadcn add`. That includes the editor palette from `Editor.css`; the `--editor-*` names stay
-- [ ] Convert each token to one `light-dark()` declaration with the same values. Set `:root { color-scheme: light dark }` so the first paint follows the OS before React sets a class, and `.light` / `.dark` pin it
-- [ ] Heading colour: Layout sets `--heading-color-light` and `--heading-color-dark` once, and `--editor-color-heading` is `light-dark()` of the two. Remove the `MutationObserver` and keep the default in one place
-- [ ] Replace the hardcoded colours with tokens holding today's values, in our components, `ImagePreview` and `theme.ts`.
-  - Reuse an existing token only where the value matches exactly. Otherwise add a new one, for example `--titlebar`, `--icon`, `--active`, `--overlay`, `--traffic-light-*`, `--framework-*`, `--input-text` and `--selection`.
-  - Register every new token in `@theme inline` so it's a normal utility; no `bg-[var(--x)]`.
-- [ ] Traffic lights: the unfocused colours become tokens, which drops the `.dark.window-unfocused` rules and the `!important`s
-- [ ] `DebugScreen` uses the `--warning` tokens
-- [ ] Convert all token values to oklch (see above), in its own commit
-- [ ] Add a lint rule (ast-grep) banning Tailwind palette classes (`gray-700`, `blue-500`, `black`, `white` and so on) in `src/`
-- [ ] Add a "colours" section to the styleguide: every token as a swatch with its name, grouped into chrome, editor, status and window, shot in both themes
-- [ ] `app diff` against the baselines shows nothing changed. `bun run check:all` passes
+- [x] Baseline in `temporary/baseline-colours/`: the editor with and without panels, focus and typewriter modes on, the drafts filter with a draft selected, the component builder, preferences, the window unfocused, and every styleguide section
+- [x] Move every colour token into one block in `App.css`, which is where `components.json` points `shadcn add`. That includes the editor palette from `Editor.css`; the `--editor-*` names stay
+- [x] Convert each token to one `light-dark()` declaration with the same values. Set `:root { color-scheme: light dark }` so the first paint follows the OS before React sets a class, and `.light` / `.dark` pin it. All 38 shots identical
+- [x] Heading colour: Layout sets `--heading-color-light` and `--heading-color-dark` once, and `--editor-color-heading` is `light-dark()` of the two, defaulting to `--editor-color-text`. The `MutationObserver` is gone, and `GeneralPane` reads the default from `DEFAULT_GLOBAL_SETTINGS`. `migrations.ts` keeps its literals, since a migration shouldn't change with the defaults
+- [x] Replace the hardcoded colours with tokens holding today's values, registered in `@theme inline`:
+  - **New tokens:** `--titlebar`, `--icon`, `--active`, `--input-foreground`, `--overlay`, `--image-preview*`, `--framework-*`, `--window-control-hover`, `--window-close*`, `--traffic-light-*` and `--editor-color-snippet-border*`, plus `--color-editor-background` for `bg-editor-background`.
+  - **No `--selection` yet:** `Input`'s selection already uses tokens.
+  - **Two intended classes now apply in dark mode,** because `dark:text-white` no longer overrides them. The frontmatter title uses `text-heading` (98% rather than 100%), and select placeholders are muted rather than white. These were the only differences in the shots.
+  - **Outside the shots:**
+    - `--destructive-foreground` is now white to match shadcn's destructive button and badge, which nudges `DebugPane`'s one use from 98% / 95%.
+    - The Windows close button's icon now turns white on hover in dark mode too; `dark:text-gray-300` used to win.
+- [x] Traffic lights: tokens, no `!important`. The `.dark.window-unfocused` rules never matched (`.dark` is on `<html>`, `.window-unfocused` on the group), so dark mode has always shown the light unfocused greys. Removed; see Phase 2
+- [x] ~~`DebugScreen` uses the `--warning` tokens~~ Deleted instead: nothing has imported it since July 2025
+- [x] Convert all token values to oklch (see above), in its own commit
+- [x] Lint rule `no-palette-colours` (ast-grep). This needed `sgconfig.yml` to parse `src/` as tsx: the typescript grammar can't read JSX, so every rule was blind inside it. That exposed one Zustand destructure in `ComponentBuilderDialog`, now selectors
+- [x] "Colours" styleguide section (`src/styleguide/ColoursSection.tsx`), grouped into chrome, preferences sidebar, status, window controls and editor. It lists any `:root` colour token missing from the page
+- [x] Shots match (see above). `bun run check:all` passes
 
 ## Phase 2: Consistency
 
@@ -98,17 +106,20 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 
 - [ ] **Surfaces.** Settle on a named set (chrome, raised for card and popover, subtle for muted and hover, editor, title bar) and say what each is for in a comment. **Checkpoint**
 - [ ] **Title bar with panels shown.** Options: (a) match the sidebars (`--background`); (b) its own neutral step between the sidebars and the editor. Without panels it keeps the editor background. **Checkpoint**
-- [ ] **Neutral greys.** Re-point `--icon` and `--input-text` at neutral values, likely `--muted-foreground` and `--foreground`. That removes the blue tint and the pure white form text in dark mode. Then merge any tokens that become duplicates. **Checkpoint**
+- [ ] **Neutral greys.** Re-point `--icon` and `--input-foreground` at neutral values, likely `--muted-foreground` and `--foreground`. That removes the blue tint and the pure white form text in dark mode. Then merge any tokens that become duplicates. **Checkpoint**
 - [ ] **Selection.** One `--selection` everywhere. Options: (a) the editor's iA cyan for inputs and textareas too; (b) the system accent everywhere outside the editor. Also decide whether inputs get the editor's caret colour. **Checkpoint**
-- [ ] **Active colour.** Replace `blue-500` / `blue-400` on the focus and typewriter icons with one `--active`. It might share a hue with the caret or `--filter`. **Checkpoint**
+- [ ] **Active colour.** `--active` is still `blue-500` / `blue-400`. Decide its value; it might share a hue with the caret or `--filter`. **Checkpoint**
 - [ ] **Draft.** The file list badge uses `--draft` rather than `destructive`. **Checkpoint**
 - [ ] **Dark mode fixes.** Theme the image preview card and the snippet-field borders. **Checkpoint**
-- [ ] **Unused tokens.** Remove the ones nothing reads (`--sidebar-primary*`, and any Phase 1 tokens merged away). The editor palette stays whole
+- [ ] **Unfocused traffic lights in dark mode.** The intended dark greys (`#5a5a5a`, border `#4a4a4a`, hover `#6a6a6a`) never applied. Shoot both and decide. **Checkpoint**
+- [ ] **Editor typography in dark mode.** `.dark { --editor-font-weight-normal: 480; --editor-letter-spacing: 0.005em }` in `Editor.css` never applied, because the `:root` typography block after it wins. Dark mode has always used 490 and 0. Decide whether to apply it. **Checkpoint**
+- [ ] **Unused tokens.** Remove the ones nothing reads (`--sidebar-primary*`, `--warning*`, and any Phase 1 tokens merged away). The editor palette stays whole
 
 ## Phase 3: Theme switching and docs
 
 - [ ] Call Tauri's `getCurrentWindow().setTheme()` from the ThemeProvider (`null` for system), so native menus and the vibrancy follow the app theme rather than the OS. Check whether they currently mismatch first
 - [ ] Simplify `theme-provider.tsx` where `color-scheme` now does the work
-- [ ] Rewrite `docs/developer/color-system.md`: one token file, the chrome / editor split, `light-dark()` and oklch, how to add a token, the shadcn rule, the gotchas. It currently recommends `text-gray-900 dark:text-white`
+- [ ] Rewrite `docs/developer/color-system.md`: one token file, the chrome / editor split, `light-dark()` and oklch, how to add a token, the shadcn rule, the gotchas, the colours styleguide section. It currently recommends `text-gray-900 dark:text-white`
+- [ ] `docs/developer/editor-styles.md` lists the editor palette in rgba. Point it at `App.css` instead of repeating the values
 - [ ] Update the `light-dark()` platform notes in `cross-platform.md`. Consider raising `minimumSystemVersion` to match reality
 - [ ] Close #274 with a thank-you, open the new PR, and comment on #197 with what this unlocks
