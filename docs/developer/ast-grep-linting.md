@@ -47,7 +47,7 @@ ruleDirs:
   - ./.ast-grep/rules
 
 languageGlobs:
-  typescript:
+  tsx:
     - "src/**/*.ts"
     - "src/**/*.tsx"
 
@@ -55,6 +55,8 @@ output:
   style: rich
   color: auto
 ```
+
+Everything in `src/` is parsed as tsx, a superset of TypeScript, and rules use `language: tsx`. The typescript grammar can't parse JSX, so rules would miss anything inside it, such as `className` strings.
 
 ## Available Rules
 
@@ -121,6 +123,25 @@ const value = useEditorStore(state => state.value)
 **Files:** `src/lib/**/*.{ts,tsx}` only
 **Auto-fixable:** No (requires getState() refactoring)
 
+---
+
+### 4. no-palette-colours
+
+**What it catches:**
+```tsx
+// ❌ BAD: Tailwind palette colours
+<Icon className="text-gray-700 dark:text-gray-300" />
+
+// ✅ GOOD: a colour token
+<Icon className="text-icon" />
+```
+
+**Why it matters:** Every colour is a token defined once in `src/App.css` with `light-dark()`, so all colours can be changed in one place for both themes. See `docs/developer/color-system.md`.
+
+**Severity:** Error
+**Files:** `src/**/*.{ts,tsx}`
+**Auto-fixable:** No
+
 ## Usage
 
 ### Running Lints
@@ -169,7 +190,7 @@ message: |
   ✅ GOOD: example of correct code
 
 severity: error  # or warning
-language: typescript
+language: tsx
 files:  # Optional: restrict to specific files
   - "src/lib/**/*.ts"
   - "src/lib/**/*.tsx"
@@ -247,7 +268,7 @@ cd node_modules/@ast-grep/cli && node postinstall.js
 
 - Use `npx ast-grep run -p 'pattern'` to test patterns
 - Check AST structure with `npx ast-grep lsp`
-- Verify language is set to `typescript`
+- Verify language is set to `tsx`
 
 ## Resources
 
