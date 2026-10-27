@@ -64,12 +64,6 @@
 
 /* Editor colours live with the other tokens in App.css */
 
-/* Typography - dark mode override */
-.dark {
-  --editor-font-weight-normal: 480;
-  --editor-letter-spacing: 0.005em;
-}
-
 /* Typography Variables */
 :root {
   /* Font Family */
@@ -100,6 +94,13 @@
   --editor-letter-spacing: 0;
   --editor-font-variation-settings: 'spcg' 1;
   --editor-content-max-width: 60ch;
+}
+
+/* Typography - dark mode override: slightly lighter and looser, so light text
+   on dark doesn't look heavy. Must come after the :root block above */
+.dark {
+  --editor-font-weight-normal: 480;
+  --editor-letter-spacing: 0.005em;
 }
 
 /* Responsive Typography using Container Queries */

@@ -109,10 +109,11 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 - [x] **Neutral greys.** `--icon` keeps today's lightness without the blue tint; `--muted-foreground` made the disabled Save button hard to tell apart. Input text is `text-foreground`, so `--input-foreground` is gone and dark-mode input text is 90% rather than white
 - [x] **Selection.** Danny chose the system selection colour outside the editor (over today's mix, or iA cyan everywhere). `Input` drops shadcn's inverted `selection:` classes, and there's no `--selection` token: a custom `::selection` would lose the grey selection of an inactive window. Carets stay the system default. Compared on a temporary styleguide page, `temporary/colours/styleguide-accents-*`
 - [x] **Active colour.** Danny chose the search filter's cyan (over today's blue, the caret cyan or the system accent): `--active: var(--filter)`, kept as its own name so the mode icons don't read as a filter in code
-- [ ] **Draft.** The file list badge uses `--draft` rather than `destructive`. **Checkpoint**
-- [ ] **Dark mode fixes.** Theme the image preview card and the snippet-field borders. **Checkpoint**
-- [ ] **Unfocused traffic lights in dark mode.** The intended dark greys (`#5a5a5a`, border `#4a4a4a`, hover `#6a6a6a`) never applied. Shoot both and decide. **Checkpoint**
-- [ ] **Editor typography in dark mode.** `.dark { --editor-font-weight-normal: 480; --editor-letter-spacing: 0.005em }` in `Editor.css` never applied, because the `:root` typography block after it wins. Dark mode has always used 490 and 0. Decide whether to apply it. **Checkpoint**
+- [x] **Draft.** The file list badge is solid `bg-draft` with `text-background` (Danny chose solid over a tinted outline)
+- [x] **Dark mode fixes.** In dark, the image preview card uses the popover colour with a white-alpha border and spinner and a stronger shadow, and snippet-field borders are white-alpha. Light is unchanged
+- [x] **Unfocused traffic lights in dark mode.** The intended dark greys now apply through `light-dark()`
+- [x] **Editor typography in dark mode.** The `.dark` override in `Editor.css` now comes after the `:root` block, so dark mode gets 480 and 0.005em
+- These four were compared on a temporary styleguide page, `temporary/colours/styleguide-fixes-*`
 - [ ] **Unused tokens.** Remove the ones nothing reads (`--sidebar-primary*`, `--warning*`, and any Phase 1 tokens merged away). The editor palette stays whole
 
 ## Phase 3: Theme switching and docs

@@ -104,10 +104,10 @@
   --active: var(--filter);
   /* Dims the app behind dialogs and sheets */
   --overlay: oklch(0 0 0 / 0.5);
-  --image-preview: oklch(1 0 0 / 0.98);
-  --image-preview-border: oklch(0 0 0 / 0.1);
-  --image-preview-shadow: oklch(0 0 0 / 0.15);
-  --image-preview-spinner: oklch(0 0 0 / 0.6);
+  --image-preview: light-dark(oklch(1 0 0 / 0.98), oklch(0.2044 0 0 / 0.98));
+  --image-preview-border: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+  --image-preview-shadow: light-dark(oklch(0 0 0 / 0.15), oklch(0 0 0 / 0.5));
+  --image-preview-spinner: light-dark(oklch(0 0 0 / 0.6), oklch(1 0 0 / 0.6));
   /* Framework badges in the component builder */
   --framework-astro: light-dark(
     oklch(0.646 0.222 41.116),
@@ -142,9 +142,15 @@
   --traffic-light-maximize: oklch(0.7335 0.2182 144.873);
   --traffic-light-maximize-border: oklch(0.6488 0.2034 143.734);
   --traffic-light-maximize-hover: oklch(0.6854 0.2115 144.09);
-  --traffic-light-unfocused: oklch(0.8203 0 0);
-  --traffic-light-unfocused-border: oklch(0.7058 0 0);
-  --traffic-light-unfocused-hover: oklch(0.7826 0 0);
+  --traffic-light-unfocused: light-dark(oklch(0.8203 0 0), oklch(0.4676 0 0));
+  --traffic-light-unfocused-border: light-dark(
+    oklch(0.7058 0 0),
+    oklch(0.4091 0 0)
+  );
+  --traffic-light-unfocused-hover: light-dark(
+    oklch(0.7826 0 0),
+    oklch(0.5243 0 0)
+  );
 
   /* Status */
   --draft: light-dark(oklch(0.47 0.102 69.33), oklch(0.8371 0.1285 69.9811));
@@ -232,8 +238,14 @@
     var(--editor-color-text),
     oklch(0.8509 0.0662 94.0342)
   );
-  --editor-color-snippet-border: oklch(0 0 0 / 0.05);
-  --editor-color-snippet-border-active: oklch(0 0 0 / 0.1);
+  --editor-color-snippet-border: light-dark(
+    oklch(0 0 0 / 0.05),
+    oklch(1 0 0 / 0.1)
+  );
+  --editor-color-snippet-border-active: light-dark(
+    oklch(0 0 0 / 0.1),
+    oklch(1 0 0 / 0.2)
+  );
 }
 
 .light {
