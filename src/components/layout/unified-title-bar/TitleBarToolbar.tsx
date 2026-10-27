@@ -72,7 +72,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         'w-full flex items-center justify-between px-3 py-1.5 select-none border-b transition-opacity duration-300 transform-gpu',
         bothPanelsHidden
           ? 'bg-editor-background border-transparent'
-          : 'bg-titlebar border-border',
+          : 'bg-background border-border',
         distractionFreeBarsHidden && bothPanelsHidden && 'opacity-0'
       )}
       data-tauri-drag-region

@@ -56,7 +56,13 @@
   --app-corner-radius: 12px;
   --radius: 0.5rem;
 
-  /* App chrome (shadcn's tokens plus our own) */
+  /* App chrome (shadcn's tokens plus our own). Surfaces:
+     - background: the chrome — sidebars and the title bar. The title bar takes
+       the editor background instead when both panels are hidden
+     - card, popover: raised above the chrome — dialogs, menus, popovers
+     - muted, secondary, accent: subtle fills, hover and selected rows
+     - sidebar-*: only the preferences dialog's sidebar
+     The writing surface is --editor-color-background, further down */
   --background: light-dark(oklch(1 0 0), oklch(0.1815 0 0));
   --foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
   --card: light-dark(oklch(1 0 0), oklch(0.2044 0 0));
@@ -89,13 +95,10 @@
   --sidebar-ring: light-dark(oklch(0.5103 0 0), oklch(0.5982 0 0));
   /* Higher contrast than foreground */
   --heading: light-dark(oklch(0.1579 0 0), oklch(0.9848 0 0));
-  --titlebar: light-dark(oklch(0.985 0.002 247.839), oklch(0 0 0));
   /* Icon-only buttons in the title bar and preferences */
-  --icon: light-dark(oklch(0.373 0.034 259.733), oklch(0.872 0.01 258.338));
+  --icon: light-dark(oklch(0.373 0 0), oklch(0.872 0 0));
   /* Toggled-on state of the title bar's mode buttons */
   --active: light-dark(oklch(0.623 0.214 259.815), oklch(0.707 0.165 254.624));
-  /* Text typed into inputs, textareas and selects */
-  --input-foreground: light-dark(oklch(0.21 0.034 264.665), oklch(1 0 0));
   /* Dims the app behind dialogs and sheets */
   --overlay: oklch(0 0 0 / 0.5);
   --image-preview: oklch(1 0 0 / 0.98);
@@ -280,10 +283,8 @@
   --color-required: var(--required);
   --color-warning: var(--warning);
   --color-warning-bg: var(--warning-bg);
-  --color-titlebar: var(--titlebar);
   --color-icon: var(--icon);
   --color-active: var(--active);
-  --color-input-foreground: var(--input-foreground);
   --color-overlay: var(--overlay);
   --color-framework-astro: var(--framework-astro);
   --color-framework-react: var(--framework-react);

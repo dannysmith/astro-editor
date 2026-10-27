@@ -104,9 +104,9 @@ Nothing should look different at the end of this phase. Prove it with `app diff`
 
 Each item is a visible change and a **checkpoint**. The goal is a small, explainable set of surfaces and greys, reusing today's values where they already work.
 
-- [ ] **Surfaces.** Settle on a named set (chrome, raised for card and popover, subtle for muted and hover, editor, title bar) and say what each is for in a comment. **Checkpoint**
-- [ ] **Title bar with panels shown.** Options: (a) match the sidebars (`--background`); (b) its own neutral step between the sidebars and the editor. Without panels it keeps the editor background. **Checkpoint**
-- [ ] **Neutral greys.** Re-point `--icon` and `--input-foreground` at neutral values, likely `--muted-foreground` and `--foreground`. That removes the blue tint and the pure white form text in dark mode. Then merge any tokens that become duplicates. **Checkpoint**
+- [x] **Surfaces.** The set is written up in a comment above the chrome tokens in `App.css`: background (sidebars and title bar), card/popover (raised), muted/secondary/accent (subtle fills), sidebar-* (preferences only), and the editor background as the writing surface
+- [x] **Title bar with panels shown.** Danny chose matching the sidebars (`bg-background`) over keeping today's look without the tint, or matching the editor. `--titlebar` is gone. Without panels it keeps the editor background. Shots in `temporary/colours/titlebar-*`
+- [x] **Neutral greys.** `--icon` keeps today's lightness without the blue tint; `--muted-foreground` made the disabled Save button hard to tell apart. Input text is `text-foreground`, so `--input-foreground` is gone and dark-mode input text is 90% rather than white
 - [ ] **Selection.** One `--selection` everywhere. Options: (a) the editor's iA cyan for inputs and textareas too; (b) the system accent everywhere outside the editor. Also decide whether inputs get the editor's caret colour. **Checkpoint**
 - [ ] **Active colour.** `--active` is still `blue-500` / `blue-400`. Decide its value; it might share a hue with the caret or `--filter`. **Checkpoint**
 - [ ] **Draft.** The file list badge uses `--draft` rather than `destructive`. **Checkpoint**
