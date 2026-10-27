@@ -40,7 +40,7 @@ export const MainEditor: React.FC = () => {
   return (
     <div className="flex h-full flex-col">
       <div
-        className={`flex-1 overflow-x-hidden overflow-y-auto bg-[var(--editor-color-background)]${typewriterModeEnabled ? ' no-scrollbar' : ''}`}
+        className={`flex-1 overflow-x-hidden overflow-y-auto bg-editor-background${typewriterModeEnabled ? ' no-scrollbar' : ''}`}
       >
         {hasCurrentFile ? <Editor /> : <WelcomeScreen />}
       </div>

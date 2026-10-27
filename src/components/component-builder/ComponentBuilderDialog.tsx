@@ -213,10 +213,10 @@ export function ComponentBuilderDialog() {
                 <CommandGroup>
                   {components.map(component => {
                     const frameworkColors = {
-                      astro: 'text-orange-600 dark:text-orange-400',
-                      react: 'text-blue-600 dark:text-blue-400',
-                      vue: 'text-green-600 dark:text-green-400',
-                      svelte: 'text-red-600 dark:text-red-400',
+                      astro: 'text-framework-astro',
+                      react: 'text-framework-react',
+                      vue: 'text-framework-vue',
+                      svelte: 'text-framework-svelte',
                     }
 
                     return (

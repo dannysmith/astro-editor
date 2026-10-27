@@ -192,7 +192,7 @@ export const Layout: React.FC = () => {
   }, [])
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--editor-color-background)]">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-editor-background">
       <UnifiedTitleBar />
 
       <div className="min-h-0 flex-1">

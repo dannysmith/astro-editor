@@ -71,8 +71,8 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
       className={cn(
         'w-full flex items-center justify-between px-3 py-1.5 select-none border-b transition-opacity duration-300 transform-gpu',
         bothPanelsHidden
-          ? 'bg-[var(--editor-color-background)] border-transparent'
-          : 'bg-gray-50 dark:bg-black border-border',
+          ? 'bg-editor-background border-transparent'
+          : 'bg-titlebar border-border',
         distractionFreeBarsHidden && bothPanelsHidden && 'opacity-0'
       )}
       data-tauri-drag-region
@@ -85,7 +85,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleSidebar}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+          className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={sidebarVisible ? 'Close Sidebar' : 'Open Sidebar'}
         >
           {sidebarVisible ? (
@@ -112,7 +112,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
             onClick={() => void createNewFile()}
             variant="ghost"
             size="sm"
-            className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+            className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
             title={`New ${selectedCollection} file`}
           >
             <Plus className="size-4" />
@@ -123,25 +123,20 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleFocusMode}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+          className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={focusModeEnabled ? 'Disable Focus Mode' : 'Enable Focus Mode'}
           aria-label={
             focusModeEnabled ? 'Disable Focus Mode' : 'Enable Focus Mode'
           }
         >
-          <Eye
-            className={cn(
-              'size-4',
-              focusModeEnabled && 'text-blue-500 dark:text-blue-400'
-            )}
-          />
+          <Eye className={cn('size-4', focusModeEnabled && 'text-active')} />
         </Button>
 
         <Button
           onClick={toggleTypewriterMode}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+          className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={
             typewriterModeEnabled
               ? 'Disable Typewriter Mode'
@@ -154,10 +149,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           }
         >
           <Pilcrow
-            className={cn(
-              'size-4',
-              typewriterModeEnabled && 'text-blue-500 dark:text-blue-400'
-            )}
+            className={cn('size-4', typewriterModeEnabled && 'text-active')}
           />
         </Button>
 
@@ -167,7 +159,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           size="sm"
           disabled={!currentFile || !isDirty}
           title={`Save${isDirty ? ' (unsaved changes)' : ''}`}
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+          className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
         >
           <Save className="size-4" />
         </Button>
@@ -176,7 +168,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
           onClick={toggleFrontmatterPanel}
           variant="ghost"
           size="sm"
-          className="size-7 p-0 text-gray-700 dark:text-gray-300 [&_svg]:scale-100 [&_svg]:transform-gpu"
+          className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={
             frontmatterPanelVisible
               ? 'Close Frontmatter Panel'
