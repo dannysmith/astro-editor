@@ -6,6 +6,8 @@ This file manually Compiled by Danny. This document is ONLY to be used for styli
 
 These colour variables should be available in CSS inside the editor and anywhere else we need to use them. Even if these colours are not currently in use, they should remain available because we will use all of them at some point.
 
+They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted to oklch and written with `light-dark()`.
+
 ### Common Colours
 
 ```css

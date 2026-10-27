@@ -118,9 +118,9 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 
 ## Phase 3: Theme switching and docs
 
-- [ ] Call Tauri's `getCurrentWindow().setTheme()` from the ThemeProvider (`null` for system), so native menus and the vibrancy follow the app theme rather than the OS. Check whether they currently mismatch first
-- [ ] Simplify `theme-provider.tsx` where `color-scheme` now does the work
-- [ ] Rewrite `docs/developer/color-system.md`: one token file, the chrome / editor split, `light-dark()` and oklch, how to add a token, the shadcn rule, the gotchas, the colours styleguide section. It currently recommends `text-gray-900 dark:text-white`
-- [ ] `docs/developer/editor-styles.md` lists the editor palette in rgba. Point it at `App.css` instead of repeating the values
-- [ ] Update the `light-dark()` platform notes in `cross-platform.md`. Consider raising `minimumSystemVersion` to match reality
+- [x] `ThemeProvider` calls `getCurrentWindow().setTheme()` (`null` for system), with the `core:window:allow-set-theme` capability. Checked through the bridge: the native window appearance now follows Light, Dark and System. **Danny to check:** with the app set to the opposite of the OS, a right-click context menu (e.g. on a file) should match the app
+- [x] Simplified `theme-provider.tsx`. `color-scheme` can't replace the class, because Tailwind's `dark:` variant keys on `.dark`. The effect now has one `apply` function, and the manual memoisation is gone (React Compiler)
+- [x] Rewrote `docs/developer/color-system.md`
+- [x] `editor-styles.md` is Danny's hand-compiled spec, which has values the code doesn't use, so its palette stays. It now says where the tokens live
+- [x] Added "Webview Versions" to `cross-platform.md`. **For Danny:** `minimumSystemVersion` is still 10.15, but the app needs macOS 12 with Safari 17.5+ (and Tailwind v4 alone needs Big Sur's last Safari). Raising it to 12.0 stops older Macs installing a build that renders wrongly
 - [ ] Close #274 with a thank-you, open the new PR, and comment on #197 with what this unlocks
