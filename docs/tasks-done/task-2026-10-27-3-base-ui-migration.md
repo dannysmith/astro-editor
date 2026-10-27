@@ -187,4 +187,4 @@ API changes that affect code outside `ui/`. Most are done with their group in Ph
   - tooltip delays in the sidebar and title bar;
   - real mouse and keyboard feel in menus and selects;
   - the Windows title bar menu (Windows only).
-- [ ] `bun run check:all`, PR with the `ci` label, merge commit
+- [x] `bun run check:all`, PR with the `ci` label, merge commit: #344. CodeRabbit's one comment led to overlapping `withFrames` calls sharing one wrapper, so the last to finish restores the real frame functions
