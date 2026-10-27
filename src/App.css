@@ -170,14 +170,6 @@
     oklch(0.6356 0.2082 25.3782),
     oklch(0.7123 0.1656 22.1776)
   );
-  --warning: light-dark(
-    oklch(0.7858 0.1598 85.3091),
-    oklch(0.9336 0.1 95.7898)
-  );
-  --warning-bg: light-dark(
-    oklch(0.987 0.0282 102.665),
-    oklch(0.2122 0.0437 96.654)
-  );
 
   /* Editor: the iA Writer palette, for the writing surface only. Keep all of
      it, used or not (see docs/developer/editor-styles.md) */
@@ -296,8 +288,6 @@
   --color-filter: var(--filter);
   --color-filter-bg: var(--filter-bg);
   --color-required: var(--required);
-  --color-warning: var(--warning);
-  --color-warning-bg: var(--warning-bg);
   --color-icon: var(--icon);
   --color-active: var(--active);
   --color-overlay: var(--overlay);

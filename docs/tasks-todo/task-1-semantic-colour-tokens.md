@@ -114,7 +114,7 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 - [x] **Unfocused traffic lights in dark mode.** The intended dark greys now apply through `light-dark()`
 - [x] **Editor typography in dark mode.** The `.dark` override in `Editor.css` now comes after the `:root` block, so dark mode gets 480 and 0.005em
 - These four were compared on a temporary styleguide page, `temporary/colours/styleguide-fixes-*`
-- [ ] **Unused tokens.** Remove the ones nothing reads (`--sidebar-primary*`, `--warning*`, and any Phase 1 tokens merged away). The editor palette stays whole
+- [x] **Unused tokens.** Removed `--warning` and `--warning-bg`. Kept `--card-foreground` and `--sidebar-primary*`, which nothing reads yet: they're part of shadcn's standard theme, and components added later expect them. The editor palette stays whole
 
 ## Phase 3: Theme switching and docs
 
