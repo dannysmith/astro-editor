@@ -123,4 +123,4 @@ Each item is a visible change and a **checkpoint**. The goal is a small, explain
 - [x] Rewrote `docs/developer/color-system.md`
 - [x] `editor-styles.md` is Danny's hand-compiled spec, which has values the code doesn't use, so its palette stays. It now says where the tokens live
 - [x] Added "Webview Versions" to `cross-platform.md`, and raised `minimumSystemVersion` from 10.15 to 12.0, since the app needs Safari 17.5+ for `light-dark()`
-- [x] Open the PR. Danny closes #274 and comments on #197
+- [x] Opened #345, merged after CI passed on all three platforms. CodeRabbit's one finding (the native theme call breaking the styleguide in a browser) is fixed. Danny closed #274 and commented on #197
