@@ -139,4 +139,29 @@ describe('withFrames', () => {
       window.requestAnimationFrame = original
     }
   })
+
+  it('keeps frames running until overlapping calls have all finished', async () => {
+    const stalled = vi.fn(() => 1)
+    const original = window.requestAnimationFrame
+    window.requestAnimationFrame = stalled
+    try {
+      let finishFirst = () => {}
+      const first = api().withFrames(
+        () => new Promise<void>(resolve => (finishFirst = resolve))
+      )
+      // The first call finishes before the second requests its frame
+      const ran = await api().withFrames(async () => {
+        finishFirst()
+        await first
+        return new Promise<boolean>(resolve => {
+          requestAnimationFrame(() => resolve(true))
+        })
+      })
+
+      expect(ran).toBe(true)
+      expect(window.requestAnimationFrame).toBe(stalled)
+    } finally {
+      window.requestAnimationFrame = original
+    }
+  })
 })

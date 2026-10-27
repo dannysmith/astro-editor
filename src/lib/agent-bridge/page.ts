@@ -47,9 +47,23 @@ const nextFrame = () =>
  * During the call, each frame request also fires from a timeout if the real
  * frame doesn't come first. Installing a new function each call also makes Base
  * UI's shared scheduler (in dev builds) re-request a frame it's still waiting
- * on from before. Outside bridge calls, frames behave normally.
+ * on from before. Overlapping calls share one install, which the last to finish
+ * removes. Outside bridge calls, frames behave normally.
  */
 async function withFrames<T>(fn: () => Promise<T>): Promise<T> {
+  if (activeFrameCalls++ === 0) restoreFrames = installFrameFallbacks()
+  try {
+    return await fn()
+  } finally {
+    if (--activeFrameCalls === 0) restoreFrames()
+  }
+}
+
+let activeFrameCalls = 0
+let restoreFrames = () => {}
+
+/** Wraps the frame functions for `withFrames`. Returns a function that restores them. */
+function installFrameFallbacks() {
   const raf = window.requestAnimationFrame
   const caf = window.cancelAnimationFrame
   const fallbacks = new Map<number, ReturnType<typeof setTimeout>>()
@@ -74,9 +88,7 @@ async function withFrames<T>(fn: () => Promise<T>): Promise<T> {
     clearTimeout(fallbacks.get(id))
     fallbacks.delete(id)
   }
-  try {
-    return await fn()
-  } finally {
+  return () => {
     window.requestAnimationFrame = raf
     window.cancelAnimationFrame = caf
     // Anything still pending waits for a real frame, so a later cancel works
