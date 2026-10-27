@@ -45,92 +45,207 @@
   font-display: swap;
 }
 
+/* Colour tokens. Every colour in the app is defined here, once, with its light
+   and dark values side by side. light-dark() picks one by the element's
+   color-scheme: it follows the OS until the theme provider adds .light or
+   .dark. Non-colour dark-mode overrides still go in a .dark rule.
+   Never register these with @property: WebKit and Firefox resolve a registered
+   light-dark() value wrongly. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --app-corner-radius: 12px;
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 10%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 10%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 10%);
-  --primary: hsl(0 0% 10%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(0 0% 96%);
-  --secondary-foreground: hsl(0 0% 10%);
-  --muted: hsl(0 0% 96%);
-  --muted-foreground: hsl(0 0% 45%);
-  --accent: hsl(0 0% 96%);
-  --accent-foreground: hsl(0 0% 10%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(0 0% 90%);
-  --input: hsl(0 0% 90%);
-  --ring: hsl(0 0% 10%);
   --radius: 0.5rem;
-  --sidebar: var(--card);
-  --sidebar-foreground: hsl(0 0% 20%);
-  --sidebar-primary: hsl(0 0% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(0 0% 96%);
-  --sidebar-accent-foreground: hsl(0 0% 10%);
-  --sidebar-border: hsl(0 0% 90%);
-  --sidebar-ring: hsl(0 0% 40%);
 
-  /* Heading color - higher contrast than foreground */
-  --heading: hsl(0 0% 5%);
+  /* App chrome (shadcn's tokens plus our own). Surfaces:
+     - background: the chrome — sidebars and the title bar. The title bar takes
+       the editor background instead when both panels are hidden
+     - card, popover: raised above the chrome — dialogs, menus, popovers
+     - muted, secondary, accent: subtle fills, hover and selected rows
+     - sidebar-*: only the preferences dialog's sidebar
+     The writing surface is --editor-color-background, further down.
+     Text selection outside the editor is left to the system: a custom
+     ::selection loses the grey selection of an inactive window */
+  --background: light-dark(oklch(1 0 0), oklch(0.1815 0 0));
+  --foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --card: light-dark(oklch(1 0 0), oklch(0.2044 0 0));
+  --card-foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --popover: light-dark(oklch(1 0 0), oklch(0.2044 0 0));
+  --popover-foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --primary: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --primary-foreground: light-dark(oklch(0.9848 0 0), oklch(0.2156 0 0));
+  --secondary: light-dark(oklch(0.9696 0 0), oklch(0.2376 0 0));
+  --secondary-foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --muted: light-dark(oklch(0.9696 0 0), oklch(0.2376 0 0));
+  --muted-foreground: light-dark(oklch(0.5547 0 0), oklch(0.6829 0 0));
+  --accent: light-dark(oklch(0.9696 0 0), oklch(0.2697 0 0));
+  --accent-foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --destructive: light-dark(
+    oklch(0.6368 0.2078 25.3259),
+    oklch(0.3959 0.1331 25.7205)
+  );
+  --destructive-foreground: oklch(1 0 0);
+  --border: light-dark(oklch(0.9234 0 0), oklch(0.3008 0 0));
+  --input: light-dark(oklch(0.9234 0 0), oklch(0.3008 0 0));
+  --ring: light-dark(oklch(0.2156 0 0), oklch(0.7652 0 0));
+  --sidebar: light-dark(oklch(1 0 0), oklch(0.193 0 0));
+  --sidebar-foreground: light-dark(oklch(0.3211 0 0), oklch(0.9234 0 0));
+  --sidebar-primary: light-dark(oklch(0.2156 0 0), oklch(0.5982 0 0));
+  --sidebar-primary-foreground: light-dark(oklch(0.9848 0 0), oklch(1 0 0));
+  --sidebar-accent: light-dark(oklch(0.9696 0 0), oklch(0.2591 0 0));
+  --sidebar-accent-foreground: light-dark(oklch(0.2156 0 0), oklch(0.9234 0 0));
+  --sidebar-border: light-dark(oklch(0.9234 0 0), oklch(0.3008 0 0));
+  --sidebar-ring: light-dark(oklch(0.5103 0 0), oklch(0.5982 0 0));
+  /* Higher contrast than foreground */
+  --heading: light-dark(oklch(0.1579 0 0), oklch(0.9848 0 0));
+  /* Icon-only buttons in the title bar and preferences */
+  --icon: light-dark(oklch(0.373 0 0), oklch(0.872 0 0));
+  /* Toggled-on state of the title bar's mode buttons; the same cyan as an
+     active search filter */
+  --active: var(--filter);
+  /* Dims the app behind dialogs and sheets */
+  --overlay: oklch(0 0 0 / 0.5);
+  --image-preview: light-dark(oklch(1 0 0 / 0.98), oklch(0.2044 0 0 / 0.98));
+  --image-preview-border: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+  --image-preview-shadow: light-dark(oklch(0 0 0 / 0.15), oklch(0 0 0 / 0.5));
+  --image-preview-spinner: light-dark(oklch(0 0 0 / 0.6), oklch(1 0 0 / 0.6));
+  /* Framework badges in the component builder */
+  --framework-astro: light-dark(
+    oklch(0.646 0.222 41.116),
+    oklch(0.75 0.183 55.934)
+  );
+  --framework-react: light-dark(
+    oklch(0.546 0.245 262.881),
+    oklch(0.707 0.165 254.624)
+  );
+  --framework-vue: light-dark(
+    oklch(0.627 0.194 149.214),
+    oklch(0.792 0.209 151.711)
+  );
+  --framework-svelte: light-dark(
+    oklch(0.577 0.245 27.325),
+    oklch(0.704 0.191 22.216)
+  );
 
-  /* Status colors */
-  --draft: hsl(37 99% 25%); /* orange-600 equivalent */
-  --draft-bg: hsl(33 100% 96%); /* orange-50 equivalent */
-  --filter: hsl(201 96% 32%); /* cyan-700 equivalent */
-  --filter-bg: hsl(195 100% 96%); /* cyan-50 equivalent */
-  --required: hsl(0 84% 60%); /* red-500 equivalent */
-  --warning: hsl(45 93% 47%); /* yellow-500 equivalent */
-  --warning-bg: hsl(55 92% 95%); /* yellow-50 equivalent */
+  /* Window controls we draw ourselves: the caption buttons on Windows and the
+     traffic lights on macOS */
+  --window-control-hover: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+  --window-close: oklch(0.637 0.237 25.331);
+  --window-close-foreground: oklch(1 0 0);
+  --traffic-light-shadow: oklch(0 0 0 / 0.1);
+  --traffic-light-symbol: oklch(0 0 0 / 0.75);
+  --traffic-light-close: oklch(0.6935 0.1965 26.6863);
+  --traffic-light-close-border: oklch(0.611 0.1938 26.8095);
+  --traffic-light-close-hover: oklch(0.6633 0.2236 28.2919);
+  --traffic-light-minimize: oklch(0.8378 0.161 80.8954);
+  --traffic-light-minimize-border: oklch(0.7483 0.1465 79.4682);
+  --traffic-light-minimize-hover: oklch(0.8224 0.1641 77.4753);
+  --traffic-light-maximize: oklch(0.7335 0.2182 144.873);
+  --traffic-light-maximize-border: oklch(0.6488 0.2034 143.734);
+  --traffic-light-maximize-hover: oklch(0.6854 0.2115 144.09);
+  --traffic-light-unfocused: light-dark(oklch(0.8203 0 0), oklch(0.4676 0 0));
+  --traffic-light-unfocused-border: light-dark(
+    oklch(0.7058 0 0),
+    oklch(0.4091 0 0)
+  );
+  --traffic-light-unfocused-hover: light-dark(
+    oklch(0.7826 0 0),
+    oklch(0.5243 0 0)
+  );
+
+  /* Status */
+  --draft: light-dark(oklch(0.47 0.102 69.33), oklch(0.8371 0.1285 69.9811));
+  --draft-bg: light-dark(
+    oklch(0.9767 0.0178 73.0768),
+    oklch(0.222 0.0479 70.6222)
+  );
+  --filter: light-dark(
+    oklch(0.4996 0.1179 242.209),
+    oklch(0.8325 0.1164 222.821)
+  );
+  --filter-bg: light-dark(
+    oklch(0.975 0.0175 219.652),
+    oklch(0.2077 0.044 234.862)
+  );
+  --required: light-dark(
+    oklch(0.6356 0.2082 25.3782),
+    oklch(0.7123 0.1656 22.1776)
+  );
+
+  /* Editor: the iA Writer palette, for the writing surface only. Keep all of
+     it, used or not (see docs/developer/editor-styles.md) */
+  --editor-color-carat: oklch(0.7646 0.1514 229.433);
+  --editor-color-background: light-dark(oklch(0.9761 0 0), oklch(0.2178 0 0));
+  --editor-color-text: light-dark(oklch(0.2134 0 0), oklch(0.8452 0 0));
+  --editor-color-mdtag: light-dark(
+    oklch(0.77 0.0073 124.482),
+    oklch(0.5789 0.003 106.493)
+  );
+  --editor-color-underline: light-dark(
+    oklch(0.8707 0.0046 78.2958),
+    oklch(0.4452 0.0032 106.529)
+  );
+  --editor-color-brown: light-dark(
+    oklch(0.5656 0.1171 63.9717),
+    oklch(0.6949 0.0957 74.5736)
+  );
+  --editor-color-red: light-dark(
+    oklch(0.5749 0.1711 35.6912),
+    oklch(0.6981 0.1094 38.1559)
+  );
+  --editor-color-pink: light-dark(
+    oklch(0.5794 0.16 335.035),
+    oklch(0.6995 0.0712 333.624)
+  );
+  --editor-color-blue: light-dark(
+    oklch(0.5543 0.1199 250.587),
+    oklch(0.6885 0.0623 247.237)
+  );
+  --editor-color-green: light-dark(
+    oklch(0.5474 0.1382 138.74),
+    oklch(0.6833 0.0804 135.902)
+  );
+  --editor-color-codeblock-background: light-dark(
+    oklch(0.9491 0 0 / 0.5),
+    oklch(0.2645 0 0 / 0.5)
+  );
+  --editor-color-selectedtext-background: light-dark(
+    oklch(0.9081 0.0548 219.767),
+    oklch(0.3624 0.0572 224.086)
+  );
+  /* The user's heading colours from Appearance settings, set by Layout.
+     Default to the text colour */
+  --editor-color-heading: light-dark(
+    var(--heading-color-light, var(--editor-color-text)),
+    var(--heading-color-dark, var(--editor-color-text))
+  );
+  --editor-color-highlight-background: light-dark(
+    oklch(0.9367 0.111 99.3162),
+    oklch(0.3522 0.0621 97.4493)
+  );
+  --editor-color-highlight-underline: light-dark(
+    oklch(0.8868 0.1822 95.3305),
+    oklch(0.7685 0.1574 93.205)
+  );
+  --editor-color-highlight-text: light-dark(
+    var(--editor-color-text),
+    oklch(0.8509 0.0662 94.0342)
+  );
+  --editor-color-snippet-border: light-dark(
+    oklch(0 0 0 / 0.05),
+    oklch(1 0 0 / 0.1)
+  );
+  --editor-color-snippet-border-active: light-dark(
+    oklch(0 0 0 / 0.1),
+    oklch(1 0 0 / 0.2)
+  );
+}
+
+.light {
+  color-scheme: light;
 }
 
 .dark {
   color-scheme: dark;
-  --background: hsl(0 0% 7%);
-  --foreground: hsl(0 0% 90%);
-  --card: hsl(0 0% 9%);
-  --card-foreground: hsl(0 0% 90%);
-  --popover: hsl(0 0% 9%);
-  --popover-foreground: hsl(0 0% 90%);
-  --primary: hsl(0 0% 90%);
-  --primary-foreground: hsl(0 0% 10%);
-  --secondary: hsl(0 0% 12%);
-  --secondary-foreground: hsl(0 0% 90%);
-  --muted: hsl(0 0% 12%);
-  --muted-foreground: hsl(0 0% 60%);
-  --accent: hsl(0 0% 15%);
-  --accent-foreground: hsl(0 0% 90%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 95%);
-  --border: hsl(0 0% 18%);
-  --input: hsl(0 0% 18%);
-  --ring: hsl(0 0% 70%);
-  --sidebar: hsl(0 0% 8%);
-  --sidebar-foreground: hsl(0 0% 90%);
-  --sidebar-primary: hsl(0 0% 50%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(0 0% 14%);
-  --sidebar-accent-foreground: hsl(0 0% 90%);
-  --sidebar-border: hsl(0 0% 18%);
-  --sidebar-ring: hsl(0 0% 50%);
-
-  /* Heading color - higher contrast than foreground */
-  --heading: hsl(0 0% 98%);
-
-  /* Status colors - dark mode */
-  --draft: hsl(33 100% 70%); /* Lighter orange for dark */
-  --draft-bg: hsl(33 100% 8%); /* Dark orange background */
-  --filter: hsl(195 100% 70%); /* Lighter cyan for dark */
-  --filter-bg: hsl(201 100% 8%); /* Dark cyan background */
-  --required: hsl(0 91% 71%); /* Lighter red for dark */
-  --warning: hsl(48 96% 80%); /* Lighter yellow for dark */
-  --warning-bg: hsl(48 100% 6%); /* Dark yellow background */
 }
 
 /* Square corners mode - used on Windows/Linux in fullscreen */
@@ -173,8 +288,17 @@
   --color-filter: var(--filter);
   --color-filter-bg: var(--filter-bg);
   --color-required: var(--required);
-  --color-warning: var(--warning);
-  --color-warning-bg: var(--warning-bg);
+  --color-icon: var(--icon);
+  --color-active: var(--active);
+  --color-overlay: var(--overlay);
+  --color-framework-astro: var(--framework-astro);
+  --color-framework-react: var(--framework-react);
+  --color-framework-vue: var(--framework-vue);
+  --color-framework-svelte: var(--framework-svelte);
+  --color-window-control-hover: var(--window-control-hover);
+  --color-window-close: var(--window-close);
+  --color-window-close-foreground: var(--window-close-foreground);
+  --color-editor-background: var(--editor-color-background);
 }
 
 @layer base {
@@ -271,42 +395,42 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    border: 0.5px solid;
     transition: background-color 0.12s ease;
     font-size: 8px;
     font-weight: 700;
     line-height: 1;
-    box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0.5px 1px var(--traffic-light-shadow);
   }
 
   .traffic-light-close {
-    background: #ff5f56;
-    border-color: #e0443e;
+    background: var(--traffic-light-close);
+    border-color: var(--traffic-light-close-border);
   }
   .traffic-light-close:hover {
-    background: #ff453a;
+    background: var(--traffic-light-close-hover);
   }
 
   .traffic-light-minimize {
-    background: #ffbd30;
-    border-color: #dea123;
+    background: var(--traffic-light-minimize);
+    border-color: var(--traffic-light-minimize-border);
   }
   .traffic-light-minimize:hover {
-    background: #ffb524;
+    background: var(--traffic-light-minimize-hover);
   }
 
   .traffic-light-maximize {
-    background: #28ca42;
-    border-color: #1aac29;
+    background: var(--traffic-light-maximize);
+    border-color: var(--traffic-light-maximize-border);
   }
   .traffic-light-maximize:hover {
-    background: #1fb932;
+    background: var(--traffic-light-maximize-hover);
   }
 
   .traffic-light .symbol {
     opacity: 0;
     transition: opacity 0.12s ease;
-    color: rgba(0, 0, 0, 0.75);
+    color: var(--traffic-light-symbol);
     position: absolute;
     top: 50%;
     left: 50%;
@@ -338,32 +462,19 @@ body {
     transform: translate(-50%, -50%);
   }
 
-  /* Window unfocused state - grey traffic lights */
+  /* Window unfocused state - grey traffic lights. These come after the hover
+     rules above, which have the same specificity */
   .window-unfocused .traffic-light-close,
   .window-unfocused .traffic-light-minimize,
   .window-unfocused .traffic-light-maximize {
-    background: #c4c4c4 !important;
-    border-color: #a0a0a0 !important;
+    background: var(--traffic-light-unfocused);
+    border-color: var(--traffic-light-unfocused-border);
   }
 
   .window-unfocused .traffic-light-close:hover,
   .window-unfocused .traffic-light-minimize:hover,
   .window-unfocused .traffic-light-maximize:hover {
-    background: #b8b8b8 !important;
-  }
-
-  /* Dark mode unfocused state */
-  .dark.window-unfocused .traffic-light-close,
-  .dark.window-unfocused .traffic-light-minimize,
-  .dark.window-unfocused .traffic-light-maximize {
-    background: #5a5a5a !important;
-    border-color: #4a4a4a !important;
-  }
-
-  .dark.window-unfocused .traffic-light-close:hover,
-  .dark.window-unfocused .traffic-light-minimize:hover,
-  .dark.window-unfocused .traffic-light-maximize:hover {
-    background: #6a6a6a !important;
+    background: var(--traffic-light-unfocused-hover);
   }
 }
 

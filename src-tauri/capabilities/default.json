@@ -18,6 +18,7 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-unminimize",
+    "core:window:allow-set-theme",
     "opener:default",
     "fs:allow-remove",
     "dialog:default",

@@ -359,9 +359,9 @@ export const CollectionSettingsPane: React.FC = () => {
                 <CollapsibleTrigger className="flex w-full items-center justify-between p-4 transition-colors hover:bg-accent/50">
                   <div className="flex items-center gap-2">
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+                      <ChevronDown className="h-4 w-4 text-icon" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+                      <ChevronRight className="h-4 w-4 text-icon" />
                     )}
                     <span className="font-medium text-heading">
                       {collection.name}

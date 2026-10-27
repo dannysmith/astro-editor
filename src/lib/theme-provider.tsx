@@ -1,11 +1,6 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-} from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -37,6 +32,11 @@ interface ThemeProviderProps {
   storageKey?: string
 }
 
+/**
+ * Applies the theme: the native window appearance (so menus and dialogs match)
+ * and a .light or .dark class on <html>, which sets color-scheme for the
+ * light-dark() colour tokens and drives Tailwind's dark: variant.
+ */
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
   defaultTheme = 'system',
@@ -47,51 +47,35 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   )
 
   useEffect(() => {
-    const root = window.document.documentElement
-
-    root.classList.remove('light', 'dark')
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light'
-
-      root.classList.add(systemTheme)
-
-      // Listen for system theme changes
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = () => {
-        root.classList.remove('light', 'dark')
-        const newSystemTheme = mediaQuery.matches ? 'dark' : 'light'
-        root.classList.add(newSystemTheme)
-      }
-
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
+    // null follows the OS. On macOS and Linux this is app-wide. Skipped when
+    // the styleguide is open in a browser, where there's no window to theme
+    if (isTauri()) {
+      void getCurrentWindow().setTheme(theme === 'system' ? null : theme)
     }
 
-    root.classList.add(theme)
+    const root = window.document.documentElement
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      const resolved =
+        theme === 'system' ? (systemDark.matches ? 'dark' : 'light') : theme
+      root.classList.remove('light', 'dark')
+      root.classList.add(resolved)
+    }
+
+    apply()
+    if (theme !== 'system') return
+
+    systemDark.addEventListener('change', apply)
+    return () => systemDark.removeEventListener('change', apply)
   }, [theme])
 
-  const handleSetTheme = useCallback(
-    (theme: Theme) => {
-      localStorage.setItem(storageKey, theme)
-      setTheme(theme)
-    },
-    [storageKey]
-  )
-
-  const value = useMemo(
-    () => ({
-      theme,
-      setTheme: handleSetTheme,
-    }),
-    [theme, handleSetTheme]
-  )
+  const handleSetTheme = (theme: Theme) => {
+    localStorage.setItem(storageKey, theme)
+    setTheme(theme)
+  }
 
   return (
-    <ThemeProviderContext.Provider value={value}>
+    <ThemeProviderContext.Provider value={{ theme, setTheme: handleSetTheme }}>
       {children}
     </ThemeProviderContext.Provider>
   )

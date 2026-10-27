@@ -148,32 +148,13 @@ export const Layout: React.FC = () => {
     }
   }, [theme, setTheme])
 
-  // Update heading color CSS variables when appearance settings change
+  // Heading colours from appearance settings. --editor-color-heading picks
+  // between them with light-dark(), so theme changes need nothing here
   useEffect(() => {
+    if (!headingColor) return
     const root = window.document.documentElement
-    const isDark = root.classList.contains('dark')
-
-    if (headingColor) {
-      const color = isDark ? headingColor.dark : headingColor.light
-      root.style.setProperty('--editor-color-heading', color)
-    }
-  }, [headingColor])
-
-  // Also update heading color when theme changes (system theme changes)
-  useEffect(() => {
-    const root = window.document.documentElement
-
-    if (headingColor) {
-      const observer = new MutationObserver(() => {
-        const isDark = root.classList.contains('dark')
-        const color = isDark ? headingColor.dark : headingColor.light
-        root.style.setProperty('--editor-color-heading', color)
-      })
-
-      observer.observe(root, { attributes: true, attributeFilter: ['class'] })
-
-      return () => observer.disconnect()
-    }
+    root.style.setProperty('--heading-color-light', headingColor.light)
+    root.style.setProperty('--heading-color-dark', headingColor.dark)
   }, [headingColor])
 
   // Apply editor base font size CSS variable
@@ -211,7 +192,7 @@ export const Layout: React.FC = () => {
   }, [])
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--editor-color-background)]">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-editor-background">
       <UnifiedTitleBar />
 
       <div className="min-h-0 flex-1">

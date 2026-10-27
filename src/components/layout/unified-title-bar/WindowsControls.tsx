@@ -28,24 +28,24 @@ export const WindowsControls: React.FC = () => {
     <div className="-my-1.5 -mr-3 flex items-center">
       <button
         onClick={() => void handleMinimize()}
-        className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+        className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-window-control-hover"
         aria-label="Minimize"
       >
-        <Minus className="size-4 text-gray-700 dark:text-gray-300" />
+        <Minus className="size-4 text-icon" />
       </button>
       <button
         onClick={() => void handleToggleMaximize()}
-        className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+        className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-window-control-hover"
         aria-label="Maximize"
       >
-        <Square className="size-3.5 text-gray-700 dark:text-gray-300" />
+        <Square className="size-3.5 text-icon" />
       </button>
       <button
         onClick={() => void handleClose()}
-        className="group flex h-11 w-11 items-center justify-center transition-colors hover:bg-red-500 hover:text-white"
+        className="group flex h-11 w-11 items-center justify-center transition-colors hover:bg-window-close hover:text-window-close-foreground"
         aria-label="Close"
       >
-        <X className="size-4 text-gray-700 group-hover:text-white dark:text-gray-300" />
+        <X className="size-4 text-icon group-hover:text-window-close-foreground" />
       </button>
     </div>
   )

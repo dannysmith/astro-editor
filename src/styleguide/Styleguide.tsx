@@ -19,6 +19,7 @@ import {
   TogglesSection,
 } from './sections'
 import { FieldsSection } from './FieldsSection'
+import { ColoursSection } from './ColoursSection'
 
 interface Section {
   id: string
@@ -30,6 +31,7 @@ interface Section {
 
 /** Each section is sized to fit the dev window, so it can be screenshotted whole. */
 const SECTIONS: Section[] = [
+  { id: 'colours', title: 'Colour tokens', Component: ColoursSection },
   {
     id: 'buttons',
     title: 'Buttons, badges and status',
@@ -110,7 +112,7 @@ export function Styleguide() {
   return (
     <TooltipProvider>
       {/* App.css locks html, body and #root for the app, so this scrolls instead */}
-      <div className="h-screen overflow-y-auto bg-[var(--editor-color-background)] text-foreground">
+      <div className="h-screen overflow-y-auto bg-editor-background text-foreground">
         {section ? (
           <main className="p-8">
             <h1 className="mb-6 text-lg font-semibold">{section.title}</h1>

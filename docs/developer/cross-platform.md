@@ -12,6 +12,14 @@ Astro Editor supports macOS, Windows, and Linux. This guide documents the patter
 | Windows | Custom (controls on right) | `decorations: false` | None |
 | Linux | Native + toolbar | `decorations: true` | None |
 
+### Webview Versions
+
+Each platform renders with a different engine, so CSS features have to work in all three:
+
+- **macOS:** WKWebView, which is the system WebKit and updates with Safari. Tailwind v4 needs Safari 16.4+ and the colour tokens use `light-dark()` (Safari 17.5+), so the app needs macOS 12 Monterey or later with current Safari updates. `minimumSystemVersion` in `tauri.conf.json` is set to match.
+- **Windows:** WebView2, evergreen Chromium. Anything current works.
+- **Linux:** the system WebKitGTK (`libwebkit2gtk-4.1`), or the copy the AppImage bundles from the ubuntu-22.04 build runner. Supported distros ship 2.50+ in their updates (Ubuntu 22.04 and 24.04, Debian 12), which has `light-dark()`.
+
 ## Conditional Compilation (Rust)
 
 ### Cargo.toml Configuration

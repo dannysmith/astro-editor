@@ -157,7 +157,7 @@ export const FileItem: React.FC<FileItemProps> = ({
         </div>
         <div className="flex flex-col gap-1">
           {isFileDraft && (
-            <Badge variant="destructive" className="px-1 py-0 text-xs">
+            <Badge className="border-transparent bg-draft px-1 py-0 text-xs text-background">
               Draft
             </Badge>
           )}

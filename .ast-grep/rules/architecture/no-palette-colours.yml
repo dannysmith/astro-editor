@@ -1,0 +1,20 @@
+id: no-palette-colours
+message: |
+  Use a colour token, not a Tailwind palette colour.
+
+  ❌ BAD: className="text-gray-700 dark:text-gray-300"
+  ✅ GOOD: className="text-icon"
+
+  Tokens are defined once in src/App.css with light-dark(), so every colour
+  can be changed in one place for both themes.
+severity: error
+language: tsx
+files:
+  - 'src/**/*.ts'
+  - 'src/**/*.tsx'
+rule:
+  kind: string_fragment
+  regex: (^|[\s:!])(text|bg|border|ring|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b
+note: |
+  Add a token to the colour block in src/App.css and register it in
+  @theme inline. See docs/developer/color-system.md
