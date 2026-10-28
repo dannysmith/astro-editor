@@ -1,4 +1,4 @@
-# Architecture Guide
+# Architecture guide
 
 How the app fits together, and why it's built the way it is. AGENTS.md states the rules in one line each; this doc gives the reasoning behind them. Area docs go deeper: `editor.md`, `schema-system.md`, `commands-and-shortcuts.md`, `ui-patterns.md`, `app-data.md`.
 
@@ -17,8 +17,8 @@ State lives in one of three places, chosen by where the data comes from:
 
 ### Zustand rules
 
-- **Select each value; never destructure the store.** `const { a } = useStore()` subscribes to the whole store, so the component re-renders on every change to anything in it. In the editor that meant 15 or more re-renders per keystroke. ast-grep enforces this for every `use…Store` hook.
-- **Use `useShallow` when a selector builds a new object or array.** Zustand compares selector results by reference, so a selector that returns a fresh object re-renders on every store update (or loops). A plain slice like `state.currentFile` keeps its reference until it changes, so `useShallow` there is harmless but not needed.
+- **Select each value; never destructure the store.** `const { a } = useStore()` subscribes to the whole store, so the component re-renders on every change to anything in it. In the editor that meant 15+ re-renders per keystroke. ast-grep enforces this for every `use…Store` hook.
+- **Use `useShallow` when a selector builds a new object or array.** Zustand compares selector results by reference, so in Zustand 5 a selector that returns a fresh object loops ("Maximum update depth exceeded"). A plain slice like `state.currentFile` keeps its reference until it changes, so `useShallow` there is harmless but not needed. Destructuring a `useShallow` selector (`const { a, b } = useStore(useShallow(s => ({ a: s.a, b: s.b })))`) is fine.
 - **Use `getState()` in callbacks, effects and async code.** It reads the current value without subscribing, so callbacks stay stable and never read stale state. Commands, keyboard handlers and `lib/` code all work this way.
 
 ### Hybrid Action Hooks
@@ -28,7 +28,7 @@ Stores can't call hooks, but some actions need query data (the save needs the co
 - **User-triggered actions** live in hooks that can reach the query client, like `useEditorActions` (save, open, create).
 - **State-triggered actions** live in the store. Auto-save is scheduled by `editorStore` and runs a callback that Layout registers from `useEditorActions`.
 
-This replaced an earlier design where stores fired events and hooks polled for them. `projectStore` does import the `queryClient` singleton to invalidate queries when settings change; that's a one-way call, which is fine.
+Don't have stores fire events for hooks to poll; call the registered callback. `projectStore` does import the `queryClient` singleton to invalidate queries when settings change; that's a one-way call, which is fine.
 
 ### Direct Store Pattern
 
@@ -38,16 +38,15 @@ Frontmatter fields each take a field `name`, read their value with a selector an
 
 - **`hooks/`** holds everything that exports a `use*` function.
 - **`lib/`** is plain TypeScript: business logic, utilities, classes. It may read a store with `getState()` (a one-way call with no React coupling) but never subscribe. The one exception is `lib/theme-provider.tsx`, a context provider kept with its hook.
-- **`store/`** holds the Zustand stores.
 - **`components/ui/`** is shadcn (see `ui-patterns.md`); **`components/tauri/`** holds reusable components that call Tauri APIs.
 
 ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in-lib`), because `lib/` code that subscribes to a store can't be used or tested outside React.
 
-## How parts talk
+## How the parts talk
 
 - **Tauri commands** for request and response, through `@/lib/bindings`.
 - **Tauri events** from Rust: native menu items (`menu-*`, handled in `useMenuEvents`), the file watcher, schema changes and `rust-toast`.
-- **DOM custom events** for actions that need a hook when the caller can't use one, such as the command palette or a store asking for a new file or a reload. `useDOMEventListeners` (mounted by Layout) handles them.
+- **DOM custom events** when code that can't call hooks (a palette command, a store) needs an action that lives in one, such as creating a file. `useDOMEventListeners` (mounted by Layout) handles them.
 - **`useEditorStore.subscribe`** to push store changes into CodeMirror without re-rendering (see `editor.md`).
 
 Commands, menus and shortcuts are covered in `commands-and-shortcuts.md`.
@@ -58,11 +57,10 @@ The sidebar and frontmatter panel are collapsed and expanded through `react-resi
 
 ## React Compiler
 
-The React Compiler (1.0) compiles everything in `src/`, so don't add `useMemo`, `useCallback` or `React.memo` unless profiling shows a need. It doesn't change the Zustand rules: selectors and `getState()` still decide what re-renders.
+The React Compiler compiles everything in `src/`, so don't add `useMemo`, `useCallback` or `React.memo` unless profiling shows a need. It doesn't change the Zustand rules: selectors and `getState()` still decide what re-renders.
 
-- **A component that breaks the Rules of React is silently left uncompiled.** `Editor`, `FrontmatterField`, `useCommandPalette` and `ContentLinkerDialog` currently aren't compiled (tracked in #347). A lint suppression hides the violation, not the bailout.
+- **A component that breaks the Rules of React is silently left uncompiled.** A lint suppression hides the violation, not the bailout. #347 tracks the components that currently bail out.
 - **Lint names:** the rules are configured as `react/*` in `.oxlintrc.json`, but suppression comments use the `react-hooks/*` alias.
-- **Async effects** use a `cancelled` flag in their cleanup, so a slow result never lands after the component has moved on.
 
 ## Logging
 
@@ -75,11 +73,9 @@ Log through `@tauri-apps/plugin-log` (`error as logError`, `warn as logWarn`, `i
 
 ## Deliberate choices
 
-Decisions that look reversible but aren't, or that a newcomer might "fix":
+Decisions a newcomer might be tempted to undo, and why not to:
 
 - **Vanilla CodeMirror, not a React wrapper.** Custom decorations, transactions and the store sync need direct access to the view.
-- **No form library** for frontmatter (above).
-- **Stores split by how often they change** (above).
 - **Astro's generated JSON schemas are the source of truth** for frontmatter fields; parsing Zod is limited to what the JSON loses. See `schema-system.md`.
 - **shadcn on Base UI, not Radix.** It's shadcn's default, and its Combobox needs Base UI anyway. See `ui-patterns.md`.
 - **Every colour is a `light-dark()` token** in `App.css`. See `color-system.md`.

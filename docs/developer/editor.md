@@ -4,13 +4,7 @@ The writing surface is vanilla CodeMirror 6 (no React wrapper), parsed by Lezer'
 
 ## One Lezer, one CodeMirror
 
-Only one copy of `@lezer/common` and of each `@codemirror/*` package may be installed. Lezer's `Tag` and tree objects from different versions aren't compatible, so a duplicate breaks highlighting at runtime without an error, and a duplicate `@codemirror/view` breaks typecheck. `package.json` pins `@lezer/common` with `overrides`, but `bun update` can still leave older copies nested under other packages. Check with:
-
-```bash
-grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock
-```
-
-It must print nothing. If it doesn't, regenerate the lockfile: `rm -rf node_modules bun.lock && bun install`.
+Only one copy of `@lezer/common` and of each `@codemirror/*` package may be installed. Lezer's `Tag` and tree objects from different versions aren't compatible, so a duplicate breaks highlighting at runtime without an error, and a duplicate `@codemirror/view` breaks typecheck. `package.json` pins `@lezer/common` with `overrides`, but `bun update` can still leave older copies nested under other packages. AGENTS.md has the check and the fix.
 
 ## Editor.tsx
 
@@ -39,12 +33,12 @@ Colours and type come from `editor-styles.md` and the `--editor-color-*` tokens 
 
 ## Auto-save and data safety
 
-Never losing work is a product principle, and most of these rules exist because of a real data-loss bug.
+Never losing work is a product principle, and most of these rules were written after a data-loss bug.
 
 - **When it saves:** `scheduleAutoSave` in `editorStore.ts` debounces by the `autoSaveDelay` setting (2 seconds by default). Debouncing alone never fires during continuous typing, so a save is also forced once 10 seconds have passed since the last one (`MAX_AUTO_SAVE_DELAY_MS`). `openFile` sets `lastSaveTimestamp` so that clock starts when a file opens.
-- **Who saves:** the store can't call hooks, so Layout registers `useEditorActions().saveFile` as the store's auto-save callback (the Hybrid Action Hooks pattern, see `architecture-guide.md`). Auto-save never shows a toast; a manual save does.
+- **Who saves:** the store can't call hooks, so Layout registers `useEditorActions().saveFile` as the store's auto-save callback (the Hybrid Action Hooks pattern, see `architecture-guide.md`). Auto-save never shows the success toast (it saves with `showToast` false); a failed save still shows an error.
 - **Edits during a save survive.** After writing, `saveFile` marks the file clean only if the content and frontmatter in the store still match what it wrote. Anything typed while the save was in flight stays dirty and is saved next time.
 - **Body-only edits keep the user's YAML.** If the frontmatter wasn't touched (`isFrontmatterDirty`), the save sends the original `rawFrontmatter` text, so formatting, comments and key order are preserved. Only an edited frontmatter is re-serialised, in schema field order.
 - **Unsaved edits win over disk.** When the file content query refetches, `useEditorFileContent` only copies it into the store if the file isn't dirty. `useFileChangeHandler` ignores watcher events for a dirty file and for 3 seconds after our own save, because one save can produce several events.
 - **The save round trip must be byte-identical.** After a save, the content query refetches the file. If parsing it back gives even slightly different text than the editor holds, the store write replaces the whole document and the view jumps. Trailing newlines did exactly this: the save added one and the parser dropped one, so the view jumped every few seconds. The round-trip tests in `src-tauri/src/commands/files.rs` (`test_roundtrip_*`) cover it; any change to parsing or serialising must keep them passing.
-- **If a save fails,** the file stays dirty and recovery files are written (see `app-data.md`). That only happens when a save throws; there's no crash recovery.
+- **If a save fails,** the file stays dirty and recovery files are written (see `app-data.md`). There's no crash recovery.

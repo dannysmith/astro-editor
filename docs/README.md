@@ -21,7 +21,7 @@ A developer doc holds what someone new to the project needs to know and can't ge
 
 ## Tasks
 
-- **[tasks-todo/](tasks-todo/):** the backlog, as `task-[number]-[name].md`. The lowest number is next; `x` means unprioritised.
+- **[tasks-todo/](tasks-todo/):** the backlog. Naming and the done-renaming rule are in `AGENTS.md`.
 - **[tasks-done/](tasks-done/):** completed tasks. A record of what was done and why at the time, so often out of date.
 
 ## Archive
