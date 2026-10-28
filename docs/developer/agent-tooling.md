@@ -41,7 +41,7 @@ To check a change, shoot the sections before and after and compare them with `bu
 
 Dev logs go to `~/Library/Logs/is.danny.astroeditor.dev/`:
 
-- **`Astro Editor Dev.log`:** Rust `log` output and webview logging. In dev builds `console.*` is forwarded there too, marked `[console]` (`lib/agent-bridge/console.ts`). Dev builds allow it to grow to 10 MB instead of the plugin's default 40 KB
+- **`Astro Editor Dev.log`:** Rust `log` output and webview logging. In dev builds `console.*` is forwarded there too, marked `[console]` (`lib/agent-bridge/console.ts`). When it reaches 5 MB it's renamed with its date and a new file starts; the two most recent old files are kept
 - **`tauri-dev.log`:** the `tauri:dev` terminal output (Vite and cargo), replaced on each run
 
 `bun run app logs` searches both. See the skill for the flags.
