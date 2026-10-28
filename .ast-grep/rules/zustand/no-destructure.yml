@@ -5,11 +5,17 @@ message: |
   ❌ BAD: const { currentFile } = useEditorStore()
   ✅ GOOD: const currentFile = useEditorStore(state => state.currentFile)
 
-  For multiple values, use multiple selectors or useShallow for objects/arrays.
+  For multiple values, use multiple selectors, or destructure a useShallow selector:
+  const { a, b } = useEditorStore(useShallow(s => ({ a: s.a, b: s.b })))
 severity: error
 language: tsx
 rule:
   pattern: const { $$$PROPS } = $STORE($$$)
+  # Destructuring a useShallow selector is Zustand's way to pick several values
+  not:
+    has:
+      pattern: useShallow($$$)
+      stopBy: end
 constraints:
   # Any Zustand store hook, so new stores are covered automatically
   STORE:
