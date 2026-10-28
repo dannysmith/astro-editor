@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorState, EditorSelection } from '@codemirror/state'
-import { addCursorsToLineEnds } from '../addCursorsToLineEnds'
+import { addCursorsToLineEnds } from './addCursorsToLineEnds'
 
 const mockDispatch = vi.fn()
 

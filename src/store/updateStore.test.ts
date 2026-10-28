@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useUpdateStore } from '../updateStore'
+import { useUpdateStore } from './updateStore'
 import type { Update } from '@tauri-apps/plugin-updater'
 
 const SKIPPED_VERSION_KEY = 'astro-editor-skipped-update-version'
@@ -236,7 +236,7 @@ describe('updateStore', () => {
       // Re-import to get a fresh store that reads from localStorage
       // We need to reset the module cache
       vi.resetModules()
-      const { useUpdateStore: freshStore } = await import('../updateStore')
+      const { useUpdateStore: freshStore } = await import('./updateStore')
       expect(freshStore.getState().skippedVersion).toBe('1.0.9')
     })
   })

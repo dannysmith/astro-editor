@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { useUIStore } from '../../../store/uiStore'
+import { useUIStore } from './uiStore'
 
 // Mock Tauri
 vi.mock('@tauri-apps/api/event', () => ({
