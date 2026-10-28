@@ -101,6 +101,17 @@ Known limits from the fixtures, which fall back to a text field or nothing: arra
 - [x] Docs: `docs/developer/mdx-components.md` and the user guide page (`website/src/content/docs/editor/mdx-components.mdx`)
 - [x] New user guide screenshots (`mdx-builder-1/2/3.png`, `mdx-builder-starlight.png`), shot from the dev app and framed to match the others
 
+### UX round
+
+- [x] Block components (a slot template, or a slot on an empty line) go in on lines of their own, with blank lines around them
+- [x] The searchable combobox measures against the window, so it no longer flips up over the fields above
+- [x] `image` and `collectionEntry` props take a variable name and are written as expressions (`image={heroImage}`), with a hint to add the import
+- [x] Optional booleans are a Default / True / False toggle group (`ui/toggle-group.tsx`, from shadcn's base-vega registry)
+- [x] Tighter form: the default sits beside the label (`FormField`), help text is all `text-xs`, smaller gaps
+- [x] Enum member defaults show as their value (`Orientation.Vertical` → `vertical`)
+- [x] The preview marks an empty slot with `…`
+- [x] The list shows the required props by name, or the number of optional ones, and whether the component wraps content
+
 ### Later, needs #287 (imports)
 
 - `image` → image picker, inserting an imported image binding

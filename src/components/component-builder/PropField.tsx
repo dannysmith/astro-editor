@@ -6,6 +6,7 @@ import { Switch } from '../ui/switch'
 import { FieldLabel, FieldDescription } from '../ui/field'
 import { DatePicker } from '../ui/date-picker'
 import { TagInput, type Tag } from '../ui/tag-input'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import {
   Select,
   SelectContent,
@@ -21,13 +22,25 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '../ui/combobox'
-import { FieldWrapper } from '../frontmatter/fields/FieldWrapper'
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
+import { FormField } from './FormField'
 
 /** Lists longer than this get a searchable combobox rather than a select */
 const SEARCHABLE_OPTIONS = 12
+
+/** What to type for props that take an imported variable, until there are pickers for them */
+function bindingHint(prop: PropInfo): string | undefined {
+  switch (prop.kind.kind) {
+    case 'image':
+      return 'The name of an imported image, like heroImage. Add its import yourself.'
+    case 'collectionEntry':
+      return `The name of an entry from the “${prop.kind.collection}” collection that you’ve loaded in this file.`
+    default:
+      return undefined
+  }
+}
 
 /** One prop in the component builder form, with a control chosen by its kind */
 export function PropField({ prop }: { prop: PropInfo }) {
@@ -38,7 +51,9 @@ export function PropField({ prop }: { prop: PropInfo }) {
 
   const { name, kind } = prop
   const required = !prop.is_optional
-  const description = prop.description ?? undefined
+  const description = [prop.description, bindingHint(prop)]
+    .filter(Boolean)
+    .join(' ')
   // Defaults like `''` or `null` mean "nothing", so they aren't worth showing
   const defaultValue =
     prop.default_value && !['null', 'undefined'].includes(prop.default_value)
@@ -59,22 +74,52 @@ export function PropField({ prop }: { prop: PropInfo }) {
             onCheckedChange={checked => setValue(name, checked)}
           />
         </div>
-        {description && <FieldDescription>{description}</FieldDescription>}
+        {description && (
+          <FieldDescription className="text-xs">{description}</FieldDescription>
+        )}
       </div>
     )
   }
 
-  const wrapperProps = {
-    label: name,
-    required,
-    description,
-    defaultValue,
-    currentValue: value,
+  const fieldProps = { label: name, required, description, defaultValue }
+
+  // Optional booleans can also be left to the component's default
+  if (kind.kind === 'boolean') {
+    const current = typeof value === 'boolean' ? String(value) : 'default'
+    return (
+      <FormField {...fieldProps} labelId={labelId}>
+        <ToggleGroup
+          aria-labelledby={labelId}
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={[current]}
+          onValueChange={([next]) =>
+            setValue(
+              name,
+              next === undefined || next === 'default'
+                ? undefined
+                : next === 'true'
+            )
+          }
+        >
+          <ToggleGroupItem value="default" className="px-3">
+            Default
+          </ToggleGroupItem>
+          <ToggleGroupItem value="true" className="px-3">
+            True
+          </ToggleGroupItem>
+          <ToggleGroupItem value="false" className="px-3">
+            False
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </FormField>
+    )
   }
 
   if (kind.kind === 'literals' && kind.values.length > SEARCHABLE_OPTIONS) {
     return (
-      <FieldWrapper {...wrapperProps} htmlFor={id}>
+      <FormField {...fieldProps} htmlFor={id}>
         <Combobox
           items={kind.values}
           value={typeof value === 'string' ? value : null}
@@ -86,7 +131,9 @@ export function PropField({ prop }: { prop: PropInfo }) {
             placeholder={`Search ${kind.values.length} options…`}
             showClear
           />
-          <ComboboxContent>
+          {/* The form scrolls, so measure room for the list against the window,
+              or it flips upwards over the fields above */}
+          <ComboboxContent collisionBoundary={document.documentElement}>
             <ComboboxEmpty>No matches</ComboboxEmpty>
             <ComboboxList>
               {(option: string) => (
@@ -97,14 +144,11 @@ export function PropField({ prop }: { prop: PropInfo }) {
             </ComboboxList>
           </ComboboxContent>
         </Combobox>
-      </FieldWrapper>
+      </FormField>
     )
   }
 
-  if (kind.kind === 'boolean' || kind.kind === 'literals') {
-    const options = kind.kind === 'boolean' ? ['true', 'false'] : kind.values
-    const selected =
-      typeof value === 'boolean' ? String(value) : (value as string | undefined)
+  if (kind.kind === 'literals') {
     const items = [
       ...(required
         ? []
@@ -114,17 +158,18 @@ export function PropField({ prop }: { prop: PropInfo }) {
               label: <span className="text-muted-foreground">(Not set)</span>,
             },
           ]),
-      ...options.map(option => ({ value: option, label: option })),
+      ...kind.values.map(option => ({ value: option, label: option })),
     ]
     return (
-      <FieldWrapper {...wrapperProps} labelId={labelId}>
+      <FormField {...fieldProps} labelId={labelId}>
         <Select
           items={items}
-          value={selected ?? (required ? null : NONE_SENTINEL)}
+          value={
+            typeof value === 'string' ? value : required ? null : NONE_SENTINEL
+          }
           onValueChange={next => {
             if (next === null) return
-            if (next === NONE_SENTINEL) return setValue(name, undefined)
-            setValue(name, kind.kind === 'boolean' ? next === 'true' : next)
+            setValue(name, next === NONE_SENTINEL ? undefined : next)
           }}
         >
           <SelectTrigger aria-labelledby={labelId} className="w-full">
@@ -138,13 +183,13 @@ export function PropField({ prop }: { prop: PropInfo }) {
             ))}
           </SelectContent>
         </Select>
-      </FieldWrapper>
+      </FormField>
     )
   }
 
   if (kind.kind === 'date') {
     return (
-      <FieldWrapper {...wrapperProps} labelId={labelId}>
+      <FormField {...fieldProps} labelId={labelId}>
         <DatePicker
           id={id}
           aria-labelledby={`${labelId} ${id}`}
@@ -154,7 +199,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
           }
           placeholder="Select date…"
         />
-      </FieldWrapper>
+      </FormField>
     )
   }
 
@@ -162,7 +207,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
     const options = kind.items.values
     const selected = Array.isArray(value) ? value : []
     return (
-      <FieldWrapper {...wrapperProps} labelId={labelId}>
+      <FormField {...fieldProps} labelId={labelId}>
         <Select
           multiple
           value={selected}
@@ -193,7 +238,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
             ))}
           </SelectContent>
         </Select>
-      </FieldWrapper>
+      </FormField>
     )
   }
 
@@ -201,7 +246,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
     const items = Array.isArray(value) ? value : []
     const isNumbers = kind.items.kind === 'number'
     return (
-      <FieldWrapper {...wrapperProps} htmlFor={id}>
+      <FormField {...fieldProps} htmlFor={id}>
         <TagInput
           inputId={id}
           tags={items.map((text, index) => ({ id: `${index}-${text}`, text }))}
@@ -215,14 +260,14 @@ export function PropField({ prop }: { prop: PropInfo }) {
           }
           placeholder={isNumbers ? 'Add a number…' : 'Add an item…'}
         />
-      </FieldWrapper>
+      </FormField>
     )
   }
 
   // Strings grow to fit, so props like `code` can take several lines
   if (kind.kind === 'string') {
     return (
-      <FieldWrapper {...wrapperProps} htmlFor={id}>
+      <FormField {...fieldProps} htmlFor={id}>
         <AutoExpandingTextarea
           id={id}
           minRows={1}
@@ -230,13 +275,13 @@ export function PropField({ prop }: { prop: PropInfo }) {
           value={typeof value === 'string' ? value : ''}
           onChange={e => setValue(name, e.target.value || undefined)}
         />
-      </FieldWrapper>
+      </FormField>
     )
   }
 
-  // Numbers, and types we can only take as text
+  // Numbers, imported bindings, and types we can only take as text
   return (
-    <FieldWrapper {...wrapperProps} htmlFor={id}>
+    <FormField {...fieldProps} htmlFor={id}>
       <Input
         id={id}
         type={kind.kind === 'number' ? 'number' : 'text'}
@@ -246,6 +291,6 @@ export function PropField({ prop }: { prop: PropInfo }) {
         autoCorrect="off"
         spellCheck={false}
       />
-    </FieldWrapper>
+    </FormField>
   )
 }

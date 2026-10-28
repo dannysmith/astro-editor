@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { MdxComponent, PropInfo, PropKind } from '@/types'
-import { buildPreview, buildSnippet, serializeProp } from './snippet-builder'
+import {
+  buildPreview,
+  buildSnippet,
+  insertsAsBlock,
+  serializeProp,
+} from './snippet-builder'
 
 function prop(name: string, kind: PropKind, is_optional = true): PropInfo {
   return {
@@ -73,6 +78,18 @@ describe('serializeProp', () => {
     )
   })
 
+  it('writes images and collection entries as the variable named', () => {
+    expect(serializeProp(prop('hero', { kind: 'image' }), 'heroImage')).toBe(
+      'hero={heroImage}'
+    )
+    expect(
+      serializeProp(
+        prop('post', { kind: 'collectionEntry', collection: 'blog' }),
+        'post'
+      )
+    ).toBe('post={post}')
+  })
+
   it('writes arrays as array literals', () => {
     expect(
       serializeProp(
@@ -104,7 +121,7 @@ describe('buildPreview', () => {
   it('adds a slot and the client directive for framework components', () => {
     const c = component([], { has_slot: true, framework: 'react' })
     expect(buildPreview(c, {}, 'client:idle')).toBe(
-      '<Callout client:idle></Callout>'
+      '<Callout client:idle>…</Callout>'
     )
     expect(buildPreview(component([]), {}, 'client:idle')).toBe('<Callout />')
     expect(
@@ -113,6 +130,29 @@ describe('buildPreview', () => {
     expect(
       buildPreview(component([], { framework: 'react' }), {}, 'client:media')
     ).toBe('<Callout client:media="(max-width: 50em)" />')
+  })
+})
+
+describe('insertsAsBlock', () => {
+  it('puts components with a slot template, or a slot on an empty line, on lines of their own', () => {
+    const slotted = component([], { has_slot: true })
+    expect(insertsAsBlock(slotted, true)).toBe(true)
+    expect(insertsAsBlock(slotted, false)).toBe(false)
+    expect(insertsAsBlock(component([]), true)).toBe(false)
+    expect(
+      insertsAsBlock(
+        component([], { has_slot: true, slot_template: '\n' }),
+        false
+      )
+    ).toBe(true)
+  })
+
+  it('gives a block component its content on its own line', () => {
+    const c = component([], { has_slot: true })
+    expect(buildSnippet(c, {}, 'none', true)).toBe(
+      '<Callout>\n${1:}\n</Callout>${}'
+    )
+    expect(buildPreview(c, {}, 'none', true)).toBe('<Callout>\n…\n</Callout>')
   })
 })
 

@@ -39,6 +39,10 @@ export function serializeProp(
   switch (kind.kind) {
     case 'number':
       return `${name}={${value.trim()}}`
+    // Imported bindings: the writer enters the variable's name
+    case 'image':
+    case 'collectionEntry':
+      return `${name}={${value.trim()}}`
     case 'date':
       return `${name}={new Date('${value}')}`
     default:
@@ -74,6 +78,8 @@ function emptyRequiredProp(prop: PropInfo): [string, string, string] {
   const { name, kind } = prop
   switch (kind.kind) {
     case 'number':
+    case 'image':
+    case 'collectionEntry':
       return [`${name}={`, '', '}']
     case 'date':
       return [`${name}={new Date('`, '', `')}`]
@@ -92,15 +98,30 @@ function escapeSnippetText(text: string): string {
 }
 
 /**
+ * Whether the component goes in as a block, with its content on lines of its
+ * own: always for components with a slot template (Tabs, Steps), and for any
+ * component with a slot when it's inserted on an empty line. Otherwise it goes
+ * in inline, at the cursor.
+ */
+export function insertsAsBlock(
+  component: MdxComponent,
+  onEmptyLine: boolean
+): boolean {
+  return component.slot_template !== null || (component.has_slot && onEmptyLine)
+}
+
+/**
  * Builds the tag for a component from the values entered in the builder.
  * In snippet mode the result is a CodeMirror snippet template: required props
  * without a value, and the slot (or the tab stops in the component's slot
- * template), become tab stops. Otherwise it's plain text, for the preview.
+ * template), become tab stops. Otherwise it's plain text for the preview, with
+ * `…` marking an empty slot.
  */
 function buildTag(
   component: MdxComponent,
   values: Record<string, PropValue>,
   clientDirective: ClientDirective,
+  block: boolean,
   snippet: boolean
 ): string {
   let fieldIndex = 1
@@ -134,11 +155,14 @@ function buildTag(
     return snippet ? `<${open} />\${}` : `<${open} />`
   }
   const template = component.slot_template
+  const content = snippet ? field('') : '…'
   const slot = template
     ? snippet
       ? template
       : snippetText(template)
-    : field('')
+    : block
+      ? `\n${content}\n`
+      : content
   return snippet
     ? `<${open}>${slot}</${component.name}>\${}`
     : `<${open}>${slot}</${component.name}>`
@@ -155,16 +179,18 @@ function snippetText(template: string): string {
 export function buildSnippet(
   component: MdxComponent,
   values: Record<string, PropValue>,
-  clientDirective: ClientDirective = 'none'
+  clientDirective: ClientDirective = 'none',
+  block = false
 ): string {
-  return buildTag(component, values, clientDirective, true)
+  return buildTag(component, values, clientDirective, block, true)
 }
 
 /** The tag as it will be inserted, for previewing in the builder */
 export function buildPreview(
   component: MdxComponent,
   values: Record<string, PropValue>,
-  clientDirective: ClientDirective = 'none'
+  clientDirective: ClientDirective = 'none',
+  block = false
 ): string {
-  return buildTag(component, values, clientDirective, false)
+  return buildTag(component, values, clientDirective, block, false)
 }

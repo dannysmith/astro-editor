@@ -1,8 +1,15 @@
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
 import { MdxComponent } from '../hooks/queries/useMdxComponentsQuery'
-import { buildSnippet, type PropValue } from '../lib/editor/snippet-builder'
-import { insertSnippet } from '../lib/editor/commands/insertSnippet'
+import {
+  buildSnippet,
+  insertsAsBlock,
+  type PropValue,
+} from '../lib/editor/snippet-builder'
+import {
+  insertSnippet,
+  isOnEmptyLine,
+} from '../lib/editor/commands/insertSnippet'
 import { useUIStore } from './uiStore'
 
 // Client directive types for framework components
@@ -102,9 +109,11 @@ export const useComponentBuilderStore = create<
     const { selectedComponent, values, editorView, clientDirective } = get()
     if (!selectedComponent || !editorView) return
 
+    const block = insertsAsBlock(selectedComponent, isOnEmptyLine(editorView))
     insertSnippet(
       editorView,
-      buildSnippet(selectedComponent, values, clientDirective)
+      buildSnippet(selectedComponent, values, clientDirective, block),
+      { block }
     )
     get().close()
   },

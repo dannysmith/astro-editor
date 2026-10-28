@@ -10,12 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
-import { FieldWrapper } from '../frontmatter/fields/FieldWrapper'
+import { FormField } from './FormField'
 import {
   useComponentBuilderStore,
   type ClientDirective,
 } from '../../store/componentBuilderStore'
-import { buildPreview } from '../../lib/editor/snippet-builder'
+import { buildPreview, insertsAsBlock } from '../../lib/editor/snippet-builder'
+import { isOnEmptyLine } from '../../lib/editor/commands/insertSnippet'
 import { FrameworkBadge } from './FrameworkBadge'
 import { PropField } from './PropField'
 
@@ -58,6 +59,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
   }, [component])
 
   const isFrameworkComponent = component.framework !== 'astro'
+  // Matches how insert() will lay the component out at the cursor
+  const editorView = useComponentBuilderStore(state => state.editorView)
+  const block = insertsAsBlock(
+    component,
+    editorView ? isOnEmptyLine(editorView) : false
+  )
 
   return (
     <div
@@ -93,7 +100,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
 
       <div
         ref={fieldsRef}
-        className="flex min-h-0 flex-col gap-5 overflow-y-auto px-4 py-4"
+        className="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-4"
       >
         {component.props.length === 0 && (
           <p className="text-sm text-muted-foreground">
@@ -104,7 +111,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
           <PropField key={prop.name} prop={prop} />
         ))}
         {isFrameworkComponent && (
-          <FieldWrapper
+          <FormField
             label="Client directive"
             labelId={directiveLabelId}
             description="When the component's JavaScript loads in the browser"
@@ -128,13 +135,13 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
                 ))}
               </SelectContent>
             </Select>
-          </FieldWrapper>
+          </FormField>
         )}
       </div>
 
       <div className="border-t px-4 py-3">
         <code className="block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap">
-          {buildPreview(component, values, clientDirective)}
+          {buildPreview(component, values, clientDirective, block)}
         </code>
       </div>
 

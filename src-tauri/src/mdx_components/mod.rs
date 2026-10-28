@@ -5,8 +5,8 @@ pub mod starlight;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
 use prop_types::{
-    apply_defaults, astro_frontmatter, default_text, destructured_defaults, untyped_props,
-    unwrap_ts_expr, PropResolver, SourceModule,
+    astro_frontmatter, default_text, destructured_defaults, untyped_props, unwrap_ts_expr,
+    PropResolver, SourceModule,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -224,7 +224,7 @@ fn parse_astro_props(content: &str, location: Option<Location>) -> Result<Parsed
         (None, None) => Vec::new(),
     };
     if let Some(pat) = destructure {
-        apply_defaults(&mut props, &destructured_defaults(&source, pat));
+        resolver.apply_defaults(m, &mut props, &destructured_defaults(&source, pat));
     }
 
     Ok(ParsedProps {
@@ -335,7 +335,7 @@ fn parse_react_props(
         .ok_or("No props type")?;
     let mut props = resolver.props_of_type(m, props_type, 0);
     if let Some(Pat::Object(pat)) = component.param {
-        apply_defaults(&mut props, &destructured_defaults(&source, pat));
+        resolver.apply_defaults(m, &mut props, &destructured_defaults(&source, pat));
     }
 
     let has_slot = props.iter().any(|p| p.name == "children");
@@ -443,10 +443,10 @@ fn parse_vue_props(content: &str, location: Option<Location>) -> Result<ParsedPr
         (None, None) => Vec::new(),
     };
     if let Some(pat) = &finder.pattern {
-        apply_defaults(&mut props, &destructured_defaults(&source, pat));
+        resolver.apply_defaults(m, &mut props, &destructured_defaults(&source, pat));
     }
     if let Some(obj) = &finder.defaults {
-        apply_defaults(&mut props, &object_literal_values(&source, obj));
+        resolver.apply_defaults(m, &mut props, &object_literal_values(&source, obj));
     }
 
     Ok(ParsedProps {
@@ -585,7 +585,10 @@ fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<Parse
                         ),
                         kind: ty.map_or(PropKind::Unknown, |t| resolver.kind_of(m, t, 0)),
                         is_optional,
-                        default_value: d.init.as_deref().map(|e| default_text(&source, e)),
+                        default_value: d
+                            .init
+                            .as_deref()
+                            .map(|e| resolver.resolve_default(m, &default_text(&source, e))),
                         description: source.doc_before(item.span().lo),
                     });
                 }
@@ -605,7 +608,7 @@ fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<Parse
                         Some(ty) => resolver.props_of_type(m, &ty.type_ann, 0),
                         None => untyped_props(pat),
                     };
-                    apply_defaults(&mut props, &destructured_defaults(&source, pat));
+                    resolver.apply_defaults(m, &mut props, &destructured_defaults(&source, pat));
                 }
             }
             _ => {}
@@ -1535,6 +1538,13 @@ mod fixture_tests {
         assert_eq!(
             prop(&components, "Rating", "max").default_value.as_deref(),
             Some("5")
+        );
+        // An enum member default is shown as its value
+        assert_eq!(
+            prop(&components, "Timeline", "orientation")
+                .default_value
+                .as_deref(),
+            Some("vertical")
         );
         assert_eq!(
             prop(&components, "Timeline", "orientation").kind,

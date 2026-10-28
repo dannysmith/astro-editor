@@ -125,8 +125,10 @@ fn clean_jsdoc(text: &str) -> String {
 enum TypeDecl {
     Interface(TsInterfaceDecl),
     Alias(TsType),
-    /// A string enum, or a const array/tuple of strings (for `(typeof X)[number]`)
+    /// A const array/tuple of strings (for `(typeof X)[number]`)
     Values(Vec<String>),
+    /// A string enum's members, as (name, value)
+    Enum(Vec<(String, String)>),
     /// The keys of a const object (for `keyof typeof X`)
     Keys(Vec<String>),
 }
@@ -236,7 +238,7 @@ impl PropResolver {
                 props
             }
             TypeDecl::Alias(ty) => self.props_of_type(m, &ty, depth + 1),
-            TypeDecl::Values(_) | TypeDecl::Keys(_) => Vec::new(),
+            TypeDecl::Values(_) | TypeDecl::Enum(_) | TypeDecl::Keys(_) => Vec::new(),
         }
     }
 
@@ -347,6 +349,9 @@ impl PropResolver {
             (name, _) => match self.lookup(m, name, Space::Type, depth + 1) {
                 Some((dm, TypeDecl::Alias(ty))) => self.kind_of(dm, &ty, depth + 1),
                 Some((_, TypeDecl::Values(values))) => literals(values),
+                Some((_, TypeDecl::Enum(members))) => {
+                    literals(members.into_iter().map(|(_, value)| value).collect())
+                }
                 _ => PropKind::Unknown,
             },
         }
@@ -397,6 +402,35 @@ impl PropResolver {
             }
         }
         PropKind::Unknown
+    }
+
+    /// Fills in `default_value` on props from a map of defaults
+    pub fn apply_defaults(
+        &mut self,
+        m: usize,
+        props: &mut [PropInfo],
+        defaults: &HashMap<String, String>,
+    ) {
+        for prop in props {
+            if let Some(value) = defaults.get(&prop.name) {
+                prop.default_value = Some(self.resolve_default(m, value));
+            }
+        }
+    }
+
+    /// A default as the writer would enter it: an enum member (`Size.Large`) becomes its
+    /// value (`large`); anything else is unchanged
+    pub fn resolve_default(&mut self, m: usize, text: &str) -> String {
+        let member_value = text.split_once('.').and_then(|(enum_name, member)| {
+            match self.lookup(m, enum_name, Space::Type, 0)? {
+                (_, TypeDecl::Enum(members)) => members
+                    .into_iter()
+                    .find(|(name, _)| name == member)
+                    .map(|(_, value)| value),
+                _ => None,
+            }
+        });
+        member_value.unwrap_or_else(|| text.to_string())
     }
 
     /// Finds what `name` refers to in module `m`, following imports and re-exports
@@ -525,15 +559,23 @@ fn find_local_decl(module: &Module, name: &str, space: Space) -> Option<TypeDecl
             }
             // Only string enums: a numeric enum's values can't be written as strings
             Decl::TsEnum(e) if space == Space::Type && e.id.sym.as_str() == name => {
-                let values = e
+                let members = e
                     .members
                     .iter()
-                    .map(|member| match member.init.as_deref() {
-                        Some(Expr::Lit(Lit::Str(s))) => Some(s.value.to_string_lossy().to_string()),
-                        _ => None,
+                    .map(|member| {
+                        let name = match &member.id {
+                            TsEnumMemberId::Ident(id) => id.sym.to_string(),
+                            TsEnumMemberId::Str(s) => s.value.to_string_lossy().to_string(),
+                        };
+                        match member.init.as_deref() {
+                            Some(Expr::Lit(Lit::Str(s))) => {
+                                Some((name, s.value.to_string_lossy().to_string()))
+                            }
+                            _ => None,
+                        }
                     })
                     .collect::<Option<Vec<_>>>()?;
-                return Some(TypeDecl::Values(values));
+                return Some(TypeDecl::Enum(members));
             }
             Decl::Var(var) if space == Space::Value => {
                 for d in &var.decls {
@@ -803,15 +845,6 @@ pub fn untyped_props(pat: &ObjectPat) -> Vec<PropInfo> {
             })
         })
         .collect()
-}
-
-/// Fills in `default_value` on props from a map of defaults
-pub fn apply_defaults(props: &mut [PropInfo], defaults: &HashMap<String, String>) {
-    for prop in props {
-        if let Some(value) = defaults.get(&prop.name) {
-            prop.default_value = Some(value.clone());
-        }
-    }
 }
 
 /// The TypeScript between an `.astro` file's `---` fences. The fences must be

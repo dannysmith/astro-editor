@@ -131,6 +131,21 @@ export function ComponentBuilderDialog() {
   )
 }
 
+/**
+ * What a writer will need to fill in: the required props by name, or how many
+ * optional ones there are, and whether it wraps content
+ */
+function propSummary(component: MdxComponent): string {
+  const required = component.props.filter(p => !p.is_optional)
+  const props =
+    required.length > 0
+      ? `Requires ${required.map(p => p.name).join(', ')}`
+      : component.props.length > 0
+        ? `${component.props.length} optional ${component.props.length === 1 ? 'prop' : 'props'}`
+        : 'No props'
+  return component.has_slot ? `${props} · wraps content` : props
+}
+
 function ComponentItem({
   component,
   onSelect,
@@ -153,11 +168,8 @@ function ComponentItem({
               {component.description}
             </span>
           )}
-          <span className="text-xs text-muted-foreground">
-            {component.props.length === 0
-              ? 'No props detected'
-              : `${component.props.length} props`}
-            {component.has_slot && ' + slot'}
+          <span className="truncate text-xs text-muted-foreground">
+            {propSummary(component)}
           </span>
         </div>
         <FrameworkBadge framework={component.framework} />

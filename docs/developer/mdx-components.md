@@ -15,6 +15,10 @@ Each prop gets a `PropKind`, which decides its field. Anything unresolved is `un
 
 Each framework finds its props differently (`mod.rs`): `interface Props` / `type Props` in Astro frontmatter, the typed first parameter (or `FC<Props>`) of a React component, `defineProps` in Vue's `<script setup>` (typed or runtime), and `export let` or `$props()` in Svelte. A `children` prop means the component takes a slot; it isn't a field.
 
+## Inserting
+
+`src/lib/editor/snippet-builder.ts` turns the form's values into a CodeMirror snippet: each value in MDX syntax, empty required props as tab stops, braces escaped so the snippet parser leaves them alone, and line breaks in strings written as `\n` because CodeMirror re-indents every line of a snippet. A component with a slot template, or any slotted component inserted on an empty line, goes in as a block: its content on a line of its own, with the blank lines around it that MDX needs to render markdown inside it.
+
 ## Starlight's components
 
 In projects whose `package.json` depends on `@astrojs/starlight`, the builder adds Starlight's built-in components. They aren't read from the project's `node_modules`: the package layout has changed between versions, and some props (Badge's come from a Zod schema) need a real type checker.
