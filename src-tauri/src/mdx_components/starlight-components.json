@@ -10,7 +10,12 @@
           "prop_type": "'note' | 'tip' | 'caution' | 'danger'",
           "kind": {
             "kind": "literals",
-            "values": ["note", "tip", "caution", "danger"]
+            "values": [
+              "note",
+              "tip",
+              "caution",
+              "danger"
+            ]
           },
           "is_optional": true,
           "default_value": "note",
@@ -341,7 +346,11 @@
           "prop_type": "'small' | 'medium' | 'large'",
           "kind": {
             "kind": "literals",
-            "values": ["small", "medium", "large"]
+            "values": [
+              "small",
+              "medium",
+              "large"
+            ]
           },
           "is_optional": true,
           "default_value": "small",
@@ -352,7 +361,14 @@
           "prop_type": "'note' | 'tip' | 'caution' | 'danger' | 'default' | 'success'",
           "kind": {
             "kind": "literals",
-            "values": ["default", "note", "tip", "caution", "danger", "success"]
+            "values": [
+              "default",
+              "note",
+              "tip",
+              "caution",
+              "danger",
+              "success"
+            ]
           },
           "is_optional": true,
           "default_value": "default",
@@ -1726,7 +1742,10 @@
           "prop_type": "'start' | 'end'",
           "kind": {
             "kind": "literals",
-            "values": ["start", "end"]
+            "values": [
+              "start",
+              "end"
+            ]
           },
           "is_optional": true,
           "default_value": "end",
@@ -1737,7 +1756,11 @@
           "prop_type": "'primary' | 'secondary' | 'minimal'",
           "kind": {
             "kind": "literals",
-            "values": ["primary", "secondary", "minimal"]
+            "values": [
+              "primary",
+              "secondary",
+              "minimal"
+            ]
           },
           "is_optional": true,
           "default_value": "primary",
@@ -1789,7 +1812,12 @@
           "prop_type": "'code' | 'terminal' | 'none' | 'auto'",
           "kind": {
             "kind": "literals",
-            "values": ["code", "terminal", "none", "auto"]
+            "values": [
+              "code",
+              "terminal",
+              "none",
+              "auto"
+            ]
           },
           "is_optional": true,
           "default_value": null,

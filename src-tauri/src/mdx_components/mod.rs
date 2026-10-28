@@ -5,8 +5,8 @@ pub mod starlight;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
 use prop_types::{
-    apply_defaults, astro_frontmatter, destructured_defaults, untyped_props, unwrap_ts_expr,
-    PropResolver, SourceModule,
+    apply_defaults, astro_frontmatter, default_text, destructured_defaults, untyped_props,
+    unwrap_ts_expr, PropResolver, SourceModule,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -187,12 +187,12 @@ fn resolver_for(
     Ok((resolver, m))
 }
 
-/// Reads `interface Props` / `type Props` from an `.astro` file's frontmatter,
-/// with defaults from `const { a = 'x' } = Astro.props`
 fn astro_has_slot(content: &str) -> bool {
     content.contains("<slot") || content.contains("Astro.slots")
 }
 
+/// Reads `interface Props` / `type Props` from an `.astro` file's frontmatter,
+/// with defaults from `const { a = 'x' } = Astro.props`
 fn parse_astro_props(content: &str, location: Option<Location>) -> Result<ParsedProps, String> {
     let has_slot = astro_has_slot(content);
     let Some(code) = astro_frontmatter(content) else {
@@ -551,10 +551,7 @@ fn object_literal_values(source: &SourceModule, obj: &ObjectLit) -> HashMap<Stri
             let PropName::Ident(key) = &kv.key else {
                 return None;
             };
-            let value = match kv.value.as_ref() {
-                Expr::Lit(Lit::Str(s)) => s.value.to_string_lossy().to_string(),
-                other => source.snippet(other.span()).to_string(),
-            };
+            let value = default_text(source, &kv.value);
             Some((key.sym.to_string(), value))
         })
         .collect()
@@ -588,10 +585,7 @@ fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<Parse
                         ),
                         kind: ty.map_or(PropKind::Unknown, |t| resolver.kind_of(m, t, 0)),
                         is_optional,
-                        default_value: d.init.as_deref().map(|e| match e {
-                            Expr::Lit(Lit::Str(s)) => s.value.to_string_lossy().to_string(),
-                            other => source.snippet(other.span()).to_string(),
-                        }),
+                        default_value: d.init.as_deref().map(|e| default_text(&source, e)),
                         description: source.doc_before(item.span().lo),
                     });
                 }
@@ -1085,6 +1079,22 @@ defineProps({
         assert_eq!(names, ["url", "max"]);
         assert_eq!(props[1].kind, PropKind::Number);
         assert_eq!(props[1].default_value.as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn test_parse_react_props_with_children() {
+        let code = r#"
+            import type { PropsWithChildren } from 'react'
+            export default function Callout({ type }: PropsWithChildren<{ type: 'note' | 'tip' }>) {
+                return null
+            }
+        "#;
+        let ParsedProps {
+            props, has_slot, ..
+        } = parse_react_props(code, "Callout", None).unwrap();
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "type");
+        assert!(has_slot);
     }
 
     #[test]

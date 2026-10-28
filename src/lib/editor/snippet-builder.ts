@@ -46,13 +46,19 @@ export function serializeProp(
   }
 }
 
-/** `name="value"`, or a template literal when the value has quotes or newlines */
+/**
+ * `name="value"`, or a template literal when the value has quotes or line
+ * breaks. Line breaks and tabs are escaped so the attribute stays on one line,
+ * since the editor re-indents the lines of an inserted snippet.
+ */
 function stringAttribute(name: string, value: string): string {
-  if (!/["\n]/.test(value)) return `${name}="${value}"`
+  if (!/["\n\t]/.test(value)) return `${name}="${value}"`
   const escaped = value
     .replace(/\\/g, '\\\\')
     .replace(/`/g, '\\`')
     .replace(/\$\{/g, '\\${')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
   return `${name}={\`${escaped}\`}`
 }
 
@@ -112,8 +118,15 @@ function buildTag(
       attributes.push(text(before) + field(initial) + text(after))
     }
   }
+  // `client:only` names the framework to render with; `client:media` needs a query
   if (component.framework !== 'astro' && clientDirective !== 'none') {
-    attributes.push(clientDirective)
+    if (clientDirective === 'client:only') {
+      attributes.push(`client:only="${component.framework}"`)
+    } else if (clientDirective === 'client:media') {
+      attributes.push(`client:media="${field('(max-width: 50em)')}"`)
+    } else {
+      attributes.push(clientDirective)
+    }
   }
 
   const open = [component.name, ...attributes].join(' ')

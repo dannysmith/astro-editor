@@ -56,8 +56,8 @@ describe('serializeProp', () => {
   it('uses a template literal for strings with quotes or newlines', () => {
     const code = prop('code', { kind: 'string' })
     expect(serializeProp(code, 'say "hi"')).toBe('code={`say "hi"`}')
-    expect(serializeProp(code, 'a\n`b` ${c}')).toBe(
-      'code={`a\n\\`b\\` \\${c}`}'
+    expect(serializeProp(code, 'a\n\t`b` ${c}')).toBe(
+      'code={`a\\n\\t\\`b\\` \\${c}`}'
     )
   })
 
@@ -107,6 +107,12 @@ describe('buildPreview', () => {
       '<Callout client:idle></Callout>'
     )
     expect(buildPreview(component([]), {}, 'client:idle')).toBe('<Callout />')
+    expect(
+      buildPreview(component([], { framework: 'vue' }), {}, 'client:only')
+    ).toBe('<Callout client:only="vue" />')
+    expect(
+      buildPreview(component([], { framework: 'react' }), {}, 'client:media')
+    ).toBe('<Callout client:media="(max-width: 50em)" />')
   })
 })
 

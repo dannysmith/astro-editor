@@ -1,7 +1,8 @@
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
 import { MdxComponent } from '../hooks/queries/useMdxComponentsQuery'
-import type { PropValue } from '../lib/editor/snippet-builder'
+import { buildSnippet, type PropValue } from '../lib/editor/snippet-builder'
+import { insertSnippet } from '../lib/editor/commands/insertSnippet'
 import { useUIStore } from './uiStore'
 
 // Client directive types for framework components
@@ -101,20 +102,11 @@ export const useComponentBuilderStore = create<
     const { selectedComponent, values, editorView, clientDirective } = get()
     if (!selectedComponent || !editorView) return
 
-    // Import the snippet builder and insert command dynamically to avoid circular dependencies
-    void (async () => {
-      const { buildSnippet } = await import('../lib/editor/snippet-builder')
-      const { insertSnippet } =
-        await import('../lib/editor/commands/insertSnippet')
-
-      const snippetString = buildSnippet(
-        selectedComponent,
-        values,
-        clientDirective
-      )
-      insertSnippet(editorView, snippetString)
-      get().close()
-    })()
+    insertSnippet(
+      editorView,
+      buildSnippet(selectedComponent, values, clientDirective)
+    )
+    get().close()
   },
 
   back: () =>

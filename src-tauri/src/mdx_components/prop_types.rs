@@ -131,6 +131,14 @@ enum TypeDecl {
     Keys(Vec<String>),
 }
 
+/// TypeScript keeps types and values apart, so `type Size` and `const Size` can share a name.
+/// Type references look up types; `typeof X` looks up values.
+#[derive(Clone, Copy, PartialEq)]
+enum Space {
+    Type,
+    Value,
+}
+
 /// Resolves prop types across a component's source and the files it imports.
 pub struct PropResolver {
     modules: Vec<Rc<SourceModule>>,
@@ -164,7 +172,7 @@ impl PropResolver {
 
     /// The props of the type named `name` (usually `Props`) in module `m`
     pub fn props_of_named(&mut self, m: usize, name: &str) -> Option<Vec<PropInfo>> {
-        let (dm, decl) = self.lookup(m, name, 0)?;
+        let (dm, decl) = self.lookup(m, name, Space::Type, 0)?;
         Some(self.props_of_decl(dm, decl, 0))
     }
 
@@ -182,13 +190,31 @@ impl PropResolver {
                     .flat_map(|t| self.props_of_type(m, t, depth + 1))
                     .collect()
             }
-            TsType::TsTypeRef(r) => match &r.type_name {
-                TsEntityName::Ident(id) => match self.lookup(m, id.sym.as_str(), depth + 1) {
-                    Some((dm, decl)) => self.props_of_decl(dm, decl, depth + 1),
-                    None => Vec::new(),
-                },
-                TsEntityName::TsQualifiedName(_) => Vec::new(),
-            },
+            TsType::TsTypeRef(r) => {
+                let first_param = r.type_params.as_ref().and_then(|p| p.params.first());
+                match (&r.type_name, first_param) {
+                    // React's `PropsWithChildren<Props>`, also as `React.PropsWithChildren`
+                    (name, Some(inner)) if entity_last_name(name) == "PropsWithChildren" => {
+                        let mut props = self.props_of_type(m, inner, depth + 1);
+                        props.push(PropInfo {
+                            name: "children".to_string(),
+                            prop_type: "ReactNode".to_string(),
+                            kind: PropKind::Unknown,
+                            is_optional: true,
+                            default_value: None,
+                            description: None,
+                        });
+                        props
+                    }
+                    (TsEntityName::Ident(id), _) => {
+                        match self.lookup(m, id.sym.as_str(), Space::Type, depth + 1) {
+                            Some((dm, decl)) => self.props_of_decl(dm, decl, depth + 1),
+                            None => Vec::new(),
+                        }
+                    }
+                    _ => Vec::new(),
+                }
+            }
             _ => Vec::new(),
         }
     }
@@ -199,7 +225,9 @@ impl PropResolver {
                 let mut props = Vec::new();
                 for parent in &iface.extends {
                     if let Expr::Ident(id) = parent.expr.as_ref() {
-                        if let Some((pm, pdecl)) = self.lookup(m, id.sym.as_str(), depth + 1) {
+                        if let Some((pm, pdecl)) =
+                            self.lookup(m, id.sym.as_str(), Space::Type, depth + 1)
+                        {
                             props.extend(self.props_of_decl(pm, pdecl, depth + 1));
                         }
                     }
@@ -312,12 +340,13 @@ impl PropResolver {
                 },
                 _ => PropKind::Unknown,
             },
-            ("Array" | "ReadonlyArray" | "Set", Some(item)) => PropKind::Array {
+            // Not `Set`: an array literal isn't one, and `new Set(…)` isn't worth a field
+            ("Array" | "ReadonlyArray", Some(item)) => PropKind::Array {
                 items: Box::new(self.kind_of(m, item, depth + 1)),
             },
-            (name, _) => match self.lookup(m, name, depth + 1) {
+            (name, _) => match self.lookup(m, name, Space::Type, depth + 1) {
                 Some((dm, TypeDecl::Alias(ty))) => self.kind_of(dm, &ty, depth + 1),
-                Some((_, TypeDecl::Values(values))) => PropKind::Literals { values },
+                Some((_, TypeDecl::Values(values))) => literals(values),
                 _ => PropKind::Unknown,
             },
         }
@@ -325,23 +354,22 @@ impl PropResolver {
 
     /// `keyof typeof obj` (a const object's keys) or `keyof SomeInterface`
     fn kind_of_keyof(&mut self, m: usize, ty: &TsType, depth: usize) -> PropKind {
-        let name = match ty {
+        let (name, space) = match ty {
             TsType::TsTypeQuery(TsTypeQuery {
                 expr_name: TsTypeQueryExpr::TsEntityName(TsEntityName::Ident(id)),
                 ..
-            }) => id.sym.to_string(),
+            }) => (id.sym.to_string(), Space::Value),
             TsType::TsTypeRef(TsTypeRef {
                 type_name: TsEntityName::Ident(id),
                 ..
-            }) => id.sym.to_string(),
+            }) => (id.sym.to_string(), Space::Type),
             _ => return PropKind::Unknown,
         };
-        let values = match self.lookup(m, &name, depth + 1) {
-            Some((_, TypeDecl::Keys(keys))) => keys,
-            Some((_, TypeDecl::Interface(iface))) => member_names(&iface.body.body),
-            _ => return PropKind::Unknown,
-        };
-        PropKind::Literals { values }
+        match self.lookup(m, &name, space, depth + 1) {
+            Some((_, TypeDecl::Keys(keys))) => literals(keys),
+            Some((_, TypeDecl::Interface(iface))) => literals(member_names(&iface.body.body)),
+            _ => PropKind::Unknown,
+        }
     }
 
     /// `(typeof list)[number]`, the union of a const array's items
@@ -362,9 +390,9 @@ impl PropResolver {
         if let (true, TsType::TsTypeQuery(q)) = (is_number_index, obj) {
             if let TsTypeQueryExpr::TsEntityName(TsEntityName::Ident(id)) = &q.expr_name {
                 if let Some((_, TypeDecl::Values(values))) =
-                    self.lookup(m, id.sym.as_str(), depth + 1)
+                    self.lookup(m, id.sym.as_str(), Space::Value, depth + 1)
                 {
-                    return PropKind::Literals { values };
+                    return literals(values);
                 }
             }
         }
@@ -372,12 +400,18 @@ impl PropResolver {
     }
 
     /// Finds what `name` refers to in module `m`, following imports and re-exports
-    fn lookup(&mut self, m: usize, name: &str, depth: usize) -> Option<(usize, TypeDecl)> {
+    fn lookup(
+        &mut self,
+        m: usize,
+        name: &str,
+        space: Space,
+        depth: usize,
+    ) -> Option<(usize, TypeDecl)> {
         if depth > MAX_DEPTH {
             return None;
         }
         let source = self.module(m);
-        if let Some(decl) = find_local_decl(&source.module, name) {
+        if let Some(decl) = find_local_decl(&source.module, name, space) {
             return Some((m, decl));
         }
 
@@ -429,7 +463,7 @@ impl PropResolver {
         }
         for (specifier, imported) in next {
             if let Some(target) = self.load(m, &specifier) {
-                if let Some(found) = self.lookup(target, &imported, depth + 1) {
+                if let Some(found) = self.lookup(target, &imported, space, depth + 1) {
                     return Some(found);
                 }
             }
@@ -473,8 +507,9 @@ fn declares_type(item: &ModuleItem, name: &str) -> bool {
     }
 }
 
-/// Finds a type-relevant declaration of `name` at the top level of a module
-fn find_local_decl(module: &Module, name: &str) -> Option<TypeDecl> {
+/// Finds the top-level declaration of `name` in a module: an interface, type alias or
+/// enum in the type space, or a const in the value space
+fn find_local_decl(module: &Module, name: &str, space: Space) -> Option<TypeDecl> {
     for item in &module.body {
         let decl = match item {
             ModuleItem::Stmt(Stmt::Decl(decl)) => decl,
@@ -482,24 +517,25 @@ fn find_local_decl(module: &Module, name: &str) -> Option<TypeDecl> {
             _ => continue,
         };
         match decl {
-            Decl::TsInterface(i) if i.id.sym.as_str() == name => {
+            Decl::TsInterface(i) if space == Space::Type && i.id.sym.as_str() == name => {
                 return Some(TypeDecl::Interface((**i).clone()));
             }
-            Decl::TsTypeAlias(a) if a.id.sym.as_str() == name => {
+            Decl::TsTypeAlias(a) if space == Space::Type && a.id.sym.as_str() == name => {
                 return Some(TypeDecl::Alias((*a.type_ann).clone()));
             }
-            Decl::TsEnum(e) if e.id.sym.as_str() == name => {
+            // Only string enums: a numeric enum's values can't be written as strings
+            Decl::TsEnum(e) if space == Space::Type && e.id.sym.as_str() == name => {
                 let values = e
                     .members
                     .iter()
-                    .filter_map(|member| match member.init.as_deref() {
+                    .map(|member| match member.init.as_deref() {
                         Some(Expr::Lit(Lit::Str(s))) => Some(s.value.to_string_lossy().to_string()),
                         _ => None,
                     })
-                    .collect();
+                    .collect::<Option<Vec<_>>>()?;
                 return Some(TypeDecl::Values(values));
             }
-            Decl::Var(var) => {
+            Decl::Var(var) if space == Space::Value => {
                 for d in &var.decls {
                     let Pat::Ident(id) = &d.name else { continue };
                     if id.id.sym.as_str() != name {
@@ -638,6 +674,23 @@ fn resolve_relative(dir: &Path, specifier: &str) -> Option<PathBuf> {
     .find(|p| p.is_file() && p.extension().is_some_and(|e| e == "ts" || e == "tsx"))
 }
 
+/// A choice of `values`, or unknown when there's nothing to choose from
+fn literals(values: Vec<String>) -> PropKind {
+    if values.is_empty() {
+        PropKind::Unknown
+    } else {
+        PropKind::Literals { values }
+    }
+}
+
+/// `Foo` for both `Foo` and `React.Foo`
+fn entity_last_name(name: &TsEntityName) -> &str {
+    match name {
+        TsEntityName::Ident(id) => id.sym.as_str(),
+        TsEntityName::TsQualifiedName(q) => q.right.sym.as_str(),
+    }
+}
+
 fn is_nullish(ty: &TsType) -> bool {
     matches!(
         ty,
@@ -668,7 +721,7 @@ fn merge_union(kinds: Vec<PropKind>) -> PropKind {
                 }
             }
         }
-        return PropKind::Literals { values };
+        return literals(values);
     }
     if kinds
         .iter()
@@ -681,6 +734,14 @@ fn merge_union(kinds: Vec<PropKind>) -> PropKind {
 
 fn collapse_whitespace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// A default value as shown in the form: a string literal unquoted, anything else as written
+pub fn default_text(source: &SourceModule, expr: &Expr) -> String {
+    match expr {
+        Expr::Lit(Lit::Str(s)) => s.value.to_string_lossy().to_string(),
+        other => source.snippet(other.span()).to_string(),
+    }
 }
 
 /// Default values from a destructuring pattern like `{ type = 'note', size }`.
@@ -704,11 +765,7 @@ pub fn destructured_defaults(source: &SourceModule, pat: &ObjectPat) -> HashMap<
             }
             ObjectPatProp::Rest(_) => continue,
         };
-        let text = match value {
-            Expr::Lit(Lit::Str(s)) => s.value.to_string_lossy().to_string(),
-            other => source.snippet(other.span()).to_string(),
-        };
-        defaults.insert(key, text);
+        defaults.insert(key, default_text(source, value));
     }
     defaults
 }
@@ -847,6 +904,23 @@ mod tests {
         assert_eq!(kind(&props, "mixed"), PropKind::Unknown);
         assert_eq!(kind(&props, "post"), PropKind::Unknown);
         assert_eq!(kind(&props, "auto"), PropKind::String);
+    }
+
+    #[test]
+    fn leaves_unwritable_choices_unknown() {
+        let props = props_of(
+            r#"
+            enum Level { Low, High }
+            const Size = { sm: 1, md: 2 } as const
+            type Size = keyof typeof Size
+            interface Props { level: Level; nothing: null | undefined; ids: Set<number>; size: Size }
+            "#,
+        );
+        assert_eq!(kind(&props, "level"), PropKind::Unknown);
+        assert_eq!(kind(&props, "nothing"), PropKind::Unknown);
+        assert_eq!(kind(&props, "ids"), PropKind::Unknown);
+        // The type `Size`, not the const of the same name
+        assert_eq!(kind(&props, "size"), literals(&["sm", "md"]));
     }
 
     #[test]

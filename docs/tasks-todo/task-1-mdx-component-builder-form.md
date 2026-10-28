@@ -99,7 +99,7 @@ Known limits from the fixtures, which fall back to a text field or nothing: arra
 - [x] Long literal lists (Starlight's 277 icons) get a searchable combobox (`ui/combobox.tsx`, from shadcn's base-vega registry, trimmed to single select)
 - [x] String props use a growing textarea, so multi-line props like Code's `code` can be typed
 - [x] Docs: `docs/developer/mdx-components.md` and the user guide page (`website/src/content/docs/editor/mdx-components.mdx`)
-- [ ] Danny: re-shoot `mdx-builder-2.png` and `mdx-builder-3.png` for the user guide; they show the old prop toggles
+- [x] New user guide screenshots (`mdx-builder-1/2/3.png`, `mdx-builder-starlight.png`), shot from the dev app and framed to match the others
 
 ### Later, needs #287 (imports)
 

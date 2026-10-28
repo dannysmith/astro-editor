@@ -16,6 +16,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type * as TS from 'typescript'
+import type { MdxComponent, PropInfo, PropKind } from '../../src/lib/bindings'
 import { OVERRIDES } from './overrides'
 
 const repoRoot = path.resolve(import.meta.dir, '../..')
@@ -57,36 +58,11 @@ const ts: typeof TS = (
 const starlightDir = path.join(cacheDir, 'node_modules/@astrojs/starlight')
 const barrelPath = path.join(starlightDir, 'dist/components.ts')
 
-type Kind =
-  | { kind: 'string' }
-  | { kind: 'number' }
-  | { kind: 'boolean' }
-  | { kind: 'literals'; values: string[] }
-  | { kind: 'array'; items: Kind }
-  | { kind: 'date' }
-  | { kind: 'image' }
-  | { kind: 'collectionEntry'; collection: string }
-  | { kind: 'unknown' }
-
-interface PropInfo {
-  name: string
-  prop_type: string
-  kind: Kind
-  is_optional: boolean
-  default_value: string | null
-  description: string | null
-}
-
-/** The shape of `MdxComponent` in the app */
-interface ComponentInfo {
-  name: string
-  file_path: string
-  props: PropInfo[]
-  has_slot: boolean
-  description: string | null
+type Kind = PropKind
+/** Starlight's components are all Astro components imported from a package */
+type ComponentInfo = MdxComponent & {
   framework: 'astro'
   import_source: string
-  slot_template: string | null
 }
 
 // --- 1. Read the barrel to find each exported component and its source file ---
@@ -166,12 +142,18 @@ const virtualPath = (astroFile: string) => `${astroFile}.ts`
 const astroFiles = new Set<string>()
 for (const e of exportsList)
   if (e.file.endsWith('.astro')) astroFiles.add(e.file)
-// Code is a .ts re-export of Code.astro; include that too so we can read its defaults.
-const codeAstro = path.join(
-  path.dirname(exportsList.find(e => e.name === 'Code')!.file),
-  'Code.astro'
-)
-astroFiles.add(codeAstro)
+/**
+ * The `.astro` file behind a typed `.ts` re-export (Code's `index.ts` re-exports
+ * `Code.astro`), whose frontmatter holds the defaults. Null when there isn't one.
+ */
+const reexportedAstro = (entry: ExportEntry) => {
+  const file = path.join(path.dirname(entry.file), `${entry.name}.astro`)
+  return existsSync(file) ? file : null
+}
+for (const e of exportsList) {
+  const file = e.file.endsWith('.astro') ? null : reexportedAstro(e)
+  if (file) astroFiles.add(file)
+}
 
 const virtualFiles = new Map<
   string,
@@ -453,7 +435,7 @@ for (const entry of exportsList) {
   if (!override) continue
 
   let propsType: TS.Type | null
-  let defaultsSf: TS.SourceFile
+  let defaultsSf: TS.SourceFile | undefined
   let parts: { frontmatter: string; template: string }
 
   if (entry.file.endsWith('.astro')) {
@@ -471,11 +453,18 @@ for (const entry of exportsList) {
     propsType = sig?.parameters[0]
       ? checker.getTypeOfSymbol(sig.parameters[0])
       : null
-    defaultsSf = program.getSourceFile(virtualPath(codeAstro))!
-    parts = virtualFiles.get(virtualPath(codeAstro))!
+    const astroFile = reexportedAstro(entry)
+    defaultsSf = astroFile
+      ? program.getSourceFile(virtualPath(astroFile))
+      : undefined
+    parts = astroFile
+      ? virtualFiles.get(virtualPath(astroFile))!
+      : { frontmatter: '', template: '' }
   }
 
-  const { defaults, schemaIdentifier } = findDefaults(defaultsSf)
+  const { defaults, schemaIdentifier } = defaultsSf
+    ? findDefaults(defaultsSf)
+    : { defaults: new Map<string, string>(), schemaIdentifier: null }
   let zodDescriptions = new Map<string, string>()
   if (schemaIdentifier) {
     const z = await zodDefaults(schemaIdentifier)

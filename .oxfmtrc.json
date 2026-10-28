@@ -19,7 +19,8 @@
     "temp-dummy-astro-project",
     "src-tauri/tauri.conf.json",
     "src-tauri/src/test_fixtures/enhanced_config.ts",
-    "src/lib/bindings.ts"
+    "src/lib/bindings.ts",
+    "src-tauri/src/mdx_components/starlight-components.json"
   ],
   "sortTailwindcss": {
     "stylesheet": "./src/App.css"
