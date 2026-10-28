@@ -32,11 +32,13 @@ Astro Editor helps with using these kinds of components by providing an interfac
 
 Each entry shows its framework as a coloured badge and a count of its props. If the component has a doc comment above it, a short description is pulled from it and shown under the name (and is searchable too).
 
-Hitting <Kbd mac="Enter" windows="Enter" /> will open an interface showing the available props and their types along with a preview of what will be inserted.
+Hitting <Kbd mac="Enter" windows="Enter" /> will open a form with a field for each of the component's props, and a preview of what will be inserted.
 
 ![The component builder's configuration step showing a component's props, their types, and a preview of the code to be inserted](../../../assets/mdx-builder-2.png)
 
-Optional props can be toggled on or off and <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> will insert the component into your document with your cursor in the first editable prop or slot. You can use <Kbd mac="Tab" windows="Tab" /> to move between them. When a prop only accepts a few set values, the first is pre-filled to get you started.
+Each field matches what the prop accepts: a dropdown when it only takes a few set values (a searchable one when there are lots), a toggle or dropdown for true/false, a date picker for dates, a number field for numbers and a text box for everything else. Lists of values get a field you can add several to. If a prop has a default or a doc comment, it's shown under the field.
+
+Optional props are only inserted if you give them a value, and Astro Editor writes each one in the right MDX syntax (`count={3}`, `date={new Date('2026-01-15')}` and so on). <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> inserts the component with your cursor in the first required prop you left empty, or in its slot. You can use <Kbd mac="Tab" windows="Tab" /> to move between them, and <Kbd mac="Esc" windows="Esc" /> takes you back to the list of components.
 
 ![Optional props toggled on in the component builder, ready to be inserted](../../../assets/mdx-builder-3.png)
 
@@ -47,6 +49,12 @@ While Astro Editor will insert the component itself, it **won't add an import be
 
 We may add this in a future release, but in the meantime, consider adding [Astro Auto Import](https://github.com/delucis/astro-auto-import) to your site and having it import all the components in your `mdx/` directory.
 </Aside>
+
+## Starlight's Components
+
+If your site uses [Starlight](https://starlight.astro.build/), the builder also lists Starlight's [built-in components](https://starlight.astro.build/components/using-components/), like `Aside`, `Tabs`, `Card` and `Steps`. Components that wrap other content come with it filled in: inserting `Tabs` gives you two `TabItem`s ready to label, and `Steps` gives you a numbered list.
+
+As with your own components, you'll need to import them (`import { Tabs, TabItem } from '@astrojs/starlight/components'`) or set up auto-importing.
 
 ## What are "MDX" Components?
 

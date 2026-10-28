@@ -91,12 +91,15 @@ Known limits from the fixtures, which fall back to a text field or nothing: arra
 
 ### Phase 3: Starlight components
 
-- [ ] Detect Starlight (`@astrojs/starlight` in the project's `package.json` dependencies)
-- [ ] Turn the spike into `scripts/generate-starlight-manifest.ts`. It needs pinned `@astrojs/starlight` and `typescript@6` that don't come from `website/`. The script fails if a barrel export produces no props when the overrides expect some.
-- [ ] Hand-written overrides merged on top: LinkCard's `href`, Code's `has_slot` and hidden props, literal order, short descriptions, and `slot_template`s (Tabs with two TabItems, CardGrid with Cards, Steps with an ordered list, FileTree with a nested list)
-- [ ] Commit the generated manifest and merge it into the component list in Starlight projects, labelled as Starlight's
-- [ ] Keep `import_source` on Starlight entries so #287 can import them from `@astrojs/starlight/components`
-- [ ] Docs: how to regenerate the manifest when Starlight updates (`docs/developer/`), and the user guide page for the builder
+- [x] Detect Starlight (`@astrojs/starlight` in the project's `package.json` dependencies or devDependencies) in `mdx_components/starlight.rs`, and add its components to the scan results
+- [x] `scripts/starlight-components/generate.ts` installs a pinned Starlight and TypeScript 6 into `node_modules/.cache/` and writes `src-tauri/src/mdx_components/starlight-components.json`, which Rust bundles. With no argument it regenerates for the version already in the JSON; `latest` upgrades. It fails if a component is added or removed, or an override no longer matches.
+- [x] `scripts/starlight-components/overrides.ts`: descriptions, LinkCard's `href`, Code's slot and props, Badge's variant order, and slot templates for Tabs, CardGrid, Steps and FileTree
+- [x] `MdxComponent` gains `import_source` (set for Starlight's, for #287) and `slot_template` (inserted inside the tag, with its tab stops)
+- [x] The list groups components by source: "This project", then `@astrojs/starlight/components`
+- [x] Long literal lists (Starlight's 277 icons) get a searchable combobox (`ui/combobox.tsx`, from shadcn's base-vega registry, trimmed to single select)
+- [x] String props use a growing textarea, so multi-line props like Code's `code` can be typed
+- [x] Docs: `docs/developer/mdx-components.md` and the user guide page (`website/src/content/docs/editor/mdx-components.mdx`)
+- [ ] Danny: re-shoot `mdx-builder-2.png` and `mdx-builder-3.png` for the user guide; they show the old prop toggles
 
 ### Later, needs #287 (imports)
 
