@@ -44,11 +44,17 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
   const insert = useComponentBuilderStore(state => state.insert)
   const back = useComponentBuilderStore(state => state.back)
   const fieldsRef = React.useRef<HTMLDivElement>(null)
+  const insertRef = React.useRef<HTMLButtonElement>(null)
   const directiveLabelId = `${React.useId()}-label`
 
-  // Start in the first field. The list's search input, which had focus, is gone.
+  // Start in the first field, or on Insert when there are none. The list's
+  // search input, which had focus, is gone.
   React.useEffect(() => {
-    fieldsRef.current?.querySelector<HTMLElement>('input, button')?.focus()
+    const target =
+      fieldsRef.current?.querySelector<HTMLElement>(
+        'input, textarea, button'
+      ) ?? insertRef.current
+    target?.focus()
   }, [component])
 
   const isFrameworkComponent = component.framework !== 'astro'
@@ -141,7 +147,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
             <CommandShortcut>esc</CommandShortcut> Back
           </span>
         </div>
-        <Button size="sm" onClick={insert}>
+        <Button ref={insertRef} size="sm" onClick={insert}>
           Insert
         </Button>
       </div>

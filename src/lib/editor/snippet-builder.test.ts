@@ -24,6 +24,8 @@ function component(
     has_slot: false,
     description: null,
     framework: 'astro',
+    import_source: null,
+    slot_template: null,
     ...overrides,
   }
 }
@@ -119,6 +121,20 @@ describe('buildSnippet', () => {
     )
     expect(buildSnippet(c, {})).toBe(
       '<Callout title="${1:}" count=\\{${2:}\\}>${3:}</Callout>${}'
+    )
+  })
+
+  it('fills the slot from the template, keeping its tab stops', () => {
+    const c = component([prop('label', { kind: 'string' }, false)], {
+      name: 'Tabs',
+      has_slot: true,
+      slot_template: '\n  <TabItem label="${First}">${}</TabItem>\n',
+    })
+    expect(buildSnippet(c, {})).toBe(
+      '<Tabs label="${1:}">\n  <TabItem label="${First}">${}</TabItem>\n</Tabs>${}'
+    )
+    expect(buildPreview(c, { label: 'x' })).toBe(
+      '<Tabs label="x">\n  <TabItem label="First"></TabItem>\n</Tabs>'
     )
   })
 

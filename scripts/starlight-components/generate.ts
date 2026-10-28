@@ -1,27 +1,29 @@
 /**
- * Spike: generate a JSON manifest of Starlight's built-in MDX components
- * (`@astrojs/starlight/components`) using the real TypeScript type checker.
+ * Generates the bundled list of Starlight's built-in MDX components
+ * (`@astrojs/starlight/components`), which the component builder offers in
+ * Starlight projects. Their props are read with the TypeScript type checker,
+ * then corrected and described by hand in `overrides.ts`.
  *
- * Run: bun scripts/spikes/starlight-manifest/generate.ts
- * Output: docs/tasks-todo/temporary/starlight-manifest.json
+ * Run: bun scripts/starlight-components/generate.ts [version]
  *
- * Uses TypeScript 6 from website/node_modules (the root TS 7 has no JS API) and
- * the Starlight install in website/node_modules.
+ * With no version it regenerates for the version already in the output, so
+ * changes to the overrides or this script don't upgrade Starlight; pass
+ * `latest` (or a version) to upgrade. Starlight and TypeScript 6 (the last
+ * version with a JavaScript API) are installed into node_modules/.cache.
+ *
+ * Output: src-tauri/src/mdx_components/starlight-components.json
  */
-import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import ts from '../../../website/node_modules/typescript/lib/typescript.js'
+import type * as TS from 'typescript'
+import { OVERRIDES } from './overrides'
 
-const repoRoot = path.resolve(import.meta.dir, '../../..')
-const websiteModules = path.join(repoRoot, 'website/node_modules')
-const starlightDir = realpathSync(
-  path.join(websiteModules, '@astrojs/starlight')
-)
-const barrelPath = path.join(starlightDir, 'dist/components.ts')
+const repoRoot = path.resolve(import.meta.dir, '../..')
 const outPath = path.join(
   repoRoot,
-  'docs/tasks-todo/temporary/starlight-manifest.json'
+  'src-tauri/src/mdx_components/starlight-components.json'
 )
+const cacheDir = path.join(repoRoot, 'node_modules/.cache/starlight-components')
 
 const IMPORT_SOURCE = '@astrojs/starlight/components'
 /** Show literal unions longer than this by their alias name (e.g. `StarlightIcon`). */
@@ -29,16 +31,31 @@ const MAX_DISPLAYED_LITERALS = 12
 /** Props a writer never needs in the builder. */
 const OMITTED_PROPS = new Set(['class'])
 
-/** Hand-authored corrections for things the generator can't infer. */
-const OVERRIDES: Record<
-  string,
-  { has_slot?: boolean; inherited?: Record<string, { required: boolean }> }
-> = {
-  // Code reads Astro.slots only to throw if anything is slotted.
-  Code: { has_slot: false },
-  // LinkCard takes href from HTMLAttributes<'a'> (typed optional) but renders a link with it.
-  LinkCard: { inherited: { href: { required: true } } },
+// --- 0. Install the Starlight version to read, and TypeScript 6 ---
+
+const requested =
+  process.argv[2] ??
+  (existsSync(outPath)
+    ? (JSON.parse(readFileSync(outPath, 'utf8')).starlight_version as string)
+    : 'latest')
+
+mkdirSync(cacheDir, { recursive: true })
+if (!existsSync(path.join(cacheDir, 'package.json'))) {
+  writeFileSync(path.join(cacheDir, 'package.json'), '{ "private": true }\n')
 }
+const install = Bun.spawnSync(
+  ['bun', 'add', `@astrojs/starlight@${requested}`, 'typescript@6'],
+  { cwd: cacheDir, stdout: 'inherit', stderr: 'inherit' }
+)
+if (install.exitCode !== 0) {
+  throw new Error(`Couldn't install @astrojs/starlight@${requested}`)
+}
+
+const ts: typeof TS = (
+  await import(path.join(cacheDir, 'node_modules/typescript/lib/typescript.js'))
+).default
+const starlightDir = path.join(cacheDir, 'node_modules/@astrojs/starlight')
+const barrelPath = path.join(starlightDir, 'dist/components.ts')
 
 type Kind =
   | { kind: 'string' }
@@ -60,14 +77,16 @@ interface PropInfo {
   description: string | null
 }
 
+/** The shape of `MdxComponent` in the app */
 interface ComponentInfo {
   name: string
-  import_source: string
-  framework: 'astro'
+  file_path: string
+  props: PropInfo[]
   has_slot: boolean
   description: string | null
+  framework: 'astro'
+  import_source: string
   slot_template: string | null
-  props: PropInfo[]
 }
 
 // --- 1. Read the barrel to find each exported component and its source file ---
@@ -88,7 +107,7 @@ const barrelSf = ts.createSourceFile(
   true
 )
 
-const compilerOptions: ts.CompilerOptions = {
+const compilerOptions: TS.CompilerOptions = {
   target: ts.ScriptTarget.ESNext,
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -119,7 +138,7 @@ for (const stmt of barrelSf.statements) {
   )
     continue
   if (!ts.isNamedExports(stmt.exportClause)) continue
-  const spec = (stmt.moduleSpecifier as ts.StringLiteral).text
+  const spec = (stmt.moduleSpecifier as TS.StringLiteral).text
   for (const el of stmt.exportClause.elements) {
     const exportedAs = (el.propertyName ?? el.name).text
     const file = spec.endsWith('.astro')
@@ -196,18 +215,18 @@ const checker = program.getTypeChecker()
 
 // --- 3. Type → Kind ---
 
-const isNullish = (t: ts.Type) =>
+const isNullish = (t: TS.Type) =>
   (t.flags &
     (ts.TypeFlags.Undefined | ts.TypeFlags.Null | ts.TypeFlags.Void)) !==
   0
 
-function unionMembers(t: ts.Type): ts.Type[] {
+function unionMembers(t: TS.Type): TS.Type[] {
   return (t.isUnion() ? t.types : [t]).filter(m => !isNullish(m))
 }
 
-const symbolName = (t: ts.Type) => (t.aliasSymbol ?? t.getSymbol())?.getName()
+const symbolName = (t: TS.Type) => (t.aliasSymbol ?? t.getSymbol())?.getName()
 
-function typeToKind(t: ts.Type): Kind {
+function typeToKind(t: TS.Type): Kind {
   const members = unionMembers(t)
   if (members.length === 0) return { kind: 'unknown' }
 
@@ -217,7 +236,7 @@ function typeToKind(t: ts.Type): Kind {
   if (members.every(m => m.isStringLiteral()))
     return {
       kind: 'literals',
-      values: members.map(m => (m as ts.StringLiteralType).value),
+      values: members.map(m => (m as TS.StringLiteralType).value),
     }
   if (members.every(m => m.flags & ts.TypeFlags.NumberLike))
     return { kind: 'number' }
@@ -233,7 +252,7 @@ function typeToKind(t: ts.Type): Kind {
     const m = members[0]
     if (symbolName(m) === 'Date') return { kind: 'date' }
     if (checker.isArrayType(m)) {
-      const [item] = checker.getTypeArguments(m as ts.TypeReference)
+      const [item] = checker.getTypeArguments(m as TS.TypeReference)
       return {
         kind: 'array',
         items: item ? typeToKind(item) : { kind: 'unknown' },
@@ -243,7 +262,7 @@ function typeToKind(t: ts.Type): Kind {
   return { kind: 'unknown' }
 }
 
-function displayType(t: ts.Type, kind: Kind): string {
+function displayType(t: TS.Type, kind: Kind): string {
   if (kind.kind === 'literals' && kind.values.length <= MAX_DISPLAYED_LITERALS)
     return kind.values.map(v => `'${v}'`).join(' | ')
   if (kind.kind === 'boolean') return 'boolean'
@@ -256,7 +275,7 @@ function displayType(t: ts.Type, kind: Kind): string {
 // --- 4. Defaults ---
 
 /** `x = 'a'` → "a"; literal numbers/booleans as text; anything else → null. */
-function literalText(expr: ts.Expression): string | null {
+function literalText(expr: TS.Expression): string | null {
   if (ts.isStringLiteralLike(expr)) return expr.text
   if (ts.isNumericLiteral(expr)) return expr.text
   if (expr.kind === ts.SyntaxKind.TrueKeyword) return 'true'
@@ -270,7 +289,7 @@ function literalText(expr: ts.Expression): string | null {
   return null
 }
 
-const isAstroProps = (e: ts.Expression) =>
+const isAstroProps = (e: TS.Expression) =>
   ts.isPropertyAccessExpression(e) &&
   ts.isIdentifier(e.expression) &&
   e.expression.text === 'Astro' &&
@@ -279,14 +298,14 @@ const isAstroProps = (e: ts.Expression) =>
 interface DefaultsResult {
   defaults: Map<string, string>
   /** Identifier passed alongside Astro.props, e.g. `parse(Schema, Astro.props)`. */
-  schemaIdentifier: ts.Identifier | null
+  schemaIdentifier: TS.Identifier | null
 }
 
 /** Finds `const|let { a = 'x' } = Astro.props` (or `= fn(Schema, Astro.props)`) anywhere in the file. */
-function findDefaults(sf: ts.SourceFile): DefaultsResult {
+function findDefaults(sf: TS.SourceFile): DefaultsResult {
   const defaults = new Map<string, string>()
-  let schemaIdentifier: ts.Identifier | null = null
-  const visit = (node: ts.Node) => {
+  let schemaIdentifier: TS.Identifier | null = null
+  const visit = (node: TS.Node) => {
     if (
       ts.isVariableDeclaration(node) &&
       node.initializer &&
@@ -298,7 +317,7 @@ function findDefaults(sf: ts.SourceFile): DefaultsResult {
         ts.isCallExpression(init) && init.arguments.some(isAstroProps)
       if (fromProps || viaCall) {
         if (viaCall) {
-          const first = (init as ts.CallExpression).arguments[0]
+          const first = (init as TS.CallExpression).arguments[0]
           if (first && ts.isIdentifier(first)) schemaIdentifier = first
         }
         for (const el of node.name.elements) {
@@ -320,7 +339,7 @@ function findDefaults(sf: ts.SourceFile): DefaultsResult {
  * For props parsed through a Zod schema at runtime (Badge), import the schema's
  * compiled JS and read `.default()` values and `.describe()` text from its shape.
  */
-async function zodDefaults(id: ts.Identifier) {
+async function zodDefaults(id: TS.Identifier) {
   const defaults = new Map<string, string>()
   const descriptions = new Map<string, string>()
   const symbol = checker.getSymbolAtLocation(id)
@@ -354,7 +373,7 @@ async function zodDefaults(id: ts.Identifier) {
 // --- 5. Props extraction ---
 
 /** Props declared in Astro's own types (HTMLAttributes etc.) are inherited noise. */
-function isOwnProp(prop: ts.Symbol): boolean {
+function isOwnProp(prop: TS.Symbol): boolean {
   const decls = prop.declarations ?? []
   if (decls.length === 0) return true // synthetic (mapped type) props
   return decls.some(
@@ -362,7 +381,7 @@ function isOwnProp(prop: ts.Symbol): boolean {
   )
 }
 
-function docText(symbol: ts.Symbol | undefined): string | null {
+function docText(symbol: TS.Symbol | undefined): string | null {
   if (!symbol) return null
   const text = ts
     .displayPartsToString(symbol.getDocumentationComment(checker))
@@ -372,7 +391,7 @@ function docText(symbol: ts.Symbol | undefined): string | null {
 
 function propsFromType(
   componentName: string,
-  propsType: ts.Type,
+  propsType: TS.Type,
   defaults: Map<string, string>,
   zodDescriptions: Map<string, string>
 ): { props: PropInfo[]; dropped: string[] } {
@@ -402,7 +421,7 @@ function propsFromType(
   return { props, dropped }
 }
 
-function findPropsType(sf: ts.SourceFile): ts.Type | null {
+function findPropsType(sf: TS.SourceFile): TS.Type | null {
   for (const stmt of sf.statements) {
     if (
       (ts.isInterfaceDeclaration(stmt) || ts.isTypeAliasDeclaration(stmt)) &&
@@ -416,14 +435,26 @@ function findPropsType(sf: ts.SourceFile): ts.Type | null {
 const hasSlot = (frontmatter: string, template: string) =>
   /<slot\b/.test(template) || /Astro\.slots/.test(frontmatter)
 
+/** Checks an override against what was generated, so Starlight changes fail loudly */
+function check(condition: boolean, message: string) {
+  if (!condition) throw new Error(`Starlight components: ${message}`)
+}
+
+const exportedNames = new Set(exportsList.map(e => e.name))
+for (const name of Object.keys(OVERRIDES)) {
+  check(exportedNames.has(name), `${name} has overrides but isn't exported`)
+}
+
 const components: ComponentInfo[] = []
-const notes: Record<string, { droppedInherited: number }> = {}
 
 for (const entry of exportsList) {
-  let propsType: ts.Type | null
-  let defaultsSf: ts.SourceFile
+  const override = OVERRIDES[entry.name]
+  check(!!override, `${entry.name} is new; add it to overrides.ts`)
+  if (!override) continue
+
+  let propsType: TS.Type | null
+  let defaultsSf: TS.SourceFile
   let parts: { frontmatter: string; template: string }
-  let description: string | null = null
 
   if (entry.file.endsWith('.astro')) {
     defaultsSf = program.getSourceFile(virtualPath(entry.file))!
@@ -436,7 +467,6 @@ for (const entry of exportsList) {
     const exp = checker
       .getExportsOfModule(moduleSymbol)
       .find(s => s.getName() === entry.exportedAs)!
-    description = docText(exp)
     const sig = checker.getTypeOfSymbol(exp).getCallSignatures()[0]
     propsType = sig?.parameters[0]
       ? checker.getTypeOfSymbol(sig.parameters[0])
@@ -453,21 +483,49 @@ for (const entry of exportsList) {
     zodDescriptions = z.descriptions
   }
 
-  const { props, dropped } = propsType
+  let { props } = propsType
     ? propsFromType(entry.name, propsType, defaults, zodDescriptions)
-    : { props: [], dropped: [] }
-  notes[entry.name] = { droppedInherited: dropped.length }
+    : { props: [] as PropInfo[] }
+
+  for (const name of Object.keys(override.inherited ?? {})) {
+    check(
+      props.some(p => p.name === name),
+      `${entry.name}.${name} is no longer a prop`
+    )
+  }
+  if (override.props) {
+    for (const name of override.props) {
+      check(
+        props.some(p => p.name === name),
+        `${entry.name}.${name} is no longer a prop`
+      )
+    }
+    props = override.props.map(name => props.find(p => p.name === name)!)
+  }
+  for (const [name, order] of Object.entries(override.literal_order ?? {})) {
+    const prop = props.find(p => p.name === name)
+    check(
+      prop?.kind.kind === 'literals' &&
+        [...prop.kind.values].sort().join() === [...order].sort().join(),
+      `${entry.name}.${name}'s values have changed`
+    )
+    if (prop?.kind.kind === 'literals') prop.kind.values = order
+  }
+  for (const name of override.no_default ?? []) {
+    const prop = props.find(p => p.name === name)
+    check(!!prop, `${entry.name}.${name} is no longer a prop`)
+    if (prop) prop.default_value = null
+  }
 
   components.push({
     name: entry.name,
-    import_source: IMPORT_SOURCE,
-    framework: 'astro',
-    has_slot:
-      OVERRIDES[entry.name]?.has_slot ??
-      hasSlot(parts.frontmatter, parts.template),
-    description,
-    slot_template: null,
+    file_path: '',
     props,
+    has_slot: override.has_slot ?? hasSlot(parts.frontmatter, parts.template),
+    description: override.description,
+    framework: 'astro',
+    import_source: IMPORT_SOURCE,
+    slot_template: override.slot_template ?? null,
   })
 }
 
@@ -475,7 +533,6 @@ const starlightVersion = JSON.parse(
   readFileSync(path.join(starlightDir, 'package.json'), 'utf8')
 ).version
 const manifest = { starlight_version: starlightVersion, components }
-mkdirSync(path.dirname(outPath), { recursive: true })
 writeFileSync(outPath, JSON.stringify(manifest, null, 2) + '\n')
 
 console.log(
@@ -494,6 +551,6 @@ for (const c of components) {
     })
     .join(', ')
   console.log(
-    `  ${c.name.padEnd(10)} slot=${c.has_slot ? 'y' : 'n'} dropped=${notes[c.name].droppedInherited} | ${summary}`
+    `  ${c.name.padEnd(10)} slot=${c.has_slot ? 'y' : 'n'} | ${summary}`
   )
 }

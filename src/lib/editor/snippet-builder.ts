@@ -88,8 +88,8 @@ function escapeSnippetText(text: string): string {
 /**
  * Builds the tag for a component from the values entered in the builder.
  * In snippet mode the result is a CodeMirror snippet template: required props
- * without a value, and the slot, become tab stops. Otherwise it's plain text,
- * for the preview.
+ * without a value, and the slot (or the tab stops in the component's slot
+ * template), become tab stops. Otherwise it's plain text, for the preview.
  */
 function buildTag(
   component: MdxComponent,
@@ -120,9 +120,22 @@ function buildTag(
   if (!component.has_slot) {
     return snippet ? `<${open} />\${}` : `<${open} />`
   }
+  const template = component.slot_template
+  const slot = template
+    ? snippet
+      ? template
+      : snippetText(template)
+    : field('')
   return snippet
-    ? `<${open}>${field('')}</${component.name}>\${}`
-    : `<${open}></${component.name}>`
+    ? `<${open}>${slot}</${component.name}>\${}`
+    : `<${open}>${slot}</${component.name}>`
+}
+
+/** A snippet template as plain text: `${name}` becomes `name`, `${}` nothing */
+function snippetText(template: string): string {
+  return template
+    .replace(/[$#]\{(?:\d+:)?([^{}]*)\}/g, '$1')
+    .replace(/\\([{}])/g, '$1')
 }
 
 /** A CodeMirror snippet template for inserting the component */

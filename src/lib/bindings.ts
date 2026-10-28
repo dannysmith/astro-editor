@@ -101,6 +101,7 @@ export const commands = {
 	getPlatformInfo: () => typedError<string, string>(__TAURI_INVOKE("get_platform_info")),
 	getAppInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("get_app_info")),
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),
+	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
@@ -163,11 +164,22 @@ export type MarkdownContent = {
 
 export type MdxComponent = {
 	name: string,
+	/**  Relative path from project root; empty for components from a package */
 	file_path: string,
 	props: PropInfo[],
 	has_slot: boolean,
 	description: string | null,
 	framework: ComponentFramework,
+	/**
+	 *  The module a package's components are imported from, e.g. `@astrojs/starlight/components`;
+	 *  `None` for the project's own components
+	 */
+	import_source: string | null,
+	/**
+	 *  Content inserted inside the tag instead of an empty slot, as a CodeMirror snippet,
+	 *  e.g. the `TabItem`s inside `Tabs`
+	 */
+	slot_template: string | null,
 };
 
 export type PropInfo = {

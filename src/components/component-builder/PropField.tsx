@@ -1,6 +1,7 @@
 import React from 'react'
 import type { PropInfo } from '@/types'
 import { Input } from '../ui/input'
+import { AutoExpandingTextarea } from '../ui/auto-expanding-textarea'
 import { Switch } from '../ui/switch'
 import { FieldLabel, FieldDescription } from '../ui/field'
 import { DatePicker } from '../ui/date-picker'
@@ -12,10 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '../ui/combobox'
 import { FieldWrapper } from '../frontmatter/fields/FieldWrapper'
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
+
+/** Lists longer than this get a searchable combobox rather than a select */
+const SEARCHABLE_OPTIONS = 12
 
 /** One prop in the component builder form, with a control chosen by its kind */
 export function PropField({ prop }: { prop: PropInfo }) {
@@ -58,6 +70,35 @@ export function PropField({ prop }: { prop: PropInfo }) {
     description,
     defaultValue,
     currentValue: value,
+  }
+
+  if (kind.kind === 'literals' && kind.values.length > SEARCHABLE_OPTIONS) {
+    return (
+      <FieldWrapper {...wrapperProps} htmlFor={id}>
+        <Combobox
+          items={kind.values}
+          value={typeof value === 'string' ? value : null}
+          onValueChange={next => setValue(name, next ?? undefined)}
+        >
+          <ComboboxInput
+            id={id}
+            className="w-full"
+            placeholder={`Search ${kind.values.length} options…`}
+            showClear
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>No matches</ComboboxEmpty>
+            <ComboboxList>
+              {(option: string) => (
+                <ComboboxItem key={option} value={option}>
+                  {option}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </FieldWrapper>
+    )
   }
 
   if (kind.kind === 'boolean' || kind.kind === 'literals') {
@@ -178,7 +219,22 @@ export function PropField({ prop }: { prop: PropInfo }) {
     )
   }
 
-  // Strings, numbers, and types we can only take as text
+  // Strings grow to fit, so props like `code` can take several lines
+  if (kind.kind === 'string') {
+    return (
+      <FieldWrapper {...wrapperProps} htmlFor={id}>
+        <AutoExpandingTextarea
+          id={id}
+          minRows={1}
+          maxRows={10}
+          value={typeof value === 'string' ? value : ''}
+          onChange={e => setValue(name, e.target.value || undefined)}
+        />
+      </FieldWrapper>
+    )
+  }
+
+  // Numbers, and types we can only take as text
   return (
     <FieldWrapper {...wrapperProps} htmlFor={id}>
       <Input

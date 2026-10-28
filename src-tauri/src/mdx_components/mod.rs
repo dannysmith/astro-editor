@@ -1,6 +1,7 @@
 //! Finds a project's MDX components and reads their props, for the component builder.
 
 mod prop_types;
+pub mod starlight;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
 use prop_types::{
@@ -169,6 +170,8 @@ fn parse_component(
         has_slot: parsed.has_slot,
         description: parsed.description,
         framework,
+        import_source: None,
+        slot_template: None,
     })
 }
 

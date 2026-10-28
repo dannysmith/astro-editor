@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import type { MdxComponent } from '@/types'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
@@ -21,9 +22,25 @@ import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
 import { ComponentForm } from './ComponentForm'
 import { FrameworkBadge } from './FrameworkBadge'
 
-/** Matches the search against component names only */
-function filterByName(value: string, search: string) {
-  return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+/** Matches the search against component names, which items pass as their keyword */
+function filterByName(_value: string, search: string, keywords?: string[]) {
+  const name = keywords?.[0] ?? ''
+  return name.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+}
+
+/**
+ * Groups components by where they come from: the project's own first, then
+ * each package's (e.g. Starlight's), headed by the module they're imported from
+ */
+function groupBySource(components: MdxComponent[]) {
+  const groups = new Map<string | null, MdxComponent[]>()
+  for (const component of components) {
+    const source = component.import_source
+    groups.set(source, [...(groups.get(source) ?? []), component])
+  }
+  return [...groups.entries()].sort(([a], [b]) =>
+    a === null ? -1 : b === null ? 1 : a.localeCompare(b)
+  )
 }
 
 /**
@@ -85,34 +102,25 @@ export function ComponentBuilderDialog() {
               ) : (
                 <>
                   <CommandEmpty>No results found.</CommandEmpty>
-                  <CommandGroup>
-                    {components.map(component => (
-                      <CommandItem
-                        key={component.file_path}
-                        value={component.name}
-                        onSelect={() => selectComponent(component)}
-                        className="cursor-pointer"
+                  {groupBySource(components).map(
+                    ([source, group], _, groups) => (
+                      <CommandGroup
+                        key={source ?? 'project'}
+                        heading={
+                          source ??
+                          (groups.length > 1 ? 'This project' : undefined)
+                        }
                       >
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <div className="flex min-w-0 flex-col">
-                            <span>{component.name}</span>
-                            {component.description && (
-                              <span className="truncate text-xs text-muted-foreground">
-                                {component.description}
-                              </span>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {component.props.length === 0
-                                ? 'No props detected'
-                                : `${component.props.length} props`}
-                              {component.has_slot && ' + slot'}
-                            </span>
-                          </div>
-                          <FrameworkBadge framework={component.framework} />
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                        {group.map(component => (
+                          <ComponentItem
+                            key={`${source ?? component.file_path}#${component.name}`}
+                            component={component}
+                            onSelect={() => selectComponent(component)}
+                          />
+                        ))}
+                      </CommandGroup>
+                    )
+                  )}
                 </>
               )}
             </CommandList>
@@ -120,5 +128,40 @@ export function ComponentBuilderDialog() {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ComponentItem({
+  component,
+  onSelect,
+}: {
+  component: MdxComponent
+  onSelect: () => void
+}) {
+  return (
+    <CommandItem
+      value={`${component.import_source ?? component.file_path}#${component.name}`}
+      keywords={[component.name]}
+      onSelect={onSelect}
+      className="cursor-pointer"
+    >
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          <span>{component.name}</span>
+          {component.description && (
+            <span className="truncate text-xs text-muted-foreground">
+              {component.description}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {component.props.length === 0
+              ? 'No props detected'
+              : `${component.props.length} props`}
+            {component.has_slot && ' + slot'}
+          </span>
+        </div>
+        <FrameworkBadge framework={component.framework} />
+      </div>
+    </CommandItem>
   )
 }
