@@ -56,13 +56,13 @@ These were written or updated around the why in October 2026, so they need check
 
 Each its own commit.
 
-- [ ] Release log limit: release builds keep the plugin's default 40 KB with `KeepOne`, which deletes the file. Give it a sensible size and rotation that keeps something
+- [x] Release log limit: release builds keep the plugin's default 40 KB with `KeepOne`, which deletes the file. Give it a sensible size and rotation that keeps something
 - [ ] Logging imports: find out why 12 files import `@tauri-apps/plugin-log` directly while 2 use `safeLog`, pick the better rule, change the code if it's clearly better, and document the rule with its reason
-- [ ] Test layout: move the four unit tests in `__tests__/` (`focus-mode`, `sentence-detection`, `addCursorsToLineEnds`, `updateStore`) next to their source; `__tests__/` keeps only integration tests
-- [ ] CSP: add `https:` to `img-src` in `tauri.conf.json` so remote image previews load (Danny checks in a build)
-- [ ] Recovery toast: show the "Recovery data has been saved" message only after `saveRecoveryData` succeeds (`useEditorActions.ts`)
-- [ ] ast-grep: add `useContentLinkerStore` and `useUpdateStore` to `zustand/no-destructure` and `no-store-subscription-in-lib`; make `hooks-in-hooks-dir` catch `export const useX = () =>` too, with an explicit exception for `lib/theme-provider.tsx`
-- [ ] Dead code: remove `useSaveFileMutation` (and its test mock), `exportMenuCommands`/`cleanupMenuCommands`' `globalThis.editorCommands`, the unused `CommandOptions` type, and the `test:ui` script (`@vitest/ui` isn't installed). Check with knip first
+- [x] Test layout: move the four unit tests in `__tests__/` (`focus-mode`, `sentence-detection`, `addCursorsToLineEnds`, `updateStore`) next to their source; `__tests__/` keeps only integration tests
+- [x] CSP: add `https:` to `img-src` in `tauri.conf.json` so remote image previews load. The dev window doesn't enforce the CSP, so Danny checks this in a built app
+- [x] Recovery toast: show the "Recovery data has been saved" message only after `saveRecoveryData` succeeds (`useEditorActions.ts`)
+- [x] ast-grep: add `useContentLinkerStore` and `useUpdateStore` to `zustand/no-destructure` and `no-store-subscription-in-lib`; make `hooks-in-hooks-dir` catch `export const useX = () =>` too, with an explicit exception for `lib/theme-provider.tsx`. Also found that `languageGlobs` with a `src/` prefix never matched, so `.ts` files weren't checked by any rule; fixed with `**/*.ts`
+- [x] Dead code: remove `useSaveFileMutation` (and its test mock), `exportMenuCommands`/`cleanupMenuCommands`' `globalThis.editorCommands`, the unused `CommandOptions` type, and the `test:ui` script (`@vitest/ui` isn't installed). Check with knip first
 
 The larger findings (schema parsing gaps with Zod 4, project settings bugs, React Compiler bailouts, double-bound shortcuts) are in #347.
 - [ ] `docs/README.md`: a short index and a statement of what belongs in developer docs
