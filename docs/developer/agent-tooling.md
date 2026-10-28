@@ -37,11 +37,29 @@ When you add or change a shared component, add it to a section in `src/styleguid
 
 To check a change, shoot the sections before and after and compare them with `bun run app diff <before-dir> <after-dir>`. It matches shots by name (ignoring the timestamp), reports which are identical, and writes a diff image boxing what changed for the rest. Repeat snapshots of an unchanged page are pixel-identical, so it counts any changed pixel.
 
-## Dev logs
+## Logs
+
+Rust's `log` macros and the frontend's `@tauri-apps/plugin-log` calls both go through the log plugin, configured in `run()` in `src-tauri/src/lib.rs`. It writes to stdout, the log file and (except on Linux) the webview console, at debug level in every build. How to log from code is in `architecture-guide.md`; in short, use plugin-log, because release builds strip `console.*`.
+
+### Release logs
+
+The installed app writes `Astro Editor.log` to:
+
+- **macOS:** `~/Library/Logs/is.danny.astroeditor/`
+- **Windows:** `%LOCALAPPDATA%\is.danny.astroeditor\logs\`
+- **Linux:** `~/.local/share/is.danny.astroeditor/logs/`
+
+When the file reaches 5 MB it's renamed with its date and a new one starts; the two most recent old files are kept. The plugin's default (40 KB, then delete the file) would leave a support log nearly empty.
+
+Messages are prefixed `Astro Editor [TAG]` where an area has a tag, so a log can be searched by area. The common ones are `[PROJECT_SETUP]`, `[PROJECT_SCAN]`, `[PROJECT_DISCOVERY]`, `[PROJECT_REGISTRY]`, `[PREFERENCES]`, `[MIGRATION]`, `[FILE_COLLECTION]`, `[SCHEMA_MERGER]`, `[JSON_SCHEMA]` and `[WATCHER]`, plus `[JS_ERROR]` and `[PROMISE_REJECTION]` for uncaught frontend errors. Reuse an existing tag before adding one.
+
+What to ask users for when they report a problem is on the website's troubleshooting page (`website/src/content/docs/reference/troubleshooting.mdx`); keep its paths and tags in step with this section.
+
+### Dev logs
 
 Dev logs go to `~/Library/Logs/is.danny.astroeditor.dev/`:
 
-- **`Astro Editor Dev.log`:** Rust `log` output and webview logging. In dev builds `console.*` is forwarded there too, marked `[console]` (`lib/agent-bridge/console.ts`). When it reaches 5 MB it's renamed with its date and a new file starts; the two most recent old files are kept
+- **`Astro Editor Dev.log`:** Rust `log` output and webview logging. In dev builds `console.*` is forwarded there too, marked `[console]` (`lib/agent-bridge/console.ts`). It rotates like the release log
 - **`tauri-dev.log`:** the `tauri:dev` terminal output (Vite and cargo), replaced on each run
 
 `bun run app logs` searches both. See the skill for the flags.

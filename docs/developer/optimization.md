@@ -1,139 +1,26 @@
-# Optimization
+# Optimisation
 
-## Overview
+What the build does to keep the app small, and why. Measure before optimising anything else.
 
-Documents current optimizations in Astro Editor. We prioritize **measurement before optimization**.
+## Frontend Build
 
-## Current Optimizations
+The production frontend build is `bun run build` (`tsc && vite build`), which `tauri build` runs through `beforeBuildCommand`. Its settings are in `vite.config.ts`.
 
-### Rust Binary
+- **Minified with terser, which is a direct devDependency.** Vite treats terser as optional and fails the build if `minify: 'terser'` is set and it isn't installed, so it looks unused but isn't. Vite's default minifier (Oxc) might now do the same job; nobody has compared them.
+- **`console.*` and `debugger` are stripped** (`drop_console`, `drop_debugger`). Release builds never print `console` output, so anything users or support need goes through `@tauri-apps/plugin-log`. `console.*` is for temporary debugging only.
+- **No source maps** in production.
+- **Every build writes `bundle-stats.html`** (gitignored) with `rollup-plugin-visualizer`, a treemap of the bundle with gzip and brotli sizes, and opens it in your browser (`open: true`). That's the place to start when looking at bundle size.
 
-`Cargo.toml` release profile:
+## Rust Build
 
-```toml
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-panic = "abort"
-strip = true
-```
+The release profile in `src-tauri/Cargo.toml` favours a small binary over build speed: `opt-level = "s"`, LTO, one codegen unit, `panic = "abort"` and `strip`. That makes release builds slow, by design. `panic = "abort"` also means a panic ends the process rather than unwinding.
 
-### Tauri
+CI's `build` job overrides LTO and codegen units through `CARGO_PROFILE_RELEASE_*` env vars, because it only checks that every platform builds. It stays a release build rather than `--debug`, which would compile dev-only code like the agent bridge. `release.yml` keeps the full profile. See `releases.md`.
 
-`tauri.conf.json`:
+`removeUnusedCommands` in `tauri.conf.json` makes `tauri build` leave out plugin commands that no capability in `src-tauri/capabilities/` allows.
 
-```json
-{
-  "build": {
-    "removeUnusedCommands": true
-  },
-  "bundle": {
-    "createUpdaterArtifacts": true
-  }
-}
-```
+## Where to Look
 
-### Vite
-
-`vite.config.ts`:
-
-```typescript
-export default defineConfig({
-  build: {
-    sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
-  }
-})
-```
-
-### React
-
-See [performance-patterns.md](./performance-patterns.md) for:
-- Decomposed Zustand stores
-- getState() pattern
-- CSS visibility vs conditional rendering
-- Debounced operations (auto-save: 2s)
-
-## Bundle Analysis
-
-### Analyze Current Bundle
-
-```bash
-bun run build
-# Opens bundle-stats.html automatically (rollup-plugin-visualizer)
-```
-
-We use `rollup-plugin-visualizer` configured in `vite.config.ts`.
-
-### Current Bundle (v0.1.32)
-
-```
-Total JS: ~1.2MB minified (~350KB gzipped)
-├── vendor.js: ~800KB
-│   ├── React + React DOM: ~150KB
-│   ├── CodeMirror 6: ~250KB
-│   ├── Radix UI: ~200KB
-│   └── Other: ~200KB
-├── index.js: ~300KB (our code)
-└── chunks: ~100KB
-```
-
-### Major Dependencies
-
-| Dependency | Size (min) | Size (gzip) | Status |
-|------------|------------|-------------|--------|
-| CodeMirror | ~250KB | ~80KB | ✅ Already optimized |
-| React + React DOM | ~150KB | ~45KB | ✅ Already optimized |
-| Radix UI | ~200KB | ~60KB | 🔶 Could lazy-load dialogs |
-| TanStack Query | ~40KB | ~12KB | ✅ Essential |
-| Zustand | ~5KB | ~2KB | ✅ Minimal |
-| date-fns | ~30KB | ~10KB | ✅ Tree-shakeable |
-
-## Current Performance
-
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| Bundle size (JS) | ~1.2MB | <1.5MB | ✅ Good |
-| Bundle size (gzip) | ~350KB | <500KB | ✅ Good |
-| Cold start time | ~1.5s | <2s | ✅ Good |
-| Memory usage (idle) | ~150MB | <300MB | ✅ Good |
-
-**Measurement**:
-- Bundle size: `bun run build && du -sh dist/`
-- Startup time: macOS Activity Monitor
-- Memory: macOS Activity Monitor → Memory column
-
-## Future Opportunities
-
-If app grows significantly:
-
-1. **Lazy load dialogs**: PreferencesDialog, CommandPalette
-2. **Virtual scrolling**: If collections exceed 1000+ files
-3. **Audit unused shadcn/ui components**: Each is 5-15KB
-
-## Tree Shaking
-
-We already follow good practices:
-
-```typescript
-// ✅ Specific imports
-import { Save, Folder } from 'lucide-react'
-import { format } from 'date-fns'
-
-// ❌ Don't do this
-import * as Icons from 'lucide-react'
-import * as dateFns from 'date-fns'
-```
-
-## Related Documentation
-
-- [performance-patterns.md](./performance-patterns.md) - React performance patterns
-- [releases.md](./releases.md) - Build process
-- [state-management.md](./state-management.md) - State optimization
+- **Bundle size:** `bundle-stats.html` after a build.
+- **Re-renders:** the React Compiler and the Zustand rules in `architecture-guide.md` cover most of it; profile before adding manual memoisation.
+- **Binary size:** the release profile above, and the Cargo dependencies in `src-tauri/Cargo.toml`.

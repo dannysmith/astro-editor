@@ -20,7 +20,7 @@ constraints:
   STORE:
     regex: ^use\w+Store$
 note: |
-  This enforces the Directory Boundaries rule from architecture-guide.md:
+  This enforces the directory boundaries in architecture-guide.md:
 
   lib/ can import from stores ONLY to use getState() - one-way data access
   without React coupling.
@@ -29,5 +29,5 @@ note: |
   - ✅ useEditorStore.getState().value  (no subscription)
   - ❌ useEditorStore(state => state.value)  (subscription - React coupling)
 
-  See: docs/developer/architecture-guide.md#directory-purpose-and-boundaries
-  See: docs/developer/performance-patterns.md#getstate-pattern
+  See: docs/developer/architecture-guide.md#directory-boundaries
+  See: docs/developer/architecture-guide.md#zustand-rules

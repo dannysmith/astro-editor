@@ -1,183 +1,50 @@
-# Editor System
+# Editor
 
-## Overview
+The writing surface is vanilla CodeMirror 6 (no React wrapper), parsed by Lezer's markdown grammar. This doc covers the rules for touching `Editor.tsx`, how highlighting works and where it doesn't, and how edits get to disk without losing anything. Each extension in `src/lib/editor/extensions/` has a header comment explaining what it does and why; read those for detail.
 
-The editor is built on **CodeMirror 6** with **Lezer** for parsing. This document explains the mental models and patterns.
+## One Lezer, one CodeMirror
 
-**Key insight**: CodeMirror 6 is a "state machine with a view." The `EditorState` is immutable; changes happen through transactions that produce new states. Understanding this unlocks everything else.
+Only one copy of `@lezer/common` and of each `@codemirror/*` package may be installed. Lezer's `Tag` and tree objects from different versions aren't compatible, so a duplicate breaks highlighting at runtime without an error, and a duplicate `@codemirror/view` breaks typecheck. `package.json` pins `@lezer/common` with `overrides`, but `bun update` can still leave older copies nested under other packages. Check with:
 
-**Context7 references**:
-- `@codemirror/view` - EditorView, extensions, decorations
-- `@codemirror/state` - EditorState, StateField, transactions
-- `@lezer/highlight` - Syntax highlighting system
-
-## Syntax Highlighting Pipeline
-
-Syntax highlighting flows through four stages:
-
-```text
-Parser nodes → styleTags → Tags → HighlightStyle → CSS
+```bash
+grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock
 ```
 
-### Why Custom Markdown Tags?
+It must print nothing. If it doesn't, regenerate the lockfile: `rm -rf node_modules bun.lock && bun install`.
 
-We define custom tags in `markdownTags.ts` instead of using `@lezer/highlight`'s built-in `tags.*` because:
+## Editor.tsx
 
-1. **Fine-grained control**: Separate tags for `heading1` vs `heading2` vs `headingMark`
-2. **Mark styling**: Distinct styling for syntax characters (`*`, `#`, `` ` ``) vs content
+`Editor.tsx` owns the `EditorView` by hand, and the store mirrors it rather than driving it:
 
-The pipeline:
-- `markdownTags.ts` - Defines ~30 custom tags via `Tag.define()`
-- `styleExtension.ts` - Maps Lezer parser nodes to our tags via `styleTags()`
-- `highlightStyle.ts` - Maps tags to CSS properties via `HighlightStyle.define()`
+- **The view is created once** (an effect with empty dependencies). Recreating it would lose undo history, selection and scroll.
+- **Typing flows editor → store.** The update listener writes `editorContent` to the store, which marks the file dirty and schedules auto-save.
+- **Everything else flows store → editor through `useEditorStore.subscribe`,** not a React subscription, so typing never re-renders the component. It's wrapped in `React.memo` with a comparator that always returns `true` for the same reason.
+- **Store-to-editor writes set `isProgrammaticUpdate`** so the update listener doesn't mistake them for typing. Without it, loading a file would mark it dirty and save it straight back.
+- **A store write that differs from the document replaces the whole document.** That loses the scroll position (and typewriter mode re-centres on any `docChanged`), so it should only happen when a file is opened or changed on disk. See the round trip below.
+- **Modes** (focus, typewriter, the Alt key for URL and image hover) are toggled with state effects, not by recreating extensions.
 
-### The @lezer/highlight 1.2.3 Workaround
+## Highlighting
 
-**Critical institutional knowledge**: A behavior change in `@lezer/highlight` 1.2.3 broke our contextual styling.
+Highlighting runs through custom tags rather than `@lezer/highlight`'s built-in `tags.*`, so headings, emphasis and their syntax marks can be styled separately:
 
-**What changed**: When custom `styleTags` are added to nodes that already have rules, old rules are now preserved and checked **first**.
+- `syntax/markdownTags.ts` defines the tags;
+- `syntax/styleExtension.ts` maps Lezer nodes to them with `styleTags`;
+- `syntax/highlightStyle.ts` maps tags to styles.
 
-**The problem**: `@lezer/markdown`'s built-in highlighting maps all marks to `tags.processingInstruction`:
-```javascript
-// Built-in rule (checked first after 1.2.3)
-"HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": tags.processingInstruction
-```
+**Contextual mark rules don't fire.** Since `@lezer/highlight` 1.2.3, `@lezer/markdown`'s built-in rule (every mark → `tags.processingInstruction`) is checked before ours, so a rule like `'ATXHeading1/HeaderMark'` in `styleExtension.ts` is silently ignored. `extensions/syntax-mark-decorations.ts` works around this by walking the tree and decorating heading, emphasis and strong marks directly, and `theme.ts` gives those classes `inherit !important` to beat the inner highlight spans. Style any new contextual mark the same way.
 
-Our contextual rules like `'ATXHeading1/HeaderMark': markdownTags.headingMark` never fire because the unconditional built-in rule matches first.
+`styleTags` also only applies to the exact node, not its children, which is why whole-blockquote styling is a line decoration (`blockquote-style.ts`).
 
-**The fix**: `syntax-mark-decorations.ts` bypasses the highlight system entirely for marks that need special treatment. It walks the syntax tree and applies decorations directly:
-- `HeaderMark` inside `ATXHeading` → `.cm-heading-mark`
-- `EmphasisMark` inside `Emphasis` → `.cm-emphasis-mark`
-- `EmphasisMark` inside `StrongEmphasis` → `.cm-strong-mark`
+Colours and type come from `editor-styles.md` and the `--editor-color-*` tokens in `App.css` (see `color-system.md`).
 
-These classes are styled in `theme.ts` with `inherit !important` rules to override the inner highlight spans.
+## Auto-save and data safety
 
-## Extension Patterns
+Never losing work is a product principle, and most of these rules exist because of a real data-loss bug.
 
-We use two CodeMirror extension patterns:
-
-### StateField (Document-Based)
-
-Use for decorations that depend on document content. Rebuilds when document changes.
-
-```typescript
-// Pattern used by: hanging-headers, code-block-background, syntax-mark-decorations
-export const myExtension = StateField.define<DecorationSet>({
-  create(state) {
-    return buildDecorations(state)
-  },
-  update(decorations, tr) {
-    if (tr.docChanged) {
-      return buildDecorations(tr.state)
-    }
-    return decorations.map(tr.changes)
-  },
-  provide: f => EditorView.decorations.from(f),
-})
-```
-
-### ViewPlugin (Viewport/Lifecycle)
-
-Use for decorations that depend on viewport, external state, or need lifecycle hooks.
-
-```typescript
-// Pattern used by: url-hover (responds to Alt key state)
-export const myPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(view: EditorView) { /* ... */ }
-    update(update: ViewUpdate) { /* ... */ }
-  },
-  { decorations: v => v.decorations }
-)
-```
-
-### Our Extensions
-
-| Extension | Pattern | Purpose |
-|-----------|---------|---------|
-| `hanging-headers` | StateField | Line classes for hanging indent styling |
-| `code-block-background` | StateField | Background color on fenced code blocks |
-| `syntax-mark-decorations` | StateField | Mark styling workaround (see above) |
-| `blockquote-style` | StateField | Line classes for blockquote styling |
-| `focus-mode` | StateField | Dims text outside current sentence |
-| `copyedit-mode` | StateField + ViewPlugin | Parts-of-speech highlighting |
-| `url-hover` (plugin.ts) | ViewPlugin | Alt+Click URL decoration |
-
-Each extension has a header comment explaining its purpose—read those for implementation details.
-
-### When to Create a New Extension
-
-**Create new extension when**:
-- Visual effect applies to specific syntax nodes (use StateField)
-- Feature needs viewport awareness or external state (use ViewPlugin)
-- Behavior is toggleable and self-contained
-
-**Add to existing extension when**:
-- Extending similar functionality (e.g., another mark type to `syntax-mark-decorations`)
-- Shared state or logic
-
-## React Integration
-
-We manage `EditorView` manually rather than using a React wrapper library. This gives us full control but requires careful state synchronization.
-
-### Key Patterns in Editor.tsx
-
-**1. Single initialization**: EditorView is created once in a `useEffect` with empty deps. Extensions are passed at creation time.
-
-**2. Programmatic update flag**: When updating editor content from React (e.g., file load), we set `isProgrammaticUpdate.current = true` to prevent the update listener from treating it as user input.
-
-**3. Zustand subscription**: We subscribe to store changes directly (not via hook) to update the editor without causing React re-renders:
-```typescript
-useEditorStore.subscribe(state => {
-  if (viewRef.current && state.editorContent !== currentContent) {
-    // Update editor...
-  }
-})
-```
-
-**4. State effects for mode toggles**: Focus mode, Alt key state, etc. are toggled via `dispatch({ effects: [...] })`.
-
-**5. Memoization**: The component is wrapped in `React.memo` with a custom comparator that always returns `true`—we manage updates ourselves.
-
-## File Structure
-
-```
-src/lib/editor/
-├── index.ts                 # Public API exports
-├── syntax/
-│   ├── markdownTags.ts      # Custom tag definitions
-│   ├── styleExtension.ts    # Parser node → tag mapping
-│   └── highlightStyle.ts    # Tag → CSS mapping
-├── extensions/
-│   ├── createExtensions.ts  # Extension factory (entry point)
-│   ├── keymap.ts            # Keyboard shortcuts
-│   ├── theme.ts             # Editor CSS theming
-│   ├── focus-mode.ts        # Focus mode (sentence dimming)
-│   ├── hanging-headers.ts   # Hanging indent for headings
-│   ├── code-block-background.ts
-│   ├── blockquote-style.ts
-│   ├── syntax-mark-decorations.ts  # Mark styling workaround
-│   └── copyedit-mode/       # POS highlighting (multi-file)
-├── markdown/
-│   ├── formatting.ts        # Bold, italic, etc.
-│   └── headings.ts          # Heading level changes
-├── urls/
-│   ├── plugin.ts            # Alt+Click URL hover
-│   ├── detection.ts         # URL regex matching
-│   └── handlers.ts          # URL click handling
-├── paste/                   # Paste event handling
-├── dragdrop/                # File drag-and-drop
-└── commands/                # Command registry integration
-```
-
-## Related Documentation
-
-- **[editor-styles.md](./editor-styles.md)** - CSS color palette and typography specs
-- **[command-system.md](./command-system.md)** - Command pattern and editor commands
-- **[keyboard-shortcuts.md](./keyboard-shortcuts.md)** - Shortcut implementation
-- **[performance-patterns.md](./performance-patterns.md)** - React/Zustand optimization
-
----
-
-**Remember**: The header comments in each extension file explain the "what" and "why" for that specific file. This document provides the mental models to understand how they fit together.
+- **When it saves:** `scheduleAutoSave` in `editorStore.ts` debounces by the `autoSaveDelay` setting (2 seconds by default). Debouncing alone never fires during continuous typing, so a save is also forced once 10 seconds have passed since the last one (`MAX_AUTO_SAVE_DELAY_MS`). `openFile` sets `lastSaveTimestamp` so that clock starts when a file opens.
+- **Who saves:** the store can't call hooks, so Layout registers `useEditorActions().saveFile` as the store's auto-save callback (the Hybrid Action Hooks pattern, see `architecture-guide.md`). Auto-save never shows a toast; a manual save does.
+- **Edits during a save survive.** After writing, `saveFile` marks the file clean only if the content and frontmatter in the store still match what it wrote. Anything typed while the save was in flight stays dirty and is saved next time.
+- **Body-only edits keep the user's YAML.** If the frontmatter wasn't touched (`isFrontmatterDirty`), the save sends the original `rawFrontmatter` text, so formatting, comments and key order are preserved. Only an edited frontmatter is re-serialised, in schema field order.
+- **Unsaved edits win over disk.** When the file content query refetches, `useEditorFileContent` only copies it into the store if the file isn't dirty. `useFileChangeHandler` ignores watcher events for a dirty file and for 3 seconds after our own save, because one save can produce several events.
+- **The save round trip must be byte-identical.** After a save, the content query refetches the file. If parsing it back gives even slightly different text than the editor holds, the store write replaces the whole document and the view jumps. Trailing newlines did exactly this: the save added one and the parser dropped one, so the view jumped every few seconds. The round-trip tests in `src-tauri/src/commands/files.rs` (`test_roundtrip_*`) cover it; any change to parsing or serialising must keep them passing.
+- **If a save fails,** the file stays dirty and recovery files are written (see `app-data.md`). That only happens when a save throws; there's no crash recovery.

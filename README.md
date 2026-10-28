@@ -66,13 +66,13 @@ my-astro-site
 
 ## Installation
 
-Download the [latest Release](https://github.com/dannysmith/astro-editor/releases) or install with Homebrew:
+Requires macOS 12 or later. Download the [latest Release](https://github.com/dannysmith/astro-editor/releases) or install with Homebrew:
 
 ```
 brew install --cask astro-editor
 ```
 
-**Other Platforms:** Windows (.msi) and Linux (.AppImage, .deb) builds are available from the releases page but are not officially supported yet. Use at your own risk.
+**Other Platforms:** Windows (.msi) and Linux (.AppImage, .deb, .rpm) builds are available from the releases page but are not officially supported yet. Use at your own risk.
 
 ## Documentation
 
