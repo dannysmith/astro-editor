@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { formatDisplayDate } from '@/lib/dates'
 
 interface DatePickerProps {
   id?: string
@@ -42,7 +43,7 @@ function DatePicker({
           />
         }
       >
-        {value ? value.toLocaleDateString() : placeholder}
+        {value ? formatDisplayDate(value) : placeholder}
         <ChevronDownIcon className="size-4" />
       </PopoverTrigger>
       <PopoverContent className="w-auto overflow-hidden p-0" align="start">

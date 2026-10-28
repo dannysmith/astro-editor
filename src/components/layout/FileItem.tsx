@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Badge } from '../ui/badge'
 import { cn } from '@/lib/utils'
 import { getPublishedDate, getTitle } from '../../lib/files/sorting'
+import { formatDisplayDate } from '../../lib/dates'
 import type { FileEntry } from '@/types'
 
 type FrontmatterMappings = {
@@ -9,22 +10,6 @@ type FrontmatterMappings = {
   title: string
   description: string
   draft: string
-}
-
-export function formatDate(dateValue: unknown): string {
-  if (!dateValue) return ''
-
-  try {
-    const date = new Date(dateValue as string | number | Date)
-    if (isNaN(date.getTime())) return ''
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  } catch {
-    return ''
-  }
 }
 
 interface FileItemProps {
@@ -132,7 +117,7 @@ export const FileItem: React.FC<FileItemProps> = ({
           </div>
           {publishedDate && (
             <div className="mt-1 text-xs text-muted-foreground">
-              {formatDate(publishedDate)}
+              {formatDisplayDate(publishedDate)}
             </div>
           )}
           <div className="mt-1 font-mono text-xs text-muted-foreground">

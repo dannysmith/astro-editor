@@ -131,7 +131,7 @@ describe('FrontmatterPanel Component', () => {
 
     expect(screen.getByDisplayValue('Test Post')).toBeInTheDocument()
     expect(screen.getByRole('switch')).toBeInTheDocument()
-    // Date field renders via toLocaleDateString, so exact format is locale-dependent.
+    // Date field renders via formatDisplayDate, so exact format is locale-dependent.
     // Check for the year (distinctive to publishDate among the mocked fields).
     expect(screen.getByText(/2023/)).toBeInTheDocument()
     expect(screen.getByDisplayValue('5')).toBeInTheDocument()

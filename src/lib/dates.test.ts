@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatIsoDate, parseIsoDate, todayIsoDate } from './dates'
+import {
+  formatDisplayDate,
+  formatIsoDate,
+  parseIsoDate,
+  todayIsoDate,
+} from './dates'
 
 describe('formatIsoDate', () => {
   it('formats a date as YYYY-MM-DD using local timezone', () => {
@@ -212,5 +217,17 @@ describe('todayIsoDate', () => {
     expect(parsed!.getFullYear()).toBe(now.getFullYear())
     expect(parsed!.getMonth()).toBe(now.getMonth())
     expect(parsed!.getDate()).toBe(now.getDate())
+  })
+})
+
+describe('formatDisplayDate', () => {
+  it('names the month so day and month order cannot be misread', () => {
+    const date = new Date(2026, 9, 5) // Oct 5, 2026
+    const formatted = formatDisplayDate(date)
+    const monthName = date.toLocaleDateString(undefined, { month: 'short' })
+
+    expect(formatted).toContain(monthName)
+    expect(formatted).toContain('5')
+    expect(formatted).toContain('2026')
   })
 })
