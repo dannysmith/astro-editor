@@ -1,0 +1,26 @@
+---
+// Renders the Astro MDX components that exercise the component builder, so
+// the build checks they compile. The framework components (.tsx, .vue,
+// .svelte) aren't rendered, since this project has no framework integrations.
+import { getCollection } from 'astro:content'
+import Event from '../components/mdx/Event.astro'
+import Pricing from '../components/mdx/Pricing.astro'
+import Figure from '../components/mdx/Figure.astro'
+import image from '../assets/articles/styleguide-image.jpg'
+
+const [article] = await getCollection('articles')
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Components</title>
+  </head>
+  <body>
+    <Event title="Launch night" date={new Date('2026-01-15')} featured speakers={['Ada', 'Grace']}>
+      Doors open at seven.
+    </Event>
+    <Pricing plan="team" price={12} recommended>Everything in Starter, plus sharing.</Pricing>
+    <Figure image={image} alt="A test image" caption="A caption" related={article} width="wide" />
+  </body>
+</html>

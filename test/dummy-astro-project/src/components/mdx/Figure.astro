@@ -1,0 +1,25 @@
+---
+/**
+ * An image with a caption, optionally linking to a related article. Uses the
+ * Astro types the component builder will eventually give their own pickers.
+ */
+import { Image } from 'astro:assets'
+import type { ImageMetadata } from 'astro'
+import type { CollectionEntry } from 'astro:content'
+
+type Props = {
+  image: ImageMetadata
+  alt: string
+  caption?: string
+  related?: CollectionEntry<'articles'>
+  width?: 'normal' | 'wide' | 'full'
+}
+
+const { image, alt, caption, related, width = 'normal' } = Astro.props
+---
+
+<figure class={`figure figure-${width}`}>
+  <Image src={image} alt={alt} />
+  {caption && <figcaption>{caption}</figcaption>}
+  {related && <a href={`/articles/${related.id}`}>{related.data.title}</a>}
+</figure>
