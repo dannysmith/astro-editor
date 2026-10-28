@@ -52,11 +52,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Actions
   openFile: (file: FileEntry) => {
+    const { autoSaveTimeoutId, autoSaveCallback, currentFile, isDirty } = get()
+
+    // Re-opening the open file would reload it from disk over unsaved edits
+    if (isDirty && currentFile?.id === file.id) return
+
     // Clear auto-save timeout if it exists to prevent race condition
     // where previous file's auto-save could fire after opening new file
-    const { autoSaveTimeoutId } = get()
     if (autoSaveTimeoutId) {
       clearTimeout(autoSaveTimeoutId)
+    }
+
+    // Save unsaved edits before switching, or they're lost. saveFile reads the
+    // store synchronously when it starts, so it captures the outgoing file
+    // before the set() below replaces it
+    if (isDirty && autoSaveCallback) {
+      void autoSaveCallback(false)
     }
 
     // CRITICAL: Clear content FIRST, then set currentFile
