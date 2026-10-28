@@ -57,7 +57,11 @@ These were written or updated around the why in October 2026, so they need check
 Each its own commit.
 
 - [x] Release log limit: release builds keep the plugin's default 40 KB with `KeepOne`, which deletes the file. Give it a sensible size and rotation that keeps something
-- [ ] Logging imports: find out why 12 files import `@tauri-apps/plugin-log` directly while 2 use `safeLog`, pick the better rule, change the code if it's clearly better, and document the rule with its reason
+- [x] Logging imports: `safeLog` only existed because Vitest loads plugin-log outside its module graph, so the `invoke` mock never reached it. Replaced with one global plugin-log mock in `src/test/setup.ts` and direct imports. Also found that release builds strip `console.*`, so 40 suppressed `console.error`/`warn` calls never reached users' logs; they now go through plugin-log, noisy ones dev-only, and `no-console` is an error. Rule for the docs:
+  - log through `@tauri-apps/plugin-log` (`error as logError`, `warn as logWarn`, `info`, `debug`), fire-and-forget with `void`
+  - `console.*` is stripped from release builds, so it's for temporary debugging only
+  - release builds log at debug level too, so anything that would fire per keystroke, save or event goes behind `import.meta.env.DEV`
+  - tag messages `Astro Editor [TAG]` where a tag exists
 - [x] Test layout: move the four unit tests in `__tests__/` (`focus-mode`, `sentence-detection`, `addCursorsToLineEnds`, `updateStore`) next to their source; `__tests__/` keeps only integration tests
 - [x] CSP: add `https:` to `img-src` in `tauri.conf.json` so remote image previews load. The dev window doesn't enforce the CSP, so Danny checks this in a built app
 - [x] Recovery toast: show the "Recovery data has been saved" message only after `saveRecoveryData` succeeds (`useEditorActions.ts`)
