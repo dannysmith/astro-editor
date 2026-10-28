@@ -66,6 +66,19 @@ Triggered by tag push (`v*`). Three jobs run in sequence:
 
 The release is left as a **draft** for you to publish by hand (see [Publish the Draft Release](#step-2-publish-the-draft-release)). `release.yml` itself does **not** touch the website or commit anything to the repo.
 
+Release builds don't use a Rust cache, so they always build cold. They couldn't reuse `ci.yml`'s cache anyway: the cache key includes the job id and `CARGO*`/`RUST*` env vars, and CI builds with a different profile.
+
+### `ci.yml` — Build Check
+
+Runs on every push to a PR while it has the `ci` label (removing the label stops it), on pushes to `main`, and by manual dispatch. Changes only to `docs/`, `website/` or top-level `*.md` files don't trigger it, since nothing in CI checks them.
+
+- `checks` runs `bun run check:all` on Ubuntu.
+- `build` (matrix) runs `tauri build` on each platform without signing or a release. To save time it builds only native arm64 on macOS (releases build universal) and turns off LTO through `CARGO_PROFILE_RELEASE_*` env vars. It doesn't use `--debug`, which would compile dev-only code such as the agent bridge.
+
+Only `main` saves the Rust cache. GitHub lets a PR restore caches from its own branch and from `main`, but not from other PRs, so this gives every PR a warm cache without filling the 10 GB repo limit. A PR that changes `Cargo.lock` rebuilds the changed crates on every push. Caches unused for 7 days are evicted, so the first run after a quiet stretch builds cold.
+
+Dependabot's own pushes run without repo secrets, so a Dependabot PR with the `ci` label fails at updater signing.
+
 ### `publish-release-notes.yml` — Release Notes → Website
 
 Triggered when a GitHub Release is **published** (or via manual dispatch). It adds the release's notes to the website's Releases section:
@@ -178,7 +191,7 @@ The Rust command `fetch_release_notes` (`src-tauri/src/commands/updater.rs`) cal
 
 The maintainer develops on macOS, so Linux packages are validated through CI and Docker rather than a native install:
 
-- **Build verification** — `ci.yml` (manual `workflow_dispatch`, or add the `ci` label to a PR) builds all three Linux formats on an Ubuntu runner and fails if deb/rpm bundling breaks. No release is created. The `rpm` tool is installed in the apt step so the rpm bundler is available.
+- **Build verification** — `ci.yml` (see [above](#ciyml--build-check)) builds all three Linux formats on an Ubuntu runner and fails if deb/rpm bundling breaks. No release is created. The `rpm` tool is installed in the apt step so the rpm bundler is available.
 - **`latest.json` verification** — push a throwaway tag (e.g. `v0.0.0-linux-test`) to trigger `release.yml`, which produces a draft release. Confirm `latest.json` contains `linux-x86_64-appimage` / `-deb` / `-rpm` keys, each with a valid signature and URL, then delete the tag and the draft release. This is the real auto-update gate.
 - **Install / dependency sanity check** (optional) via Docker Desktop on macOS, against the downloaded packages:
 
