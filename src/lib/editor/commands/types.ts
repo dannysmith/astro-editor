@@ -19,15 +19,3 @@ export interface EditorCommandRegistry {
   toggleTypewriterMode: EditorCommand
   addCursorsToLineEnds: EditorCommand
 }
-
-/**
- * Command registration options
- */
-export interface CommandOptions {
-  /** Whether the command should be enabled */
-  enabled?: boolean
-  /** Keyboard shortcut for the command */
-  shortcut?: string
-  /** Menu item label */
-  label?: string
-}

@@ -16,8 +16,6 @@ vi.mock('../../lib/editor/commands', () => ({
     unregister: vi.fn(),
   },
   createEditorCommandRegistry: vi.fn(),
-  exportMenuCommands: vi.fn(),
-  cleanupMenuCommands: vi.fn(),
 }))
 
 const mockCreateExtensions = vi.mocked(
@@ -29,12 +27,6 @@ const mockGlobalCommandRegistry = vi.mocked(
 const mockCreateEditorCommandRegistry = vi.mocked(
   await import('../../lib/editor/commands')
 ).createEditorCommandRegistry
-const mockExportMenuCommands = vi.mocked(
-  await import('../../lib/editor/commands')
-).exportMenuCommands
-const mockCleanupMenuCommands = vi.mocked(
-  await import('../../lib/editor/commands')
-).cleanupMenuCommands
 
 describe('useEditorSetup', () => {
   let mockOnSave: () => void
@@ -122,18 +114,6 @@ describe('useEditorSetup', () => {
       )
     })
 
-    it('should export menu commands', () => {
-      const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
-      )
-
-      act(() => {
-        result.current.setupCommands(mockEditorView)
-      })
-
-      expect(mockExportMenuCommands).toHaveBeenCalledTimes(1)
-    })
-
     it('should be stable when onSave does not change', () => {
       const { result, rerender } = renderHook(() =>
         useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
@@ -189,18 +169,6 @@ describe('useEditorSetup', () => {
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(1)
     })
 
-    it('should cleanup menu commands', () => {
-      const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
-      )
-
-      act(() => {
-        result.current.cleanupCommands()
-      })
-
-      expect(mockCleanupMenuCommands).toHaveBeenCalledTimes(1)
-    })
-
     it('should be stable across re-renders', () => {
       const { result, rerender } = renderHook(() =>
         useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
@@ -243,7 +211,6 @@ describe('useEditorSetup', () => {
         mockCommands,
         mockEditorView
       )
-      expect(mockExportMenuCommands).toHaveBeenCalledTimes(1)
 
       // Cleanup
       act(() => {
@@ -252,7 +219,6 @@ describe('useEditorSetup', () => {
 
       // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(1)
-      expect(mockCleanupMenuCommands).toHaveBeenCalledTimes(1)
     })
 
     it('should handle multiple setup calls', () => {
@@ -268,7 +234,6 @@ describe('useEditorSetup', () => {
       expect(mockCreateEditorCommandRegistry).toHaveBeenCalledTimes(2)
       // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledTimes(2)
-      expect(mockExportMenuCommands).toHaveBeenCalledTimes(2)
     })
 
     it('should handle multiple cleanup calls', () => {
@@ -283,7 +248,6 @@ describe('useEditorSetup', () => {
 
       // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.unregister).toHaveBeenCalledTimes(2)
-      expect(mockCleanupMenuCommands).toHaveBeenCalledTimes(2)
     })
   })
 

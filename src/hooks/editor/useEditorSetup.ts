@@ -5,8 +5,6 @@ import type { KeymapHandlers } from '../../lib/editor/extensions/keymap'
 import {
   globalCommandRegistry,
   createEditorCommandRegistry,
-  exportMenuCommands,
-  cleanupMenuCommands,
 } from '../../lib/editor/commands'
 
 /**
@@ -30,7 +28,6 @@ export const useEditorSetup = (
     (editorView: EditorView) => {
       const commands = createEditorCommandRegistry(onSave)
       globalCommandRegistry.register(commands, editorView)
-      exportMenuCommands()
     },
     [onSave]
   )
@@ -38,7 +35,6 @@ export const useEditorSetup = (
   // Cleanup commands
   const cleanupCommands = useCallback(() => {
     globalCommandRegistry.unregister()
-    cleanupMenuCommands()
   }, [])
 
   return {
