@@ -1,11 +1,13 @@
 //! Reads the Astro content config: finds the collections, and the `image()` and
 //! `reference()` helpers in each schema.
 //!
-//! The generated JSON schema is the source of truth for fields (see
-//! `schema_merger.rs`). This parser only adds what the JSON loses: which fields are
-//! images, and which collection a reference points to. So it doesn't parse Zod
-//! structure. It regex-matches the helper calls, then walks back through the braces
-//! to build each field's dotted path. A line-based structural parser broke on
+//! When it exists and parses, the generated JSON schema is the source of truth for
+//! fields (see `schema_merger.rs`), and this parser only adds what the JSON loses:
+//! which fields are images, and which collection a reference points to. Without
+//! it, `create_complete_schema` falls back to this parser's output alone, which
+//! has only those fields. Either way, it doesn't parse Zod structure. It
+//! regex-matches the helper calls, then walks back through the braces to build
+//! each field's dotted path. A line-based structural parser broke on
 //! ordinary multi-line formatting such as `z\n  .object({ ... })`, so keep it this
 //! way rather than growing it into a Zod parser.
 //!
