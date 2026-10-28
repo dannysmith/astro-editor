@@ -19,6 +19,7 @@ rule:
   any:
     - pattern: export function $HOOK($$$) { $$$ }
     - pattern: export const $HOOK = $VALUE
+    - pattern: 'export const $HOOK: $TYPE = $VALUE'
 constraints:
   HOOK:
     regex: ^use[A-Z]\w+$
