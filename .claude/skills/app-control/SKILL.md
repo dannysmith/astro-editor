@@ -11,7 +11,7 @@ description: See and drive the running Astro Editor dev app with `bun run app`, 
 
 ## The loop for UI work
 
-1. Get the app into the right state: `app open-project`, `app open articles/first-post`, `app run toggle-sidebar`
+1. Get the app into the right state: `app open-project`, `app open articles/first-article`, `app run toggle-sidebar`
 2. Make the change. Vite hot-reloads the frontend
 3. `app shot <name>` saves a PNG for each theme to `docs/tasks-todo/temporary/`. Read both images. Danny sees the same files
 4. Check behaviour with `app state` and `app tree` rather than more screenshots where you can. Both are much cheaper to read
@@ -45,7 +45,7 @@ Always check light **and** dark (`shot` does both by default). Give shots descri
 
 ## Styleguide
 
-`localhost:1420/styleguide.html` shows every UI component the app uses in each state, one section per page (`?section=<id>`), overlays rendered open. Use `app styleguide` (or `app styleguide select menus`) when changing shared components, and compare against earlier shots, such as the baseline in `docs/tasks-todo/temporary/baseline/` (if present), with `app diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary`. It pairs each baseline shot with the newest shot of the same name, reports which are the same and boxes what changed (in image pixels, 2x on retina). Repeat shots of an unchanged page are pixel-identical, so any difference is real; look at the diff image (`docs/tasks-todo/temporary/diff/`) and the new shot to judge it. After `goto /styleguide.html?section=…`, `tree`, `click` and `key` work there too. Sections live in `src/styleguide/`; add to them when adding components.
+`localhost:1420/styleguide.html` shows every UI component the app uses in each state, one section per page (`?section=<id>`), overlays rendered open. Use `app styleguide` (or `app styleguide select menus`) when changing shared components. To compare, shoot a baseline first (`app styleguide --out=docs/tasks-todo/temporary/baseline`), make the change, shoot again, then run `app diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary`. It pairs each baseline shot with the newest shot of the same name, reports which are the same and boxes what changed (in image pixels, 2x on retina). Repeat shots of an unchanged page are pixel-identical, so any difference is real; look at the diff image (`docs/tasks-todo/temporary/diff/`) and the new shot to judge it. After `goto /styleguide.html?section=…`, `tree`, `click` and `key` work there too. Sections live in `src/styleguide/`; add to them when adding components.
 
 ## Logs
 
@@ -67,6 +67,8 @@ Reading logs doesn't need the app running.
 - **The window may be hidden behind others.** That's fine: snapshots still render. It's why `idle` doesn't wait on animation frames, and why every command runs inside `withFrames` (Base UI popups wait on frames to open, take focus and unmount). Plain `eval` doesn't, so drive popups with `click` and `key` rather than dispatching events from `eval`, or wrap the snippet in `await window.__agentBridge.withFrames(async () => …)`. A popup that opened while the page loaded (the styleguide's open overlays) won't take focus until the window is visible
 
 ## How it works
+
+The internals, and how to add a command, are in `docs/developer/agent-tooling.md`. In short:
 
 - `src-tauri/src/agent_bridge/`: debug-only HTTP server on `127.0.0.1` with a per-run token in `agent-bridge.json` in the dev app data folder. Endpoints are eval, native WKWebView snapshot, and window size, appearance and navigation
 - `src/lib/agent-bridge/`: the `window.__agentBridge` API. `page.ts` works on any page; `api.ts` adds the app actions

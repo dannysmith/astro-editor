@@ -45,12 +45,16 @@ These were written or updated around the why in October 2026, so they need check
 
 ### 3. Rewrite
 
-- [ ] AGENTS.md: what the project is (product principles from the website's `getting-started/philosophy.mdx`), the non-negotiable rules with reasons, where things live, the commands, the skills, and pointers to the docs. The rules include "colours only through tokens in `App.css`", which the colour work added and AGENTS.md doesn't mention yet
-- [ ] `docs/developer/`: rewrite according to the decisions
-- [ ] Code comments for module-specific knowledge (inventory §7 and the form behaviours), evergreen
-- [ ] Update the doc links in the ast-grep rules and `App.css` (inventory §8)
-- [ ] Light cleanup of the app-control skill's overlap with `agent-tooling.md`; the skill must still stand on its own
-- [ ] Trim `docs/archive/` to `initial-requirement-notes.md`
+- [x] AGENTS.md: what the project is (product principles from the website's `getting-started/philosophy.mdx`), the non-negotiable rules with reasons, where things live, the commands, the skills, and pointers to the docs. The rules include "colours only through tokens in `App.css`", which the colour work added and AGENTS.md doesn't mention yet
+- [x] `docs/developer/`: rewrite according to the decisions
+- [x] Code comments for module-specific knowledge (inventory §7 and the form behaviours), evergreen
+- [x] Update the doc links in the ast-grep rules and `App.css` (inventory §8)
+- [x] Light cleanup of the app-control skill's overlap with `agent-tooling.md`; the skill must still stand on its own
+- [x] Trim `docs/archive/` to `initial-requirement-notes.md`
+- [x] `docs/README.md`: a short index and a statement of what belongs in developer docs
+- [x] `README.md` and `docs/CONTRIBUTING.md`: check the setup instructions are current
+- [x] Review every doc for evergreen wording, duplication and the right depth (four independent reviewers), and apply the fixes
+- Out of scope: `website/AGENTS.md`, and the website's troubleshooting page (it tells users to watch Console.app, which probably shows nothing, and its tag list is incomplete)
 
 ### Code changes found during the inventory
 
@@ -68,10 +72,11 @@ Each its own commit.
 - [x] ast-grep: add `useContentLinkerStore` and `useUpdateStore` to `zustand/no-destructure` and `no-store-subscription-in-lib`; make `hooks-in-hooks-dir` catch `export const useX = () =>` too, with an explicit exception for `lib/theme-provider.tsx`. Also found that `languageGlobs` with a `src/` prefix never matched, so `.ts` files weren't checked by any rule; fixed with `**/*.ts`
 - [x] Dead code: remove `useSaveFileMutation` (and its test mock), `exportMenuCommands`/`cleanupMenuCommands`' `globalThis.editorCommands`, the unused `CommandOptions` type, and the `test:ui` script (`@vitest/ui` isn't installed). Check with knip first
 
-The larger findings (schema parsing gaps with Zod 4, project settings bugs, React Compiler bailouts, double-bound shortcuts) are in #347.
-- [ ] `docs/README.md`: a short index and a statement of what belongs in developer docs
-- [ ] `README.md` and `docs/CONTRIBUTING.md`: check the setup instructions are current
-- [ ] Out of scope: `website/AGENTS.md`
+- [x] ImageField's error toast dispatched a DOM event nothing listened for; it now uses the toast helper
+- [x] `no-destructure-zustand` no longer flags destructuring a `useShallow` selector
+- [x] Fix the Rust example in `rust-toast-bridge.ts`'s header comment
+
+The larger findings (schema parsing gaps with Zod 4, project settings bugs, React Compiler bailouts, double-bound shortcuts, command palette bugs) are in #347 and its comments. PR: #348.
 
 ### 4. Check it cold
 
