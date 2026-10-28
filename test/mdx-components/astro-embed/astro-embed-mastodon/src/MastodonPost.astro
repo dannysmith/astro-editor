@@ -1,0 +1,162 @@
+---
+import Attachments from './Attachments.astro';
+import PostFooter from './PostFooter.astro';
+import PostHeader from './PostHeader.astro';
+import QuotedPost from './QuotedPost.astro';
+import { fetchMastodonPost, replaceEmojis } from './utils';
+import styleUrl from './GlobalStyles.css?url';
+
+export interface Props {
+	id: string;
+}
+const { id } = Astro.props;
+
+const post = await fetchMastodonPost(id);
+---
+
+{
+	post && (
+		<astro-embed-mastodon>
+			<template shadowrootmode="open">
+				<link rel="stylesheet" href={styleUrl} />
+				<blockquote part="root">
+					<PostHeader {post} />
+					<div
+						part="content"
+						dir={post.dir}
+						lang={post.language}
+						set:html={replaceEmojis(post.content, post.emojis)}
+					/>
+					<Attachments {post} />
+					{post.quote && <QuotedPost parent={post} quote={post.quote} />}
+					<PostFooter {post} />
+				</blockquote>
+			</template>
+		</astro-embed-mastodon>
+	)
+}
+<style is:global>
+	astro-embed-mastodon::part(root) {
+		/* Light colour palette */
+		--color-scheme--light: light;
+		--color--light: #292938;
+		--color-primary--light: #000;
+		--color-secondary--light: #45455f;
+		--color-link--light: #5653ed;
+		--background-color--light: #fff;
+		--border-color--light: #cfd9de;
+		--background-color-surface--light: #e8e6f0;
+		--background-color-accent--light: #c6bfd9;
+		/* --border-color-media--light: rgba(252, 248, 255, .15) */
+
+		/* Dark colour palette */
+		--color-scheme--dark: dark;
+		--color--dark: #cfd9de;
+		--color-primary--dark: #f0f1ff;
+		--color-secondary--dark: #8b8dac;
+		--color-link--dark: #8886ff;
+		--background-color--dark: #181821;
+		--border-color--dark: #c8cdfe2e;
+		--background-color-surface--dark: #6247e61a;
+		--background-color-accent--dark: #c8cdfe14;
+		/* --border-color-media--dark: rgba(252, 248, 255, .15) */
+
+		--color-scheme: var(--color-scheme--light);
+		--color: var(--color--light);
+		--color-primary: var(--color-primary--light);
+		--color-secondary: var(--color-secondary--light);
+		--color-link: var(--color-link--light);
+		--background-color: var(--background-color--light);
+		--border-color: var(--border-color--light);
+		--background-color-surface: var(--background-color-surface--light);
+		--background-color-accent: var(--background-color-accent--light);
+
+		--padding: 1em;
+		--border-radius: 0.5em;
+		--font-family:
+			Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen,
+			Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		astro-embed-mastodon::part(root) {
+			--color-scheme: var(--color-scheme--dark);
+			--color: var(--color--dark);
+			--color-primary: var(--color-primary--dark);
+			--color-secondary: var(--color-secondary--dark);
+			--color-link: var(--color-link--dark);
+			--background-color: var(--background-color--dark);
+			--border-color: var(--border-color--dark);
+			--background-color-surface: var(--background-color-surface--dark);
+			--background-color-accent: var(--background-color-accent--dark);
+		}
+	}
+
+	/* Dynamic colours when supported */
+	@supports (--color: light-dark(var(--a), var(--b))) {
+		astro-embed-mastodon::part(root) {
+			--color-scheme: inherit;
+			--color: light-dark(var(--color--light), var(--color--dark));
+			--color-primary: light-dark(
+				var(--color-primary--light),
+				var(--color-primary--dark)
+			);
+			--color-secondary: light-dark(
+				var(--color-secondary--light),
+				var(--color-secondary--dark)
+			);
+			--color-link: light-dark(
+				var(--color-link--light),
+				var(--color-link--dark)
+			);
+			--background-color: light-dark(
+				var(--background-color--light),
+				var(--background-color--dark)
+			);
+			--border-color: light-dark(
+				var(--border-color--light),
+				var(--border-color--dark)
+			);
+			--background-color-surface: light-dark(
+				var(--background-color-surface--light),
+				var(--background-color-surface--dark)
+			);
+			--background-color-accent: light-dark(
+				var(--background-color-accent--light),
+				var(--background-color-accent--dark)
+			);
+		}
+	}
+
+	astro-embed-mastodon::part(root) {
+		margin: 0;
+		border: 1px solid var(--border-color, #cfd9de);
+		border-radius: var(--border-radius);
+
+		display: flex;
+		flex-direction: column;
+		gap: 1em;
+
+		overflow-wrap: anywhere;
+		padding: var(--padding, 1em);
+		font-family: var(--font-family, inherit);
+		color-scheme: var(--color-scheme);
+		color: var(--color);
+		background-color: var(--background-color);
+	}
+
+	astro-embed-mastodon::part(content) {
+		display: flex;
+		flex-direction: column;
+		gap: 1.16em;
+
+		font-size: 1.1875em;
+		line-height: 1.25;
+
+		overflow-wrap: break-word;
+		overflow: hidden;
+		text-overflow: ellipsis;
+
+		color: var(--color-primary);
+	}
+</style>

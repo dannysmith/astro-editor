@@ -1,0 +1,97 @@
+---
+import { editionLabelAndColorByPrefix } from "~/utils/badgeMaps.mjs"
+
+interface Props {
+    editions?: string[]
+}
+
+const editions = (Astro.props.editions ?? []).map((edition) => {
+    const info = Object.hasOwn(editionLabelAndColorByPrefix, edition)
+        ? editionLabelAndColorByPrefix[edition]
+        : undefined
+    return info
+        ? { label: info.label, href: info.link, tone: info.tone }
+        : { label: edition, href: undefined, tone: undefined }
+})
+---
+
+{
+    editions.length > 0 && (
+        <p class="feature-scope">
+            <span class="feature-scope-label">Available on:</span>
+            {editions.map((edition) => {
+                const Tag = edition.href ? "a" : "span"
+                return (
+                    <Tag
+                        class:list={[
+                            "feature-scope-pill",
+                            edition.tone && `tone-${edition.tone}`,
+                        ]}
+                        href={edition.href}
+                    >
+                        {edition.label}
+                    </Tag>
+                )
+            })}
+        </p>
+    )
+}
+
+<style lang="scss">
+    .feature-scope {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--ks-content-primary);
+    }
+
+    .feature-scope-label {
+        font-weight: 600;
+        font-size: $font-size-sm;
+    }
+
+    .feature-scope-pill {
+        &,
+        &:hover {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 40px;
+            padding: 0.125rem 0.5rem;
+            font-size: $font-size-xs;
+            font-weight: 600;
+            line-height: 1.4;
+            white-space: nowrap;
+            text-decoration: none;
+            background: var(--ks-background-secondary);
+            color: var(--ks-content-primary);
+            border: 1px solid var(--ks-border-secondary);
+        }
+
+        &.tone-oss,
+        &.tone-oss:hover {
+            background: var(--ks-background-tag-success);
+            color: var(--ks-content-tag-success);
+            border-color: transparent;
+        }
+
+        &.tone-ee,
+        &.tone-ee:hover {
+            background: var(--ks-background-tag-EE);
+            color: var(--ks-content-tag-EE);
+            border-color: transparent;
+        }
+
+        &.tone-cloud,
+        &.tone-cloud:hover {
+            background: var(--ks-background-tag-category);
+            color: var(--ks-content-tag-category);
+            border-color: transparent;
+        }
+    }
+
+    a.feature-scope-pill:hover {
+        text-decoration: underline;
+    }
+</style>

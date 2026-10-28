@@ -1,0 +1,108 @@
+---
+import { parseOpenGraph } from './lib';
+
+export interface Props {
+	/** URL to fetch Open Graph data. */
+	id: string;
+	/** Hide any image or video even if set in the OpenGraph data. */
+	hideMedia?: boolean;
+}
+
+const { id, hideMedia = false } = Astro.props;
+
+const meta = await parseOpenGraph(id);
+const domain = meta?.url ? new URL(meta.url).hostname.replace('www.', '') : '';
+---
+
+{
+	meta && meta.title ? (
+		<article
+			class:list={[
+				'link-preview',
+				{
+					'link-preview--has-video': !hideMedia && meta.video && meta.videoType,
+					'link-preview--no-media':
+						hideMedia || !((meta.video && meta.videoType) || meta.image),
+				},
+			]}
+		>
+			<div class="link-preview__content">
+				<header>
+					<a class="link-preview__title" href={id}>
+						{meta.title}
+					</a>{' '}
+					{domain && <small class="link-preview__domain">{domain}</small>}
+				</header>
+				<small class="link-preview__description">{meta.description}</small>
+			</div>
+			{hideMedia ? null : meta.video && meta.videoType ? (
+				<video controls preload="metadata" width="1200" height="630">
+					<source src={meta.video} type={meta.videoType} />
+				</video>
+			) : meta.image ? (
+				<img
+					src={meta.image}
+					alt={meta.imageAlt || ''}
+					width="1200"
+					height="630"
+				/>
+			) : null}
+		</article>
+	) : (
+		<div class="link-preview link-preview--no-metadata">
+			<a href={id}>{id}</a>
+		</div>
+	)
+}
+
+<style>
+	/* Default styles */
+	.link-preview {
+		--lp-width: var(--link-preview-width, 30em);
+		--lp-pad-x: var(--link-preview-padding-inline, 0);
+		--lp-pad-y: var(--link-preview-padding-block, 0.5em);
+		--lp-corners: var(--link-preview-corners, 0);
+		--lp-desc-lines: var(--link-preview-description-lines, 1);
+
+		position: relative;
+		width: var(--lp-width);
+		max-width: 100%;
+		display: flex;
+		flex-direction: column-reverse;
+		border-radius: var(--lp-corners);
+	}
+	.link-preview * {
+		margin: 0 !important;
+	}
+	.link-preview__content {
+		display: flex;
+		flex-direction: column;
+		padding: var(--lp-pad-y) var(--lp-pad-x);
+	}
+	.link-preview header {
+		display: flex;
+		flex-direction: column-reverse;
+	}
+
+	.link-preview__description {
+		display: -webkit-box;
+		-webkit-line-clamp: var(--lp-desc-lines);
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.link-preview:not(.link-preview--has-video) a::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+	.link-preview img,
+	.link-preview video {
+		aspect-ratio: 1200 / 630;
+		width: 100%;
+		height: auto;
+		object-fit: cover;
+		border-top-left-radius: var(--lp-corners);
+		border-top-right-radius: var(--lp-corners);
+	}
+</style>

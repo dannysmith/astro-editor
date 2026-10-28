@@ -1,0 +1,29 @@
+---
+import { safeGet } from '@astro-community/astro-embed-utils';
+import './Tweet.css';
+
+type TweetTheme = 'light' | 'dark';
+
+export interface Props {
+	id: string;
+	theme?: TweetTheme;
+}
+
+const { id, theme = 'light' } = Astro.props;
+
+async function fetchTweet(id: string, theme: TweetTheme | undefined = 'light') {
+	const oembedUrl = new URL('https://publish.twitter.com/oembed');
+	oembedUrl.searchParams.set('url', id);
+	oembedUrl.searchParams.set('omit_script', 'true');
+	oembedUrl.searchParams.set('dnt', 'true');
+	oembedUrl.searchParams.set('theme', theme);
+
+	return (await safeGet(oembedUrl.href)) as
+		| { url: string; author_name: string; author_url: string; html: string }
+		| undefined;
+}
+
+const tweet = await fetchTweet(id, theme);
+---
+
+{tweet && <astro-embed-tweet set:html={tweet.html} />}

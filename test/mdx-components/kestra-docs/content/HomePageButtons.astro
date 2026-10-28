@@ -1,0 +1,33 @@
+---
+import Button from "~/components/common/Button.vue"
+
+interface Props {
+    buttons: Array<{ label: string; href: string; type?: string }>
+}
+
+const { buttons } = Astro.props
+---
+
+<div class="docs-button-row">
+    {
+        buttons.map((button, index) => (
+            <Button
+                href={button.href}
+                type={button.type ?? (index === 0 ? 'primary' : 'secondary')}
+                class="btn-md"
+            >
+                {button.label}
+            </Button>
+        ))
+    }
+</div>
+
+<style lang="scss" scoped>
+    .docs-button-row {
+        display: flex;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 3rem;
+        flex-wrap: wrap;
+    }
+</style>

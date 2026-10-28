@@ -1,0 +1,163 @@
+---
+import type { AppBskyFeedDefs } from '@atcute/bluesky';
+import { atUriToPostUri, renderPostAsHtml, resolvePost } from './utils.js';
+import Embed from './embed.astro';
+import type { Post } from './types';
+import './styles.css';
+import Avatar from './avatar.astro';
+
+type Props = {
+	id?: string;
+	post?: string | Post | AppBskyFeedDefs.PostView;
+};
+
+const postRef = Astro.props.id ?? Astro.props.post;
+
+if (!postRef) {
+	return new Response('');
+}
+
+const post = await resolvePost(postRef)!;
+
+if (!post) {
+	return new Response('');
+}
+
+const postUrl = atUriToPostUri(post.uri);
+
+const { record, embed, author } = post;
+
+const authorUrl = `https://bsky.app/profile/${author?.handle}`;
+
+const body = renderPostAsHtml(post);
+
+const formatter = new Intl.DateTimeFormat('en-US', {
+	month: 'long',
+	day: 'numeric',
+	year: 'numeric',
+	hour: 'numeric',
+	minute: 'numeric',
+	timeZone: 'UTC',
+	timeZoneName: 'short',
+});
+---
+
+<div class="bluesky-post-container not-content">
+	<div class="post-content">
+		<div class="post-header">
+			<Avatar user={author} link={true} />
+			<div class="user-info">
+				<a href={authorUrl} class="display-name">{author?.displayName}</a>
+				<a href={authorUrl} class="username">@{author?.handle}</a>
+			</div>
+			<a href={postUrl} class="logo-link">
+				<img
+					src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20fill='none'%20viewBox='0%200%20320%20286'%3e%3cpath%20fill='rgb(10,122,255)'%20d='M69.364%2019.146c36.687%2027.806%2076.147%2084.186%2090.636%20114.439%2014.489-30.253%2053.948-86.633%2090.636-114.439C277.107-.917%20320-16.44%20320%2032.957c0%209.865-5.603%2082.875-8.889%2094.729-11.423%2041.208-53.045%2051.719-90.071%2045.357%2064.719%2011.12%2081.182%2047.953%2045.627%2084.785-80%2082.874-106.667-44.333-106.667-44.333s-26.667%20127.207-106.667%2044.333c-35.555-36.832-19.092-73.665%2045.627-84.785-37.026%206.362-78.648-4.149-90.071-45.357C5.603%20115.832%200%2042.822%200%2032.957%200-16.44%2042.893-.917%2069.364%2019.147Z'/%3e%3c/svg%3e"
+					class="bluesky-logo"
+					alt="Bluesky"
+				/>
+			</a>
+		</div>
+
+		<p class="post-text" set:html={body} />
+
+		{embed && <Embed embed={embed} postUrl={postUrl} />}
+		<a href={postUrl} class="timestamp">
+			{formatter.format(new Date(record.createdAt ?? ''))}
+		</a>
+	</div>
+</div>
+
+<style>
+	.bluesky-post-container {
+		max-width: var(--bluesky-content-max-width);
+		min-width: var(--bluesky-content-min-width);
+		margin: 0 auto;
+		font-family: var(--bluesky-font-family);
+		border: var(--bluesky-card-border);
+		border-radius: var(--bluesky-radius-lg);
+		background: var(--bluesky-color-background);
+		transition: var(--bluesky-card-transition);
+	}
+
+	.bluesky-post-container .post-content :global(a) {
+		text-decoration: none;
+	}
+
+	.post-content {
+		padding: var(--bluesky-space-md) var(--bluesky-space-lg)
+			var(--bluesky-space-sm);
+	}
+
+	.post-header {
+		display: grid;
+		grid-template-columns: min-content 1fr min-content;
+		gap: var(--bluesky-space-sm);
+		align-items: start;
+		margin-bottom: var(--bluesky-space-sm);
+	}
+
+	.user-info {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.display-name {
+		font-weight: var(--bluesky-font-weight-bold);
+		font-size: var(--bluesky-font-size-lg);
+		line-height: var(--bluesky-line-height-tight);
+		text-decoration: none;
+		color: var(--bluesky-color-text);
+	}
+
+	.username {
+		color: var(--bluesky-color-text-secondary);
+		font-size: var(--bluesky-font-size-base);
+		text-decoration: none;
+	}
+
+	.display-name:hover,
+	.username:hover {
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
+	.logo-link {
+		text-decoration: none;
+	}
+
+	.bluesky-logo {
+		height: var(--bluesky-icon-size-lg);
+		transition: transform 0.2s ease;
+	}
+
+	.bluesky-logo:hover {
+		transform: scale(1.1);
+	}
+
+	.post-text {
+		font-size: var(--bluesky-font-size-lg);
+		line-height: var(--bluesky-line-height-normal);
+		margin: 0 0 var(--bluesky-space-md);
+		white-space: pre-wrap;
+		word-break: break-word;
+		color: var(--bluesky-color-text);
+	}
+
+	.bluesky-post-container .post-text :global(a) {
+		color: var(--bluesky-color-link);
+		text-decoration: none;
+	}
+	.bluesky-post-container .timestamp:hover,
+	.bluesky-post-container .post-text :global(a:hover) {
+		text-decoration: underline;
+	}
+
+	.timestamp {
+		display: block;
+		color: var(--bluesky-color-text-secondary);
+		font-size: var(--bluesky-font-size-sm);
+		margin-top: var(--bluesky-space-sm);
+		text-decoration: none;
+	}
+</style>
