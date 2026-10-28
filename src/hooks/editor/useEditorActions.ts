@@ -184,8 +184,8 @@ export function useEditorActions() {
           toast.success('File saved successfully')
         }
       } catch (error) {
-        await logError(`Save failed: ${String(error)}`)
-        await info('Attempting to save recovery data...')
+        void logError(`Save failed: ${String(error)}`)
+        void info('Attempting to save recovery data...')
 
         // Save recovery data for the file that failed: the store's latest edits
         // if it's still open, otherwise what this save tried to write

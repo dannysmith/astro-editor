@@ -45,13 +45,13 @@ export const saveRecoveryData = async (data: {
   try {
     const result = await commands.saveRecoveryData(asJsonValue(recoveryData))
     if (result.status === 'error') {
-      await logError(`Failed to save recovery data: ${result.error}`)
+      void logError(`Failed to save recovery data: ${result.error}`)
       return false
     }
-    await info(`Recovery data saved for ${recoveryData.fileName}`)
+    void info(`Recovery data saved for ${recoveryData.fileName}`)
     return true
   } catch (err) {
-    await logError(`Failed to save recovery data: ${String(err)}`)
+    void logError(`Failed to save recovery data: ${String(err)}`)
     return false
   }
 }
@@ -78,11 +78,11 @@ export const saveCrashReport = async (
   try {
     const result = await commands.saveCrashReport(asJsonValue(report))
     if (result.status === 'error') {
-      await logError(`Failed to save crash report: ${result.error}`)
+      void logError(`Failed to save crash report: ${result.error}`)
       return
     }
-    await info('Crash report saved')
+    void info('Crash report saved')
   } catch (err) {
-    await logError(`Failed to save crash report: ${String(err)}`)
+    void logError(`Failed to save crash report: ${String(err)}`)
   }
 }
