@@ -173,9 +173,24 @@ export type MdxComponent = {
 export type PropInfo = {
 	name: string,
 	prop_type: string,
+	kind: PropKind,
 	is_optional: boolean,
+	/**  The default from destructuring, as source: strings unquoted, anything else verbatim */
 	default_value: string | null,
+	description: string | null,
 };
+
+/**
+ *  What kind of value a prop takes, resolved from its TypeScript type.
+ *  The component builder picks a control for each kind; `Unknown` gets a text field.
+ */
+export type PropKind = { kind: "string" } | { kind: "number" } | { kind: "boolean" } | 
+/**  A union of string literals, e.g. `'sm' | 'md' | 'lg'`, or a string enum */
+{ kind: "literals"; values: string[] } | { kind: "array"; items: PropKind } | { kind: "date" } | 
+/**  Astro's `ImageMetadata` */
+{ kind: "image" } | 
+/**  `CollectionEntry<'blog'>` from `astro:content` */
+{ kind: "collectionEntry"; collection: string } | { kind: "unknown" };
 
 export type Value = null | boolean | number | string | Value[] | { [key in string]: Value };
 
