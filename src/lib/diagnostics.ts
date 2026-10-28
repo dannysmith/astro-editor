@@ -51,44 +51,6 @@ export async function getDiagnosticContext(): Promise<DiagnosticContext> {
 }
 
 /**
- * Safe logging helpers that work in test environment
- */
-export const safeLog = {
-  info: async (message: string) => {
-    try {
-      const { info } = await import('@tauri-apps/plugin-log')
-      await info(message)
-    } catch {
-      // Silently fail in test environment
-    }
-  },
-  debug: async (message: string) => {
-    try {
-      const { debug } = await import('@tauri-apps/plugin-log')
-      await debug(message)
-    } catch {
-      // Silently fail in test environment
-    }
-  },
-  warn: async (message: string) => {
-    try {
-      const { warn } = await import('@tauri-apps/plugin-log')
-      await warn(message)
-    } catch {
-      // Silently fail in test environment
-    }
-  },
-  error: async (message: string) => {
-    try {
-      const { error } = await import('@tauri-apps/plugin-log')
-      await error(message)
-    } catch {
-      // Silently fail in test environment
-    }
-  },
-}
-
-/**
  * Format an error for logging with context
  */
 export function formatErrorForLogging(

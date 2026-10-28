@@ -1,10 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { saveRecoveryData } from '.'
-
-vi.mock('@tauri-apps/plugin-log', () => ({
-  info: vi.fn().mockResolvedValue(undefined),
-  error: vi.fn().mockResolvedValue(undefined),
-}))
 
 const data = {
   currentFile: {
