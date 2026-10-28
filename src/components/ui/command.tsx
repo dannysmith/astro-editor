@@ -27,6 +27,10 @@ function Command({
   )
 }
 
+/** Sizing for a Command inside a dialog, for dialogs that compose their own */
+const commandDialogClassName =
+  '**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5'
+
 function CommandDialog({
   title = 'Command Palette',
   description = 'Search for a command to run...',
@@ -55,11 +59,7 @@ function CommandDialog({
         className={cn('overflow-hidden p-0', className)}
         showCloseButton={showCloseButton}
       >
-        <Command
-          className="**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
-          filter={filter}
-          loop={loop}
-        >
+        <Command className={commandDialogClassName} filter={filter} loop={loop}>
           {children}
         </Command>
       </DialogContent>
@@ -181,6 +181,7 @@ function CommandShortcut({
 export {
   Command,
   CommandDialog,
+  commandDialogClassName,
   CommandInput,
   CommandList,
   CommandEmpty,

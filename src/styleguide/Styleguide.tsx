@@ -20,6 +20,7 @@ import {
 } from './sections'
 import { FieldsSection } from './FieldsSection'
 import { ColoursSection } from './ColoursSection'
+import { ComponentBuilderSection } from './ComponentBuilderSection'
 
 interface Section {
   id: string
@@ -66,6 +67,12 @@ const SECTIONS: Section[] = [
     overlay: true,
   },
   { id: 'dialog', title: 'Dialog', Component: DialogSection, overlay: true },
+  {
+    id: 'component-builder',
+    title: 'MDX component builder',
+    Component: ComponentBuilderSection,
+    overlay: true,
+  },
   {
     id: 'alert-dialog',
     title: 'Alert dialog',

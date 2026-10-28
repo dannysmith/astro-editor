@@ -93,11 +93,21 @@ export type {
    *
    * Fields:
    * - `name` - Prop name
-   * - `prop_type` - TypeScript type as string
+   * - `prop_type` - TypeScript type as written in the component's source
+   * - `kind` - What kind of value the prop takes (see `PropKind`)
    * - `is_optional` - Whether prop is optional
-   * - `default_value` - Default value if any
+   * - `default_value` - Default from destructuring: strings unquoted, anything else as written
+   * - `description` - The prop's JSDoc comment
    */
   PropInfo,
+  /**
+   * What kind of value a prop takes, resolved from its TypeScript type, which
+   * decides the control the component builder shows. Tagged by `kind`:
+   * `string`, `number`, `boolean`, `literals` (with `values`), `array` (with
+   * `items`), `date`, `image`, `collectionEntry` (with `collection`) or
+   * `unknown`.
+   */
+  PropKind,
   /**
    * Supported component frameworks.
    */

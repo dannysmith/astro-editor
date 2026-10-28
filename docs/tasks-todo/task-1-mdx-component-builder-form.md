@@ -64,20 +64,22 @@ The fragile parts: depending on astro's package path for "own props", and on Zod
 
 ### Phase 2: The form
 
-- [ ] `serializeProp(kind, value)` in `lib/` producing MDX attribute syntax, with unit tests: `prop="x"`, `prop={42}`, bare `prop` / `prop={false}`, `prop={new Date('2026-01-01')}`, `prop={['a', 'b']}`, and template literals for multi-line strings
-- [ ] Replace the configure step with a form. The component list stays a cmdk list. Controls:
-  - `string` → text input
-  - `number` → number input, validated
-  - `boolean` → switch; three states (not set, on, off) when optional
-  - `literals` → select, or a searchable combobox for long lists (icons)
-  - `date` → date picker, reusing the frontmatter date control's primitives
-  - `array` of literals → multi-select; of strings or numbers → a list
-  - `image`, `collectionEntry`, `unknown` → text field, inserted as a string
-- [ ] Defaults show as placeholders. A prop is inserted only when it has a value, or is required, so there's no separate toggle step.
-- [ ] Prop descriptions as help text, component descriptions in the list
-- [ ] Keyboard flow: Tab between fields, Cmd+Enter inserts, Escape or Backspace on the first field goes back
-- [ ] Required props left empty become snippet tab stops, as now
-- [ ] Styleguide section for the form
+- [x] `serializeProp` and `buildSnippet`/`buildPreview` in `lib/editor/snippet-builder.ts`, with unit tests: `prop="x"`, `prop={42}`, bare `prop` / `prop={false}`, `prop={new Date('2026-01-01')}`, `prop={['a', 'b']}`, template literals for strings with quotes or newlines, and braces escaped for CodeMirror's snippet parser
+- [x] The configure step is a form (`ComponentForm`, `PropField`) in the same dialog; the component list stays a cmdk list. Controls:
+  - `string`, `image`, `collectionEntry`, `unknown` → text input
+  - `number` → number input
+  - `boolean` → switch when required; select of (Not set) / true / false when optional
+  - `literals` → select, with (Not set) when optional
+  - `date` → date picker
+  - `array` → tag input (number arrays drop anything that isn't a number)
+- [x] A prop is inserted only when it has a value, or is required. Defaults show as "Default: x" under the field, as in the frontmatter panel.
+- [x] Prop descriptions as help text, the component description in the list and the form header
+- [x] Keyboard: focus starts in the first field, Tab between fields, Cmd+Enter inserts, Escape goes back to the list (and closes from there)
+- [x] Required props left empty become snippet tab stops
+- [x] Styleguide section (`component-builder`) and an `Event` component in the test project with one prop of each kind
+- [ ] Danny tries it in the app
+- [ ] Arrays of literals as a multi-select rather than free text
+- [ ] A searchable combobox for long literal lists (Starlight's 277 icons), probably with Phase 3
 
 ### Phase 3: Starlight components
 

@@ -1,0 +1,31 @@
+---
+/**
+ * An event listing. Uses one prop of each kind the component builder
+ * understands, for testing its form.
+ */
+const FORMATS = ['in-person', 'online', 'hybrid'] as const
+type Format = (typeof FORMATS)[number]
+
+interface Props {
+  /** What the event is called */
+  title: string
+  date: Date
+  format?: Format
+  /** Maximum number of attendees */
+  capacity?: number
+  free?: boolean
+  featured: boolean
+  speakers?: string[]
+  sessions?: number[]
+  tracks?: ('design' | 'engineering' | 'writing')[]
+  location?: { lat: number; lng: number }
+}
+
+const { title, date, format = 'in-person', capacity = 50, free = true } = Astro.props
+---
+
+<article class="event">
+  <h3>{title}</h3>
+  <p>{date.toDateString()} · {format} · {capacity} places{free && ' · free'}</p>
+  <slot />
+</article>
