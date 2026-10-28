@@ -12,9 +12,13 @@ language: tsx
 files:
   - 'src/lib/**/*.ts'
   - 'src/lib/**/*.tsx'
+ignores:
+  # A context provider and its hook, kept together as a framework integration
+  - 'src/lib/theme-provider.tsx'
 rule:
-  pattern: export function $HOOK($$$) { $$$ }
-  kind: function_declaration
+  any:
+    - pattern: export function $HOOK($$$) { $$$ }
+    - pattern: export const $HOOK = $VALUE
 constraints:
   HOOK:
     regex: ^use[A-Z]\w+$

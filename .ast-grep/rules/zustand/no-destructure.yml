@@ -9,13 +9,11 @@ message: |
 severity: error
 language: tsx
 rule:
-  any:
-    # Match destructuring from any Zustand store
-    - pattern: const { $$$PROPS } = useEditorStore($$$)
-    - pattern: const { $$$PROPS } = useProjectStore($$$)
-    - pattern: const { $$$PROPS } = useUIStore($$$)
-    - pattern: const { $$$PROPS } = useMdxComponentsStore($$$)
-    - pattern: const { $$$PROPS } = useComponentBuilderStore($$$)
+  pattern: const { $$$PROPS } = $STORE($$$)
+constraints:
+  # Any Zustand store hook, so new stores are covered automatically
+  STORE:
+    regex: ^use\w+Store$
 note: |
   This is a CRITICAL architecture rule. Destructuring from Zustand stores causes
   render cascades and performance issues.
