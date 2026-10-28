@@ -1,0 +1,221 @@
+---
+/**
+ * Tabs - Accessible tabbed interface component
+ *
+ * Usage:
+ *   <Tabs>
+ *     <TabItem label="First">Content for first tab</TabItem>
+ *     <TabItem label="Second">Content for second tab</TabItem>
+ *   </Tabs>
+ *
+ * Accessibility:
+ * - Proper ARIA roles (tablist, tab, tabpanel), wired at build time
+ * - Keyboard navigation: Arrow keys, Home, End (roving tabindex)
+ * - Focus management follows the WAI-ARIA Tabs pattern
+ *
+ * Progressive enhancement (HTML-first):
+ * - The tab buttons are server-rendered into the static HTML.
+ * - Without JS, the (inert) tablist is hidden and every panel renders stacked
+ *   and labelled — readable for print/SEO/no-JS.
+ * - The runtime is a single pair of delegated listeners that only toggle state.
+ */
+import { processPanels } from '@lib/tabs/process-panels'
+
+export interface Props {
+  /** Optional class for custom styling */
+  class?: string
+}
+
+const { class: className } = Astro.props
+
+// Render the slot, then wire each panel and collect button metadata at build
+// time. Component content inside a TabItem is already final HTML by now.
+// Feeds get the panels as they are: each TabItem labels itself there.
+const slotHtml = await Astro.slots.render('default')
+const { html, panels } = processPanels(slotHtml)
+---
+
+{
+  Astro.locals.feed ? (
+    <Fragment set:html={slotHtml} />
+  ) : (
+    <div class:list={['tabs', className]} data-tabs>
+      <div class="tabs-list" role="tablist">
+        {panels.map((panel, index) => (
+          <button
+            type="button"
+            role="tab"
+            id={panel.tabId}
+            aria-controls={panel.panelId}
+            aria-selected={index === 0 ? 'true' : 'false'}
+            tabindex={index === 0 ? 0 : -1}
+          >
+            {panel.label}
+          </button>
+        ))}
+      </div>
+      <div class="tabs-panels" set:html={html} />
+    </div>
+  )
+}
+
+<style>
+  .tabs {
+    border: var(--border-width-hairline) solid var(--color-border);
+  }
+
+  .tabs-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2xs);
+    border-bottom: var(--border-width-hairline) solid var(--color-border);
+  }
+
+  .tabs-list button {
+    padding: var(--space-2xs) var(--space-xs);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-xs);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    border-bottom: var(--border-width-base) solid transparent;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-feature-settings: 'case' on;
+
+    &[aria-selected='true'] {
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+    }
+
+    &:focus-visible {
+      outline: var(--border-width-base) solid var(--color-accent);
+      outline-offset: 2px;
+      border-radius: var(--radius-xs);
+    }
+  }
+
+  .tabs-panels {
+    padding: var(--space-m) var(--space-xs);
+  }
+
+  /*
+   * No-JS fallback: the server-rendered buttons are inert without JS, so hide
+   * the tablist, un-hide the panels the processor marked `hidden`, and label
+   * each stacked panel from its `data-tab-label`.
+   */
+  .tabs:not(.tabs-initialized) .tabs-list {
+    display: none;
+  }
+
+  .tabs:not(.tabs-initialized) .tabs-panels :global([role='tabpanel'][hidden]) {
+    display: block;
+  }
+
+  .tabs:not(.tabs-initialized) .tabs-panels :global([data-tab-label]) {
+    &::before {
+      content: attr(data-tab-label);
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-xs);
+      padding-bottom: var(--space-2xs);
+      border-bottom: var(--border-width-hairline) solid var(--color-border);
+    }
+
+    &:not(:first-child) {
+      margin-top: var(--space-m);
+    }
+  }
+</style>
+
+<script>
+  // The buttons and panels are server-rendered and fully wired. The runtime
+  // only toggles state, via a single pair of document-level delegated
+  // listeners rather than per-button listeners.
+
+  /** Activate `tab` within its `tablist`: update roving tabindex + panels. */
+  function activate(tablist: HTMLElement, tab: HTMLElement) {
+    const container = tablist.closest<HTMLElement>('[data-tabs]')
+    if (!container) return
+
+    const controls = tab.getAttribute('aria-controls')
+
+    tablist.querySelectorAll<HTMLElement>('[role="tab"]').forEach(t => {
+      const selected = t === tab
+      t.setAttribute('aria-selected', String(selected))
+      t.setAttribute('tabindex', selected ? '0' : '-1')
+    })
+
+    container.querySelectorAll<HTMLElement>('[role="tabpanel"]').forEach(panel => {
+      const active = panel.id === controls
+      panel.toggleAttribute('hidden', !active)
+      if (active) {
+        panel.setAttribute('tabindex', '0')
+      } else {
+        panel.removeAttribute('tabindex')
+      }
+    })
+  }
+
+  /** Resolve the tab a UI event targeted, or null. */
+  function tabFrom(event: Event): HTMLElement | null {
+    const target = event.target as HTMLElement | null
+    return target?.closest<HTMLElement>('[role="tab"]') ?? null
+  }
+
+  function wireDelegation() {
+    document.addEventListener('click', event => {
+      const tab = tabFrom(event)
+      const tablist = tab?.closest<HTMLElement>('[role="tablist"]')
+      if (!tab || !tablist) return
+      activate(tablist, tab)
+      tab.focus()
+    })
+
+    document.addEventListener('keydown', event => {
+      const tab = tabFrom(event)
+      const tablist = tab?.closest<HTMLElement>('[role="tablist"]')
+      if (!tab || !tablist) return
+
+      const tabs = Array.from(tablist.querySelectorAll<HTMLElement>('[role="tab"]'))
+      const current = tabs.indexOf(tab)
+      let next: HTMLElement | undefined
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          next = tabs[(current - 1 + tabs.length) % tabs.length]
+          break
+        case 'ArrowRight':
+          next = tabs[(current + 1) % tabs.length]
+          break
+        case 'Home':
+          next = tabs[0]
+          break
+        case 'End':
+          next = tabs[tabs.length - 1]
+          break
+        default:
+          return
+      }
+
+      if (!next) return
+      event.preventDefault()
+      activate(tablist, next)
+      next.focus()
+    })
+  }
+
+  // Enhance: reveal the tablist and let the native `hidden` collapse inactive
+  // panels. No per-panel work — the server-rendered state is already correct.
+  function initTabs() {
+    wireDelegation()
+    document
+      .querySelectorAll<HTMLElement>('[data-tabs]:not(.tabs-initialized)')
+      .forEach(el => el.classList.add('tabs-initialized'))
+  }
+
+  initTabs()
+</script>

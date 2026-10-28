@@ -1,0 +1,58 @@
+---
+
+---
+
+<div class="intro-paragraph">
+  <slot />
+</div>
+
+<style>
+  .intro-paragraph {
+    text-indent: 0;
+
+    /* Small-caps first line */
+    &::first-line {
+      text-transform: lowercase;
+      hyphens: none;
+      font-variant-caps: small-caps;
+      font-weight: 575;
+    }
+
+    /* Drop cap */
+    &::first-letter {
+      text-transform: uppercase;
+      float: left;
+      font-size: 4em;
+      line-height: 1;
+      font-weight: var(--font-weight-bold);
+      margin-inline-end: 0.4ch;
+    }
+  }
+</style>
+
+<script>
+  // Normalize the content of the intro paragraph to remove extra spaces, which will often be there because it will be indented inside the <IntroParagraph> component tag in the MDX.
+  function normalizeContent(element: HTMLElement) {
+    // Process text nodes while preserving spaces around tags
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null)
+
+    let node
+    let isFirstNode = true
+    while ((node = walker.nextNode())) {
+      if (node.textContent) {
+        // Only trim the start of the first text node and end of the last text node
+        const text = node.textContent.replace(/\s+/g, ' ') // normalize multiple spaces to single space
+
+        if (isFirstNode) {
+          node.textContent = text.trimStart()
+          isFirstNode = false
+        } else {
+          node.textContent = text
+        }
+      }
+    }
+  }
+
+  const introParagraphs = document.querySelectorAll<HTMLElement>('.intro-paragraph')
+  introParagraphs.forEach(normalizeContent)
+</script>

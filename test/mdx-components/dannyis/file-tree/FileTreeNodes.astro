@@ -1,0 +1,347 @@
+---
+/**
+ * FileTreeNodes — renders one level of a parsed file tree as a <ul>, and
+ * recurses into folders via <Astro.self>. Internal helper for FileTree;
+ * not exported from the mdx barrel and never authored directly.
+ *
+ * Folders use native <details>/<summary> for zero-JS collapse. Files and
+ * ellipses are plain <li>. Each entry reserves a disclosure slot so icons
+ * line up whether or not the row is expandable. Open/closed folder icons
+ * are both rendered and toggled with CSS off the <details open> state.
+ */
+import { Icon } from 'astro-icon/components'
+import { iconForFile, iconForFolder, colorForFile } from '@lib/file-tree/lookup-icon'
+import { renderInlineMarkdown } from '@lib/file-tree/markdown'
+import { truncateFileName } from '@lib/file-tree/truncate-name'
+import type { TreeNode } from '@lib/file-tree/parse-tree'
+
+interface Props {
+  nodes: TreeNode[]
+  highlight: Set<number>
+  /** Indent depth (in --ft-indent units) of the rows in this list. Used to
+   *  offset the comment column so all comments align regardless of nesting. */
+  depth?: number
+  /** True for the root list. Root folders aren't indented; nested ones are. */
+  isRoot?: boolean
+}
+
+const { nodes, highlight, depth = 0, isRoot = true } = Astro.props
+
+/** Truncate names a touch past a typical max line. */
+const NAME_MAX = 50
+
+/** Extra anchor attributes for external links. */
+function externalAttrs(href: string): Record<string, string> {
+  return /^https?:\/\//i.test(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {}
+}
+---
+
+<ul role="list" class="ft-list list-reset">
+  {
+    nodes.map(node => {
+      const highlighted = highlight.has(node.line)
+
+      if (node.kind === 'ellipsis') {
+        return (
+          <li class:list={['ft-item', 'ft-ellipsis', { 'is-highlighted': highlighted }]}>
+            <span class="ft-row" style={`--ft-depth: ${depth}`}>
+              <span class="ft-label">
+                <span class="ft-disclosure" aria-hidden="true" />
+                <span class="ft-ellipsis-mark" aria-hidden="true">
+                  …
+                </span>
+              </span>
+              {node.comment && (
+                <span class="ft-comment" set:html={renderInlineMarkdown(node.comment)} />
+              )}
+            </span>
+          </li>
+        )
+      }
+
+      const displayName = truncateFileName(node.name, NAME_MAX)
+      // Expose the full name on hover only when we've shortened it.
+      const fullNameTitle = displayName === node.name ? undefined : node.name
+      const nameEl = node.href ? (
+        <a class="ft-name" href={node.href} title={fullNameTitle} {...externalAttrs(node.href)}>
+          {displayName}
+        </a>
+      ) : (
+        <span class="ft-name" title={fullNameTitle}>
+          {displayName}
+        </span>
+      )
+
+      if (node.kind === 'folder') {
+        // Nested folders sit one step deeper than their list; root folders don't.
+        const folderDepth = isRoot ? depth : depth + 1
+        return (
+          <li class:list={['ft-item', 'ft-folder', { 'is-highlighted': highlighted }]}>
+            <details open>
+              <summary class="ft-row" style={`--ft-depth: ${folderDepth}`}>
+                <span class="ft-label">
+                  <span class="ft-disclosure" aria-hidden="true" />
+                  <Icon
+                    class="ft-icon ft-icon--folder ft-icon-closed"
+                    name={iconForFolder(false)}
+                  />
+                  <Icon class="ft-icon ft-icon--folder ft-icon-open" name={iconForFolder(true)} />
+                  {nameEl}
+                </span>
+                {node.comment && (
+                  <span class="ft-comment" set:html={renderInlineMarkdown(node.comment)} />
+                )}
+              </summary>
+              <Astro.self
+                nodes={node.children}
+                highlight={highlight}
+                depth={folderDepth}
+                isRoot={false}
+              />
+            </details>
+          </li>
+        )
+      }
+
+      // file
+      return (
+        <li class:list={['ft-item', 'ft-file', { 'is-highlighted': highlighted }]}>
+          <span class="ft-row" style={`--ft-depth: ${depth}`}>
+            <span class="ft-label">
+              <span class="ft-disclosure" aria-hidden="true" />
+              <Icon
+                class:list={['ft-icon', `ft-icon--${colorForFile(node.name)}`]}
+                name={iconForFile(node.name)}
+              />
+              {nameEl}
+            </span>
+            {node.comment && (
+              <span class="ft-comment" set:html={renderInlineMarkdown(node.comment)} />
+            )}
+          </span>
+        </li>
+      )
+    })
+  }
+</ul>
+
+<style>
+  .ft-list {
+    /* Geometry. One indent "step" = the disclosure slot + the row gap, so a
+       nested folder's chevron lines up under the icons of the level above.
+       Tune these three and everything stays aligned. */
+    --ft-disclosure-size: 0.8em;
+    --ft-row-gap: 0.4em;
+    /* Extra space after the disclosure slot, before the icon. Its own knob
+       (not the shared row gap) so it doesn't widen icon↔name spacing. */
+    --ft-disclosure-gap: 0.3em;
+    --ft-indent: calc(var(--ft-disclosure-size) + var(--ft-disclosure-gap) + var(--ft-row-gap));
+
+    /* Visual size of the disclosure triangle. Independent of the slot above,
+       so growing it doesn't affect alignment — the arrow is centred inside
+       the (unchanged) disclosure slot. Width = this; height = 1.5× this. */
+    --ft-chevron-size: 0.5em;
+
+    /* Where the comment column begins, measured from the tree's left edge.
+       Content-relative (50% of the tree width via container query units),
+       floored and capped so it stays sensible on very narrow/wide trees.
+       Per-row, the label track is this minus the row's own indent, so every
+       comment's first letter lands on the same vertical line. */
+    --ft-comment-col: clamp(12em, 50cqw, 34em);
+
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+  }
+
+  /* A nested *folder* indents by one step, so its disclosure arrow lands
+     under the icons of the level above. Root folders (a list not inside
+     another list) stay flush-left. The padding goes on <details> — which
+     wraps both the summary and the folder's contents — so the whole subtree
+     shifts together as one unit. */
+  .ft-list .ft-list > .ft-folder > details {
+    padding-inline-start: var(--ft-indent);
+  }
+
+  /* The base layer styles every <details> as a disclosure card (secondary
+     background, border-radius, padding) and gives [open] summaries a bottom
+     divider. The file tree draws its own affordances instead. `.ft-row` below
+     strips the border and bottom margin from every row (a scoped rule, so it
+     beats the base layer); here we just drop the details' own padding and the
+     open summary's bottom padding. */
+  .ft-folder > details {
+    padding: 0;
+  }
+  .ft-folder > details[open] > summary {
+    padding-bottom: 0;
+  }
+
+  /* A row is a two-track grid: the label (disclosure + icon + name) and the
+     comment. Rows with no comment collapse to a single track so the name can
+     use the full width. The label track for a commented row is the comment
+     column minus this row's indent, so comments line up across all depths. */
+  .ft-row {
+    --ft-depth: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding-block: 0.1em;
+    /* Strips the base layer's disclosure-card border + bottom margin from
+       every row (including the [open] summary divider). */
+    border: none;
+    margin-bottom: 0;
+  }
+  .ft-row:has(.ft-comment) {
+    grid-template-columns:
+      max(0em, calc(var(--ft-comment-col) - var(--ft-depth) * var(--ft-indent)))
+      minmax(0, 1fr);
+    column-gap: var(--ft-row-gap);
+  }
+
+  /* The label holds the row's disclosure, icon and name in a tight flex line. */
+  .ft-label {
+    display: flex;
+    align-items: center;
+    gap: var(--ft-row-gap);
+    min-width: 0;
+  }
+
+  /* Fixed-width slot so file/folder icons line up regardless of chevron. */
+  .ft-disclosure {
+    flex: 0 0 auto;
+    width: var(--ft-disclosure-size);
+    height: var(--ft-disclosure-size);
+    margin-inline-end: var(--ft-disclosure-gap);
+  }
+
+  /* Chevron for folders only, drawn with borders, rotates when open. */
+  .ft-folder > details > summary .ft-disclosure {
+    position: relative;
+    cursor: pointer;
+  }
+  .ft-folder > details > summary .ft-disclosure::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: calc(var(--ft-chevron-size) * 0.75) 0 calc(var(--ft-chevron-size) * 0.75)
+      var(--ft-chevron-size);
+    border-color: transparent transparent transparent currentColor;
+    color: var(--color-text-secondary);
+    transition: transform var(--duration-fast, 150ms) var(--ease-in-out, ease);
+  }
+  .ft-folder > details[open] > summary .ft-disclosure::before {
+    transform: rotate(90deg);
+  }
+
+  .ft-icon {
+    flex: 0 0 auto;
+    width: 1.05em;
+    height: 1.05em;
+    color: var(--color-text);
+    /* Files are tinted but kept subtle; folders override to full strength. */
+    opacity: 0.85;
+  }
+
+  /* Colour buckets (see colorForFile). All tokens are light-dark(), so light
+     and dark themes adapt automatically. Tweak the token per bucket to taste. */
+  .ft-icon--blue {
+    color: var(--color-blue);
+  }
+  .ft-icon--red {
+    color: var(--color-pink);
+  }
+  .ft-icon--green {
+    color: var(--color-green);
+  }
+  .ft-icon--orange {
+    color: var(--color-orange);
+  }
+  .ft-icon--purple {
+    color: var(--color-purple);
+  }
+  .ft-icon--neutral {
+    color: var(--color-text-secondary);
+  }
+
+  /* Folders are the one deliberately bold cue — full-strength brand blue. */
+  .ft-icon--folder {
+    color: var(--color-blue);
+    opacity: 1;
+  }
+
+  /* Toggle folder open/closed icon off the <details> state. */
+  .ft-folder > details:not([open]) > summary .ft-icon-open {
+    display: none;
+  }
+  .ft-folder > details[open] > summary .ft-icon-closed {
+    display: none;
+  }
+
+  .ft-name {
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Folder names sit slightly heavier than file names, and render with a
+     trailing slash (kept out of the data/markup so links and truncation
+     stay clean). */
+  .ft-folder > details > summary .ft-name {
+    font-weight: var(--font-weight-medium);
+  }
+  .ft-folder > details > summary .ft-name::after {
+    content: '/';
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-secondary);
+  }
+
+  /* Comments wrap within their column. Very long ones clamp to 4 lines then
+     ellipsize — an edge case, handled cheaply with line-clamp. */
+  .ft-comment {
+    color: var(--color-text-secondary);
+    opacity: 0.85;
+    min-width: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+  }
+  .ft-comment :global(code) {
+    font-size: 0.9em;
+  }
+
+  .ft-ellipsis-mark {
+    color: var(--color-text-secondary);
+    letter-spacing: 0.1em;
+    padding-inline: 0.1em;
+  }
+
+  /* Native summary marker off — we draw our own chevron. */
+  summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:focus-visible {
+    outline: var(--border-width-base, 2px) solid var(--color-accent);
+    outline-offset: 1px;
+    border-radius: var(--radius-xs, 2px);
+  }
+
+  /* Highlighted rows. */
+  .is-highlighted > .ft-row,
+  .is-highlighted > details > summary.ft-row {
+    background: color-mix(in oklch, var(--color-highlight) 50%, transparent);
+    border-radius: var(--radius-xs, 2px);
+  }
+</style>

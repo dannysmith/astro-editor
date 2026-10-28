@@ -1,0 +1,42 @@
+---
+export interface Props {
+  href: string
+  [key: string]: any
+}
+
+const { href, ...props } = Astro.props
+
+// External = absolute http(s) URL whose host isn't danny.is or a subdomain.
+// Mirrored by satteri-external-links (src/lib/satteri-external-links.mjs).
+const host = /^https?:\/\//.test(href ?? '') ? new URL(href).hostname : null
+const isExternal = !!host && host !== 'danny.is' && !host.endsWith('.danny.is')
+---
+
+<a
+  href={href}
+  target={isExternal ? '_blank' : undefined}
+  rel={isExternal ? 'noopener noreferrer' : undefined}
+  class:list={[{ external: isExternal }]}
+  {...props}><slot /></a
+>
+
+<style>
+  .external {
+    position: relative;
+    padding-inline-end: 0.37em;
+  }
+
+  .external::after {
+    content: '↗';
+    position: absolute;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif; /* System fonts have this glyph */
+    font-size: 0.6em;
+    font-weight: 600;
+    margin-inline-start: 0.1em;
+    translate: 0 0.25em;
+    opacity: 0.5;
+  }
+</style>

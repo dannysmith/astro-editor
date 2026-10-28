@@ -1,0 +1,36 @@
+---
+// Wraps every <table> in MDX content in a focusable scroll region so wide
+// tables don't blow out the page on narrow viewports. Wired up via
+// MDX_COMPONENT_REMAPPING in src/config/mdx-components.ts.
+//
+// Pattern via Adrian Roselli's "under-engineered responsive tables":
+// https://adrianroselli.com/2020/11/under-engineered-responsive-tables.html
+
+// Forward any attributes set on the original <table> (class, id, aria-*, etc.)
+// onto the rendered table so authors don't lose them through the remap.
+const props = Astro.props
+---
+
+<div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable table">
+  <table {...props}><slot /></table>
+</div>
+
+<style>
+  .table-scroll {
+    max-inline-size: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    /* Match the vertical rhythm of a bare <table> (see _verticalflow.css) */
+    margin-top: 1.25em;
+  }
+
+  .table-scroll:first-child {
+    margin-top: 0;
+  }
+
+  .table-scroll:focus-visible {
+    outline: var(--border-width-base) solid var(--color-accent);
+    outline-offset: var(--space-3xs);
+  }
+</style>

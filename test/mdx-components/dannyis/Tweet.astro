@@ -1,0 +1,309 @@
+---
+/**
+ * A tweet, rendered as static HTML from FxTwitter's JSON at build time.
+ *
+ * See @utils/fetchTweet for where the data comes from, how it's cached, and why
+ * a tweet that can't be fetched degrades to a link rather than failing the build.
+ *
+ * Permalinks point at xcancel (readable without an X account), with the
+ * original on X alongside it.
+ */
+import { Image } from 'astro:assets'
+import { Icon } from 'astro-icon/components'
+import { fetchTweet, getTweetId, toSegments, tweetLinks, ORIGIN_BASE } from '@utils/fetchTweet'
+
+export interface Props {
+  /** A twitter.com/x.com status URL, or a bare tweet ID. */
+  id: string
+}
+
+const { id } = Astro.props
+
+const tweetId = getTweetId(id)
+const tweet = tweetId ? await fetchTweet(tweetId) : null
+
+if (!tweetId) console.warn(`<Tweet>: could not find a tweet ID in "${id}"`)
+
+const segments = tweet ? toSegments(tweet) : []
+const links = tweet ? tweetLinks(tweet) : null
+const photos = tweet?.media?.photos ?? []
+const videos = tweet?.media?.videos ?? []
+const posted = tweet ? new Date(tweet.created_timestamp * 1000) : null
+
+// Everything a tweet links to lives on someone else's site, including the
+// links inside its text, so the whole card leaves in a new tab.
+const external = { target: '_blank', rel: 'noopener noreferrer' } as const
+
+// Source images run up to ~2000px wide for a card that is never more than
+// ~34rem. Cap what we hand Astro so it doesn't generate pointlessly large
+// variants, keeping the aspect ratio intact.
+const MAX_WIDTH = 1088
+function capped(width: number, height: number) {
+  if (width <= MAX_WIDTH) return { width, height }
+  return { width: MAX_WIDTH, height: Math.round((height / width) * MAX_WIDTH) }
+}
+
+// In feeds a tweet is a plain blockquote: its text and media, then an
+// attribution line linking to it. The author header and its icons need CSS.
+const feed = Astro.locals.feed
+const Wrapper = feed ? 'blockquote' : 'article'
+const postedLabel = posted?.toLocaleDateString('en-GB', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+---
+
+{
+  tweet && links && posted ? (
+    <Wrapper class="tweet">
+      {!feed && (
+        <header class="tweet-author">
+          {tweet.author.avatar_url && (
+            <Image
+              class="tweet-avatar"
+              src={tweet.author.avatar_url}
+              width={96}
+              height={96}
+              layout="fixed"
+              alt=""
+              loading="lazy"
+            />
+          )}
+          <a class="tweet-identity" href={links.mirror} {...external}>
+            <span class="tweet-name">{tweet.author.name}</span>
+            <span class="tweet-handle">@{tweet.author.screen_name}</span>
+          </a>
+          <a class="tweet-origin" href={links.origin} aria-label="View original on X" {...external}>
+            <Icon name="simple-icons:x" />
+          </a>
+        </header>
+      )}
+
+      {segments.length > 0 && (
+        <div class="tweet-body" lang={tweet.lang ?? undefined}>
+          {segments.map(segment =>
+            segment.kind === 'link' ? (
+              <a href={segment.href} {...external}>
+                {segment.text}
+              </a>
+            ) : segment.kind === 'bold' ? (
+              <strong>{segment.text}</strong>
+            ) : segment.kind === 'break' ? (
+              <br />
+            ) : (
+              segment.text
+            ),
+          )}
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <div class="tweet-media" data-count={Math.min(photos.length, 4)}>
+          {photos.slice(0, 4).map(photo => (
+            <Image
+              src={photo.url}
+              {...capped(photo.width, photo.height)}
+              alt={photo.altText ?? ''}
+              loading="lazy"
+            />
+          ))}
+        </div>
+      )}
+
+      {videos.map(video => (
+        <a class="tweet-video" href={links.mirror} {...external}>
+          {video.thumbnail_url && (
+            <Image
+              src={video.thumbnail_url}
+              {...capped(video.width, video.height)}
+              alt=""
+              loading="lazy"
+            />
+          )}
+          <span class="tweet-video-badge">Watch video</span>
+        </a>
+      ))}
+
+      {feed ? (
+        <p>
+          — {tweet.author.name} (@{tweet.author.screen_name}),
+          <a href={links.mirror}>{postedLabel}</a>
+        </p>
+      ) : (
+        <footer class="tweet-meta">
+          <a href={links.mirror} {...external}>
+            <time datetime={posted.toISOString()}>{postedLabel}</time>
+          </a>
+        </footer>
+      )}
+    </Wrapper>
+  ) : (
+    <p class="tweet-unavailable">
+      <a href={tweetId ? `${ORIGIN_BASE}/i/status/${tweetId}` : id} {...external}>
+        {tweetId ? `Tweet ${tweetId}` : id}
+      </a>{' '}
+      could not be loaded.
+    </p>
+  )
+}
+
+<style>
+  /* Card chrome, shared with the fallback so a dead link still looks deliberate. */
+  .tweet,
+  .tweet-unavailable {
+    max-width: 34rem;
+    margin-inline: auto;
+    padding: var(--space-s);
+    background: var(--color-background-secondary);
+    border: var(--border-width-hairline) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .tweet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .tweet-unavailable {
+    font-size: var(--font-size-sm);
+    font-style: italic;
+    color: var(--color-text-secondary);
+  }
+
+  /* Author */
+
+  .tweet-author {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  .tweet-avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-full);
+  }
+
+  .tweet-identity {
+    flex: 1;
+    /* Without this a long display name refuses to shrink and pushes the icon out. */
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+
+    &:hover .tweet-name {
+      text-decoration: underline;
+    }
+  }
+
+  .tweet-name {
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--leading-snug);
+    color: var(--color-text);
+    /* Display names are user-controlled and can be very long. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tweet-handle {
+    font-size: var(--font-size-sm);
+    line-height: var(--leading-snug);
+    color: var(--color-text-secondary);
+  }
+
+  .tweet-origin {
+    align-self: start;
+    /* astro-icon sizes its SVG in em, so font-size is the knob. */
+    display: flex;
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    transition: color var(--duration-normal) var(--ease-in-out);
+
+    &:hover {
+      color: var(--color-text);
+    }
+  }
+
+  /* Body */
+
+  .tweet-body {
+    text-wrap: pretty;
+    overflow-wrap: break-word;
+    font-size: var(--font-size-sm);
+    line-height: var(--leading-normal);
+    color: var(--color-text);
+
+    a {
+      color: var(--color-accent);
+    }
+  }
+
+  /* Media */
+
+  .tweet-media {
+    display: grid;
+    gap: var(--space-3xs);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* A lone image keeps its own shape; grids get uniform square tiles. */
+    &:not([data-count='1']) {
+      grid-template-columns: 1fr 1fr;
+
+      img {
+        aspect-ratio: 1;
+      }
+    }
+
+    /* Three images: one tall on the left, two stacked on the right. */
+    &[data-count='3'] img:first-child {
+      grid-row: span 2;
+      aspect-ratio: auto;
+    }
+  }
+
+  .tweet-video {
+    position: relative;
+    display: block;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+
+    img {
+      width: 100%;
+    }
+  }
+
+  .tweet-video-badge {
+    position: absolute;
+    inset-block-end: var(--space-2xs);
+    inset-inline-start: var(--space-2xs);
+    padding: var(--space-3xs) var(--space-2xs);
+    border-radius: var(--radius-sm);
+    background: var(--color-charcoal);
+    color: var(--color-beige);
+    font-size: var(--font-size-xs);
+  }
+
+  /* Meta */
+
+  .tweet-meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+
+    a {
+      color: inherit;
+      text-decoration-color: var(--color-border);
+    }
+  }
+</style>
