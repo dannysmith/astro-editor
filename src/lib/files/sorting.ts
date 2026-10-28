@@ -4,6 +4,7 @@
 
 import type { FileEntry } from '@/types'
 import { CompleteSchema, FieldType } from '../schema'
+import { parseIsoDate } from '../dates'
 
 /**
  * Maps semantic field purposes to actual frontmatter field names.
@@ -52,7 +53,7 @@ export interface SortConfig {
  *
  * @param frontmatter - File frontmatter object
  * @param publishedDateField - Field name(s) to check for published date
- * @returns Date object if found and valid, null otherwise
+ * @returns Date object (local midnight for ISO dates) if found and valid, null otherwise
  */
 export function getPublishedDate(
   frontmatter: Record<string, unknown>,
@@ -65,7 +66,11 @@ export function getPublishedDate(
   for (const field of dateFields) {
     const value = frontmatter[field]
     if (value) {
-      const date = new Date(value as string)
+      // ISO dates keep the date as written (like the date picker), because
+      // `new Date('2024-01-15')` is UTC midnight: the previous day west of UTC
+      const date =
+        (typeof value === 'string' && parseIsoDate(value)) ||
+        new Date(value as string)
       if (!isNaN(date.getTime())) {
         return date
       }

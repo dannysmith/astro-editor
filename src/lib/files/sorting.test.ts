@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { getPublishedDate, sortFilesByPublishedDate } from './sorting'
+import { formatIsoDate } from '../dates'
 import type { FileEntry } from '@/types'
 
 const mockMappings = {
@@ -25,7 +26,7 @@ describe('getPublishedDate', () => {
     const frontmatter = { publishedDate: '2024-01-15' }
     const result = getPublishedDate(frontmatter, 'publishedDate')
     expect(result).toBeInstanceOf(Date)
-    expect(result?.toISOString()).toContain('2024-01-15')
+    expect(formatIsoDate(result!)).toBe('2024-01-15')
   })
 
   it('should get date from first matching field in array', () => {
@@ -36,7 +37,7 @@ describe('getPublishedDate', () => {
       'publishedDate',
     ])
     expect(result).toBeInstanceOf(Date)
-    expect(result?.toISOString()).toContain('2024-01-15')
+    expect(formatIsoDate(result!)).toBe('2024-01-15')
   })
 
   it('should try all fields in order when array is provided', () => {
@@ -47,7 +48,7 @@ describe('getPublishedDate', () => {
       'publishedDate',
     ])
     expect(result).toBeInstanceOf(Date)
-    expect(result?.toISOString()).toContain('2024-01-15')
+    expect(formatIsoDate(result!)).toBe('2024-01-15')
   })
 
   it('should return null when field does not exist', () => {
@@ -66,6 +67,36 @@ describe('getPublishedDate', () => {
     const frontmatter = { publishedDate: '2024-01-15T10:30:00Z' }
     const result = getPublishedDate(frontmatter, 'publishedDate')
     expect(result).toBeInstanceOf(Date)
+  })
+
+  it('should handle non-ISO date strings', () => {
+    const frontmatter = { publishedDate: 'January 15, 2024' }
+    const result = getPublishedDate(frontmatter, 'publishedDate')
+    expect(formatIsoDate(result!)).toBe('2024-01-15')
+  })
+
+  describe('in other timezones', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('keeps date-only values on the same day west of UTC', () => {
+      vi.stubEnv('TZ', 'America/New_York')
+      const result = getPublishedDate(
+        { publishedDate: '2024-01-15' },
+        'publishedDate'
+      )
+      expect(formatIsoDate(result!)).toBe('2024-01-15')
+    })
+
+    it('keeps the written date of datetimes east of UTC', () => {
+      vi.stubEnv('TZ', 'Pacific/Auckland')
+      const result = getPublishedDate(
+        { publishedDate: '2024-01-15T23:30:00Z' },
+        'publishedDate'
+      )
+      expect(formatIsoDate(result!)).toBe('2024-01-15')
+    })
   })
 
   it('should handle Date objects', () => {
