@@ -36,7 +36,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
 - **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
 - **No React Hook Form.** Frontmatter fields read and write the store directly (the Direct Store Pattern). Hook Form and Zustand together looped infinitely, and auto-save needs every change in the store at once.
-- **Hooks go in `hooks/`; `lib/` stays free of React** and reads stores only with `getState()`. *(ast-grep)*
+- **Hooks go in `hooks/`; `lib/` stays free of React** and reads stores only with `getState()` (the one exception is `lib/theme-provider.tsx`). *(ast-grep)*
 - **Colours only through the tokens in `src/App.css`.** No Tailwind palette classes or literal colours; tokens use `light-dark()`, so one change covers both themes. See `color-system.md`. *(ast-grep)*
 - **Log through `@tauri-apps/plugin-log`, not `console`.** Release builds strip `console.*`, so it never reaches a user's log. Release builds also log at debug level, so anything that fires per keystroke or per save goes behind `import.meta.env.DEV`. *(Oxlint)*
 - **Keep stateful panels mounted** and hide them instead. Unmounting loses panel sizes, scroll position and editor state.
@@ -121,4 +121,4 @@ In `docs/developer/`. Read the ones for the area you're working in.
 
 ## Tasks
 
-Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date.
+Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date. Known bugs that the docs mention are collected in issue #347 until each is fixed.

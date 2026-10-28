@@ -1,6 +1,6 @@
 # Notes on Editor Typography and Colours
 
-This file manually Compiled by Danny. This document is ONLY to be used for styling the markdown editor itself.
+This file was compiled manually by Danny. This document is ONLY to be used for styling the markdown editor itself.
 
 ## Colour Palette
 

@@ -85,7 +85,7 @@ Gotchas:
 
 ## Troubleshooting
 
-- **Updates fail to download after publishing:** hand-edit the release's `latest.json` so each URL is `https://github.com/dannysmith/astro-editor/releases/download/vX.Y.Z/<file>`. Users whose update failed get it on their next check.
+- **Updates fail to download after publishing:** most likely the API asset URLs (see Auto-updates): the 60-an-hour limit, or an updater that doesn't send the `Accept` header. Hand-edit the release's `latest.json` so each URL is `https://github.com/dannysmith/astro-editor/releases/download/vX.Y.Z/<file>`. Users whose update failed get it on their next check.
 - **Updates don't arrive:** check the release is published, not a draft, and that `pubkey` matches the private key. Then look in the app's log (see the Logs section of `agent-tooling.md`).
 - **Release notes are missing from the dialog:** the API rate limit (above), or an empty release body.
 - **Download links serve an old version:** check the latest published release has the `astro-editor-latest.*` assets. To backfill one, download its installers and run `gh release upload <tag> astro-editor-latest.* SHA256SUMS --clobber`.

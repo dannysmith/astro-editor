@@ -9,7 +9,7 @@ The app should feel like a native macOS app, in the spirit of iA Writer.
 - **Keyboard-first:** every action reachable from the keyboard, with visible focus states.
 - **Subtle motion:** short, quiet transitions; never jarring or decorative.
 - **Consistent spacing** on a 4px/8px grid.
-- **Native materials:** `body` and `#root` stay transparent so the window vibrancy (`windowEffects` in `tauri.macos.conf.json`) shows through; panels paint their own background. Follow the system light/dark appearance.
+- **Native materials:** `body` and `#root` stay transparent so the window vibrancy (`windowEffects` in `tauri.macos.conf.json`) shows through; panels paint their own background. The theme is light, dark or the system's, as the user chooses (see `color-system.md`).
 - **Native interactions:** menus, context menus, file pickers and message dialogs come from Tauri where a native one exists.
 - **Typography:** iA Writer Duo/Mono with system fallbacks; the editor's sizes and measure are specified in `editor-styles.md`.
 
