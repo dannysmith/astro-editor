@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
@@ -111,8 +112,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (autoSaveCallback) {
       await autoSaveCallback(showToast)
     } else {
-      // oxlint-disable-next-line no-console
-      console.warn('saveFile called but no callback registered')
+      void logWarn('saveFile called but no callback registered')
     }
   },
 

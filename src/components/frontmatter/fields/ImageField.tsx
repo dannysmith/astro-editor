@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { debug } from '@tauri-apps/plugin-log'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
 import { useProjectStore } from '../../../store/projectStore'
@@ -80,8 +81,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       const { currentFile: currentFileNow } = useEditorStore.getState()
       if (currentFileNow?.id !== startingFileId) {
         if (import.meta.env.DEV) {
-          // oxlint-disable-next-line no-console
-          console.warn(
+          void debug(
             '[ImageField] File switched during image processing - aborting frontmatter update to prevent data corruption'
           )
         }

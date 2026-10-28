@@ -1,4 +1,5 @@
 import { commands } from '@/lib/bindings'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { useProjectStore } from '../store/projectStore'
 import { toast } from './toast'
 
@@ -21,8 +22,7 @@ export async function openInIde(
     toast.error('Failed to open in IDE', {
       description: result.error,
     })
-    // oxlint-disable-next-line no-console
-    console.error('IDE open failed:', result.error)
+    void logError(`IDE open failed: ${String(result.error)}`)
     return
   }
   toast.success('Opened in IDE')

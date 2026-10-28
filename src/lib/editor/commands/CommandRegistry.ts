@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { EditorCommandRegistry } from './types'
 
 /**
@@ -53,9 +54,10 @@ export class CommandRegistry {
         // For commands that are direct functions
         return (command as (view: EditorView) => boolean)(this.editorView)
       }
-    } catch {
-      // oxlint-disable-next-line no-console
-      console.error(`Failed to execute command ${commandName}`)
+    } catch (error) {
+      void logError(
+        `Failed to execute command ${commandName}: ${String(error)}`
+      )
       return false
     }
   }

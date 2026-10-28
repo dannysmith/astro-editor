@@ -9,6 +9,7 @@ import type {
   MatchRange,
   PosConfig,
 } from './types'
+import { warn as logWarn } from '@tauri-apps/plugin-log'
 
 /**
  * Check if a position is within a code block or frontmatter
@@ -220,12 +221,9 @@ export function processPosType(
       import.meta.env.DEV &&
       (range.from < 0 || range.to > text.length || range.from >= range.to)
     ) {
-      // oxlint-disable-next-line no-console
-      console.warn('[CopyeditMode] Invalid range detected:', {
-        from: range.from,
-        to: range.to,
-        matchText: range.text,
-      })
+      void logWarn(
+        `[CopyeditMode] Invalid range detected: ${JSON.stringify({ from: range.from, to: range.to, matchText: range.text })}`
+      )
     }
   }
 

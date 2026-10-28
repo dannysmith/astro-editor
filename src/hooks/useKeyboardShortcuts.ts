@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEditorStore } from '../store/editorStore'
@@ -131,8 +132,7 @@ export function useKeyboardShortcuts(
         .isFullscreen()
         .then(isFullscreen => tauriWindow.setFullscreen(!isFullscreen))
         .catch(error => {
-          // oxlint-disable-next-line no-console
-          console.error('Failed to toggle fullscreen:', error)
+          void logError(`Failed to toggle fullscreen: ${String(error)}`)
           toast.error('Failed to toggle fullscreen')
         })
     },

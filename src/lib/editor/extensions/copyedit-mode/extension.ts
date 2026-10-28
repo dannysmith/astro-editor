@@ -6,6 +6,7 @@
  */
 
 import { StateField, StateEffect, Transaction } from '@codemirror/state'
+import { error as logError } from '@tauri-apps/plugin-log'
 import type { Range } from '@codemirror/state'
 import {
   EditorView,
@@ -121,9 +122,10 @@ function createPosDecorations(
     // Sort marks by position to ensure proper application
     marks.sort((a, b) => a.from - b.from)
   } catch (error) {
+    // Dev-only: this runs on every document change, so a persistent failure
+    // would flood the log
     if (import.meta.env.DEV) {
-      // oxlint-disable-next-line no-console
-      console.error('[CopyeditMode] Error in NLP processing:', error)
+      void logError(`[CopyeditMode] Error in NLP processing: ${String(error)}`)
     }
   }
 

@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import { commands } from '@/lib/bindings'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { error as logError, info, debug } from '@tauri-apps/plugin-log'
+import {
+  error as logError,
+  info,
+  debug,
+  warn as logWarn,
+} from '@tauri-apps/plugin-log'
 import { toast } from '../lib/toast'
 import { ASTRO_PATHS } from '../lib/constants'
 import { formatErrorForLogging } from '../lib/diagnostics'
@@ -327,11 +332,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             toast.info('Previous project no longer available', {
               description: 'The last opened project could not be found.',
             })
-            // oxlint-disable-next-line no-console
-            console.warn(
-              'Saved project path no longer valid:',
-              projectMetadata.path,
-              error
+            void logWarn(
+              `Saved project path no longer valid: ${projectMetadata.path}: ${String(error)}`
             )
           }
         }
@@ -345,8 +347,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // Ignore errors - localStorage cleanup is optional
       }
     } catch (error) {
-      // oxlint-disable-next-line no-console
-      console.warn('Failed to load persisted project:', error)
+      void logWarn(`Failed to load persisted project: ${String(error)}`)
     }
   },
 

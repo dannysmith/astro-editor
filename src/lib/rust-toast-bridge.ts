@@ -1,4 +1,5 @@
 import { listen } from '@tauri-apps/api/event'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { toast } from './toast'
 
 /**
@@ -65,8 +66,7 @@ export const initializeRustToastBridge = async () => {
     // Return cleanup function
     return unlisten
   } catch (error) {
-    // oxlint-disable-next-line no-console
-    console.error('Failed to initialize Rust toast bridge:', error)
+    void logError(`Failed to initialize Rust toast bridge: ${String(error)}`)
     return () => {} // Return empty cleanup function
   }
 }

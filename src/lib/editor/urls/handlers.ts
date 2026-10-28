@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { findUrlsInText } from './detection'
 
@@ -29,8 +30,7 @@ export const handleUrlClick = async (
     await openPath(clickedUrl.url)
     return true // Prevent default click behavior
   } catch (error) {
-    // oxlint-disable-next-line no-console
-    console.error('Failed to open URL:', error)
+    void logError(`Failed to open URL: ${String(error)}`)
     return false
   }
 }

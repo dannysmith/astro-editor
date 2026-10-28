@@ -1,4 +1,5 @@
 import React from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { commands } from '@/lib/bindings'
 import { slugFromTitle } from '@/lib/slug'
 
@@ -23,8 +24,7 @@ export const CopyAsSlugLink: React.FC<CopyAsSlugLinkProps> = ({ text }) => {
           throw new Error(result.error)
         }
       } catch (error) {
-        // oxlint-disable-next-line no-console
-        console.error('Failed to copy slug:', error)
+        void logError(`Failed to copy slug: ${String(error)}`)
       }
     })()
   }

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -74,8 +75,9 @@ export const CollectionSettingsPane: React.FC = () => {
             fieldsMap.set(collection.name, schema.fields)
           }
         } catch (error) {
-          // oxlint-disable-next-line no-console
-          console.warn(`Failed to parse schema for ${collection.name}:`, error)
+          void logWarn(
+            `Failed to parse schema for ${collection.name}: ${String(error)}`
+          )
         }
       }
     })

@@ -1,5 +1,9 @@
 import { useCallback } from 'react'
-import { info, error as logError } from '@tauri-apps/plugin-log'
+import {
+  info,
+  error as logError,
+  warn as logWarn,
+} from '@tauri-apps/plugin-log'
 import { useQueryClient } from '@tanstack/react-query'
 import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
@@ -110,8 +114,7 @@ export function useEditorActions() {
               schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
             }
           } catch (error) {
-            // oxlint-disable-next-line no-console
-            console.warn('Could not get schema field order:', error)
+            void logWarn(`Could not get schema field order: ${String(error)}`)
           }
         }
 

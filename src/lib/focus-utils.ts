@@ -2,6 +2,8 @@
  * Focus management utilities
  */
 
+import { warn as logWarn } from '@tauri-apps/plugin-log'
+
 /**
  * Focuses the main editor if it's visible and available
  * Returns true if focus was successfully set, false otherwise
@@ -30,8 +32,7 @@ export function focusEditor(): boolean {
 
     return false
   } catch (error) {
-    // oxlint-disable-next-line no-console
-    console.warn('Failed to focus editor:', error)
+    void logWarn(`Failed to focus editor: ${String(error)}`)
     return false
   }
 }

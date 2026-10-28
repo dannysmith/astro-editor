@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
@@ -216,11 +217,9 @@ const EditorViewComponent: React.FC = () => {
           void handleTauriFileDrop(event.payload, view)
         })
       } catch (error) {
-        // Ignore errors in setting up Tauri listeners
-        if (import.meta.env.DEV) {
-          // oxlint-disable-next-line no-console
-          console.error('Failed to setup Tauri drag-drop listener:', error)
-        }
+        void logError(
+          `Failed to setup Tauri drag-drop listener: ${String(error)}`
+        )
       }
     }
     void setupTauriListeners()

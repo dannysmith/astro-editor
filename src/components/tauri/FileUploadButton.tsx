@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { debug, error as logError } from '@tauri-apps/plugin-log'
 import { open } from '@tauri-apps/plugin-dialog'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { Button } from '../ui/button'
@@ -136,10 +137,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
       // Call the callback with the selected file path
       await onFileSelectRef.current(selected)
     } catch (error) {
-      if (import.meta.env.DEV) {
-        // oxlint-disable-next-line no-console
-        console.error('File selection error:', error)
-      }
+      void logError(`File selection error: ${String(error)}`)
     } finally {
       setIsProcessing(false)
     }
@@ -153,13 +151,6 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
         const unlisten = await listen<FileDropPayload>(
           'tauri://drag-drop',
           event => {
-            if (import.meta.env.DEV) {
-              // oxlint-disable-next-line no-console
-              console.log(
-                `[FileUploadButton] Drag-drop event received, disabled: ${disabledRef.current}, isProcessing: ${isProcessingRef.current}`
-              )
-            }
-
             const payload = event.payload
             const paths = payload.paths || []
             const position = payload.position
@@ -191,8 +182,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
                 globalDragDropTracker.THRESHOLD_MS
             ) {
               if (import.meta.env.DEV) {
-                // oxlint-disable-next-line no-console
-                console.log(
+                void debug(
                   `[FileUploadButton] BLOCKED duplicate drag-drop event for: ${filePath} (${now - globalDragDropTracker.lastTime}ms ago)`
                 )
               }
@@ -203,21 +193,8 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
             globalDragDropTracker.lastFile = filePath
             globalDragDropTracker.lastTime = now
 
-            if (import.meta.env.DEV) {
-              // oxlint-disable-next-line no-console
-              console.log(
-                `[FileUploadButton] Processing file drop: ${filePath}`
-              )
-            }
-
             // Prevent concurrent operations on THIS button
             if (disabledRef.current || isProcessingRef.current) {
-              if (import.meta.env.DEV) {
-                // oxlint-disable-next-line no-console
-                console.log(
-                  '[FileUploadButton] Ignoring event - button disabled or processing'
-                )
-              }
               return
             }
 
@@ -225,8 +202,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
             if (!isExtensionAccepted(filePath, accept)) {
               if (import.meta.env.DEV) {
                 const extension = getFileExtension(filePath) ?? 'unknown'
-                // oxlint-disable-next-line no-console
-                console.warn(
+                void debug(
                   `File type .${extension} not accepted. Expected: ${accept.join(', ')}`
                 )
               }
@@ -245,10 +221,7 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
 
         unlistenRef.current = unlisten
       } catch (error) {
-        if (import.meta.env.DEV) {
-          // oxlint-disable-next-line no-console
-          console.error('Failed to setup drag-drop listener:', error)
-        }
+        void logError(`Failed to setup drag-drop listener: ${String(error)}`)
       }
     }
 
