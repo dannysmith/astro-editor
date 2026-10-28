@@ -129,14 +129,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateFrontmatterField: (key: string, value: unknown) => {
     const { frontmatter } = get()
 
-    // Check if value is empty
+    // Clearing a field removes its key (and any parent objects left empty)
+    // rather than writing `title: ''` or `tags: []` into the file
     const isEmpty =
       value === null ||
       value === undefined ||
       value === '' ||
       (Array.isArray(value) && value.length === 0)
 
-    // Handle nested paths (dot notation) for nested objects
+    // Keys are dot paths for nested objects (`coverImage.alt`), matching the
+    // flattened field names in the schema
     const newFrontmatter = isEmpty
       ? deleteNestedValue(frontmatter, key)
       : setNestedValue(frontmatter, key, value)

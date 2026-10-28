@@ -11,6 +11,8 @@ import { toast } from '../lib/toast'
 import { useEditorActions } from './editor/useEditorActions'
 import { usePlatform } from './usePlatform'
 
+// App shortcuts must work while typing: the editor is a contenteditable and the
+// frontmatter fields are inputs, and react-hotkeys-hook ignores both by default.
 const DEFAULT_HOTKEY_OPTS = {
   preventDefault: true,
   enableOnFormTags: true,
@@ -18,10 +20,10 @@ const DEFAULT_HOTKEY_OPTS = {
 }
 
 /**
- * Registers all keyboard shortcuts for the application.
+ * Registers the app-wide keyboard shortcuts. Editor-only shortcuts are
+ * CodeMirror keymaps in lib/editor/extensions/keymap.ts.
  *
- * Uses direct hook calls (useEditorActions) for consistency with the
- * Hybrid Action Hooks pattern established in Task 1.
+ * Saving goes through useEditorActions (the Hybrid Action Hooks pattern).
  */
 export function useKeyboardShortcuts(
   onOpenPreferences: (open: boolean) => void

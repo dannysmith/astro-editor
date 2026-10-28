@@ -30,7 +30,7 @@ export default defineConfig(async () => ({
   // Build optimizations
   build: {
     sourcemap: false, // Disable source maps in production
-    minify: 'terser', // Use terser for minification
+    minify: 'terser', // Needs `terser` as a direct devDependency: it's optional in Vite
     terserOptions: {
       compress: {
         drop_console: true, // Remove console logs in production

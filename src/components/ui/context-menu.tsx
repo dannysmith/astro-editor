@@ -1,3 +1,8 @@
+/**
+ * Native right-click menu for files in the sidebar, built with Tauri's menu
+ * API. This isn't shadcn's ContextMenu, so don't `shadcn add context-menu`
+ * over it.
+ */
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { LogicalPosition } from '@tauri-apps/api/dpi'

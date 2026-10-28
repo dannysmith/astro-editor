@@ -1106,7 +1106,10 @@ pub async fn resolve_image_path(
         project_root_path.join(&image_path)
     };
 
-    // Validate the path is within project bounds and exists
+    // Validate the path is within project bounds and exists. The asset protocol scope
+    // in `tauri.conf.json` is `**`, because projects can live anywhere on disk, so this
+    // check is the only thing keeping image lookups (and the `asset:` URLs built from
+    // them) inside the project.
     let validated_path =
         validate_project_path(absolute_path.to_string_lossy().as_ref(), &project_root)?;
 

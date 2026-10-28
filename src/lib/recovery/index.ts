@@ -1,3 +1,10 @@
+/**
+ * Fallback dumps for failed saves. When a save throws, `useEditorActions`
+ * writes the unsaved content to `recovery/` and an error report to
+ * `crash-reports/` in the app data folder. This isn't crash recovery: nothing
+ * is written on a real crash, and nothing restores or cleans up these files.
+ */
+
 import { info, error as logError } from '@tauri-apps/plugin-log'
 import { commands, type JsonValue } from '@/types'
 import type { RecoveryData, CrashReport } from './types'

@@ -51,7 +51,11 @@ export function useCommandPalette() {
     }
   )
 
-  // Get all available commands based on current context
+  // Get all available commands based on current context.
+  // The dependency list is hand-maintained: primitive fields only, so the list
+  // isn't rebuilt on every render. A command whose isAvailable or label reads
+  // a context field that isn't listed here goes stale until something else
+  // changes, so add that field when adding such a command.
   const commands = useMemo(
     () => getAllCommands(context),
     // oxlint-disable-next-line react-hooks/exhaustive-deps

@@ -77,6 +77,16 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     // oxlint-disable-next-line react-hooks/preserve-manual-memoization
   }, [isArrayReference, isComplexArray, fieldType, hasFieldSchema, fieldValue])
 
+  // Routing order matters: the first match wins.
+  // - Array references come before complex arrays, which would otherwise send
+  //   them to YamlField. An array of references whose collection the Zod parser
+  //   didn't find has no subReference, so it still ends up there.
+  // - Arrays of anything but strings and numbers (dates, objects, images) use YamlField.
+  // - Every typed check runs before the title and description mappings, so those
+  //   textareas only replace plain string fields.
+  // - Fields with no schema are strings, except string arrays, which are
+  //   inferred from the value.
+
   // Handle boolean fields
   if (
     fieldType === (FieldType.Boolean as string) ||
