@@ -75,12 +75,14 @@ Each its own commit.
 - [x] ImageField's error toast dispatched a DOM event nothing listened for; it now uses the toast helper
 - [x] `no-destructure-zustand` no longer flags destructuring a `useShallow` selector
 - [x] Fix the Rust example in `rust-toast-bridge.ts`'s header comment
+- [x] Switching files lost edits typed within the auto-save delay (`openFile` cancelled the save); it now saves first, and `saveFile` leaves the new file's state alone if it finishes or fails after a switch
+- [x] CodeRabbit review: typed hook declarations in `hooks-in-hooks-dir`, the Zod-only fallback in `parser.rs`'s header, fire-and-forget logging on the save-failure path, and palette commands rebuilt when collection names change
 
 The larger findings (schema parsing gaps with Zod 4, project settings bugs, React Compiler bailouts, double-bound shortcuts, command palette bugs) are in #347 and its comments. PR: #348.
 
 ### 4. Check it cold
 
-- [ ] A fresh agent that hasn't seen the old docs reads only the new AGENTS.md and docs, and answers questions drawn from the inventory, e.g.:
+- [x] A fresh agent that hasn't seen the old docs reads only the new AGENTS.md and docs, and answers questions drawn from the inventory, e.g.:
   - why can't frontmatter fields use React Hook Form?
   - what breaks if two `@lezer/common` versions get installed?
   - how does auto-save avoid data loss?
@@ -88,4 +90,6 @@ The larger findings (schema parsing gaps with Zod 4, project settings bugs, Reac
   - where do I change a colour, and how do I make it different in dark mode?
 
   Anything it gets wrong or can't find is a gap to fix.
-- [ ] Delete `docs/tasks-todo/temporary/docs-inventory.md`
+
+  Done with 24 questions: all answered correctly from the docs alone. The gaps it found (the cause behind the broken-update fix, #347 as the bug list, the `theme-provider` exception in AGENTS.md, the theme being the user's choice) are fixed. Its question about unsaved edits on switching files turned up a data-loss bug, now fixed; quitting with unsaved edits is in #347. What Zod 3 emits for nullable fields is still undocumented (no Astro 5 install to check against).
+- [x] Delete `docs/tasks-todo/temporary/docs-inventory.md` (and the rest of `temporary/`, all from finished tasks)
