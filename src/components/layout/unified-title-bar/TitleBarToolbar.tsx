@@ -69,6 +69,9 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   return (
     <div
       className={cn(
+        // transform-gpu gives the toolbar its own compositing layer. Without it,
+        // WebKit doesn't fade the children with the opacity transition: they stay
+        // visible, then vanish at once
         'w-full flex items-center justify-between px-3 py-1.5 select-none border-b transition-opacity duration-300 transform-gpu',
         bothPanelsHidden
           ? 'bg-editor-background border-transparent'

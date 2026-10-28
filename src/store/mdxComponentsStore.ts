@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { commands, type MdxComponent } from '@/types'
 
 interface MdxComponentsState {
@@ -28,8 +29,7 @@ export const useMdxComponentsStore = create<MdxComponentsState>(set => ({
 
       set({ components: result.data, isLoading: false })
     } catch (error) {
-      // oxlint-disable-next-line no-console
-      console.error('Failed to load MDX components:', error)
+      void logError(`Failed to load MDX components: ${String(error)}`)
       set({
         error:
           error instanceof Error

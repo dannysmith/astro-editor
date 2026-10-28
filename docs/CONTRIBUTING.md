@@ -1,105 +1,37 @@
 # Contributing to Astro Editor
 
-This document provides guidelines and information for contributors.
+Bug reports, feature requests and pull requests are welcome. Before building a feature, check it fits the [product philosophy](https://astroeditor.danny.is/getting-started/philosophy/): Astro Editor is for writing and editing, and leaves code, git and publishing to other tools. Opening an issue first is the best way to check.
 
-## Getting Started
+## Setup
 
-### Prerequisites
+You'll need:
 
-- Node.js (current LTS) and bun
-- Rust 1.70+
-- macOS development environment (for Tauri)
+- macOS (the supported platform; Windows and Linux builds work but aren't officially supported)
+- [bun](https://bun.sh)
+- Node.js (current LTS), which Vitest and the Tauri CLI run on
+- Rust (current stable) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-### Setup
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   bun install
-   ```
-3. Start development server:
-   ```bash
-   bun run dev
-   ```
-
-## Development Workflow
-
-### Before Making Changes
-
-1. Read `docs/developer/architecture-guide.md` for core patterns
-2. Check `docs/tasks-todo/` for current work
-3. Review existing code for established patterns
-
-### Code Quality
-
-Always run before committing:
+Then:
 
 ```bash
-bun run check:all  # TypeScript + Rust + tests
-bun run fix:all    # Auto-fix issues
+bun install
+bun run reset:testdata  # creates temp-dummy-astro-project, a test Astro project
+bun run tauri:dev       # runs the app
 ```
 
-### Key Patterns
+Open `temp-dummy-astro-project` in the app to try things out.
 
-- **State**: TanStack Query for server state, Zustand for client state, useState for local UI
-- **Forms**: Use Direct Store Pattern (not React Hook Form)
-- **Code extraction**: Move complex logic to `lib/` modules with tests
-- **Performance**: Use `getState()` in callbacks to avoid render cascades
+## Making changes
 
-See `docs/developer/architecture-guide.md` for detailed patterns.
+- Read the Rules and Where things live sections of `AGENTS.md` at the repo root (the rest is for AI agents), then `docs/developer/architecture-guide.md` and the doc for the area you're changing. The rules apply to human contributors too.
+- Add tests for logic in `lib/` and for anything that's easy to break.
+- If your change adds a pattern or makes a doc wrong, update `docs/developer/`.
+- Run `bun run check:all` before opening a pull request, and fix anything it reports (`bun run fix:all` handles formatting and simple lint fixes).
 
-### Technology Stack
+## Pull requests
 
-- **Framework:** Tauri v2 (Rust + React)
-- **Frontend:** React 19 + TypeScript
-- **State:** TanStack Query v5 + Zustand v5
-- **Styling:** Tailwind v4 + shadcn/ui
-- **Editor:** CodeMirror 6
-- **Testing:** Vitest + React Testing Library
+Branch from `main`, keep each pull request to one change, and describe the problem it solves before how it solves it. CI only runs on pull requests with the `ci` label, which a maintainer adds, so run `check:all` locally first.
 
-## Pull Request Process
+## Licence
 
-1. Create a feature branch from `main`
-2. Make your changes following the established patterns
-3. Run `bun run check:all` and ensure all checks pass
-4. Write or update tests as needed
-5. Update documentation if you're adding new patterns
-6. Submit a pull request with a clear description
-
-## Code Style
-
-**TypeScript/React:**
-- Strict TypeScript enabled
-- Direct Store Pattern for forms (not React Hook Form)
-- Functional components with hooks
-- `kebab-case` directories, `PascalCase` files
-
-**Rust:**
-- Modern formatting: `format!("{variable}")`
-- Follow Clippy recommendations
-- Tauri v2 APIs only
-
-## Testing
-
-Write tests for:
-- Business logic in `lib/` modules (unit tests)
-- User workflows (integration tests)
-- Complex field components (component tests)
-
-Use Vitest + React Testing Library.
-
-## Documentation
-
-- Update `docs/developer/architecture-guide.md` when adding new patterns
-- Document public APIs with JSDoc
-- Keep `CLAUDE.md` current for major architectural changes
-
-## Questions?
-
-- Check existing documentation in `/docs/developer/`
-- Review similar patterns in the codebase
-- Open an issue for architectural questions
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the same license as the project.
+By contributing, you agree that your contributions will be licensed under the project's licence (AGPL-3.0-or-later).

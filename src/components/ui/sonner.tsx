@@ -1,6 +1,10 @@
 import { useTheme } from '../../lib/theme-provider'
 import { Toaster as Sonner, ToasterProps } from 'sonner'
 
+// Uses the app's own theme provider, not the next-themes package shadcn's
+// version imports. Re-running `shadcn add sonner` would bring next-themes back.
+// Show toasts with `toast` from @/lib/toast, not from sonner directly.
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme()
 

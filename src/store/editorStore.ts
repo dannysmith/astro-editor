@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
@@ -51,11 +52,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Actions
   openFile: (file: FileEntry) => {
+    const { autoSaveTimeoutId, autoSaveCallback, currentFile, isDirty } = get()
+
+    // Re-opening the open file would reload it from disk over unsaved edits
+    if (isDirty && currentFile?.id === file.id) return
+
     // Clear auto-save timeout if it exists to prevent race condition
     // where previous file's auto-save could fire after opening new file
-    const { autoSaveTimeoutId } = get()
     if (autoSaveTimeoutId) {
       clearTimeout(autoSaveTimeoutId)
+    }
+
+    // Save unsaved edits before switching, or they're lost. saveFile reads the
+    // store synchronously when it starts, so it captures the outgoing file
+    // before the set() below replaces it
+    if (isDirty && autoSaveCallback) {
+      void autoSaveCallback(false)
     }
 
     // CRITICAL: Clear content FIRST, then set currentFile
@@ -111,8 +123,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (autoSaveCallback) {
       await autoSaveCallback(showToast)
     } else {
-      // oxlint-disable-next-line no-console
-      console.warn('saveFile called but no callback registered')
+      void logWarn('saveFile called but no callback registered')
     }
   },
 
@@ -129,14 +140,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateFrontmatterField: (key: string, value: unknown) => {
     const { frontmatter } = get()
 
-    // Check if value is empty
+    // Clearing a field removes its key (and any parent objects left empty)
+    // rather than writing `title: ''` or `tags: []` into the file
     const isEmpty =
       value === null ||
       value === undefined ||
       value === '' ||
       (Array.isArray(value) && value.length === 0)
 
-    // Handle nested paths (dot notation) for nested objects
+    // Keys are dot paths for nested objects (`coverImage.alt`), matching the
+    // flattened field names in the schema
     const newFrontmatter = isEmpty
       ? deleteNestedValue(frontmatter, key)
       : setNestedValue(frontmatter, key, value)

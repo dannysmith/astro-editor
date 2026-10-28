@@ -1,6 +1,6 @@
 # Notes on Editor Typography and Colours
 
-This file manually Compiled by Danny. This document is ONLY to be used for styling the markdown editor itself.
+This file was compiled manually by Danny. This document is ONLY to be used for styling the markdown editor itself.
 
 ## Colour Palette
 
@@ -28,7 +28,6 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 --color-green: rgba(66, 131, 44, 1);
 --color-codeblock-background: rgba(238, 238, 238, 1);
 --color-selectedtext-background: rgba(185, 234, 250, 1);
---color-focusmodeunfocussed-text: rgba(199, 196, 194, 1);
 
 --color-highlight-background: rgba(
   252,
@@ -54,7 +53,6 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 --color-green: rgba(131, 165, 115, 1);
 --color-codeblock-background: rgba(37, 37, 37, 1);
 --color-selectedtext-background: rgba(20, 68, 84, 1);
---color-focusmodeunfocussed-text: rgba(112, 112, 112, 1);
 
 --color-highlight-background: rgba(68, 59, 15, 1); /* Unused - for the future */
 --color-highlight-underline: rgba(214, 176, 0, 1); /* Unused - for the future */
@@ -63,7 +61,7 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 
 ## Break Points
 
-## Typpography - Common
+## Typography - Common
 
 ### Base
 
@@ -152,7 +150,7 @@ Content Width: 980px
 ### Base
 
 Editor Pane Background: --color-background
-All MArkdown not otherwise coloured: --color-text
+All Markdown not otherwise coloured: --color-text
 
 ### Markdown Images and Links
 
@@ -180,4 +178,4 @@ All MArkdown not otherwise coloured: --color-text
 ### Carat and Selection
 
 - Carat: --color-carat
-- Selected Text: --color-selectedtext
+- Selected Text: --color-selectedtext-background

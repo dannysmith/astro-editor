@@ -2,11 +2,13 @@ ruleDirs:
   - ./.ast-grep/rules
 
 # Parse .ts as tsx too: tsx is a superset, and the typescript grammar can't
-# read JSX, so rules wouldn't see className strings
+# read JSX, so rules wouldn't see className strings. The globs can't take a
+# path prefix: with `src/**/*.ts`, ast-grep 0.51 parsed .ts files as
+# typescript, so tsx rules silently skipped them
 languageGlobs:
   tsx:
-    - 'src/**/*.ts'
-    - 'src/**/*.tsx'
+    - '**/*.ts'
+    - '**/*.tsx'
 
 # Configure output format
 output:

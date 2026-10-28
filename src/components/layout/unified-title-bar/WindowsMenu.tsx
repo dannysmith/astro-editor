@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { MoreHorizontal } from 'lucide-react'
 import { emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -77,8 +78,7 @@ export const WindowsMenu: React.FC = () => {
       const isFullscreen = await window.isFullscreen()
       await window.setFullscreen(!isFullscreen)
     } catch (error) {
-      // oxlint-disable-next-line no-console
-      console.error('Failed to toggle fullscreen:', error)
+      void logError(`Failed to toggle fullscreen: ${String(error)}`)
       toast.error('Failed to toggle fullscreen')
     }
   }

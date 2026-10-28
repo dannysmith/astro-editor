@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
+import { debug } from '@tauri-apps/plugin-log'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
+import { toast } from '../../../lib/toast'
 import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
 import { ImageThumbnail } from './ImageThumbnail'
@@ -80,8 +82,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       const { currentFile: currentFileNow } = useEditorStore.getState()
       if (currentFileNow?.id !== startingFileId) {
         if (import.meta.env.DEV) {
-          // oxlint-disable-next-line no-console
-          console.warn(
+          void debug(
             '[ImageField] File switched during image processing - aborting frontmatter update to prevent data corruption'
           )
         }
@@ -91,17 +92,9 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       // Update frontmatter with path
       updateFrontmatterField(name, result.relativePath)
     } catch (error) {
-      // Show error toast (component-specific UI concern)
-      window.dispatchEvent(
-        new CustomEvent('toast', {
-          detail: {
-            title: 'Failed to add image',
-            description:
-              error instanceof Error ? error.message : 'Unknown error',
-            variant: 'destructive',
-          },
-        })
-      )
+      toast.error('Failed to add image', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
     } finally {
       setIsLoading(false)
     }

@@ -1,250 +1,91 @@
-# Release Process Guide
+# Releases
 
-This document explains how to create releases for Astro Editor and how the release infrastructure works.
+Releases are built by GitHub Actions from a version tag, left as a draft, and published by hand. Installers live only as GitHub Release assets, and the app updates itself from the release's `latest.json`.
 
-## Creating a Release
+## Cutting a release
 
-### Step 1: Prepare the Release
+1. On an up-to-date `main`, run `bun run prepare-release` (or `bun run prepare-release v2.0.0` to skip the prompt). It refuses a dirty working tree, proposes a patch bump, runs `check:all`, sets the version in `package.json`, `Cargo.toml` and `tauri.conf.json`, runs `bun install` and `cargo check`, then offers to make a GPG-signed commit, tag it and push.
+2. Pushing the `v*` tag starts `release.yml`. When it finishes, a draft release is waiting under GitHub → Releases.
+3. Write the release notes in the draft and publish it. Publishing makes `latest.json` public, so existing users get the update, and fires `publish-release-notes.yml`, which adds the notes to the website.
 
-```bash
-# Ensure you're on main branch and up to date
-git checkout main
-git pull origin main
+Always use the script, so the three version numbers and the tag match.
 
-# Run the prepare-release script
-bun run prepare-release
-```
+## Workflows
 
-The script will:
+### `release.yml`: build and draft
 
-1. Read the current version from `package.json`
-2. Propose a patch bump (e.g., `1.0.8` → `1.0.9`)
-3. Prompt for confirmation — press Enter to accept, or type a different version
-4. Run `check:all` to verify everything passes
-5. Update version in `package.json`, `Cargo.toml`, and `tauri.conf.json`
-6. Run `bun install` to update the lockfile
-7. Run a final `cargo check`
-8. Optionally execute the git commands for you (commit, tag, push)
+Runs on a `v*` tag push. Three jobs in sequence:
 
-You can also pass a version directly to skip the prompt:
+- **`create-release`** makes one empty draft up front and passes its `release_id` to the build jobs. If each matrix job found or created the release itself, a tauri-action race ([tauri-action#914](https://github.com/tauri-apps/tauri-action/issues/914)) can split the assets across several drafts, each with an incomplete `latest.json`.
+- **`publish-tauri`** builds macOS (universal `.dmg` plus the `.app.tar.gz` updater artifact), Windows (`.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`) in parallel. Each job uploads to the shared draft and merges its platform's entries into `latest.json`.
+- **`publish-stable-assets`** adds stable-named copies (`astro-editor-latest.dmg`, `.msi`, `.AppImage`, `.deb`, `.rpm`) and a `SHA256SUMS` covering both sets of names. The website links to `/releases/latest/download/astro-editor-latest.*`, which always resolves to the newest published release, so the site never changes per release.
 
-```bash
-bun run prepare-release v2.0.0
-```
+Release builds have no Rust cache and always build cold. They couldn't restore `ci.yml`'s cache anyway (different job id, env vars and profile), and a tag-scoped cache is never read again.
 
-### Step 2: Publish the Draft Release
+**Installers are never committed.** Committed installers once bloated `.git` to about 650 MB, and Git LFS doesn't help because GitHub Pages serves the pointer files instead of the binaries.
 
-After pushing the tag, the build workflow runs automatically:
+### `ci.yml`: build check
 
-1. Go to **GitHub → Actions** and watch the "Release Astro Editor" workflow
-2. Once complete, go to **GitHub → Releases** — a draft release will be waiting
-3. **Edit the draft** — write release notes describing the changes
-4. Click **Publish release**
+Runs on pushes to `main`, on a PR while it has the `ci` label, and by manual dispatch. Changes only to `docs/`, `website/` or top-level `*.md` don't trigger it.
 
-Publishing the release makes the updater (`latest.json`) available to existing users.
+- **`checks`** runs `bun run check:all` on Ubuntu.
+- **`build`** runs `tauri build` on each platform without Apple signing or a release. It builds native arm64 only on macOS and turns off LTO and allows 16 codegen units through `CARGO_PROFILE_RELEASE_*`, to save time. It doesn't use `--debug`, which would compile dev-only code such as the agent bridge.
+- **Only `main` saves the Rust cache.** A PR can restore caches from its own branch and from `main`, not from other PRs, so this gives every PR a warm cache without filling the 10 GB repo limit.
+- **Dependabot's pushes run without repo secrets,** so a labelled Dependabot PR fails at updater signing. That's expected.
 
-Publishing also fires `publish-release-notes.yml`, which automatically turns the release notes you just wrote into a page in the website's Releases section (see [Workflow Architecture](#workflow-architecture)). You don't need to edit the site by hand.
+### `publish-release-notes.yml` and `deploy-website.yml`
 
-**Download links** need no per-release update: the download buttons link to stable GitHub Release URLs (`/releases/latest/download/astro-editor-latest.*`) that always resolve to the newest published release. Installers are **never committed to the repo** — they live only as GitHub Release assets.
+Publishing a release runs `website/scripts/generate-release-pages.ts --all`, which turns each release body into `website/src/content/docs/releases/<version>.mdx` (skipping releases that already have a page, so reruns are safe), commits it to `main`, and dispatches `deploy-website.yml`. The dispatch is explicit because a push made with `GITHUB_TOKEN` doesn't trigger other workflows. `deploy-website.yml` otherwise runs on changes to `website/**` on `main`.
 
-## Workflow Architecture
+### Tooling notes
 
-### `release.yml` — Build & Draft
+- **Bun installs, Node runs.** Vitest and the Tauri CLI run on Node, so both workflows keep `setup-node`.
+- **tauri-action picks the package manager from the lockfile and checks for `pnpm-lock.yaml` before `bun.lock`.** A stray pnpm lockfile switches the build back to pnpm.
 
-Triggered by tag push (`v*`). Three jobs run in sequence:
+## Auto-updates
 
-1. `create-release` creates a single empty **draft** GitHub Release for the tag up front and outputs its `release_id`. Creating the release in one place rather than letting each matrix job find-or-create it avoids a tauri-action race ([#914](https://github.com/tauri-apps/tauri-action/issues/914)) where parallel jobs ending at exactly the same time can create seperate draft releases.
-2. `publish-tauri` (matrix) builds every platform in parallel and uploads its bundles to the shared draft release using `release_id`:
-   - **macOS** — universal `.dmg` (plus the `.app.tar.gz` updater artifact)
-   - **Windows** — `.msi`
-   - **Linux** — `.AppImage`, `.deb`, and `.rpm`
+The updater plugin fetches `https://github.com/dannysmith/astro-editor/releases/latest/download/latest.json` (`plugins.updater` in `tauri.conf.json`). Draft releases don't serve it, so nothing reaches users until you publish.
 
-   Each job merges its platform's entries into the release's `latest.json`, so the final manifest carries every platform's download URL + signature.
-3. `publish-stable-assets` downloads the draft's installers and adds, to the same draft Release:
-   - **Stable-named copies** (`astro-editor-latest.dmg` / `.msi` / `.AppImage` / `.deb` / `.rpm`) so the website can link to permanent `/releases/latest/download/...` URLs.
-   - A **`SHA256SUMS`** file covering both the versioned installers and the stable-named copies.
+- **`latest.json` points at GitHub API asset URLs.** tauri-action writes download URLs as `https://api.github.com/repos/dannysmith/astro-editor/releases/assets/{id}`, not `/releases/download/vX/<file>`. They only return the file with `Accept: application/octet-stream`, which every shipped version of the updater plugin sends, and each download counts against GitHub's unauthenticated API limit of 60 requests an hour per IP.
+- **Release notes come from the GitHub API, not `latest.json`.** `latest.json`'s `notes` is whatever the draft said at build time. `fetch_release_notes` (`src-tauri/src/commands/updater.rs`) fetches the published notes when the dialog opens, combining every release between the installed and the new version. The dialog works without them.
+- **When it checks:** 5 seconds after launch, unless the user skipped that version (stored in `localStorage`). "Check for Updates…" in the app menu always shows the dialog. Dev builds skip the automatic check.
 
-The release is left as a **draft** for you to publish by hand (see [Publish the Draft Release](#step-2-publish-the-draft-release)). `release.yml` itself does **not** touch the website or commit anything to the repo.
+To test an update, install a published release, publish a newer one, and launch the installed app.
 
-Release builds don't use a Rust cache, so they always build cold. They couldn't reuse `ci.yml`'s cache anyway: the cache key includes the job id and `CARGO*`/`RUST*` env vars, and CI builds with a different profile.
+### Linux
 
-### `ci.yml` — Build Check
+`latest.json` carries a generic `linux-x86_64` key plus `linux-x86_64-appimage`, `-deb` and `-rpm`. An installed app updates from the key for its own format.
 
-Runs on every push to a PR while it has the `ci` label (removing the label stops it), on pushes to `main`, and by manual dispatch. Changes only to `docs/`, `website/` or top-level `*.md` files don't trigger it, since nothing in CI checks them.
+- **AppImage** bundles its own WebKit and replaces itself in place, like macOS and Windows.
+- **`.deb` and `.rpm`** depend on the system WebKitGTK and can't replace themselves. The updater installs the new package with `dpkg -i` or `rpm -U` through `pkexec` or `sudo`, so users get a password prompt on every update. It can fail where there's no polkit agent, and the package database's record can drift from what `apt` or `dnf` expect ([tauri#4573](https://github.com/tauri-apps/tauri/issues/4573)). We don't sign the packages or run a repository; integrity comes from the updater's minisign signatures. These trade-offs are accepted while Linux is in beta.
 
-- `checks` runs `bun run check:all` on Ubuntu.
-- `build` (matrix) runs `tauri build` on each platform without signing or a release. To save time it builds only native arm64 on macOS (releases build universal) and turns off LTO through `CARGO_PROFILE_RELEASE_*` env vars. It doesn't use `--debug`, which would compile dev-only code such as the agent bridge.
+Danny has no Linux machine, so:
 
-Only `main` saves the Rust cache. GitHub lets a PR restore caches from its own branch and from `main`, but not from other PRs, so this gives every PR a warm cache without filling the 10 GB repo limit. A PR that changes `Cargo.lock` rebuilds the changed crates on every push. Caches unused for 7 days are evicted, so the first run after a quiet stretch builds cold.
-
-Dependabot's own pushes run without repo secrets, so a Dependabot PR with the `ci` label fails at updater signing.
-
-### `publish-release-notes.yml` — Release Notes → Website
-
-Triggered when a GitHub Release is **published** (or via manual dispatch). It adds the release's notes to the website's Releases section:
-
-1. Runs `website/scripts/generate-release-pages.ts --all`, which fetches releases via the `gh` CLI, sanitises each body for MDX (strips the duplicate H2 title, the "Installation Instructions" boilerplate, and "Full Changelog" links; escapes curly braces outside code), downloads any inline GitHub attachment images into `website/public/releases/`, and writes `website/src/content/docs/releases/<version>.mdx`. Releases that already have a page are **skipped**, so re-runs and manual dispatches are safe no-ops.
-2. Commits the new page (and images) and pushes to `main` as the `github-actions[bot]`.
-3. Dispatches `deploy-website.yml` to rebuild the site. (A push made with `GITHUB_TOKEN` does not trigger other workflows, so the deploy is dispatched explicitly rather than relying on the `website/**` path filter.)
-
-This handles **only** release notes — binaries are never involved, since downloads come from stable GitHub Release URLs.
-
-### `deploy-website.yml` — Website Deployment
-
-Triggered by changes to `website/**` on `main`, by manual dispatch, or by `publish-release-notes.yml` after a release. Deploys the `website/` directory to GitHub Pages. Download links themselves are static stable Release URLs, so they never go stale — the only per-release site change is the new release-notes page.
-
-### Flow Diagram
-
-```
-Tag push (v1.0.9)
-  └─→ release.yml  (jobs run in sequence)
-        1. create-release ........ make ONE draft release, output release_id
-        2. publish-tauri (matrix)  build macOS / Windows / Linux
-                                   └─→ upload bundles + merge latest.json into that release
-        3. publish-stable-assets   upload stable-named copies + SHA256SUMS
-              │
-              ▼ (you manually publish the draft)
-              │
-              ├─→ latest.json + assets become public
-              │     (downloads link to /releases/latest/download/... — never stale)
-              │
-              └─→ publish-release-notes.yml  (on: release published)
-                    └─→ generate-release-pages.ts → commit <version>.mdx to main
-                          └─→ dispatch deploy-website.yml → Deploy to GitHub Pages
-```
-
-Website source changes also deploy independently:
-
-```
-Edit website/** on main
-  └─→ deploy-website.yml (path trigger)
-        └─→ Deploy to GitHub Pages
-```
-
-## Auto-Update System
-
-### How Updates Reach Users
-
-The Tauri updater plugin checks for updates by fetching:
-
-```
-https://github.com/dannysmith/astro-editor/releases/latest/download/latest.json
-```
-
-This file is generated by `tauri-action` during the build and contains the download URL, version, and signature for each platform. It's attached to the GitHub Release as an asset.
-
-### Linux: Update Behaviour by Format
-
-Linux ships three formats, and the updater treats them differently:
-
-- **AppImage** — self-contained (bundles its own WebKit, ~80 MB). The updater silently downloads the new AppImage and replaces the running binary in place, the same model as macOS and Windows.
-- **`.deb` / `.rpm`** — small (~10–20 MB) because they depend on the system `libwebkit2gtk-4.1` instead of bundling it. They cannot self-replace; the updater downloads the new package and installs it through the system package manager (`dpkg -i` / `rpm -U`), which needs privilege escalation. Tauri tries `pkexec`, then a graphical `sudo` prompt (zenity/kdialog), then a terminal `sudo`, so the user sees a root/password prompt on every update.
-
-`latest.json` carries a generic `linux-x86_64` key plus format-specific `linux-x86_64-appimage` / `-deb` / `-rpm` keys. A running app updates from the key matching the format it was installed as (the format-specific key takes precedence over the generic one).
-
-**Known caveats for deb/rpm** (accepted while Linux is beta):
-
-- Updates can fail on headless or Wayland-without-polkit systems where no privilege-escalation agent is available.
-- Because the updater installs the package directly, the package database's record of ownership can diverge from what `apt`/`dnf` expect (tauri [#4573](https://github.com/tauri-apps/tauri/issues/4573)).
-- We do **not** GPG-sign the rpm and do **not** run an apt/yum repository. Integrity comes from the Tauri updater's minisign signature (the `.sig` artifacts), not from distro package signing.
-
-### Release Notes in the Update Dialog
-
-Release notes are **not** read from `latest.json`. The `notes` field in `latest.json` only contains the `releaseBody` template text from build time, not the hand-written notes you add before publishing.
-
-Instead, the app fetches release notes at runtime:
-
-```
-GitHub Release (published)
-  ├── latest.json ──→ version, download URL, signature (used by updater plugin)
-  └── GitHub API ──→ Rust command ──→ update store ──→ dialog (release notes)
-```
-
-The Rust command `fetch_release_notes` (`src-tauri/src/commands/updater.rs`) calls the GitHub Releases API, filters releases between the user's current version and the available version, and returns the combined markdown bodies. This handles jumped versions — if a user skips from v1.0.7 to v1.0.10, they see notes for v1.0.8, v1.0.9, and v1.0.10.
-
-### Update Dialog Behavior
-
-- **Automatic check**: Runs 5 seconds after launch. If an update is available and the user hasn't skipped that version, shows the update dialog.
-- **Manual check**: Triggered via the "Check for Updates" menu item. Always shows the dialog, even for skipped versions. Shows "Up to Date" if no update is available.
-- **Skip This Version**: Persists the skipped version to `localStorage`. The dialog won't show automatically for that version, but will show on manual check.
-- **Download progress**: After clicking "Update Now", the dialog shows a progress bar.
-- **Restart prompt**: After download completes, offers "Restart Now" or "Later".
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/App.tsx` | Update check logic (automatic + manual via menu event) |
-| `src/store/updateStore.ts` | Update state management (dialog mode, progress, skip tracking) |
-| `src/components/update-dialog/UpdateDialog.tsx` | Update dialog UI (all modes) |
-| `src-tauri/src/commands/updater.rs` | Rust command to fetch release notes from GitHub API |
-| `src-tauri/tauri.conf.json` → `plugins.updater` | Updater endpoint URL and public key |
-
-## Testing Auto-Updates
-
-1. Install a published release (e.g., v1.0.9)
-2. Create a new release (e.g., v1.0.10) with a trivial change
-3. Launch the installed app — after 5 seconds, the update dialog should appear
-4. Verify: release notes display, download progress works, restart applies the update
-
-## Testing Linux Packages (without a Linux machine)
-
-The maintainer develops on macOS, so Linux packages are validated through CI and Docker rather than a native install:
-
-- **Build verification** — `ci.yml` (see [above](#ciyml--build-check)) builds all three Linux formats on an Ubuntu runner and fails if deb/rpm bundling breaks. No release is created. The `rpm` tool is installed in the apt step so the rpm bundler is available.
-- **`latest.json` verification** — push a throwaway tag (e.g. `v0.0.0-linux-test`) to trigger `release.yml`, which produces a draft release. Confirm `latest.json` contains `linux-x86_64-appimage` / `-deb` / `-rpm` keys, each with a valid signature and URL, then delete the tag and the draft release. This is the real auto-update gate.
-- **Install / dependency sanity check** (optional) via Docker Desktop on macOS, against the downloaded packages:
+- `ci.yml` builds all three Linux formats and fails if bundling breaks.
+- To check `latest.json`, push a throwaway tag (e.g. `v0.0.0-linux-test`), confirm the draft's `latest.json` has the three format keys with URLs and signatures, then delete the tag and the draft.
+- To check that the packages install and their dependencies resolve, use Docker on a Mac:
 
   ```bash
-  # deb — confirms libwebkit2gtk-4.1 and other deps resolve
-  docker run --rm -it -v "$PWD:/x" ubuntu:22.04 \
-    bash -c "apt-get update && apt-get install -y /x/astro-editor-latest.deb"
-
-  # rpm
-  docker run --rm -it -v "$PWD:/x" fedora:latest \
-    bash -c "dnf install -y /x/astro-editor-latest.rpm"
+  docker run --rm -it -v "$PWD:/x" ubuntu:22.04 bash -c "apt-get update && apt-get install -y /x/astro-editor-latest.deb"
+  docker run --rm -it -v "$PWD:/x" fedora:latest bash -c "dnf install -y /x/astro-editor-latest.rpm"
   ```
 
-  A full GUI / auto-update run isn't feasible headlessly — Docker only confirms the packages install and their dependencies are sane.
+## Signing
+
+There are two separate kinds of signing, each with its own repo secrets:
+
+- **Updater signing** covers every platform. `TAURI_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` sign the update artifacts, and the matching public key is `plugins.updater.pubkey` in `tauri.conf.json`. CI builds need these too.
+- **Apple code signing and notarisation** is macOS only and runs only in `release.yml`. `APPLE_CERTIFICATE` (the Developer ID Application `.p12`, base64) and `APPLE_CERTIFICATE_PASSWORD` are imported into the runner's keychain. `APPLE_API_KEY` (the key ID), `APPLE_API_ISSUER` and `APPLE_TEAM_ID` are for notarisation. Despite its name, `APPLE_API_KEY_PATH` holds the contents of the `.p8` key; the workflow writes it to `~/private_keys/AuthKey_<id>.p8` and passes that path to tauri-action.
+
+Gotchas:
+
+- **`APPLE_SIGNING_IDENTITY` must be set.** Without it, Tauri ad-hoc signs the app even with the certificate imported, and users see "app is damaged". It looks like a notarisation problem but isn't. `release.yml` sets it to the certificate's name.
+- **Signing locally needs Apple's Developer ID G2 CA certificate** (`DeveloperIDG2CA.cer`) in your keychain, then build with `APPLE_SIGNING_IDENTITY` set.
+- **Check a build with `codesign -dv <app>`.** A properly signed app shows `Authority=Developer ID Application: …` and a `TeamIdentifier`. `Signature=adhoc` with `TeamIdentifier=not set` means the identity wasn't used.
 
 ## Troubleshooting
 
-**Workflow doesn't trigger:**
-- Ensure the tag starts with `v` (e.g., `v1.0.9`, not `1.0.9`)
-- Check that the tag was pushed: `git push origin --tags`
-
-**Build fails:**
-- Verify `TAURI_PRIVATE_KEY` and other secrets are set in repo settings
-- Check that all tests pass locally: `bun run check:all`
-
-**Auto-update doesn't work:**
-- Verify the updater endpoint URL in `tauri.conf.json` points to the correct repo
-- Verify the public key in `tauri.conf.json` matches the private key used for signing
-- Check app logs for error messages (Help → Show Log File, or Console.app)
-- Ensure the release is **published**, not still a draft — `latest.json` isn't accessible from draft releases
-
-**Release notes don't appear:**
-- The GitHub API is rate-limited to 60 requests/hour per IP (unauthenticated). This is fine for normal use but could be hit during testing.
-- Check that releases on GitHub have a non-empty body
-- The Rust command has a 5-second timeout — slow networks may cause it to fail (the dialog still works, just without notes)
-
-**Version mismatches:**
-- The `prepare-release` script updates all three files (`package.json`, `Cargo.toml`, `tauri.conf.json`) — use it to avoid mismatches
-- Tags should match the version: tag `v1.0.9` should correspond to version `1.0.9` in all config files
-
-**Download links broken / serving an old version:**
-- Download buttons point at `/releases/latest/download/astro-editor-latest.*`. Confirm the latest **published** release has the stable-named assets (the `publish-stable-assets` job in `release.yml` uploads them).
-- If a release predates this job, backfill it: download its installers and `gh release upload <tag> astro-editor-latest.* SHA256SUMS --clobber`.
-
-**Website not deploying after a site change:**
-- `deploy-website.yml` triggers only on `website/**` changes on `main` (or manual dispatch). A new app release does not redeploy the site (and doesn't need to).
-
-### Manual Cleanup
-
-```bash
-# Delete a tag locally and remotely
-git tag -d v1.0.9
-git push origin --delete v1.0.9
-
-# Cancel a running workflow: GitHub → Actions → Select run → Cancel
-```
+- **Updates fail to download after publishing:** most likely the API asset URLs (see Auto-updates): the 60-an-hour limit, or an updater that doesn't send the `Accept` header. Hand-edit the release's `latest.json` so each URL is `https://github.com/dannysmith/astro-editor/releases/download/vX.Y.Z/<file>`. Users whose update failed get it on their next check.
+- **Updates don't arrive:** check the release is published, not a draft, and that `pubkey` matches the private key. Then look in the app's log (see the Logs section of `agent-tooling.md`).
+- **Release notes are missing from the dialog:** the API rate limit (above), or an empty release body.
+- **Download links serve an old version:** check the latest published release has the `astro-editor-latest.*` assets. To backfill one, download its installers and run `gh release upload <tag> astro-editor-latest.* SHA256SUMS --clobber`.

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { useShallow } from 'zustand/react/shallow'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
@@ -261,8 +262,7 @@ export const LeftSidebar: React.FC = () => {
 
       setRenamingFileId(null)
     } catch (error) {
-      // oxlint-disable-next-line no-console
-      console.error('Failed to rename file:', error)
+      void logError(`Failed to rename file: ${String(error)}`)
     }
   }
 

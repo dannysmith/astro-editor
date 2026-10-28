@@ -34,11 +34,14 @@ export function useFileChangeHandler() {
         return
       }
 
-      // User is editing - their version is authoritative
+      // User is editing - their version is authoritative. The "ignoring" logs
+      // are dev-only: our own saves trigger them every few seconds while typing
       if (isDirty) {
-        void debug(
-          `Ignoring external change to ${path} - file has unsaved edits`
-        )
+        if (import.meta.env.DEV) {
+          void debug(
+            `Ignoring external change to ${path} - file has unsaved edits`
+          )
+        }
         return
       }
 
@@ -48,9 +51,11 @@ export function useFileChangeHandler() {
       if (lastSaveTimestamp) {
         const timeSinceLastSave = Date.now() - lastSaveTimestamp
         if (timeSinceLastSave < 3000) {
-          void debug(
-            `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
-          )
+          if (import.meta.env.DEV) {
+            void debug(
+              `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
+            )
+          }
           return
         }
       }

@@ -152,7 +152,7 @@
     {
       "files": ["src/**/*.{ts,tsx}"],
       "rules": {
-        "no-console": "warn",
+        "no-console": "error",
         "prefer-const": "error",
         "no-var": "error",
         "no-unused-vars": [

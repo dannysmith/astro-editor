@@ -1,454 +1,124 @@
-# Claude / AI Agent Instructions for Astro Editor
+# Astro Editor: instructions for AI agents
 
-## Current Status
+## Current status
 
 @CLAUDE.local.md
 
-## Project Overview
+## The project
 
-**Goal:** Native macOS markdown editor for Astro content collections. Distraction-free writing environment with seamless frontmatter editing, inspired by iA Writer.
+Astro Editor is a native macOS markdown editor for Astro content collections, built with Tauri v2 (Rust) and React. It reads a project's collections and schemas and gives writers a calm, iA Writer-style place to write, with frontmatter edited in a form generated from the schema. Windows and Linux builds exist but aren't officially supported.
 
-**Purpose:** Replace code editors for content writing. Focused environment understanding Astro's content structure.
+Product principles (from `website/src/content/docs/getting-started/philosophy.mdx`), which decide what gets built:
 
-**Key Features:**
+- **It's an interface for content files on disk,** like a terminal or VS Code is. It reads and writes the same files.
+- **Writer mode only.** Every feature has to make writing and editing easier. Coder-mode work (syntax-highlighted code blocks, committing, publishing, deploying, previewing the site) is out of scope.
+- **Simplicity.** The UI is opinionated; settings exist only to make it work with a project's structure, not to customise its look. It's meant to become finished software.
+- **Native, instant, and it never loses work.** Auto-save and data safety come before features (see `docs/developer/editor.md`).
 
-- Auto-discovers Astro content collections from `src/content/config.ts`
-- Dynamic frontmatter forms from Zod schemas
-- File management with context menus
-- Real-time auto-save every 2 seconds
-- CodeMirror 6 with custom syntax highlighting
-- Resizable panels, draft detection, file sorting
-- Advanced editor features: URL clicking, drag & drop, markdown commands
-- Comprehensive keyboard shortcuts and menu integration
-- Toast notifications throughout the app
+`website/` is a separate project (the docs and marketing site) with its own `website/AGENTS.md`. It's not part of the app's dependency tree.
 
-**Note:** The `website/` directory is an independent project that is not part of the main app's dependency tree. See `website/AGENTS.md` for its own instructions.
+## Working here
 
-## Core Rules
+These are for AI agents working with Danny.
 
-### New Sessions
+- **Start of a session:** check `docs/tasks-todo/` for the current task, and `git status`. Read `docs/developer/architecture-guide.md` before changing anything structural, and the area doc for what you're touching.
+- **Never start a dev server.** Danny keeps `bun run tauri:dev` running. To see the app, use `bun run app` (the `app-control` skill). If it isn't running, ask.
+- **Commit only when asked.** Delete files with `rm -f` (`rm` is interactive in Danny's shell).
+- **Before finishing significant work:** check it against the architecture guide, remove debug code and leftovers from abandoned approaches, run `bun run check:all` and fix everything it reports.
+- **Use current docs.** Context7 first, then the web. Tauri **v2** only (v1 APIs differ and models default to them). Versions: React 19, TypeScript 7, Zustand 5, TanStack Query 5, Tailwind 4, shadcn 4 on Base UI, CodeMirror 6, Vite 8, Vitest 5.
+- **Rust:** modern formatting, `format!("{variable}")`. Clippy runs with `-D warnings` on all targets, tests included.
+- **Keep docs current.** When a change adds a pattern or invalidates one, update the doc in `docs/developer/`. Docs hold what the code can't say (reasons, constraints, gotchas); knowledge about one module goes in a comment next to it.
 
-- Check `docs/tasks-todo/` for the current task (see [Task Management](#task-management))
-- Review `docs/developer/architecture-guide.md` for essential patterns
-- Consult specialized guides when working on specific features (see [Documentation Structure](#documentation-structure))
-- Check git status and project structure
+## Rules
 
-### Development Practices
+Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)* or *(Oxlint)* fail `check:all`.
 
-**CRITICAL:** Follow these strictly:
+- **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
+- **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
+- **No React Hook Form.** Frontmatter fields read and write the store directly (the Direct Store Pattern). Hook Form and Zustand together looped infinitely, and auto-save needs every change in the store at once.
+- **Hooks go in `hooks/`; `lib/` stays free of React** and reads stores only with `getState()` (the one exception is `lib/theme-provider.tsx`). *(ast-grep)*
+- **Colours only through the tokens in `src/App.css`.** No Tailwind palette classes or literal colours; tokens use `light-dark()`, so one change covers both themes. See `color-system.md`. *(ast-grep)*
+- **Log through `@tauri-apps/plugin-log`, not `console`.** Release builds strip `console.*`, so it never reaches a user's log. Release builds also log at debug level, so anything that fires per keystroke or per save goes behind `import.meta.env.DEV`. *(Oxlint)*
+- **Keep stateful panels mounted** and hide them instead. Unmounting loses panel sizes, scroll position and editor state.
+- **Don't add `useMemo`, `useCallback` or `React.memo` by default.** The React Compiler handles memoisation; it doesn't change the Zustand rules.
+- **One copy of each `@lezer/*` and `@codemirror/*` package.** Duplicates break highlighting at runtime and typecheck. After `bun update`, `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing; if it doesn't, run `rm -rf node_modules bun.lock && bun install`.
+- **Keep `@babel/core` on 7.** `babel-plugin-react-compiler` is built against Babel 7, and nothing else pins it, so dependency updates will offer 8.
+- **Test in the app, not Chrome.** macOS runs WebKit, so CSS and behaviour that work in Chrome DevTools can fail. For example, `field-sizing: content` isn't supported (use `AutoExpandingTextarea`).
+- **Unsaved edits are never overwritten** by a reload from disk, and reading a saved file back must give exactly the text the editor holds, or the view jumps. See `editor.md` before touching saving, file loading or the Rust parser.
 
-1. **Read Before Editing**: Always read files first to understand context
-2. **Follow Established Patterns**: Use patterns from this file and `docs/developer`
-3. **Senior Architect Mindset**: Consider performance, maintainability, testability
-4. **Batch Operations**: Use multiple tool calls in single responses
-5. **Match Code Style**: Follow existing formatting and patterns
-6. **Test Coverage**: Write comprehensive tests for business logic
-7. **Quality Gates**: Before finishing significant work, check it against `docs/developer/architecture-guide.md`, remove leftover debug code, unnecessary comments and remnants of failed approaches, then run `bun run check:all` and fix any errors
-8. **No Dev Server**: Ask user to run and report back
-9. **No Unsolicited Commits**: Only when explicitly requested
-10. **Documentation**: Update `docs/developer/` guides for new patterns
-11. **Removing files**: Always use `rm -f`
+## Where things live
 
-#### Directory Boundaries
+- `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
+- `src/hooks/`: hooks, including queries and mutations (`queries/`, `mutations/`) and actions (`editor/useEditorActions.ts`)
+- `src/store/`: Zustand stores
+- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `project-registry/` (settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
+- `src/lib/bindings.ts`: generated Tauri command bindings
+- `src/App.css`: colour tokens and global styles
+- `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`), dev only
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `parser.rs` and `schema_merger.rs` (schemas), `agent_bridge/` (dev only)
+- `test/`: Astro projects for manual and agent testing. Work in the gitignored copy, `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`
+- `scripts/`: the `app` CLI, release script and dev launcher
 
-- **Hooks belong in `/hooks/`**: If it exports a `use*` function, it goes in `/hooks/`
-- **Pure functions in `/lib/`**: Business logic, utilities, classes
-- **getState() is allowed**: One-way calls from lib to store using `getState()` are acceptable
-- See `docs/developer/architecture-guide.md` for complete rules
+Naming: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports.
 
-### Documentation Structure
+## Tauri commands
 
-**Core Guides** (read for daily development):
-- `docs/developer/architecture-guide.md` - Essential patterns and overview (START HERE)
-- `docs/developer/state-management.md` - Deep dive into the "Onion" pattern and store decomposition
-- `docs/developer/command-system.md` - Command pattern implementation and integration
-- `docs/developer/ui-patterns.md` - Common UI patterns and shadcn/ui best practices
-- `docs/developer/performance-patterns.md` - Performance optimization (getState, memoization)
-- `docs/developer/testing.md` - Testing strategies and patterns
+Commands are typed end to end with tauri-specta. To add one:
 
-**System Documentation** (reference for system features):
-- `docs/developer/cross-platform.md` - Platform detection, conditional compilation, title bar architecture
-- `docs/developer/form-patterns.md` - Frontmatter fields and settings forms
-- `docs/developer/schema-system.md` - Schema parsing and merging (Rust)
-- `docs/developer/keyboard-shortcuts.md` - Implementing shortcuts
-- `docs/developer/preferences-system.md` - Three-tier settings hierarchy
-- `docs/developer/color-system.md` - Color tokens and dark mode
-- `docs/developer/notifications.md` - Toast notification system
-- `docs/developer/editor-styles.md` - CodeMirror syntax highlighting
-- `docs/developer/recovery-system.md` - Crash recovery
-- `docs/developer/logging.md` - Logging system
-- `docs/developer/agent-tooling.md` - Dev identity, agent bridge, styleguide and dev logs
+1. Define it in Rust with `#[tauri::command]` and `#[specta::specta]`.
+2. Add it to `collect_commands![]` in `src-tauri/src/bindings.rs`.
+3. Regenerate the bindings: `cd src-tauri && cargo test export_bindings -- --ignored` (no app launch needed; `tauri:dev` also regenerates them).
+4. Commit the updated `src/lib/bindings.ts`.
+5. If it exposes a new type, add JSDoc for it in `src/types/domain.ts`.
 
-**Implementation** (optimization and build):
-- `docs/developer/optimization.md` - Bundle optimization and performance budgets
-- `docs/developer/releases.md` - Release workflow and process
+Call commands through `commands` from `@/lib/bindings`. They return a `Result` instead of throwing:
 
-**Feature Examples** (specific implementations):
-- `docs/developer/feature-image-preview.md` - Image field preview implementation
-- `docs/developer/astro-generated-contentcollection-schemas.md` - Astro JSON Schema reference
-
-**Reference** (decisions and setup):
-- `docs/developer/decisions.md` - Architectural decisions and trade-offs
-- `docs/developer/apple-signing-setup.md` - Code signing and deployment
-
-See `docs/README.md` for the complete categorized list.
-
-### Documentation & Versions
-
-- **Context7 First**: Always use Context7 for framework docs before WebSearch
-- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, CodeMirror v6.x, Vitest v5.x
-- **Progress Tracking**: Update current task in `docs/tasks-todo` after major work
-
-## Skills
-
-Project skills live in `.claude/skills/`:
-
-- **deps-update** - Interactive dependency update session across the whole repo, tracked in a task doc
-- **codebase-hygiene** - Find unused code/dependencies (knip) and duplication (jscpd), and clean up what the user approves
-- **app-control** - See and drive the running dev app (`bun run app`): screenshots in light and dark, UI outline, clicks, typing, the test vault, the styleguide and logs. Use it whenever a change affects the UI
-
-## Task Management
-
-Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date.
-
-## Technology Stack
-
-- **Framework:** Tauri v2 (Rust + React)
-- **Frontend:** React 19 + TypeScript (strict) with React Compiler
-  - `@babel/core` is a direct devDependency pinned to 7. It's only a peer of `@rolldown/plugin-babel` (which allows 8), but `babel-plugin-react-compiler` is built against Babel 7
-- **State:** Hybrid approach:
-  - **Server State:** TanStack Query v5 for data fetching/caching
-  - **Client State:** Zustand for UI state and editing state
-- **Styling:** Tailwind v4 + shadcn/ui
-- **Editor:** CodeMirror 6 (vanilla) with custom extensions
-  - **IMPORTANT:** All `@lezer/*` packages must use consistent versions across the dependency tree. We use `overrides` in `package.json` to force `@lezer/common` to match CodeMirror's version. Mismatched versions break syntax highlighting and cause runtime errors because Tag/Tree objects from different versions are incompatible. The same goes for `@codemirror/*` (duplicate `@codemirror/view` breaks typecheck). `bun update` can leave older copies nested under other packages; `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing, and if it doesn't, regenerate the lockfile (`rm -rf node_modules bun.lock && bun install`).
-- **Testing:** Vitest + React Testing Library, Cargo
-- **Quality:** Oxlint (type-aware, with React Compiler rules), Oxfmt, ast-grep, Clippy
-
-**CRITICAL:** Use Tauri v2 docs only. Always use modern Rust formatting: `format!("{variable}")`
-
-### Tauri Commands (tauri-specta)
-
-Commands use **tauri-specta** for end-to-end type safety. TypeScript bindings are auto-generated.
-
-**Adding a new command:**
-1. Define in Rust with `#[tauri::command]` and `#[specta::specta]`
-2. Add to `src-tauri/src/bindings.rs` `collect_commands![]`
-3. Regenerate bindings with `cd src-tauri && cargo test export_bindings -- --ignored` (no app launch needed; `bun run tauri dev` also regenerates them in debug mode)
-4. Commit the updated `src/lib/bindings.ts`
-5. Add JSDoc to `src/types/domain.ts` if exposing a new type
-
-**Usage:** Import from `@/lib/bindings`, handle `Result` types:
 ```typescript
-import { commands } from '@/lib/bindings'
 const result = await commands.scanProject(path)
 if (result.status === 'error') throw new Error(result.error)
 ```
 
-### React Compiler
-
-**Automatic Optimization**: React Compiler (v1.0) automatically memoizes components and hooks, eliminating the need for manual `useMemo`, `useCallback`, and `React.memo` in most cases. See `docs/developer/performance-patterns.md` for comprehensive guidance.
-
-**Key Points**:
-- Compiler handles memoization automatically - don't add manual memoization unless profiling shows a need
-- Enforces Rules of React through lint rules (Oxlint's `react/*` React Compiler rules)
-- **"use no memo" directive**: Opt-out specific components if needed (document why)
-- **Zustand patterns unchanged**: Selector syntax and `getState()` remain critical for performance
-
-## Architecture Overview
-
-**See `docs/developer/architecture-guide.md` for comprehensive architectural patterns and detailed implementation guidance.**
-
-### State Management (Essential Summary)
-
-- **Server State**: TanStack Query for filesystem data (`useCollectionsQuery`, `useCollectionFilesQuery`, `useFileContentQuery`)
-- **Client State**: Decomposed Zustand stores - `editorStore` (file editing), `projectStore` (project-level), `uiStore` (layout)
-- **Local State**: UI presentation, derived state, component lifecycle only
-
-## Key Patterns
-
-### Direct Store Pattern (CRITICAL)
-
-**Problem:** React Hook Form + Zustand causes infinite loops
-**Solution:** Components access store directly using selector syntax
-
-```tsx
-// ✅ CORRECT: Direct store pattern with selector syntax
-const StringField = ({ name, label, required }) => {
-  const value = useEditorStore(state => state.frontmatter[name])
-  const updateFrontmatterField = useEditorStore(state => state.updateFrontmatterField)
-
-  return (
-    <Input
-      value={value || ''}
-      onChange={e => updateFrontmatterField(name, e.target.value)}
-    />
-  )
-}
-
-// ❌ WRONG: Callback dependencies cause infinite loops
-const BadField = ({ name, onChange }) => {
-  /* Don't do this */
-}
-```
-
-**Note:** Always use selector syntax (`useStore(state => state.value)`) instead of destructuring (`const { value } = useStore()`) to create granular subscriptions. For objects/arrays, use `useShallow` to prevent re-renders from reference changes. See performance-patterns.md for details.
-
-### Command Pattern
-
-```typescript
-// Global registry for all editor operations
-globalCommandRegistry.execute('toggleBold')
-globalCommandRegistry.execute('formatHeading', 1)
-```
-
-Benefits: Decouples UI from logic, enables shortcuts/menus/palette to share commands
-
-### Event-Driven Communication
-
-1. **Tauri Events**: Native menu/OS integration
-2. **Custom DOM Events**: Component communication
-3. **CodeMirror Transactions**: Editor state
-4. **Zustand Subscriptions**: Store changes
-5. **Toast Events**: Rust-to-frontend notifications
-
-#### Hybrid Action Hooks Pattern
-
-**Problem**: Zustand stores can't use React hooks, but user-triggered actions need query data.
-
-**Solution**: User-triggered actions live in hooks with direct query access; state-triggered actions (auto-save) live in stores and call registered callbacks.
-
-```typescript
-// 1. Hook with direct query access (user-triggered actions)
-export function useEditorActions() {
-  const queryClient = useQueryClient()
-
-  const saveFile = useCallback(async (showToast = true) => {
-    // Direct access to stores via getState() - no subscription
-    const { currentFile, editorContent, frontmatter } = useEditorStore.getState()
-    const { projectPath } = useProjectStore.getState()
-
-    // Direct access to query data - NO EVENTS!
-    const collections = queryClient.getQueryData(queryKeys.collections(projectPath))
-    const schema = collections?.find(c => c.name === currentFile.collection)?.complete_schema
-
-    await commands.saveMarkdownContent(/* ... */)
-    useEditorStore.getState().markAsSaved()
-  }, [queryClient])
-
-  return { saveFile }
-}
-
-// 2. Store with state-triggered logic
-const useEditorStore = create((set, get) => ({
-  autoSaveCallback: null,
-  setAutoSaveCallback: callback => set({ autoSaveCallback: callback }),
-
-  // State mutation triggers auto-save
-  setEditorContent: content => {
-    set({ editorContent: content, isDirty: true })
-    get().scheduleAutoSave() // State-triggered
-  },
-
-  scheduleAutoSave: () => {
-    const { autoSaveCallback } = get()
-    if (autoSaveCallback) {
-      setTimeout(() => void autoSaveCallback(), 2000)
-    }
-  },
-}))
-
-// 3. Layout wires them together
-export function Layout() {
-  const { saveFile } = useEditorActions()
-
-  useEffect(() => {
-    useEditorStore.getState().setAutoSaveCallback(() => saveFile(false))
-  }, [saveFile])
-}
-```
-
-**Benefits**: No polling, type-safe, synchronous data access, easy to test
-
-### TanStack Query Patterns
-
-#### Query Keys Factory
-
-```typescript
-export const queryKeys = {
-  all: ['project'] as const,
-  collections: (projectPath: string) =>
-    [...queryKeys.all, projectPath, 'collections'] as const,
-  // ... etc
-}
-```
-
-#### Automatic Cache Invalidation
-
-```typescript
-// In mutation's onSuccess
-queryClient.invalidateQueries({
-  queryKey: queryKeys.collectionFiles(projectPath, collectionName),
-})
-```
-
-## Keyboard Shortcuts
-
-Uses `react-hotkeys-hook` for cross-platform shortcuts:
-
-```typescript
-useHotkeys(
-  'mod+s',
-  () => {
-    /* save */
-  },
-  { preventDefault: true }
-)
-```
-
-**Available:** `mod+s` (save), `mod+1` (sidebar), `mod+2` (frontmatter), `mod+n` (new), `mod+w` (close), `mod+comma` (preferences)
-
-## Code Extraction Patterns
-
-**See `docs/developer/architecture-guide.md` for detailed extraction guidelines.**
-
-**Quick Reference**:
-
-- **Extract to `lib/`**: 50+ lines, 2+ components, business logic, testable modules
-- **Extract to `hooks/`**: React hooks, component lifecycle, side effects
-- **Process**: Single responsibility → minimal API → tests → index.ts exports
-
-## Development Commands & Organization
+## Scripts
 
 ```bash
-bun run dev              # Start dev server
-bun run tauri:dev        # Run the app in dev (Danny keeps this running; never start it)
-bun run app help         # Drive and screenshot the running dev app (see the app-control skill)
-bun run app logs         # Recent warnings and errors from Rust, the webview and tauri:dev
-bun run tauri:build      # Build app
-bun run check:all        # All checks (TS + Rust + ast-grep + tests) - RUN BEFORE COMMITS
-bun run fix:all          # Auto-fix all issues
-bun run ast:lint         # Run ast-grep architectural linting
-bun run ast:fix          # Auto-fix ast-grep violations (where possible)
-bun run test             # Watch mode
-bun run test:run         # Run once
+bun run check:all       # typecheck, Oxlint, ast-grep, Oxfmt, cargo fmt, Clippy, all tests. Run before finishing
+bun run fix:all         # auto-fix lint and formatting
+bun run test            # Vitest in watch mode (test:run once; rust:test for cargo). `bun test` is bun's own runner and won't work
+bun run app help        # drive, inspect and screenshot the running dev app
+bun run app logs        # recent warnings and errors from Rust, the webview and tauri:dev
+bun run reset:testdata  # reset temp-dummy-astro-project from test/
+bun run tauri:dev       # the dev app (agents: Danny keeps it running; never start it)
 ```
 
-**Dev builds** run as a separate app (`is.danny.astroeditor.dev`, "Astro Editor Dev") via `src-tauri/tauri.dev.conf.json`, with their own settings, data and logs, so they never touch the installed app. They also include the agent bridge and the styleguide (`localhost:1420/styleguide.html`); see `docs/developer/agent-tooling.md`.
+Dev builds run as a separate app (`is.danny.astroeditor.dev`, "Astro Editor Dev") with their own settings, data and logs, so they never touch the installed app. See `docs/developer/agent-tooling.md`.
 
-**Component Organization**: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports, domain-based grouping
+## Skills
 
-## Editor System Architecture
+Project skills in `.claude/skills/`:
 
-### Custom Syntax Highlighting
+- **app-control:** see and drive the running dev app: screenshots in light and dark, the UI outline, clicks and typing, the test project, the styleguide, logs. Use it whenever a change affects the UI.
+- **deps-update:** an interactive dependency update session across the repo, tracked in a task doc.
+- **codebase-hygiene:** find unused code and dependencies (knip) and duplication (jscpd), then clean up what Danny approves.
 
-Uses comprehensive custom highlighting replacing CodeMirror defaults:
+## Developer docs
 
-1. **Custom Markdown Tags** (`markdownTags.ts`)
-2. **Standard Language Tags** from `@lezer/highlight`
-3. **Single highlight style** with 50+ rules
+In `docs/developer/`. Read the ones for the area you're working in.
 
-See `docs/developer/editor-styles.md` for CSS theming details.
+- `architecture-guide.md`: how the app fits together and why: state, the Zustand rules, boundaries, events, logging, deliberate choices
+- `editor.md`: CodeMirror integration, highlighting, auto-save and data safety
+- `schema-system.md`: how collection schemas are found, parsed and merged, what Astro generates, and why fields go missing
+- `commands-and-shortcuts.md`: the editor and palette command systems, native menus, keyboard shortcuts
+- `ui-patterns.md`: design principles, Base UI and shadcn, forms, notifications
+- `color-system.md`: colour tokens and dark mode
+- `editor-styles.md`: the editor's colour and typography spec
+- `app-data.md`: preferences, the project registry and recovery files
+- `cross-platform.md`: webview versions, platform config, window behaviour
+- `testing.md`: where tests go and the test setup's mocks
+- `ast-grep-linting.md`: the architecture lint rules
+- `optimization.md`: build and bundle settings
+- `releases.md`: cutting a release, CI, updates and signing
+- `agent-tooling.md`: the dev identity, agent bridge, styleguide and logs
 
-## Command Palette Architecture
+## Tasks
 
-To add new command groups:
-
-1. **Update Types** (`src/lib/commands/types.ts`):
-
-```typescript
-export type CommandGroup = 'file' | 'navigation' | 'your-new-group'
-```
-
-2. **Add Context Function** (`src/lib/commands/command-context.ts`)
-3. **Define Commands** (`src/lib/commands/app-commands.ts`)
-4. **Update Group Order** (`src/hooks/useCommandPalette.ts`)
-5. **Add Event Listener** if needed (in Layout.tsx)
-
-## Testing & Performance
-
-**Testing Strategy**: Unit tests for `lib/` modules, integration tests for hooks/workflows, component tests for user interactions. **See `docs/developer/architecture-guide.md` for detailed testing patterns.**
-
-**Performance**: React Compiler handles most memoization automatically. Focus on:
-- **Zustand patterns**: Selector syntax and `getState()` (compiler doesn't optimize these)
-- **Debouncing**: 2s auto-save prevents excessive operations
-- **Effect cleanup**: Use `cancelled` flags in async effects
-- **Measurement first**: Profile before adding manual memoization
-
-**See `docs/developer/performance-patterns.md` for comprehensive React Compiler guidance and when manual optimization is still needed.**
-
-## Best Practices
-
-### Component Development
-
-- **NEVER** use React Hook Form (infinite loops)
-- **NEVER** destructure from Zustand stores (`const { ... } = useStore()`)
-- **ALWAYS** use Direct Store Pattern with selector syntax
-- **ALWAYS** use `useShallow` for object/array subscriptions
-- **EXTRACT** helper components for repeated JSX (3+ times)
-- **MEMOIZATION**: React Compiler handles automatically - avoid manual `useMemo`/`useCallback` unless profiling shows a need
-- **EFFECT CLEANUP**: Use `cancelled` flags in async effects to prevent stale updates
-
-### Module Development
-
-- **EXTRACT** complex logic into `lib/`
-- **CREATE** hooks for stateful logic
-- **DEFINE** clear interfaces
-- **WRITE** comprehensive tests
-- **DOCUMENT** public APIs
-
-## Troubleshooting
-
-### Performance Issues
-
-- **Excessive re-renders:** Check for destructuring from Zustand stores - use selector syntax instead
-- **Components re-render on every keystroke:** Add `useShallow` to object/array subscriptions
-- **Infinite loops:** Check Direct Store Pattern - ensure using selector syntax, not destructuring
-
-### Common Issues
-
-- **Auto-save:** Verify 2s interval and `scheduleAutoSave()`
-- **Schema parsing:** Check `src/content/config.ts` syntax
-- **Version conflicts:** Use v2/v4 docs only
-- **Toast/Theme issues:** See `docs/developer/notifications.md`
-
-**Quick Fix for Performance**: Search codebase for `const { .* } = use.*Store\(\)` and replace with selector syntax. See state-management.md for patterns.
-
-## Key Files Reference
-
-### Essential Files
-
-- `src/store/*.ts` - State management
-- `src/lib/query-keys.ts` - TanStack Query keys
-- `src/components/layout/Layout.tsx` - Main orchestrator
-- `src/lib/editor/` - Editor modules
-- `src/lib/schema.ts` - Zod schema parsing
-
-### Reusable Utilities
-
-Before creating new utilities, check these existing modules:
-
-- `src/lib/dates.ts` - Date formatting (`formatIsoDate()`, `todayIsoDate()`)
-- `src/lib/ide.ts` - IDE integration (`openInIde()`)
-- `src/lib/projects/actions.ts` - Project operations (`openProjectViaDialog()`)
-- `src/lib/files/` - File processing and asset management
-- `src/components/frontmatter/fields/constants.ts` - Field constants (`NONE_SENTINEL`)
-
-### Documentation
-
-- `docs/developer/architecture-guide.md` - Comprehensive patterns
-- `docs/developer/notifications.md` - Toast notification system
-- `docs/developer/editor-styles.md` - CSS theming
-- `docs/developer/preferences-system.md` - Settings
-- `docs/developer/recovery-system.md` - Error handling
-
-## WebKit/Tauri Considerations
-
-- `field-sizing: content` not supported → use `AutoExpandingTextarea`
-- WebKit differs from Chrome DevTools
-- JavaScript-based textarea auto-expansion
-- Tauri v2 has different API than v1
-
----
-
-_This document reflects current architecture. For detailed patterns and decision logs, see `docs/developer/architecture-guide.md`_
+Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date. Known bugs that the docs mention are collected in issue #347 until each is fixed.

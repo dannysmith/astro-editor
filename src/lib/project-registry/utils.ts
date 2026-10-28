@@ -4,7 +4,7 @@
 
 import { commands } from '@/lib/bindings'
 import { ProjectMetadata } from './types'
-import { safeLog } from '../diagnostics'
+import { debug, error as logError, info } from '@tauri-apps/plugin-log'
 
 /**
  * Simple hash function for generating project IDs
@@ -52,7 +52,7 @@ export async function discoverProject(
   try {
     // Try to read package.json
     const packageJsonPath = `${projectPath}/package.json`
-    await safeLog.debug(
+    await debug(
       `Astro Editor [PROJECT_DISCOVERY] Reading package.json: ${packageJsonPath}`
     )
 
@@ -66,11 +66,9 @@ export async function discoverProject(
     const name =
       packageJson.name || projectPath.split('/').pop() || 'unknown-project'
 
-    await safeLog.info(
-      `Astro Editor [PROJECT_DISCOVERY] Project name found: ${name}`
-    )
+    await info(`Astro Editor [PROJECT_DISCOVERY] Project name found: ${name}`)
     const projectId = generateProjectId(name, projectPath, existingIds)
-    await safeLog.debug(
+    await debug(
       `Astro Editor [PROJECT_DISCOVERY] Generated project ID: ${projectId}`
     )
 
@@ -83,16 +81,16 @@ export async function discoverProject(
     }
   } catch (error) {
     // Fallback if package.json doesn't exist or is invalid
-    await safeLog.error(
+    await logError(
       `Astro Editor [PROJECT_DISCOVERY] Package.json read failed for ${projectPath}: ${String(error)}`
     )
-    await safeLog.info(
+    await info(
       `Astro Editor [PROJECT_DISCOVERY] Using fallback discovery for: ${projectPath}`
     )
 
     const name = projectPath.split('/').pop() || 'unknown-project'
     const projectId = generateProjectId(name, projectPath, existingIds)
-    await safeLog.debug(
+    await debug(
       `Astro Editor [PROJECT_DISCOVERY] Fallback project ID: ${projectId}`
     )
 

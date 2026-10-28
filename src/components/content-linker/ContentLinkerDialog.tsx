@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import {
   CommandDialog,
   CommandEmpty,
@@ -86,8 +87,7 @@ export function ContentLinkerDialog() {
           fileMapRef.current = map
         }
       } catch (error) {
-        // oxlint-disable-next-line no-console
-        console.error('Failed to fetch content files:', error)
+        void logError(`Failed to fetch content files: ${String(error)}`)
         if (!cancelled) {
           setAllFiles([])
         }

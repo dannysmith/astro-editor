@@ -1,4 +1,10 @@
+/**
+ * Native right-click menu for files in the sidebar, built with Tauri's menu
+ * API. This isn't shadcn's ContextMenu, so don't `shadcn add context-menu`
+ * over it.
+ */
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { commands } from '@/lib/bindings'
 import { remove } from '@tauri-apps/plugin-fs'
@@ -89,8 +95,9 @@ export class FileContextMenu {
               )
               await openPath(directory)
             } catch (error) {
-              // oxlint-disable-next-line no-console
-              console.error('Failed to reveal in file manager:', error)
+              void logError(
+                `Failed to reveal in file manager: ${String(error)}`
+              )
             }
           })()
         },
@@ -107,8 +114,7 @@ export class FileContextMenu {
                 throw new Error(result.error)
               }
             } catch (error) {
-              // oxlint-disable-next-line no-console
-              console.error('Failed to copy path:', error)
+              void logError(`Failed to copy path: ${String(error)}`)
             }
           })()
         },
@@ -151,8 +157,7 @@ export class FileContextMenu {
                 onRefresh()
               }
             } catch (error) {
-              // oxlint-disable-next-line no-console
-              console.error('Failed to duplicate file:', error)
+              void logError(`Failed to duplicate file: ${String(error)}`)
             }
           })()
         },
@@ -167,8 +172,7 @@ export class FileContextMenu {
               onRename(file)
             }
           } catch (error) {
-            // oxlint-disable-next-line no-console
-            console.error('Failed to initiate rename:', error)
+            void logError(`Failed to initiate rename: ${String(error)}`)
           }
         },
       })
@@ -206,8 +210,7 @@ export class FileContextMenu {
                 }
               }
             } catch (error) {
-              // oxlint-disable-next-line no-console
-              console.error('Failed to delete file:', error)
+              void logError(`Failed to delete file: ${String(error)}`)
             }
           })()
         },
@@ -231,8 +234,7 @@ export class FileContextMenu {
       // Show the menu at the specified position
       await menu.popup(new LogicalPosition(position.x, position.y))
     } catch (error) {
-      // oxlint-disable-next-line no-console
-      console.error('Failed to show context menu:', error)
+      void logError(`Failed to show context menu: ${String(error)}`)
     }
   }
 }

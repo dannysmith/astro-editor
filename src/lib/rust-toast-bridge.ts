@@ -1,4 +1,5 @@
 import { listen } from '@tauri-apps/api/event'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { toast } from './toast'
 
 /**
@@ -17,22 +18,13 @@ export interface RustToastEvent {
  * This function sets up event listeners for toast notifications
  * sent from the Rust backend. Call this once during app initialization.
  *
- * Usage in Rust:
+ * Usage in Rust (see `send_toast_notification` in `commands/project.rs`):
  * ```rust
- * use tauri::Manager;
+ * use tauri::Emitter;
  *
- * // Send a success toast
  * app.emit("rust-toast", RustToastEvent {
- *   type: "success",
- *   message: "Operation completed successfully",
- *   description: Some("The file has been processed".to_string()),
- *   duration: None,
- * })?;
- *
- * // Send an error toast
- * app.emit("rust-toast", RustToastEvent {
- *   type: "error",
- *   message: "Operation failed",
+ *   r#type: "error".to_string(),
+ *   message: "Operation failed".to_string(),
  *   description: Some("Permission denied".to_string()),
  *   duration: Some(5000),
  * })?;
@@ -65,8 +57,7 @@ export const initializeRustToastBridge = async () => {
     // Return cleanup function
     return unlisten
   } catch (error) {
-    // oxlint-disable-next-line no-console
-    console.error('Failed to initialize Rust toast bridge:', error)
+    void logError(`Failed to initialize Rust toast bridge: ${String(error)}`)
     return () => {} // Return empty cleanup function
   }
 }

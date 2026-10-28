@@ -1,3 +1,5 @@
+import { error as logError } from '@tauri-apps/plugin-log'
+
 // Complete schema from Rust backend
 export interface CompleteSchema {
   collectionName: string
@@ -95,22 +97,16 @@ export function deserializeCompleteSchema(
       typeof parsed.collectionName !== 'string' ||
       parsed.collectionName.trim() === ''
     ) {
-      if (import.meta.env.DEV) {
-        // oxlint-disable-next-line no-console
-        console.error(
-          'Failed to deserialize complete schema: collectionName is required and must be a non-empty string'
-        )
-      }
+      void logError(
+        'Failed to deserialize complete schema: collectionName is required and must be a non-empty string'
+      )
       return null
     }
 
     if (!Array.isArray(parsed.fields)) {
-      if (import.meta.env.DEV) {
-        // oxlint-disable-next-line no-console
-        console.error(
-          'Failed to deserialize complete schema: fields must be an array'
-        )
-      }
+      void logError(
+        'Failed to deserialize complete schema: fields must be an array'
+      )
       return null
     }
 
@@ -137,10 +133,7 @@ export function deserializeCompleteSchema(
       fields,
     }
   } catch (error) {
-    if (import.meta.env.DEV) {
-      // oxlint-disable-next-line no-console
-      console.error('Failed to deserialize complete schema:', error)
-    }
+    void logError(`Failed to deserialize complete schema: ${String(error)}`)
     return null
   }
 }

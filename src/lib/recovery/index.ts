@@ -1,3 +1,10 @@
+/**
+ * Fallback dumps for failed saves. When a save throws, `useEditorActions`
+ * writes the unsaved content to `recovery/` and an error report to
+ * `crash-reports/` in the app data folder. This isn't crash recovery: nothing
+ * is written on a real crash, and nothing restores or cleans up these files.
+ */
+
 import { info, error as logError } from '@tauri-apps/plugin-log'
 import { commands, type JsonValue } from '@/types'
 import type { RecoveryData, CrashReport } from './types'
@@ -14,15 +21,16 @@ function asJsonValue(value: RecoveryData | CrashReport): JsonValue {
 }
 
 /**
- * Save recovery data when a save operation fails
+ * Save recovery data when a save operation fails. Resolves `true` only if the
+ * recovery files were written.
  */
 export const saveRecoveryData = async (data: {
   currentFile: { path: string; name: string; collection: string } | null
   projectPath: string | null
   editorContent: string
   frontmatter: Record<string, unknown>
-}) => {
-  if (!data.currentFile) return
+}): Promise<boolean> => {
+  if (!data.currentFile) return false
 
   const recoveryData: RecoveryData = {
     timestamp: new Date().toISOString(),
@@ -37,12 +45,14 @@ export const saveRecoveryData = async (data: {
   try {
     const result = await commands.saveRecoveryData(asJsonValue(recoveryData))
     if (result.status === 'error') {
-      await logError(`Failed to save recovery data: ${result.error}`)
-      return
+      void logError(`Failed to save recovery data: ${result.error}`)
+      return false
     }
-    await info(`Recovery data saved for ${recoveryData.fileName}`)
+    void info(`Recovery data saved for ${recoveryData.fileName}`)
+    return true
   } catch (err) {
-    await logError(`Failed to save recovery data: ${String(err)}`)
+    void logError(`Failed to save recovery data: ${String(err)}`)
+    return false
   }
 }
 
@@ -68,11 +78,11 @@ export const saveCrashReport = async (
   try {
     const result = await commands.saveCrashReport(asJsonValue(report))
     if (result.status === 'error') {
-      await logError(`Failed to save crash report: ${result.error}`)
+      void logError(`Failed to save crash report: ${result.error}`)
       return
     }
-    await info('Crash report saved')
+    void info('Crash report saved')
   } catch (err) {
-    await logError(`Failed to save crash report: ${String(err)}`)
+    void logError(`Failed to save crash report: ${String(err)}`)
   }
 }

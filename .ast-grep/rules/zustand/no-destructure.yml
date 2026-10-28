@@ -5,21 +5,24 @@ message: |
   ❌ BAD: const { currentFile } = useEditorStore()
   ✅ GOOD: const currentFile = useEditorStore(state => state.currentFile)
 
-  For multiple values, use multiple selectors or useShallow for objects/arrays.
+  For multiple values, use multiple selectors, or destructure a useShallow selector:
+  const { a, b } = useEditorStore(useShallow(s => ({ a: s.a, b: s.b })))
 severity: error
 language: tsx
 rule:
-  any:
-    # Match destructuring from any Zustand store
-    - pattern: const { $$$PROPS } = useEditorStore($$$)
-    - pattern: const { $$$PROPS } = useProjectStore($$$)
-    - pattern: const { $$$PROPS } = useUIStore($$$)
-    - pattern: const { $$$PROPS } = useMdxComponentsStore($$$)
-    - pattern: const { $$$PROPS } = useComponentBuilderStore($$$)
+  pattern: const { $$$PROPS } = $STORE($$$)
+  # Destructuring a useShallow selector is Zustand's way to pick several values
+  not:
+    has:
+      pattern: useShallow($$$)
+      stopBy: end
+constraints:
+  # Any Zustand store hook, so new stores are covered automatically
+  STORE:
+    regex: ^use\w+Store$
 note: |
   This is a CRITICAL architecture rule. Destructuring from Zustand stores causes
   render cascades and performance issues.
 
-  See: docs/developer/architecture-guide.md (Performance Patterns)
-  See: docs/developer/state-management.md (Selector Syntax)
+  See: docs/developer/architecture-guide.md#zustand-rules
 url: https://github.com/pmndrs/zustand#selecting-multiple-state-slices

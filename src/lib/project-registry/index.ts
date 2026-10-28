@@ -4,7 +4,7 @@
  * Main API for managing project identification, settings, and persistence
  */
 
-import { safeLog } from '../diagnostics'
+import { debug, error as logError, info } from '@tauri-apps/plugin-log'
 import { commands } from '@/lib/bindings'
 import {
   ProjectRegistry,
@@ -36,7 +36,7 @@ export class ProjectRegistryManager {
   async initialize(): Promise<void> {
     // Proactively ensure app data directory structure exists
     try {
-      await safeLog.info(
+      await info(
         'Astro Editor [PROJECT_REGISTRY] Ensuring app data directories exist'
       )
 
@@ -46,7 +46,7 @@ export class ProjectRegistryManager {
         throw new Error(appDataDirResult.error)
       }
       const appDataDir = appDataDirResult.data
-      await safeLog.debug(
+      await debug(
         `Astro Editor [PROJECT_REGISTRY] App data directory: ${appDataDir}`
       )
 
@@ -59,11 +59,11 @@ export class ProjectRegistryManager {
         throw new Error(writeResult.error)
       }
 
-      await safeLog.info(
+      await info(
         'Astro Editor [PROJECT_REGISTRY] App data directories verified'
       )
     } catch (error) {
-      await safeLog.error(
+      await logError(
         `Astro Editor [PROJECT_REGISTRY] Failed to ensure directories: ${String(error)}`
       )
       // Continue anyway - the subsequent operations will also attempt directory creation
@@ -101,7 +101,7 @@ export class ProjectRegistryManager {
       throw new Error('Registry not initialized')
     }
 
-    await safeLog.debug(
+    await debug(
       `Astro Editor [PROJECT_REGISTRY] Registering project: ${projectPath}`
     )
     const existingIds = new Set(Object.keys(this.registry.projects))
@@ -111,7 +111,7 @@ export class ProjectRegistryManager {
       p => p.path === projectPath
     )
     if (existingProject) {
-      await safeLog.debug(
+      await debug(
         `Astro Editor [PROJECT_REGISTRY] Found existing project: ${existingProject.id}`
       )
       // Update last opened time
@@ -124,7 +124,7 @@ export class ProjectRegistryManager {
     // Check if this is a moved project
     const movedProject = await this.findMovedProject(projectPath)
     if (movedProject) {
-      await safeLog.info(
+      await info(
         `Astro Editor [PROJECT_REGISTRY] Detected moved project: ${movedProject.id} from ${movedProject.path} to ${projectPath}`
       )
       // Update the path
@@ -136,11 +136,11 @@ export class ProjectRegistryManager {
     }
 
     // Discover new project
-    await safeLog.info(
+    await info(
       `Astro Editor [PROJECT_REGISTRY] Discovering new project at: ${projectPath}`
     )
     const projectMetadata = await discoverProject(projectPath, existingIds)
-    await safeLog.info(
+    await info(
       `Astro Editor [PROJECT_REGISTRY] New project discovered: ${projectMetadata.name} (ID: ${projectMetadata.id})`
     )
 

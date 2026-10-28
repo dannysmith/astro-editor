@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { debug } from '@tauri-apps/plugin-log'
 import { commands, type FileEntry } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -25,12 +26,13 @@ export function useFileBasedCollectionQuery(
         collectionName
       )
       if (result.status === 'error') {
-        // Collection might not be file-based or doesn't exist
-        // oxlint-disable-next-line no-console
-        console.debug(
-          `[FileBasedCollection] Could not load ${collectionName}:`,
-          result.error
-        )
+        // Collection might not be file-based or doesn't exist, which is
+        // expected for most collections, so this is dev-only
+        if (import.meta.env.DEV) {
+          void debug(
+            `[FileBasedCollection] Could not load ${collectionName}: ${result.error}`
+          )
+        }
         return null
       }
       return result.data

@@ -1,5 +1,9 @@
 import { useCallback } from 'react'
-import { info, error as logError } from '@tauri-apps/plugin-log'
+import {
+  info,
+  error as logError,
+  warn as logWarn,
+} from '@tauri-apps/plugin-log'
 import { useQueryClient } from '@tanstack/react-query'
 import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
@@ -110,8 +114,7 @@ export function useEditorActions() {
               schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
             }
           } catch (error) {
-            // oxlint-disable-next-line no-console
-            console.warn('Could not get schema field order:', error)
+            void logWarn(`Could not get schema field order: ${String(error)}`)
           }
         }
 
@@ -131,27 +134,30 @@ export function useEditorActions() {
           throw new Error(result.error)
         }
 
-        // Clear auto-save timeout since we just saved
-        const { autoSaveTimeoutId } = useEditorStore.getState()
-        if (autoSaveTimeoutId) {
-          clearTimeout(autoSaveTimeoutId)
-          useEditorStore.setState({ autoSaveTimeoutId: null })
-        }
-
-        // Only mark as clean if content hasn't changed during save (race condition protection)
-        // Check both content AND frontmatter to avoid dropping unsaved edits
+        // If another file was opened during the save (openFile saves the
+        // outgoing file), the store now holds that file's state: leave it alone
         const currentState = useEditorStore.getState()
-        const contentUnchanged = currentState.editorContent === editorContent
-        const frontmatterUnchanged =
-          JSON.stringify(currentState.frontmatter) ===
-          JSON.stringify(frontmatter)
+        if (currentState.currentFile?.id === currentFile.id) {
+          // Clear auto-save timeout since we just saved
+          if (currentState.autoSaveTimeoutId) {
+            clearTimeout(currentState.autoSaveTimeoutId)
+          }
 
-        useEditorStore.setState({
-          isDirty: !contentUnchanged || !frontmatterUnchanged,
-          isFrontmatterDirty:
-            currentState.isFrontmatterDirty || !frontmatterUnchanged,
-          lastSaveTimestamp: Date.now(),
-        })
+          // Only mark as clean if content hasn't changed during save (race condition protection)
+          // Check both content AND frontmatter to avoid dropping unsaved edits
+          const contentUnchanged = currentState.editorContent === editorContent
+          const frontmatterUnchanged =
+            JSON.stringify(currentState.frontmatter) ===
+            JSON.stringify(frontmatter)
+
+          useEditorStore.setState({
+            autoSaveTimeoutId: null,
+            isDirty: !contentUnchanged || !frontmatterUnchanged,
+            isFrontmatterDirty:
+              currentState.isFrontmatterDirty || !frontmatterUnchanged,
+            lastSaveTimestamp: Date.now(),
+          })
+        }
 
         // Invalidate queries to update UI
         if (projectPath) {
@@ -178,30 +184,41 @@ export function useEditorActions() {
           toast.success('File saved successfully')
         }
       } catch (error) {
-        toast.error('Save failed', {
-          description: `Could not save file: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Recovery data has been saved.`,
-        })
-        await logError(`Save failed: ${String(error)}`)
-        await info('Attempting to save recovery data...')
+        void logError(`Save failed: ${String(error)}`)
+        void info('Attempting to save recovery data...')
 
-        // Save recovery data
+        // Save recovery data for the file that failed: the store's latest edits
+        // if it's still open, otherwise what this save tried to write
         const state = useEditorStore.getState()
-        await saveRecoveryData({
-          currentFile: state.currentFile,
-          projectPath,
-          editorContent: state.editorContent,
-          frontmatter: state.frontmatter,
+        const stillOpen = state.currentFile?.id === currentFile.id
+        const recovered = await saveRecoveryData(
+          stillOpen
+            ? {
+                currentFile: state.currentFile,
+                projectPath,
+                editorContent: state.editorContent,
+                frontmatter: state.frontmatter,
+              }
+            : { currentFile, projectPath, editorContent, frontmatter }
+        )
+
+        const reason =
+          error instanceof Error ? error.message : 'Unknown error occurred'
+        toast.error('Save failed', {
+          description: `Could not save file: ${reason}.${recovered ? ' Recovery data has been saved.' : ''}`,
         })
 
         // Save crash report
         await saveCrashReport(error as Error, {
-          currentFile: state.currentFile?.path,
+          currentFile: currentFile.path,
           projectPath: projectPath || undefined,
           action: 'save',
         })
 
         // Keep the file marked as dirty since save failed
-        useEditorStore.setState({ isDirty: true })
+        if (stillOpen) {
+          useEditorStore.setState({ isDirty: true })
+        }
       }
     },
     [queryClient]

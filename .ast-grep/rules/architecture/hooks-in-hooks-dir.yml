@@ -12,17 +12,22 @@ language: tsx
 files:
   - 'src/lib/**/*.ts'
   - 'src/lib/**/*.tsx'
+ignores:
+  # A context provider and its hook, kept together as a framework integration
+  - 'src/lib/theme-provider.tsx'
 rule:
-  pattern: export function $HOOK($$$) { $$$ }
-  kind: function_declaration
+  any:
+    - pattern: export function $HOOK($$$) { $$$ }
+    - pattern: export const $HOOK = $VALUE
+    - pattern: 'export const $HOOK: $TYPE = $VALUE'
 constraints:
   HOOK:
     regex: ^use[A-Z]\w+$
 note: |
-  This enforces the Directory Boundaries rule from architecture-guide.md:
+  This enforces the directory boundaries in architecture-guide.md:
 
   - lib/: Pure business logic, utilities, classes (no React hooks)
   - hooks/: React hooks, lifecycle logic
 
   Exception: Context providers can live in lib/ if they're framework integrations.
-url: docs/developer/architecture-guide.md#directory-purpose-and-boundaries
+url: docs/developer/architecture-guide.md#directory-boundaries

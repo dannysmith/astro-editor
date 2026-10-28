@@ -5,7 +5,6 @@
  *
  * - Command registry for centralized command management
  * - Pre-built commands for common operations
- * - Menu integration for native menu system
  * - Type safety throughout the command system
  *
  * Usage:
@@ -23,14 +22,4 @@
 
 export { CommandRegistry, globalCommandRegistry } from './CommandRegistry'
 export { createEditorCommandRegistry } from './editorCommands'
-export {
-  createMenuCommands,
-  updateFormatMenuState,
-  exportMenuCommands,
-  cleanupMenuCommands,
-} from './menuIntegration'
-export type {
-  EditorCommand,
-  EditorCommandRegistry,
-  CommandOptions,
-} from './types'
+export type { EditorCommand, EditorCommandRegistry } from './types'

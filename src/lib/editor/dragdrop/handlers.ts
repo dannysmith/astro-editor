@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { processDroppedFiles } from './fileProcessing'
@@ -25,8 +26,7 @@ export const parseFileDropPayload = (
     filePaths = payloadObj.paths || []
     position = payloadObj.position
   } else {
-    // oxlint-disable-next-line no-console
-    console.error('Unexpected payload format:', payload)
+    void logError(`Unexpected payload format: ${JSON.stringify(payload)}`)
     return { paths: [] }
   }
 

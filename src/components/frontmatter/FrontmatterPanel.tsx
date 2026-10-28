@@ -35,13 +35,6 @@ export const FrontmatterPanel: React.FC = () => {
 
     const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
 
-    if (import.meta.env.DEV && parsed) {
-      // oxlint-disable-next-line no-console
-      console.log(
-        `[Schema] Loaded complete schema for: ${parsed.collectionName}`
-      )
-    }
-
     return parsed
   }, [currentCollection])
 
@@ -54,11 +47,13 @@ export const FrontmatterPanel: React.FC = () => {
         : getEffectiveSettings(currentProjectSettings)
       const titleFieldName = effectiveSettings.frontmatterMappings.title
 
-      // Start with all schema fields
+      // Start with all schema fields. Schema defaults are only shown as a hint
+      // (FieldWrapper), never put into frontmatter: anything in frontmatter gets
+      // saved, which would write values the author never set.
       const schemaFields = schema.fields.map(field => ({
         fieldName: field.name,
         schemaField: field,
-        value: frontmatter[field.name], // Don't auto-assign defaults that will get saved
+        value: frontmatter[field.name],
       }))
 
       // Reorder: title field first, then other schema fields in order

@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state'
 import {
   detectSentencesInLine,
   findCurrentSentence,
-} from '../sentence-detection'
+} from './sentence-detection'
 
 describe('Sentence Detection', () => {
   describe('detectSentencesInLine', () => {

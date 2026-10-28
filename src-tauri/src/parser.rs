@@ -1,3 +1,18 @@
+//! Reads the Astro content config: finds the collections, and the `image()` and
+//! `reference()` helpers in each schema.
+//!
+//! When it exists and parses, the generated JSON schema is the source of truth for
+//! fields (see `schema_merger.rs`), and this parser only adds what the JSON loses:
+//! which fields are images, and which collection a reference points to. Without
+//! it, `create_complete_schema` falls back to this parser's output alone, which
+//! has only those fields. Either way, it doesn't parse Zod structure. It
+//! regex-matches the helper calls, then walks back through the braces to build
+//! each field's dotted path. A line-based structural parser broke on
+//! ordinary multi-line formatting such as `z\n  .object({ ... })`, so keep it this
+//! way rather than growing it into a Zod parser.
+//!
+//! See `docs/developer/schema-system.md`.
+
 use crate::models::Collection;
 use regex::Regex;
 use std::path::Path;
@@ -516,8 +531,8 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
 
 /// Extract special fields (image and reference helpers) using pattern matching
 ///
-/// This is the main entry point that replaces the old line-based parsing.
-/// Returns the same JSON format for backwards compatibility.
+/// This is the main entry point. Returns the JSON that `extract_zod_enhancements`
+/// and `parse_zod_schema` in `schema_merger.rs` read.
 fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
     // 1. Find all helper calls
     let helpers = find_helper_calls(schema_text);

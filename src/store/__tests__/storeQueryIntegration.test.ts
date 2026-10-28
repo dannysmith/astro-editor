@@ -12,11 +12,6 @@ vi.mock('../../lib/query-client', () => ({
 }))
 
 // Mock Tauri log plugin
-vi.mock('@tauri-apps/plugin-log', () => ({
-  info: vi.fn().mockResolvedValue(undefined),
-  error: vi.fn().mockResolvedValue(undefined),
-}))
-
 // Mock recovery functions
 vi.mock('../../lib/recovery', () => ({
   saveRecoveryData: vi.fn().mockResolvedValue(undefined),
