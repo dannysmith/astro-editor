@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { EditorView } from '@codemirror/view'
+import { insertSnippet } from './commands/insertSnippet'
 import type { MdxComponent, PropInfo, PropKind } from '@/types'
 import {
   buildPreview,
@@ -61,6 +63,8 @@ describe('serializeProp', () => {
   it('uses a template literal for strings with quotes or newlines', () => {
     const code = prop('code', { kind: 'string' })
     expect(serializeProp(code, 'say "hi"')).toBe('code={`say "hi"`}')
+    expect(serializeProp(code, '&lt;div&gt;')).toBe('code={`&lt;div&gt;`}')
+    expect(serializeProp(code, 'Tom & Jerry')).toBe('code="Tom & Jerry"')
     expect(serializeProp(code, 'a\n\t`b` ${c}')).toBe(
       'code={`a\\n\\t\\`b\\` \\${c}`}'
     )
@@ -166,7 +170,7 @@ describe('buildSnippet', () => {
       { has_slot: true }
     )
     expect(buildSnippet(c, {})).toBe(
-      '<Callout title="${1:}" count=\\{${2:}\\}>${3:}</Callout>${}'
+      '<Callout title="${1:}" count={${2:}}>${3:}</Callout>${}'
     )
   })
 
@@ -184,8 +188,38 @@ describe('buildSnippet', () => {
     )
   })
 
-  it('escapes braces in entered values so they stay literal', () => {
-    const c = component([prop('count', { kind: 'number' })])
-    expect(buildSnippet(c, { count: '2' })).toBe('<Callout count=\\{2\\} />${}')
+  it('escapes only braces the snippet parser would misread', () => {
+    const c = component([
+      prop('count', { kind: 'number' }),
+      prop('pattern', { kind: 'string' }),
+    ])
+    expect(buildSnippet(c, { count: '2', pattern: '${x} \\{' })).toBe(
+      '<Callout count={2} pattern="$\\{x} \\\\{" />${}'
+    )
+  })
+})
+
+describe('inserting through CodeMirror', () => {
+  /** Inserts the snippet into an empty editor and returns the text it produced */
+  function insert(c: MdxComponent, values: Record<string, string>) {
+    const view = new EditorView({ parent: document.body })
+    insertSnippet(view, buildSnippet(c, values))
+    const text = view.state.doc.toString()
+    view.destroy()
+    return text
+  }
+
+  it('inserts exactly what the preview shows, backslashes and braces included', () => {
+    const c = component([
+      prop('pattern', { kind: 'string' }),
+      prop('count', { kind: 'number' }),
+      prop('code', { kind: 'string' }),
+    ])
+    const values = {
+      pattern: 'a\\{b} ${x} #{y} \\',
+      count: '3',
+      code: 'if (x) {\n\treturn "y"\n}',
+    }
+    expect(insert(c, values)).toBe(buildPreview(c, values))
   })
 })

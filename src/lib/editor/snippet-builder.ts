@@ -51,12 +51,13 @@ export function serializeProp(
 }
 
 /**
- * `name="value"`, or a template literal when the value has quotes or line
- * breaks. Line breaks and tabs are escaped so the attribute stays on one line,
- * since the editor re-indents the lines of an inserted snippet.
+ * `name="value"`, or a template literal when the value has quotes, line breaks
+ * or a character reference (`&amp;`), which a quoted attribute would decode.
+ * Line breaks and tabs are escaped so the attribute stays on one line, since
+ * the editor re-indents the lines of an inserted snippet.
  */
 function stringAttribute(name: string, value: string): string {
-  if (!/["\n\t]/.test(value)) return `${name}="${value}"`
+  if (!/["\n\t]|&#?\w+;/.test(value)) return `${name}="${value}"`
   const escaped = value
     .replace(/\\/g, '\\\\')
     .replace(/`/g, '\\`')
@@ -92,9 +93,15 @@ function emptyRequiredProp(prop: PropInfo): [string, string, string] {
   }
 }
 
-/** Escapes text so CodeMirror's snippet parser doesn't read `${…}` in it as a field */
+/**
+ * Escapes text so CodeMirror's snippet parser leaves it as written. Only two
+ * braces need it: one opening `${…}` or `#{…}`, which would start a field, and
+ * one after a backslash, which the parser would take as an escape and drop the
+ * backslash. Other braces (`count={3}`) pass through, which matters because the
+ * parser misplaces tab stops that follow runs of escapes.
+ */
 function escapeSnippetText(text: string): string {
-  return text.replace(/[{}]/g, '\\$&')
+  return text.replace(/(?<=[$#\\])[{}]/g, '\\$&')
 }
 
 /**
