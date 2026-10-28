@@ -1,0 +1,28 @@
+---
+title: 'v1.0.20'
+description: 'Astro Editor v1.0.20'
+date: 2026-10-28
+slug: 'releases/v1.0.20'
+---
+
+There aren't many visible changes in this release. Most of the work was under the hood, getting the app ready for some bigger features.
+
+**Astro Editor now needs macOS 12 (Monterey) or later.**
+
+### Bug fixes
+
+- **Typing could be lost when switching files** – Anything typed in the moment before switching to another file could be lost. The app now saves before it switches.
+- **Dates showed a day early** – West of UTC, the file list could show the day before the date in your frontmatter. It now shows the date as written.
+- **Dates could be misread** – Some non-US setups showed 5 Oct as `10/5`. The date picker and file list now always use a month name ("5 Oct 2026"). (#328)
+- **Remote image previews** – Image previews now load for `https://` URLs.
+- **Silent image errors** – If adding an image to an image field fails, you now get an error message instead of nothing happening.
+- **Dark mode** – Fixed the image preview, snippet borders, unfocused window buttons and the editor's lighter text. Context menus and system dialogs now follow the app's theme.
+- **Smaller fixes** – The active Drafts and filter buttons no longer turn dark on hover, placeholder text is the right colour, and the recovery message only says your work was saved once it actually has been.
+
+### Under the hood
+
+The app's tooling has moved to newer, faster tools, the interface components have been rebuilt on a new library, and every colour now comes from one set of theme colours. None of this should look different, but it makes the upcoming work on forms and project settings much easier. Logs now rotate instead of being wiped when they fill up, and more errors actually reach them, so bug reports should be easier to look into. Frontmatter fields are also now properly labelled for screen readers.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.0.20)
