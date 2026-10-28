@@ -21,7 +21,7 @@ Some actions need a query or mutation hook (creating a file needs `useCreateFile
 
 ## The palette's dependency list
 
-`useCommandPalette` builds the command list in a `useMemo` with a hand-maintained dependency list of primitive context fields (`collections.length` rather than the array, for instance), so the list isn't rebuilt on every render. **A command whose `isAvailable` or label reads a context field that isn't in that list will go stale** in the palette until something else changes.
+`useCommandPalette` builds the command list in a `useMemo` with a hand-maintained dependency list of primitive context fields (the collection names joined into a string rather than the array, for instance), so the list isn't rebuilt on every render. **A command whose `isAvailable` or label reads a context field that isn't in that list will go stale** in the palette until something else changes.
 
 Save is deliberately not in the palette. Everyone uses Cmd+S, and it made the list depend on `isDirty`, so it was rebuilt on every edit and every save.
 

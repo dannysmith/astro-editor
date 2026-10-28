@@ -56,6 +56,7 @@ export function useCommandPalette() {
   // isn't rebuilt on every render. A command whose isAvailable or label reads
   // a context field that isn't listed here goes stale until something else
   // changes, so add that field when adding such a command.
+  const collectionNames = context.collections.map(c => c.name).join('\n')
   const commands = useMemo(
     () => getAllCommands(context),
     // oxlint-disable-next-line react-hooks/exhaustive-deps
@@ -69,7 +70,7 @@ export function useCommandPalette() {
       context.globalSettings?.general?.highlights?.adjectives,
       context.globalSettings?.general?.highlights?.adverbs,
       context.globalSettings?.general?.highlights?.conjunctions,
-      context.collections.length, // Only react to collection count changes, not array reference
+      collectionNames, // A string, so a new array with the same names doesn't rebuild
     ]
   )
 
