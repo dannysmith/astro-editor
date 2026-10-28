@@ -9,7 +9,7 @@ import type { ClientDirective } from '../../store/componentBuilderStore'
 export type PropValue = string | boolean | string[]
 
 /** Whether a value counts as entered (empty strings and lists don't) */
-export function hasValue(value: PropValue | undefined): value is PropValue {
+function hasValue(value: PropValue | undefined): value is PropValue {
   if (value === undefined || value === '') return false
   return !Array.isArray(value) || value.length > 0
 }

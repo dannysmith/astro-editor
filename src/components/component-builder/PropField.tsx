@@ -117,6 +117,45 @@ export function PropField({ prop }: { prop: PropInfo }) {
     )
   }
 
+  if (kind.kind === 'array' && kind.items.kind === 'literals') {
+    const options = kind.items.values
+    const selected = Array.isArray(value) ? value : []
+    return (
+      <FieldWrapper {...wrapperProps} labelId={labelId}>
+        <Select
+          multiple
+          value={selected}
+          onValueChange={next =>
+            // Keep the order the component declares, not the order they were picked
+            setValue(
+              name,
+              options.filter(option => next.includes(option))
+            )
+          }
+        >
+          <SelectTrigger aria-labelledby={labelId} className="w-full">
+            <SelectValue>
+              {(picked: string[]) =>
+                picked.length > 0 ? (
+                  picked.join(', ')
+                ) : (
+                  <span className="text-muted-foreground">Select…</span>
+                )
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {options.map(option => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldWrapper>
+    )
+  }
+
   if (kind.kind === 'array') {
     const items = Array.isArray(value) ? value : []
     const isNumbers = kind.items.kind === 'number'

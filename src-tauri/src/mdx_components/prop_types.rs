@@ -89,10 +89,17 @@ impl SourceModule {
             .filter(|s| !s.is_empty())
     }
 
-    /// The first paragraph of the first JSDoc comment on a top-level statement,
-    /// which components conventionally use to describe themselves
+    /// The first paragraph of the first JSDoc comment on a top-level statement up to
+    /// the `Props` declaration, which components conventionally use to describe
+    /// themselves. Comments further down describe helpers, not the component.
     pub fn leading_description(&self) -> Option<String> {
-        self.module.body.iter().find_map(|item| {
+        let end = self
+            .module
+            .body
+            .iter()
+            .position(|item| declares_type(item, "Props"))
+            .map_or(self.module.body.len(), |i| i + 1);
+        self.module.body[..end].iter().find_map(|item| {
             let doc = self.doc_before(item.span().lo)?;
             doc.split("\n\n").next().map(str::to_string)
         })
@@ -120,6 +127,8 @@ enum TypeDecl {
     Alias(TsType),
     /// A string enum, or a const array/tuple of strings (for `(typeof X)[number]`)
     Values(Vec<String>),
+    /// The keys of a const object (for `keyof typeof X`)
+    Keys(Vec<String>),
 }
 
 /// Resolves prop types across a component's source and the files it imports.
@@ -199,7 +208,7 @@ impl PropResolver {
                 props
             }
             TypeDecl::Alias(ty) => self.props_of_type(m, &ty, depth + 1),
-            TypeDecl::Values(_) => Vec::new(),
+            TypeDecl::Values(_) | TypeDecl::Keys(_) => Vec::new(),
         }
     }
 
@@ -259,6 +268,9 @@ impl PropResolver {
                 _ => PropKind::Unknown,
             },
             TsType::TsParenthesizedType(p) => self.kind_of(m, &p.type_ann, depth + 1),
+            TsType::TsTypeOperator(op) if op.op == TsTypeOperatorOp::KeyOf => {
+                self.kind_of_keyof(m, &op.type_ann, depth)
+            }
             TsType::TsTypeOperator(op) if op.op == TsTypeOperatorOp::ReadOnly => {
                 self.kind_of(m, &op.type_ann, depth + 1)
             }
@@ -291,6 +303,8 @@ impl PropResolver {
             .map(|t| t.as_ref());
         match (id.sym.as_str(), first_param) {
             ("Date", _) => PropKind::Date,
+            // Astro components commonly take `string | URL`; a string is what writers enter
+            ("URL", _) => PropKind::String,
             ("ImageMetadata", _) => PropKind::Image,
             ("CollectionEntry", Some(TsType::TsLitType(lit))) => match &lit.lit {
                 TsLit::Str(s) => PropKind::CollectionEntry {
@@ -307,6 +321,27 @@ impl PropResolver {
                 _ => PropKind::Unknown,
             },
         }
+    }
+
+    /// `keyof typeof obj` (a const object's keys) or `keyof SomeInterface`
+    fn kind_of_keyof(&mut self, m: usize, ty: &TsType, depth: usize) -> PropKind {
+        let name = match ty {
+            TsType::TsTypeQuery(TsTypeQuery {
+                expr_name: TsTypeQueryExpr::TsEntityName(TsEntityName::Ident(id)),
+                ..
+            }) => id.sym.to_string(),
+            TsType::TsTypeRef(TsTypeRef {
+                type_name: TsEntityName::Ident(id),
+                ..
+            }) => id.sym.to_string(),
+            _ => return PropKind::Unknown,
+        };
+        let values = match self.lookup(m, &name, depth + 1) {
+            Some((_, TypeDecl::Keys(keys))) => keys,
+            Some((_, TypeDecl::Interface(iface))) => member_names(&iface.body.body),
+            _ => return PropKind::Unknown,
+        };
+        PropKind::Literals { values }
     }
 
     /// `(typeof list)[number]`, the union of a const array's items
@@ -424,6 +459,20 @@ impl PropResolver {
     }
 }
 
+/// Whether a top-level item declares the interface or type alias `name`
+fn declares_type(item: &ModuleItem, name: &str) -> bool {
+    let decl = match item {
+        ModuleItem::Stmt(Stmt::Decl(decl)) => decl,
+        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => &export.decl,
+        _ => return false,
+    };
+    match decl {
+        Decl::TsInterface(i) => i.id.sym.as_str() == name,
+        Decl::TsTypeAlias(a) => a.id.sym.as_str() == name,
+        _ => false,
+    }
+}
+
 /// Finds a type-relevant declaration of `name` at the top level of a module
 fn find_local_decl(module: &Module, name: &str) -> Option<TypeDecl> {
     for item in &module.body {
@@ -456,15 +505,17 @@ fn find_local_decl(module: &Module, name: &str) -> Option<TypeDecl> {
                     if id.id.sym.as_str() != name {
                         continue;
                     }
-                    let values = d
-                        .init
-                        .as_deref()
+                    let init = d.init.as_deref().map(unwrap_ts_expr);
+                    let ann = id.type_ann.as_ref().map(|t| t.type_ann.as_ref());
+                    if let Some(Expr::Object(obj)) = init {
+                        return Some(TypeDecl::Keys(object_keys(obj)));
+                    }
+                    if let Some(TsType::TsTypeLit(lit)) = ann {
+                        return Some(TypeDecl::Keys(member_names(&lit.members)));
+                    }
+                    let values = init
                         .and_then(string_array_values)
-                        .or_else(|| {
-                            id.type_ann
-                                .as_ref()
-                                .and_then(|t| string_tuple_values(&t.type_ann))
-                        })?;
+                        .or_else(|| ann.and_then(string_tuple_values))?;
                     return Some(TypeDecl::Values(values));
                 }
             }
@@ -474,12 +525,60 @@ fn find_local_decl(module: &Module, name: &str) -> Option<TypeDecl> {
     None
 }
 
+/// Strips TypeScript-only wrappers from an expression: `x as T`, `x satisfies T`,
+/// `x as const`, `x!` and parentheses
+pub fn unwrap_ts_expr(expr: &Expr) -> &Expr {
+    match expr {
+        Expr::TsAs(e) => unwrap_ts_expr(&e.expr),
+        Expr::TsSatisfies(e) => unwrap_ts_expr(&e.expr),
+        Expr::TsConstAssertion(e) => unwrap_ts_expr(&e.expr),
+        Expr::TsNonNull(e) => unwrap_ts_expr(&e.expr),
+        Expr::Paren(e) => unwrap_ts_expr(&e.expr),
+        other => other,
+    }
+}
+
+fn prop_name_text(name: &PropName) -> Option<String> {
+    match name {
+        PropName::Ident(id) => Some(id.sym.to_string()),
+        PropName::Str(s) => Some(s.value.to_string_lossy().to_string()),
+        _ => None,
+    }
+}
+
+/// The keys of an object literal
+fn object_keys(obj: &ObjectLit) -> Vec<String> {
+    obj.props
+        .iter()
+        .filter_map(|prop| match prop {
+            PropOrSpread::Prop(prop) => match prop.as_ref() {
+                Prop::KeyValue(kv) => prop_name_text(&kv.key),
+                Prop::Shorthand(id) => Some(id.sym.to_string()),
+                _ => None,
+            },
+            PropOrSpread::Spread(_) => None,
+        })
+        .collect()
+}
+
+/// The property names of an interface or object type
+fn member_names(members: &[TsTypeElement]) -> Vec<String> {
+    members
+        .iter()
+        .filter_map(|member| match member {
+            TsTypeElement::TsPropertySignature(prop) => match prop.key.as_ref() {
+                Expr::Ident(id) => Some(id.sym.to_string()),
+                Expr::Lit(Lit::Str(s)) => Some(s.value.to_string_lossy().to_string()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
 /// `['a', 'b'] as const` (or `satisfies …`) → `["a", "b"]`
 fn string_array_values(expr: &Expr) -> Option<Vec<String>> {
-    match expr {
-        Expr::TsConstAssertion(e) => string_array_values(&e.expr),
-        Expr::TsAs(e) => string_array_values(&e.expr),
-        Expr::TsSatisfies(e) => string_array_values(&e.expr),
+    match unwrap_ts_expr(expr) {
         Expr::Array(arr) => arr
             .elems
             .iter()
@@ -549,11 +648,14 @@ fn is_nullish(ty: &TsType) -> bool {
     )
 }
 
-/// Combines the kinds of a union's members. Literals merge; `boolean` is `true | false`;
-/// a plain `string` absorbs literals and types we can't enter anyway (`string | URL`).
+/// Combines the kinds of a union's members. Literals merge; members of one kind collapse
+/// to it (`true | false` is a boolean, `1 | 2` a number); a plain `string` absorbs
+/// literals (`'auto' | string`). Anything else mixed (`string | Post`) is unknown.
 fn merge_union(kinds: Vec<PropKind>) -> PropKind {
-    if kinds.len() == 1 {
-        return kinds.into_iter().next().unwrap_or(PropKind::Unknown);
+    if let Some(first) = kinds.first() {
+        if !matches!(first, PropKind::Literals { .. }) && kinds.iter().all(|k| k == first) {
+            return first.clone();
+        }
     }
     if kinds.iter().all(|k| matches!(k, PropKind::Literals { .. })) {
         let mut values: Vec<String> = Vec::new();
@@ -568,16 +670,9 @@ fn merge_union(kinds: Vec<PropKind>) -> PropKind {
         }
         return PropKind::Literals { values };
     }
-    if !kinds.is_empty() && kinds.iter().all(|k| *k == PropKind::Boolean) {
-        return PropKind::Boolean;
-    }
-    if kinds.contains(&PropKind::String)
-        && kinds.iter().all(|k| {
-            matches!(
-                k,
-                PropKind::String | PropKind::Literals { .. } | PropKind::Unknown
-            )
-        })
+    if kinds
+        .iter()
+        .all(|k| matches!(k, PropKind::String | PropKind::Literals { .. }))
     {
         return PropKind::String;
     }
@@ -599,10 +694,8 @@ pub fn destructured_defaults(source: &SourceModule, pat: &ObjectPat) -> HashMap<
                 None => continue,
             },
             ObjectPatProp::KeyValue(kv) => {
-                let key = match &kv.key {
-                    PropName::Ident(id) => id.sym.to_string(),
-                    PropName::Str(s) => s.value.to_string_lossy().to_string(),
-                    _ => continue,
+                let Some(key) = prop_name_text(&kv.key) else {
+                    continue;
                 };
                 match kv.value.as_ref() {
                     Pat::Assign(assign) => (key, assign.right.as_ref()),
@@ -618,6 +711,41 @@ pub fn destructured_defaults(source: &SourceModule, pat: &ObjectPat) -> HashMap<
         defaults.insert(key, text);
     }
     defaults
+}
+
+/// Props for a destructure with no type, like `const { a, b = 2 } = Astro.props`.
+/// Each is optional, and its kind comes from its default when that's a literal.
+pub fn untyped_props(pat: &ObjectPat) -> Vec<PropInfo> {
+    pat.props
+        .iter()
+        .filter_map(|prop| {
+            let (name, default) = match prop {
+                ObjectPatProp::Assign(a) => (a.key.id.sym.to_string(), a.value.as_deref()),
+                ObjectPatProp::KeyValue(kv) => (
+                    prop_name_text(&kv.key)?,
+                    match kv.value.as_ref() {
+                        Pat::Assign(assign) => Some(assign.right.as_ref()),
+                        _ => None,
+                    },
+                ),
+                ObjectPatProp::Rest(_) => return None,
+            };
+            let kind = match default {
+                Some(Expr::Lit(Lit::Str(_))) => PropKind::String,
+                Some(Expr::Lit(Lit::Num(_))) => PropKind::Number,
+                Some(Expr::Lit(Lit::Bool(_))) => PropKind::Boolean,
+                _ => PropKind::Unknown,
+            };
+            Some(PropInfo {
+                name,
+                prop_type: "unknown".to_string(),
+                kind,
+                is_optional: true,
+                default_value: None,
+                description: None,
+            })
+        })
+        .collect()
 }
 
 /// Fills in `default_value` on props from a map of defaults
@@ -707,6 +835,62 @@ mod tests {
         assert_eq!(kind(&props, "onClick"), PropKind::Unknown);
         assert_eq!(kind(&props, "href"), PropKind::String);
         assert_eq!(kind(&props, "maybe"), PropKind::String);
+    }
+
+    #[test]
+    fn collapses_unions_of_one_kind() {
+        let props = props_of(
+            "interface Props { n: 1 | 2 | 3; b: true | false; mixed: string | number; post: string | Post; auto: 'auto' | string }",
+        );
+        assert_eq!(kind(&props, "n"), PropKind::Number);
+        assert_eq!(kind(&props, "b"), PropKind::Boolean);
+        assert_eq!(kind(&props, "mixed"), PropKind::Unknown);
+        assert_eq!(kind(&props, "post"), PropKind::Unknown);
+        assert_eq!(kind(&props, "auto"), PropKind::String);
+    }
+
+    #[test]
+    fn resolves_keyof_to_keys() {
+        let props = props_of(
+            r#"
+            const icons = { star: '*', 'heart-filled': '+' } as const
+            declare const declared: { a: string; b: string }
+            interface Sizes { sm: number; lg: number }
+            interface Props { icon: keyof typeof icons; d: keyof typeof declared; size: keyof Sizes }
+            "#,
+        );
+        assert_eq!(kind(&props, "icon"), literals(&["star", "heart-filled"]));
+        assert_eq!(kind(&props, "d"), literals(&["a", "b"]));
+        assert_eq!(kind(&props, "size"), literals(&["sm", "lg"]));
+    }
+
+    #[test]
+    fn lists_untyped_destructured_props() {
+        let code = "const { id, label = 'Hi', count = 3, open = false, ...rest } = Astro.props";
+        let source = SourceModule::parse(code.to_string(), None, false).unwrap();
+        let ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))) = &source.module.body[0] else {
+            panic!("expected a var")
+        };
+        let Pat::Object(pat) = &var.decls[0].name else {
+            panic!("expected an object pattern")
+        };
+        let props = untyped_props(pat);
+        let names: Vec<_> = props.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["id", "label", "count", "open"]);
+        assert_eq!(kind(&props, "id"), PropKind::Unknown);
+        assert_eq!(kind(&props, "label"), PropKind::String);
+        assert_eq!(kind(&props, "count"), PropKind::Number);
+        assert_eq!(kind(&props, "open"), PropKind::Boolean);
+    }
+
+    #[test]
+    fn describes_the_component_from_jsdoc_before_props_only() {
+        let parse = |code: &str| SourceModule::parse(code.to_string(), None, false).unwrap();
+        let described =
+            parse("import x from './x'\n/** A card.\n\nMore detail. */\ninterface Props {}");
+        assert_eq!(described.leading_description().as_deref(), Some("A card."));
+        let helper_only = parse("interface Props {}\n/** Formats a date */\nfunction format() {}");
+        assert_eq!(helper_only.leading_description(), None);
     }
 
     #[test]

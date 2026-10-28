@@ -88,7 +88,7 @@ export function ComponentBuilderDialog() {
                   <CommandGroup>
                     {components.map(component => (
                       <CommandItem
-                        key={component.name}
+                        key={component.file_path}
                         value={component.name}
                         onSelect={() => selectComponent(component)}
                         className="cursor-pointer"

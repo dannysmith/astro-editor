@@ -4,7 +4,8 @@ mod prop_types;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
 use prop_types::{
-    apply_defaults, astro_frontmatter, destructured_defaults, PropResolver, SourceModule,
+    apply_defaults, astro_frontmatter, destructured_defaults, untyped_props, unwrap_ts_expr,
+    PropResolver, SourceModule,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -146,9 +147,14 @@ fn parse_component(
         root: project_root,
     });
 
-    // Astro is parsed strictly; other frameworks degrade to a component with no props
+    // A component whose code we can't parse is still listed, with no props
     let parsed = match framework {
-        ComponentFramework::Astro => parse_astro_props(&content, location)?,
+        ComponentFramework::Astro => {
+            parse_astro_props(&content, location).unwrap_or_else(|_| ParsedProps {
+                has_slot: astro_has_slot(&content),
+                ..Default::default()
+            })
+        }
         ComponentFramework::React => {
             parse_react_props(&content, &name, location).unwrap_or_default()
         }
@@ -180,8 +186,12 @@ fn resolver_for(
 
 /// Reads `interface Props` / `type Props` from an `.astro` file's frontmatter,
 /// with defaults from `const { a = 'x' } = Astro.props`
+fn astro_has_slot(content: &str) -> bool {
+    content.contains("<slot") || content.contains("Astro.slots")
+}
+
 fn parse_astro_props(content: &str, location: Option<Location>) -> Result<ParsedProps, String> {
-    let has_slot = content.contains("<slot") || content.contains("Astro.slots");
+    let has_slot = astro_has_slot(content);
     let Some(code) = astro_frontmatter(content) else {
         return Ok(ParsedProps {
             has_slot,
@@ -189,20 +199,29 @@ fn parse_astro_props(content: &str, location: Option<Location>) -> Result<Parsed
         });
     };
     let (mut resolver, m) = resolver_for(code, location, false)?;
-    let mut props = resolver.props_of_named(m, "Props").unwrap_or_default();
+    let typed_props = resolver.props_of_named(m, "Props");
 
     let source = resolver.module(m);
-    for item in &source.module.body {
+    let destructure = source.module.body.iter().find_map(|item| {
         let ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))) = item else {
-            continue;
+            return None;
         };
-        for decl in &var.decls {
-            if let (Pat::Object(pat), Some(init)) = (&decl.name, &decl.init) {
-                if is_astro_props(init) {
-                    apply_defaults(&mut props, &destructured_defaults(&source, pat));
-                }
-            }
-        }
+        var.decls
+            .iter()
+            .find_map(|decl| match (&decl.name, &decl.init) {
+                (Pat::Object(pat), Some(init)) if is_astro_props(init) => Some(pat),
+                _ => None,
+            })
+    });
+
+    // Without a Props type, the destructured names are all we know
+    let mut props = match (typed_props, destructure) {
+        (Some(props), _) => props,
+        (None, Some(pat)) => untyped_props(pat),
+        (None, None) => Vec::new(),
+    };
+    if let Some(pat) = destructure {
+        apply_defaults(&mut props, &destructured_defaults(&source, pat));
     }
 
     Ok(ParsedProps {
@@ -212,8 +231,9 @@ fn parse_astro_props(content: &str, location: Option<Location>) -> Result<Parsed
     })
 }
 
+/// `Astro.props`, also when cast (`Astro.props as Props`)
 fn is_astro_props(expr: &Expr) -> bool {
-    let Expr::Member(member) = expr else {
+    let Expr::Member(member) = unwrap_ts_expr(expr) else {
         return false;
     };
     matches!(member.obj.as_ref(), Expr::Ident(obj) if obj.sym.as_str() == "Astro")
@@ -334,26 +354,34 @@ fn pat_type(pat: &Pat) -> Option<&TsType> {
     }
 }
 
-/// The contents of a `.vue` or `.svelte` file's first `<script>` block
-fn extract_script(content: &str) -> Result<String, String> {
-    let script_start = content.find("<script").ok_or("No <script> tag found")?;
-    let script_content_start = content[script_start..]
-        .find('>')
-        .ok_or("Malformed <script> tag")?
-        + script_start
-        + 1;
-    let script_end = content[script_content_start..]
-        .find("</script>")
-        .ok_or("No closing </script> tag")?
-        + script_content_start;
-    Ok(content[script_content_start..script_end].to_string())
+/// The contents of the `<script>` block in a `.vue` or `.svelte` file whose opening
+/// tag's attributes satisfy `prefer`, or the first one if none do
+fn extract_script(content: &str, prefer: impl Fn(&str) -> bool) -> Result<String, String> {
+    let mut blocks: Vec<(&str, &str)> = Vec::new();
+    let mut rest = content;
+    while let Some(start) = rest.find("<script") {
+        let after_tag = &rest[start + "<script".len()..];
+        let tag_end = after_tag.find('>').ok_or("Malformed <script> tag")?;
+        let body = &after_tag[tag_end + 1..];
+        let body_end = body.find("</script>").ok_or("No closing </script> tag")?;
+        blocks.push((&after_tag[..tag_end], &body[..body_end]));
+        rest = &body[body_end..];
+    }
+    blocks
+        .iter()
+        .find(|(attrs, _)| prefer(attrs))
+        .or(blocks.first())
+        .map(|(_, body)| body.to_string())
+        .ok_or_else(|| "No <script> tag found".to_string())
 }
 
-/// Finds `defineProps<T>()`, `withDefaults(defineProps<T>(), { … })` and
-/// `const { a = 1 } = defineProps<T>()` in a Vue `<script setup>`
+/// Finds `defineProps<T>()`, `withDefaults(defineProps<T>(), { … })`,
+/// `const { a = 1 } = defineProps<T>()`, and runtime declarations like
+/// `defineProps({ a: String })` or `defineProps(['a'])`, in a Vue `<script setup>`
 #[derive(Default)]
 struct DefinePropsFinder {
     props_type: Option<TsType>,
+    runtime: Option<Expr>,
     defaults: Option<ObjectLit>,
     pattern: Option<ObjectPat>,
 }
@@ -373,6 +401,8 @@ impl Visit for DefinePropsFinder {
             Some("defineProps") => {
                 if let Some(params) = &call.type_args {
                     self.props_type = params.params.first().map(|t| (**t).clone());
+                } else if let Some(arg) = call.args.first() {
+                    self.runtime = Some((*arg.expr).clone());
                 }
             }
             Some("withDefaults") => {
@@ -397,16 +427,17 @@ fn callee_name(call: &CallExpr) -> Option<&str> {
 }
 
 fn parse_vue_props(content: &str, location: Option<Location>) -> Result<ParsedProps, String> {
-    let script = extract_script(content)?;
+    let script = extract_script(content, |attrs| attrs.contains("setup"))?;
     let (mut resolver, m) = resolver_for(script, location, false)?;
     let source = resolver.module(m);
 
     let mut finder = DefinePropsFinder::default();
     source.module.visit_with(&mut finder);
 
-    let mut props = match &finder.props_type {
-        Some(ty) => resolver.props_of_type(m, ty, 0),
-        None => Vec::new(),
+    let mut props = match (&finder.props_type, &finder.runtime) {
+        (Some(ty), _) => resolver.props_of_type(m, ty, 0),
+        (None, Some(runtime)) => vue_runtime_props(&source, runtime),
+        (None, None) => Vec::new(),
     };
     if let Some(pat) = &finder.pattern {
         apply_defaults(&mut props, &destructured_defaults(&source, pat));
@@ -420,6 +451,87 @@ fn parse_vue_props(content: &str, location: Option<Location>) -> Result<ParsedPr
         has_slot: content.contains("<slot"),
         description: None,
     })
+}
+
+/// Props from Vue's runtime declaration: `['a', 'b']`, or an object whose values
+/// are a constructor (`String`) or an options object (`{ type: Number, required: true, default: 1 }`)
+fn vue_runtime_props(source: &SourceModule, runtime: &Expr) -> Vec<PropInfo> {
+    let constructor_kind = |expr: &Expr| match expr {
+        Expr::Ident(id) => match id.sym.as_str() {
+            "String" => PropKind::String,
+            "Number" => PropKind::Number,
+            "Boolean" => PropKind::Boolean,
+            "Date" => PropKind::Date,
+            "Array" => PropKind::Array {
+                items: Box::new(PropKind::Unknown),
+            },
+            _ => PropKind::Unknown,
+        },
+        _ => PropKind::Unknown,
+    };
+    let prop = |name: String, kind: PropKind| PropInfo {
+        name,
+        prop_type: "unknown".to_string(),
+        kind,
+        is_optional: true,
+        default_value: None,
+        description: None,
+    };
+
+    match unwrap_ts_expr(runtime) {
+        Expr::Array(names) => names
+            .elems
+            .iter()
+            .filter_map(|el| match el.as_ref().map(|e| e.expr.as_ref()) {
+                Some(Expr::Lit(Lit::Str(s))) => {
+                    Some(prop(s.value.to_string_lossy().to_string(), PropKind::Unknown))
+                }
+                _ => None,
+            })
+            .collect(),
+        Expr::Object(obj) => obj
+            .props
+            .iter()
+            .filter_map(|p| {
+                let PropOrSpread::Prop(p) = p else {
+                    return None;
+                };
+                let Prop::KeyValue(kv) = p.as_ref() else {
+                    return None;
+                };
+                let name = match &kv.key {
+                    PropName::Ident(id) => id.sym.to_string(),
+                    PropName::Str(s) => s.value.to_string_lossy().to_string(),
+                    _ => return None,
+                };
+                let Expr::Object(options) = kv.value.as_ref() else {
+                    return Some(prop(name, constructor_kind(&kv.value)));
+                };
+                let option = |key: &str| {
+                    options.props.iter().find_map(|o| match o {
+                        PropOrSpread::Prop(o) => match o.as_ref() {
+                            Prop::KeyValue(kv)
+                                if matches!(&kv.key, PropName::Ident(id) if id.sym.as_str() == key) =>
+                            {
+                                Some(kv.value.as_ref())
+                            }
+                            _ => None,
+                        },
+                        PropOrSpread::Spread(_) => None,
+                    })
+                };
+                let mut info = prop(name, option("type").map_or(PropKind::Unknown, constructor_kind));
+                info.is_optional = !matches!(option("required"), Some(Expr::Lit(Lit::Bool(b))) if b.value);
+                info.default_value = option("default").and_then(|value| match value {
+                    Expr::Lit(Lit::Str(s)) => Some(s.value.to_string_lossy().to_string()),
+                    Expr::Lit(_) => Some(source.snippet(value.span()).to_string()),
+                    _ => None,
+                });
+                Some(info)
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// `{ a: 'x', b: 2 }` → `a: x`, `b: 2`, formatted like `destructured_defaults`
@@ -448,7 +560,8 @@ fn object_literal_values(source: &SourceModule, obj: &ObjectLit) -> HashMap<Stri
 /// Reads Svelte 4 `export let name: Type = default` props, or a Svelte 5
 /// `let { a = 1 }: Props = $props()` destructure
 fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<ParsedProps, String> {
-    let script = extract_script(content)?;
+    // Skip the module script (`<script module>`, or `context="module"` in Svelte 4)
+    let script = extract_script(content, |attrs| !attrs.contains("module"))?;
     let (mut resolver, m) = resolver_for(script, location, false)?;
     let source = resolver.module(m);
 
@@ -483,17 +596,19 @@ fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<Parse
             // Svelte 5
             ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))) => {
                 for d in &var.decls {
-                    let (Pat::Object(pat), Some(Expr::Call(call))) = (&d.name, d.init.as_deref())
+                    let (Pat::Object(pat), Some(Expr::Call(call))) =
+                        (&d.name, d.init.as_deref().map(unwrap_ts_expr))
                     else {
                         continue;
                     };
                     if callee_name(call) != Some("$props") {
                         continue;
                     }
-                    if let Some(ty) = pat.type_ann.as_ref() {
-                        props = resolver.props_of_type(m, &ty.type_ann, 0);
-                        apply_defaults(&mut props, &destructured_defaults(&source, pat));
-                    }
+                    props = match pat.type_ann.as_ref() {
+                        Some(ty) => resolver.props_of_type(m, &ty.type_ann, 0),
+                        None => untyped_props(pat),
+                    };
+                    apply_defaults(&mut props, &destructured_defaults(&source, pat));
                 }
             }
             _ => {}
@@ -929,6 +1044,77 @@ const props = defineProps<{
     }
 
     #[test]
+    fn test_parse_vue_runtime_props() {
+        let code = r#"
+<script setup>
+defineProps({
+  title: String,
+  count: { type: Number, required: true },
+  url: { type: String, default: '/kestra.yml' },
+  open: { type: Boolean, default: false },
+})
+</script>
+"#;
+        let ParsedProps { props, .. } = parse_vue_props(code, None).unwrap();
+        let names: Vec<_> = props.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["title", "count", "url", "open"]);
+        assert_eq!(props[0].kind, PropKind::String);
+        assert!(props[0].is_optional);
+        assert_eq!(props[1].kind, PropKind::Number);
+        assert!(!props[1].is_optional);
+        assert_eq!(props[2].default_value.as_deref(), Some("/kestra.yml"));
+        assert_eq!(props[3].default_value.as_deref(), Some("false"));
+
+        let code = "<script setup>\ndefineProps(['a', 'b'])\n</script>";
+        let ParsedProps { props, .. } = parse_vue_props(code, None).unwrap();
+        assert_eq!(props.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_astro_cast_and_untyped_props() {
+        let typed = "---\ninterface Props { kind?: 'a' | 'b' }\nconst { kind = 'a' } = Astro.props as Props\n---\n";
+        let props = parse_astro_props(typed, None).unwrap().props;
+        assert_eq!(props[0].default_value.as_deref(), Some("a"));
+
+        let untyped = "---\nconst { url, max = 3 } = Astro.props\n---\n";
+        let props = parse_astro_props(untyped, None).unwrap().props;
+        let names: Vec<_> = props.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["url", "max"]);
+        assert_eq!(props[1].kind, PropKind::Number);
+        assert_eq!(props[1].default_value.as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn test_parse_vue_prefers_script_setup() {
+        let code = r#"
+<script lang="ts">
+export default { name: 'Card' }
+</script>
+<script setup lang="ts">
+defineProps<{ title: string }>()
+</script>
+"#;
+        let ParsedProps { props, .. } = parse_vue_props(code, None).unwrap();
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "title");
+    }
+
+    #[test]
+    fn test_parse_svelte_skips_module_script() {
+        let code = r#"
+<script module lang="ts">
+  export const shared = 1
+</script>
+<script lang="ts">
+  let { label }: { label: string } = $props()
+</script>
+"#;
+        let ParsedProps { props, .. } = parse_svelte_props(code, None).unwrap();
+        assert_eq!(props.len(), 1);
+        assert_eq!(props[0].name, "label");
+    }
+
+    #[test]
     fn test_parse_vue_with_slot() {
         let code = r#"
 <script setup lang="ts">
@@ -1306,7 +1492,71 @@ mod fixture_tests {
             .unwrap_or_else(|| panic!("no prop {component}.{prop}"))
     }
 
-    /// Prints what was read, for eyeballing: `cargo test fixture_tests -- --nocapture`
+    /// Prints what every fixture folder reads as, for eyeballing. Each folder is
+    /// scanned as its own project, so imports resolve within it:
+    /// `cargo test --lib dump_all_fixtures -- --ignored --nocapture`
+    /// The test project's components, which cover each prop kind and framework pattern
+    #[test]
+    fn reads_test_project_components() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/dummy-astro-project");
+        let components = scan(&root, "src/components/mdx");
+        dump(&components);
+
+        assert_eq!(
+            prop(&components, "Pricing", "plan").kind,
+            PropKind::Literals {
+                values: ["starter", "team", "enterprise"].map(String::from).to_vec()
+            }
+        );
+        assert_eq!(prop(&components, "Figure", "image").kind, PropKind::Image);
+        assert_eq!(
+            prop(&components, "Figure", "related").kind,
+            PropKind::CollectionEntry {
+                collection: "articles".to_string()
+            }
+        );
+        assert_eq!(
+            prop(&components, "Poll", "layout").default_value.as_deref(),
+            Some("list")
+        );
+        assert_eq!(
+            prop(&components, "Rating", "max").default_value.as_deref(),
+            Some("5")
+        );
+        assert_eq!(
+            prop(&components, "Timeline", "orientation").kind,
+            PropKind::Literals {
+                values: ["vertical", "horizontal"].map(String::from).to_vec()
+            }
+        );
+        assert_eq!(
+            prop(&components, "Event", "tracks").kind,
+            PropKind::Array {
+                items: Box::new(PropKind::Literals {
+                    values: ["design", "engineering", "writing"]
+                        .map(String::from)
+                        .to_vec()
+                })
+            }
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_all_fixtures() {
+        let mut dirs: Vec<_> = fs::read_dir(fixtures())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.is_dir())
+            .collect();
+        dirs.sort();
+        for dir in dirs {
+            println!("\n===== {}", dir.file_name().unwrap().to_string_lossy());
+            dump(&scan(&dir, "."));
+        }
+    }
+
     fn dump(components: &[MdxComponent]) {
         let mut components: Vec<_> = components.iter().collect();
         components.sort_by(|a, b| a.name.cmp(&b.name));

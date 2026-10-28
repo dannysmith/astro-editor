@@ -60,7 +60,13 @@ The fragile parts: depending on astro's package path for "own props", and on Zod
 - [x] Move the component code into `src-tauri/src/mdx_components/`
 - [x] Defaults and JSDoc for all four frameworks; whole-line frontmatter fences
 - [x] Fixture tests against `test/mdx-components/`
-- [ ] Decide whether `oxc_resolver` alias support is worth adding now (probably not)
+- [x] Review fixes: unions of one kind collapse (`1 | 2` is a number), the component description only comes from JSDoc up to the `Props` declaration, Vue reads `<script setup>` and Svelte skips the module script, and an Astro file that won't parse is still listed
+- [x] Real-world fixtures collected into `test/mdx-components/` (see its README); `cargo test --lib dump_all_fixtures -- --ignored --nocapture` prints what each reads as
+- [x] Fixes from the real-world fixtures: defaults through `Astro.props as Props`, `keyof typeof obj` and `keyof Interface` as literals, untyped destructures (`const { a, b = 2 } = Astro.props`, untyped `$props()`) listed with kinds from their defaults, Vue runtime `defineProps({ a: String })` / `defineProps(['a'])`, `URL` as a string, and mixed unions like `string | Post` as unknown rather than string
+- [ ] Decide whether `oxc_resolver` alias support is worth adding now (probably not; Astro Cactus is the one fixture that needs it)
+- [ ] Enum member defaults (`orientation = Orientation.Vertical`) show as written rather than as the enum's value
+
+Known limits from the fixtures, which fall back to a text field or nothing: arrays of objects (`sources: { src; type }[]`), object and discriminated-union props, props typed from another component (`Parameters<typeof Badge>[0]`) or mapped package types, defaults that live in a Zod schema or a function, and polymorphic `as` props. A lowercase file (`post.astro`) gives a lowercase component name.
 
 ### Phase 2: The form
 
@@ -71,14 +77,16 @@ The fragile parts: depending on astro's package path for "own props", and on Zod
   - `boolean` → switch when required; select of (Not set) / true / false when optional
   - `literals` → select, with (Not set) when optional
   - `date` → date picker
-  - `array` → tag input (number arrays drop anything that isn't a number)
+  - `array` of literals → multi-select, kept in declared order
+  - other `array`s → tag input (number arrays drop anything that isn't a number)
 - [x] A prop is inserted only when it has a value, or is required. Defaults show as "Default: x" under the field, as in the frontmatter panel.
 - [x] Prop descriptions as help text, the component description in the list and the form header
 - [x] Keyboard: focus starts in the first field, Tab between fields, Cmd+Enter inserts, Escape goes back to the list (and closes from there)
 - [x] Required props left empty become snippet tab stops
-- [x] Styleguide section (`component-builder`) and an `Event` component in the test project with one prop of each kind
-- [ ] Danny tries it in the app
-- [ ] Arrays of literals as a multi-select rather than free text
+- [x] Styleguide section (`component-builder`)
+- [x] Test project components covering each kind and framework pattern: `Event` (every kind), `Pricing` (types imported from a sibling file, `extends HTMLAttributes`), `Figure` (`ImageMetadata`, `CollectionEntry`), `Poll` (Svelte 5 `$props()`), `Rating` (Vue `withDefaults`), `Timeline` (React `FC<Props>`, string enum). `src/pages/components.astro` renders the Astro ones so the build checks them; a Rust test asserts what's read from them.
+- [x] Danny tried it in the app
+- [x] Arrays of literals as a multi-select
 - [ ] A searchable combobox for long literal lists (Starlight's 277 icons), probably with Phase 3
 
 ### Phase 3: Starlight components
