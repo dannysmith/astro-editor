@@ -48,6 +48,20 @@ export function parseIsoDate(dateString: string): Date | undefined {
   return date
 }
 
+/**
+ * Format a Date for display, e.g. "5 Oct 2026" or "Oct 5, 2026" depending on
+ * the user's locale. The month is always a name because the webview can't see
+ * every macOS region setting and may fall back to US order, where a numeric
+ * date like 10/5/2026 is easy to misread.
+ */
+export function formatDisplayDate(date: Date): string {
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 export function todayIsoDate(): string {
   return formatIsoDate(new Date())
 }
