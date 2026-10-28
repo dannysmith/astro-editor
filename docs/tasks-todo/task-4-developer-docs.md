@@ -2,7 +2,7 @@
 
 Rework AGENTS.md and `docs/developer/` around one question: what does someone coming into this project, human or agent, need to know that the code can't tell them? That means the why, the principles, and the non-obvious constraints and gotchas. Anything that only describes what the code visibly does can go. That knowledge isn't lost: the code itself, short comments next to it, or git history cover it.
 
-This comes after the toolchain, Base UI and colour token work (all in `docs/tasks-done/`), so the docs describe the final toolchain, component library and colour system, and get rewritten once. Docs only, so this happens on `main`.
+This comes after the toolchain, Base UI and colour token work (all in `docs/tasks-done/`), so the docs describe the final toolchain, component library and colour system, and get rewritten once. It also includes a few small code changes found during the inventory (comments, the log limit, test locations, logging imports), so it goes up as a PR with one commit per change.
 
 ## Already done in the colour token work
 
@@ -34,19 +34,37 @@ These were written or updated around the why in October 2026, so they need check
 
 ### 1. Inventory
 
-- [ ] Read AGENTS.md, `docs/README.md` and every file in `docs/developer/`. Write `docs/tasks-todo/temporary/docs-inventory.md` listing each piece of knowledge that isn't obvious from the code: the rule or fact, why it matters, and where it lives now
-- [ ] Flag anything stale along the way: versions, removed tools, ESLint/Prettier/pnpm references, Radix-specific guidance, the line-count targets in `docs/README.md`, and the docs index in AGENTS.md
-- [ ] Danny reviews the inventory before anything is cut
+- [x] Read AGENTS.md, `docs/README.md` and every file in `docs/developer/`. Write `docs/tasks-todo/temporary/docs-inventory.md` listing each piece of knowledge that isn't obvious from the code: the rule or fact, why it matters, and where it lives now
+- [x] Flag anything stale along the way: versions, removed tools, ESLint/Prettier/pnpm references, Radix-specific guidance, the line-count targets in `docs/README.md`, and the docs index in AGENTS.md
+- [x] Danny reviews the inventory before anything is cut
 
 ### 2. Decide per doc
 
-- [ ] For each doc, decide whether to keep and rewrite around the why, merge into another doc, move its knowledge into code comments, or delete. Record the decisions in the inventory file
-- [ ] Decide on `docs/archive/` (git history keeps it either way)
+- [x] For each doc, decide whether to keep and rewrite around the why, merge into another doc, move its knowledge into code comments, or delete. Recorded in the inventory's "Decisions" section: 24 docs become 14, including a new `commands-and-shortcuts.md` and `preferences-system.md` renamed to `app-data.md`
+- [x] Decide on `docs/archive/`: keep only `initial-requirement-notes.md`
 
 ### 3. Rewrite
 
-- [ ] AGENTS.md: what the project is, the non-negotiable rules with reasons, where things live, the commands, the skills, and pointers to the docs. The rules include "colours only through tokens in `App.css`", which the colour work added and AGENTS.md doesn't mention yet
+- [ ] AGENTS.md: what the project is (product principles from the website's `getting-started/philosophy.mdx`), the non-negotiable rules with reasons, where things live, the commands, the skills, and pointers to the docs. The rules include "colours only through tokens in `App.css`", which the colour work added and AGENTS.md doesn't mention yet
 - [ ] `docs/developer/`: rewrite according to the decisions
+- [ ] Code comments for module-specific knowledge (inventory §7 and the form behaviours), evergreen
+- [ ] Update the doc links in the ast-grep rules and `App.css` (inventory §8)
+- [ ] Light cleanup of the app-control skill's overlap with `agent-tooling.md`; the skill must still stand on its own
+- [ ] Trim `docs/archive/` to `initial-requirement-notes.md`
+
+### Code changes found during the inventory
+
+Each its own commit.
+
+- [ ] Release log limit: release builds keep the plugin's default 40 KB with `KeepOne`, which deletes the file. Give it a sensible size and rotation that keeps something
+- [ ] Logging imports: find out why 12 files import `@tauri-apps/plugin-log` directly while 2 use `safeLog`, pick the better rule, change the code if it's clearly better, and document the rule with its reason
+- [ ] Test layout: move the four unit tests in `__tests__/` (`focus-mode`, `sentence-detection`, `addCursorsToLineEnds`, `updateStore`) next to their source; `__tests__/` keeps only integration tests
+- [ ] CSP: add `https:` to `img-src` in `tauri.conf.json` so remote image previews load (Danny checks in a build)
+- [ ] Recovery toast: show the "Recovery data has been saved" message only after `saveRecoveryData` succeeds (`useEditorActions.ts`)
+- [ ] ast-grep: add `useContentLinkerStore` and `useUpdateStore` to `zustand/no-destructure` and `no-store-subscription-in-lib`; make `hooks-in-hooks-dir` catch `export const useX = () =>` too, with an explicit exception for `lib/theme-provider.tsx`
+- [ ] Dead code: remove `useSaveFileMutation` (and its test mock), `exportMenuCommands`/`cleanupMenuCommands`' `globalThis.editorCommands`, the unused `CommandOptions` type, and the `test:ui` script (`@vitest/ui` isn't installed). Check with knip first
+
+The larger findings (schema parsing gaps with Zod 4, project settings bugs, React Compiler bailouts, double-bound shortcuts) are in #347.
 - [ ] `docs/README.md`: a short index and a statement of what belongs in developer docs
 - [ ] `README.md` and `docs/CONTRIBUTING.md`: check the setup instructions are current
 - [ ] Out of scope: `website/AGENTS.md`
