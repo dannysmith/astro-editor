@@ -178,19 +178,22 @@ export function useEditorActions() {
           toast.success('File saved successfully')
         }
       } catch (error) {
-        toast.error('Save failed', {
-          description: `Could not save file: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Recovery data has been saved.`,
-        })
         await logError(`Save failed: ${String(error)}`)
         await info('Attempting to save recovery data...')
 
         // Save recovery data
         const state = useEditorStore.getState()
-        await saveRecoveryData({
+        const recovered = await saveRecoveryData({
           currentFile: state.currentFile,
           projectPath,
           editorContent: state.editorContent,
           frontmatter: state.frontmatter,
+        })
+
+        const reason =
+          error instanceof Error ? error.message : 'Unknown error occurred'
+        toast.error('Save failed', {
+          description: `Could not save file: ${reason}.${recovered ? ' Recovery data has been saved.' : ''}`,
         })
 
         // Save crash report

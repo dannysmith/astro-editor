@@ -14,15 +14,16 @@ function asJsonValue(value: RecoveryData | CrashReport): JsonValue {
 }
 
 /**
- * Save recovery data when a save operation fails
+ * Save recovery data when a save operation fails. Resolves `true` only if the
+ * recovery files were written.
  */
 export const saveRecoveryData = async (data: {
   currentFile: { path: string; name: string; collection: string } | null
   projectPath: string | null
   editorContent: string
   frontmatter: Record<string, unknown>
-}) => {
-  if (!data.currentFile) return
+}): Promise<boolean> => {
+  if (!data.currentFile) return false
 
   const recoveryData: RecoveryData = {
     timestamp: new Date().toISOString(),
@@ -38,11 +39,13 @@ export const saveRecoveryData = async (data: {
     const result = await commands.saveRecoveryData(asJsonValue(recoveryData))
     if (result.status === 'error') {
       await logError(`Failed to save recovery data: ${result.error}`)
-      return
+      return false
     }
     await info(`Recovery data saved for ${recoveryData.fileName}`)
+    return true
   } catch (err) {
     await logError(`Failed to save recovery data: ${String(err)}`)
+    return false
   }
 }
 
