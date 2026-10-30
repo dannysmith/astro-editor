@@ -1,0 +1,313 @@
+---
+/**
+ * MarkdownBlock — renders an included chunk of markdown twice: once as
+ * styled prose (default view), once as a source-view code block with the
+ * site's Expressive Code treatment. A toggle button switches between the
+ * two; a copy button puts the raw markdown on the clipboard.
+ *
+ * Authors don't use this component directly. They write a standard
+ * fenced code block with `md preview` in the meta string:
+ *
+ *     ```md preview
+ *     ## My included markdown
+ *     Some text.
+ *     ```
+ *
+ * The `satteri-markdown-preview` plugin (src/lib/satteri-markdown-preview.mjs)
+ * rewrites that code block into a <markdown-preview> JSX element which
+ * MDX_COMPONENT_REMAPPING (src/config/mdx-components.ts) maps to this
+ * component. The raw markdown is passed in as the `code` prop.
+ *
+ * Supported meta attributes on the fenced block:
+ *   title="README.md"          — optional filename label in the header
+ *   defaultView="source"       — show source pane first (defaults to rendered)
+ *
+ * Any frontmatter is shown in a panel at the top of the rendered pane
+ * (MarkdownFrontmatter) and left out of the rendered body.
+ *
+ * Progressive enhancement: without JS, the default pane is shown, the
+ * other pane is hidden, and the toggle/copy controls are hidden via CSS.
+ */
+import { markdownToHtml } from 'satteri'
+import { Code } from 'astro-expressive-code/components'
+import { Icon } from 'astro-icon/components'
+import { satteriExternalLinks } from '@lib/satteri-external-links.mjs'
+import { satteriListDensity } from '@lib/satteri-list-density.mjs'
+import MarkdownFrontmatter from '@components/mdx/markdown-block/MarkdownFrontmatter.astro'
+
+export interface Props {
+  /** Raw markdown string to render. */
+  code: string
+  /** Optional filename / label shown in the header. */
+  title?: string
+  /** Which pane to show first. Defaults to `rendered`. */
+  defaultView?: 'rendered' | 'source'
+}
+
+const { code, title, defaultView = 'rendered' } = Astro.props
+const markdown = code.trim()
+
+// A standalone render, so the site pipeline's plugins don't run: add back
+// the ones that suit an included chunk. Footnotes are off because their fixed
+// ids would clash with the host page's. Sätteri leaves frontmatter out of the
+// body; MarkdownFrontmatter shows it.
+const { html: renderedHtml } = markdownToHtml(markdown, {
+  features: { gfm: { footnotes: false } },
+  hastPlugins: [satteriExternalLinks(), satteriListDensity()],
+})
+const showingSource = defaultView === 'source'
+---
+
+<figure
+  class="md-block surface-white"
+  data-md-block
+  data-view={defaultView}
+  aria-label={title ? `Included markdown: ${title}` : 'Included markdown'}
+>
+  <header class="md-block-header">
+    <span class="md-block-label">
+      {title ?? 'Markdown'}
+    </span>
+    <div class="md-block-controls">
+      <button
+        type="button"
+        class="md-block-icon-button"
+        data-md-copy
+        data-md-code={code}
+        aria-label="Copy markdown"
+      >
+        <span data-md-copy-icon="idle">
+          <Icon name="heroicons:clipboard-document-20-solid" aria-hidden="true" />
+        </span>
+        <span data-md-copy-icon="done" hidden>
+          <Icon name="heroicons:check-20-solid" aria-hidden="true" />
+        </span>
+      </button>
+      <div role="group" aria-label="View" class="md-block-toggle">
+        <button
+          type="button"
+          class="md-block-icon-button"
+          data-md-view="rendered"
+          aria-pressed={!showingSource ? 'true' : 'false'}
+          aria-label="Show preview"
+        >
+          <Icon name="heroicons:eye-20-solid" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="md-block-icon-button"
+          data-md-view="source"
+          aria-pressed={showingSource ? 'true' : 'false'}
+          aria-label="Show source"
+        >
+          <Icon name="heroicons:code-bracket-20-solid" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="md-block-pane md-block-rendered" data-pane="rendered" hidden={showingSource}>
+    <MarkdownFrontmatter markdown={markdown} />
+    <div class="md-block-body flow">
+      <Fragment set:html={renderedHtml} />
+    </div>
+  </div>
+
+  <div class="md-block-pane md-block-source" data-pane="source" hidden={!showingSource}>
+    <Code code={code} lang="md" wrap />
+  </div>
+</figure>
+
+<style>
+  .md-block {
+    /* Background + tonal palette come from the .surface-white utility,
+       which also adjusts --color-background-secondary for the header. */
+    margin: var(--space-l) 0;
+    border: var(--border-width-hairline) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .md-block-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    padding: var(--space-3xs) var(--space-xs);
+    background: var(--color-background-secondary);
+    border-bottom: var(--border-width-hairline) solid var(--color-border);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .md-block-label {
+    font-family: var(--font-code);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .md-block-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  /* Hide controls until JS wires them up — avoids flashing dead buttons. */
+  .md-block:not(.md-block-initialized) .md-block-controls {
+    visibility: hidden;
+  }
+
+  .md-block-toggle {
+    display: inline-flex;
+  }
+
+  .md-block-icon-button {
+    display: inline-flex;
+    padding: var(--space-3xs) var(--space-2xs);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    transition: background-color var(--duration-fast) var(--ease-in-out);
+  }
+
+  .md-block-icon-button:hover {
+    background: oklch(from var(--color-text) l c h / 0.08);
+    color: var(--color-text);
+  }
+
+  .md-block-icon-button[aria-pressed='true'] {
+    background: var(--color-text);
+    color: var(--_surface-bg);
+  }
+
+  .md-block-icon-button svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* Rendered body gets padding; source pane uses Expressive Code's own chrome. */
+  .md-block-body {
+    padding: var(--space-s) var(--space-m);
+  }
+
+  /* Basic block code styling for nested fences inside the preview.
+     Matches the site's inline-code tokens; no syntax highlighting —
+     readers can toggle to the Source pane for that. */
+  .md-block-body :global(pre) {
+    font-family: var(--font-code);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-background-code);
+    border: var(--border-width-hairline) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-s);
+    overflow-x: auto;
+  }
+
+  /* Let Expressive Code's frame sit flush inside the box. The frame's own
+     top corners would otherwise round inside our header — flatten them so
+     the pane butts cleanly against the header divider. */
+  .md-block-source :global(.expressive-code) {
+    margin: 0;
+  }
+
+  .md-block-source :global(.expressive-code .frame),
+  .md-block-source :global(.expressive-code .frame pre),
+  .md-block-source :global(.expressive-code .frame .copy) {
+    border: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+</style>
+
+<script>
+  class MarkdownBlock {
+    private static readonly COPY_RESET_MS = 1500
+
+    private copyResetTimer: number | null = null
+
+    /**
+     * Construct only after all required elements are known to exist. Use
+     * {@link MarkdownBlock.init} to attach to a DOM node — it returns null
+     * if the node is missing any of the expected children.
+     */
+    private constructor(
+      private readonly el: HTMLElement,
+      private readonly toggleButtons: HTMLButtonElement[],
+      private readonly copyBtn: HTMLButtonElement,
+      private readonly renderedPane: HTMLElement,
+      private readonly sourcePane: HTMLElement,
+    ) {
+      this.toggleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const view = btn.dataset.mdView
+          if (view === 'rendered' || view === 'source') this.setView(view)
+        })
+      })
+      this.copyBtn.addEventListener('click', () => this.copy())
+      this.el.classList.add('md-block-initialized')
+    }
+
+    static init(el: HTMLElement): MarkdownBlock | null {
+      const toggleButtons = Array.from(el.querySelectorAll<HTMLButtonElement>('[data-md-view]'))
+      const copyBtn = el.querySelector<HTMLButtonElement>('[data-md-copy]')
+      const renderedPane = el.querySelector<HTMLElement>('[data-pane="rendered"]')
+      const sourcePane = el.querySelector<HTMLElement>('[data-pane="source"]')
+      if (toggleButtons.length === 0 || !copyBtn || !renderedPane || !sourcePane) return null
+
+      return new MarkdownBlock(el, toggleButtons, copyBtn, renderedPane, sourcePane)
+    }
+
+    private setView(view: 'rendered' | 'source') {
+      if (this.el.dataset.view === view) return
+      this.el.dataset.view = view
+
+      const showingSource = view === 'source'
+      this.renderedPane.toggleAttribute('hidden', showingSource)
+      this.sourcePane.toggleAttribute('hidden', !showingSource)
+
+      this.toggleButtons.forEach(btn => {
+        btn.setAttribute('aria-pressed', btn.dataset.mdView === view ? 'true' : 'false')
+      })
+    }
+
+    private async copy() {
+      const code = this.copyBtn.dataset.mdCode
+      if (!code) return
+
+      try {
+        await navigator.clipboard.writeText(code)
+      } catch (err) {
+        console.error('MarkdownBlock: failed to copy markdown:', err)
+        return
+      }
+
+      // Brief in-button feedback: swap clipboard icon for a tick. Cancel any
+      // pending reset so a rapid second click doesn't leave the tick stuck on.
+      if (this.copyResetTimer !== null) {
+        window.clearTimeout(this.copyResetTimer)
+      }
+      this.setCopyState('done')
+      this.copyResetTimer = window.setTimeout(() => {
+        this.setCopyState('idle')
+        this.copyResetTimer = null
+      }, MarkdownBlock.COPY_RESET_MS)
+    }
+
+    private setCopyState(state: 'idle' | 'done') {
+      this.copyBtn.querySelectorAll<HTMLElement>('[data-md-copy-icon]').forEach(icon => {
+        icon.toggleAttribute('hidden', icon.dataset.mdCopyIcon !== state)
+      })
+    }
+  }
+
+  function initMarkdownBlocks() {
+    document
+      .querySelectorAll<HTMLElement>('[data-md-block]:not(.md-block-initialized)')
+      .forEach(el => MarkdownBlock.init(el))
+  }
+
+  initMarkdownBlocks()
+</script>

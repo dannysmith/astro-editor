@@ -2,6 +2,7 @@
 mod agent_bridge;
 mod bindings;
 mod commands;
+mod mdx_components;
 mod models;
 mod parser;
 mod schema_merger;

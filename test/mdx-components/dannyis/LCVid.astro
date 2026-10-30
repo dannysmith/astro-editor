@@ -1,0 +1,466 @@
+---
+import { CONFIG } from '@config/site'
+import { fetchLoomCloneVideo, resolveJsonUrl } from '@utils/fetchLoomCloneVideo'
+import FeedEmbed from '@components/mdx/FeedEmbed.astro'
+
+export interface Props {
+  /** Full URL, absolute path or bare slug pointing at a v.danny.is video. */
+  src: string
+  /** Override the title fetched from the JSON. */
+  title?: string
+  /** Override the description fetched from the JSON. */
+  description?: string
+  /** Override the player aspect ratio (e.g. "16 / 9"). Defaults to the video's actual width/height. */
+  aspectRatio?: string
+  showTitle?: boolean
+  showDescription?: boolean
+  showMeta?: boolean
+  showOpenLink?: boolean
+  showTranscript?: boolean
+  className?: string
+}
+
+const {
+  src,
+  title: titleOverride,
+  description: descriptionOverride,
+  aspectRatio: aspectRatioOverride,
+  showTitle = true,
+  showDescription = true,
+  showMeta = true,
+  showOpenLink = true,
+  showTranscript = false,
+  className = '',
+} = Astro.props
+
+const baseUrl = CONFIG.videos.baseUrl
+const jsonUrl = resolveJsonUrl(src, baseUrl)
+
+let video
+try {
+  video = await fetchLoomCloneVideo(jsonUrl)
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err)
+  throw new Error(`<LCVid src="${src}"> ${message}`, { cause: err })
+}
+
+const title = titleOverride ?? video.title ?? ''
+const description = descriptionOverride ?? video.description ?? ''
+const aspectRatio = aspectRatioOverride ?? `${video.width} / ${video.height}`
+
+const recordedDate = new Date(video.completedAt).toLocaleDateString('en-GB', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
+const descriptionParagraphs = description
+  .split(/\n\n+/)
+  .map(p => p.trim())
+  .filter(Boolean)
+
+const hasMetaRow = showMeta || showOpenLink
+---
+
+<figure class:list={['lcvid', className]} data-lcvid>
+  {
+    Astro.locals.feed ? (
+      <FeedEmbed
+        src={video.urls.embed}
+        href={video.urls.page}
+        label={`Watch ${title ? `“${title}”` : 'the video'} (${video.durationFormatted})`}
+        title={title || undefined}
+        width={560}
+        height={Math.round((560 * video.height) / video.width)}
+      />
+    ) : (
+      <>
+        {showTitle && title && <p class="lcvid-title">{title}</p>}
+
+        <div class="lcvid-player" style={`aspect-ratio: ${aspectRatio};`}>
+          <button type="button" class="lcvid-facade" aria-label={`Play: ${title || 'video'}`}>
+            <img class="lcvid-poster" src={video.urls.poster} alt="" loading="lazy" />
+            <span class="lcvid-play" aria-hidden="true">
+              <svg viewBox="0 0 72 72">
+                <circle cx="36" cy="36" r="35" />
+                <path d="M29 23 L29 49 L51 36 Z" />
+              </svg>
+            </span>
+            <span class="lcvid-duration-badge" aria-hidden="true">
+              {video.durationFormatted}
+            </span>
+          </button>
+
+          <template class="lcvid-template">
+            <media-player
+              title={title}
+              poster={video.urls.poster}
+              crossorigin="anonymous"
+              playsinline
+              load="eager"
+              preload="auto"
+            >
+              <media-provider>
+                {video.sources.map(source => (
+                  <source
+                    src={source.url}
+                    type={source.type}
+                    data-width={source.width}
+                    data-height={source.height}
+                  />
+                ))}
+                {video.urls.captions && (
+                  <track
+                    src={video.urls.captions}
+                    kind="subtitles"
+                    srclang="en"
+                    label="English"
+                    default
+                  />
+                )}
+                <media-poster class="vds-poster" src={video.urls.poster} alt={title} />
+              </media-provider>
+              <media-video-layout thumbnails={video.urls.storyboard ?? undefined} />
+            </media-player>
+          </template>
+        </div>
+
+        {hasMetaRow && (
+          <figcaption class="lcvid-meta">
+            {showMeta && (
+              <span class="lcvid-detail">
+                <span>{video.durationFormatted}</span>
+                <span aria-hidden="true">·</span>
+                <span>{recordedDate}</span>
+              </span>
+            )}
+            {showOpenLink && (
+              <a
+                class="lcvid-open"
+                href={video.urls.page}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span>Open</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 3h6v6" />
+                  <path d="M10 14L21 3" />
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                </svg>
+              </a>
+            )}
+          </figcaption>
+        )}
+      </>
+    )
+  }
+
+  {
+    showDescription && descriptionParagraphs.length > 0 && (
+      <div class="lcvid-description">
+        {descriptionParagraphs.map(p => (
+          <p>{p}</p>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    showTranscript && video.transcript && (
+      <details class="lcvid-transcript">
+        <summary>Transcript</summary>
+        <div class="lcvid-transcript-body">{video.transcript}</div>
+      </details>
+    )
+  }
+</figure>
+
+<script>
+  let vidstackReady: Promise<void> | null = null
+
+  function loadVidstack(): Promise<void> {
+    if (vidstackReady) return vidstackReady
+
+    const styles = [
+      'https://cdn.vidstack.io/player/theme.css',
+      'https://cdn.vidstack.io/player/video.css',
+    ]
+    for (const href of styles) {
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = href
+        document.head.appendChild(link)
+      }
+    }
+
+    const moduleSrc = 'https://cdn.vidstack.io/player'
+    if (!document.querySelector(`script[type="module"][src="${moduleSrc}"]`)) {
+      const script = document.createElement('script')
+      script.type = 'module'
+      script.src = moduleSrc
+      document.head.appendChild(script)
+    }
+
+    vidstackReady = customElements.whenDefined('media-player').then(() => undefined)
+    return vidstackReady
+  }
+
+  function showUnavailable(figure: HTMLElement) {
+    const wrapper = figure.querySelector<HTMLElement>('.lcvid-player')
+    if (!wrapper) return
+    wrapper.innerHTML = '<div class="lcvid-unavailable" role="status">Video unavailable</div>'
+  }
+
+  function activate(figure: HTMLElement) {
+    if (figure.dataset.activated === 'true') return
+    figure.dataset.activated = 'true'
+
+    const wrapper = figure.querySelector<HTMLElement>('.lcvid-player')
+    const facade = figure.querySelector<HTMLButtonElement>('.lcvid-facade')
+    const template = figure.querySelector<HTMLTemplateElement>('.lcvid-template')
+    if (!wrapper || !facade || !template) return
+
+    const fragment = template.content.cloneNode(true) as DocumentFragment
+    // Set autoplay on the player BEFORE insertion. Combined with the user's
+    // click gesture, this lets Vidstack start playback as soon as it upgrades
+    // the element — even if our async module load outlasts the gesture window.
+    const playerNode = fragment.querySelector('media-player')
+    playerNode?.setAttribute('autoplay', '')
+
+    facade.remove()
+    wrapper.appendChild(fragment)
+
+    loadVidstack().then(() => {
+      const player = wrapper.querySelector('media-player') as
+        (HTMLElement & { play: () => Promise<void> }) | null
+      if (!player) return
+
+      player.addEventListener('error', () => showUnavailable(figure), { once: true })
+
+      // Belt-and-braces alongside the autoplay attr: if Vidstack loaded
+      // synchronously enough to still be inside the click gesture, this fires.
+      // If the gesture is gone, the attr is the fallback.
+      player.play().catch(() => {
+        /* gesture lost — autoplay attr is our fallback */
+      })
+    })
+  }
+
+  function warmVidstack() {
+    // Idempotent — called on first hover/focus of any facade so that by the
+    // time the user clicks, the module is already loaded and play() runs
+    // synchronously inside the click handler (preserving the user gesture).
+    loadVidstack()
+  }
+
+  function init() {
+    document.querySelectorAll<HTMLElement>('[data-lcvid]').forEach(figure => {
+      const facade = figure.querySelector<HTMLButtonElement>('.lcvid-facade')
+      if (!facade) return
+      facade.addEventListener('click', () => activate(figure))
+      facade.addEventListener('pointerenter', warmVidstack, { once: true, passive: true })
+      facade.addEventListener('focus', warmVidstack, { once: true })
+    })
+  }
+
+  if (document.readyState !== 'loading') init()
+  else document.addEventListener('DOMContentLoaded', init)
+</script>
+
+<style>
+  .lcvid {
+    margin: var(--space-l) 0;
+    padding: 0;
+  }
+
+  .lcvid-title {
+    margin: 0 0 var(--space-2xs) 0;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--leading-snug);
+  }
+
+  .lcvid-player {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: oklch(8% 0 0);
+    border-radius: var(--radius-sm);
+    contain: content;
+  }
+
+  .lcvid-facade {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .lcvid-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .lcvid-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lcvid-play svg {
+    width: 72px;
+    height: 72px;
+    filter: drop-shadow(0 4px 12px oklch(0% 0 0 / 0.4));
+    transition:
+      transform var(--duration-normal) var(--ease-in-out),
+      filter var(--duration-normal) var(--ease-in-out);
+  }
+
+  .lcvid-play circle {
+    fill: var(--color-accent);
+  }
+
+  .lcvid-play path {
+    fill: white;
+  }
+
+  .lcvid-facade:hover .lcvid-play svg,
+  .lcvid-facade:focus-visible .lcvid-play svg {
+    transform: scale(1.08);
+    filter: drop-shadow(0 6px 20px oklch(from var(--color-accent) l c h / 0.5));
+  }
+
+  .lcvid-facade:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  .lcvid-duration-badge {
+    position: absolute;
+    /* Bottom-left — bottom-right collides with the camera overlay typical
+       of LoomClone recordings. */
+    left: var(--space-2xs);
+    bottom: var(--space-2xs);
+    padding: var(--space-3xs) var(--space-2xs);
+    background: oklch(0% 0 0 / 0.65);
+    color: white;
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+    border-radius: var(--radius-xs);
+  }
+
+  .lcvid-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2xs);
+    margin: var(--space-2xs) 0 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .lcvid-detail {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-3xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lcvid-open {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3xs);
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .lcvid-open:hover {
+    text-decoration: underline;
+  }
+
+  /* Description is supplementary metadata, not body copy. Smaller and muted
+     so it reads as "attached to the video" rather than as another paragraph
+     of the surrounding article. */
+  .lcvid-description {
+    margin-block: var(--space-2xs) 0;
+    font-size: var(--font-size-sm);
+    line-height: var(--leading-snug);
+    color: var(--color-text-secondary);
+  }
+
+  .lcvid-description p {
+    margin: 0 0 var(--space-3xs) 0;
+  }
+
+  .lcvid-description p:last-child {
+    margin-bottom: 0;
+  }
+
+  .lcvid-transcript {
+    margin-block: var(--space-s) 0;
+    padding: var(--space-s);
+    background: var(--color-background-secondary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+  }
+
+  .lcvid-transcript summary {
+    cursor: pointer;
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .lcvid-transcript[open] summary {
+    margin-bottom: var(--space-2xs);
+  }
+
+  .lcvid-transcript-body {
+    max-height: 24rem;
+    overflow-y: auto;
+    line-height: var(--leading-normal);
+    white-space: pre-wrap;
+  }
+
+  .lcvid-unavailable {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: oklch(70% 0 0);
+    font-size: var(--font-size-sm);
+  }
+
+  /* Once activated, Vidstack owns the inside of the player; reset wrapper bg
+     so its theme isn't fighting our placeholder colour. */
+  [data-activated='true'] .lcvid-player {
+    background: black;
+  }
+
+  /* Vidstack puts the actual <video> at 100% of its provider; make sure the
+     player fills our aspect-ratio container. */
+  .lcvid-player media-player {
+    width: 100%;
+    height: 100%;
+  }
+</style>

@@ -1,0 +1,166 @@
+---
+import { safeGet } from '@astro-community/astro-embed-utils';
+import urlMatcher from './matcher';
+import './Vimeo.css';
+
+export interface Props extends astroHTML.JSX.HTMLAttributes {
+	/** Vimeo video ID or URL. */
+	id: string;
+	/** URL to an image to use as the poster instead of the default thumbnail. */
+	poster?: string;
+	/** Resolution to use for the Vimeo poster image. */
+	posterQuality?: 'max' | 'high' | 'default' | 'low';
+	/** See https://vimeo.zendesk.com/hc/en-us/articles/360001494447-Player-parameters-overview */
+	params?: string;
+	/** Label for the button that will play the video. Default label: `'Play'` */
+	playlabel?: string;
+}
+
+const {
+	id,
+	poster,
+	posterQuality = 'default',
+	params = '',
+	playlabel = 'Play',
+	style,
+	...attrs
+} = Astro.props as Props;
+
+const idRegExp = /^\d+$/;
+
+function extractID(idOrUrl: string) {
+	if (idRegExp.test(idOrUrl)) return idOrUrl;
+	return urlMatcher(idOrUrl);
+}
+
+const videoid = extractID(id);
+let posterURL = poster;
+if (!posterURL) {
+	const data = await safeGet(`https://vimeo.com/api/v2/video/${videoid}.json`);
+	if (data) {
+		const resolution =
+			{ max: 1280, high: 640, default: 480, low: 120 }[posterQuality] || 480;
+		const { thumbnail_large } = data?.[0] || {};
+		if (thumbnail_large.endsWith('d_640')) {
+			posterURL = thumbnail_large.slice(0, -3) + resolution;
+		} else {
+			posterURL = thumbnail_large;
+		}
+	}
+}
+
+let [searchString, t] = params.split('#t=');
+const searchParams = new URLSearchParams(searchString);
+if (!t) t = searchParams.get('t') ?? undefined;
+searchParams.append('autoplay', '1');
+if (!searchParams.has('dnt')) searchParams.append('dnt', '1');
+
+const color = searchParams.get('color');
+
+const styles = [];
+if (style) styles.push(style);
+if (color) styles.push(`--ltv-color: #${color}`);
+if (posterURL) styles.push(`background-image: url('${posterURL}')`);
+---
+
+<lite-vimeo
+	data-id={videoid}
+	data-t={t}
+	data-params={searchParams.toString()}
+	style={styles.join(';')}
+	{...attrs}
+>
+	<a
+		class="ltv-playbtn"
+		href={`https://vimeo.com/${videoid}`}
+		aria-label={playlabel}></a>
+</lite-vimeo>
+
+<script>
+	class LiteVimeo extends HTMLElement {
+		// Gotta encode the untrusted value to prevent XSS.
+		videoId = encodeURIComponent(this.dataset.id!);
+		static preconnected = false;
+
+		connectedCallback() {
+			// On hover (or tap), warm up the TCP connections we're (likely) about to use.
+			this.addEventListener('pointerover', LiteVimeo.warmConnections, {
+				once: true,
+			});
+
+			// Once the user clicks, add the real iframe and drop our play button
+			this.addEventListener('click', (e) => this.addIframe(e));
+
+			// Progressively enhance the link to the Vimeo as a play button.
+			const playLink = this.querySelector('a');
+			if (playLink) {
+				const playBtn = document.createElement('button');
+				playBtn.classList.add(...playLink.classList.values());
+				playBtn.setAttribute(
+					'aria-label',
+					playLink.getAttribute('aria-label')!
+				);
+				playLink.replaceWith(playBtn);
+			}
+		}
+
+		/**
+		 * Add a <link rel={preload | preconnect} ...> to the head
+		 */
+		static addPrefetch(rel: string, url: string): void {
+			const linkEl = document.createElement('link');
+			linkEl.rel = rel;
+			linkEl.href = url;
+			document.head.append(linkEl);
+		}
+
+		/**
+		 * Begin pre-connecting to warm up the iframe load
+		 * Since the embed's network requests load within its iframe,
+		 *   preload/prefetch'ing them outside the iframe will only cause double-downloads.
+		 * So, the best we can do is warm up a few connections to origins that are in the critical path.
+		 *
+		 * Maybe `<link rel=preload as=document>` would work, but it's unsupported: http://crbug.com/593267
+		 * But TBH, I don't think it'll happen soon with Site Isolation and split caches adding serious complexity.
+		 */
+		static warmConnections(): void {
+			if (LiteVimeo.preconnected) return;
+
+			// The iframe document and most of its subresources come right off player.vimeo.com
+			LiteVimeo.addPrefetch('preconnect', 'https://player.vimeo.com');
+			// Images
+			LiteVimeo.addPrefetch('preconnect', 'https://i.vimeocdn.com');
+			// Files .js, .css
+			LiteVimeo.addPrefetch('preconnect', 'https://f.vimeocdn.com');
+			// Metrics
+			LiteVimeo.addPrefetch('preconnect', 'https://fresnel.vimeocdn.com');
+
+			LiteVimeo.preconnected = true;
+		}
+
+		addIframe(e: MouseEvent): void {
+			if (this.classList.contains('ltv-activated')) return;
+			e.preventDefault();
+			this.classList.add('ltv-activated');
+
+			const t = encodeURIComponent(this.dataset.t || '0m');
+			const params = new URLSearchParams(this.dataset.params || []);
+
+			const iframeEl = document.createElement('iframe');
+			iframeEl.width = '640';
+			iframeEl.height = '360';
+			iframeEl.allow =
+				'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+			iframeEl.allowFullscreen = true;
+			iframeEl.src = `https://player.vimeo.com/video/${
+				this.videoId
+			}?${params.toString()}#t=${t}`;
+			this.append(iframeEl);
+		}
+	}
+
+	// Register custom element
+	if (!customElements.get('lite-vimeo')) {
+		customElements.define('lite-vimeo', LiteVimeo);
+	}
+</script>

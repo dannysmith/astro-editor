@@ -1,0 +1,130 @@
+---
+import { YouTube, Vimeo, BlueskyPost, MastodonPost } from 'astro-embed';
+import BookmarkCard from '@components/mdx/BookmarkCard.astro';
+import FeedEmbed from '@components/mdx/FeedEmbed.astro';
+import LCVid from '@components/mdx/LCVid.astro';
+import Loom from '@components/mdx/Loom.astro';
+import Tweet from '@components/mdx/Tweet.astro';
+import { getTweetId } from '@utils/fetchTweet';
+
+export interface Props {
+  url: string;
+  className?: string;
+}
+
+const { url, className = '' } = Astro.props;
+
+function getYouTubeId(url: string) {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  return match ? match[1] : null;
+}
+
+function getVimeoId(url: string) {
+  const match = url.match(/vimeo\.com\/([0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getLoomId(url: string) {
+  const match = url.match(/loom\.com\/(?:share|embed)\/([a-f0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getLCVidSrc(url: string) {
+  const match = url.match(/^https?:\/\/v\.danny\.is\/([a-z0-9](?:-?[a-z0-9])*)/i);
+  return match ? match[1] : null;
+}
+
+function getGistId(url: string) {
+  // Match both anonymous gists (gist.github.com/id) and user gists (gist.github.com/username/id)
+  const match = url.match(/gist\.github\.com\/(?:([\w-]+)\/)?([a-zA-Z0-9]+)/);
+  return match ? (match[1] ? `${match[1]}/${match[2]}` : match[2]) : null;
+}
+
+function getBlueskyUrl(url: string) {
+  // bsky.app post URLs, e.g. https://bsky.app/profile/<handle>/post/<rkey>.
+  // BlueskyPost takes the full URL (or at:// URI) as its id, so pass it through.
+  return /^https?:\/\/bsky\.app\/profile\/[^/]+\/post\/[\w.-]+/.test(url) ? url : null;
+}
+
+function getMastodonUrl(url: string) {
+  // Mastodon is federated, so there's no single domain — match the fediverse
+  // status shape https://<instance>/@<user>/<numeric-id>. MastodonPost takes the
+  // full URL as its id, so pass it through.
+  return /^https?:\/\/[^/]+\/@[\w.-]+\/\d+\/?$/.test(url) ? url : null;
+}
+
+type EmbedType =
+  | { type: 'youtube'; id: string }
+  | { type: 'tweet'; id: string }
+  | { type: 'vimeo'; id: string }
+  | { type: 'loom'; id: string }
+  | { type: 'lcvid'; src: string }
+  | { type: 'gist'; id: string }
+  | { type: 'bluesky'; url: string }
+  | { type: 'mastodon'; url: string }
+  | { type: 'bookmark'; url: string };
+
+function resolveEmbedType(url: string): EmbedType {
+  const youtubeId = getYouTubeId(url);
+  if (youtubeId) return { type: 'youtube', id: youtubeId };
+
+  const tweetId = getTweetId(url);
+  if (tweetId) return { type: 'tweet', id: tweetId };
+
+  const vimeoId = getVimeoId(url);
+  if (vimeoId) return { type: 'vimeo', id: vimeoId };
+
+  const loomId = getLoomId(url);
+  if (loomId) return { type: 'loom', id: loomId };
+
+  const lcvidSrc = getLCVidSrc(url);
+  if (lcvidSrc) return { type: 'lcvid', src: lcvidSrc };
+
+  const gistId = getGistId(url);
+  if (gistId) return { type: 'gist', id: gistId };
+
+  const blueskyUrl = getBlueskyUrl(url);
+  if (blueskyUrl) return { type: 'bluesky', url: blueskyUrl };
+
+  const mastodonUrl = getMastodonUrl(url);
+  if (mastodonUrl) return { type: 'mastodon', url: mastodonUrl };
+
+  return { type: 'bookmark', url };
+}
+
+const embed = resolveEmbedType(url);
+
+// Feeds get a plain player iframe plus a link in place of the site's facades
+// and scripts (see FeedEmbed). Loom, LCVid, Tweet and BookmarkCard handle
+// feeds themselves.
+const feed = Astro.locals.feed;
+---
+
+{embed.type === 'youtube' && (feed ? (
+  <FeedEmbed
+    src={`https://www.youtube-nocookie.com/embed/${embed.id}`}
+    href={`https://www.youtube.com/watch?v=${embed.id}`}
+    label="Watch on YouTube"
+  />
+) : <YouTube id={embed.id} />)}
+{embed.type === 'tweet' && <Tweet id={embed.id} />}
+{embed.type === 'vimeo' && (feed ? (
+  <FeedEmbed
+    src={`https://player.vimeo.com/video/${embed.id}`}
+    href={`https://vimeo.com/${embed.id}`}
+    label="Watch on Vimeo"
+  />
+) : <Vimeo id={embed.id} />)}
+{embed.type === 'loom' && <Loom id={embed.id} />}
+{embed.type === 'lcvid' && <LCVid src={embed.src} className={className} />}
+{embed.type === 'gist' && feed && (
+  <p><a href={`https://gist.github.com/${embed.id}`}>View the gist on GitHub</a></p>
+)}
+{/* NOTE: the gist script tag below carries a separate closing tag and is never self-closed,
+    because a self-closed one crashes astro-eslint-parser v3. prettier-ignore comments don't work
+    in .astro (prettier-plugin-astro#410), so this file is listed in .prettierignore to stop
+    prettier re-collapsing it to a self-close. */}
+{embed.type === 'gist' && !feed && <script is:inline src={`https://gist.github.com/${embed.id}.js`}></script>}
+{embed.type === 'bluesky' && <BlueskyPost id={embed.url} />}
+{embed.type === 'mastodon' && <MastodonPost id={embed.url} />}
+{embed.type === 'bookmark' && <BookmarkCard url={embed.url} className={className} />}

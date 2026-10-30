@@ -1,0 +1,8 @@
+---
+import ApiDocRender from "~/components/content/ApiDoc.vue"
+
+// Archived versions pass their own frozen spec; current docs use the default.
+const { specUrl } = Astro.props
+---
+
+<ApiDocRender specUrl={specUrl} client:only="vue" />

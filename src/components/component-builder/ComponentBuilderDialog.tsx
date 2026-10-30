@@ -1,39 +1,52 @@
-import React from 'react'
-import { Check, ArrowLeft, Circle, CircleDot } from 'lucide-react'
 import {
-  CommandDialog,
+  Command,
+  commandDialogClassName,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandShortcut,
 } from '../ui/command'
-import { Badge } from '../ui/badge'
-import { cn } from '../../lib/utils'
 import {
-  useComponentBuilderStore,
-  ClientDirective,
-} from '../../store/componentBuilderStore'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog'
+import type { MdxComponent } from '@/types'
+import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
 import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
-import { useHotkeys } from 'react-hotkeys-hook'
-import { FrameworkIcon } from '../icons/FrameworkIcon'
+import { ComponentForm } from './ComponentForm'
+import { FrameworkBadge } from './FrameworkBadge'
 
-// Client directive options for framework components
-const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'client:idle', label: 'client:idle (recommended)' },
-  { value: 'client:load', label: 'client:load' },
-  { value: 'client:visible', label: 'client:visible' },
-  { value: 'client:media', label: 'client:media' },
-  { value: 'client:only', label: 'client:only' },
-]
+/** Matches the search against component names, which items pass as their keyword */
+function filterByName(_value: string, search: string, keywords?: string[]) {
+  const name = keywords?.[0] ?? ''
+  return name.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+}
+
+/**
+ * Groups components by where they come from: the project's own first, then
+ * each package's (e.g. Starlight's), headed by the module they're imported from
+ */
+function groupBySource(components: MdxComponent[]) {
+  const groups = new Map<string | null, MdxComponent[]>()
+  for (const component of components) {
+    const source = component.import_source
+    groups.set(source, [...(groups.get(source) ?? []), component])
+  }
+  return [...groups.entries()].sort(([a], [b]) =>
+    a === null ? -1 : b === null ? 1 : a.localeCompare(b)
+  )
+}
 
 /**
  * MDX Component Builder Dialog
- * Allows users to select and configure MDX components for insertion into the editor
+ * Pick a component, fill in its props, and insert it into the editor.
+ * Escape on the form goes back to the list; on the list it closes.
  */
 export function ComponentBuilderDialog() {
   const projectPath = useProjectStore(state => state.projectPath)
@@ -43,366 +56,124 @@ export function ComponentBuilderDialog() {
   const selectedComponent = useComponentBuilderStore(
     state => state.selectedComponent
   )
-  const enabledProps = useComponentBuilderStore(state => state.enabledProps)
-  const propSearchQuery = useComponentBuilderStore(
-    state => state.propSearchQuery
-  )
-  const clientDirective = useComponentBuilderStore(
-    state => state.clientDirective
-  )
   const close = useComponentBuilderStore(state => state.close)
+  const back = useComponentBuilderStore(state => state.back)
   const selectComponent = useComponentBuilderStore(
     state => state.selectComponent
   )
-  const toggleProp = useComponentBuilderStore(state => state.toggleProp)
-  const insert = useComponentBuilderStore(state => state.insert)
-  const back = useComponentBuilderStore(state => state.back)
-  const setPropSearchQuery = useComponentBuilderStore(
-    state => state.setPropSearchQuery
-  )
-  const setClientDirective = useComponentBuilderStore(
-    state => state.setClientDirective
-  )
 
-  // Fetch MDX components using TanStack Query with effective settings
   const { data: components = [], isLoading } = useMdxComponentsQuery(
     projectPath,
     pathOverrides.mdxComponentsDirectory
   )
 
-  // Custom filter function that only searches component names and descriptions
-  const customFilter = React.useCallback((value: string, search: string) => {
-    // Extract the label from the value
-    const label = value.toLowerCase()
-
-    // Case-insensitive search
-    if (label.includes(search.toLowerCase())) {
-      return 1
-    }
-    return 0
-  }, [])
-
-  // Keyboard shortcuts for configuration step
-  useHotkeys(
-    'backspace',
-    () => {
-      if (step === 'configure') {
-        back()
-      }
-    },
-    {
-      enabled: isOpen && step === 'configure' && propSearchQuery === '',
-      preventDefault: true,
-    }
-  )
-
-  // Cmd+A to toggle all optional props
-  useHotkeys(
-    'mod+a',
-    () => {
-      if (step === 'configure' && selectedComponent) {
-        const optionalProps = selectedComponent.props.filter(
-          prop => prop.is_optional
-        )
-        const allOptionalEnabled = optionalProps.every(prop =>
-          enabledProps.has(prop.name)
-        )
-
-        // If all optional props are enabled, disable them all
-        // Otherwise, enable all optional props
-        optionalProps.forEach(prop => {
-          if (allOptionalEnabled && enabledProps.has(prop.name)) {
-            toggleProp(prop.name)
-          } else if (!allOptionalEnabled && !enabledProps.has(prop.name)) {
-            toggleProp(prop.name)
-          }
-        })
-      }
-    },
-    {
-      enabled: isOpen && step === 'configure',
-      preventDefault: true,
-    }
-  )
-
-  // Handle keyboard shortcuts in CommandItems
-  const handleCommandItemKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      // Cmd+Enter to insert
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        e.stopPropagation()
-        insert()
-        return
-      }
-
-      // Cmd+A to toggle all optional props
-      if (e.key === 'a' && (e.metaKey || e.ctrlKey) && selectedComponent) {
-        e.preventDefault()
-        e.stopPropagation()
-
-        const optionalProps = selectedComponent.props.filter(
-          prop => prop.is_optional
-        )
-        const allOptionalEnabled = optionalProps.every(prop =>
-          enabledProps.has(prop.name)
-        )
-
-        optionalProps.forEach(prop => {
-          if (allOptionalEnabled && enabledProps.has(prop.name)) {
-            toggleProp(prop.name)
-          } else if (!allOptionalEnabled && !enabledProps.has(prop.name)) {
-            toggleProp(prop.name)
-          }
-        })
-      }
-    },
-    [insert, selectedComponent, enabledProps, toggleProp]
-  )
-
-  // Filter props based on search query
-  const filteredProps = React.useMemo(() => {
-    if (!selectedComponent) return { required: [], optional: [] }
-
-    const filtered = selectedComponent.props.filter(
-      prop =>
-        prop.name.toLowerCase().includes(propSearchQuery.toLowerCase()) ||
-        prop.prop_type.toLowerCase().includes(propSearchQuery.toLowerCase())
-    )
-
-    return {
-      required: filtered.filter(prop => !prop.is_optional),
-      optional: filtered.filter(prop => prop.is_optional),
-    }
-  }, [selectedComponent, propSearchQuery])
-
-  // Generate preview of what will be inserted
-  const generatePreview = React.useCallback(() => {
-    if (!selectedComponent) return ''
-
-    const propsString = selectedComponent.props
-      .filter(prop => enabledProps.has(prop.name))
-      .map(prop => `${prop.name}=""`)
-      .join(' ')
-
-    // Add client directive for framework components (not Astro)
-    const directiveString =
-      selectedComponent.framework !== 'astro' && clientDirective !== 'none'
-        ? ` ${clientDirective}`
-        : ''
-
-    const allAttrs = [propsString, directiveString].filter(Boolean).join(' ')
-
-    if (selectedComponent.has_slot) {
-      return `<${selectedComponent.name}${allAttrs ? ' ' + allAttrs : ''}></${selectedComponent.name}>`
-    }
-    return `<${selectedComponent.name}${allAttrs ? ' ' + allAttrs : ''} />`
-  }, [selectedComponent, enabledProps, clientDirective])
-
   return (
-    <CommandDialog
+    <Dialog
       open={isOpen}
-      onOpenChange={close}
-      title="Insert MDX Component"
-      description="Select a component to insert"
-      filter={customFilter}
+      onOpenChange={(open, details) => {
+        if (open) return
+        if (step === 'configure' && details.reason === 'escape-key') {
+          back()
+          return
+        }
+        close()
+      }}
     >
-      {step === 'list' && (
-        <>
-          <CommandInput placeholder="Search components..." />
-          <CommandList>
-            {isLoading ? (
-              <CommandEmpty>Loading components...</CommandEmpty>
-            ) : components.length === 0 ? (
-              <CommandEmpty>
-                No MDX components found in this project.
-              </CommandEmpty>
-            ) : (
-              <>
-                <CommandEmpty>No results found.</CommandEmpty>
-                <CommandGroup>
-                  {components.map(component => {
-                    const frameworkColors = {
-                      astro: 'text-framework-astro',
-                      react: 'text-framework-react',
-                      vue: 'text-framework-vue',
-                      svelte: 'text-framework-svelte',
-                    }
+      <DialogContent className="overflow-hidden p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Insert MDX Component</DialogTitle>
+          <DialogDescription>
+            Select a component and fill in its props
+          </DialogDescription>
+        </DialogHeader>
 
-                    return (
-                      <CommandItem
-                        key={component.name}
-                        value={component.name}
-                        onSelect={() => selectComponent(component)}
-                        className="cursor-pointer"
+        {step === 'configure' && selectedComponent ? (
+          <ComponentForm component={selectedComponent} />
+        ) : (
+          <Command className={commandDialogClassName} filter={filterByName}>
+            <CommandInput placeholder="Search components..." autoFocus />
+            <CommandList>
+              {isLoading ? (
+                <CommandEmpty>Loading components...</CommandEmpty>
+              ) : components.length === 0 ? (
+                <CommandEmpty>
+                  No MDX components found in this project.
+                </CommandEmpty>
+              ) : (
+                <>
+                  <CommandEmpty>No results found.</CommandEmpty>
+                  {groupBySource(components).map(
+                    ([source, group], _, groups) => (
+                      <CommandGroup
+                        key={source ?? 'project'}
+                        heading={
+                          source ??
+                          (groups.length > 1 ? 'This project' : undefined)
+                        }
                       >
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <div className="flex flex-col">
-                            <span>{component.name}</span>
-                            {component.description && (
-                              <span className="text-xs text-muted-foreground">
-                                {component.description}
-                              </span>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {component.props.length === 0
-                                ? 'No props detected'
-                                : `${component.props.length} props`}
-                              {component.has_slot && ' + slot'}
-                            </span>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-xs flex items-center gap-1 shrink-0',
-                              frameworkColors[component.framework]
-                            )}
-                          >
-                            <FrameworkIcon framework={component.framework} />
-                            {component.framework}
-                          </Badge>
-                        </div>
-                      </CommandItem>
+                        {group.map(component => (
+                          <ComponentItem
+                            key={`${source ?? component.file_path}#${component.name}`}
+                            component={component}
+                            onSelect={() => selectComponent(component)}
+                          />
+                        ))}
+                      </CommandGroup>
                     )
-                  })}
-                </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </>
-      )}
-      {step === 'configure' && selectedComponent && (
-        <>
-          <div className="flex items-center gap-2 px-3 pt-3 pb-2 text-sm text-muted-foreground">
-            <ArrowLeft className="h-3 w-3" />
-            <span>Configure &lt;{selectedComponent?.name} /&gt;</span>
-          </div>
-          <CommandInput
-            placeholder="Filter props..."
-            value={propSearchQuery}
-            onValueChange={setPropSearchQuery}
-            onKeyDown={handleCommandItemKeyDown}
-            autoFocus
-          />
-          <CommandList>
-            {filteredProps.required.length === 0 &&
-            filteredProps.optional.length === 0 ? (
-              <CommandEmpty>No props match</CommandEmpty>
-            ) : (
-              <>
-                {filteredProps.required.length > 0 && (
-                  <CommandGroup>
-                    {filteredProps.required.map(prop => (
-                      <CommandItem
-                        key={prop.name}
-                        value={prop.name}
-                        onSelect={() => toggleProp(prop.name)}
-                        onKeyDown={handleCommandItemKeyDown}
-                        disabled={!prop.is_optional}
-                        className={cn(
-                          'cursor-pointer',
-                          !prop.is_optional && 'opacity-60'
-                        )}
-                      >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            enabledProps.has(prop.name)
-                              ? 'opacity-100'
-                              : 'opacity-0'
-                          )}
-                        />
-                        <span className="flex-1">{prop.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {prop.prop_type}
-                        </span>
-                        <Badge variant="secondary" className="ml-2">
-                          Required
-                        </Badge>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {filteredProps.optional.length > 0 && (
-                  <CommandGroup>
-                    {filteredProps.optional.map(prop => (
-                      <CommandItem
-                        key={prop.name}
-                        value={prop.name}
-                        onSelect={() => toggleProp(prop.name)}
-                        onKeyDown={handleCommandItemKeyDown}
-                        className="cursor-pointer"
-                      >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            enabledProps.has(prop.name)
-                              ? 'opacity-100'
-                              : 'opacity-0'
-                          )}
-                        />
-                        <span className="flex-1">{prop.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {prop.prop_type}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-              </>
-            )}
-            {/* Client Directive Group - Only for framework components */}
-            {selectedComponent.framework !== 'astro' && (
-              <CommandGroup heading="Client Directive">
-                {clientDirectiveOptions.map(option => {
-                  const isSelected = clientDirective === option.value
-                  return (
-                    <CommandItem
-                      key={option.value}
-                      value={option.value}
-                      onSelect={() => setClientDirective(option.value)}
-                      onKeyDown={handleCommandItemKeyDown}
-                      className="cursor-pointer"
-                    >
-                      {isSelected ? (
-                        <CircleDot className="mr-2 h-3.5 w-3.5" />
-                      ) : (
-                        <Circle className="mr-2 h-3.5 w-3.5" />
-                      )}
-                      <span className="flex-1">{option.label}</span>
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
-            )}
-            {/* Spacer to prevent scroll jump on last item */}
-            <div className="h-24" />
-          </CommandList>
-
-          {/* Preview section */}
-          <div className="border-t px-3 py-3">
-            <div className="mb-1 text-xs text-muted-foreground">Preview:</div>
-            <code className="block rounded bg-muted px-2 py-1 text-xs">
-              {generatePreview()}
-            </code>
-          </div>
-
-          {/* Keyboard shortcuts */}
-          <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
-            <div className="flex gap-3">
-              <span>
-                <CommandShortcut>⌘↵</CommandShortcut> Insert
-              </span>
-              {filteredProps.optional.length > 0 && (
-                <span>
-                  <CommandShortcut>⌘A</CommandShortcut> Toggle all
-                </span>
+                  )}
+                </>
               )}
-            </div>
-          </div>
-        </>
-      )}
-    </CommandDialog>
+            </CommandList>
+          </Command>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * What a writer will need to fill in: the required props by name, or how many
+ * optional ones there are, and whether it wraps content
+ */
+function propSummary(component: MdxComponent): string {
+  const required = component.props.filter(p => !p.is_optional)
+  const props =
+    required.length > 0
+      ? `Requires ${required.map(p => p.name).join(', ')}`
+      : component.props.length > 0
+        ? `${component.props.length} optional ${component.props.length === 1 ? 'prop' : 'props'}`
+        : 'No props'
+  return component.has_slot ? `${props} · wraps content` : props
+}
+
+function ComponentItem({
+  component,
+  onSelect,
+}: {
+  component: MdxComponent
+  onSelect: () => void
+}) {
+  return (
+    <CommandItem
+      value={`${component.import_source ?? component.file_path}#${component.name}`}
+      keywords={[component.name]}
+      onSelect={onSelect}
+      className="cursor-pointer"
+    >
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          <span>{component.name}</span>
+          {component.description && (
+            <span className="truncate text-xs text-muted-foreground">
+              {component.description}
+            </span>
+          )}
+          <span className="truncate text-xs text-muted-foreground">
+            {propSummary(component)}
+          </span>
+        </div>
+        <FrameworkBadge framework={component.framework} />
+      </div>
+    </CommandItem>
   )
 }

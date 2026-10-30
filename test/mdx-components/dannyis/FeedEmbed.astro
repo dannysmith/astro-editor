@@ -1,0 +1,35 @@
+---
+/**
+ * The feed version of a video embed: an iframe, with a plain link as its
+ * fallback content. `cleanFeedHtml` moves the fallback out to a paragraph
+ * after the iframe, so readers that keep iframes show the player and the link,
+ * and readers that strip them still have the link.
+ *
+ * Used by Embed, Loom and LCVid when `Astro.locals.feed` is set. Not in the MDX
+ * barrel: content uses those components, never this one directly.
+ */
+export interface Props {
+  /** The player URL loaded in the iframe. */
+  src: string
+  /** Where the link goes: the video's own page. */
+  href: string
+  /** The link text, e.g. "Watch on YouTube". */
+  label: string
+  /** The video's title, for the iframe's accessible name. */
+  title?: string
+  width?: number
+  height?: number
+}
+
+const { src, href, label, title, width = 560, height = 315 } = Astro.props
+---
+
+<iframe
+  src={src}
+  title={title ?? label}
+  width={width}
+  height={height}
+  frameborder="0"
+  allow="autoplay; fullscreen; picture-in-picture"
+  allowfullscreen><a href={href}>{label}</a></iframe
+>

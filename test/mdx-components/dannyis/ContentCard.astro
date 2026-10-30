@@ -1,0 +1,55 @@
+---
+import { getEntry } from 'astro:content'
+import { ArticleCard, NoteCard, ProjectCard, ToolCard } from '@components/ui/index'
+
+/**
+ * Renders any content-collection item as its card — sugar for MDX content, so
+ * a card only needs a `"collection/id"` string, not an entry prop. Looks the
+ * entry up with getEntry() and dispatches to the right card component,
+ * passing `compact` through. Unknown collections or ids fail the build with a
+ * clear error.
+ *
+ * Usage:
+ *   <ContentCard item="articles/a-simpler-responsive-grid" />
+ *   <ContentCard item="notes/2026-07-15-moving-uses-pages-site" compact />
+ *   <ContentCard item="toolboxPages/ask-channels-in-slack" />
+ *   <ContentCard item="projects/astro-editor" />
+ */
+
+const CARD_COLLECTIONS = ['articles', 'notes', 'toolboxPages', 'projects'] as const
+type CardCollection = (typeof CARD_COLLECTIONS)[number]
+
+interface Props {
+  /** `"collection/id"`, e.g. `"articles/my-article-slug"` */
+  item: string
+  /** Render the card's compact tile variant */
+  compact?: boolean
+}
+
+const { item, compact = false } = Astro.props
+
+// Split on the first slash only — ids may themselves contain slashes.
+const slashIndex = item.indexOf('/')
+const collection = slashIndex === -1 ? '' : item.slice(0, slashIndex)
+const id = slashIndex === -1 ? '' : item.slice(slashIndex + 1)
+
+function isCardCollection(name: string): name is CardCollection {
+  return (CARD_COLLECTIONS as readonly string[]).includes(name)
+}
+
+if (!isCardCollection(collection) || !id) {
+  throw new Error(
+    `<ContentCard item="${item}">: item must be "collection/id", where collection is one of: ${CARD_COLLECTIONS.join(', ')}`,
+  )
+}
+
+const entry = await getEntry(collection, id)
+if (!entry) {
+  throw new Error(`<ContentCard item="${item}">: no entry "${id}" in the ${collection} collection`)
+}
+---
+
+{entry.collection === 'articles' && <ArticleCard item={entry} compact={compact} />}
+{entry.collection === 'notes' && <NoteCard item={entry} compact={compact} />}
+{entry.collection === 'toolboxPages' && <ToolCard item={entry} compact={compact} />}
+{entry.collection === 'projects' && <ProjectCard item={entry} compact={compact} />}

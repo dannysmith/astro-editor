@@ -1,0 +1,20 @@
+---
+import {
+    resolveTotalPluginsPlaceholder,
+    usesTotalPluginsPlaceholder,
+} from "~/utils/plugins/pluginCount"
+
+// Rendered markdown is cached across builds, so the live plugin count can't be
+// baked in when it renders: {totalPlugins} is filled in here instead. Only the
+// body HTML is resolved, so keep it out of headings (the TOC would show it
+// raw); .mdx can't use it at all, as MDX reads `{…}` as an expression.
+interface Props {
+    body?: string
+}
+
+const html = usesTotalPluginsPlaceholder(Astro.props.body)
+    ? await resolveTotalPluginsPlaceholder(await Astro.slots.render("default"))
+    : undefined
+---
+
+{html === undefined ? <slot /> : <Fragment set:html={html} />}

@@ -1,0 +1,387 @@
+---
+import { safeGet } from '@astro-community/astro-embed-utils';
+import BaselineIcon from './BaselineIcon.astro';
+import BrowserSupport from './BrowserSupport.astro';
+import type { Feature, StatusLevel } from './types';
+
+interface Props {
+	/**
+	 * ID of the feature from https://github.com/web-platform-dx/web-features/
+	 * e.g. `"anchor-positioning"`
+	 */
+	id: string;
+}
+
+const API_ENDPOINT = 'https://api.webstatus.dev/v1/features/';
+
+const BASELINE_DEFS = {
+	limited: {
+		title: 'Limited availability',
+		defaultDescription:
+			'This feature is not Baseline because it does not work in some of the most widely-used browsers.',
+	},
+	newly: {
+		title: '',
+		defaultDescription:
+			'This feature works across the latest devices and browser versions. This feature might not work in older devices or browsers.',
+	},
+	widely: {
+		title: 'Widely available',
+		defaultDescription:
+			'This feature is well established and works across many devices and browser versions.',
+	},
+	no_data: {
+		title: 'Unknown availability',
+		defaultDescription:
+			'We currently don’t have browser support information about this feature.',
+	},
+};
+
+/**
+ * Returns feature's `low_date` as mm-yyyy string or empty string if `low_date` is not present.
+ */
+function getBaselineDate(feature: { baseline: { low_date?: string } }): string {
+	return feature.baseline.low_date
+		? new Intl.DateTimeFormat('en-US', {
+				year: 'numeric',
+				month: 'long',
+			}).format(new Date(feature.baseline.low_date))
+		: '';
+}
+
+/**
+ * Returns Baseline's description.
+ */
+function getDescriptionDate(baseline: StatusLevel, date: string): string {
+	if (baseline === 'newly' && date) {
+		return `Since ${date} this feature works across the latest
+			devices and browser versions. This feature might not work in older
+			devices or browsers.`;
+	} else if (baseline === 'widely' && date) {
+		return `This feature is well established and works across many
+			devices and browser versions. It’s been available across browsers
+			since ${date}`;
+	}
+	return BASELINE_DEFS[baseline].defaultDescription;
+}
+
+const featureData = await safeGet(API_ENDPOINT + Astro.props.id);
+const feature: Feature = featureData?.baseline
+	? (featureData as Feature)
+	: {
+			baseline: {
+				status: 'no_data',
+			},
+			name: Astro.props.id || 'Unknown feature',
+		};
+
+const baseline = feature.baseline.status || 'no_data';
+
+const title = BASELINE_DEFS[baseline].title;
+const baselineDate = getBaselineDate(feature);
+const description = getDescriptionDate(baseline, baselineDate);
+const year =
+	baseline === 'newly' && baselineDate ? baselineDate.split(' ')[1]! : '';
+---
+
+<div class={`baseline-status baseline-status--${baseline}`}>
+	<template shadowrootmode="open">
+		<div part="root">
+			<p part="feature-name">{feature.name}</p>
+			<details part="details">
+				<summary part="summary">
+					<BaselineIcon support={baseline} />
+					<div part="summary-content">
+						<div part="summary-label">
+							{
+								!(baseline === 'limited' || baseline === 'no_data') && (
+									<strong>Baseline</strong>
+								)
+							}
+							{title}
+							{year}
+							{
+								baseline === 'newly' && (
+									<span part="badge">newly available</span>
+								)
+							}
+						</div>
+						<div part="browsers">
+							<BrowserSupport browser="chrome" {feature} />
+							<BrowserSupport browser="edge" {feature} />
+							<BrowserSupport browser="firefox" {feature} />
+							<BrowserSupport browser="safari" {feature} />
+						</div>
+					</div>
+					<style>
+						[part='caret'] svg {
+							transition: transform var(--animation-duration);
+						}
+						details[open] [part='caret'] svg {
+							transform: rotate(180deg);
+						}
+					</style>
+					<span part="caret" aria-hidden="true">
+						<svg width="11" height="7" fill="currentColor">
+							<path d="M5.5 6.45.25 1.2l.94-.94L5.5 4.6 9.8.3l.95.94L5.5 6.45Z"
+							></path>
+						</svg>
+					</span>
+				</summary>
+				<p part="description" set:html={description} />
+				{
+					baseline !== 'no_data' && (
+						<p part="link-container">
+							<a
+								href={`https://webstatus.dev/features/${feature.feature_id}`}
+								target="_top"
+								part="link"
+								set:text={`${feature.name} on Web Platform Status`}
+							/>
+						</p>
+					)
+				}
+			</details>
+		</div>
+	</template>
+</div>
+
+<style>
+	.baseline-status::part(root) {
+		/* Animation */
+		--animation-duration: 0.3s;
+
+		/* Light palette */
+		--color-outline--light: #d9d9d9;
+		--color-background--light: transparent;
+		--color-text--light: inherit;
+		--color-link--light: #1a73e8;
+		--color-badge-background--light: #3367d6;
+		--color-badge-text--light: #fff;
+		--color-limited--light: #ea8600;
+		--color-limited-secondary--light: #c6c6c6;
+		--color-newly--light: #1a73e8;
+		--color-newly-secondary--light: #a8c7fa;
+		--color-widely--light: #1e8e3e;
+		--color-widely-secondary--light: #c4eed0;
+		--color-no_data--light: #707070;
+		--color-no_data-secondary--light: #909090;
+		/* Dark palette */
+		--color-outline--dark: #666666;
+		--color-background--dark: transparent;
+		--color-text--dark: inherit;
+		--color-link--dark: #5aa1ff;
+		--color-badge-background--dark: #3367d6;
+		--color-badge-text--dark: #fff;
+		--color-limited--dark: #f09418;
+		--color-limited-secondary--dark: #565656;
+		--color-newly--dark: #4185ff;
+		--color-newly-secondary--dark: #2d509e;
+		--color-widely--dark: #24a446;
+		--color-widely-secondary--dark: #125225;
+		--color-no_data--dark: #868686;
+		--color-no_data-secondary--dark: #666666;
+
+		/* Set up colors for light mode */
+		--color-limited: var(--color-limited--light);
+		--color-newly: var(--color-newly--light);
+		--color-widely: var(--color-widely--light);
+		--color-no_data: var(--color-no_data--light);
+		--color-outline: var(--color-outline--light);
+		--color-background: var(--color-background--light);
+		--color-text: var(--color-text--light);
+		--color-link: var(--color-link--light);
+		--color-badge-background: var(--color-badge-background--light);
+		--color-badge-text: var(--color-badge-text--light);
+		--color-limited-secondary: var(--color-limited-secondary--light);
+		--color-widely-secondary: var(--color-widely-secondary--light);
+		--color-newly-secondary: var(--color-newly-secondary--light);
+		--color-no_data-secondary: var(--color-no_data-secondary--light);
+
+		color: var(--color-text);
+		border: solid 1px var(--color-outline);
+		border-radius: 0.5rem;
+		background: var(--color-background);
+		padding-top: 1rem;
+		padding-inline: 1.5rem;
+		max-width: 50rem;
+		font-family: Roboto, sans-serif;
+		font-size: 0.875rem;
+		line-height: calc(1.5 / 0.875);
+		font-style: normal;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.baseline-status::part(root) {
+			/* Set up colors for dark mode */
+			--color-limited: var(--color-limited--dark);
+			--color-newly: var(--color-newly--dark);
+			--color-widely: var(--color-widely--dark);
+			--color-no_data: var(--color-no_data--dark);
+			--color-outline: var(--color-outline--dark);
+			--color-background: var(--color-background--dark);
+			--color-text: var(--color-text--dark);
+			--color-link: var(--color-link--dark);
+			--color-badge-background: var(--color-badge-background--dark);
+			--color-badge-text: var(--color-badge-text--dark);
+			--color-limited-secondary: var(--color-limited-secondary--dark);
+			--color-widely-secondary: var(--color-widely-secondary--dark);
+			--color-newly-secondary: var(--color-newly-secondary--dark);
+			--color-no_data-secondary: var(--color-no_data-secondary--dark);
+		}
+	}
+
+	@supports (--color: light-dark(var(--a), var(--b))) {
+		.baseline-status::part(root) {
+			/* Set up dynamic light/dark colors in supporting browsers. */
+			--color-limited: light-dark(
+				var(--color-limited--light),
+				var(--color-limited--dark)
+			);
+			--color-newly: light-dark(
+				var(--color-newly--light),
+				var(--color-newly--dark)
+			);
+			--color-widely: light-dark(
+				var(--color-widely--light),
+				var(--color-widely--dark)
+			);
+			--color-no_data: light-dark(
+				var(--color-no_data--light),
+				var(--color-no_data--dark)
+			);
+			--color-outline: light-dark(
+				var(--color-outline--light),
+				var(--color-outline--dark)
+			);
+			--color-background: light-dark(
+				var(--color-background--light),
+				var(--color-background--dark)
+			);
+			--color-text: light-dark(
+				var(--color-text--light),
+				var(--color-text--dark)
+			);
+			--color-link: light-dark(
+				var(--color-link--light),
+				var(--color-link--dark)
+			);
+			--color-badge-background: light-dark(
+				var(--color-badge-background--light),
+				var(--color-badge-background--dark)
+			);
+			--color-badge-text: light-dark(
+				var(--color-badge-text--light),
+				var(--color-badge-text--dark)
+			);
+			--color-limited-secondary: light-dark(
+				var(--color-limited-secondary--light),
+				var(--color-limited-secondary--dark)
+			);
+			--color-widely-secondary: light-dark(
+				var(--color-widely-secondary--light),
+				var(--color-widely-secondary--dark)
+			);
+			--color-newly-secondary: light-dark(
+				var(--color-newly-secondary--light),
+				var(--color-newly-secondary--dark)
+			);
+			--color-no_data-secondary: light-dark(
+				var(--color-no_data-secondary--light),
+				var(--color-no_data-secondary--dark)
+			);
+		}
+	}
+
+	.baseline-status::part(feature-name) {
+		font-size: 1.25rem;
+		line-height: calc(1.5 / 1.25);
+		margin: 0;
+	}
+
+	.baseline-status::part(link),
+	.baseline-status::part(link):active,
+	.baseline-status::part(link):visited {
+		color: var(--color-link);
+	}
+
+	.baseline-status::part(summary) {
+		display: flex;
+		cursor: pointer;
+		font-size: 1rem;
+		line-height: calc(1.5 / 1);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		justify-content: space-between;
+		padding-block: 1rem;
+	}
+
+	.baseline-status::part(summary)::-webkit-details-marker {
+		display: none;
+	}
+
+	.baseline-status::part(summary-content) {
+		gap: 1rem;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		flex: 1;
+	}
+
+	.baseline-status::part(summary-label) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.2rem;
+	}
+
+	.baseline-status::part(badge) {
+		background: var(--color-badge-background);
+		color: var(--color-badge-text);
+		font-size: 0.6875rem;
+		line-height: calc(1.25 / 0.6875);
+		padding-inline: 0.25rem;
+		border-radius: 0.125rem;
+		text-transform: uppercase;
+		margin-inline: 0.5rem;
+		white-space: nowrap;
+	}
+
+	.baseline-status::part(browsers) {
+		font-size: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
+	.baseline-status::part(browser-support) {
+		white-space: nowrap;
+	}
+	.baseline-status::part(browser-support-label) {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+	}
+
+	.baseline-status::part(caret) {
+		width: 10px;
+		height: 20px;
+		margin-inline-start: auto;
+		color: var(--text-color);
+	}
+
+	@media (min-width: 28rem) {
+		.baseline-status::part(caret) {
+			margin-inline-start: 3rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.baseline-status::part(root) {
+			--animation-duration: 0s;
+		}
+	}
+</style>

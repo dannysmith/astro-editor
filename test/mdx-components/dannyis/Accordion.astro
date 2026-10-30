@@ -1,0 +1,29 @@
+---
+export interface Props {
+  header: string
+  open?: boolean
+}
+
+const { header, open = false } = Astro.props
+---
+
+<details class="accordion" open={open}>
+  <summary><span class="summary-text">{header}</span></summary>
+  <div class="accordion-content content-trim">
+    <slot />
+  </div>
+</details>
+
+<style>
+  .accordion {
+    font-size: var(--font-size-sm);
+  }
+
+  .summary-text {
+    margin-inline-start: 0.5em;
+  }
+
+  .accordion-content {
+    padding-block-start: var(--space-2xs);
+  }
+</style>

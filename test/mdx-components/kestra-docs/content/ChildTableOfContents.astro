@@ -1,0 +1,77 @@
+---
+import { getCollection } from "astro:content"
+import { getNavigationTree } from "~/utils/getNavigationTree"
+import type { NavigationItem } from "~/utils/getNavigationTree"
+
+const { pageUrl, max } = Astro.props
+
+let currentPage = pageUrl || Astro.url.pathname
+currentPage = currentPage.endsWith("/") ? currentPage.slice(0, -1) : currentPage
+
+const contentPath = currentPage.replace("/docs/", "")
+
+const allDocs = await getCollection("docs")
+const navTree: NavigationItem[] = getNavigationTree(allDocs as any)
+
+function findNodeByPath(
+    nodes: NavigationItem[],
+    path: string,
+): NavigationItem | undefined {
+    for (const node of nodes) {
+        if (node.path === path) return node
+        if (node.children) {
+            const found = findNodeByPath(node.children, path)
+            if (found) return found
+        }
+    }
+    return undefined
+}
+
+const basePath = `/docs/${contentPath}`
+let navigation: NavigationItem[] = []
+const found: NavigationItem | undefined = findNodeByPath(navTree, basePath)
+
+if (found && found.children) {
+    navigation = found.children
+} else {
+    const childrenDocs = allDocs.filter(
+        (doc) =>
+            doc.id.startsWith(`${contentPath}/`) &&
+            doc.id !== contentPath &&
+            !doc.id.slice(contentPath.length + 1).includes("/"),
+    )
+    navigation = childrenDocs.map((doc) => ({
+        title: doc.data.title,
+        sidebarTitle: doc.data.sidebarTitle,
+        path: `/docs/${doc.id}`,
+        children: [],
+    }))
+}
+---
+
+<ul>
+    {
+        navigation.map((link) => {
+            const hasChildren =
+                link.children &&
+                (max === undefined || 0 < max) &&
+                (link.children.length > 1 ||
+                    (link.children.length === 1 && link.children[0].path !== link.path));
+
+            return (
+                <li>
+                    <a href={link.path}>{link.sidebarTitle || link.title}</a>
+                    {hasChildren && link.children && (
+                        <ul data-level="1">
+                            {link.children.map((child) => (
+                                <li>
+                                    <a href={child.path}>{child.sidebarTitle || child.title}</a>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </li>
+            );
+        })
+    }
+</ul>

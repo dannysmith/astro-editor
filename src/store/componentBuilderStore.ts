@@ -1,6 +1,15 @@
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
 import { MdxComponent } from '../hooks/queries/useMdxComponentsQuery'
+import {
+  buildSnippet,
+  insertsAsBlock,
+  type PropValue,
+} from '../lib/editor/snippet-builder'
+import {
+  insertSnippet,
+  isOnEmptyLine,
+} from '../lib/editor/commands/insertSnippet'
 import { useUIStore } from './uiStore'
 
 // Client directive types for framework components
@@ -17,9 +26,9 @@ interface ComponentBuilderState {
   isOpen: boolean
   step: 'list' | 'configure'
   selectedComponent: MdxComponent | null
-  enabledProps: Set<string>
+  /** Values entered in the form, by prop name. A missing key leaves the prop out. */
+  values: Record<string, PropValue>
   editorView: EditorView | null
-  propSearchQuery: string
   clientDirective: ClientDirective
 }
 
@@ -27,10 +36,9 @@ interface ComponentBuilderActions {
   open: (view: EditorView) => void
   close: () => void
   selectComponent: (component: MdxComponent) => void
-  toggleProp: (propName: string) => void
+  setValue: (propName: string, value: PropValue | undefined) => void
   insert: () => void
   back: () => void
-  setPropSearchQuery: (query: string) => void
   setClientDirective: (directive: ClientDirective) => void
 }
 
@@ -38,9 +46,8 @@ const initialState: ComponentBuilderState = {
   isOpen: false,
   step: 'list',
   selectedComponent: null,
-  enabledProps: new Set(),
+  values: {},
   editorView: null,
-  propSearchQuery: '',
   clientDirective: 'none',
 }
 
@@ -74,62 +81,50 @@ export const useComponentBuilderStore = create<
   },
 
   selectComponent: component => {
-    const requiredProps = new Set(
-      component.props.filter(p => !p.is_optional).map(p => p.name)
-    )
+    // Required switches start off, since they can't be left out
+    const values: Record<string, PropValue> = {}
+    for (const prop of component.props) {
+      if (!prop.is_optional && prop.kind.kind === 'boolean') {
+        values[prop.name] = false
+      }
+    }
 
     // Always show configuration step, even for components without props
-    set({
-      selectedComponent: component,
-      step: 'configure',
-      enabledProps: requiredProps,
-      propSearchQuery: '', // Reset search when selecting a component
-    })
+    set({ selectedComponent: component, step: 'configure', values })
   },
 
-  toggleProp: propName => {
+  setValue: (propName, value) => {
     set(state => {
-      const newEnabledProps = new Set(state.enabledProps)
-      if (newEnabledProps.has(propName)) {
-        newEnabledProps.delete(propName)
+      const values = { ...state.values }
+      if (value === undefined) {
+        delete values[propName]
       } else {
-        newEnabledProps.add(propName)
+        values[propName] = value
       }
-      return { enabledProps: newEnabledProps }
+      return { values }
     })
   },
 
   insert: () => {
-    const { selectedComponent, enabledProps, editorView, clientDirective } =
-      get()
+    const { selectedComponent, values, editorView, clientDirective } = get()
     if (!selectedComponent || !editorView) return
 
-    // Import the snippet builder and insert command dynamically to avoid circular dependencies
-    void (async () => {
-      const { buildSnippet } = await import('../lib/editor/snippet-builder')
-      const { insertSnippet } =
-        await import('../lib/editor/commands/insertSnippet')
-
-      const snippetString = buildSnippet(
-        selectedComponent,
-        enabledProps,
-        clientDirective
-      )
-      insertSnippet(editorView, snippetString)
-      get().close()
-    })()
+    const block = insertsAsBlock(selectedComponent, isOnEmptyLine(editorView))
+    insertSnippet(
+      editorView,
+      buildSnippet(selectedComponent, values, clientDirective, block),
+      { block }
+    )
+    get().close()
   },
 
   back: () =>
     set({
       step: 'list',
       selectedComponent: null,
-      enabledProps: new Set(),
-      propSearchQuery: '',
+      values: {},
       clientDirective: 'none',
     }),
-
-  setPropSearchQuery: (query: string) => set({ propSearchQuery: query }),
 
   setClientDirective: (directive: ClientDirective) =>
     set({ clientDirective: directive }),

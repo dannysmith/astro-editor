@@ -1,0 +1,65 @@
+---
+interface Props {
+  author?: string
+  title?: string
+  url?: string
+  small?: boolean
+}
+
+const { author, title, url, small } = Astro.props
+---
+
+<figure>
+  <blockquote class:list={['blockquote', { small }]}>
+    <slot />
+  </blockquote>
+  {
+    (author || title) && (
+      <figcaption class="citation">
+        {author && (
+          <>
+            — <span class="author">{author}</span>
+          </>
+        )}
+        {title && (
+          <>
+            {author && ' - '}
+            <cite>{url ? <a href={url}>{title}</a> : title}</cite>
+          </>
+        )}
+      </figcaption>
+    )
+  }
+</figure>
+
+<style>
+  figure {
+    margin-inline: 0;
+  }
+
+  .blockquote {
+    margin-bottom: 0;
+    margin-right: 0;
+
+    &.small {
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  .citation {
+    font-size: var(--font-size-sm);
+    color: color-mix(in srgb, var(--color-text-secondary) 50%, transparent);
+    text-align: right;
+    margin-top: var(--space-2xs);
+
+    & .author {
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+    }
+
+    & cite {
+      color: var(--color-text);
+      font-style: italic;
+    }
+  }
+</style>

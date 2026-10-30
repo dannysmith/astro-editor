@@ -1,0 +1,41 @@
+---
+export interface Props {
+  /** Starting width (CSS value, e.g., '400px' or '50%') */
+  initialWidth?: string
+  /** Minimum resize width */
+  minWidth?: string
+  /** Maximum resize width */
+  maxWidth?: string
+}
+
+const { initialWidth = '100%', minWidth = '200px', maxWidth = '100%' } = Astro.props
+---
+
+<div
+  class="resizable-container cq"
+  style={`width: ${initialWidth}; min-width: ${minWidth}; max-width: ${maxWidth};`}
+>
+  <slot />
+</div>
+
+<style>
+  .resizable-container {
+    position: relative;
+    resize: horizontal;
+    overflow: hidden;
+    padding: var(--space-xs);
+    border: var(--border-width-hairline) dashed var(--color-border);
+    border-radius: var(--radius-sm);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline-end: 0;
+      inset-block-end: 0;
+      width: var(--space-s);
+      height: var(--space-s);
+      border-right: var(--border-width-base) solid var(--color-accent);
+      border-bottom: var(--border-width-base) solid var(--color-accent);
+    }
+  }
+</style>

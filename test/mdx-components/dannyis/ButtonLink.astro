@@ -1,0 +1,80 @@
+---
+interface Props {
+  href: string
+  variant?: 'primary' | 'secondary'
+  inline?: boolean
+}
+
+const { href, variant = 'primary', inline = false } = Astro.props
+---
+
+<span class:list={[{ 'button-link-container': !inline }]}>
+  <a href={href} class="button-link" data-variant={variant}>
+    <span class="button-link-text"><slot /></span>
+  </a>
+</span>
+
+<style>
+  .button-link-container {
+    display: block;
+    text-align: center;
+  }
+
+  .button-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 1em;
+    min-height: 44px;
+
+    font-weight: var(--font-weight-medium);
+    text-decoration: none;
+    line-height: var(--leading-tight);
+
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-fast) var(--ease-in-out);
+
+    &:focus-visible {
+      outline-offset: 0;
+    }
+
+    &:active {
+      scale: 0.98;
+    }
+
+    /* Primary: solid accent background, always dark text for contrast */
+    &[data-variant='primary'] {
+      background-color: var(--color-accent);
+      color: var(--color-ink);
+
+      &:visited {
+        color: var(--color-ink);
+      }
+
+      &:hover {
+        background-color: oklch(from var(--color-accent) calc(l - 0.1) c h);
+      }
+    }
+
+    /* Secondary: transparent with border */
+    &[data-variant='secondary'] {
+      background-color: transparent;
+      color: var(--color-text);
+      border: var(--border-width-hairline) solid var(--color-border);
+
+      &:visited {
+        color: var(--color-text);
+      }
+
+      &:hover {
+        border-color: var(--color-accent);
+        color: var(--color-accent);
+      }
+    }
+  }
+
+  .button-link-text {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+</style>

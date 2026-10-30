@@ -1,0 +1,49 @@
+---
+import { safeGet } from '@astro-community/astro-embed-utils';
+import styles from './Gist.css?raw';
+
+export interface Props {
+	/**
+	 * Gist URL to fetch
+	 */
+	id: string;
+	/**
+	 * Optional file name to fetch, case sensitive
+	 */
+	file?: string;
+}
+
+const { id, file } = Astro.props;
+
+const url = new URL(id);
+url.pathname += '.json';
+if (file) {
+	url.searchParams.set('file', file);
+}
+
+async function fetchGist(gistUrl: string) {
+	return (await safeGet(gistUrl)) as
+		| undefined
+		| {
+				description: string;
+				created_at: string;
+				files: string[];
+				owner: string;
+				stylesheet: string;
+				div: string;
+		  };
+}
+const gist = await fetchGist(url.href);
+---
+
+{
+	gist && (
+		<astro-embed-gist>
+			<template shadowrootmode="open">
+				<link rel="stylesheet" href={gist.stylesheet} />
+				<style set:html={styles} />
+				<Fragment set:html={gist.div} />
+			</template>
+		</astro-embed-gist>
+	)
+}

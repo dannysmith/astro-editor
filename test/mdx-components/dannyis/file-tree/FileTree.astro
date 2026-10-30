@@ -1,0 +1,122 @@
+---
+/**
+ * FileTree — renders a `tree` fenced code block as a macOS-Finder-like
+ * file tree. Usually invoked via the `remark-tree-block` plugin (which
+ * rewrites a ```tree fence into a <file-tree> element mapped here), but
+ * it's also exported from the mdx barrel so it can be hand-placed in MDX
+ * like <FileTree code={`…`} /> if ever needed.
+ *
+ * Meta attributes (from the fence):
+ *   title="…"        — label in the frame header
+ *   frame="none"     — drop the window frame (and title)
+ *   highlight="2,5"  — comma-separated 1-based line numbers to highlight
+ *
+ * Collapse/expand is native <details>/<summary> — zero runtime JS.
+ */
+import { parseTree } from '@lib/file-tree/parse-tree'
+import FileTreeNodes from '@components/mdx/file-tree/FileTreeNodes.astro'
+
+interface Props {
+  /** Raw tree text. */
+  code: string
+  /** Optional label shown in the frame header. */
+  title?: string
+  /** `"none"` drops the frame; anything else keeps the default frame. */
+  frame?: string
+  /** Comma-separated 1-based line numbers to highlight (e.g. "2,5,6,7"). */
+  highlight?: string
+}
+
+const { code, title, frame, highlight } = Astro.props
+
+const tree = parseTree(code)
+
+const highlightSet = new Set(
+  (highlight ?? '')
+    .split(',')
+    .map(s => Number(s.trim()))
+    .filter(n => Number.isInteger(n) && n > 0),
+)
+
+const framed = frame !== 'none'
+const label = title ? `File tree: ${title}` : 'File tree'
+---
+
+{
+  framed ? (
+    <figure class="file-tree" aria-label={label}>
+      <figcaption class="file-tree-header">
+        <span class="file-tree-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        {title && <span class="file-tree-title">{title}</span>}
+      </figcaption>
+      <div class="file-tree-body">
+        <FileTreeNodes nodes={tree} highlight={highlightSet} />
+      </div>
+    </figure>
+  ) : (
+    <div class="file-tree file-tree--unframed" role="group" aria-label={label}>
+      <FileTreeNodes nodes={tree} highlight={highlightSet} />
+    </div>
+  )
+}
+
+<style>
+  .file-tree {
+    margin: var(--space-l) 0;
+    border: var(--border-width-hairline) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-background-secondary);
+    overflow: hidden;
+  }
+
+  .file-tree-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: var(--space-s);
+    padding-inline: var(--space-2xs);
+    background: var(--color-background-secondary);
+    border-bottom: var(--border-width-hairline) solid var(--color-border);
+  }
+
+  .file-tree-dots {
+    display: inline-flex;
+    gap: 0.45em;
+    justify-self: start;
+    padding-block: var(--space-2xs);
+  }
+  .file-tree-dots span {
+    width: 0.7em;
+    height: 0.7em;
+    border-radius: 50%;
+    background: var(--color-border);
+  }
+
+  .file-tree-title {
+    grid-column: 2;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Container context so the comment column (--ft-comment-col) can be sized
+     relative to the tree's own width via cqw units. */
+  .file-tree-body {
+    padding: var(--space-xs) var(--space-s);
+    overflow-x: auto;
+    container-type: inline-size;
+  }
+
+  .file-tree--unframed {
+    padding: var(--space-s);
+    container-type: inline-size;
+  }
+</style>

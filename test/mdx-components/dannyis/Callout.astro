@@ -1,0 +1,177 @@
+---
+import { Icon } from 'astro-icon/components'
+
+export interface Props {
+  title?: string
+  type?: 'default' | 'red' | 'blue' | 'green' | 'orange' | 'yellow' | 'purple'
+  icon?: string
+  emoji?: string
+  className?: string
+  /** Give `title` more presence (larger, with a hairline rule beneath) so it
+   *  doesn't get lost above long callout bodies. No effect without a `title`. */
+  largeHeading?: boolean
+}
+
+const { title, icon, emoji, type = 'default', className, largeHeading = false } = Astro.props
+
+if (icon && emoji) {
+  throw new Error(
+    'Callout: Cannot use both icon and emoji props. Use either icon (for astro-icons) or emoji (for text emojis).',
+  )
+}
+
+// Feed readers style blockquotes but not asides, and can't show the icon box,
+// so in feeds a callout is a blockquote with its title as a bold first line.
+const feed = Astro.locals.feed
+const Tag = feed ? 'blockquote' : 'aside'
+---
+
+<Tag
+  aria-label={title || undefined}
+  class={`callout ${className || ''} ${largeHeading ? 'large-heading' : ''}`}
+  data-callout-color={type}
+>
+  {
+    !feed && (icon || emoji) && (
+      <div class="icon-wrapper">
+        <div class="icon">{icon ? <Icon name={icon} /> : emoji}</div>
+      </div>
+    )
+  }
+  <div class="content-wrapper">
+    {
+      title &&
+        (feed ? (
+          <p>
+            <strong>{emoji ? `${emoji} ${title}` : title}</strong>
+          </p>
+        ) : (
+          <h3 class="title">{title}</h3>
+        ))
+    }
+    <div class="content content-trim">
+      <slot />
+    </div>
+  </div>
+</Tag>
+
+<style>
+  .callout {
+    --_bg: var(--color-background-secondary);
+    --_border: var(--color-text-secondary);
+    --_icon-color: oklch(from var(--_border) min(l, 0.6) c h);
+
+    display: flex;
+    background: var(--_bg);
+    border-inline-start: var(--border-width-thick) solid var(--_border);
+    padding: var(--space-s);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+
+    /* Color variants - muted tinted backgrounds with accent borders
+       Light mode: Very high lightness + minimal chroma = barely-there tint
+       Dark mode: Mid-low lightness + low chroma = visible but muted */
+    &[data-callout-color='red'] {
+      --_bg: light-dark(oklch(94% 0.024 var(--hue-coral)), oklch(35% 0.036 var(--hue-coral)));
+      --_border: var(--color-coral);
+    }
+
+    &[data-callout-color='blue'] {
+      --_bg: light-dark(oklch(93.5% 0.016 var(--hue-blue)), oklch(35% 0.026 var(--hue-blue)));
+      --_border: var(--color-blue);
+    }
+
+    &[data-callout-color='green'] {
+      --_bg: light-dark(oklch(94% 0.014 var(--hue-green)), oklch(36% 0.022 var(--hue-green)));
+      --_border: var(--color-green);
+    }
+
+    &[data-callout-color='orange'] {
+      --_bg: light-dark(oklch(95% 0.035 var(--hue-orange)), oklch(38% 0.044 var(--hue-orange)));
+      --_border: var(--color-orange);
+    }
+
+    &[data-callout-color='yellow'] {
+      --_bg: light-dark(oklch(96.5% 0.038 var(--hue-yellow)), oklch(42% 0.052 var(--hue-yellow)));
+      --_border: var(--color-yellow);
+    }
+
+    &[data-callout-color='purple'] {
+      --_bg: light-dark(oklch(94% 0.02 var(--hue-purple)), oklch(35% 0.03 var(--hue-purple)));
+      --_border: var(--color-purple);
+    }
+  }
+
+  .icon-wrapper {
+    flex-shrink: 0;
+    margin-inline-end: var(--space-xs);
+  }
+
+  .icon {
+    display: flex;
+    place-items: center;
+    font-size: var(--font-size-sm);
+    line-height: 1;
+    margin-top: 0.15em;
+
+    /* SVG icons are visually larger than emoji at the same em — pull up. */
+    &:has(svg) {
+      margin-top: -0.05em;
+    }
+
+    svg {
+      width: 1.35em;
+      height: 1.35em;
+      color: var(--_icon-color);
+    }
+  }
+
+  /* No title → first line is body text with larger line-height; push the icon
+     down so it aligns with the cap height of that first line. */
+  .callout:not(:has(.title)) {
+    .icon {
+      margin-top: 0.3em;
+    }
+    .icon:has(svg) {
+      margin-top: 0.075em;
+    }
+  }
+
+  /* Long-form prose uses --leading-loose (1.7), adding ~0.075em of half-leading
+     above the cap vs default body. SVG no-title icons need the extra nudge. */
+  :global(.longform-prose) .callout:not(:has(.title)) .icon:has(svg) {
+    margin-top: 0.2em;
+  }
+
+  .content-wrapper {
+    flex-grow: 1;
+    min-width: 0;
+  }
+
+  .title {
+    margin: 0 0 var(--space-2xs) 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--leading-snug);
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .large-heading {
+    .title {
+      font-size: var(--font-size-md);
+      margin-block-end: var(--space-xs);
+      font-weight: var(--font-weight-semibold);
+      padding-block-end: var(--space-3xs);
+      border-bottom: var(--border-width-hairline) solid oklch(from var(--_border) l c h / 20%);
+    }
+
+    .icon {
+      font-size: calc(var(--font-size-md) * 0.8);
+    }
+
+    .icon-wrapper {
+      margin-block-start: 0.3em;
+    }
+  }
+</style>

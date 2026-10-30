@@ -1,0 +1,117 @@
+---
+export interface Props {
+  color: string /** CSS color value or variable */
+  name?: string /** Label shown inside the swatch */
+  class?: string /** Additional classes */
+}
+
+const { color, name, class: className } = Astro.props
+const value = color.replace(/^var\((.+)\)$/, '$1')
+---
+
+<div
+  class:list={['color-swatch', className]}
+  style={`--swatch-color: ${color}`}
+  role="button"
+  tabindex="0"
+  title="Click to copy hex"
+  aria-label={name || value}
+>
+  {name && <span class="swatch-name">{name}</span>}
+  <span class="swatch-value" aria-hidden="true">{value}</span>
+</div>
+
+<script is:inline>
+  {
+    const swatch = document.currentScript.previousElementSibling
+
+    /* Get the hex value of the swatch */
+    const getHex = () => {
+      const ctx = document.createElement('canvas').getContext('2d')
+      ctx.fillStyle = getComputedStyle(swatch).backgroundColor
+      ctx.fillRect(0, 0, 1, 1)
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+      return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+    }
+
+    /* Copy the hex value to the clipboard */
+    const copy = async () => {
+      if (!navigator.clipboard?.writeText) return
+      try {
+        await navigator.clipboard.writeText(getHex())
+      } catch {
+        /* Clipboard access denied - fail silently */
+      }
+    }
+
+    /* Add event listeners to the swatch */
+    swatch.addEventListener('click', copy)
+    swatch.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        copy()
+      }
+    })
+  }
+</script>
+
+<style>
+  .color-swatch {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    container-type: size;
+    background: var(--swatch-color);
+    color: oklch(from var(--swatch-color) calc(1 - round(l)) 0 0);
+    border-radius: var(--radius-sm);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-family: var(--font-code), monospace;
+    text-transform: uppercase;
+    font-weight: bold;
+    overflow: hidden;
+
+    &:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+
+    /* Show the value and hide the name on hover */
+    &:hover {
+      .swatch-value {
+        opacity: 1;
+      }
+      .swatch-name {
+        opacity: 0;
+      }
+    }
+  }
+
+  /* Make the name and value font size responsive */
+  .swatch-name,
+  .swatch-value {
+    font-size: min(1em, 15cqmin);
+  }
+
+  /* The value is displayed on hover */
+  .swatch-value {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    opacity: 0;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.25em;
+    word-break: break-all;
+    text-align: center;
+  }
+
+  /* Hide the name if the swatch is too small */
+  @container (width < 3em) or (height < 1em) {
+    .swatch-name {
+      opacity: 0;
+    }
+  }
+</style>

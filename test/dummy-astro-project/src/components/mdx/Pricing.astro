@@ -1,0 +1,25 @@
+---
+/**
+ * A pricing card. Its prop types are imported from a sibling file and it
+ * passes extra HTML attributes through.
+ */
+import type { HTMLAttributes } from 'astro/types'
+import type { Currency, Plan } from './pricing'
+
+interface Props extends HTMLAttributes<'section'> {
+  plan: Plan
+  /** Price per month, in whole units */
+  price: number
+  currency?: Currency
+  /** Highlight this plan as the recommended one */
+  recommended?: boolean
+}
+
+const { plan, price, currency = 'GBP', recommended = false, ...attrs } = Astro.props
+---
+
+<section class:list={['pricing', { recommended }]} {...attrs}>
+  <h3>{plan}</h3>
+  <p>{price} {currency} a month</p>
+  <slot />
+</section>

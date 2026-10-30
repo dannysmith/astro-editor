@@ -1,0 +1,256 @@
+---
+/**
+ * Loom embed component with facade pattern for performance.
+ * Only loads heavy iframe (~5MB JS) when user clicks play.
+ * Similar approach to lite-youtube-embed. In feeds (`Astro.locals.feed`) it
+ * renders a plain iframe and link instead (see FeedEmbed).
+ */
+import FeedEmbed from '@components/mdx/FeedEmbed.astro'
+
+export interface Props {
+  id: string
+  /** Optional custom poster image URL. Falls back to oEmbed thumbnail or styled placeholder. */
+  poster?: string
+  className?: string
+}
+
+interface LoomOEmbed {
+  title: string
+  description: string
+  thumbnail_url: string
+  width: number
+  height: number
+  duration: number
+}
+
+const { id, poster, className = '' } = Astro.props
+
+let thumbnail: string | null = poster || null
+let title: string | null = null
+let duration: number | null = null
+let aspectRatio = '16 / 9'
+
+// Always fetch oEmbed to get title and duration
+try {
+  const oembedUrl = `https://www.loom.com/v1/oembed?url=https://www.loom.com/share/${id}`
+  const response = await fetch(oembedUrl)
+
+  if (response.ok) {
+    const data: LoomOEmbed = await response.json()
+
+    // Only use non-empty title
+    if (data.title?.trim()) {
+      title = data.title.trim()
+    }
+
+    // Only use positive duration
+    if (data.duration > 0) {
+      duration = data.duration
+    }
+
+    // Use oEmbed thumbnail if no custom poster and not the generic placeholder
+    if (!poster && data.thumbnail_url && !data.thumbnail_url.includes('slack-protected-video')) {
+      thumbnail = data.thumbnail_url
+    }
+
+    if (data.width && data.height) {
+      aspectRatio = `${data.width} / ${data.height}`
+    }
+  }
+} catch {
+  // Silently fail - elements won't show if data unavailable
+}
+
+// Format duration as m:ss or h:mm:ss
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+const formattedDuration = duration ? formatDuration(duration) : null
+const embedUrl = `https://www.loom.com/embed/${id}?autoplay=1`
+---
+
+{
+  Astro.locals.feed ? (
+    <FeedEmbed
+      src={`https://www.loom.com/embed/${id}`}
+      href={`https://www.loom.com/share/${id}`}
+      label={title ? `Watch “${title}” on Loom` : 'Watch on Loom'}
+      title={title ?? undefined}
+    />
+  ) : (
+    <lite-loom
+      class:list={['lite-loom', className]}
+      style={`aspect-ratio: ${aspectRatio};`}
+      data-embed-url={embedUrl}
+      data-title={title || 'Loom video'}
+    >
+      {thumbnail && <img src={thumbnail} class="lite-loom-poster" aria-hidden="true" />}
+
+      <button type="button" class="lite-loom-playbtn" aria-label={`Play: ${title || 'Loom video'}`}>
+        <svg viewBox="0 0 72 72" aria-hidden="true">
+          <circle cx="36" cy="36" r="35" class="lite-loom-playbtn-bg" />
+          <path d="M29 23 L29 49 L51 36 Z" fill="white" />
+        </svg>
+        {formattedDuration && <span class="lite-loom-duration">{formattedDuration}</span>}
+      </button>
+
+      {title && <div class="lite-loom-title">{title}</div>}
+    </lite-loom>
+  )
+}
+
+<script>
+  class LiteLoom extends HTMLElement {
+    private activated = false
+
+    connectedCallback() {
+      const playBtn = this.querySelector('.lite-loom-playbtn')
+      if (!playBtn) return
+
+      this.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        this.activate()
+      })
+
+      playBtn.addEventListener('keydown', (e: Event) => {
+        const keyEvent = e as KeyboardEvent
+        if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+          e.preventDefault()
+          this.activate()
+        }
+      })
+    }
+
+    activate() {
+      if (this.activated) return
+      this.activated = true
+
+      const embedUrl = this.dataset.embedUrl
+      const title = this.dataset.title || 'Loom video'
+      if (!embedUrl) return
+
+      const iframe = document.createElement('iframe')
+      iframe.src = embedUrl
+      iframe.title = title
+      iframe.allow = 'autoplay; fullscreen'
+      iframe.allowFullscreen = true
+
+      this.classList.add('lite-loom-activated')
+      this.appendChild(iframe)
+      iframe.focus()
+    }
+  }
+
+  if (!customElements.get('lite-loom')) {
+    customElements.define('lite-loom', LiteLoom)
+  }
+</script>
+
+<style is:global>
+  lite-loom {
+    display: block;
+    position: relative;
+    width: 100%;
+    contain: content;
+    background: oklch(12% 0 0);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+
+    .lite-loom-poster {
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      pointer-events: none;
+    }
+
+    .lite-loom-playbtn {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: transparent;
+      border: none;
+      z-index: 1;
+
+      svg {
+        width: 68px;
+        height: 68px;
+        filter: drop-shadow(0 4px 12px oklch(0% 0 0 / 0.4));
+        transition:
+          transform 0.2s ease,
+          filter 0.2s ease;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 4px;
+
+        svg {
+          transform: scale(1.1);
+          filter: drop-shadow(0 6px 20px oklch(from var(--color-accent) l c h / 0.5));
+        }
+      }
+    }
+
+    .lite-loom-playbtn-bg {
+      fill: var(--color-accent);
+    }
+
+    .lite-loom-duration {
+      font-size: 0.875rem;
+      font-variant-numeric: tabular-nums;
+      color: white;
+      text-shadow: 0 1px 3px oklch(0% 0 0 / 0.6);
+    }
+
+    .lite-loom-title {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.75rem 1rem;
+      background: linear-gradient(to top, oklch(0% 0 0 / 0.7), transparent);
+      color: white;
+      font-size: 0.875rem;
+      line-height: 1.3;
+      pointer-events: none;
+    }
+
+    &:hover .lite-loom-playbtn svg {
+      transform: scale(1.1);
+      filter: drop-shadow(0 6px 20px oklch(from var(--color-accent) l c h / 0.5));
+    }
+
+    iframe {
+      position: absolute;
+      inset: 0;
+      border: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Activated state */
+    &.lite-loom-activated {
+      cursor: default;
+      background: #000;
+
+      .lite-loom-poster,
+      .lite-loom-playbtn,
+      .lite-loom-title {
+        display: none;
+      }
+    }
+  }
+</style>

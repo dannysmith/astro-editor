@@ -1,0 +1,159 @@
+---
+/**
+ * MarkdownFrontmatter — the frontmatter panel at the top of MarkdownBlock's
+ * rendered pane. Shows each entry as a row of a compact key/value table,
+ * or the raw block if it isn't valid YAML. Renders nothing when the
+ * markdown has no frontmatter, or it's empty.
+ *
+ * How each value is classified and displayed is decided in
+ * src/lib/markdown-block/frontmatter.ts.
+ */
+import SmartLink from '@components/mdx/SmartLink.astro'
+import { readFrontmatter } from '@lib/markdown-block/frontmatter'
+
+export interface Props {
+  /** The full markdown document, frontmatter included. */
+  markdown: string
+}
+
+const frontmatter = readFrontmatter(Astro.props.markdown)
+---
+
+{
+  frontmatter && (
+    <figure class="md-frontmatter">
+      <figcaption class="all-caps">Frontmatter</figcaption>
+      {'invalid' in frontmatter ? (
+        <pre>{frontmatter.invalid}</pre>
+      ) : (
+        <table>
+          <tbody>
+            {frontmatter.rows.map(({ key, value }) => (
+              <tr>
+                <th scope="row">{key}</th>
+                <td>
+                  {value.kind === 'empty' && (
+                    <>
+                      <span class="md-frontmatter-empty" aria-hidden="true">
+                        —
+                      </span>
+                      <span class="sr-only">empty</span>
+                    </>
+                  )}
+                  {value.kind === 'text' && <span class="md-frontmatter-text">{value.text}</span>}
+                  {value.kind === 'date' && <time datetime={value.datetime}>{value.text}</time>}
+                  {value.kind === 'link' && <SmartLink href={value.href}>{value.href}</SmartLink>}
+                  {value.kind === 'pills' && (
+                    <ul class="list-reset md-frontmatter-pills">
+                      {value.items.map(item => (
+                        <li>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {value.kind === 'list' && (
+                    <ul class="md-frontmatter-list">
+                      {value.items.map(item => (
+                        <li>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {value.kind === 'source' && <pre>{value.text}</pre>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </figure>
+  )
+}
+
+<style>
+  /* A tinted band that sits flush between the block header and the body. */
+  .md-frontmatter {
+    margin: 0;
+    padding: var(--space-2xs) var(--space-m);
+    background: var(--color-background-secondary);
+    border-bottom: var(--border-width-hairline) solid var(--color-border);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-xs);
+    line-height: var(--leading-snug);
+    overflow-x: auto;
+  }
+
+  figcaption {
+    margin-block-end: var(--space-3xs);
+    font-size: 0.85em;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+  }
+
+  /* Row rules and cell padding come from the base table styles. */
+  table {
+    font-size: inherit;
+  }
+
+  th,
+  td {
+    padding-block: 0.45em;
+    vertical-align: top;
+  }
+
+  tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  /* 1% + nowrap shrinks the key column to its longest key. */
+  th {
+    inline-size: 1%;
+    white-space: nowrap;
+    font-family: var(--font-code);
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-secondary);
+  }
+
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep line breaks from YAML block scalars (`|`). */
+  .md-frontmatter-text {
+    white-space: pre-line;
+  }
+
+  .md-frontmatter-empty {
+    color: var(--color-text-secondary);
+  }
+
+  .md-frontmatter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3xs);
+
+    & li {
+      font-family: var(--font-code);
+      font-size: 0.9em;
+      line-height: 1.3;
+      padding: 0 0.5em;
+      border: var(--border-width-hairline) solid var(--color-border);
+      border-radius: var(--radius-xs);
+      background: var(--_surface-bg);
+    }
+  }
+
+  /* Bullets and indent come from the typography list styles. */
+  .md-frontmatter-list {
+    margin: 0;
+
+    & li:first-child {
+      margin-block-start: 0;
+    }
+  }
+
+  pre {
+    margin: 0;
+    font-family: var(--font-code);
+    font-size: 0.95em;
+    white-space: pre-wrap;
+  }
+</style>

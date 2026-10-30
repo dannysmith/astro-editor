@@ -55,7 +55,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`), dev only
-- `src-tauri/src/`: Rust: `commands/` (one file per area), `parser.rs` and `schema_merger.rs` (schemas), `agent_bridge/` (dev only)
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `agent_bridge/` (dev only)
 - `test/`: Astro projects for manual and agent testing. Work in the gitignored copy, `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`
 - `scripts/`: the `app` CLI, release script and dev launcher
 
@@ -107,6 +107,7 @@ In `docs/developer/`. Read the ones for the area you're working in.
 - `architecture-guide.md`: how the app fits together and why: state, the Zustand rules, boundaries, events, logging, deliberate choices
 - `editor.md`: CodeMirror integration, highlighting, auto-save and data safety
 - `schema-system.md`: how collection schemas are found, parsed and merged, what Astro generates, and why fields go missing
+- `mdx-components.md`: how the MDX component builder reads props, Starlight's bundled components, and the test fixtures
 - `commands-and-shortcuts.md`: the editor and palette command systems, native menus, keyboard shortcuts
 - `ui-patterns.md`: design principles, Base UI and shadcn, forms, notifications
 - `color-system.md`: colour tokens and dark mode

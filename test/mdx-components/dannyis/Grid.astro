@@ -1,0 +1,58 @@
+---
+/**
+ * Grid - A responsive CSS Grid wrapper for MDX content.
+ *
+ * Props:
+ *   columns - Target number of columns (default: 2)
+ *   rows    - Number of rows with equal height (default: 1, usually auto)
+ *   gap     - Gap between items (default: var(--space-s))
+ *
+ * Responsive behavior:
+ *   Columns automatically collapse when the container gets narrow.
+ *   The formula `minmax(min(200px, 100% / columns), 1fr)` means:
+ *   - Columns are never narrower than 200px
+ *   - But if 200px would exceed the target column width (100% / columns),
+ *     use that instead — this prevents creating MORE columns than requested
+ *   - In wide containers: you get exactly `columns` columns
+ *   - In narrow containers: columns wrap to 2, then 1, as space shrinks
+ *
+ * Example: <Grid columns={3} gap="var(--space-m)">...</Grid>
+ */
+export interface Props {
+  columns?: number
+  rows?: number
+  gap?: string
+}
+
+const { columns = 2, rows = 1, gap = 'var(--space-s)' } = Astro.props
+---
+
+<div class="grid-wrapper">
+  <slot />
+</div>
+
+<style define:vars={{ columns, rows, gap }}>
+  .grid-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100% / var(--columns)), 1fr));
+    grid-template-rows: repeat(var(--rows), 1fr);
+    gap: var(--gap);
+  }
+
+  /* The grid gap is the only spacing inside the grid, so strip the inherited
+     flow/prose top-margin from every cell's top-level element — otherwise the
+     first row sits pushed down and cells misalign. */
+  .grid-wrapper > :global(*) {
+    margin-block-start: 0;
+  }
+
+  /* BasicImage figures pin themselves to the Article prose grid's centre column
+     (grid-column: 2 / 3). Inside a Grid that would stack a gallery into one
+     column, so let figure children flow into this grid's own tracks. Relies on
+     rehype-unwrap-images having stripped the wrapping <p> so figures are direct
+     children here. */
+  .grid-wrapper > :global(.figure) {
+    grid-column: auto !important;
+    margin-inline: 0;
+  }
+</style>
