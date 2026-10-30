@@ -85,7 +85,7 @@ jobs:
       matrix:
         include:
           # Native arm64 only; release.yml builds the universal binary
-          - platform: 'macos-14'
+          - platform: 'macos-15'
             args: '--bundles app'
           - platform: 'windows-latest'
             args: '--bundles msi'

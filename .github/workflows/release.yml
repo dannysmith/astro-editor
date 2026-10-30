@@ -55,7 +55,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-14'
+          - platform: 'macos-15'
             args: '--target universal-apple-darwin --bundles app,dmg'
           - platform: 'windows-latest'
             args: '--bundles msi'
@@ -94,20 +94,20 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Rust targets for universal binary
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15'
         run: |
           rustup target add aarch64-apple-darwin
           rustup target add x86_64-apple-darwin
 
       - name: Import Code-Signing Certificates
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15'
         uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
       - name: Create API Key file
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15'
         run: |
           # Create directory for API key
           mkdir -p ~/private_keys
