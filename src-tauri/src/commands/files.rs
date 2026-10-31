@@ -6,6 +6,8 @@ use serde_norway;
 use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
+use crate::mdx_esm::split_esm_block;
+
 /// Validates that a file path is within the project boundaries
 ///
 /// This function prevents path traversal attacks by ensuring all file operations
@@ -402,7 +404,7 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     // Check if file starts with frontmatter
     if lines.is_empty() || lines[0] != "---" {
         // No frontmatter, but might have imports at the top
-        let (imports, mut body_content) = extract_imports_from_content(&lines);
+        let (imports, mut body_content) = split_esm_block(&lines.join("\n"));
         // Preserve trailing newline that lines() dropped.
         // lines() always drops exactly one trailing \n, so always add one back.
         if original_ends_with_newline && !body_content.is_empty() {
@@ -448,7 +450,7 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
         vec![]
     };
 
-    let (imports, mut body_content) = extract_imports_from_content(&remaining_lines);
+    let (imports, mut body_content) = split_esm_block(&remaining_lines.join("\n"));
 
     // Preserve trailing newline that lines() dropped.
     // lines() always drops exactly one trailing \n, so always add one back.
@@ -462,141 +464,6 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
         raw_frontmatter,
         imports,
     })
-}
-
-/// Detects if a line is the start of a Markdown block (not an import continuation)
-fn is_markdown_block_start(line: &str) -> bool {
-    let trimmed = line.trim();
-
-    // Check for common Markdown block starts
-    trimmed.starts_with('#')       // Headings
-        || trimmed.starts_with('>')    // Blockquotes
-        || trimmed.starts_with('-')    // Lists
-        || trimmed.starts_with('*')    // Lists
-        || trimmed.starts_with('+')    // Lists
-        || trimmed.starts_with("```")  // Code fences
-        || trimmed.starts_with('<')    // HTML tags/JSX
-        || is_numbered_list_start(trimmed) // Numbered lists (1., 2., etc)
-}
-
-/// Checks if a line starts with a numbered list (e.g., "1. ", "42. ")
-fn is_numbered_list_start(line: &str) -> bool {
-    let mut chars = line.chars();
-
-    // Must start with a digit
-    match chars.next() {
-        Some(c) if c.is_numeric() => {}
-        _ => return false,
-    };
-
-    // Consume any additional digits and look for a period
-    loop {
-        match chars.next() {
-            Some(c) if c.is_numeric() => continue,
-            Some('.') => return true, // Found the pattern: digit(s) followed by period
-            _ => return false,
-        }
-    }
-}
-
-/// Check if a trimmed line starts an import or export statement
-fn is_import_line(trimmed: &str) -> bool {
-    trimmed.starts_with("import ") || trimmed.starts_with("export ")
-}
-
-/// Check if a line has an import terminator (semicolon or closing quote)
-fn has_import_terminator(trimmed: &str) -> bool {
-    trimmed.ends_with(';') || trimmed.ends_with("';") || trimmed.ends_with("\";")
-}
-
-/// Check if a line is a continuation of a multi-line import
-#[allow(dead_code)] // Kept for documentation and potential future use
-fn is_import_continuation(line: &str) -> bool {
-    let trimmed = line.trim();
-    !trimmed.is_empty() && !is_markdown_block_start(trimmed) && !has_import_terminator(trimmed)
-}
-
-/// Check if there are more imports after empty lines (look-ahead logic)
-/// Returns true if we should skip the empty line and continue collecting imports
-fn should_skip_empty_line(lines: &[&str], current_idx: usize) -> bool {
-    let mut next_idx = current_idx + 1;
-    while next_idx < lines.len() && lines[next_idx].trim().is_empty() {
-        next_idx += 1;
-    }
-
-    if next_idx < lines.len() {
-        let next_line = lines[next_idx].trim();
-        is_import_line(next_line)
-    } else {
-        false
-    }
-}
-
-fn extract_imports_from_content(lines: &[&str]) -> (String, String) {
-    let mut imports = Vec::new();
-    let mut content_start_idx = 0;
-
-    // Skip empty lines at the beginning
-    while content_start_idx < lines.len() && lines[content_start_idx].trim().is_empty() {
-        content_start_idx += 1;
-    }
-
-    // Extract import statements
-    while content_start_idx < lines.len() {
-        let line = lines[content_start_idx].trim();
-
-        // Check if this line is an import statement
-        if is_import_line(line) {
-            imports.push(lines[content_start_idx]);
-            content_start_idx += 1;
-
-            // Handle multi-line imports until a trailing semicolon line
-            while content_start_idx < lines.len() {
-                let current_line = lines[content_start_idx].trim();
-
-                // Empty line or markdown block - stop continuation
-                if current_line.is_empty() || is_markdown_block_start(current_line) {
-                    break;
-                }
-
-                // This is a continuation of the previous import - add it first
-                imports.push(lines[content_start_idx]);
-                content_start_idx += 1;
-
-                // Stop if this line has a terminator
-                if has_import_terminator(current_line) {
-                    break;
-                }
-            }
-        } else if line.is_empty() {
-            // Check if there are more imports after this empty line (look-ahead)
-            if should_skip_empty_line(lines, content_start_idx) {
-                // More imports coming, skip empty line
-                content_start_idx += 1;
-            } else {
-                // No more imports, this empty line separates imports from content
-                break;
-            }
-        } else {
-            // Found non-import content, stop processing imports
-            break;
-        }
-    }
-
-    // Skip any remaining empty lines after imports
-    while content_start_idx < lines.len() && lines[content_start_idx].trim().is_empty() {
-        content_start_idx += 1;
-    }
-
-    let imports_string = imports.join("\n");
-    let content_lines: Vec<&str> = if content_start_idx < lines.len() {
-        lines[content_start_idx..].to_vec()
-    } else {
-        vec![]
-    };
-    let content_string = content_lines.join("\n");
-
-    (imports_string, content_string)
 }
 
 /// Normalizes ISO datetime strings to date-only format recursively
@@ -1658,163 +1525,6 @@ This is a test post with arrays."#;
         assert!(output.starts_with("import React from 'react';"));
         assert!(output.contains("# Content"));
     }
-
-    #[test]
-    fn test_extract_imports_from_content() {
-        let lines = vec![
-            "import React from 'react';",
-            "import { Component } from './Component';",
-            "",
-            "# Heading",
-            "",
-            "Some content here.",
-        ];
-
-        let (imports, content) = extract_imports_from_content(&lines);
-
-        assert_eq!(
-            imports,
-            "import React from 'react';\nimport { Component } from './Component';"
-        );
-        assert_eq!(content, "# Heading\n\nSome content here.");
-    }
-
-    #[test]
-    fn test_extract_multiline_imports() {
-        let lines = vec![
-            "import {",
-            "  Component1,",
-            "  Component2",
-            "} from './components';",
-            "",
-            "# Content starts here",
-        ];
-
-        let (imports, content) = extract_imports_from_content(&lines);
-
-        assert!(imports.contains("import {"));
-        assert!(imports.contains("} from './components';"));
-        assert_eq!(content, "# Content starts here");
-    }
-
-    #[test]
-    fn test_extract_imports_without_semicolon_followed_by_markdown() {
-        // Regression test: import without semicolon should NOT absorb markdown content
-        let lines = vec![
-            "import Foo from './foo'", // No semicolon!
-            "# Heading starts here",   // This should be content, not import
-            "",
-            "Paragraph content.",
-        ];
-
-        let (imports, content) = extract_imports_from_content(&lines);
-
-        // The import should be captured (even without semicolon)
-        assert!(
-            imports.contains("import Foo from './foo'"),
-            "Import should be captured"
-        );
-
-        // The heading should NOT be in imports
-        assert!(
-            !imports.contains("# Heading"),
-            "Markdown heading should not be absorbed into imports"
-        );
-
-        // The heading should be in content
-        assert!(
-            content.contains("# Heading starts here"),
-            "Heading should be in content"
-        );
-        assert!(
-            content.contains("Paragraph content."),
-            "Paragraph should be in content"
-        );
-    }
-
-    #[test]
-    fn test_is_markdown_block_start() {
-        // Test various Markdown block starts
-        assert!(is_markdown_block_start("# Heading"));
-        assert!(is_markdown_block_start("## Another heading"));
-        assert!(is_markdown_block_start("> Blockquote"));
-        assert!(is_markdown_block_start("- List item"));
-        assert!(is_markdown_block_start("* Another list"));
-        assert!(is_markdown_block_start("+ Plus list"));
-        assert!(is_markdown_block_start("1. Numbered list"));
-        assert!(is_markdown_block_start("42. Another number"));
-        assert!(is_markdown_block_start("``` code fence"));
-        assert!(is_markdown_block_start("<div>HTML tag</div>"));
-        assert!(is_markdown_block_start("<Component />"));
-
-        // Test things that are NOT markdown block starts
-        assert!(!is_markdown_block_start("  Component1,"));
-        assert!(!is_markdown_block_start("} from './foo'"));
-        assert!(!is_markdown_block_start("Just regular text"));
-        assert!(!is_markdown_block_start(""));
-    }
-
-    // --- UNIT TESTS FOR IMPORT PARSING HELPERS ---
-
-    #[test]
-    fn test_is_import_line() {
-        // Should detect imports and exports
-        assert!(is_import_line("import { foo } from 'bar'"));
-        assert!(is_import_line("export const foo = 'bar'"));
-        assert!(is_import_line("import foo from 'bar'"));
-        assert!(is_import_line("export default Component"));
-
-        // Should not match imports within strings
-        assert!(!is_import_line("const foo = 'import'"));
-        assert!(!is_import_line("// import comment"));
-        assert!(!is_import_line("Regular text"));
-    }
-
-    #[test]
-    fn test_has_import_terminator() {
-        assert!(has_import_terminator("from 'foo';"));
-        assert!(has_import_terminator("from 'bar';"));
-        assert!(has_import_terminator("from \"baz\";"));
-        assert!(!has_import_terminator("from 'foo'"));
-        assert!(!has_import_terminator("from 'foo"));
-        assert!(!has_import_terminator("import { Component,"));
-    }
-
-    #[test]
-    fn test_is_import_continuation() {
-        // Should continue on non-empty, non-terminated lines
-        assert!(is_import_continuation("  from 'foo'"));
-        assert!(is_import_continuation("  Component1,"));
-        assert!(is_import_continuation("  Component2"));
-
-        // Should NOT continue on empty lines
-        assert!(!is_import_continuation(""));
-        assert!(!is_import_continuation("   "));
-
-        // Should NOT continue on terminated lines
-        assert!(!is_import_continuation("from 'foo';"));
-
-        // Should NOT continue on markdown blocks
-        assert!(!is_import_continuation("# Heading"));
-        assert!(!is_import_continuation("- List item"));
-    }
-
-    #[test]
-    fn test_should_skip_empty_line() {
-        let lines = vec!["import foo", "", "import bar"];
-        assert!(should_skip_empty_line(&lines, 1)); // Should skip empty line at index 1
-
-        let lines = vec!["import foo", "", "# Heading"];
-        assert!(!should_skip_empty_line(&lines, 1)); // Should NOT skip, no more imports
-
-        let lines = vec!["import foo", ""];
-        assert!(!should_skip_empty_line(&lines, 1)); // Should NOT skip, EOF
-
-        let lines = vec!["import foo", "", "", "import bar"];
-        assert!(should_skip_empty_line(&lines, 1)); // Should skip multiple empty lines
-    }
-
-    // --- END IMPORT PARSING HELPER TESTS ---
 
     #[test]
     fn test_parse_mdx_with_imports() {
@@ -2889,5 +2599,106 @@ X"#;
         let saved = "Just some content.\n\n";
         let parsed = parse_frontmatter(saved).unwrap();
         assert_eq!(parsed.content, saved);
+    }
+}
+
+/// Runs the MDX files in `test/mdx-imports` through reading and saving
+#[cfg(test)]
+mod mdx_corpus_tests {
+    use super::*;
+
+    fn corpus() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-imports")
+    }
+
+    fn mdx_files(dir: &Path) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|entry| entry.into_path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "mdx"))
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    fn name(path: &Path) -> String {
+        path.strip_prefix(corpus())
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// What `save_markdown_content` writes when the frontmatter hasn't been edited
+    fn save(parsed: &MarkdownContent) -> String {
+        if parsed.raw_frontmatter.trim().is_empty() {
+            rebuild_markdown_content_only(&parsed.imports, &parsed.content)
+        } else {
+            rebuild_markdown_with_raw_frontmatter(
+                &parsed.raw_frontmatter,
+                &parsed.imports,
+                &parsed.content,
+            )
+        }
+        .unwrap()
+    }
+
+    fn non_blank_lines(text: &str) -> Vec<&str> {
+        text.lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn saving_an_unchanged_file_reads_back_the_same() {
+        for path in mdx_files(&corpus()) {
+            let name = name(&path);
+            let original = std::fs::read_to_string(&path).unwrap();
+            let parsed = parse_frontmatter(&original).unwrap_or_else(|e| panic!("{name}: {e}"));
+            let saved = save(&parsed);
+
+            // Only the blank lines between frontmatter, block and body may change
+            assert_eq!(
+                non_blank_lines(&saved),
+                non_blank_lines(&original),
+                "{name}: saving changed more than blank lines"
+            );
+            let reread = parse_frontmatter(&saved).unwrap();
+            assert_eq!(reread.imports, parsed.imports, "{name}: block changed");
+            assert_eq!(reread.content, parsed.content, "{name}: body changed");
+        }
+    }
+
+    /// The block each file in `files/` hides is kept in `files/blocks.txt`. After
+    /// a deliberate change, regenerate it with `UPDATE_SNAPSHOTS=1` and review
+    /// the diff.
+    #[test]
+    fn hidden_blocks_match_the_snapshot() {
+        let mut actual = String::from(
+            "# The ESM block the editor hides in each file here. Checked by\n\
+             # `mdx_corpus_tests` in `src-tauri/src/commands/files.rs`.\n",
+        );
+        for path in mdx_files(&corpus().join("files")) {
+            let parsed = parse_frontmatter(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            let block = if parsed.imports.is_empty() {
+                "(none)"
+            } else {
+                &parsed.imports
+            };
+            let name = name(&path);
+            let name = name.strip_prefix("files/").unwrap();
+            actual.push_str(&format!("\n=== {name}\n{block}\n"));
+        }
+
+        let snapshot = corpus().join("files/blocks.txt");
+        if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, actual).unwrap();
+            return;
+        }
+        let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
+        assert!(
+            actual == expected,
+            "Hidden blocks differ from files/blocks.txt. If that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
+        );
     }
 }

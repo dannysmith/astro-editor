@@ -78,15 +78,17 @@ Real files to test the splitter and import insertion against, used for manual te
 - [x] `test/mdx-imports/sites/`: a fixture project for each style (relative, alias, root path, barrel, Starlight), with 30 cases in `cases.toml` files. The harness in phase 3 needs `toml` as a dev-dependency.
 - [x] README listing sources and licences. astro.build and maggieappleton.com have no licence, so the `root-path` and `relative` sites only copy their style, not their files. `website/` uses astro-auto-import, so it has no imports to test.
 
-### Phase 2: Block model and splitter
+### Phase 2: Splitter
 
-- [ ] Port the block model and detection (`mdx_esm/block.rs` in the first attempt) to the current swc, without the legacy fallback
-- [ ] Replace `extract_imports_from_content()` with it
-- [ ] Tests: splitting and rebuilding every corpus file gives back the original, apart from the gap between block and body; review each file where the new split differs from the old one
+- [x] Port the detection (`mdx_esm/block.rs` in the first attempt) to the current swc, without the legacy fallback, in `src-tauri/src/mdx_esm/`
+- [x] Replace `extract_imports_from_content()` and its helpers with it
+- [x] Tests: `mdx_corpus_tests` in `files.rs` checks that saving every corpus file changes only blank lines and reads back the same, and snapshots each file's hidden block in `test/mdx-imports/files/blocks.txt`
+- [x] Reviewed the 8 corpus files where the old heuristic and the new splitter disagree. The new split is right in each. The old one hid a paragraph starting with "import", hid broken and indented imports, cut statements with a blank line inside them in half, and dropped blank lines between import groups on save. Every real-world file splits the same either way.
 
 ### Phase 3: Adding imports
 
 - [ ] The scanner records whether a component is a default or named export
+- [ ] The block model (`parse_block` in the first attempt's `block.rs`): each statement's range, and each import's source and specifiers
 - [ ] Adding an import with span-anchored splices (`mdx_esm/edit.rs` in the first attempt): idempotent, merges named imports, leaves the block alone on name collisions or when it doesn't parse
 - [ ] Choosing the specifier and inferring style, as decided above
 - [ ] Finding imports further down the body, outside code fences, for the "already imported" check

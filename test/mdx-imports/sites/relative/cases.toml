@@ -91,10 +91,10 @@ export const updated = "2024-05-01";
 """
 
 [[case]]
-name = "keeps Windows line endings"
+name = "adds to a file with Windows line endings, which the editor reads as LF"
 file = "src/content/posts/crlf-post.mdx"
 component = "Video"
 expected = """
-import Callout from "../../components/mdx/Callout.astro";\r
+import Callout from "../../components/mdx/Callout.astro";
 import Video from "../../components/mdx/Video.astro";
 """

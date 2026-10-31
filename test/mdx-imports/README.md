@@ -4,7 +4,7 @@ Real and handwritten MDX for testing how the editor reads the import block betwe
 
 ## `files/`: finding the import block
 
-MDX files whose import block the editor has to find and hide. The tests run over every `.mdx` file in here, so adding a file is enough to add a case.
+MDX files whose import block the editor has to find and hide. The tests (`mdx_corpus_tests` in `src-tauri/src/commands/files.rs`) run over every `.mdx` file in here, so adding a file is enough to add a case. They check that saving an unchanged file changes nothing but blank lines and reads back the same, and that each file's hidden block matches `blocks.txt`. After adding a file or changing how blocks are found, regenerate `blocks.txt` with `UPDATE_SNAPSHOTS=1 cargo test mdx_corpus` (in `src-tauri`) and review the diff.
 
 Real files, copied whole:
 
@@ -65,7 +65,7 @@ import { Aside, Callout } from '@/components/mdx'
 """
 ```
 
-- `expected` is the whole import block after the insert. It's compared without trailing whitespace. In a file with Windows line endings, write `\r` at the end of each line but the last.
+- `expected` is the whole import block after the insert. It's compared without trailing whitespace. The editor reads every file with LF line endings, so `expected` never contains `\r`.
 - `unchanged = true` replaces `expected` when nothing should be added.
 - `component` names one of the site's own components. Add `package = "@astrojs/starlight/components"` for a Starlight component of that name.
 - `components_dir` at the top of the file sets where the site's components are, if not `src/components/mdx`.

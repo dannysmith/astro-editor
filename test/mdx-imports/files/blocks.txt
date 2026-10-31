@@ -1,0 +1,198 @@
+# The ESM block the editor hides in each file here. Checked by
+# `mdx_corpus_tests` in `src-tauri/src/commands/files.rs`.
+
+=== astro-docs/editor-setup.mdx
+import PackageManagerTabs from '~/components/tabs/PackageManagerTabs.astro'
+import { Steps } from '@astrojs/starlight/components';
+import Badge from "~/components/Badge.astro"
+
+=== astro-docs/getting-started.mdx
+import { CardGrid } from '@astrojs/starlight/components'
+import Card from '~/components/Landing/Card.astro'
+import ListCard from '~/components/Landing/ListCard.astro'
+import SplitCard from '~/components/Landing/SplitCard.astro'
+import Discord from '~/components/Landing/Discord.astro'
+
+=== astro-docs/tutorial/3-components/1.mdx
+import Box from '~/components/tutorial/Box.astro';
+import Checklist from '~/components/Checklist.astro';
+import MultipleChoice from '~/components/tutorial/MultipleChoice.astro';
+import Option from '~/components/tutorial/Option.astro';
+import PreCheck from '~/components/tutorial/PreCheck.astro';
+import { Steps } from '@astrojs/starlight/components';
+import Badge from "~/components/Badge.astro"
+
+=== astro-docs/tutorial/4-layouts/1.mdx
+import Box from '~/components/tutorial/Box.astro';
+import Checklist from '~/components/Checklist.astro';
+import MultipleChoice from '~/components/tutorial/MultipleChoice.astro';
+import Option from '~/components/tutorial/Option.astro';
+import PreCheck from '~/components/tutorial/PreCheck.astro';
+import { Steps } from '@astrojs/starlight/components';
+
+=== astro-docs/tutorial/6-islands/1.mdx
+import Box from '~/components/tutorial/Box.astro';
+import Checklist from '~/components/Checklist.astro';
+import Spoiler from '~/components/Spoiler.astro';
+import MultipleChoice from '~/components/tutorial/MultipleChoice.astro';
+import Option from '~/components/tutorial/Option.astro';
+import PreCheck from '~/components/tutorial/PreCheck.astro';
+import PackageManagerTabs from '~/components/tabs/PackageManagerTabs.astro';
+import { Steps } from '@astrojs/starlight/components';
+
+=== dannyis/articles/article-styleguide.mdx
+import { Image, Picture } from 'astro:assets';
+import image1 from '@assets/articles/styleguide-image.jpg';
+
+=== dannyis/notes/2026-01-16-dannysmith-datepicker.mdx
+import { DatePickerDemo } from '@components/demos/DatePickerDemo';
+
+=== dannyis/notes/2026-07-17-showing-my-toolbox-on-this-site.mdx
+import { ToolCard } from '@components/ui/index';
+import toolboxPages from '../toolboxPages.json';
+export const exampleToolJson = toolboxPages.find(t => t.id === 'sharing-appreciation');
+export const exampleTool = {
+  data: {
+    ...exampleToolJson,
+    created: new Date(exampleToolJson.created),
+    lastEdited: new Date(exampleToolJson.lastEdited),
+  },
+};
+
+=== handwritten/blank-line-groups.mdx
+import Callout from '../components/Callout.astro'
+import Figure from '../components/Figure.astro'
+
+import hero from '../assets/hero.png'
+
+
+export const tagline = 'Separated by blank lines'
+
+=== handwritten/broken-import.mdx
+(none)
+
+=== handwritten/comments.mdx
+import Callout from '../components/Callout.astro' // the “fancy” one
+// Images
+import hero from '../assets/hero.png'
+/* Data,
+   loaded at build time */
+import data from '../data/stats.json'
+
+=== handwritten/components-mapping.mdx
+import Blockquote from '../components/Blockquote.astro'
+export const components = { blockquote: Blockquote }
+
+=== handwritten/crlf.mdx
+import Callout from '../components/Callout.astro'
+import Figure from '../components/Figure.astro'
+
+=== handwritten/export-const-blank-line.mdx
+import List from '../components/List.astro'
+export const items = [
+  'first',
+
+  'second',
+]
+
+=== handwritten/export-default-layout.mdx
+import Wrapper from '../components/Wrapper.astro'
+
+export default function Layout({ children }) {
+  return (
+    <Wrapper>
+      <header>Shared header</header>
+
+      {children}
+    </Wrapper>
+  )
+}
+
+=== handwritten/frontmatter-only.mdx
+(none)
+
+=== handwritten/import-later-only.mdx
+(none)
+
+=== handwritten/import-then-heading.mdx
+import Callout from '../components/Callout.astro'
+
+=== handwritten/import-then-jsx.mdx
+import Callout from '../components/Callout.astro'
+
+=== handwritten/imports-in-code-fence.mdx
+(none)
+
+=== handwritten/indented-import.mdx
+(none)
+
+=== handwritten/multiline-named.mdx
+import {
+  Aside,
+  Card,
+  CardGrid,
+} from '@astrojs/starlight/components'
+import Callout from '../components/Callout.astro'
+
+=== handwritten/no-frontmatter.mdx
+import Callout from '../components/Callout.astro'
+
+=== handwritten/prose-starting-with-import.mdx
+(none)
+
+=== handwritten/specifier-kinds.mdx
+import type { Props } from '../components/types'
+import * as Icons from '../components/icons'
+import '../styles/prose.css'
+import Layout, { meta } from '../layouts/Post.astro'
+import { Card as StarCard } from '@astrojs/starlight/components'
+import raw from '../snippets/example.txt?raw'
+import logoUrl from '../assets/logo.svg?url'
+
+=== handwritten/template-literal.mdx
+import Code from '../components/Code.astro'
+export const snippet = `
+const a = 1
+
+const b = 2
+`
+
+=== handwritten/top-level-await.mdx
+import { getEntry } from 'astro:content'
+import PostCard from '../components/PostCard.astro'
+export const post = await getEntry('blog', 'hello-world')
+
+=== starlight-docs/components/tabs.mdx
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+=== starlight-docs/environmental-impact.mdx
+(none)
+
+=== starlight-docs/guides/authoring-content.mdx
+(none)
+
+=== starlight-docs/index.mdx
+import { CardGrid, Card } from '@astrojs/starlight/components';
+import AboutAstro from '~/components/about-astro.astro';
+import LogoGrid from '~/components/logo-grid/logo-grid.astro';
+import TestimonialGrid from '~/components/testimonial-grid.astro';
+import Testimonial from '~/components/testimonial.astro';
+
+=== starlight-docs/manual-setup.mdx
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+=== taskdn/desktop/overview.mdx
+import { Image } from 'astro:assets'
+import { Kbd } from 'starlight-kbd/components'
+import { Aside } from '@astrojs/starlight/components'
+import DesktopAppDownloadButtons from '@components/DesktopAppDownloadButtons.astro'
+import desktopScreenshot from '@assets/desktop-app-screenshot.png'
+
+=== taskdn/getting-started.mdx
+import { Badge, LinkCard, CardGrid } from '@astrojs/starlight/components'
+import { Image } from 'astro:assets'
+import desktopScreenshot from '@assets/desktop-app-screenshot.png'
+import obsidianScreenshot from '@assets/obsidian-screenshot-1.png'
+import CLIDemo from '@components/demos/CLIDemo.astro'
+import ObsidianDemo from '@components/demos/ObsidianDemo.astro'
+import ClaudeDemo from '@components/demos/ClaudeDemo.astro'
