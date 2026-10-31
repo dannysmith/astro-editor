@@ -126,9 +126,10 @@ export function getCollectionSettings(
 
 /**
  * Whether the component builder imports images picked for a collection's
- * image props: when the project adds imports, and the collection's images go
- * somewhere under `src/`, which is the only place Astro imports images from.
- * Otherwise image props take the name of an image the writer imports.
+ * image props: when the project adds imports, and the collection's images
+ * don't go in `public/`, whose files Vite serves as they are rather than
+ * importing them. Otherwise image props take the name of an image the writer
+ * imports.
  */
 export function canImportImages(
   projectSettings: ProjectSettings | null | undefined,
@@ -139,5 +140,5 @@ export function canImportImages(
     projectSettings,
     collectionName
   ).pathOverrides
-  return /^(\.?\/)?src(\/|$)/.test(assetsDirectory)
+  return !/^(\.?\/)?public(\/|$)/.test(assetsDirectory)
 }

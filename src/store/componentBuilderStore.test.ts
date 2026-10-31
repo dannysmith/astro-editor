@@ -236,13 +236,13 @@ describe('componentBuilderStore imports', () => {
     await select()
     planComponentImport.mockResolvedValueOnce({
       status: 'error',
-      error: "b.png isn't in src/",
+      error: 'b.png is in public/',
     })
     await useComponentBuilderStore
       .getState()
       .setImage('image', { file_name: 'b.png', specifier: '/public/b.png' })
     expect(toast.error).toHaveBeenCalledWith('Couldn’t use that image', {
-      description: "b.png isn't in src/",
+      description: 'b.png is in public/',
     })
     expect(useComponentBuilderStore.getState().images).toEqual({})
   })

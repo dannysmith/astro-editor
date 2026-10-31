@@ -245,8 +245,9 @@ fn is_component_name(name: &str) -> bool {
             .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
-/// Whether the image at `specifier`, a path the editor wrote for `file`, is
-/// inside `src/`. Astro can't import images from anywhere else, like `public/`.
+/// Whether the image at `specifier`, a path the editor wrote for `file`, can be
+/// imported: it's in the project, and not in `public/`, whose files Vite serves
+/// as they are rather than importing them
 pub fn importable_image(project_root: &Path, file: &Path, specifier: &str) -> bool {
     let path = match specifier.strip_prefix('/') {
         Some(from_root) => project_root.join(from_root),
@@ -255,8 +256,9 @@ pub fn importable_image(project_root: &Path, file: &Path, specifier: &str) -> bo
             None => return false,
         },
     };
-    path.canonicalize()
-        .is_ok_and(|path| path.starts_with(project_root.join("src")))
+    path.canonicalize().is_ok_and(|path| {
+        path.starts_with(project_root) && !path.starts_with(project_root.join("public"))
+    })
 }
 
 fn file_stem(file_name: &str) -> String {
@@ -866,18 +868,24 @@ mod tests {
     }
 
     #[test]
-    fn only_images_in_src_can_be_imported() {
+    fn images_outside_public_can_be_imported() {
         let project = tempfile::TempDir::new().unwrap();
         let root = project.path().canonicalize().unwrap();
-        for dir in ["src/content/docs", "src/assets", "public"] {
+        for dir in ["src/content/docs", "src/assets", "content-images", "public"] {
             fs::create_dir_all(root.join(dir)).unwrap();
         }
         fs::write(root.join("src/assets/a.png"), "").unwrap();
+        fs::write(root.join("content-images/c.png"), "").unwrap();
         fs::write(root.join("public/b.png"), "").unwrap();
         let file = root.join("src/content/docs/page.mdx");
 
         assert!(importable_image(&root, &file, "../../assets/a.png"));
         assert!(importable_image(&root, &file, "/src/assets/a.png"));
+        assert!(importable_image(
+            &root,
+            &file,
+            "../../../content-images/c.png"
+        ));
         assert!(!importable_image(&root, &file, "/public/b.png"));
         assert!(!importable_image(&root, &file, "../../../public/b.png"));
         assert!(!importable_image(&root, &file, "./missing.png"));

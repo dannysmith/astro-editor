@@ -353,17 +353,17 @@ describe('canImportImages', () => {
     }
   }
 
-  it('imports images when the project adds imports and they go under src/', () => {
+  it('imports images when the project adds imports and they go outside public/', () => {
     expect(canImportImages(settings({}), 'notes')).toBe(true)
     expect(
       canImportImages(
-        settings({ pathOverrides: { assetsDirectory: './src/images/' } }),
+        settings({ pathOverrides: { assetsDirectory: './content/images/' } }),
         'notes'
       )
     ).toBe(true)
   })
 
-  it('falls back to a typed name when the setting is off or images go outside src/', () => {
+  it('falls back to a typed name when the setting is off or images go in public/', () => {
     expect(
       canImportImages(settings({ addComponentImports: false }), 'notes')
     ).toBe(false)

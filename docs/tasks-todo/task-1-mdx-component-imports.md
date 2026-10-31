@@ -117,7 +117,7 @@ Real files to test the splitter and import insertion against, used for manual te
 
 ### Phase 6: Collection-entry props
 
-- [x] Spike: `export const x = await getEntry(…)` builds in a content-collection MDX file, both from another collection (a note loading an article) and from the same collection (an article loading another). `getEntry` reads the data store rather than importing the other file, so there's no module cycle. A wrong id doesn't fail the build: Astro warns "Entry … was not found" and the prop is `undefined`. Tried with `astro build` in the dummy project, not `astro dev`.
+- [x] Spike: `export const x = await getEntry(…)` builds in a content-collection MDX file, both from another collection (a note loading an article) and from the same collection (an article loading another). `getEntry` reads the data store rather than importing the other file, so there's no module cycle. A wrong id doesn't fail the build: Astro warns "Entry … was not found" and the prop is `undefined`. Tried with `astro build` in the dummy project, and later with `astro dev`, where editing the loaded entry updates the page on reload.
 - [x] Found while checking ids: the frontmatter's reference fields write the app's file id (`articles/first-article`), not Astro's (`first-article`), don't recognise correct existing values, ignore `slug` and only list a collection's top-level files. Astro's glob loader id is the `slug` frontmatter if there is one, otherwise each path segment run through github-slugger, joined with `/`, with a trailing `/index` dropped (`generateIdDefault` in `astro/dist/content/loaders/glob.js`). Fixed with `astroEntryId` (`src/lib/entry-id.ts`, which slugifies as Astro's `github-slugger` does), which the reference fields, the reference picker's recursive scan and the content linker's `{slug}` now use. File-based collections (`authors.json`) had the same prefix and now use their own `id`.
 - [x] An entry picker for collection-entry props (`EntryPropField`), shown when the setting is on, listing the collection's entries by title with Astro's ids (`useCollectionEntriesQuery`, shared with the reference fields). It works for file-based collections like `authors.json` too.
 - [x] The plan takes picked entries alongside images (`PropImports`). Rust adds `import { getEntry } from 'astro:content'`, joining an existing `astro:content` import, and `export const <name> = await getEntry('<collection>', '<id>')` at the end of the block, in the file's quote and semicolon style. The name comes from the id's last part (`2024/first-post` gives `firstPost`), avoiding every name the file binds. An `export const` that already loads the entry is reused.
@@ -160,7 +160,8 @@ Docs:
 
 - [x] User and developer docs: drop the impossible "not only imports and exports" case, fix the BookCard example, "after the imports at the top", renaming an entry breaks its `getEntry` line, `export const` counts as already there, the auto-import note, the task doc's github-slugger mention (29, 30)
 
-Left for Danny: whether images outside `src/` (but not in `public/`) should be importable, which needs an `astro build` to confirm (14), and trying `getEntry` under `astro dev` (17).
+- [x] Images can come from anywhere in the project except `public/` (14). An image from a folder outside `src/`, and one from `public/`, both imported, built and were optimised under `astro build` and `astro dev`, with no warning. `public/` stays excluded because Vite's docs say not to import from it.
+- [x] `getEntry` under `astro dev` (17): a note loading an article, and an article loading another from its own collection, both render, and editing the loaded entry updates the page on reload.
 
 ## The first attempt
 

@@ -47,7 +47,7 @@ pub async fn plan_component_import(
         .find(|image| !mdx_esm::importable_image(&project_root, &file, &image.specifier))
     {
         return Err(format!(
-            "{} isn't in src/, and Astro can only import images from there",
+            "{} is in public/, whose images can't be imported",
             image.file_name
         ));
     }

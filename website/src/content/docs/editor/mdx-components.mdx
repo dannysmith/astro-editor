@@ -222,7 +222,7 @@ The name comes from the image's original file name:
 
 If the file already imports that image, its existing name is used and nothing is added.
 
-Astro can only import images from inside `src/`. If your images go somewhere else, like `public/`, image props keep the text box, and picking an image that's already in `public/` shows an error.
+Images in `public/` aren't imported, since Vite serves that folder's files as they are and its docs say not to import them. If your images go there, image props keep the text box, and picking an image that's already in `public/` shows an error. Anywhere else in your project is fine, including folders outside `src/`.
 
 With the **Add import** switch off, or if no import can be worked out for the file, the image goes in as its path instead (`cover="../../../assets/articles/2026-10-31-atomic-habits-cover.jpg"`), ready for you to import it yourself.
 
