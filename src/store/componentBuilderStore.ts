@@ -107,21 +107,26 @@ async function planImports(
     ?.find(c => c.name === currentFile.collection)
   if (!collection) return { plan: null }
 
-  const result = await commands.planComponentImport(
-    projectPath,
-    collection.path,
-    currentFile.path,
-    imports,
-    view.state.doc.toString(),
-    component,
-    {
-      images: Object.values(picks.images),
-      entries: Object.values(picks.entries),
-    }
-  )
-  return result.status === 'error'
-    ? { error: result.error }
-    : { plan: result.data }
+  try {
+    const result = await commands.planComponentImport(
+      projectPath,
+      collection.path,
+      currentFile.path,
+      imports,
+      view.state.doc.toString(),
+      component,
+      {
+        images: Object.values(picks.images),
+        entries: Object.values(picks.entries),
+      }
+    )
+    return result.status === 'error'
+      ? { error: result.error }
+      : { plan: result.data }
+  } catch (error) {
+    // The bindings rethrow errors from the IPC itself
+    return { error: String(error) }
+  }
 }
 
 /** `record` with `value` for `key`, or without `key` when there's no value */

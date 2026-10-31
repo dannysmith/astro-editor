@@ -151,6 +151,18 @@ describe('componentBuilderStore imports', () => {
     expect(useEditorStore.getState().imports).toBe(planWith().imports)
   })
 
+  it('still inserts, and can insert again, when planning throws', async () => {
+    await select()
+    planComponentImport.mockRejectedValue(new Error('IPC failed'))
+    await useComponentBuilderStore.getState().insert()
+    expect(insertSnippet).toHaveBeenCalledTimes(1)
+    expect(useEditorStore.getState().imports).toBe('')
+
+    await select()
+    await useComponentBuilderStore.getState().insert()
+    expect(insertSnippet).toHaveBeenCalledTimes(2)
+  })
+
   it('adds nothing with the switch off', async () => {
     await select()
     useComponentBuilderStore.getState().setAddImport(false)

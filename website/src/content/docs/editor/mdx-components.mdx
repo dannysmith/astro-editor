@@ -201,7 +201,7 @@ The same goes for index files: if a file imports `{ Callout }` from `@/component
 - **Nothing else changes.** Your formatting, comments and blank lines in those lines stay exactly as they were.
 - **Undo removes the component but not its import.** An unused import doesn't break anything.
 
-The import is worked out again when you press Insert, against the file as it is then, so inserting straight after picking, or a change to the file made outside Astro Editor while the builder is open, can't give a wrong or missing import.
+The import is worked out again when you press Insert, against the file as it is in the editor then, so inserting straight after picking can't give a missing import, and a change made outside Astro Editor is taken into account once the editor has loaded it.
 
 A component whose file name isn't capitalised, like `my-callout.astro`, gets no import: MDX reads `<my-callout>` as an HTML tag, so the import wouldn't do anything.
 

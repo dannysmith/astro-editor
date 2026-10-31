@@ -47,7 +47,7 @@ pub async fn plan_component_import(
         .find(|image| !mdx_esm::importable_image(&project_root, &file, &image.specifier))
     {
         return Err(format!(
-            "{} is in public/, whose images can't be imported",
+            "{} can't be imported: it needs to be in the project, outside public/",
             image.file_name
         ));
     }
