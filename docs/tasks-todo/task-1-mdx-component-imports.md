@@ -48,7 +48,7 @@ What Astro's docs recommend:
 - **Choosing the import path:**
   1. If the name is already imported in this file, do nothing. If it points somewhere else, the writer's import wins.
   2. Package components (`import_source`) import from that module.
-  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory.
+  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory. "Same collection" means anywhere under the collection's directory, not just the current file's folder (the first attempt only looked there, missing `blog/2023/` from `blog/2024/`). For a project component, skip specifiers from the package modules the builder knows about. Otherwise a project `Card` would copy another file's Starlight `Card` import.
   4. Otherwise use a relative path from this file to the component, keeping the extension.
 
   Generating aliases from tsconfig `paths` (the first attempt's `oxc_resolver` and path inversion) is left out. So the first time a component is used anywhere, a site that uses aliases gets a relative import. It works but doesn't match the rest of the site, which is fine for an experimental feature. Revisit if writers ask for it.
@@ -56,9 +56,9 @@ What Astro's docs recommend:
 - **Merging:** a named import goes into an existing `import { … }` with the same specifier (compared as text). A default import always gets its own line.
 - **Default or named export:** the component scanner records it, since it already finds the component function in React files. Astro, Vue and Svelte components are always default exports. The import code doesn't parse component files again.
 - **Slot templates:** components the slot template inserts get imported too.
-- **The splitter moves to swc.** Use the detection from the first attempt, without its legacy fallback. If detection gives up, the whole text is body, which is visible rather than hidden. Every split still saves the same bytes, so a wrong split only changes what the editor shows. Even so, run it over the corpus and look at every file where it disagrees with the old heuristic.
+- **The splitter moves to swc.** Use the detection from the first attempt, without its legacy fallback. If detection gives up, the whole text is body, which is visible rather than hidden. Saving writes the block and the body back with exactly one blank line between them (the `rebuild_markdown_*` functions in `files.rs`), so moving the split never loses text. It can add a blank line where there was none, or collapse several into one, as the current heuristic already does. The case to guard against is prose being hidden in the block, where the writer can't see or edit it. Detection only takes what parses as module declarations, so it shouldn't happen. Even so, run it over the corpus and look at every file where it disagrees with the old heuristic.
 - **Undo** removes the tag but not the import. An unused import is harmless in MDX, so that's accepted.
-- **The builder previews the import.** When the setting is on, the configure step shows a row with an "Add import" toggle and the line that will be added or changed, e.g. `import Callout from '../../components/mdx/Callout.astro'`, or the merged `import { Aside, Callout } from '@/components/mdx'`. If the name is already imported, the row says so. If no safe import could be planned, the row is hidden and nothing is added. The plan is made once when a component is selected, since it doesn't depend on prop values and the block can't change while the builder is open. Insert applies it if the toggle is on.
+- **The builder previews the import.** When the setting is on, the configure step shows a row with an "Add import" toggle and the line that will be added or changed, e.g. `import Callout from '../../components/mdx/Callout.astro'`, or the merged `import { Aside, Callout } from '@/components/mdx'`. If the name is already imported, the row says so and shows that import line, so a clash (Starlight's `Card` imported, project `Card` picked) is visible. If no safe import could be planned, the row is hidden and nothing is added. The plan is made once when a component is selected, since it doesn't depend on prop values and the block can't change while the builder is open. Insert applies it if the toggle is on.
   - No diff of surrounding lines: the writer only needs the line being added.
   - No toast: they've just seen the line.
   - The toggle resets to on each time the builder opens. A remembered "off" would quietly stop imports being added later.
@@ -83,7 +83,7 @@ Real files to test the splitter and import insertion against, used for manual te
 
 - [ ] Port the block model and detection (`mdx_esm/block.rs` in the first attempt) to the current swc, without the legacy fallback
 - [ ] Replace `extract_imports_from_content()` with it
-- [ ] Tests: every corpus file round-trips byte for byte; review each file where the new split differs from the old one
+- [ ] Tests: splitting and rebuilding every corpus file gives back the original, apart from the gap between block and body; review each file where the new split differs from the old one
 
 ### Phase 3: Adding imports
 
@@ -107,6 +107,7 @@ Real files to test the splitter and import insertion against, used for manual te
 
 - [ ] An image picker for `image` props in the builder, copying the file into the project with `processFileToAssets` as `ImageField` does
 - [ ] Add `import <name> from '<path>'` and insert `src={name}`. Name the binding from the file name, unique among the file's existing bindings. The image's import line joins the preview row.
+- [ ] Only images under `src/` can be imported. If the collection's assets directory is in `public/`, keep the text field.
 - [ ] Remove the image hint from `bindingHint`
 
 ### Phase 6: Collection-entry props
