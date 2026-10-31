@@ -1,0 +1,100 @@
+# Relative paths, double quotes and semicolons, as on maggieappleton.com.
+# Components from React, Vue and Svelte as well as Astro.
+
+[[case]]
+name = "adds a relative import after the last one, in the file's style"
+file = "src/content/posts/with-imports.mdx"
+component = "Video"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";
+import YearsAgo from "../../components/mdx/YearsAgo.astro";
+import Video from "../../components/mdx/Video.astro";
+"""
+
+[[case]]
+name = "does nothing when the component is already imported"
+file = "src/content/posts/with-imports.mdx"
+component = "Callout"
+unchanged = true
+
+[[case]]
+name = "starts a block in the collection's style when the file has no imports"
+file = "src/content/posts/no-imports.mdx"
+component = "Callout"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";
+"""
+
+[[case]]
+name = "works out the relative path again for a file in another folder"
+file = "src/content/posts/nested/2024/deep-post.mdx"
+component = "Callout"
+expected = """
+import Callout from "../../../../components/mdx/Callout.astro";
+"""
+
+[[case]]
+name = "imports a React component exported by name as a named import"
+file = "src/content/posts/with-imports.mdx"
+component = "Alert"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";
+import YearsAgo from "../../components/mdx/YearsAgo.astro";
+import { Alert } from "../../components/mdx/Alert.tsx";
+"""
+
+[[case]]
+name = "imports a React component with a default export as a default import"
+file = "src/content/posts/with-imports.mdx"
+component = "Chart"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";
+import YearsAgo from "../../components/mdx/YearsAgo.astro";
+import Chart from "../../components/mdx/Chart.tsx";
+"""
+
+[[case]]
+name = "imports a Vue component with its extension"
+file = "src/content/posts/no-imports.mdx"
+component = "Rating"
+expected = """
+import Rating from "../../components/mdx/Rating.vue";
+"""
+
+[[case]]
+name = "imports a Svelte component with its extension"
+file = "src/content/posts/nested/2024/deep-post.mdx"
+component = "Poll"
+expected = """
+import Poll from "../../../../components/mdx/Poll.svelte";
+"""
+
+[[case]]
+name = "leaves the file alone when the name is imported from somewhere else"
+file = "src/content/posts/collision.mdx"
+component = "Video"
+unchanged = true
+
+[[case]]
+name = "does nothing when the component is imported further down the file"
+file = "src/content/posts/later-import.mdx"
+component = "Callout"
+unchanged = true
+
+[[case]]
+name = "puts the import above exports when there are no other imports"
+file = "src/content/posts/exports-only.mdx"
+component = "Callout"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";
+export const updated = "2024-05-01";
+"""
+
+[[case]]
+name = "keeps Windows line endings"
+file = "src/content/posts/crlf-post.mdx"
+component = "Video"
+expected = """
+import Callout from "../../components/mdx/Callout.astro";\r
+import Video from "../../components/mdx/Video.astro";
+"""

@@ -1,0 +1,8 @@
+---
+/** Note, a fixture component */
+interface Props {
+  title?: string
+}
+const { title } = Astro.props
+---
+<div class="note"><slot /></div>

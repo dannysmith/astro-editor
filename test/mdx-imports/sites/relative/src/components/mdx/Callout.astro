@@ -1,0 +1,8 @@
+---
+/** Callout, a fixture component */
+interface Props {
+  type?: 'note' | 'warning'
+}
+const { type } = Astro.props
+---
+<div class="callout"><slot /></div>

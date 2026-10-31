@@ -1,0 +1,382 @@
+---
+title: Article Styleguide
+pubDate: 2024-05-01
+cover: ../../assets/articles/styleguide-image.jpg
+coverAlt: Cover Image
+description: A comprehensive styleguide demonstrating how all key Markdown/MDX features, Astro components, and prose styles render in an article context.
+styleguide: true
+---
+
+import { Image, Picture } from 'astro:assets';
+import image1 from '@assets/articles/styleguide-image.jpg';
+
+<IntroParagraph>This Article Styleguide demonstrates how all key Markdown/MDX features, Astro components, and prose styles render in an Article context. Use it to check typography, component appearance, and real-world content. The first paragraph is intentionally long to show drop cap and first-paragraph styling. This page is a reference for designers, developers, and content authors to see how headings, lists, blockquotes, code, tables, images, embeds, and custom components appear in a real article. For a full component reference, see the [main styleguide](/styleguide/). You'll also find examples of footnotes, abbr, and other advanced markdown features. The goal is to ensure every element looks beautiful, readable, and consistent in the context of long-form writing. Feel free to add new examples as you add new features or components to the site. For more information, see the [main styleguide](/styleguide/).[^intro]</IntroParagraph>
+
+<Callout>
+  Looking for the full component reference rather than these in-context examples? Head over to the [main styleguide](/styleguide/) for swatches, tokens, and a complete component grid.
+</Callout>
+
+---
+
+## Component Demos
+
+This section demonstrates custom MDX components in context.
+
+### Accordion
+
+<Accordion header="Expandable Content Section">
+  This is the content inside the accordion. It can contain **markdown formatting**, lists, and other elements:
+
+- Item one with some detail
+- Item two with more information
+- Item three to round it out
+
+You can also include code blocks, links, and other rich content here. The accordion is useful for organizing optional or supplementary information that doesn't need to be visible by default.
+
+</Accordion>
+
+<Accordion header="Technical Implementation Details">
+  The Accordion component uses your site's existing CSS variables and follows accessibility best practices.
+</Accordion>
+
+<Accordion header="Plain Accordion Example" plain>
+  This accordion has no background or border - useful when you want a more minimal look that blends into the surrounding content.
+</Accordion>
+
+### BookmarkCard
+
+<BookmarkCard url="https://justinjackson.ca/calm-company" />
+<BookmarkCard url="https://dannysmith.notion.site/Meetings-2c4bd8d7ba31427cb1294a008a9df21f" />
+
+### Notion Links in Context
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. <Notion href="https://dannysmith.notion.site/Meetings-2c4bd8d7ba31427cb1294a008a9df21f?pvs=4">Meetings link</Notion> Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. <Notion href="https://dannysmith.notion.site/Meeting-Checkouts-870b7ecca989419b8f0d3047bad89d05?pvs=4">elementum</Notion> Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. <Notion href="https://dannysmith.notion.site/Loom-4a6ebae015494adbbec07bf3f7912b03?pvs=4">consequat</Notion>
+
+### ButtonLink
+
+<ButtonLink href="https://example.com">Primary Button Link</ButtonLink>
+
+<ButtonLink href="https://example.com" variant="secondary">
+  Secondary Button Link
+</ButtonLink>
+
+### Callout
+
+<Callout emoji="💡" type="blue">
+  Lorem ipsum dolor sit amet consectetur adipisicing elit. Earum hic a dolorem ipsa labore cum.
+</Callout>
+
+Here is one with a large heading and some richer content...
+
+<Callout title="Rich content with a large heading" icon="heroicons:document-text-20-solid" largeHeading>
+Callouts can hold anything you'd write elsewhere: **bold**, *italic* and [links](http://example.com).
+Lists work too:
+- Bullet points
+- Numbered lists
+- Any nesting you need
+</Callout>
+
+### Grid Example
+
+<Grid columns={2} rows={2} gap="1rem">
+  <Image src={image1} alt="Grid Example 1" />
+  <Image src={image1} alt="Grid Example 2" />
+  <Image src={image1} alt="Grid Example 3" />
+  <Image src={image1} alt="Grid Example 4" />
+</Grid>
+
+### Grid image gallery
+
+Markdown images (which become `BasicImage` figures) placed inside a `Grid` render as a side-by-side gallery. Captions and the lightbox are preserved, and the figures flow into the grid's columns instead of pinning to the prose column.
+
+<Grid columns={2}>
+![Wooden deck with striped columns and glass panels](../../assets/articles/styleguide-image.jpg 'A caption on the left')
+
+![Wooden deck with striped columns and glass panels](../../assets/articles/styleguide-image.jpg 'A caption on the right')
+</Grid>
+
+<Grid columns={3}>
+![Wooden deck with striped columns and glass panels](../../assets/articles/styleguide-image.jpg 'One')
+
+![Wooden deck with striped columns and glass panels](../../assets/articles/styleguide-image.jpg 'Two')
+
+![Wooden deck with striped columns and glass panels](../../assets/articles/styleguide-image.jpg 'Three')
+</Grid>
+
+---
+
+## Images
+
+This section shows different image layouts and treatments.
+
+### A normal image
+
+<BasicImage src={image1} alt="Example image" />
+
+### A normal image with height and width set
+
+<BasicImage src={image1} alt="Example image" height="200" width="500" />
+
+### A normal image with a border
+
+<BasicImage src={image1} alt="Example image" framed="true" />
+
+### An image at left-bleed
+
+<BasicImage src={image1} alt="Example image" bleed="left" />
+
+### An image at right-bleed
+
+<BasicImage src={image1} alt="Example image" bleed="right" />
+
+### An image at full-bleed
+
+<BasicImage src={image1} alt="Example image" bleed="full" />
+
+### An image with alt shown
+
+<BasicImage src={image1} alt="Example image" showAlt="true" />
+
+### Framed image with alt and source shown
+
+<BasicImage src={image1} alt="Example image" showAlt="true" sourceTitle="https://google.com" sourceUrl="http://google.com" framed="true" />
+
+## Typography & Inline Styles
+
+This section demonstrates headings, inline styles, and other markdown features.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+# Heading One (H1)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+## Heading Two (H2)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+### Heading Three (H3)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+#### Heading Four (H4)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+##### Heading Five (H5)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+**This is bold text**, ==this is highlighted==, ~~this is strikethrough~~, <u>this is underlined</u>, _this is italic_, and here is some `inline code` all in one sentence for demonstration purposes.
+
+---
+
+## Other Markdown Features
+
+This section shows additional markdown features like superscript, subscript, abbreviation, and horizontal rules.
+
+This is a superscript: 2<sup>nd</sup> and a subscript: H<sub>2</sub>O.
+
+This is an abbreviation: <abbr title="HyperText Markup Language">HTML</abbr>.
+
+---
+
+## Lists
+
+This section demonstrates unordered, ordered, and task lists in context — including the auto-applied [`.long-list-items`](/styleguide/) spacing rule, which loosens vertical rhythm when each bullet runs to paragraph length.[^2]
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent **sit amet felis** sollicitudin, ullamcorper nunc ac, suscipit metus. Maecenas tempor _nisl non nunc pulvinar_, nec faucibus quam consectetur. Cras commodo eros et magna ornare, non efficitur velit sodales. Aenean rhoncus magna quis ex cursus, in tincidunt tortor egestas. Cras vulputate eu enim eget pulvinar.
+
+- This is a thing which is the first point
+- And another thing which I need to consider where here.
+- And so the cold shrew cried out in alarm, for his twig had forsaken him.
+- Shortly, thus.
+
+<Callout emoji="🧭">
+  Short lists like the one above stay tight. The renderer only loosens spacing once items grow past a single line — try it in the long-item example below.
+</Callout>
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+1. This is a thing which is the first point
+2. And another [thing](#) which I need to consider where here.
+3. And so the cold shrew cried out in alarm, for his twig had forsaken him.
+4. Shortly, thus.
+
+### Lists with paragraph-length items
+
+When each bullet contains enough text to wrap across multiple lines, the styles automatically apply extra breathing room between items so the list reads more like a sequence of paragraphs than a tightly-packed reference list.
+
+- When writing documentation, it's important to consider the reader's context and provide enough background information that they can understand the topic without needing to consult external resources. _Brevity matters_ — but so does completeness.
+- **Code examples** should be complete and runnable wherever possible, rather than showing isolated snippets that leave readers guessing about imports, configuration, or the surrounding context they'd need to make sense of the fragment.
+- Error messages and edge cases deserve special attention because these are often the situations where readers most need guidance, yet they're frequently overlooked in favour of happy-path documentation. See [MDN's docs on the topic](https://developer.mozilla.org/) for a good treatment.
+
+---
+
+## Task List Example
+
+- [x] Write styleguide intro
+- [x] Add component demos
+- [ ] Polish prose and add more examples
+- [ ] Review for accessibility
+
+---
+
+## Blockquotes
+
+This section demonstrates blockquotes in context, both with and without citations.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+> Proin non pellentesque felis, et sollicitudin ante. In ultricies lorem magna, eget pretium lacus vestibulum ut. Fusce in interdum sapien - _Socrates_, 1AD Donec feugiat sagittis velit non molestie. Nullam mattis erat eget elit faucibus, ac tincidunt ligula bibendum. Suspendisse potenti. Nunc et aliquet nunc. Proin ullamcorper justo id scelerisque efficitur. Proin non pellentesque felis, et sollicitudin ante. In ultricies lorem magna, eget pretium lacus vestibulum ut. Fusce in interdum sapien.
+
+### Blockquotes with Citations
+
+<BlockQuoteCitation author="Steve Jobs">Design is not just what it looks like and feels like. Design is how it works.</BlockQuoteCitation>
+
+<BlockQuoteCitation author="Ernest Hemingway" title="A Moveable Feast">
+  The best way to find out if you can trust somebody is to trust them.
+</BlockQuoteCitation>
+
+<BlockQuoteCitation author="Robert Bringhurst" title="The Elements of Typographic Style" url="https://en.wikipedia.org/wiki/The_Elements_of_Typographic_Style">
+  Typography is the craft of endowing human language with a durable visual form, and typography shares with librarians the task of designing interfaces between readers and text.
+</BlockQuoteCitation>
+
+<Callout emoji="📚" title="On quoting at length" type="purple">
+  Use `<BlockQuoteCitation>` whenever you have a real attribution — author, title, optionally a URL. Bare `>` blockquotes are fine for short asides or when you're quoting yourself, but they leave the reader without context.
+
+  For longer quotations that span multiple paragraphs, prefer breaking them into separate `<BlockQuoteCitation>` blocks rather than stuffing everything into one — the citation chrome at the bottom of each keeps the source visible at the points it matters.
+</Callout>
+
+---
+
+## Code Blocks
+
+This section demonstrates code blocks in context.
+
+### Code Block Example
+
+```ruby
+def thing
+  return "Hello" if @thing === 1 && other >= 5
+end
+```
+
+```ruby title="my-test-file.rb"
+def thing
+  return "Hello" if @thing === 1 && other >= 5
+end
+```
+
+```bash
+echo "This terminal frame has no title"
+```
+
+---
+
+## Included Markdown
+
+A fenced block with the `md preview` meta string renders as a toggleable preview: a rendered pane (default) and a source pane, with a copy button. Use this when you want to show a chunk of markdown _as it would appear to a reader_ — say, a README excerpt or a content fragment — without losing the option to reveal the raw source. Authors write a normal fenced block; the [`remark-markdown-preview`](https://github.com/) plugin rewrites it into the underlying component.
+
+```md preview
+## Getting Started
+
+Welcome to the **example project**. To install dependencies, run `bun install`.
+
+For deeper background, see [the docs](https://docs.astro.build/).
+
+- Clone the repo
+- Install dependencies
+- Run `bun dev`
+```
+
+You can also pass a `title` for the header label — handy when the chunk is meant to represent a specific file:
+
+```md preview title="README.md"
+# Loomclone
+
+A tiny self-hosted alternative to Loom. _Work in progress._
+
+See the [intro post](/articles/intro-loomclone/) for context.
+```
+
+---
+
+## Tables
+
+This section demonstrates markdown tables in two flavours: a small reference table where every column is text, and a wider table mixing text with right-aligned numeric data.
+
+### Reference table
+
+A compact text-only table — the kind of thing you'd reach for to summarise tokens, props, or terminology partway through an article.
+
+| Token                  | Use                                                          |
+| ---------------------- | ------------------------------------------------------------ |
+| `--color-text`         | Primary text colour on light surfaces                        |
+| `--color-text-secondary` | Muted text for captions, metadata, and inactive UI         |
+| `--color-accent`       | Coral accent used for links, highlights, and active controls |
+| `--space-m`            | Default vertical rhythm between block-level elements         |
+
+### Tabular data
+
+When the table contains numbers, lean on alignment markers in the header row so figures line up on their last digit. The same trick works for currency, percentages, or timings.
+
+| Component         | Files | LOC  | Bundle (KB) |
+| ----------------- | ----: | ---: | ----------: |
+| Article layout    |     6 |  412 |        18.2 |
+| Note layout       |     4 |  281 |        12.7 |
+| Markdown preview  |     1 |  198 |         9.4 |
+| Image components  |     3 |  327 |        15.1 |
+
+| Component        | Files |
+| ---------------- | ----: |
+| Article layout   |     6 |
+| Note layout      |     4 |
+| Markdown preview |     1 |
+| Image components |     3 |
+
+<Callout icon="heroicons:table-cells-20-solid" title="A note on table widths">
+  Wide tables get a horizontal scrollbar on small viewports rather than squashing column widths — readability beats fitting everything on screen.
+</Callout>
+
+---
+
+## Embed Example
+
+This section demonstrates an embedded Loom video in context.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod. For more info, see [MDN Web Docs](https://developer.mozilla.org/).
+
+<Embed url="https://www.loom.com/share/0132dbe661b24dd28f42e2ce040f78cc" />
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod. Visit [Astro documentation](https://docs.astro.build/) for details.
+
+<Embed url="https://youtu.be/Em4lbLf09M0" />
+
+Lorem ipsum dolor sit amet, consectetur adipiscing.
+
+---
+
+## LCVid (self-hosted video)
+
+`<LCVid />` renders a self-hosted video from [v.danny.is](https://v.danny.is) with build-time metadata. Most authors won't use it directly — passing a `v.danny.is` URL to `<Embed>` auto-dispatches to it. The example below shows the **standard configuration** (title, meta, description, and open link all on) with the transcript expanded inline:
+
+<LCVid src="lcdemo-part-2" showTranscript />
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque euismod, nisi eu consectetur consectetur, nisl nisi consectetur nisi, euismod euismod nisi nisi euismod.
+
+---
+
+## Long-Form Content & Footnotes
+
+This section demonstrates long-form prose and footnotes. Footnotes are great for parenthetical asides that would otherwise interrupt the main argument — _use them sparingly_, but don't be afraid of them.[^longform]
+
+Donec leo libero, sodales a quam non, ullamcorper facilisis est. Nam id est fermentum, eleifend mi quis, ultrices elit. Nullam iaculis tellus neque, eu volutpat ex elementum ac. Nulla non consequat mauris, vel placerat risus. Sed mattis ac velit a eleifend. Nulla tempor hendrerit tristique. Integer luctus, sapien pulvinar euismod pharetra, dolor lorem lacinia nisl, non cursus ex nibh sed magna. Etiam pharetra accumsan nulla id suscipit. Nulla malesuada eleifend aliquet. Praesent sit amet felis sollicitudin, ullamcorper nunc ac, suscipit metus. Maecenas tempor nisl non nunc pulvinar, nec faucibus quam consectetur[^1]. Cras commodo eros et magna ornare, non efficitur velit sodales. Aenean rhoncus magna quis ex cursus, in tincidunt tortor egestas. Cras vulputate eu enim eget pulvinar.
+
+[^1]: This is the footnote, here.
+
+[^2]: This is the second [footnote, here](http://google.com) isa link to it. It is much longer and nicer than you think. Ere are some longer words to make it work better etc.
+
+[^longform]: A footnote with a [link inside it](https://en.wikipedia.org/wiki/Footnote) for good measure — useful for verifying how the return-to-text arrow lands alongside other inline content.
+
+[^intro]: This styleguide is maintained to help ensure visual and typographic consistency across all articles.

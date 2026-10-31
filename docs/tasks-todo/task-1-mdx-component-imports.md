@@ -46,14 +46,15 @@ What Astro's docs recommend:
 - **Support the common cases and do nothing otherwise.** The bar: imports the writer never has to fix, and no change at all when we're unsure.
 - **Rust parses and edits the block** with swc, which is already bundled. The frontend sends the imports string and gets the new one back.
 - **Choosing the import path:**
-  1. If the name is already imported in this file, do nothing. If it points somewhere else, the writer's import wins.
+  1. If the name is already imported anywhere in this file, do nothing. If it points somewhere else, the writer's import wins. "Anywhere" includes imports further down the body, outside code fences: MDX allows them, the Astro and Starlight docs use them a lot, and adding a second import of the same name breaks the build. So the command needs the body as well as the block.
   2. Package components (`import_source`) import from that module.
-  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory. "Same collection" means anywhere under the collection's directory, not just the current file's folder (the first attempt only looked there, missing `blog/2023/` from `blog/2024/`). For a project component, skip specifiers from the package modules the builder knows about. Otherwise a project `Card` would copy another file's Starlight `Card` import.
+  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory. Copy how it imports the name as well as the path: a barrel gives `{ Callout }`, a named import, though `Callout.astro` is a default export. "Same collection" means anywhere under the collection's directory, not just the current file's folder (the first attempt only looked there, missing `blog/2023/` from `blog/2024/`). For a project component, skip specifiers from the package modules the builder knows about. Otherwise a project `Card` would copy another file's Starlight `Card` import.
   4. Otherwise use a relative path from this file to the component, keeping the extension.
 
   Generating aliases from tsconfig `paths` (the first attempt's `oxc_resolver` and path inversion) is left out. So the first time a component is used anywhere, a site that uses aliases gets a relative import. It works but doesn't match the rest of the site, which is fine for an experimental feature. Revisit if writers ask for it.
 - **Style:** quotes and semicolons follow this file's imports, then the collection's, then Astro's docs (single quotes, semicolons).
-- **Merging:** a named import goes into an existing `import { … }` with the same specifier (compared as text). A default import always gets its own line.
+- **Merging:** a named import goes into an existing `import { … }` with the same specifier (compared as text). In a multi-line import it goes on its own line, matching the others' indentation and trailing comma. A default import always gets its own line.
+- **Placement:** a new import goes after the block's last import, or above the first statement when there are no imports, never after `export` statements. It uses the file's line endings.
 - **Default or named export:** the component scanner records it, since it already finds the component function in React files. Astro, Vue and Svelte components are always default exports. The import code doesn't parse component files again.
 - **Slot templates:** components the slot template inserts get imported too.
 - **The splitter moves to swc.** Use the detection from the first attempt, without its legacy fallback. If detection gives up, the whole text is body, which is visible rather than hidden. Saving writes the block and the body back with exactly one blank line between them (the `rebuild_markdown_*` functions in `files.rs`), so moving the split never loses text. It can add a blank line where there was none, or collapse several into one, as the current heuristic already does. The case to guard against is prose being hidden in the block, where the writer can't see or edit it. Detection only takes what parses as module declarations, so it shouldn't happen. Even so, run it over the corpus and look at every file where it disagrees with the old heuristic.
@@ -71,13 +72,11 @@ What Astro's docs recommend:
 
 ### Phase 1: Corpus
 
-Real files to test the splitter and import insertion against, used for manual testing and automated tests, like `test/mdx-components/`.
+Real files to test the splitter and import insertion against, used for manual testing and automated tests, like `test/mdx-components/`. See `test/mdx-imports/README.md`.
 
-- [ ] `test/mdx-imports/` with:
-  - real MDX file heads (frontmatter, import block, first lines of body) for the splitter: multi-line imports, `export const` objects with blank lines, comments, imports followed directly by a heading or JSX, prose starting with "import"
-  - small fixture projects for each style above (relative, alias, root path, barrel, Starlight), each with a few MDX files, components and a tsconfig
-- [ ] Cases defined as data (file, component, expected import block) so a case found in the wild is added without writing a test
-- [ ] README listing sources and licences, as in `test/mdx-components/README.md`. Candidates: danny.is and taskdn, withastro/docs and the Starlight docs (MIT), astro.build and maggieappleton.com (check licences first), this repo's `website/` (astro-auto-import).
+- [x] `test/mdx-imports/files/`: 15 whole MDX files from the Astro docs, the Starlight docs, danny.is and taskdn, plus 19 handwritten edge cases
+- [x] `test/mdx-imports/sites/`: a fixture project for each style (relative, alias, root path, barrel, Starlight), with 30 cases in `cases.toml` files. The harness in phase 3 needs `toml` as a dev-dependency.
+- [x] README listing sources and licences. astro.build and maggieappleton.com have no licence, so the `root-path` and `relative` sites only copy their style, not their files. `website/` uses astro-auto-import, so it has no imports to test.
 
 ### Phase 2: Block model and splitter
 
@@ -90,8 +89,9 @@ Real files to test the splitter and import insertion against, used for manual te
 - [ ] The scanner records whether a component is a default or named export
 - [ ] Adding an import with span-anchored splices (`mdx_esm/edit.rs` in the first attempt): idempotent, merges named imports, leaves the block alone on name collisions or when it doesn't parse
 - [ ] Choosing the specifier and inferring style, as decided above
-- [ ] A Tauri command that plans without saving: it returns the new block plus the line it added or changed, for the preview. Bindings regenerated.
-- [ ] Rust tests plus the corpus cases
+- [ ] Finding imports further down the body, outside code fences, for the "already imported" check
+- [ ] A Tauri command that plans without saving: it takes the block and the body, and returns the new block plus the line it added or changed, for the preview. Bindings regenerated.
+- [ ] Rust tests, plus a harness that runs every case in `test/mdx-imports/sites/*/cases.toml`
 
 ### Phase 4: Builder and setting
 

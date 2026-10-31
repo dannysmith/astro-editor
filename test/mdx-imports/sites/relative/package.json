@@ -1,0 +1,15 @@
+{
+  "name": "relative",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astrojs/mdx": "*",
+    "@astrojs/react": "*",
+    "@astrojs/svelte": "*",
+    "@astrojs/vue": "*",
+    "react": "*",
+    "svelte": "*",
+    "vue": "*"
+  }
+}

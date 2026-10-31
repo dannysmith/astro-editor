@@ -1,0 +1,9 @@
+{
+  "name": "barrel",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astrojs/mdx": "*"
+  }
+}

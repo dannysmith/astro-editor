@@ -1,0 +1,77 @@
+# A Starlight site with a `~/*` alias. The project has its own `Card`, which
+# shares a name with Starlight's. Cases with `package` use the builder's
+# Starlight component of that name.
+
+[[case]]
+name = "adds a Starlight component to the existing Starlight import"
+file = "src/content/docs/guide.mdx"
+component = "Aside"
+package = "@astrojs/starlight/components"
+expected = """
+import { Steps, Aside } from '@astrojs/starlight/components';
+import PackageManagerTabs from '~/components/mdx/PackageManagerTabs.astro';
+"""
+
+[[case]]
+name = "imports the components a slot template inserts"
+file = "src/content/docs/plain.mdx"
+component = "Tabs"
+package = "@astrojs/starlight/components"
+expected = """
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+"""
+
+[[case]]
+name = "adds a slot template's components to the existing Starlight import"
+file = "src/content/docs/guide.mdx"
+component = "Tabs"
+package = "@astrojs/starlight/components"
+expected = """
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PackageManagerTabs from '~/components/mdx/PackageManagerTabs.astro';
+"""
+
+[[case]]
+name = "imports CardGrid with the Cards its slot template inserts"
+file = "src/content/docs/plain.mdx"
+component = "CardGrid"
+package = "@astrojs/starlight/components"
+expected = """
+import { CardGrid, Card } from '@astrojs/starlight/components';
+"""
+
+[[case]]
+name = "does nothing when a component and its slot template's components are all imported"
+file = "src/content/docs/starlight-cards.mdx"
+component = "CardGrid"
+package = "@astrojs/starlight/components"
+unchanged = true
+
+[[case]]
+name = "doesn't copy another file's Starlight import for the project's own Card"
+file = "src/content/docs/plain.mdx"
+component = "Card"
+expected = """
+import Card from '../../components/mdx/Card.astro';
+"""
+
+[[case]]
+name = "leaves the file alone when the project's Card would clash with Starlight's"
+file = "src/content/docs/starlight-cards.mdx"
+component = "Card"
+unchanged = true
+
+[[case]]
+name = "does nothing when a Starlight component is imported further down the file"
+file = "src/content/docs/later-import.mdx"
+component = "Aside"
+package = "@astrojs/starlight/components"
+unchanged = true
+
+[[case]]
+name = "copies the alias another file uses for a project component"
+file = "src/content/docs/plain.mdx"
+component = "PackageManagerTabs"
+expected = """
+import PackageManagerTabs from '~/components/mdx/PackageManagerTabs.astro';
+"""
