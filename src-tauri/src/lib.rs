@@ -112,8 +112,9 @@ pub fn run() {
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
             // Send telemetry on startup (non-blocking, fails silently). Dev builds
-            // skip it so they don't count as installs.
-            if !cfg!(debug_assertions) {
+            // and CI (the startup smoke test in ci.yml) skip it so they don't count
+            // as installs.
+            if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
                 let app_handle = app.handle().clone();
                 let version = package_info.version.to_string();
                 tauri::async_runtime::spawn(async move {
