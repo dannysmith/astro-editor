@@ -90,16 +90,11 @@ pub fn add_entry_load(
     style: Style,
 ) -> (String, Range<usize>) {
     let text = &block.text;
-    let quote = |value: &str| {
-        let q = style.quote;
-        let escaped = value.replace('\\', "\\\\").replace(q, &format!("\\{q}"));
-        format!("{q}{escaped}{q}")
-    };
     let semicolon = if style.semicolons { ";" } else { "" };
     let statement = format!(
         "export const {name} = await getEntry({}, {}){semicolon}",
-        quote(collection),
-        quote(id)
+        quoted(collection, style),
+        quoted(id, style)
     );
     // After the last statement's line, or after a block of only comments
     let at = match block.statements.last() {
@@ -154,9 +149,16 @@ fn new_statement(name: &str, binding: &Binding, source: &str, style: Style) -> S
         Binding::Named(imported) => format!("{{ {imported} as {name} }}"),
         Binding::Namespace => format!("* as {name}"),
     };
-    let quote = style.quote;
     let semicolon = if style.semicolons { ";" } else { "" };
-    format!("import {what} from {quote}{source}{quote}{semicolon}")
+    format!("import {what} from {}{semicolon}", quoted(source, style))
+}
+
+/// A string literal in the file's quotes, so a path or id containing that
+/// quote, like `o'brien.png`, stays valid
+fn quoted(value: &str, style: Style) -> String {
+    let q = style.quote;
+    let escaped = value.replace('\\', "\\\\").replace(q, &format!("\\{q}"));
+    format!("{q}{escaped}{q}")
 }
 
 fn line_start(text: &str, pos: usize) -> usize {
@@ -210,6 +212,15 @@ mod tests {
         assert_eq!(new(named("Card")), "import { Card } from \"x\"");
         assert_eq!(new(named("Box")), "import { Box as Card } from \"x\"");
         assert_eq!(new(Binding::Namespace), "import * as Card from \"x\"");
+        assert_eq!(
+            new_statement(
+                "oBrien",
+                &Binding::Default,
+                "./o'brien.png",
+                Style::default()
+            ),
+            "import oBrien from './o\\'brien.png';"
+        );
     }
 
     #[test]

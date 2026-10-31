@@ -140,6 +140,20 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Up to 3 items')).toBeInTheDocument()
     })
 
+    it('formats an exact item count without a range', () => {
+      render(
+        <FieldWrapper
+          label="Test"
+          constraints={{ minItems: 1, maxItems: 1 }}
+          currentValue={['a']}
+        >
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.getByText('Exactly 1 item')).toBeInTheDocument()
+    })
+
     it('formats maxLength only', () => {
       const constraints: FieldConstraints = { maxLength: 200 }
 

@@ -379,7 +379,10 @@ fn parse_field(
     }
 
     // Extract constraints
-    let constraints = extract_constraints(field_schema, &field_type_info.field_type);
+    let constraints = extract_constraints(
+        nullable_inner(field_schema).unwrap_or(field_schema),
+        &field_type_info.field_type,
+    );
 
     // Build field
     let field = SchemaField {
@@ -513,6 +516,21 @@ fn extract_nullable_primitive_type(any_of: &[JsonSchemaProperty]) -> Option<Stri
 
 /// Extract array type from a nullable anyOf (e.g., [array, null] → array info)
 /// Returns None if not a nullable array pattern
+/// The non-null schema of a nullable field (`anyOf: [T, null]`), which has
+/// the field's constraints
+fn nullable_inner(field_schema: &JsonSchemaProperty) -> Option<&JsonSchemaProperty> {
+    let [a, b] = field_schema.any_of.as_deref()? else {
+        return None;
+    };
+    let is_null =
+        |s: &JsonSchemaProperty| matches!(&s.type_, Some(StringOrArray::String(t)) if t == "null");
+    match (is_null(a), is_null(b)) {
+        (false, true) => Some(a),
+        (true, false) => Some(b),
+        _ => None,
+    }
+}
+
 fn extract_nullable_array_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
     // Only handle simple two-element nullable unions: [array, null]
     if any_of.len() != 2 {
@@ -1146,6 +1164,20 @@ mod tests {
         let constraints = extract_constraints(&field, "array").unwrap();
         assert_eq!(constraints.max_items, Some(3));
         assert_eq!(constraints.max_length, None);
+    }
+
+    #[test]
+    fn nullable_fields_keep_their_constraints() {
+        let field: JsonSchemaProperty = serde_json::from_value(serde_json::json!({
+            "anyOf": [{ "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 3 }, { "type": "null" }]
+        }))
+        .unwrap();
+        let parsed = parse_field("tags", &field, false, "").unwrap();
+        let constraints = parsed[0].constraints.as_ref().unwrap();
+        assert_eq!(
+            (constraints.min_items, constraints.max_items),
+            (Some(1), Some(3))
+        );
     }
 
     #[test]
