@@ -1,4 +1,3 @@
-import { slug } from 'github-slugger'
 import type { FileEntry } from '@/types'
 
 /**
@@ -23,7 +22,20 @@ export function astroEntryId(file: FileEntry): string {
   return file.id
     .slice(file.collection.length + 1)
     .split('/')
-    .map(segment => slug(segment))
+    .map(slugify)
     .join('/')
     .replace(/\/index$/, '')
+}
+
+/**
+ * Slugifies as `github-slugger`, which Astro uses, does: lowercase, keep only
+ * letters, marks, digits, `_`, `-` and spaces, then spaces become hyphens.
+ * github-slugger's character list is from Unicode 13, so it drops characters
+ * added since, which this keeps.
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{Alphabetic}\p{M}\p{Nd}\p{Pc} -]/gu, '')
+    .replace(/ /g, '-')
 }

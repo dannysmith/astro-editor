@@ -19,6 +19,8 @@ describe('astroEntryId', () => {
     expect(astroEntryId(file('articles/first-article'))).toBe('first-article')
     expect(astroEntryId(file('articles/2024/My Post'))).toBe('2024/my-post')
     expect(astroEntryId(file('articles/Café & Crème'))).toBe('café--crème')
+    // github-slugger drops other numbers like ² but keeps letter-like symbols like Ⓐ
+    expect(astroEntryId(file('articles/x² Ⓐ_1'))).toBe('x-ⓐ_1')
   })
 
   it('drops a trailing index', () => {
