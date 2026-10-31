@@ -30,6 +30,7 @@ Runs on pushes to `main`, on a PR while it has the `ci` label, and by manual dis
 
 - **`checks`** runs `bun run check:all` on Ubuntu.
 - **`build`** runs `tauri build` on each platform without Apple signing or a release. It builds native arm64 only on macOS and turns off LTO and allows 16 codegen units through `CARGO_PROFILE_RELEASE_*`, to save time. It doesn't use `--debug`, which would compile dev-only code such as the agent bridge.
+- **The Windows build is launched as a smoke test.** The step fails if `astro-editor.exe` exits within 20 seconds, and prints its stdout and stderr, where a Rust panic lands. A build that compiles can still crash at startup, and Windows is the one platform that isn't tried by hand before a release. Startup telemetry is skipped when `CI` is set, so these runs don't count as installs.
 - **Only `main` saves the Rust cache.** A PR can restore caches from its own branch and from `main`, not from other PRs, so this gives every PR a warm cache without filling the 10 GB repo limit.
 - **Dependabot's pushes run without repo secrets,** so a labelled Dependabot PR fails at updater signing. That's expected.
 
