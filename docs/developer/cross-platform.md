@@ -31,15 +31,15 @@ Astro Editor behaves like a macOS document app: closing the window doesn't quit.
 
 ## Native menu and shortcuts
 
-The native menu is built in `setup()` in `src-tauri/src/lib.rs` on every platform, but only macOS and Linux show it:
+The native menu is built in `setup()` in `src-tauri/src/lib.rs` on every platform:
 
 - **macOS:** the system menu bar.
-- **Windows:** the menu exists but isn't drawn, because the window has `decorations: false`. The title bar's overflow menu (`WindowsMenu.tsx`) stands in for it, and the JS hotkeys and CodeMirror keymaps handle the keys. The native accelerators most likely never fire, because Tauri only checks them against key messages in the app's own message loop and WebView2's key presses don't pass through it. That's inferred from the code, but until muda 0.20, `Cmd+B` was registered on Windows as a bare B key and nobody saw "b" turn into Bold.
-- **Linux:** a GTK menu bar below the native title bar.
+- **Windows:** built but not drawn, because the window has `decorations: false`. The title bar's overflow menu (`WindowsMenu.tsx`) stands in for it, and the JS hotkeys and CodeMirror keymaps handle every shortcut. The native accelerators shouldn't fire while the webview has focus: Tauri only checks them against messages in the app's own message loop, and WebView2's key presses don't pass through it.
+- **Linux:** a GTK menu bar below the native title bar. A shortcut bound both there and in JS runs once.
 
-**Accelerators use `CmdOrCtrl`, never `Cmd`, `Command`, `Super` or `Meta`.** Windows menus only support Ctrl, Alt and Shift. Since muda 0.20 (Tauri 2.12), any other modifier fails the menu build, and because that happens in `setup()`, the app panics before its window opens. That's what broke v1.0.18 to v1.0.20 on Windows (#351); older muda dropped the modifier without an error. A macOS-only shortcut goes behind `#[cfg(target_os = "macos")]`, like Enter Full Screen's Ctrl+Cmd+F. On Windows and Linux, F11 toggles full screen through a JS hotkey in `useKeyboardShortcuts` instead.
+**Accelerators use `CmdOrCtrl`, never `Cmd`, `Command`, `Super` or `Meta`.** Windows menus only support Ctrl, Alt and Shift, and muda fails the whole menu on any other modifier. The menu is built in `setup()`, so the app panics before its window opens. Gate a macOS-only shortcut on the platform, like Enter Full Screen's Ctrl+Cmd+F; Windows and Linux use F11, a JS hotkey in `useKeyboardShortcuts`.
 
-A bad accelerator compiles on every platform, and the macOS and Linux menus accept it, so only running the app on Windows catches it. CI's build job does that as a smoke test (see `releases.md`).
+A bad accelerator compiles everywhere and only fails when the app starts on Windows, which is why CI launches the Windows build (see `releases.md`).
 
 ## Gotchas
 
