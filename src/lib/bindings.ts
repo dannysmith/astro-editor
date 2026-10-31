@@ -81,7 +81,6 @@ export const commands = {
 	 *  shows a "couldn't find that file" toast).
 	 */
 	resolveFileEntry: (filePath: string, projectPath: string, contentDirectory: string | null) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath, contentDirectory })),
-	scanCollectionFiles: (collectionPath: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files", { collectionPath })),
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
 	readJsonSchema: (projectPath: string, collectionName: string) => typedError<string, string>(__TAURI_INVOKE("read_json_schema", { projectPath, collectionName })),
 	/**  Scan a single directory (non-recursive) for subdirectories and markdown/mdx files */

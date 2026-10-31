@@ -23,6 +23,7 @@ import { FieldType } from '../../../lib/schema'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 import { NONE_SENTINEL } from './constants'
+import { astroEntryId } from '../../../lib/entry-id'
 
 interface ReferenceFieldProps extends FieldProps {
   field?: SchemaField
@@ -92,6 +93,11 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     if (!files) return []
 
     return files.map(file => {
+      // A file-based collection's entries (`authors.json`) use their own
+      // `id`, which the app's id has after `<collection>/`
+      const id = regularFiles
+        ? astroEntryId(file)
+        : file.id.slice(file.collection.length + 1)
       // Try common display fields in priority order
       // Don't search for "any string" - could grab description/bio
       const label =
@@ -100,16 +106,16 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
         (file.frontmatter?.name as string | undefined) ||
         (file.frontmatter?.slug as string | undefined) ||
         // Final fallbacks - FileEntry properties
-        file.id || // ID always exists
+        id || // ID always exists
         file.name || // Filename always exists
         'Untitled'
 
       return {
-        value: file.id, // Always use ID for the value
+        value: id,
         label,
       }
     })
-  }, [files])
+  }, [files, regularFiles])
 
   // Handle single select value
   const selectedValue = isMultiSelect

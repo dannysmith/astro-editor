@@ -66,7 +66,7 @@ What Astro's docs recommend:
 
 ## Open questions
 
-- Collection-entry props need `export const post = await getEntry('blog', 'id')` in the block. Does that build inside a content-collection MDX file? See phase 6.
+- None. Whether `getEntry` builds in a content-collection MDX file was answered by the phase 6 spike: it does.
 
 ## Plan
 
@@ -117,7 +117,8 @@ Real files to test the splitter and import insertion against, used for manual te
 
 ### Phase 6: Collection-entry props
 
-- [ ] Spike: confirm `export const x = await getEntry(…)` builds in a content-collection MDX file
+- [x] Spike: `export const x = await getEntry(…)` builds in a content-collection MDX file, both from another collection (a note loading an article) and from the same collection (an article loading another). `getEntry` reads the data store rather than importing the other file, so there's no module cycle. A wrong id doesn't fail the build: Astro warns "Entry … was not found" and the prop is `undefined`. Tried with `astro build` in the dummy project, not `astro dev`.
+- [x] Found while checking ids: the frontmatter's reference fields write the app's file id (`articles/first-article`), not Astro's (`first-article`), don't recognise correct existing values, ignore `slug` and only list a collection's top-level files. Astro's glob loader id is the `slug` frontmatter if there is one, otherwise each path segment run through github-slugger, joined with `/`, with a trailing `/index` dropped (`generateIdDefault` in `astro/dist/content/loaders/glob.js`). Fixed with `astroEntryId` (`src/lib/entry-id.ts`, using `github-slugger` as Astro does), which the reference fields, the reference picker's recursive scan and the content linker's `{slug}` now use. File-based collections (`authors.json`) had the same prefix and now use their own `id`.
 - [ ] If it does: an entry picker, plus `import { getEntry } from 'astro:content'` and the `export const`. If it doesn't, keep the text field.
 
 ## The first attempt
