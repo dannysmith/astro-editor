@@ -1,0 +1,50 @@
+---
+title: I made a datepicker
+slug: dannysmith-datepicker
+pubDate: 2026-01-16
+---
+
+import { DatePickerDemo } from '@components/demos/DatePickerDemo';
+
+I've been working on a new project and needed a React datepicker component which makes it super easy to select far-future dates by scrolling an infinite calendar, is quickly keyboard navigable via the up/down/left/right keys and **also** supports natural-language input like "tomorrow", "next weds", "+5d" and the like. Basically I wanted the datepicker [from](https://culturedcode.com/things/support/articles/2803579/) [Things](https://culturedcode.com/things/support/articles/9780167/) but with a few tweaks, as a React component.
+
+After ten minutes looking online for the *Things 3 Datepicker Clone* I was certain must exist, I drew a blank and fired up Claude Code to build my own. Here it is...
+
+<DatePickerDemo client:load />
+
+## How it works
+
+You can install it with `npm install @dannysmith/datepicker` and then use it like this:
+
+```jsx
+import { DatePicker } from '@dannysmith/datepicker';
+import '@dannysmith/datepicker/styles.css';
+
+function MyComponent() {
+  const [date, setDate] = useState(new Date());
+
+  return (
+    <DatePicker
+      value={date}
+      onChange={setDate}
+      placeholder="When"
+    />
+  );
+}
+```
+
+It takes the following props, all optional:
+
+- `value` - The currently selected date. Defaults to today. Pass null for no selection.
+- `minDate` - Minimum selectable date. Earlier dates are disabled.
+- `maxDate` - Maximum selectable date. Later dates are disabled.
+- `placeholder` - Placeholder text for the search input. Defaults to "When".
+- `showClearButton` - Show a clear button below the calendar to reset the date selection. Useful when using in a popover.
+- `onChange` - Callback fired on any date change, including keyboard navigation. Receives null when cleared.
+- `onCommit` - Callback fired only on explicit selection (click or Enter). Useful for popovers. Receives null when cleared.
+
+I've done my best to make it somewhat resiliant and general purpose. It should respond reasonably to being used in various containers, most of the colours and theme setting can be configured via CSS variables, and I've made some attempt to make it work reasonably with screen readers and other assistive technology. That said, it was primarily built for use inside popovers in a Tauri desktop app, so I'm open to feedback on how to make it better when used on the web.
+
+<div align="center">
+<ButtonLink href="https://dannysmith.github.io/datepicker-danny/">Demo Website & Docs</ButtonLink>
+</div>

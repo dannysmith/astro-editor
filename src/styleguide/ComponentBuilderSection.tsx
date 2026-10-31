@@ -27,6 +27,7 @@ const COMPONENT: MdxComponent = {
   has_slot: true,
   description: 'An event listing, with a title, date and speakers.',
   import_source: null,
+  named_export: false,
   slot_template: null,
   props: [
     prop(

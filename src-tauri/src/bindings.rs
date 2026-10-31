@@ -55,7 +55,6 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::project::scan_project,
             crate::commands::project::scan_project_with_content_dir,
             crate::commands::project::resolve_file_entry,
-            crate::commands::project::scan_collection_files,
             crate::commands::project::load_file_based_collection,
             crate::commands::project::read_json_schema,
             crate::commands::project::scan_directory,
@@ -76,6 +75,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::ide::open_path_in_ide,
             // mdx_components.rs commands
             crate::commands::mdx_components::scan_mdx_components,
+            crate::commands::mdx_components::plan_component_import,
+            crate::commands::mdx_components::project_dependencies,
             // clipboard.rs commands
             crate::commands::clipboard::copy_text_to_clipboard,
             // updater.rs commands

@@ -1,4 +1,4 @@
-import type { MdxComponent, PropInfo } from '@/types'
+import type { EntryImport, ImageImport, MdxComponent, PropInfo } from '@/types'
 import type { ClientDirective } from '../../store/componentBuilderStore'
 
 /**
@@ -200,4 +200,59 @@ export function buildPreview(
   block = false
 ): string {
   return buildTag(component, values, clientDirective, block, false)
+}
+
+/** The image or entry picked for each prop that has one, by prop name */
+export interface Picks {
+  images: Record<string, ImageImport>
+  entries: Record<string, EntryImport>
+}
+
+/**
+ * The component and values to build the tag from, with each picked image or
+ * entry as the name it's imported or loaded as (`cover={heroImage}`). A pick
+ * without a name, because imports are switched off or couldn't be planned,
+ * goes in as its path (`cover="../../assets/a.png"`) or id
+ * (`review="first-post"`), which is easier to sort out in a code editor than
+ * a name nothing imports.
+ */
+export function withPicks(
+  component: MdxComponent,
+  values: Record<string, PropValue>,
+  picks: Picks,
+  names: Partial<Record<string, string>> = {}
+): { component: MdxComponent; values: Record<string, PropValue> } {
+  const picked: [string, string][] = [
+    ...Object.entries(picks.images).map(
+      ([prop, image]) => [prop, image.specifier] as [string, string]
+    ),
+    ...Object.entries(picks.entries).map(
+      ([prop, entry]) => [prop, entry.id] as [string, string]
+    ),
+  ]
+  const asText = new Set<string>()
+  const pickedValues: Record<string, string> = {}
+  for (const [prop, text] of picked) {
+    const name = names[prop]
+    if (name) {
+      pickedValues[prop] = name
+    } else {
+      pickedValues[prop] = text
+      asText.add(prop)
+    }
+  }
+  return {
+    component:
+      asText.size === 0
+        ? component
+        : {
+            ...component,
+            props: component.props.map(prop =>
+              asText.has(prop.name)
+                ? { ...prop, kind: { kind: 'string' } }
+                : prop
+            ),
+          },
+    values: { ...values, ...pickedValues },
+  }
 }

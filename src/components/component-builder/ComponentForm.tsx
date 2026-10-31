@@ -1,8 +1,15 @@
 import React from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import type { MdxComponent } from '@/types'
+import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../ui/collapsible'
 import { CommandShortcut } from '../ui/command'
+import { Switch } from '../ui/switch'
 import {
   Select,
   SelectContent,
@@ -15,10 +22,19 @@ import {
   useComponentBuilderStore,
   type ClientDirective,
 } from '../../store/componentBuilderStore'
-import { buildPreview, insertsAsBlock } from '../../lib/editor/snippet-builder'
+import { useProjectStore } from '../../store/projectStore'
+import {
+  buildPreview,
+  insertsAsBlock,
+  withPicks,
+} from '../../lib/editor/snippet-builder'
 import { isOnEmptyLine } from '../../lib/editor/commands/insertSnippet'
 import { FrameworkBadge } from './FrameworkBadge'
 import { PropField } from './PropField'
+
+/** The tag preview and the import line */
+const codeBoxClassName =
+  'block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap'
 
 const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -36,6 +52,10 @@ const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
  */
 export function ComponentForm({ component }: { component: MdxComponent }) {
   const values = useComponentBuilderStore(state => state.values)
+  const images = useComponentBuilderStore(state => state.images)
+  const entries = useComponentBuilderStore(state => state.entries)
+  const addImport = useComponentBuilderStore(state => state.addImport)
+  const importPlan = useComponentBuilderStore(state => state.importPlan)
   const clientDirective = useComponentBuilderStore(
     state => state.clientDirective
   )
@@ -65,6 +85,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
     component,
     editorView ? isOnEmptyLine(editorView) : false
   )
+  const tag = withPicks(
+    component,
+    values,
+    { images, entries },
+    addImport ? importPlan?.names : undefined
+  )
 
   return (
     <div
@@ -72,7 +98,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
       onKeyDown={e => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          insert()
+          void insert()
         }
       }}
     >
@@ -140,10 +166,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
       </div>
 
       <div className="border-t px-4 py-3">
-        <code className="block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap">
-          {buildPreview(component, values, clientDirective, block)}
+        <code className={codeBoxClassName}>
+          {buildPreview(tag.component, tag.values, clientDirective, block)}
         </code>
       </div>
+
+      <ImportRow />
 
       <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
         <div className="flex gap-3">
@@ -154,10 +182,87 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
             <CommandShortcut>esc</CommandShortcut> Back
           </span>
         </div>
-        <Button ref={insertRef} size="sm" onClick={insert}>
+        <Button ref={insertRef} size="sm" onClick={() => void insert()}>
           Insert
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Whether Insert adds imports for the component and its picks, with a switch
+ * to leave them out, or that the component is already imported. Expands to
+ * show the lines. Hidden when there's no plan: the setting is off, or no
+ * import could be worked out safely.
+ */
+function ImportRow() {
+  const plan = useComponentBuilderStore(state => state.importPlan)
+  const planning = useComponentBuilderStore(state => state.planning)
+  const addImport = useComponentBuilderStore(state => state.addImport)
+  const setAddImport = useComponentBuilderStore(state => state.setAddImport)
+  const addsImports = useProjectStore(
+    state => state.currentProjectSettings?.addComponentImports ?? false
+  )
+
+  // Holds the row's place while the first plan is worked out, so Insert
+  // doesn't move under the pointer
+  if (!plan && planning && addsImports) {
+    return (
+      <div className="flex min-h-11 items-center border-t px-4 py-2 text-xs text-muted-foreground">
+        Checking imports…
+      </div>
+    )
+  }
+  if (!plan || (plan.added.length === 0 && !plan.existing)) return null
+
+  const adds = plan.added.length > 0
+  const label = adds
+    ? plan.added.length > 1
+      ? 'Add imports'
+      : 'Add import'
+    : 'Already imported'
+  return (
+    <Collapsible className="border-t px-4 py-2">
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <CollapsibleTrigger className="group flex items-center gap-1.5 rounded-sm text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+          <ChevronRight className="size-3.5 text-icon transition-transform group-data-panel-open:rotate-90" />
+          {label}
+        </CollapsibleTrigger>
+        {adds && (
+          <Switch
+            checked={addImport}
+            onCheckedChange={setAddImport}
+            aria-label={label}
+          />
+        )}
+      </div>
+      <CollapsibleContent className="flex flex-col gap-1.5 py-1">
+        {adds && (
+          <code
+            className={cn(
+              codeBoxClassName,
+              !addImport && 'text-muted-foreground'
+            )}
+          >
+            {plan.added.join('\n')}
+          </code>
+        )}
+        {/* The import that already has the component's name, labelled when
+            there are imports to add above it */}
+        {plan.existing && (
+          <>
+            {adds && (
+              <span className="text-xs text-muted-foreground">
+                Already imported
+              </span>
+            )}
+            <code className={cn(codeBoxClassName, 'text-muted-foreground')}>
+              {plan.existing}
+            </code>
+          </>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   )
 }

@@ -1,0 +1,9 @@
+{
+  "name": "root-path",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astrojs/mdx": "*"
+  }
+}

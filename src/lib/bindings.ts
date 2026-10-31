@@ -81,7 +81,6 @@ export const commands = {
 	 *  shows a "couldn't find that file" toast).
 	 */
 	resolveFileEntry: (filePath: string, projectPath: string, contentDirectory: string | null) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath, contentDirectory })),
-	scanCollectionFiles: (collectionPath: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files", { collectionPath })),
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
 	readJsonSchema: (projectPath: string, collectionName: string) => typedError<string, string>(__TAURI_INVOKE("read_json_schema", { projectPath, collectionName })),
 	/**  Scan a single directory (non-recursive) for subdirectories and markdown/mdx files */
@@ -103,6 +102,19 @@ export const commands = {
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),
 	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
+	/**
+	 *  The imports the component builder would add with `component`, and with the
+	 *  images and entries picked for its props (`props`), to the file at
+	 *  `file_path`, whose import block and body are `imports` and `body` as the
+	 *  editor holds them. Saves nothing. `None` when there's no import it can be
+	 *  sure of. An error when an image isn't somewhere Astro can import it from.
+	 */
+	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent, props: PropImports) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component, props })),
+	/**
+	 *  The packages in the project's `package.json` dependencies and
+	 *  devDependencies, sorted
+	 */
+	projectDependencies: (projectPath: string) => typedError<string[], string>(__TAURI_INVOKE("project_dependencies", { projectPath })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
@@ -145,6 +157,18 @@ export type DirectoryScanResult = {
 	files: FileEntry[],
 };
 
+/**
+ *  A collection entry picked for an entry prop, which the file loads with
+ *  `getEntry`
+ */
+export type EntryImport = {
+	/**  The prop it was picked for */
+	prop: string,
+	collection: string,
+	/**  The entry's id in Astro */
+	id: string,
+};
+
 export type FileEntry = {
 	id: string,
 	path: string,
@@ -153,6 +177,33 @@ export type FileEntry = {
 	collection: string,
 	last_modified: number | null,
 	frontmatter: { [key in string]: Value } | null,
+};
+
+/**  An image picked for an image prop, which the file has to import */
+export type ImageImport = {
+	/**  The prop it was picked for */
+	prop: string,
+	/**  The picked file's name, which the import's binding is named after */
+	file_name: string,
+	/**  The path to import it from, as the editor writes image paths */
+	specifier: string,
+};
+
+export type ImportPlan = {
+	/**  The import block with everything added */
+	imports: string,
+	/**  The statements added or changed, in the order they're in the block */
+	added: string[],
+	/**
+	 *  The statement that already has the component's name, if one does. It may
+	 *  be something else of the same name, and then the writer's import wins.
+	 */
+	existing: string | null,
+	/**
+	 *  The name each picked image or entry is imported or loaded as, by the
+	 *  prop it was picked for
+	 */
+	names: { [key in string]: string },
 };
 
 export type MarkdownContent = {
@@ -175,11 +226,19 @@ export type MdxComponent = {
 	 *  `None` for the project's own components
 	 */
 	import_source: string | null,
+	/**  Imported by name (`import { Aside } from …`) rather than as its module's default export */
+	named_export: boolean,
 	/**
 	 *  Content inserted inside the tag instead of an empty slot, as a CodeMirror snippet,
 	 *  e.g. the `TabItem`s inside `Tabs`
 	 */
 	slot_template: string | null,
+};
+
+/**  What was picked for the props whose values the file has to import or load */
+export type PropImports = {
+	images: ImageImport[],
+	entries: EntryImport[],
 };
 
 export type PropInfo = {

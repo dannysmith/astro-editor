@@ -1,0 +1,9 @@
+---
+title: Loading an entry in the block
+---
+
+import { getEntry } from 'astro:content'
+import PostCard from '../components/PostCard.astro'
+export const post = await getEntry('blog', 'hello-world')
+
+<PostCard post={post} />

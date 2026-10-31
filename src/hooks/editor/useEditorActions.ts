@@ -144,8 +144,10 @@ export function useEditorActions() {
           }
 
           // Only mark as clean if content hasn't changed during save (race condition protection)
-          // Check both content AND frontmatter to avoid dropping unsaved edits
-          const contentUnchanged = currentState.editorContent === editorContent
+          // Check the body, imports and frontmatter to avoid dropping unsaved edits
+          const contentUnchanged =
+            currentState.editorContent === editorContent &&
+            currentState.imports === imports
           const frontmatterUnchanged =
             JSON.stringify(currentState.frontmatter) ===
             JSON.stringify(frontmatter)
@@ -175,6 +177,17 @@ export function useEditorActions() {
                 currentFile.collection,
                 'directory',
               ],
+            })
+          }
+
+          // Entry pickers show titles and ids, which come from the frontmatter
+          // (a `slug` is the id)
+          if (isFrontmatterDirty) {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.collectionFiles(
+                projectPath,
+                currentFile.collection
+              ),
             })
           }
         }

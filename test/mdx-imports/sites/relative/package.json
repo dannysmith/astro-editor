@@ -1,0 +1,16 @@
+{
+  "name": "relative",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astro-community/astro-embed-youtube": "*",
+    "@astrojs/mdx": "*",
+    "@astrojs/react": "*",
+    "@astrojs/svelte": "*",
+    "@astrojs/vue": "*",
+    "react": "*",
+    "svelte": "*",
+    "vue": "*"
+  }
+}

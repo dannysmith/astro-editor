@@ -38,6 +38,8 @@ export interface ProjectSettings {
   defaultFileType?: 'md' | 'mdx'
   // Override to use absolute paths for images (defaults to relative paths, matching Astro conventions)
   useAbsoluteAssetPaths?: boolean
+  // Experimental: the component builder adds the import a component needs to an MDX file. Off unless set.
+  addComponentImports?: boolean
   // Collection-specific settings overrides
   collections?: CollectionSettings[]
 }

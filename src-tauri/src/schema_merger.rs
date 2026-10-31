@@ -51,7 +51,7 @@ pub struct SchemaField {
 }
 
 /// Field constraints
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldConstraints {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,6 +62,12 @@ pub struct FieldConstraints {
     pub min_length: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<usize>,
+    /// The fewest items an array takes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_items: Option<usize>,
+    /// The most items an array takes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_items: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pattern: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -374,7 +380,14 @@ fn parse_field(
     }
 
     // Extract constraints
-    let constraints = extract_constraints(field_schema, &field_type_info.field_type);
+    let constraints = extract_constraints(
+        field_schema
+            .any_of
+            .as_deref()
+            .and_then(nullable_inner)
+            .unwrap_or(field_schema),
+        &field_type_info.field_type,
+    );
 
     // Build field
     let field = SchemaField {
@@ -464,116 +477,63 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
     })
 }
 
+/// The non-null branch of a nullable field (`anyOf: [T, null]`), which has the
+/// field's type and constraints
+fn nullable_inner(any_of: &[JsonSchemaProperty]) -> Option<&JsonSchemaProperty> {
+    let [a, b] = any_of else {
+        return None;
+    };
+    let is_null =
+        |s: &JsonSchemaProperty| matches!(&s.type_, Some(StringOrArray::String(t)) if t == "null");
+    match (is_null(a), is_null(b)) {
+        (false, true) => Some(a),
+        (true, false) => Some(b),
+        _ => None,
+    }
+}
+
 /// Extract primitive type from a nullable anyOf (e.g., [number, null] → "number")
 /// Returns None if not a simple nullable primitive pattern
 fn extract_nullable_primitive_type(any_of: &[JsonSchemaProperty]) -> Option<String> {
-    // Only handle simple two-element nullable unions: [primitive, null]
-    if any_of.len() != 2 {
-        return None;
-    }
-
-    let mut primitive_type = None;
-    let mut has_null = false;
-
-    for schema in any_of {
-        match &schema.type_ {
-            Some(StringOrArray::String(t)) if t == "null" => {
-                has_null = true;
-            }
-            Some(StringOrArray::String(t)) => {
-                match t.as_str() {
-                    "number" | "integer" | "boolean" => {
-                        primitive_type = Some(t.clone());
-                    }
-                    "string" => {
-                        // Skip strings with enum values - they should be handled as enums
-                        if schema.enum_.is_some() {
-                            return None;
-                        }
-                        primitive_type = Some(t.clone());
-                    }
-                    _ => return None, // Not a simple primitive
-                }
-            }
-            _ => return None, // Array type or missing type
+    let inner = nullable_inner(any_of)?;
+    match &inner.type_ {
+        Some(StringOrArray::String(t))
+            if matches!(t.as_str(), "number" | "integer" | "boolean") =>
+        {
+            Some(t.clone())
         }
-    }
-
-    if has_null {
-        primitive_type
-    } else {
-        None
+        // Strings with enum values are enums
+        Some(StringOrArray::String(t)) if t == "string" && inner.enum_.is_none() => Some(t.clone()),
+        _ => None,
     }
 }
 
 /// Extract array type from a nullable anyOf (e.g., [array, null] → array info)
 /// Returns None if not a nullable array pattern
 fn extract_nullable_array_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
-    // Only handle simple two-element nullable unions: [array, null]
-    if any_of.len() != 2 {
-        return None;
+    let inner = nullable_inner(any_of)?;
+    match &inner.type_ {
+        Some(StringOrArray::String(t)) if t == "array" => handle_array_type(inner).ok(),
+        _ => None,
     }
-
-    let mut array_schema = None;
-    let mut has_null = false;
-
-    for schema in any_of {
-        match &schema.type_ {
-            Some(StringOrArray::String(t)) if t == "null" => {
-                has_null = true;
-            }
-            Some(StringOrArray::String(t)) if t == "array" => {
-                array_schema = Some(schema);
-            }
-            _ => return None, // Not a simple nullable array pattern
-        }
-    }
-
-    if has_null {
-        if let Some(schema) = array_schema {
-            // Delegate to existing handle_array_type logic
-            return handle_array_type(schema).ok();
-        }
-    }
-    None
 }
 
 /// Extract enum type from a nullable anyOf (e.g., [enum, null] → enum info)
 /// Returns None if not a nullable enum pattern
 fn extract_nullable_enum_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
-    // Only handle simple two-element nullable unions: [enum, null]
-    if any_of.len() != 2 {
-        return None;
-    }
-
-    let mut enum_values = None;
-    let mut has_null = false;
-
-    for schema in any_of {
-        match &schema.type_ {
-            Some(StringOrArray::String(t)) if t == "null" => {
-                has_null = true;
-            }
-            Some(StringOrArray::String(t)) if t == "string" => {
-                // Check if this string type has enum values
-                if let Some(values) = &schema.enum_ {
-                    enum_values = Some(values.clone());
-                }
-            }
-            _ => {} // Continue checking other schemas
+    let inner = nullable_inner(any_of)?;
+    match &inner.type_ {
+        Some(StringOrArray::String(t)) if t == "string" && inner.enum_.is_some() => {
+            Some(FieldTypeInfo {
+                field_type: "enum".to_string(),
+                sub_type: None,
+                enum_values: inner.enum_.clone(),
+                reference_collection: None,
+                array_reference_collection: None,
+            })
         }
+        _ => None,
     }
-
-    if has_null && enum_values.is_some() {
-        return Some(FieldTypeInfo {
-            field_type: "enum".to_string(),
-            sub_type: None,
-            enum_values,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
-    }
-    None
 }
 
 /// Handle array types
@@ -832,14 +792,7 @@ fn extract_constraints(
     field_schema: &JsonSchemaProperty,
     field_type: &str,
 ) -> Option<FieldConstraints> {
-    let mut constraints = FieldConstraints {
-        min: None,
-        max: None,
-        min_length: None,
-        max_length: None,
-        pattern: None,
-        format: None,
-    };
+    let mut constraints = FieldConstraints::default();
 
     // Numeric constraints
     if let Some(min) = field_schema.minimum {
@@ -876,25 +829,15 @@ fn extract_constraints(
     // Array constraints
     if field_type == "array" {
         if let Some(min_items) = field_schema.min_items {
-            constraints.min_length = Some(min_items);
+            constraints.min_items = Some(min_items);
         }
         if let Some(max_items) = field_schema.max_items {
-            constraints.max_length = Some(max_items);
+            constraints.max_items = Some(max_items);
         }
     }
 
     // Only return constraints if any are set
-    if constraints.min.is_some()
-        || constraints.max.is_some()
-        || constraints.min_length.is_some()
-        || constraints.max_length.is_some()
-        || constraints.pattern.is_some()
-        || constraints.format.is_some()
-    {
-        Some(constraints)
-    } else {
-        None
-    }
+    (constraints != FieldConstraints::default()).then_some(constraints)
 }
 
 /// Enhance JSON schema with Zod reference collection names
@@ -1086,20 +1029,11 @@ fn parse_zod_constraints(constraints: &Value) -> Option<FieldConstraints> {
         } else {
             None
         },
+        ..Default::default()
     };
 
     // Only return if any constraints are set
-    if result.min.is_some()
-        || result.max.is_some()
-        || result.min_length.is_some()
-        || result.max_length.is_some()
-        || result.pattern.is_some()
-        || result.format.is_some()
-    {
-        Some(result)
-    } else {
-        None
-    }
+    (result != FieldConstraints::default()).then_some(result)
 }
 
 /// Convert camelCase to Title Case
@@ -1127,6 +1061,29 @@ fn camel_case_to_title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn array_limits_are_item_counts() {
+        let field: JsonSchemaProperty =
+            serde_json::from_value(serde_json::json!({ "type": "array", "maxItems": 3 })).unwrap();
+        let constraints = extract_constraints(&field, "array").unwrap();
+        assert_eq!(constraints.max_items, Some(3));
+        assert_eq!(constraints.max_length, None);
+    }
+
+    #[test]
+    fn nullable_fields_keep_their_constraints() {
+        let field: JsonSchemaProperty = serde_json::from_value(serde_json::json!({
+            "anyOf": [{ "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 3 }, { "type": "null" }]
+        }))
+        .unwrap();
+        let parsed = parse_field("tags", &field, false, "").unwrap();
+        let constraints = parsed[0].constraints.as_ref().unwrap();
+        assert_eq!(
+            (constraints.min_items, constraints.max_items),
+            (Some(1), Some(3))
+        );
+    }
 
     #[test]
     fn test_camel_case_to_title_case() {

@@ -1,0 +1,9 @@
+{
+  "name": "starlight",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astrojs/starlight": "*"
+  }
+}

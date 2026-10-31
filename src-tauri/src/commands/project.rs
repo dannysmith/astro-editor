@@ -385,56 +385,6 @@ fn scan_content_directories_with_override(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn scan_collection_files(collection_path: String) -> Result<Vec<FileEntry>, String> {
-    let path = PathBuf::from(&collection_path);
-    let mut files = Vec::new();
-
-    // Get collection name from path
-    let collection_name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown")
-        .to_string();
-
-    // Use path as collection root (flat scan, no subdirectories)
-    let collection_root = path.clone();
-
-    // Scan for markdown and MDX files
-    for entry in
-        std::fs::read_dir(&path).map_err(|e| format!("Failed to read collection directory: {e}"))?
-    {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
-        let path = entry.path();
-
-        if path.is_file() {
-            if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
-                if matches!(extension, "md" | "mdx") {
-                    let mut file_entry = FileEntry::new(
-                        path.clone(),
-                        collection_name.clone(),
-                        collection_root.clone(),
-                    );
-
-                    // Parse frontmatter for basic metadata
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(parsed) =
-                            crate::commands::files::parse_frontmatter_internal(&content)
-                        {
-                            file_entry = file_entry.with_frontmatter(parsed.frontmatter);
-                        }
-                    }
-
-                    files.push(file_entry);
-                }
-            }
-        }
-    }
-
-    Ok(files)
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn load_file_based_collection(
     project_path: String,
     collection_name: String,

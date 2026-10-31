@@ -86,8 +86,37 @@ export type {
    * - `has_slot` - Whether component has a slot
    * - `description` - Component description (from JSDoc)
    * - `framework` - Component framework (astro, react, vue, svelte)
+   * - `import_source` - The package it's imported from, for package components
+   * - `named_export` - Imported by name (`import { Aside }`) rather than as a default export
+   * - `slot_template` - What the builder inserts inside the tag, which can contain other components
    */
   MdxComponent,
+  /**
+   * The imports the component builder adds with a component and the images
+   * and entries picked for its props, planned without saving.
+   *
+   * Fields:
+   * - `imports` - The import block with everything added
+   * - `added` - The statements added or changed, empty when nothing is
+   * - `existing` - The statement that already has the component's name, which may be something else of the same name
+   * - `names` - The name each picked image or entry is imported or loaded as, by the prop it was picked for
+   */
+  ImportPlan,
+  /**
+   * The images and collection entries picked for a component's props, which
+   * the file has to import or load.
+   */
+  PropImports,
+  /**
+   * An image picked for an image prop: the prop, the file's name, which its
+   * import's name comes from, and the path to import it from.
+   */
+  ImageImport,
+  /**
+   * A collection entry picked for an entry prop: the prop, the collection and
+   * the entry's id in Astro, which the file loads with `getEntry`.
+   */
+  EntryImport,
   /**
    * Information about a component prop.
    *
