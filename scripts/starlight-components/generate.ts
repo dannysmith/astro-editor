@@ -514,6 +514,7 @@ for (const entry of exportsList) {
     description: override.description,
     framework: 'astro',
     import_source: IMPORT_SOURCE,
+    named_export: true,
     slot_template: override.slot_template ?? null,
   })
 }

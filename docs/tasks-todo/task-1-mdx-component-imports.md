@@ -6,7 +6,7 @@ Branch: `mdx-component-imports`. A first attempt is on the local branch `mdx-imp
 
 ## Background
 
-MDX files are split into three parts in `src-tauri/src/commands/files.rs`: frontmatter, the "imports" block, and the body. `extract_imports_from_content()` finds the block with a line heuristic that only understands `import`/`export` lines. The block is hidden from the editor, held as a string in `editorStore` (`imports`), and written back exactly as read.
+MDX files are split into three parts in `src-tauri/src/commands/files.rs`: frontmatter, the "imports" block, and the body. `split_esm_block()` in `src-tauri/src/mdx_esm/` finds the block by parsing it with swc (a line heuristic until phase 2). The block is hidden from the editor, held as a string in `editorStore` (`imports`), and written back exactly as read.
 
 What the builder knows about a component (`MdxComponent` in `src-tauri/src/models/mdx_component.rs`):
 
@@ -48,13 +48,13 @@ What Astro's docs recommend:
 - **Choosing the import path:**
   1. If the name is already imported anywhere in this file, do nothing. If it points somewhere else, the writer's import wins. "Anywhere" includes imports further down the body, outside code fences: MDX allows them, the Astro and Starlight docs use them a lot, and adding a second import of the same name breaks the build. So the command needs the body as well as the block.
   2. Package components (`import_source`) import from that module.
-  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory. Copy how it imports the name as well as the path: a barrel gives `{ Callout }`, a named import, though `Callout.astro` is a default export. "Same collection" means anywhere under the collection's directory, not just the current file's folder (the first attempt only looked there, missing `blog/2023/` from `blog/2024/`). For a project component, skip specifiers from the package modules the builder knows about. Otherwise a project `Card` would copy another file's Starlight `Card` import.
+  3. If another MDX file in the same collection imports this name, copy its specifier: aliases, root paths (`/src/…`), barrels and packages as they are; relative paths only from a file in the same directory. Copy how it imports the name as well as the path: a barrel gives `{ Callout }`, a named import, though `Callout.astro` is a default export. "Same collection" means anywhere under the collection's directory, not just the current file's folder (the first attempt only looked there, missing `blog/2023/` from `blog/2024/`). For a project component, skip imports from packages in the project's `package.json`. Otherwise a project `Card` would copy another file's Starlight `Card` import, or a project `Video` another file's `import { YouTube as Video } from '@astro-community/astro-embed-youtube'` (the corpus caught this one).
   4. Otherwise use a relative path from this file to the component, keeping the extension.
 
   Generating aliases from tsconfig `paths` (the first attempt's `oxc_resolver` and path inversion) is left out. So the first time a component is used anywhere, a site that uses aliases gets a relative import. It works but doesn't match the rest of the site, which is fine for an experimental feature. Revisit if writers ask for it.
 - **Style:** quotes and semicolons follow this file's imports, then the collection's, then Astro's docs (single quotes, semicolons).
 - **Merging:** a named import goes into an existing `import { … }` with the same specifier (compared as text). In a multi-line import it goes on its own line, matching the others' indentation and trailing comma. A default import always gets its own line.
-- **Placement:** a new import goes after the block's last import, or above the first statement when there are no imports, never after `export` statements. It uses the file's line endings.
+- **Placement:** a new import goes after the block's last import, or above the first statement when there are no imports, never after `export` statements. The editor reads every file with LF line endings, so the new line does too.
 - **Default or named export:** the component scanner records it, since it already finds the component function in React files. Astro, Vue and Svelte components are always default exports. The import code doesn't parse component files again.
 - **Slot templates:** components the slot template inserts get imported too.
 - **The splitter moves to swc.** Use the detection from the first attempt, without its legacy fallback. If detection gives up, the whole text is body, which is visible rather than hidden. Saving writes the block and the body back with exactly one blank line between them (the `rebuild_markdown_*` functions in `files.rs`), so moving the split never loses text. It can add a blank line where there was none, or collapse several into one, as the current heuristic already does. The case to guard against is prose being hidden in the block, where the writer can't see or edit it. Detection only takes what parses as module declarations, so it shouldn't happen. Even so, run it over the corpus and look at every file where it disagrees with the old heuristic.
@@ -87,13 +87,13 @@ Real files to test the splitter and import insertion against, used for manual te
 
 ### Phase 3: Adding imports
 
-- [ ] The scanner records whether a component is a default or named export
-- [ ] The block model (`parse_block` in the first attempt's `block.rs`): each statement's range, and each import's source and specifiers
-- [ ] Adding an import with span-anchored splices (`mdx_esm/edit.rs` in the first attempt): idempotent, merges named imports, leaves the block alone on name collisions or when it doesn't parse
-- [ ] Choosing the specifier and inferring style, as decided above
-- [ ] Finding imports further down the body, outside code fences, for the "already imported" check
-- [ ] A Tauri command that plans without saving: it takes the block and the body, and returns the new block plus the line it added or changed, for the preview. Bindings regenerated.
-- [ ] Rust tests, plus a harness that runs every case in `test/mdx-imports/sites/*/cases.toml`
+- [x] The scanner records `named_export` on `MdxComponent`: React files with no default export and an export named after the component. Starlight's list is regenerated with `named_export: true`.
+- [x] The model of ESM code (`mdx_esm/imports.rs`): each statement's range, and each import's module, quote, semicolon and names
+- [x] Adding an import by splicing text in (`mdx_esm/edit.rs`): merges named imports on one line or one per line, with or without a trailing comma, and adds braces to a default-only import
+- [x] Choosing the path and inferring style, as decided above (`mdx_esm/plan.rs`). Imports from the project's `package.json` dependencies are skipped for project components, which replaces "the package modules the builder knows about".
+- [x] Finding imports further down the body, outside code fences (`body_esm`), for the "already imported" check
+- [x] `plan_component_import` command, which takes the block and the body and returns an `ImportPlan`: `add` with the new block and the statement added or changed, `alreadyImported` with the statement that has the name, or `null`. Bindings regenerated.
+- [x] Unit tests for each part, and `cases_in_test_sites`, which runs all 30 cases in `test/mdx-imports/sites/*/cases.toml`
 
 ### Phase 4: Builder and setting
 

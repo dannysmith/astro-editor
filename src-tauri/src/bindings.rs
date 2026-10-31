@@ -76,6 +76,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::ide::open_path_in_ide,
             // mdx_components.rs commands
             crate::commands::mdx_components::scan_mdx_components,
+            crate::commands::mdx_components::plan_component_import,
             // clipboard.rs commands
             crate::commands::clipboard::copy_text_to_clipboard,
             // updater.rs commands

@@ -103,6 +103,12 @@ export const commands = {
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),
 	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
+	/**
+	 *  The import the component builder would add with `component` to the file at
+	 *  `file_path`, whose import block and body are `imports` and `body` as the
+	 *  editor holds them. Saves nothing. `None` when there's no import it can be sure of.
+	 */
+	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
@@ -155,6 +161,15 @@ export type FileEntry = {
 	frontmatter: { [key in string]: Value } | null,
 };
 
+export type ImportPlan = 
+/**  The new import block, and the statement added or changed in it */
+{ kind: "add"; imports: string; statement: string } | 
+/**
+ *  The component's name is already imported, by `statement`. It may import
+ *  something else of the same name, and then the writer's import wins.
+ */
+{ kind: "alreadyImported"; statement: string };
+
 export type MarkdownContent = {
 	frontmatter: { [key in string]: Value },
 	content: string,
@@ -175,6 +190,8 @@ export type MdxComponent = {
 	 *  `None` for the project's own components
 	 */
 	import_source: string | null,
+	/**  Imported by name (`import { Aside } from …`) rather than as its module's default export */
+	named_export: boolean,
 	/**
 	 *  Content inserted inside the tag instead of an empty slot, as a CodeMirror snippet,
 	 *  e.g. the `TabItem`s inside `Tabs`

@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "astro": "*",
+    "@astro-community/astro-embed-youtube": "*",
     "@astrojs/mdx": "*",
     "@astrojs/react": "*",
     "@astrojs/svelte": "*",

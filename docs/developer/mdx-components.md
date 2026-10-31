@@ -19,6 +19,17 @@ Each framework finds its props differently (`mod.rs`): `interface Props` / `type
 
 `src/lib/editor/snippet-builder.ts` turns the form's values into a CodeMirror snippet: each value in MDX syntax, empty required props as tab stops, braces escaped so the snippet parser leaves them alone, and line breaks in strings written as `\n` because CodeMirror re-indents every line of a snippet. A component with a slot template, or any slotted component inserted on an empty line, goes in as a block: its content on a line of its own, with the blank lines around it that MDX needs to render markdown inside it.
 
+## Adding the import
+
+The `plan_component_import` command works out the `import` a component needs, without saving, so the builder can show it first. The code is in `src-tauri/src/mdx_esm/` (`plan.rs`).
+
+- **Nothing is added if the name is already imported anywhere in the file,** including imports further down the body, which docs sites use a lot. Two imports of one name break the build, and if the existing one is something else (Starlight's `Card` where the project has its own), the writer's import wins.
+- **The path copies another file in the collection where it can,** so a site's aliases and barrel files carry over without reading tsconfig. Relative paths are only copied from the same folder, and imports from the project's `package.json` dependencies are never copied for a project component, since they're a different component with the same name. Otherwise it's a relative path with the extension, as Astro's docs write it.
+- **Edits splice text into the block** (`edit.rs`), so the writer's formatting, comments and blank lines survive. A block that isn't only imports and exports gets no plan at all.
+- **React components can be named exports.** The scanner records `named_export`; Astro, Vue and Svelte components are always default exports, and Starlight's are named.
+
+`test/mdx-imports/sites/` has a small site for each way sites write imports, with cases in `cases.toml` that `cases_in_test_sites` runs. Add a case there for anything found in the wild.
+
 ## Starlight's components
 
 In projects whose `package.json` depends on `@astrojs/starlight`, the builder adds Starlight's built-in components. They aren't read from the project's `node_modules`: the package layout has changed between versions, and some props (Badge's come from a Zod schema) need a real type checker.

@@ -12,7 +12,10 @@ use crate::mdx_esm::split_esm_block;
 ///
 /// This function prevents path traversal attacks by ensuring all file operations
 /// stay within the current project root directory.
-fn validate_project_path(file_path: &str, project_root: &str) -> Result<PathBuf, String> {
+pub(crate) fn validate_project_path(
+    file_path: &str,
+    project_root: &str,
+) -> Result<PathBuf, String> {
     let file_path = Path::new(file_path);
     let project_root = Path::new(project_root);
 

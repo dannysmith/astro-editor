@@ -39,7 +39,7 @@ Handwritten, in `handwritten/`, for shapes the real files don't cover:
 
 ## `sites/`: adding imports
 
-Small projects, one for each way sites write imports. Each has a `package.json`, a `tsconfig.json`, a `src/content.config.ts`, components in `src/components/mdx/` (unless `components_dir` says otherwise), MDX files in one collection, and a `cases.toml`.
+Small projects, one for each way sites write imports. Each has a `package.json`, a `tsconfig.json`, a `src/content.config.ts`, components in `src/components/mdx/` (unless `components_dir` says otherwise), MDX files in one collection, and a `cases.toml`. List any package the MDX imports from in `package.json`: imports from the project's packages are never copied for its own components. `cases_in_test_sites` in `src-tauri/src/mdx_esm/plan.rs` runs every case (`cargo test cases_in_test_sites` in `src-tauri`).
 
 | Site | Style | Modelled on |
 | --- | --- | --- |

@@ -46,7 +46,7 @@ const MAX_CHUNK_ATTEMPTS: usize = 32;
 ///   template literal), so extend the chunk to the next blank line and retry.
 /// - An error part-way through: drop the line it's on and everything after,
 ///   and retry. An import followed directly by `# Heading` lands here.
-fn find_block(text: &str) -> Option<Range<usize>> {
+pub(super) fn find_block(text: &str) -> Option<Range<usize>> {
     let block_start = skip_blank_lines(text, 0);
     let mut pos = block_start;
     let mut block_end = None;
@@ -110,20 +110,20 @@ fn find_block(text: &str) -> Option<Range<usize>> {
     block_end.map(|end| block_start..extend_through_line_tail(text, end))
 }
 
-struct ParsedChunk {
+pub(super) struct ParsedChunk {
     /// Where the chunk starts in swc's positions
-    start: BytePos,
-    items: Vec<ModuleItem>,
+    pub start: BytePos,
+    pub items: Vec<ModuleItem>,
 }
 
-struct ChunkError {
+pub(super) struct ChunkError {
     /// Byte offset of the error within the chunk
     offset: usize,
     /// The parser ran off the end of the chunk, so more text may complete it
     incomplete: bool,
 }
 
-fn parse_chunk(chunk: &str) -> Result<ParsedChunk, ChunkError> {
+pub(super) fn parse_chunk(chunk: &str) -> Result<ParsedChunk, ChunkError> {
     let cm: Lrc<SourceMap> = Lrc::new(SourceMap::default());
     let fm = cm.new_source_file(Rc::new(FileName::Anon), chunk.to_string());
     let syntax = Syntax::Typescript(TsSyntax {
@@ -152,7 +152,7 @@ fn parse_chunk(chunk: &str) -> Result<ParsedChunk, ChunkError> {
     }
 }
 
-fn offset(pos: BytePos, start: BytePos) -> usize {
+pub(super) fn offset(pos: BytePos, start: BytePos) -> usize {
     pos.0.saturating_sub(start.0) as usize
 }
 
@@ -160,7 +160,7 @@ fn offset(pos: BytePos, start: BytePos) -> usize {
 /// the line, followed by a character that can continue one (`import{a}` and
 /// `import"./x"` are valid). Prose like "import this…" passes here and is
 /// rejected by the parser.
-fn line_starts_esm(line: &str) -> bool {
+pub(super) fn line_starts_esm(line: &str) -> bool {
     ["import", "export"].iter().any(|keyword| {
         line.strip_prefix(keyword)
             .and_then(|rest| rest.chars().next())
@@ -169,7 +169,7 @@ fn line_starts_esm(line: &str) -> bool {
 }
 
 /// The end of the line that `pos` is on, before its `\n`
-fn line_end(text: &str, pos: usize) -> usize {
+pub(super) fn line_end(text: &str, pos: usize) -> usize {
     text[pos..].find('\n').map_or(text.len(), |i| pos + i)
 }
 

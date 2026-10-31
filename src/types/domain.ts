@@ -86,8 +86,19 @@ export type {
    * - `has_slot` - Whether component has a slot
    * - `description` - Component description (from JSDoc)
    * - `framework` - Component framework (astro, react, vue, svelte)
+   * - `import_source` - The package it's imported from, for package components
+   * - `named_export` - Imported by name (`import { Aside }`) rather than as a default export
+   * - `slot_template` - What the builder inserts inside the tag, which can contain other components
    */
   MdxComponent,
+  /**
+   * The import the component builder adds with a component, planned without
+   * saving. Tagged by `kind`: `add` (with the new `imports` block and the
+   * `statement` added or changed in it) or `alreadyImported` (with the
+   * `statement` that imports the name, which may be something else of the
+   * same name).
+   */
+  ImportPlan,
   /**
    * Information about a component prop.
    *
