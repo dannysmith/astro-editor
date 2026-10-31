@@ -29,7 +29,7 @@ Astro Editor surfaces the extra information in your schema as guidance beneath e
 
 - `.describe('…')` — shown as help text under the field
 - `.default(…)` — shown as a hint, and pre-filled into new files
-- `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters" or "Pattern: …"
+- `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters", "Up to 3 items" for a list, or "Pattern: …"
 
 ```ts
 title: z.string().min(3).max(100).describe('The headline for the post')

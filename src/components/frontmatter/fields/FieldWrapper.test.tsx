@@ -126,6 +126,20 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Min 5 chars')).toBeInTheDocument()
     })
 
+    it('formats an array’s item count as items, not characters', () => {
+      render(
+        <FieldWrapper
+          label="Test"
+          constraints={{ maxItems: 3 }}
+          currentValue={['a']}
+        >
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.getByText('Up to 3 items')).toBeInTheDocument()
+    })
+
     it('formats maxLength only', () => {
       const constraints: FieldConstraints = { maxLength: 200 }
 

@@ -62,6 +62,11 @@ pub struct FieldConstraints {
     pub min_length: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<usize>,
+    /// How many items an array takes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_items: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_items: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pattern: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -837,6 +842,8 @@ fn extract_constraints(
         max: None,
         min_length: None,
         max_length: None,
+        min_items: None,
+        max_items: None,
         pattern: None,
         format: None,
     };
@@ -876,10 +883,10 @@ fn extract_constraints(
     // Array constraints
     if field_type == "array" {
         if let Some(min_items) = field_schema.min_items {
-            constraints.min_length = Some(min_items);
+            constraints.min_items = Some(min_items);
         }
         if let Some(max_items) = field_schema.max_items {
-            constraints.max_length = Some(max_items);
+            constraints.max_items = Some(max_items);
         }
     }
 
@@ -888,6 +895,8 @@ fn extract_constraints(
         || constraints.max.is_some()
         || constraints.min_length.is_some()
         || constraints.max_length.is_some()
+        || constraints.min_items.is_some()
+        || constraints.max_items.is_some()
         || constraints.pattern.is_some()
         || constraints.format.is_some()
     {
@@ -1078,6 +1087,8 @@ fn parse_zod_constraints(constraints: &Value) -> Option<FieldConstraints> {
             .get("maxLength")
             .and_then(|v| v.as_u64())
             .map(|v| v as usize),
+        min_items: None,
+        max_items: None,
         pattern: obj.get("regex").and_then(|v| v.as_str()).map(String::from),
         format: if obj.get("email").and_then(|v| v.as_bool()).unwrap_or(false) {
             Some("email".to_string())
@@ -1127,6 +1138,15 @@ fn camel_case_to_title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn array_limits_are_item_counts() {
+        let field: JsonSchemaProperty =
+            serde_json::from_value(serde_json::json!({ "type": "array", "maxItems": 3 })).unwrap();
+        let constraints = extract_constraints(&field, "array").unwrap();
+        assert_eq!(constraints.max_items, Some(3));
+        assert_eq!(constraints.max_length, None);
+    }
 
     #[test]
     fn test_camel_case_to_title_case() {

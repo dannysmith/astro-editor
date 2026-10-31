@@ -93,6 +93,21 @@ function formatMetadata(
       parts.push(`Max ${constraints.maxLength} chars`)
     }
 
+    // Array length constraints
+    const items = (count: number) => (count === 1 ? 'item' : 'items')
+    if (
+      constraints.minItems !== undefined &&
+      constraints.maxItems !== undefined
+    ) {
+      parts.push(`${constraints.minItems}–${constraints.maxItems} items`)
+    } else if (constraints.minItems !== undefined) {
+      parts.push(
+        `At least ${constraints.minItems} ${items(constraints.minItems)}`
+      )
+    } else if (constraints.maxItems !== undefined) {
+      parts.push(`Up to ${constraints.maxItems} ${items(constraints.maxItems)}`)
+    }
+
     // Format hints
     if (constraints.format) {
       const formatLabels: Record<string, string> = {
