@@ -9,6 +9,16 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^7.3.5"
+    "@astrojs/mdx": "^8.1.2",
+    "@astrojs/react": "^7.1.2",
+    "@astrojs/svelte": "^9.1.2",
+    "@astrojs/vue": "^7.1.2",
+    "astro": "^7.3.5",
+    "astro-embed": "^0.14.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "svelte": "^5.57.3",
+    "unfurl.js": "^6.4.0",
+    "vue": "^3.5.44"
   }
 }

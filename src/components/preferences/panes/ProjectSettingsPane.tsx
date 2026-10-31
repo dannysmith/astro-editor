@@ -194,6 +194,28 @@ export const ProjectSettingsPane: React.FC = () => {
           </FieldContent>
         </Field>
       </SettingsSection>
+
+      <SettingsSection title="Experimental">
+        <Field>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <FieldLabel>Add Imports for MDX Components</FieldLabel>
+              <FieldDescription>
+                When you insert a component, also add its{' '}
+                <code className="text-xs">import</code> to the file. Leave this
+                off if your site imports components automatically.{' '}
+                <DocsLink href={DOCS_URLS.mdxComponents}>Learn more</DocsLink>
+              </FieldDescription>
+            </div>
+            <Switch
+              checked={currentProjectSettings?.addComponentImports ?? false}
+              onCheckedChange={checked =>
+                void updateProject({ addComponentImports: checked })
+              }
+            />
+          </div>
+        </Field>
+      </SettingsSection>
     </div>
   )
 }

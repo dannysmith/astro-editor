@@ -46,10 +46,19 @@ Optional props are only inserted if you give them a value, and Astro Editor writ
 
 For components written in a framework (React, Vue, or Svelte), the configure step also lets you pick a [client directive](https://docs.astro.build/en/reference/directives-reference/#client-directives) — `client:load`, `client:idle`, `client:visible`, `client:media`, or `client:only`. This controls when (and whether) Astro hydrates the component in the browser, and gets added to the inserted tag. `client:idle` is recommended for most cases. Astro components don't need one, so the option only appears for framework components.
 
-<Aside type="caution">
-While Astro Editor will insert the component itself, it **won't add an import below the frontmatter**. While this is definitely coder-mode stuff, it's not great when in writer mode because, if you're running a dev server to preview as you write, the page will break until you switch to a code editor and add the missing import.
+## Adding Imports
 
-We may add this in a future release, but in the meantime, consider adding [Astro Auto Import](https://github.com/delucis/astro-auto-import) to your site and having it import all the components in your `mdx/` directory.
+An MDX file has to import each component it uses, in the lines below the frontmatter, or the page breaks. Astro Editor hides those lines while you write, and by default it leaves them alone, so you'd need to add the import in a code editor.
+
+There's an experimental setting to have the builder add the import for you. Turn on **Add Imports for MDX Components** in [Project Settings](/preferences/#experimental). With it on, the form has an **Add import** row under the preview, with a switch to leave the import out this time. Click the row to see the line it will add.
+
+- If another file in the same collection already imports the component, the builder copies that import, so your site's own aliases (`@components/…`) and index files are used. Otherwise it imports the component's file by a relative path, as Astro's docs do.
+- If the file already imports something with that name, nothing is added and the row says **Already imported**. Click it to see the existing import. That way you'll notice if it's a different component with the same name.
+- Quotes and semicolons match the file's other imports, and everything else in those lines stays as you wrote it.
+- Undo removes the component but not its import. An unused import doesn't break anything.
+
+<Aside type="caution">
+Leave the setting off if your site uses [Astro Auto Import](https://github.com/delucis/astro-auto-import) or something like it. A component imported twice breaks the build.
 </Aside>
 
 ## Starlight's Components
@@ -58,7 +67,7 @@ If your site uses [Starlight](https://starlight.astro.build/), the builder also 
 
 ![The component builder in a Starlight site, listing Starlight's components with a short description of each](../../../assets/mdx-builder-starlight.png)
 
-As with your own components, you'll need to import them (`import { Tabs, TabItem } from '@astrojs/starlight/components'`) or set up auto-importing.
+As with your own components, they need importing (`import { Tabs, TabItem } from '@astrojs/starlight/components'`). With [Adding Imports](#adding-imports) on, the builder does it, including the `TabItem`s that `Tabs` comes with.
 
 ## What are "MDX" Components?
 

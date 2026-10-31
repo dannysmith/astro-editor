@@ -1,7 +1,7 @@
 ---
 // Renders the Astro MDX components that exercise the component builder, so
 // the build checks they compile. The framework components (.tsx, .vue,
-// .svelte) aren't rendered, since this project has no framework integrations.
+// .svelte) compile when an MDX file imports them.
 import { getCollection } from 'astro:content'
 import Event from '../components/mdx/Event.astro'
 import Pricing from '../components/mdx/Pricing.astro'

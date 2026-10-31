@@ -97,14 +97,14 @@ Real files to test the splitter and import insertion against, used for manual te
 
 ### Phase 4: Builder and setting
 
-- [ ] Project setting, labelled experimental, off by default
-- [ ] `setImports` in `editorStore`, which must set `isDirty` in the same update, because `useEditorFileContent` overwrites `imports` from the query cache whenever the file isn't dirty
-- [ ] Plan the import when a component is selected and keep it, with an `addImport` flag, in `componentBuilderStore`. `insert()` applies it if the flag is on, kept separate from `buildSnippet`. A failure never blocks inserting the tag.
-- [ ] The preview row with its toggle on the configure step
-- [ ] Starlight components and components from slot templates
-- [ ] Make `test/dummy-astro-project` build its MDX. It has no `@astrojs/mdx`, no React, Vue or Svelte integrations, and no `@/*` alias, although its MDX imports `@/components/mdx`. `test/starlight-minimal` already builds MDX through Starlight.
-- [ ] Try it in the app on the test projects, then run `astro build` in them to confirm the imports work
-- [ ] Update `website/src/content/docs/editor/mdx-components.mdx` (it says imports "may" come in a future release) and `docs/developer/mdx-components.md`
+- [x] Project setting `addComponentImports`, under "Experimental" in Project Settings, off by default
+- [x] `setImports` in `editorStore`, which sets `isDirty` in the same update, because `useEditorFileContent` overwrites `imports` from the query cache whenever the file isn't dirty. The save's "changed while saving" check now compares `imports` too.
+- [x] Plan the import when a component is selected and keep it, with an `addImport` flag, in `componentBuilderStore`. `insert()` adds the tag, then the import if the flag is on. A plan that arrives after going back to the list is dropped. Tests in `componentBuilderStore.test.ts`.
+- [x] The import row under the tag preview: "Add import" with its switch, or "Already imported", expanding to show the line
+- [x] Starlight components and components from slot templates: inserting `Tabs` in `starlight-minimal`'s index gave `import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';`
+- [x] Make `test/dummy-astro-project` build its MDX: the MDX, React, Vue and Svelte integrations, the `@/*` alias, `astro-embed` and `unfurl.js` (which the danny.is components import), the missing `NotionIcon` and `Loom` components, and a page that renders every entry
+- [x] Tried it in the app: Embed (relative, matching the file's quote style), Callout (already imported through the barrel), Alert with the switch off (nothing added), and Alert, Card, Badge and Timeline (one per framework). `bun run build` passed in both projects and the components rendered.
+- [x] Updated `website/src/content/docs/editor/mdx-components.mdx`, `preferences.mdx` and `docs/developer/mdx-components.md`
 
 ### Phase 5: Image props
 

@@ -28,6 +28,7 @@ interface EditorState {
   closeCurrentFile: () => void
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
+  setImports: (imports: string) => void
   updateFrontmatter: (frontmatter: Record<string, unknown>) => void
   updateFrontmatterField: (key: string, value: unknown) => void
   scheduleAutoSave: () => void
@@ -129,6 +130,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setEditorContent: (content: string) => {
     set({ editorContent: content, isDirty: true })
+    get().scheduleAutoSave()
+  },
+
+  // Marks the file dirty in the same update: until then, useEditorFileContent
+  // would put back the imports from disk
+  setImports: (imports: string) => {
+    set({ imports, isDirty: true })
     get().scheduleAutoSave()
   },
 

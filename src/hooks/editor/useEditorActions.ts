@@ -145,7 +145,9 @@ export function useEditorActions() {
 
           // Only mark as clean if content hasn't changed during save (race condition protection)
           // Check both content AND frontmatter to avoid dropping unsaved edits
-          const contentUnchanged = currentState.editorContent === editorContent
+          const contentUnchanged =
+            currentState.editorContent === editorContent &&
+            currentState.imports === imports
           const frontmatterUnchanged =
             JSON.stringify(currentState.frontmatter) ===
             JSON.stringify(frontmatter)

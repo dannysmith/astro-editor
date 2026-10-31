@@ -1,8 +1,15 @@
 import React from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import type { MdxComponent } from '@/types'
+import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../ui/collapsible'
 import { CommandShortcut } from '../ui/command'
+import { Switch } from '../ui/switch'
 import {
   Select,
   SelectContent,
@@ -19,6 +26,10 @@ import { buildPreview, insertsAsBlock } from '../../lib/editor/snippet-builder'
 import { isOnEmptyLine } from '../../lib/editor/commands/insertSnippet'
 import { FrameworkBadge } from './FrameworkBadge'
 import { PropField } from './PropField'
+
+/** The tag preview and the import line */
+const codeBoxClassName =
+  'block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap'
 
 const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -140,10 +151,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
       </div>
 
       <div className="border-t px-4 py-3">
-        <code className="block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap">
+        <code className={codeBoxClassName}>
           {buildPreview(component, values, clientDirective, block)}
         </code>
       </div>
+
+      <ImportRow />
 
       <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
         <div className="flex gap-3">
@@ -159,5 +172,48 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Whether Insert adds the component's import, with a switch to leave it out,
+ * or that its name is already imported. Expands to show the import line.
+ * Hidden when there's no plan: the setting is off, or no import could be
+ * worked out safely.
+ */
+function ImportRow() {
+  const plan = useComponentBuilderStore(state => state.importPlan)
+  const addImport = useComponentBuilderStore(state => state.addImport)
+  const setAddImport = useComponentBuilderStore(state => state.setAddImport)
+  if (!plan) return null
+
+  const adds = plan.kind === 'add'
+  return (
+    <Collapsible className="border-t px-4 py-2">
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <CollapsibleTrigger className="group flex items-center gap-1.5 rounded-sm text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+          <ChevronRight className="size-3.5 text-icon transition-transform group-data-panel-open:rotate-90" />
+          {adds ? 'Add import' : 'Already imported'}
+        </CollapsibleTrigger>
+        {adds && (
+          <Switch
+            checked={addImport}
+            onCheckedChange={setAddImport}
+            aria-label="Add import"
+          />
+        )}
+      </div>
+      <CollapsibleContent>
+        <code
+          className={cn(
+            codeBoxClassName,
+            'my-1',
+            (!adds || !addImport) && 'text-muted-foreground'
+          )}
+        >
+          {plan.statement}
+        </code>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
