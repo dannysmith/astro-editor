@@ -29,6 +29,18 @@ Astro Editor behaves like a macOS document app: closing the window doesn't quit.
 - **The dock icon reopens it.** `RunEvent::Reopen` shows the window when there are no visible windows, then calls `restore_state`. That has to come after `show()`: the window-state plugin only restores at startup, not after a hide and show.
 - **Teardown belongs in `RunEvent::Exit`.** It fires before the process exits, unlike `ExitRequested`, which doesn't fire for Cmd+Q on macOS ([tauri#9198](https://github.com/tauri-apps/tauri/issues/9198)). Don't use `prevent_exit()`: with the window-state plugin it can cause an endless `windowDidMove` loop.
 
+## Native menu and shortcuts
+
+The native menu is built in `setup()` in `src-tauri/src/lib.rs` on every platform, but only macOS and Linux show it:
+
+- **macOS:** the system menu bar.
+- **Windows:** the menu exists but isn't drawn, because the window has `decorations: false`. The title bar's overflow menu (`WindowsMenu.tsx`) stands in for it, and the JS hotkeys and CodeMirror keymaps handle the keys. The native accelerators most likely never fire, because Tauri only checks them against key messages in the app's own message loop and WebView2's key presses don't pass through it. That's inferred from the code, but until muda 0.20, `Cmd+B` was registered on Windows as a bare B key and nobody saw "b" turn into Bold.
+- **Linux:** a GTK menu bar below the native title bar.
+
+**Accelerators use `CmdOrCtrl`, never `Cmd`, `Command`, `Super` or `Meta`.** Windows menus only support Ctrl, Alt and Shift. Since muda 0.20 (Tauri 2.12), any other modifier fails the menu build, and because that happens in `setup()`, the app panics before its window opens. That's what broke v1.0.18 to v1.0.20 on Windows (#351); older muda dropped the modifier without an error. A macOS-only shortcut goes behind `#[cfg(target_os = "macos")]`, like Enter Full Screen's Ctrl+Cmd+F. On Windows and Linux, F11 toggles full screen through a JS hotkey in `useKeyboardShortcuts` instead.
+
+A bad accelerator compiles on every platform, and the macOS and Linux menus accept it, so only running the app on Windows catches it. CI's build job does that as a smoke test (see `releases.md`).
+
 ## Gotchas
 
 - **The title bar toolbar needs `transform-gpu` to fade.** Without it, WebKit leaves the children of `TitleBarToolbar` out of its opacity transition when the distraction-free bars hide, so they stay visible and then vanish at once. Putting the container on its own compositing layer fixes it.
