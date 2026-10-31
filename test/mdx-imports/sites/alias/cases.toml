@@ -26,3 +26,12 @@ expected = """
 import Aside from '@components/mdx/Aside.astro'
 import Figure from '../../components/mdx/Figure.astro'
 """
+
+[[case]]
+name = "doesn't copy Astro's own Image for the project's Image"
+file = "src/content/blog/other.mdx"
+component = "Image"
+expected = """
+import Aside from '@components/mdx/Aside.astro'
+import Image from '../../components/mdx/Image.astro'
+"""

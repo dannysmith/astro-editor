@@ -7,12 +7,13 @@ import {
   type EntryImport,
   type ImageImport,
   type ImportPlan,
-  type PropImports,
 } from '@/types'
 import { MdxComponent } from '../hooks/queries/useMdxComponentsQuery'
 import {
   buildSnippet,
   insertsAsBlock,
+  withPicks,
+  type Picks,
   type PropValue,
 } from '../lib/editor/snippet-builder'
 import {
@@ -46,11 +47,13 @@ interface ComponentBuilderState {
   clientDirective: ClientDirective
   /** The imports the component and its picks need, when the project adds them */
   importPlan: ImportPlan | null
+  /** Whether a plan is on its way */
+  planning: boolean
   /** Whether insert() adds the planned imports. Starts on each time. */
   addImport: boolean
-  /** The image picked for each image prop. Its value is the name it's imported as. */
+  /** The image picked for each image prop */
   images: Record<string, ImageImport>
-  /** The entry picked for each entry prop. Its value is the name it's loaded as. */
+  /** The entry picked for each entry prop */
   entries: Record<string, EntryImport>
 }
 
@@ -59,11 +62,11 @@ interface ComponentBuilderActions {
   close: () => void
   selectComponent: (component: MdxComponent) => void
   setValue: (propName: string, value: PropValue | undefined) => void
-  /** Picks or clears an image prop's image, keeping it if it can be imported */
-  setImage: (propName: string, image: ImageImport | undefined) => Promise<void>
+  /** Picks or clears an image prop's image, dropping it if it can't be imported */
+  setImage: (prop: string, image?: Omit<ImageImport, 'prop'>) => Promise<void>
   /** Picks or clears an entry prop's collection entry */
-  setEntry: (propName: string, entry: EntryImport | undefined) => Promise<void>
-  insert: () => void
+  setEntry: (prop: string, entry?: Omit<EntryImport, 'prop'>) => Promise<void>
+  insert: () => Promise<void>
   back: () => void
   setClientDirective: (directive: ClientDirective) => void
   setAddImport: (addImport: boolean) => void
@@ -77,49 +80,27 @@ const initialState: ComponentBuilderState = {
   editorView: null,
   clientDirective: 'none',
   importPlan: null,
+  planning: false,
   addImport: true,
   images: {},
   entries: {},
 }
 
-/** `picks` with `pick` for `prop`, or without it when it's cleared */
-function withPick<T>(
-  picks: Record<string, T>,
-  prop: string,
-  pick: T | undefined
-): Record<string, T> {
-  const next = { ...picks }
-  if (pick) {
-    next[prop] = pick
-  } else {
-    delete next[prop]
-  }
-  return next
-}
-
-/** Whether the open project has the builder add imports */
-function addsImports(): boolean {
-  return (
-    useProjectStore.getState().currentProjectSettings?.addComponentImports ??
-    false
-  )
-}
-
 /**
- * Plans the imports for `component` and the images and entries picked for its
- * props in the open file. A null plan, when the project doesn't add imports or
- * Rust can't be sure of them, hides the import row and adds nothing. An error
- * when an image can't be imported. The file can't change while the builder is
- * open, so this only reruns when the picks do.
+ * Plans the imports for `component` and `picks` in the open file as it is now.
+ * A null plan, when the project doesn't add imports or Rust can't be sure of
+ * them, hides the import row, and picks then go in as their path or id. An
+ * error when an image can't be imported.
  */
 async function planImports(
   component: MdxComponent,
   view: EditorView,
-  props: PropImports
+  picks: Picks
 ): Promise<{ plan: ImportPlan | null } | { error: string }> {
-  const { projectPath } = useProjectStore.getState()
+  const { projectPath, currentProjectSettings } = useProjectStore.getState()
   const { currentFile, imports } = useEditorStore.getState()
-  if (!addsImports() || !projectPath || !currentFile) return { plan: null }
+  if (!currentProjectSettings?.addComponentImports) return { plan: null }
+  if (!projectPath || !currentFile) return { plan: null }
 
   const collection = queryClient
     .getQueryData<Collection[]>(queryKeys.collections(projectPath))
@@ -133,56 +114,29 @@ async function planImports(
     imports,
     view.state.doc.toString(),
     component,
-    props
+    {
+      images: Object.values(picks.images),
+      entries: Object.values(picks.entries),
+    }
   )
-  if (result.status === 'error') return { error: result.error }
-  if (!result.data && (props.images.length > 0 || props.entries.length > 0)) {
-    return { error: "Its import can't be added to this file" }
-  }
-  return { plan: result.data }
+  return result.status === 'error'
+    ? { error: result.error }
+    : { plan: result.data }
 }
 
-/** The image or entry picked for each prop that has one, by prop name */
-export interface Picks {
-  images: Record<string, ImageImport>
-  entries: Record<string, EntryImport>
-}
-
-/**
- * The component and values to build the tag from. With imports switched off,
- * a picked image goes in as its path (`image="../../assets/a.png"`) and an
- * entry as its id (`post="first-post"`), which are easier to sort out in a
- * code editor than names nothing imports.
- */
-export function snippetInput(
-  component: MdxComponent,
-  values: Record<string, PropValue>,
-  picks: Picks,
-  addImport: boolean
-): { component: MdxComponent; values: Record<string, PropValue> } {
-  const asText: Record<string, string> = {
-    ...Object.fromEntries(
-      Object.entries(picks.images).map(([prop, image]) => [
-        prop,
-        image.specifier,
-      ])
-    ),
-    ...Object.fromEntries(
-      Object.entries(picks.entries).map(([prop, entry]) => [prop, entry.id])
-    ),
+/** `record` with `value` for `key`, or without `key` when there's no value */
+function withKey<T>(
+  record: Record<string, T>,
+  key: string,
+  value: T | undefined
+): Record<string, T> {
+  const next = { ...record }
+  if (value === undefined) {
+    delete next[key]
+  } else {
+    next[key] = value
   }
-  if (addImport || Object.keys(asText).length === 0) {
-    return { component, values }
-  }
-  return {
-    component: {
-      ...component,
-      props: component.props.map(prop =>
-        prop.name in asText ? { ...prop, kind: { kind: 'string' } } : prop
-      ),
-    },
-    values: { ...values, ...asText },
-  }
+  return next
 }
 
 /** Counts plan requests, so only the newest one's answer is used */
@@ -193,39 +147,45 @@ export const useComponentBuilderStore = create<
   ComponentBuilderState & ComponentBuilderActions
 >((set, get) => {
   /**
-   * Plans with `picks`, then keeps them, the plan and the name each image or
-   * entry is imported as as its prop's value. Returns the error, leaving
-   * everything as it was, when they can't be imported.
+   * Plans for the current picks and keeps the plan, for the import row and the
+   * tag preview. Returns the error when a pick can't be imported. Answers that
+   * arrive after the writer has picked again or gone back are dropped.
    */
-  const plan = async (picks: Picks): Promise<string | undefined> => {
-    const { selectedComponent: component, editorView } = get()
+  const plan = async (): Promise<string | undefined> => {
+    const { selectedComponent: component, editorView, images, entries } = get()
     if (!component || !editorView) return
     const request = ++planRequests
-    const imageProps = Object.keys(picks.images)
-    const entryProps = Object.keys(picks.entries)
-    const result = await planImports(component, editorView, {
-      images: imageProps.map(prop => picks.images[prop]!),
-      entries: entryProps.map(prop => picks.entries[prop]!),
-    })
-    // Unless the writer has gone back to the list, or picked again, since
+    set({ planning: true })
+    const result = await planImports(component, editorView, { images, entries })
     if (request !== planRequests || get().selectedComponent !== component) {
       return
     }
+    set({ planning: false })
     if ('error' in result) return result.error
-
-    const values = { ...get().values }
-    const { images, entries } = get()
-    for (const prop of [...Object.keys(images), ...Object.keys(entries)]) {
-      delete values[prop]
-    }
-    const named = (props: string[], names: string[] = []) =>
-      props.forEach((prop, i) => {
-        if (names[i]) values[prop] = names[i]
-      })
-    named(imageProps, result.plan?.images)
-    named(entryProps, result.plan?.entries)
-    set({ importPlan: result.plan, ...picks, values })
+    set({ importPlan: result.plan })
   }
+
+  /**
+   * Changes the picks straight away, so a second pick builds on the first, then
+   * drops the change again if its import can't be planned
+   */
+  const pick = async (change: (picks: Picks) => Picks, failure: string) => {
+    const { images, entries } = get()
+    const before = { images, entries }
+    const after = change(before)
+    set(after)
+    const error = await plan()
+    if (error) {
+      if (get().images === after.images && get().entries === after.entries) {
+        set(before)
+      }
+      toast.error(failure, { description: error })
+      void plan()
+    }
+  }
+
+  /** Whether an insert is waiting for its plan, so a second one is ignored */
+  let inserting = false
 
   return {
     ...initialState,
@@ -265,7 +225,7 @@ export const useComponentBuilderStore = create<
       // Always show configuration step, even for components without props
       set({ selectedComponent: component, step: 'configure', values })
 
-      void plan({ images: {}, entries: {} }).then(error => {
+      void plan().then(error => {
         if (error) {
           void logWarn(
             `Could not plan the import for ${component.name}: ${error}`
@@ -274,82 +234,76 @@ export const useComponentBuilderStore = create<
       })
     },
 
-    setValue: (propName, value) => {
-      set(state => {
-        const values = { ...state.values }
-        if (value === undefined) {
-          delete values[propName]
-        } else {
-          values[propName] = value
-        }
-        return { values }
-      })
-    },
+    setValue: (propName, value) =>
+      set(state => ({ values: withKey(state.values, propName, value) })),
 
-    setImage: async (propName, image) => {
-      const { images, entries } = get()
-      const error = await plan({
-        images: withPick(images, propName, image),
-        entries,
-      })
-      if (error) {
-        toast.error('Couldn’t use that image', { description: error })
-      }
-    },
+    setImage: (prop, image) =>
+      pick(
+        picks => ({
+          ...picks,
+          images: withKey(picks.images, prop, image && { ...image, prop }),
+        }),
+        'Couldn’t use that image'
+      ),
 
-    setEntry: async (propName, entry) => {
-      const { images, entries } = get()
-      const error = await plan({
-        images,
-        entries: withPick(entries, propName, entry),
-      })
-      if (error) {
-        toast.error('Couldn’t use that entry', { description: error })
-      }
-    },
+    setEntry: (prop, entry) =>
+      pick(
+        picks => ({
+          ...picks,
+          entries: withKey(picks.entries, prop, entry && { ...entry, prop }),
+        }),
+        'Couldn’t use that entry'
+      ),
 
-    insert: () => {
+    insert: async () => {
       const {
-        selectedComponent,
+        selectedComponent: component,
         values,
         editorView,
         clientDirective,
-        importPlan,
         addImport,
         images,
         entries,
       } = get()
-      if (!selectedComponent || !editorView) return
+      if (!component || !editorView || inserting) return
 
-      const block = insertsAsBlock(selectedComponent, isOnEmptyLine(editorView))
-      const snippet = snippetInput(
-        selectedComponent,
-        values,
-        { images, entries },
-        addImport
-      )
+      // Plan again against the file as it is now: the plan shown may not have
+      // arrived yet, and the file can change on disk while the builder is open
+      inserting = true
+      const result = addImport
+        ? await planImports(component, editorView, { images, entries })
+        : { plan: null }
+      inserting = false
+      if (get().selectedComponent !== component) return
+      const plan = 'plan' in result ? result.plan : null
+
+      const block = insertsAsBlock(component, isOnEmptyLine(editorView))
+      const tag = withPicks(component, values, { images, entries }, plan?.names)
       insertSnippet(
         editorView,
-        buildSnippet(snippet.component, snippet.values, clientDirective, block),
+        buildSnippet(tag.component, tag.values, clientDirective, block),
         { block }
       )
-      if (importPlan && importPlan.added.length > 0 && addImport) {
-        useEditorStore.getState().setImports(importPlan.imports)
+      if (plan && plan.added.length > 0) {
+        useEditorStore.getState().setImports(plan.imports)
       }
       get().close()
     },
 
-    back: () =>
+    back: () => {
+      planRequests++
       set({
         step: 'list',
         selectedComponent: null,
         values: {},
         clientDirective: 'none',
         importPlan: null,
+        planning: false,
         addImport: true,
         images: {},
         entries: {},
-      }),
+      })
+    },
 
     setClientDirective: (directive: ClientDirective) =>
       set({ clientDirective: directive }),

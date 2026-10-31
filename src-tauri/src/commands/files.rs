@@ -7,45 +7,7 @@ use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
 use crate::mdx_esm::split_esm_block;
-
-/// Validates that a file path is within the project boundaries
-///
-/// This function prevents path traversal attacks by ensuring all file operations
-/// stay within the current project root directory.
-pub(crate) fn validate_project_path(
-    file_path: &str,
-    project_root: &str,
-) -> Result<PathBuf, String> {
-    let file_path = Path::new(file_path);
-    let project_root = Path::new(project_root);
-
-    // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
-        .or_else(|_| {
-            // If file doesn't exist, try to canonicalize parent and append filename
-            if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
-                parent.canonicalize().map(|p| p.join(filename))
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Invalid file path",
-                ))
-            }
-        })
-        .map_err(|_| "Invalid file path".to_string())?;
-
-    let canonical_root = project_root
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
-
-    // Ensure file is within project bounds
-    canonical_file
-        .strip_prefix(&canonical_root)
-        .map_err(|_| "File outside project directory".to_string())?;
-
-    Ok(canonical_file)
-}
+use crate::utils::validate_project_path;
 
 /// Calculates the relative path from the current file to an asset
 ///
@@ -1017,10 +979,7 @@ mod tests {
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
         fs::write(&test_file, "test content").unwrap();
 
-        let result = validate_project_path(
-            &test_file.to_string_lossy(),
-            &project_root.to_string_lossy(),
-        );
+        let result = validate_project_path(&test_file, &project_root);
 
         assert!(result.is_ok(), "Failed with error: {:?}", result.err());
 
@@ -1043,10 +1002,7 @@ mod tests {
         // Create project directory
         fs::create_dir_all(&project_root).unwrap();
 
-        let result = validate_project_path(
-            &malicious_path.to_string_lossy(),
-            &project_root.to_string_lossy(),
-        );
+        let result = validate_project_path(&malicious_path, &project_root);
 
         // Should fail due to path traversal
         assert!(result.is_err());
@@ -1074,10 +1030,7 @@ mod tests {
         // Create project directory
         fs::create_dir_all(&project_root).unwrap();
 
-        let result = validate_project_path(
-            &nonexistent_file.to_string_lossy(),
-            &project_root.to_string_lossy(),
-        );
+        let result = validate_project_path(&nonexistent_file, &project_root);
 
         // Should succeed now that we allow non-existent files
         assert!(result.is_ok(), "Failed with error: {:?}", result.err());
@@ -2678,8 +2631,9 @@ mod mdx_corpus_tests {
     #[test]
     fn hidden_blocks_match_the_snapshot() {
         let mut actual = String::from(
-            "# The ESM block the editor hides in each file here. Checked by\n\
-             # `mdx_corpus_tests` in `src-tauri/src/commands/files.rs`.\n",
+            "# The ESM block the editor hides in each file here, and the ESM further down\n\
+             # that counts as already imported. Checked by `mdx_corpus_tests` in\n\
+             # `src-tauri/src/commands/files.rs`.\n",
         );
         for path in mdx_files(&corpus().join("files")) {
             let parsed = parse_frontmatter(&std::fs::read_to_string(&path).unwrap()).unwrap();
@@ -2691,6 +2645,10 @@ mod mdx_corpus_tests {
             let name = name(&path);
             let name = name.strip_prefix("files/").unwrap();
             actual.push_str(&format!("\n=== {name}\n{block}\n"));
+            // Imports further down, which count as already imported
+            for esm in crate::mdx_esm::body_esm(&parsed.content) {
+                actual.push_str(&format!("--- further down\n{}\n", esm.text));
+            }
         }
 
         let snapshot = corpus().join("files/blocks.txt");
@@ -2699,9 +2657,14 @@ mod mdx_corpus_tests {
             return;
         }
         let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
+        let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
+        let first_difference = sections(&actual)
+            .into_iter()
+            .zip(sections(&expected))
+            .find(|(a, e)| a != e);
         assert!(
             actual == expected,
-            "Hidden blocks differ from files/blocks.txt. If that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
+            "Hidden blocks differ from files/blocks.txt, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
         );
     }
 }

@@ -93,14 +93,13 @@ export type {
   MdxComponent,
   /**
    * The imports the component builder adds with a component and the images
-   * picked for its props, planned without saving.
+   * and entries picked for its props, planned without saving.
    *
    * Fields:
    * - `imports` - The import block with everything added
    * - `added` - The statements added or changed, empty when nothing is
-   * - `existing` - The statement that already imports the component, which may be something else of the same name
-   * - `images` - The name each image is imported as, in the order they were given
-   * - `entries` - The name each entry is loaded as, in the order they were given
+   * - `existing` - The statement that already has the component's name, which may be something else of the same name
+   * - `names` - The name each picked image or entry is imported or loaded as, by the prop it was picked for
    */
   ImportPlan,
   /**
@@ -109,13 +108,13 @@ export type {
    */
   PropImports,
   /**
-   * An image picked for an image prop: its file's name, which its import's
-   * name comes from, and the path to import it from.
+   * An image picked for an image prop: the prop, the file's name, which its
+   * import's name comes from, and the path to import it from.
    */
   ImageImport,
   /**
-   * A collection entry picked for an entry prop: its collection and its id in
-   * Astro, which the file loads with `getEntry`.
+   * A collection entry picked for an entry prop: the prop, the collection and
+   * the entry's id in Astro, which the file loads with `getEntry`.
    */
   EntryImport,
   /**

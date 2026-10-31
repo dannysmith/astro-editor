@@ -123,3 +123,21 @@ export function getCollectionSettings(
     urlPattern: collectionSettings?.urlPattern,
   }
 }
+
+/**
+ * Whether the component builder imports images picked for a collection's
+ * image props: when the project adds imports, and the collection's images go
+ * somewhere under `src/`, which is the only place Astro imports images from.
+ * Otherwise image props take the name of an image the writer imports.
+ */
+export function canImportImages(
+  projectSettings: ProjectSettings | null | undefined,
+  collectionName: string | undefined
+): boolean {
+  if (!projectSettings?.addComponentImports || !collectionName) return false
+  const { assetsDirectory } = getCollectionSettings(
+    projectSettings,
+    collectionName
+  ).pathOverrides
+  return /^(\.?\/)?src(\/|$)/.test(assetsDirectory)
+}

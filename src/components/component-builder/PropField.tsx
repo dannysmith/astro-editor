@@ -28,7 +28,8 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
 import { FormField } from './FormField'
-import { canPickImages, ImagePropField } from './ImagePropField'
+import { ImagePropField } from './ImagePropField'
+import { canImportImages } from '../../lib/project-registry/collection-settings'
 import { EntryPropField } from './EntryPropField'
 
 /** Lists longer than this get a searchable combobox rather than a select */
@@ -58,27 +59,8 @@ export function PropField({ prop }: { prop: PropInfo }) {
   const { name, kind } = prop
   const required = !prop.is_optional
 
-  if (kind.kind === 'image' && canPickImages(settings, collection)) {
-    return (
-      <ImagePropField
-        prop={prop}
-        label={name}
-        required={required}
-        description={prop.description ?? ''}
-      />
-    )
-  }
-
-  if (kind.kind === 'collectionEntry' && settings?.addComponentImports) {
-    return (
-      <EntryPropField
-        prop={prop}
-        collection={kind.collection}
-        label={name}
-        required={required}
-        description={prop.description ?? ''}
-      />
-    )
+  if (kind.kind === 'image' && canImportImages(settings, collection)) {
+    return <ImagePropField prop={prop} />
   }
 
   const description = [prop.description, bindingHint(prop)]
@@ -112,6 +94,25 @@ export function PropField({ prop }: { prop: PropInfo }) {
   }
 
   const fieldProps = { label: name, required, description, defaultValue }
+
+  // Numbers, imported bindings, and types we can only take as text
+  const textField = (
+    <FormField {...fieldProps} htmlFor={id}>
+      <Input
+        id={id}
+        type={kind.kind === 'number' ? 'number' : 'text'}
+        value={typeof value === 'string' ? value : ''}
+        onChange={e => setValue(name, e.target.value || undefined)}
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+      />
+    </FormField>
+  )
+
+  if (kind.kind === 'collectionEntry' && settings?.addComponentImports) {
+    return <EntryPropField prop={prop} fallback={textField} />
+  }
 
   // Optional booleans can also be left to the component's default
   if (kind.kind === 'boolean') {
@@ -309,18 +310,5 @@ export function PropField({ prop }: { prop: PropInfo }) {
     )
   }
 
-  // Numbers, imported bindings, and types we can only take as text
-  return (
-    <FormField {...fieldProps} htmlFor={id}>
-      <Input
-        id={id}
-        type={kind.kind === 'number' ? 'number' : 'text'}
-        value={typeof value === 'string' ? value : ''}
-        onChange={e => setValue(name, e.target.value || undefined)}
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck={false}
-      />
-    </FormField>
-  )
+  return textField
 }

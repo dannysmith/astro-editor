@@ -4,10 +4,10 @@ export const queryKeys = {
   all: ['project'] as const,
   collections: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'collections'] as const,
-  // Legacy: kept for backward compatibility with existing code
+  // Every file in a collection, with its frontmatter, for entry pickers
   collectionFiles: (projectPath: string, collectionName: string) =>
     [...queryKeys.collections(projectPath), collectionName, 'files'] as const,
-  // New: For directory contents (replaces collectionFiles)
+  // The files and folders in one folder of a collection, for the sidebar
   directoryContents: (
     projectPath: string,
     collectionName: string,
@@ -36,5 +36,7 @@ export const queryKeys = {
       'fileBasedCollection',
       collectionName,
     ] as const,
+  projectDependencies: (projectPath: string) =>
+    [...queryKeys.all, projectPath, 'dependencies'] as const,
   // Add more keys here as needed
 }

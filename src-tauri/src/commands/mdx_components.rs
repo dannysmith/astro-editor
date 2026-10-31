@@ -1,7 +1,7 @@
-use crate::commands::files::validate_project_path;
 use crate::mdx_components::{self, starlight};
 use crate::mdx_esm::{self, ImportPlan, PropImports};
 use crate::models::MdxComponent;
+use crate::utils::validate_project_path;
 use std::path::Path;
 
 /// The project's MDX components, plus Starlight's built-in ones in Starlight projects
@@ -60,4 +60,16 @@ pub async fn plan_component_import(
         &component,
         &props,
     ))
+}
+
+/// The packages in the project's `package.json` dependencies and
+/// devDependencies, sorted
+#[tauri::command]
+#[specta::specta]
+pub async fn project_dependencies(project_path: String) -> Result<Vec<String>, String> {
+    let mut packages: Vec<_> = mdx_components::package_dependencies(Path::new(&project_path))
+        .into_iter()
+        .collect();
+    packages.sort();
+    Ok(packages)
 }

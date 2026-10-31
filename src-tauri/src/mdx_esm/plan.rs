@@ -1,10 +1,10 @@
 //! Planning the imports the component builder adds with a component and the
-//! images picked for its props, without saving anything, so the builder can
-//! show them first.
+//! images and entries picked for its props, without saving anything, so the
+//! builder can show them first.
 
-use std::collections::HashSet;
-use std::ops::Range;
-use std::path::{Path, PathBuf};
+use std::collections::{BTreeMap, HashSet};
+use std::fs;
+use std::path::{Component, Path, PathBuf};
 
 use pathdiff::diff_paths;
 use serde::{Deserialize, Serialize};
@@ -12,13 +12,14 @@ use walkdir::WalkDir;
 
 use super::edit::{add_entry_load, add_import, Style};
 use super::imports::{body_esm, Binding, Esm, Import};
-use crate::commands::files::parse_frontmatter_internal;
 use crate::mdx_components::package_dependencies;
 use crate::models::MdxComponent;
 
 /// An image picked for an image prop, which the file has to import
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 pub struct ImageImport {
+    /// The prop it was picked for
+    pub prop: String,
     /// The picked file's name, which the import's binding is named after
     pub file_name: String,
     /// The path to import it from, as the editor writes image paths
@@ -29,6 +30,8 @@ pub struct ImageImport {
 /// `getEntry`
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 pub struct EntryImport {
+    /// The prop it was picked for
+    pub prop: String,
     pub collection: String,
     /// The entry's id in Astro
     pub id: String,
@@ -47,19 +50,19 @@ pub struct ImportPlan {
     pub imports: String,
     /// The statements added or changed, in the order they're in the block
     pub added: Vec<String>,
-    /// The statement that already imports the component, if one does. It may
-    /// import something else of the same name, and then the writer's import wins.
+    /// The statement that already has the component's name, if one does. It may
+    /// be something else of the same name, and then the writer's import wins.
     pub existing: Option<String>,
-    /// The name each image is imported as, in the order they were given
-    pub images: Vec<String>,
-    /// The name each entry is loaded as, in the order they were given
-    pub entries: Vec<String>,
+    /// The name each picked image or entry is imported or loaded as, by the
+    /// prop it was picked for
+    pub names: BTreeMap<String, String>,
 }
 
 /// Plans the imports for inserting `component` into `file`, with `props` for
 /// the images and entries picked for its props. `imports` and `body` are the
 /// file's import block and body. `None` when there's no import we can be sure
-/// of, such as when the block isn't only imports and exports.
+/// of: the component's name isn't one an import can bind, or the block doesn't
+/// parse.
 ///
 /// Paths are absolute and canonical. `collection_dir` is the file's collection,
 /// whose other files show how the site writes imports.
@@ -72,20 +75,24 @@ pub fn plan_component_import(
     component: &MdxComponent,
     props: &PropImports,
 ) -> Option<ImportPlan> {
+    if !is_component_name(&component.name) {
+        return None;
+    }
     let block = Esm::parse(imports)?;
     let file_esm: Vec<Esm> = std::iter::once(block).chain(body_esm(body)).collect();
-    let imported = |name: &str| file_esm.iter().find_map(|e| e.statement_importing(name));
+    // Imported, or declared in the file like `export const Callout = …`
+    let bound = |name: &str| file_esm.iter().find_map(|e| e.statement_binding(name));
 
-    let names: Vec<&str> = std::iter::once(component.name.as_str())
+    let component_names: Vec<&str> = std::iter::once(component.name.as_str())
         .chain(slot_components(component))
         .collect();
-    let missing: Vec<&str> = names
+    let missing: Vec<&str> = component_names
         .iter()
         .copied()
-        .filter(|name| imported(name).is_none())
+        .filter(|name| bound(name).is_none())
         .collect();
     let existing = if missing.is_empty() {
-        imported(&component.name).map(str::to_string)
+        bound(&component.name).map(str::to_string)
     } else {
         None
     };
@@ -94,19 +101,18 @@ pub fn plan_component_import(
             imports: imports.to_string(),
             added: Vec::new(),
             existing,
-            images: Vec::new(),
-            entries: Vec::new(),
+            names: BTreeMap::new(),
         });
     }
 
     let current_dir = file.parent()?;
-    let collection = collection_files(collection_dir, file);
     let style = style_of(file_esm.iter().flat_map(|e| e.imports()).map(|(_, i)| i))
         .or_else(|| {
+            let collection: Vec<_> = mdx_files(collection_dir, file).map(|f| f.esm()).collect();
             style_of(
                 collection
                     .iter()
-                    .flat_map(|f| &f.esm)
+                    .flatten()
                     .flat_map(|e| e.imports())
                     .map(|(_, i)| i),
             )
@@ -114,7 +120,6 @@ pub fn plan_component_import(
         .unwrap_or_default();
 
     let mut text = imports.to_string();
-    let mut added = Vec::new();
     for name in missing {
         let (source, binding) = if name != component.name {
             // Slot templates only come with a package's components
@@ -125,32 +130,30 @@ pub fn plan_component_import(
         } else if let Some(source) = &component.import_source {
             (source.clone(), binding_of(component))
         } else {
-            let packages = package_dependencies(project_root);
-            copied_import(name, &collection, current_dir, &packages).or_else(|| {
+            copied_import(project_root, collection_dir, file, component).or_else(|| {
                 let path = diff_paths(project_root.join(&component.file_path), current_dir)?;
                 Some((relative_specifier(&path), binding_of(component)))
             })?
         };
-        let change = add_import(&Esm::parse(&text)?, name, &binding, &source, style);
-        record(&mut text, &mut added, change);
+        text = add_import(&Esm::parse(&text)?, name, &binding, &source, style);
     }
 
     // Images and entries can be picked twice, or already be in the file for
     // something else, and then their existing name is used
-    let body_esm = &file_esm[1..];
+    let further_down = &file_esm[1..];
     let mut taken: HashSet<String> = file_esm
         .iter()
         .flat_map(|e| e.bindings())
-        .chain(names)
+        .chain(component_names)
         .chain(["getEntry"])
         .map(String::from)
         .collect();
 
-    let mut image_names = Vec::new();
+    let mut names = BTreeMap::new();
     for image in &props.images {
         let block = Esm::parse(&text)?;
         let already = std::iter::once(&block)
-            .chain(body_esm)
+            .chain(further_down)
             .flat_map(|e| e.imports())
             .filter(|(_, import)| import.source == image.specifier && !import.type_only)
             .flat_map(|(_, import)| &import.specifiers)
@@ -163,77 +166,83 @@ pub fn plan_component_import(
                     &variable_name(&file_stem(&image.file_name), "image"),
                     &taken,
                 );
-                let change = add_import(&block, &name, &Binding::Default, &image.specifier, style);
-                record(&mut text, &mut added, change);
+                text = add_import(&block, &name, &Binding::Default, &image.specifier, style);
                 taken.insert(name.clone());
                 name
             }
         };
-        image_names.push(name);
+        names.insert(image.prop.clone(), name);
     }
 
-    let mut entry_names = Vec::new();
     for entry in &props.entries {
         let block = Esm::parse(&text)?;
         let already = std::iter::once(&block)
-            .chain(body_esm)
+            .chain(further_down)
             .find_map(|e| e.name_loading(&entry.collection, &entry.id))
             .map(String::from);
         let name = match already {
             Some(name) => name,
             None => {
                 let has_get_entry = std::iter::once(&block)
-                    .chain(body_esm)
-                    .any(|e| e.statement_importing("getEntry").is_some());
+                    .chain(further_down)
+                    .any(|e| e.statement_binding("getEntry").is_some());
                 if !has_get_entry {
                     let get_entry = Binding::Named("getEntry".to_string());
-                    let change = add_import(&block, "getEntry", &get_entry, "astro:content", style);
-                    record(&mut text, &mut added, change);
+                    text = add_import(&block, "getEntry", &get_entry, "astro:content", style);
                 }
                 // The last part of the id: `2024/first-post` gives `firstPost`
                 let last = entry.id.rsplit('/').next().unwrap_or_default();
                 let name = unique_name(&variable_name(last, "entry"), &taken);
-                let change = add_entry_load(
+                text = add_entry_load(
                     &Esm::parse(&text)?,
                     &name,
                     &entry.collection,
                     &entry.id,
                     style,
                 );
-                record(&mut text, &mut added, change);
                 taken.insert(name.clone());
                 name
             }
         };
-        entry_names.push(name);
+        names.insert(entry.prop.clone(), name);
     }
 
     Some(ImportPlan {
-        added: added
-            .into_iter()
-            .map(|range| text[range].to_string())
-            .collect(),
+        added: changed_statements(imports, &text)?,
         imports: text,
         existing,
-        images: image_names,
-        entries: entry_names,
+        names,
     })
 }
 
-/// Takes `change`, the new text and the statement added or changed in it, and
-/// keeps `added` (where the statements added or changed so far are) up to date
-/// as the text around them moves
-fn record(text: &mut String, added: &mut Vec<Range<usize>>, change: (String, Range<usize>)) {
-    let (new_text, range) = change;
-    let grew = new_text.len() - text.len();
-    // A statement that was joined is replaced by its new range
-    added.retain(|r| r.start != range.start);
-    for r in added.iter_mut().filter(|r| r.start > range.start) {
-        *r = r.start + grew..r.end + grew;
-    }
-    added.push(range);
-    added.sort_by_key(|r| r.start);
-    *text = new_text;
+/// The statements in `after` that aren't in `before`: the ones added, and the
+/// ones a name was joined into
+fn changed_statements(before: &str, after: &str) -> Option<Vec<String>> {
+    let before = Esm::parse(before)?;
+    let unchanged: HashSet<&str> = before
+        .statements
+        .iter()
+        .map(|s| &before.text[s.range.clone()])
+        .collect();
+    let after = Esm::parse(after)?;
+    Some(
+        after
+            .statements
+            .iter()
+            .map(|s| &after.text[s.range.clone()])
+            .filter(|s| !unchanged.contains(s))
+            .map(String::from)
+            .collect(),
+    )
+}
+
+/// Whether `name` can be imported and used as a component: an identifier
+/// starting with a capital, as MDX treats lowercase tags as HTML
+fn is_component_name(name: &str) -> bool {
+    name.starts_with(|c: char| c.is_ascii_uppercase())
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Whether the image at `specifier`, a path the editor wrote for `file`, is
@@ -294,7 +303,9 @@ fn variable_name(text: &str, kind: &str) -> String {
     }
 }
 
-/// Words that can't be variable names in a module, and globals best not hidden
+/// Words that can't be variable names in a module, globals best not hidden, and
+/// names Astro defines in every MDX file (`frontmatter`, `getHeadings`, `url`,
+/// `file`, and `components` for the component mapping)
 const RESERVED_WORDS: &[&str] = &[
     "arguments",
     "await",
@@ -302,6 +313,7 @@ const RESERVED_WORDS: &[&str] = &[
     "case",
     "catch",
     "class",
+    "components",
     "const",
     "continue",
     "debugger",
@@ -314,9 +326,12 @@ const RESERVED_WORDS: &[&str] = &[
     "export",
     "extends",
     "false",
+    "file",
     "finally",
     "for",
+    "frontmatter",
     "function",
+    "getHeadings",
     "if",
     "implements",
     "import",
@@ -340,6 +355,7 @@ const RESERVED_WORDS: &[&str] = &[
     "try",
     "typeof",
     "undefined",
+    "url",
     "var",
     "void",
     "while",
@@ -388,61 +404,135 @@ fn binding_of(component: &MdxComponent) -> Binding {
     }
 }
 
-/// An MDX file in the collection, other than the one being edited
-struct CollectionFile {
+/// Another MDX file, whose imports show how the site writes them
+struct MdxFile {
     dir: PathBuf,
-    esm: Vec<Esm>,
+    text: String,
 }
 
-fn collection_files(collection_dir: &Path, current: &Path) -> Vec<CollectionFile> {
-    WalkDir::new(collection_dir)
+impl MdxFile {
+    /// The file's ESM: the block after its frontmatter and any further down
+    fn esm(&self) -> Vec<Esm> {
+        body_esm(after_frontmatter(&self.text))
+    }
+}
+
+/// The MDX files under `dir` other than `current`, in a stable order, each read
+/// only when it's reached
+fn mdx_files<'a>(dir: &'a Path, current: &'a Path) -> impl Iterator<Item = MdxFile> + 'a {
+    WalkDir::new(dir)
         .sort_by_file_name()
         .into_iter()
         .filter_map(Result::ok)
-        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "mdx"))
-        .filter(|entry| entry.path() != current)
+        .filter(move |entry| {
+            entry.path().extension().is_some_and(|ext| ext == "mdx") && entry.path() != current
+        })
         .filter_map(|entry| {
-            let parsed =
-                parse_frontmatter_internal(&std::fs::read_to_string(entry.path()).ok()?).ok()?;
-            let esm = Esm::parse(&parsed.imports)
-                .into_iter()
-                .chain(body_esm(&parsed.content))
-                .collect();
-            Some(CollectionFile {
+            Some(MdxFile {
                 dir: entry.path().parent()?.to_path_buf(),
-                esm,
+                text: fs::read_to_string(entry.path()).ok()?.replace("\r\n", "\n"),
             })
         })
-        .collect()
 }
 
-/// How another file in the collection imports `name`, if one does and its path
-/// works from `current_dir`: aliases, root paths, barrels and packages work from
-/// anywhere, relative paths only from the same folder. Imports from the
-/// project's `packages` are skipped: those are other components with the same
-/// name, like Starlight's `Card`, or an embed imported as `Video`.
+/// The text after a file's frontmatter, without parsing the YAML
+fn after_frontmatter(text: &str) -> &str {
+    let Some(rest) = text.strip_prefix("---\n") else {
+        return text;
+    };
+    let mut pos = 0;
+    for line in rest.split_inclusive('\n') {
+        pos += line.len();
+        if line.trim_end() == "---" {
+            return &rest[pos..];
+        }
+    }
+    text
+}
+
+/// How another file imports `component`, if one does with a path that works
+/// from `file`, looking through the collection first and then the folder the
+/// collections are in. Aliases, root paths and barrels are copied as written,
+/// which is how a site's aliases get used without reading tsconfig. A relative
+/// path is only copied from the same folder. Paths that can be followed must
+/// lead to the component, and imports from Astro's own modules (`astro:assets`)
+/// or the project's packages are skipped, as those are other components with
+/// the same name: Astro's `Image`, Starlight's `Card`, an embed imported as
+/// `Video`.
 fn copied_import(
-    name: &str,
-    collection: &[CollectionFile],
-    current_dir: &Path,
-    packages: &HashSet<String>,
+    project_root: &Path,
+    collection_dir: &Path,
+    file: &Path,
+    component: &MdxComponent,
 ) -> Option<(String, Binding)> {
-    collection.iter().find_map(|file| {
-        file.esm
+    let name = component.name.as_str();
+    let current_dir = file.parent()?;
+    let component_file = project_root.join(&component.file_path);
+    let packages = package_dependencies(project_root);
+    // The folder the collections are in, unless that's the whole project
+    let content_dir = collection_dir
+        .parent()
+        .filter(|dir| dir.starts_with(project_root) && *dir != project_root);
+
+    let copies = |from: &MdxFile, import: &Import| {
+        if import.type_only || import.source.contains(':') {
+            return false;
+        }
+        if import.source.starts_with('.') {
+            from.dir == current_dir && leads_to(&from.dir.join(&import.source), &component_file)
+        } else if let Some(from_root) = import.source.strip_prefix('/') {
+            leads_to(&project_root.join(from_root), &component_file)
+        } else {
+            !packages.contains(package_name(&import.source))
+        }
+    };
+
+    let files = mdx_files(collection_dir, file).chain(
+        content_dir
+            .into_iter()
+            .flat_map(|dir| mdx_files(dir, file))
+            .filter(|f| !f.dir.starts_with(collection_dir)),
+    );
+    files.filter(|f| f.text.contains(name)).find_map(|f| {
+        f.esm()
             .iter()
             .flat_map(|e| e.imports())
             .find_map(|(_, import)| {
-                if import.type_only
-                    || packages.contains(package_name(&import.source))
-                    || import.source.starts_with('.') && file.dir != current_dir
-                {
-                    return None;
-                }
                 let specifier = import.specifiers.iter().find(|s| s.local == name)?;
-                (specifier.binding != Binding::Namespace)
+                (specifier.binding != Binding::Namespace && copies(&f, import))
                     .then(|| (import.source.clone(), specifier.binding.clone()))
             })
     })
+}
+
+/// Whether an import of `path` gets the component at `component_file`: the file
+/// itself, the file without its extension, or a folder (or its `index`) the
+/// component is in, which is a barrel
+fn leads_to(path: &Path, component_file: &Path) -> bool {
+    let path = normalise(path);
+    let folder = if path.file_stem().is_some_and(|stem| stem == "index") {
+        path.parent().map(Path::to_path_buf)
+    } else {
+        Some(path.clone())
+    };
+    path == component_file
+        || path == component_file.with_extension("")
+        || folder.is_some_and(|dir| component_file.starts_with(dir))
+}
+
+/// `path` with `.` and `..` worked out, without touching the file system
+fn normalise(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for part in path.components() {
+        match part {
+            Component::ParentDir => {
+                result.pop();
+            }
+            Component::CurDir => {}
+            other => result.push(other),
+        }
+    }
+    result
 }
 
 /// The package a module is in, if it's in one: `@scope/name` or `name`
@@ -483,8 +573,8 @@ fn style_of<'a>(imports: impl Iterator<Item = &'a Import>) -> Option<Style> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::files::parse_frontmatter_internal;
     use crate::mdx_components::{self, starlight};
-    use std::fs;
 
     #[derive(Deserialize)]
     struct Cases {
@@ -492,6 +582,8 @@ mod tests {
         case: Vec<Case>,
     }
 
+    /// One case in a site's `cases.toml`: the whole block expected after the
+    /// insert, or the import that already has the name
     #[derive(Deserialize)]
     struct Case {
         name: String,
@@ -499,8 +591,7 @@ mod tests {
         component: String,
         package: Option<String>,
         expected: Option<String>,
-        #[serde(default)]
-        unchanged: bool,
+        existing: Option<String>,
     }
 
     fn starlight(name: &str) -> MdxComponent {
@@ -510,49 +601,43 @@ mod tests {
             .unwrap()
     }
 
-    /// Plans for a file in an empty collection, with images picked by their
-    /// file name and path
-    fn plan(
-        imports: &str,
-        body: &str,
-        component: &MdxComponent,
-        images: &[(&str, &str)],
-    ) -> Option<ImportPlan> {
-        let images = images
-            .iter()
-            .map(|(file_name, specifier)| ImageImport {
-                file_name: file_name.to_string(),
-                specifier: specifier.to_string(),
-            })
-            .collect();
-        plan_props(
-            imports,
-            body,
-            component,
-            PropImports {
-                images,
-                entries: Vec::new(),
-            },
-        )
+    fn images(images: &[(&str, &str)]) -> PropImports {
+        PropImports {
+            images: images
+                .iter()
+                .enumerate()
+                .map(|(i, (file_name, specifier))| ImageImport {
+                    prop: format!("p{i}"),
+                    file_name: file_name.to_string(),
+                    specifier: specifier.to_string(),
+                })
+                .collect(),
+            entries: Vec::new(),
+        }
     }
 
-    /// Plans with entries picked by their collection and id
-    fn plan_entries(imports: &str, entries: &[(&str, &str)]) -> ImportPlan {
-        let entries = entries
-            .iter()
-            .map(|(collection, id)| EntryImport {
-                collection: collection.to_string(),
-                id: id.to_string(),
-            })
-            .collect();
-        let props = PropImports {
+    fn entries(entries: &[(&str, &str)]) -> PropImports {
+        PropImports {
             images: Vec::new(),
-            entries,
-        };
-        plan_props(imports, "", &starlight("Aside"), props).unwrap()
+            entries: entries
+                .iter()
+                .enumerate()
+                .map(|(i, (collection, id))| EntryImport {
+                    prop: format!("e{i}"),
+                    collection: collection.to_string(),
+                    id: id.to_string(),
+                })
+                .collect(),
+        }
     }
 
-    fn plan_props(
+    /// The names the picks got, in the order they were picked
+    fn names(plan: &ImportPlan) -> Vec<&str> {
+        plan.names.values().map(String::as_str).collect()
+    }
+
+    /// Plans for a file in an empty collection
+    fn plan(
         imports: &str,
         body: &str,
         component: &MdxComponent,
@@ -574,16 +659,158 @@ mod tests {
     }
 
     #[test]
-    fn loads_entries_with_get_entry() {
-        let plan = plan_entries(
-            "import { Aside } from '@astrojs/starlight/components'",
-            &[("articles", "2024/first-post"), ("authors", "jane")],
-        );
-        assert_eq!(plan.entries, ["firstPost", "jane"]);
+    fn shows_every_statement_it_adds_or_changes() {
+        let block = "import { Steps } from '@astrojs/starlight/components'\nimport A from './a'";
         assert_eq!(
-            plan.imports,
-            "import { Aside } from '@astrojs/starlight/components'\nimport { getEntry } from 'astro:content'\nexport const firstPost = await getEntry('articles', '2024/first-post')\nexport const jane = await getEntry('authors', 'jane')"
+            plan(block, "", &starlight("Tabs"), images(&[("rocket.png", "./rocket.png")])),
+            Some(ImportPlan {
+                imports: "import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'\nimport A from './a'\nimport rocket from './rocket.png'".into(),
+                added: vec![
+                    "import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'".into(),
+                    "import rocket from './rocket.png'".into()
+                ],
+                existing: None,
+                names: BTreeMap::from([("p0".into(), "rocket".into())]),
+            })
         );
+    }
+
+    #[test]
+    fn lists_a_joined_import_above_new_lines_in_block_order() {
+        let block = "import { getCollection } from 'astro:content'";
+        let mut props = images(&[("rocket.png", "./rocket.png")]);
+        props.entries = entries(&[("articles", "a")]).entries;
+        let plan = plan(block, "", &starlight("Aside"), props).unwrap();
+        assert_eq!(
+            plan.added,
+            [
+                "import { getCollection, getEntry } from 'astro:content'",
+                "import { Aside } from '@astrojs/starlight/components'",
+                "import rocket from './rocket.png'",
+                "export const a = await getEntry('articles', 'a')"
+            ]
+        );
+    }
+
+    #[test]
+    fn shows_what_already_has_the_name() {
+        let card = "import { Card } from '@astrojs/starlight/components';";
+        let expected = |imports: &str, existing: &str| ImportPlan {
+            imports: imports.into(),
+            added: vec![],
+            existing: Some(existing.into()),
+            names: BTreeMap::new(),
+        };
+        assert_eq!(
+            plan(card, "", &starlight("Card"), PropImports::default()),
+            Some(expected(card, card))
+        );
+        // Further down the body
+        assert_eq!(
+            plan(
+                "",
+                &format!("Text.\n\n{card}\n\n<Card />"),
+                &starlight("Card"),
+                PropImports::default()
+            ),
+            Some(expected("", card))
+        );
+        // Written in the file, which another import would clash with
+        let inline = "export const Card = (props) => <div>{props.children}</div>";
+        assert_eq!(
+            plan(inline, "", &starlight("Card"), PropImports::default()),
+            Some(expected(inline, inline))
+        );
+    }
+
+    #[test]
+    fn plans_nothing_it_cant_be_sure_of() {
+        // A block that doesn't parse
+        assert_eq!(
+            plan(
+                "import a from 'a'\nconst b = 1",
+                "",
+                &starlight("Aside"),
+                PropImports::default()
+            ),
+            None
+        );
+        // A name an import can't bind, or that MDX would read as an HTML tag
+        for name in ["my-callout", "index"] {
+            let mut component = starlight("Aside");
+            component.name = name.to_string();
+            assert_eq!(
+                plan("", "", &component, PropImports::default()),
+                None,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn imports_images_under_names_from_their_files() {
+        let plan = plan(
+            "import { Aside } from '@astrojs/starlight/components';",
+            "",
+            &starlight("Aside"),
+            images(&[
+                ("rocket.png", "../../assets/docs/rocket.png"),
+                ("Hero Image.jpg", "../../assets/docs/hero-image.jpg"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(names(&plan), ["rocket", "heroImage"]);
+        assert_eq!(
+            plan.added,
+            [
+                "import rocket from '../../assets/docs/rocket.png';",
+                "import heroImage from '../../assets/docs/hero-image.jpg';"
+            ]
+        );
+    }
+
+    #[test]
+    fn image_names_avoid_names_the_file_uses() {
+        let block = "import rocket from './other.png'\nexport const rocket2 = 1";
+        let plan = plan(
+            block,
+            "",
+            &starlight("Aside"),
+            images(&[("rocket.png", "./rocket.png"), ("aside.png", "./aside.png")]),
+        )
+        .unwrap();
+        assert_eq!(names(&plan), ["rocket3", "aside"]);
+    }
+
+    #[test]
+    fn reuses_an_image_already_imported() {
+        let plan = plan(
+            "import launch from './rocket.png'",
+            "",
+            &starlight("Aside"),
+            images(&[
+                ("rocket.png", "./rocket.png"),
+                ("rocket.png", "./rocket.png"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(names(&plan), ["launch", "launch"]);
+        assert_eq!(
+            plan.added,
+            ["import { Aside } from '@astrojs/starlight/components'"]
+        );
+    }
+
+    #[test]
+    fn loads_entries_with_get_entry() {
+        let plan = plan(
+            "import { Aside } from '@astrojs/starlight/components'",
+            "",
+            &starlight("Aside"),
+            entries(&[("articles", "2024/first-post"), ("authors", "jane")]),
+        )
+        .unwrap();
+        assert_eq!(names(&plan), ["firstPost", "jane"]);
         assert_eq!(
             plan.added,
             [
@@ -597,8 +824,14 @@ mod tests {
     #[test]
     fn joins_an_astro_content_import_and_reuses_loaded_entries() {
         let block = "import { Aside } from '@astrojs/starlight/components';\nimport { getCollection } from 'astro:content';\nexport const post = await getEntry('articles', 'a');";
-        let plan = plan_entries(block, &[("articles", "a"), ("articles", "get-entry")]);
-        assert_eq!(plan.entries, ["post", "getEntry2"]);
+        let plan = plan(
+            block,
+            "",
+            &starlight("Aside"),
+            entries(&[("articles", "a"), ("articles", "get-entry")]),
+        )
+        .unwrap();
+        assert_eq!(names(&plan), ["post", "getEntry2"]);
         assert_eq!(
             plan.added,
             [
@@ -609,172 +842,26 @@ mod tests {
     }
 
     #[test]
-    fn shows_the_statement_it_adds_or_changes() {
-        let block = "import { Steps } from '@astrojs/starlight/components'\nimport A from './a'";
-        assert_eq!(
-            plan(block, "", &starlight("Tabs"), &[]),
-            Some(ImportPlan {
-                imports: "import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'\nimport A from './a'".into(),
-                added: vec!["import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'".into()],
-                existing: None,
-                images: vec![],
-                entries: vec![],
-            })
-        );
-    }
-
-    #[test]
-    fn shows_the_import_that_already_has_the_name() {
-        let card = "import { Card } from '@astrojs/starlight/components';";
-        let expected = |imports: &str| ImportPlan {
-            imports: imports.into(),
-            added: vec![],
-            existing: Some(card.into()),
-            images: vec![],
-            entries: vec![],
-        };
-        assert_eq!(
-            plan(card, "", &starlight("Card"), &[]),
-            Some(expected(card))
-        );
-        // Further down the body
-        assert_eq!(
-            plan(
-                "",
-                &format!("Text.\n\n{card}\n\n<Card />"),
-                &starlight("Card"),
-                &[]
-            ),
-            Some(expected(""))
-        );
-    }
-
-    #[test]
-    fn plans_nothing_for_a_block_that_isnt_only_imports_and_exports() {
-        assert_eq!(
-            plan(
-                "import a from 'a'\nconst b = 1",
-                "",
-                &starlight("Aside"),
-                &[]
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn imports_images_under_names_from_their_files() {
-        let plan = plan(
-            "import { Aside } from '@astrojs/starlight/components';",
-            "",
-            &starlight("Aside"),
-            &[
-                ("rocket.png", "../../assets/docs/rocket.png"),
-                ("Hero Image.jpg", "../../assets/docs/hero-image.jpg"),
-            ],
-        )
-        .unwrap();
-        assert_eq!(plan.images, ["rocket", "heroImage"]);
-        assert_eq!(
-            plan.added,
-            [
-                "import rocket from '../../assets/docs/rocket.png';",
-                "import heroImage from '../../assets/docs/hero-image.jpg';"
-            ]
-        );
-        assert_eq!(
-            plan.existing.as_deref(),
-            Some("import { Aside } from '@astrojs/starlight/components';")
-        );
-    }
-
-    #[test]
-    fn lists_every_statement_it_adds_or_changes() {
-        let plan = plan(
-            "import { Steps } from '@astrojs/starlight/components'",
-            "",
-            &starlight("Tabs"),
-            &[("rocket.png", "./rocket.png")],
-        )
-        .unwrap();
-        assert_eq!(
-            plan.added,
-            [
-                "import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'",
-                "import rocket from './rocket.png'"
-            ]
-        );
-    }
-
-    #[test]
-    fn image_names_avoid_names_the_file_uses() {
-        let block = "import rocket from './other.png'\nexport const rocket2 = 1";
-        let plan = plan(
-            block,
-            "",
-            &starlight("Aside"),
-            &[("rocket.png", "./rocket.png"), ("aside.png", "./aside.png")],
-        )
-        .unwrap();
-        assert_eq!(plan.images, ["rocket3", "aside"]);
-    }
-
-    #[test]
-    fn reuses_an_image_already_imported() {
-        let block = "import launch from './rocket.png'";
-        let plan = plan(
-            block,
-            "",
-            &starlight("Aside"),
-            &[
-                ("rocket.png", "./rocket.png"),
-                ("rocket.png", "./rocket.png"),
-            ],
-        )
-        .unwrap();
-        assert_eq!(plan.images, ["launch", "launch"]);
-        assert_eq!(
-            plan.added,
-            ["import { Aside } from '@astrojs/starlight/components'"]
-        );
-    }
-
-    #[test]
     fn names_images_and_entries_after_their_files() {
-        assert_eq!(
-            variable_name(&file_stem("hero-image.png"), "image"),
-            "heroImage"
-        );
-        assert_eq!(
-            variable_name(&file_stem("heroImage.png"), "image"),
-            "heroImage"
-        );
-        assert_eq!(
-            variable_name(&file_stem("2026-10-31-rocket.webp"), "image"),
-            "rocket"
-        );
-        assert_eq!(
-            variable_name(&file_stem("IMG_1234.JPG"), "image"),
-            "img1234"
-        );
-        assert_eq!(variable_name(&file_stem("2x.png"), "image"), "image2x");
-        assert_eq!(
-            variable_name(&file_stem("class.png"), "image"),
-            "classImage"
-        );
-        assert_eq!(
-            variable_name(&file_stem("2026-10-31.png"), "image"),
-            "image"
-        );
-        assert_eq!(
-            variable_name(&file_stem("café au lait.png"), "image"),
-            "caféAuLait"
-        );
+        for (file_name, name) in [
+            ("hero-image.png", "heroImage"),
+            ("heroImage.png", "heroImage"),
+            ("2026-10-31-rocket.webp", "rocket"),
+            ("IMG_1234.JPG", "img1234"),
+            ("2x.png", "image2x"),
+            ("2026-10-31.png", "image"),
+            ("café au lait.png", "caféAuLait"),
+            // Reserved words, and names MDX defines
+            ("class.png", "classImage"),
+            ("file.png", "fileImage"),
+        ] {
+            assert_eq!(variable_name(&file_stem(file_name), "image"), name);
+        }
         assert_eq!(
             variable_name("1709876543210-timestamp-filename-format", "entry"),
             "timestampFilenameFormat"
         );
-        assert_eq!(variable_name("default", "entry"), "defaultEntry");
+        assert_eq!(variable_name("frontmatter", "entry"), "frontmatterEntry");
         assert_eq!(variable_name("2024", "entry"), "entry");
     }
 
@@ -797,18 +884,54 @@ mod tests {
     }
 
     #[test]
+    fn follows_an_import_to_the_component() {
+        let component = Path::new("/site/src/components/mdx/Callout.astro");
+        let posts = Path::new("/site/src/content/posts");
+        for specifier in [
+            "../../components/mdx/Callout.astro",
+            "../../components/mdx/Callout",
+            "../../components/mdx",
+            "../../components/mdx/index.ts",
+        ] {
+            assert!(leads_to(&posts.join(specifier), component), "{specifier}");
+        }
+        assert!(!leads_to(
+            &posts.join("../../components/blog/Callout.astro"),
+            component
+        ));
+    }
+
+    #[test]
+    fn reads_what_follows_the_frontmatter() {
+        assert_eq!(
+            after_frontmatter("---\ntitle: A\n---\n\nimport a from 'a'"),
+            "\nimport a from 'a'"
+        );
+        assert_eq!(after_frontmatter("import a from 'a'"), "import a from 'a'");
+        assert_eq!(after_frontmatter("---\nunclosed"), "---\nunclosed");
+    }
+
+    #[test]
     fn finds_the_package_of_a_module() {
         assert_eq!(
             package_name("@astrojs/starlight/components"),
             "@astrojs/starlight"
         );
         assert_eq!(package_name("astro-embed"), "astro-embed");
-        assert_eq!(package_name("astro:content"), "astro:content");
         assert_eq!(
             package_name("@components/mdx/Card.astro"),
             "@components/mdx"
         );
         assert_eq!(package_name("~/components/Card.astro"), "~");
+    }
+
+    #[test]
+    fn style_ties_go_to_single_quotes_and_semicolons() {
+        let esm = Esm::parse("import a from \"a\"\nimport b from 'b';").unwrap();
+        assert_eq!(
+            style_of(esm.imports().map(|(_, i)| i)),
+            Some(Style::default())
+        );
     }
 
     /// Runs every case in `test/mdx-imports/sites/*/cases.toml`
@@ -859,11 +982,19 @@ mod tests {
                     component,
                     &PropImports::default(),
                 );
-                let actual = plan
-                    .filter(|plan| !plan.added.is_empty())
-                    .map(|plan| plan.imports);
-                let expected = (!case.unchanged).then(|| case.expected.clone().unwrap());
-                if actual.as_deref().map(str::trim_end) != expected.as_deref().map(str::trim_end) {
+                let actual = plan.map(|plan| {
+                    if plan.added.is_empty() {
+                        format!("existing: {}", plan.existing.unwrap_or_default())
+                    } else {
+                        plan.imports.trim_end().to_string()
+                    }
+                });
+                let expected = match (&case.expected, &case.existing) {
+                    (Some(block), _) => block.trim_end().to_string(),
+                    (None, Some(existing)) => format!("existing: {existing}"),
+                    (None, None) => panic!("{label}: needs `expected` or `existing`"),
+                };
+                if actual.as_deref() != Some(expected.as_str()) {
                     failures.push(format!(
                         "{label}\n  expected: {expected:?}\n  actual:   {actual:?}"
                     ));

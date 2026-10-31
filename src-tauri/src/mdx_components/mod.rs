@@ -4,38 +4,19 @@ mod prop_types;
 pub mod starlight;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
+use crate::utils::validate_project_path;
+pub(crate) use prop_types::export_name;
 use prop_types::{
     astro_frontmatter, default_text, destructured_defaults, untyped_props, unwrap_ts_expr,
     PropResolver, SourceModule,
 };
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use swc_common::{Span, Spanned};
 use swc_ecma_ast::*;
 use swc_ecma_visit::{Visit, VisitWith};
 use walkdir::WalkDir;
-
-/// Validates that a file path is within the project boundaries
-///
-/// This function prevents path traversal attacks by ensuring all file operations
-/// stay within the current project root directory.
-fn validate_project_path(file_path: &Path, project_root: &Path) -> Result<PathBuf, String> {
-    // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
-        .map_err(|_| "Invalid file path".to_string())?;
-    let canonical_root = project_root
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
-
-    // Ensure file is within project bounds
-    canonical_file
-        .strip_prefix(&canonical_root)
-        .map_err(|_| "File outside project directory".to_string())?;
-
-    Ok(canonical_file)
-}
 
 /// The packages in the project's `package.json` dependencies and devDependencies
 pub fn package_dependencies(project_root: &Path) -> HashSet<String> {
@@ -374,10 +355,7 @@ fn parse_react_props(
 /// Whether a React file's component is imported by name: the file has no default
 /// export and exports a function, class or variable named after the component
 fn react_named_export(module: &Module, component_name: &str) -> bool {
-    let is_name = |name: &ModuleExportName| match name {
-        ModuleExportName::Ident(ident) => ident.sym == component_name,
-        ModuleExportName::Str(s) => s.value == component_name,
-    };
+    let is_name = |name: &ModuleExportName| export_name(name) == component_name;
     let mut has_default = false;
     let mut exports_name = false;
     for item in &module.body {
@@ -711,58 +689,6 @@ fn includes_undefined(ty: &TsType) -> bool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-
-    #[test]
-    fn test_validate_project_path_valid() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let test_file = project_root.join("components").join("Alert.astro");
-
-        // Create test structure
-        fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        fs::write(&test_file, "test content").unwrap();
-
-        let result = validate_project_path(&test_file, &project_root);
-
-        assert!(result.is_ok());
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
-
-    #[test]
-    fn test_validate_project_path_traversal_attack() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let malicious_path = project_root.join("../../../etc/passwd");
-
-        // Create project directory
-        fs::create_dir_all(&project_root).unwrap();
-
-        let result = validate_project_path(&malicious_path, &project_root);
-
-        // Should fail due to path traversal
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert!(
-            error.contains("File outside project directory") || error.contains("Invalid file path")
-        );
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
 
     #[test]
     fn test_parse_props_from_typescript() {
@@ -1575,6 +1501,7 @@ const props = defineProps<{
 #[cfg(test)]
 mod fixture_tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-components")

@@ -126,32 +126,24 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Min 5 chars')).toBeInTheDocument()
     })
 
-    it('formats an array’s item count as items, not characters', () => {
+    // A list's size, in items rather than characters
+    it.each<[FieldConstraints, string]>([
+      [{ maxItems: 3 }, 'Up to 3 items'],
+      [{ minItems: 1 }, 'At least 1 item'],
+      [{ minItems: 2, maxItems: 5 }, '2–5 items'],
+      [{ minItems: 1, maxItems: 1 }, 'Exactly 1 item'],
+    ])('formats %o as "%s"', (constraints, text) => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={{ maxItems: 3 }}
+          constraints={constraints}
           currentValue={['a']}
         >
           <input />
         </FieldWrapper>
       )
 
-      expect(screen.getByText('Up to 3 items')).toBeInTheDocument()
-    })
-
-    it('formats an exact item count without a range', () => {
-      render(
-        <FieldWrapper
-          label="Test"
-          constraints={{ minItems: 1, maxItems: 1 }}
-          currentValue={['a']}
-        >
-          <input />
-        </FieldWrapper>
-      )
-
-      expect(screen.getByText('Exactly 1 item')).toBeInTheDocument()
+      expect(screen.getByText(text)).toBeInTheDocument()
     })
 
     it('formats maxLength only', () => {

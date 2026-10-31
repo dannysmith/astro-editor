@@ -43,7 +43,7 @@ Small projects, one for each way sites write imports. Each has a `package.json`,
 
 | Site | Style | Modelled on |
 | --- | --- | --- |
-| `relative/` | `../../components/mdx/X.astro`, double quotes, semicolons; React, Vue and Svelte components | maggieappleton.com |
+| `relative/` | `../../components/mdx/X.astro`, double quotes, semicolons; React, Vue and Svelte components; a barrel imported by a relative path | maggieappleton.com |
 | `alias/` | `@components/mdx/X.astro` from tsconfig `paths`, single quotes, no semicolons | taskdn docs, Astro docs |
 | `root-path/` | `/src/components/X.astro`, files that disagree about style | astro.build |
 | `barrel/` | `import { X } from '@/components/mdx'` through an `index.ts` | the test projects, danny.is |
@@ -66,7 +66,7 @@ import { Aside, Callout } from '@/components/mdx'
 ```
 
 - `expected` is the whole import block after the insert. It's compared without trailing whitespace. The editor reads every file with LF line endings, so `expected` never contains `\r`.
-- `unchanged = true` replaces `expected` when nothing should be added.
+- `existing` replaces `expected` when nothing should be added because the file already has the name: it's the statement the builder should show as "Already imported".
 - `component` names one of the site's own components. Add `package = "@astrojs/starlight/components"` for a Starlight component of that name.
 - `components_dir` at the top of the file sets where the site's components are, if not `src/components/mdx`.
 

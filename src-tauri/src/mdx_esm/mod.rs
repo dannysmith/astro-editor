@@ -8,4 +8,6 @@ mod imports;
 mod plan;
 
 pub use block::split_esm_block;
+#[cfg(test)]
+pub(crate) use imports::body_esm;
 pub use plan::{importable_image, plan_component_import, ImportPlan, PropImports};

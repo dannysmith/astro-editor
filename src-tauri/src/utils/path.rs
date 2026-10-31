@@ -5,7 +5,7 @@
 //! of the underlying platform.
 
 use serde::{self, Serialize, Serializer};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Normalizes a path to use forward slashes for consistent frontend handling.
 /// Windows paths like `C:\Users\foo` become `C:/Users/foo`.
@@ -20,6 +20,45 @@ where
     S: Serializer,
 {
     normalize_path_for_serialization(path).serialize(serializer)
+}
+
+/// Validates that a file path is within the project boundaries
+///
+/// This function prevents path traversal attacks by ensuring all file operations
+/// stay within the current project root directory.
+pub fn validate_project_path(
+    file_path: impl AsRef<Path>,
+    project_root: impl AsRef<Path>,
+) -> Result<PathBuf, String> {
+    let file_path = file_path.as_ref();
+    let project_root = project_root.as_ref();
+
+    // Resolve canonical paths to handle symlinks and .. traversal
+    let canonical_file = file_path
+        .canonicalize()
+        .or_else(|_| {
+            // If file doesn't exist, try to canonicalize parent and append filename
+            if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
+                parent.canonicalize().map(|p| p.join(filename))
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Invalid file path",
+                ))
+            }
+        })
+        .map_err(|_| "Invalid file path".to_string())?;
+
+    let canonical_root = project_root
+        .canonicalize()
+        .map_err(|_| "Invalid project root".to_string())?;
+
+    // Ensure file is within project bounds
+    canonical_file
+        .strip_prefix(&canonical_root)
+        .map_err(|_| "File outside project directory".to_string())?;
+
+    Ok(canonical_file)
 }
 
 #[cfg(test)]

@@ -14,43 +14,15 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { processFileToAssets, IMAGE_EXTENSIONS } from '../../lib/files'
 import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
-import type { ProjectSettings } from '../../lib/project-registry/types'
 import { toast } from '../../lib/toast'
 import { FormField } from './FormField'
 
 /**
- * Whether image props can be picked rather than typed: when the project adds
- * imports, and the collection's images go somewhere under `src/`, which is
- * the only place Astro imports images from
- */
-export function canPickImages(
-  settings: ProjectSettings | null,
-  collection: string | undefined
-): boolean {
-  if (!settings?.addComponentImports || !collection) return false
-  const { assetsDirectory } = getCollectionSettings(
-    settings,
-    collection
-  ).pathOverrides
-  return /^(\.?\/)?src(\/|$)/.test(assetsDirectory)
-}
-
-/**
  * An image prop: pick a file, which is copied into the assets directory as
- * the frontmatter's image fields do, then imported. The prop's value is the
- * name it's imported as.
+ * the frontmatter's image fields do, then imported. The tag gets the name
+ * it's imported as.
  */
-export function ImagePropField({
-  prop,
-  label,
-  required,
-  description,
-}: {
-  prop: PropInfo
-  label: string
-  required: boolean
-  description: string
-}) {
+export function ImagePropField({ prop }: { prop: PropInfo }) {
   const image = useComponentBuilderStore(state => state.images[prop.name])
   const setImage = useComponentBuilderStore(state => state.setImage)
   const [isLoading, setIsLoading] = React.useState(false)
@@ -91,10 +63,10 @@ export function ImagePropField({
 
   return (
     <FormField
-      label={label}
+      label={prop.name}
       labelId={labelId}
-      required={required}
-      description={description}
+      required={!prop.is_optional}
+      description={prop.description ?? ''}
     >
       <div className="flex flex-col gap-2">
         {image && (

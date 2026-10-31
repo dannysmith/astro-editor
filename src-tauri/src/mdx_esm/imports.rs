@@ -5,11 +5,10 @@
 use std::ops::Range;
 
 use swc_common::Spanned;
-use swc_ecma_ast::{
-    Decl, ExprOrSpread, ImportDecl, ImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem,
-};
+use swc_ecma_ast::{Decl, ExprOrSpread, ImportDecl, ImportSpecifier, ModuleDecl, ModuleItem};
 
 use super::block::{find_block, line_end, line_starts_esm, offset, parse_chunk};
+use crate::mdx_components::export_name;
 
 /// ESM code: the block after the frontmatter, or an ESM paragraph further down the body
 pub struct Esm {
@@ -82,22 +81,24 @@ impl Esm {
                 if text[end..].starts_with(';') {
                     end += 1;
                 }
+                let (import, declares, loads) = match decl {
+                    ModuleDecl::Import(import) => (
+                        Some(read_import(import, &text[..end], &position)),
+                        Vec::new(),
+                        Vec::new(),
+                    ),
+                    ModuleDecl::ExportDecl(export) => (
+                        None,
+                        declared_names(&export.decl),
+                        entry_loads(&export.decl),
+                    ),
+                    _ => (None, Vec::new(), Vec::new()),
+                };
                 Some(Statement {
                     range: position(span.lo)..end,
-                    import: match decl {
-                        ModuleDecl::Import(import) => {
-                            Some(read_import(import, &text[..end], &position))
-                        }
-                        _ => None,
-                    },
-                    declares: match decl {
-                        ModuleDecl::ExportDecl(export) => declared_names(&export.decl),
-                        _ => Vec::new(),
-                    },
-                    loads: match decl {
-                        ModuleDecl::ExportDecl(export) => entry_loads(&export.decl),
-                        _ => Vec::new(),
-                    },
+                    import,
+                    declares,
+                    loads,
                 })
             })
             .collect::<Option<_>>()?;
@@ -113,23 +114,17 @@ impl Esm {
             .filter_map(|statement| Some((statement, statement.import.as_ref()?)))
     }
 
-    /// The statement that imports `name`, if one does
-    pub fn statement_importing(&self, name: &str) -> Option<&str> {
-        self.imports()
-            .find(|(_, import)| import.specifiers.iter().any(|s| s.local == name))
-            .map(|(statement, _)| &self.text[statement.range.clone()])
+    /// The statement that binds `name`, importing or declaring it, if one does
+    pub fn statement_binding(&self, name: &str) -> Option<&str> {
+        self.statements
+            .iter()
+            .find(|statement| statement.bindings().any(|bound| bound == name))
+            .map(|statement| &self.text[statement.range.clone()])
     }
 
     /// Every name the code binds, imported or exported
     pub fn bindings(&self) -> impl Iterator<Item = &str> {
-        self.statements.iter().flat_map(|statement| {
-            let imported = statement
-                .import
-                .iter()
-                .flat_map(|import| &import.specifiers)
-                .map(|s| s.local.as_str());
-            imported.chain(statement.declares.iter().map(String::as_str))
-        })
+        self.statements.iter().flat_map(Statement::bindings)
     }
 
     /// The name the code loads an entry as, if it does
@@ -139,6 +134,18 @@ impl Esm {
             .flat_map(|statement| &statement.loads)
             .find(|load| load.collection == collection && load.id == id)
             .map(|load| load.name.as_str())
+    }
+}
+
+impl Statement {
+    /// The names it imports or declares
+    fn bindings(&self) -> impl Iterator<Item = &str> {
+        let imported = self
+            .import
+            .iter()
+            .flat_map(|import| &import.specifiers)
+            .map(|s| s.local.as_str());
+        imported.chain(self.declares.iter().map(String::as_str))
     }
 }
 
@@ -203,11 +210,11 @@ fn read_import(
                 ImportSpecifier::Namespace(s) => (&s.local, Binding::Namespace),
                 ImportSpecifier::Named(s) => (
                     &s.local,
-                    Binding::Named(match &s.imported {
-                        Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
-                        Some(ModuleExportName::Str(s)) => s.value.to_string_lossy().to_string(),
-                        None => s.local.sym.to_string(),
-                    }),
+                    Binding::Named(
+                        s.imported
+                            .as_ref()
+                            .map_or_else(|| s.local.sym.to_string(), export_name),
+                    ),
                 ),
             };
             let span = specifier.span();
@@ -234,8 +241,8 @@ fn read_import(
 /// The ESM further down an MDX body, which docs sites use a lot. Imports inside
 /// code fences are examples, not code. Any other line that starts ESM counts,
 /// even mid-paragraph where MDX would read it as text: missing an import means
-/// adding a second one, which breaks the build, while an extra one only means
-/// nothing is added.
+/// adding a second one, which breaks the build, while an extra one means nothing
+/// is added and the builder shows the line it took for the import.
 pub fn body_esm(body: &str) -> Vec<Esm> {
     let mut found = Vec::new();
     let mut fence: Option<&str> = None;
@@ -341,13 +348,20 @@ mod tests {
     }
 
     #[test]
-    fn finds_the_statement_importing_a_name() {
+    fn finds_the_statement_binding_a_name() {
         let esm = Esm::parse("import a from 'a'\nimport {\n  B,\n  Card,\n} from 'b'").unwrap();
         assert_eq!(
-            esm.statement_importing("Card"),
+            esm.statement_binding("Card"),
             Some("import {\n  B,\n  Card,\n} from 'b'")
         );
-        assert_eq!(esm.statement_importing("C"), None);
+        assert_eq!(esm.statement_binding("C"), None);
+
+        // A component written in the file
+        let inline = "export const Callout = (props) => <div>{props.children}</div>";
+        assert_eq!(
+            Esm::parse(inline).unwrap().statement_binding("Callout"),
+            Some(inline)
+        );
     }
 
     #[test]

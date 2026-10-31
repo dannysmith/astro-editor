@@ -110,6 +110,11 @@ export const commands = {
 	 *  sure of. An error when an image isn't somewhere Astro can import it from.
 	 */
 	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent, props: PropImports) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component, props })),
+	/**
+	 *  The packages in the project's `package.json` dependencies and
+	 *  devDependencies, sorted
+	 */
+	projectDependencies: (projectPath: string) => typedError<string[], string>(__TAURI_INVOKE("project_dependencies", { projectPath })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
@@ -157,6 +162,8 @@ export type DirectoryScanResult = {
  *  `getEntry`
  */
 export type EntryImport = {
+	/**  The prop it was picked for */
+	prop: string,
 	collection: string,
 	/**  The entry's id in Astro */
 	id: string,
@@ -174,6 +181,8 @@ export type FileEntry = {
 
 /**  An image picked for an image prop, which the file has to import */
 export type ImageImport = {
+	/**  The prop it was picked for */
+	prop: string,
 	/**  The picked file's name, which the import's binding is named after */
 	file_name: string,
 	/**  The path to import it from, as the editor writes image paths */
@@ -186,14 +195,15 @@ export type ImportPlan = {
 	/**  The statements added or changed, in the order they're in the block */
 	added: string[],
 	/**
-	 *  The statement that already imports the component, if one does. It may
-	 *  import something else of the same name, and then the writer's import wins.
+	 *  The statement that already has the component's name, if one does. It may
+	 *  be something else of the same name, and then the writer's import wins.
 	 */
 	existing: string | null,
-	/**  The name each image is imported as, in the order they were given */
-	images: string[],
-	/**  The name each entry is loaded as, in the order they were given */
-	entries: string[],
+	/**
+	 *  The name each picked image or entry is imported or loaded as, by the
+	 *  prop it was picked for
+	 */
+	names: { [key in string]: string },
 };
 
 export type MarkdownContent = {

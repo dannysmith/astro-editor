@@ -32,12 +32,12 @@ import PackageManagerTabs from '~/components/mdx/PackageManagerTabs.astro';
 """
 
 [[case]]
-name = "imports CardGrid with the Cards its slot template inserts"
-file = "src/content/docs/plain.mdx"
-component = "CardGrid"
+name = "adds the slot template's TabItem to an import that has Tabs"
+file = "src/content/docs/tabs-only.mdx"
+component = "Tabs"
 package = "@astrojs/starlight/components"
 expected = """
-import { CardGrid, Card } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 """
 
 [[case]]
@@ -45,7 +45,7 @@ name = "does nothing when a component and its slot template's components are all
 file = "src/content/docs/starlight-cards.mdx"
 component = "CardGrid"
 package = "@astrojs/starlight/components"
-unchanged = true
+existing = "import { Card, CardGrid } from '@astrojs/starlight/components';"
 
 [[case]]
 name = "doesn't copy another file's Starlight import for the project's own Card"
@@ -59,14 +59,14 @@ import Card from '../../components/mdx/Card.astro';
 name = "leaves the file alone when the project's Card would clash with Starlight's"
 file = "src/content/docs/starlight-cards.mdx"
 component = "Card"
-unchanged = true
+existing = "import { Card, CardGrid } from '@astrojs/starlight/components';"
 
 [[case]]
 name = "does nothing when a Starlight component is imported further down the file"
 file = "src/content/docs/later-import.mdx"
 component = "Aside"
 package = "@astrojs/starlight/components"
-unchanged = true
+existing = "import { Aside } from '@astrojs/starlight/components';"
 
 [[case]]
 name = "copies the alias another file uses for a project component"

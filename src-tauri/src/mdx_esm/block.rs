@@ -78,11 +78,15 @@ pub(super) fn find_block(text: &str) -> Option<Range<usize>> {
                     if declarations == 0 {
                         break 'chunks;
                     }
-                    let last = &chunk.items[declarations - 1];
-                    block_end = Some(pos + offset(last.span().hi, chunk.start));
                     if declarations < chunk.items.len() {
+                        let last = &chunk.items[declarations - 1];
+                        block_end = Some(pos + offset(last.span().hi, chunk.start));
                         break 'chunks;
                     }
+                    // All declarations, so anything after the last one is a
+                    // comment, which belongs to the block too
+                    let last_text = pos + text[pos..chunk_end].trim_end().len();
+                    block_end = Some(line_end(text, last_text));
                     pos = skip_blank_lines(text, chunk_end);
                     continue 'chunks;
                 }
@@ -156,16 +160,11 @@ pub(super) fn offset(pos: BytePos, start: BytePos) -> usize {
     pos.0.saturating_sub(start.0) as usize
 }
 
-/// Whether a line starts an ESM statement: `import` or `export` at the start of
-/// the line, followed by a character that can continue one (`import{a}` and
-/// `import"./x"` are valid). Prose like "import this…" passes here and is
+/// Whether a line starts ESM as MDX reads it: `import` or `export` and a space,
+/// at the start of the line. Prose like "import this…" passes here and is
 /// rejected by the parser.
 pub(super) fn line_starts_esm(line: &str) -> bool {
-    ["import", "export"].iter().any(|keyword| {
-        line.strip_prefix(keyword)
-            .and_then(|rest| rest.chars().next())
-            .is_some_and(|c| matches!(c, ' ' | '\t' | '{' | '*' | '\'' | '"'))
-    })
+    line.starts_with("import ") || line.starts_with("export ")
 }
 
 /// The end of the line that `pos` is on, before its `\n`
@@ -197,9 +196,10 @@ fn find_blank_line(text: &str, mut pos: usize) -> usize {
     text.len()
 }
 
-/// Moves the end of the block to the end of its line when all that's left is a
-/// semicolon or a comment, which a statement's span may not include
-fn extend_through_line_tail(text: &str, end: usize) -> usize {
+/// Moves `end`, where a statement ends, to the end of its line when all that's
+/// left on it is a semicolon or a comment, which a statement's span may not
+/// include. Otherwise the line goes on into something else, and `end` stays.
+pub(super) fn extend_through_line_tail(text: &str, end: usize) -> usize {
     let line_end = line_end(text, end);
     let tail = text[end..line_end].trim();
     let rest = tail.strip_prefix(';').unwrap_or(tail).trim_start();
@@ -211,6 +211,10 @@ fn extend_through_line_tail(text: &str, end: usize) -> usize {
     }
 }
 
+// The shapes real files take (multi-line imports, statements with blank lines
+// inside, JSX or a heading straight after an import, comments, prose that starts
+// with "import") are covered by the corpus in `test/mdx-imports/files/`, which
+// `mdx_corpus_tests` in `commands/files.rs` splits. These cover the rest.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,52 +239,6 @@ mod tests {
     }
 
     #[test]
-    fn multi_line_import() {
-        let (block, body) = split("import {\n  One,\n  Two\n} from './c';\n\n# Content");
-        assert_eq!(block, "import {\n  One,\n  Two\n} from './c';");
-        assert_eq!(body, "# Content");
-    }
-
-    #[test]
-    fn every_kind_of_import() {
-        let text = "import type { P } from './p';\nimport * as ns from 'y';\nimport './x.css';\nimport Foo, { Bar as Baz } from './x';\n\nBody.";
-        let (block, body) = split(text);
-        assert_eq!(block, text.strip_suffix("\n\nBody.").unwrap());
-        assert_eq!(body, "Body.");
-    }
-
-    #[test]
-    fn statement_with_a_blank_line_inside() {
-        let (block, body) = split(
-            "export const authors = [\n  { name: 'Ann' },\n\n  { name: 'Ben' },\n];\n\n# Heading",
-        );
-        assert_eq!(
-            block,
-            "export const authors = [\n  { name: 'Ann' },\n\n  { name: 'Ben' },\n];"
-        );
-        assert_eq!(body, "# Heading");
-
-        let (block, body) = split("export const snippet = `first\n\nsecond`;\n\nBody.");
-        assert_eq!(block, "export const snippet = `first\n\nsecond`;");
-        assert_eq!(body, "Body.");
-    }
-
-    #[test]
-    fn heading_or_jsx_straight_after_an_import() {
-        assert_eq!(
-            split("import Foo from './foo'\n# Heading\n\nText."),
-            (
-                "import Foo from './foo'".into(),
-                "# Heading\n\nText.".into()
-            )
-        );
-        assert_eq!(
-            split("import { C } from './c';\n<C />\n\nText."),
-            ("import { C } from './c';".into(), "<C />\n\nText.".into())
-        );
-    }
-
-    #[test]
     fn bare_const_is_body() {
         // MDX only allows import and export as ESM
         let (block, body) = split("import a from 'a';\nconst x = 1;\n\nText.");
@@ -289,70 +247,37 @@ mod tests {
     }
 
     #[test]
-    fn prose_starting_with_import() {
-        let text = "import this idea into your writing\n\nMore prose.";
-        assert_eq!(split(text), (String::new(), text.into()));
-    }
-
-    #[test]
-    fn indented_import_is_body() {
-        let text = "  import a from 'a'\n\nText.";
-        assert_eq!(split(text), (String::new(), text.into()));
-    }
-
-    #[test]
-    fn groups_separated_by_blank_lines() {
+    fn comments_after_the_last_import_stay_in_the_block() {
+        // In the body they'd be prose on the site
         assert_eq!(
-            split("import a from 'a';\n\nimport b from 'b';\n\n\n# Heading"),
+            split("import a from 'a'\n// note\n\n# Heading"),
+            ("import a from 'a'\n// note".into(), "# Heading".into())
+        );
+        assert_eq!(
+            split("import a from 'a'\n/* multi\nline */  \n\nText"),
             (
-                "import a from 'a';\n\nimport b from 'b';".into(),
-                "# Heading".into()
+                "import a from 'a'\n/* multi\nline */  ".into(),
+                "Text".into()
             )
         );
     }
 
     #[test]
-    fn comments_stay_with_the_block() {
-        assert_eq!(
-            split("import a from 'a'; // for the demo\n\n# Heading"),
-            (
-                "import a from 'a'; // for the demo".into(),
-                "# Heading".into()
-            )
-        );
-        assert_eq!(
-            split("import a from 'a'\n// Images\nimport b from './b.png'\n\nText."),
-            (
-                "import a from 'a'\n// Images\nimport b from './b.png'".into(),
-                "Text.".into()
-            )
-        );
+    fn esm_starts_with_import_or_export_and_a_space() {
+        // As in MDX: without the space it's a paragraph
+        for prose in [
+            "import{a} from 'a'",
+            "export*from 'x'",
+            "importance matters",
+        ] {
+            assert_eq!(split(prose), (String::new(), prose.into()), "{prose}");
+        }
+        assert!(line_starts_esm("import './x.css'"));
+        assert!(line_starts_esm("export * from 'x'"));
     }
 
     #[test]
-    fn non_ascii_text() {
-        assert_eq!(
-            split("import Café from './café.astro'; // “fancy”\n\n# Cafés ☕"),
-            (
-                "import Café from './café.astro'; // “fancy”".into(),
-                "# Cafés ☕".into()
-            )
-        );
-    }
-
-    #[test]
-    fn export_default_function_with_jsx_and_a_blank_line() {
-        let block = "export default function Layout({ children }) {\n  return (\n    <main>\n      <header />\n\n      {children}\n    </main>\n  )\n}";
-        assert_eq!(
-            split(&format!("{block}\n\n# Body")),
-            (block.into(), "# Body".into())
-        );
-    }
-
-    #[test]
-    fn broken_import_stays_visible() {
-        let text = "import a from './a\n\nText.";
-        assert_eq!(split(text), (String::new(), text.into()));
+    fn broken_import_at_the_end_stays_visible() {
         assert_eq!(
             split("import {\n  Never"),
             (String::new(), "import {\n  Never".into())

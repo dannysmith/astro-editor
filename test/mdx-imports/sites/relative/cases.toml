@@ -15,7 +15,7 @@ import Video from "../../components/mdx/Video.astro";
 name = "does nothing when the component is already imported"
 file = "src/content/posts/with-imports.mdx"
 component = "Callout"
-unchanged = true
+existing = 'import Callout from "../../components/mdx/Callout.astro";'
 
 [[case]]
 name = "starts a block in the collection's style when the file has no imports"
@@ -73,13 +73,13 @@ import Poll from "../../../../components/mdx/Poll.svelte";
 name = "leaves the file alone when the name is imported from somewhere else"
 file = "src/content/posts/collision.mdx"
 component = "Video"
-unchanged = true
+existing = 'import { YouTube as Video } from "@astro-community/astro-embed-youtube";'
 
 [[case]]
 name = "does nothing when the component is imported further down the file"
 file = "src/content/posts/later-import.mdx"
 component = "Callout"
-unchanged = true
+existing = 'import Callout from "../../components/mdx/Callout.astro";'
 
 [[case]]
 name = "puts the import above exports when there are no other imports"
@@ -97,4 +97,20 @@ component = "Video"
 expected = """
 import Callout from "../../components/mdx/Callout.astro";
 import Video from "../../components/mdx/Video.astro";
+"""
+
+[[case]]
+name = "copies a relative import from a file in the same folder"
+file = "src/content/posts/no-imports.mdx"
+component = "Sparkline"
+expected = """
+import { Sparkline } from "../../components/mdx/charts";
+"""
+
+[[case]]
+name = "doesn't copy a relative import from another folder"
+file = "src/content/posts/nested/2024/deep-post.mdx"
+component = "Sparkline"
+expected = """
+import Sparkline from "../../../../components/mdx/charts/Sparkline.tsx";
 """

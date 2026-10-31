@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { EditorView } from '@codemirror/view'
-import type { ImportPlan, MdxComponent } from '@/types'
+import type { ImportPlan, MdxComponent, PropImports } from '@/types'
 import { commands } from '@/lib/bindings'
 import { toast } from '../lib/toast'
 import { insertSnippet } from '../lib/editor/commands/insertSnippet'
@@ -23,10 +23,30 @@ vi.mock('../lib/editor/commands/insertSnippet', () => ({
 }))
 vi.mock('../lib/toast', () => ({ toast: { error: vi.fn() } }))
 
-const callout: MdxComponent = {
-  name: 'Callout',
-  file_path: 'src/components/mdx/Callout.astro',
-  props: [],
+const planComponentImport = vi.mocked(commands.planComponentImport)
+
+/** A component with an image prop and a collection-entry prop */
+const figure: MdxComponent = {
+  name: 'Figure',
+  file_path: 'src/components/mdx/Figure.astro',
+  props: [
+    {
+      name: 'image',
+      prop_type: 'ImageMetadata',
+      kind: { kind: 'image' },
+      is_optional: true,
+      default_value: null,
+      description: null,
+    },
+    {
+      name: 'related',
+      prop_type: "CollectionEntry<'articles'>",
+      kind: { kind: 'collectionEntry', collection: 'articles' },
+      is_optional: true,
+      default_value: null,
+      description: null,
+    },
+  ],
   has_slot: false,
   description: null,
   framework: 'astro',
@@ -35,32 +55,59 @@ const callout: MdxComponent = {
   slot_template: null,
 }
 
-const add: ImportPlan = {
-  imports: "import Callout from '../../components/mdx/Callout.astro'",
-  added: ["import Callout from '../../components/mdx/Callout.astro'"],
-  existing: null,
-  images: [],
-  entries: [],
+const rocket = { file_name: 'rocket.png', specifier: './rocket.png' }
+const first = { collection: 'articles', id: 'first-article' }
+
+/** A plan that adds Figure's import, and names the given props' picks */
+function planWith(names: Record<string, string> = {}): ImportPlan {
+  return {
+    imports: "import Figure from '../../components/mdx/Figure.astro'",
+    added: ["import Figure from '../../components/mdx/Figure.astro'"],
+    existing: null,
+    names,
+  }
+}
+
+function answer(plan: ImportPlan | null) {
+  return { status: 'ok' as const, data: plan }
+}
+
+/** The picks the last plan was asked for */
+function lastPicks(): PropImports | undefined {
+  return planComponentImport.mock.lastCall?.[6]
+}
+
+/** The snippet the last insert put in the editor */
+function inserted(): string | undefined {
+  return vi.mocked(insertSnippet).mock.lastCall?.[1]
 }
 
 const view = { state: { doc: { toString: () => 'Body' } } } as EditorView
 
-/** Selects Callout and waits for its plan */
-async function select(plan: ImportPlan, component = callout) {
-  vi.mocked(commands.planComponentImport).mockResolvedValue({
-    status: 'ok',
-    data: plan,
-  })
+/** Opens the builder on Figure and waits for its first plan */
+async function select() {
   useComponentBuilderStore.getState().open(view)
-  useComponentBuilderStore.getState().selectComponent(component)
+  useComponentBuilderStore.getState().selectComponent(figure)
   await vi.waitFor(() =>
-    expect(useComponentBuilderStore.getState().importPlan).toEqual(plan)
+    expect(useComponentBuilderStore.getState().planning).toBe(false)
   )
 }
 
+/** Promises that settle when told to, for answers that arrive out of order */
+function deferred() {
+  let resolve: (plan: ImportPlan | null) => void = () => {}
+  const promise = new Promise<ReturnType<typeof answer>>(r => {
+    resolve = plan => r(answer(plan))
+  })
+  return { promise, resolve }
+}
+
+const flush = () => new Promise(r => setTimeout(r, 0))
+
 describe('componentBuilderStore imports', () => {
   beforeEach(() => {
-    vi.mocked(commands.planComponentImport).mockReset()
+    vi.clearAllMocks()
+    planComponentImport.mockResolvedValue(answer(planWith()))
     useProjectStore.setState({
       projectPath: '/site',
       currentProjectSettings: {
@@ -85,156 +132,118 @@ describe('componentBuilderStore imports', () => {
   })
 
   it('adds the planned import on insert', async () => {
-    await select(add)
-    useComponentBuilderStore.getState().insert()
-    expect(useEditorStore.getState().imports).toBe(add.imports)
+    await select()
+    await useComponentBuilderStore.getState().insert()
+    expect(useEditorStore.getState().imports).toBe(planWith().imports)
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
 
-  it('adds nothing with the switch off', async () => {
-    await select(add)
-    useComponentBuilderStore.getState().setAddImport(false)
+  it('plans again on insert, against the file as it is then', async () => {
+    const pending = deferred()
+    planComponentImport.mockReturnValueOnce(pending.promise)
+    useComponentBuilderStore.getState().open(view)
+    useComponentBuilderStore.getState().selectComponent(figure)
 
-    useComponentBuilderStore.getState().insert()
+    // Insert before the first plan arrives, after the block changed on disk
+    useEditorStore.setState({ imports: "import a from 'a'" })
+    await useComponentBuilderStore.getState().insert()
+    expect(planComponentImport.mock.lastCall?.[3]).toBe("import a from 'a'")
+    expect(useEditorStore.getState().imports).toBe(planWith().imports)
+  })
+
+  it('adds nothing with the switch off', async () => {
+    await select()
+    useComponentBuilderStore.getState().setAddImport(false)
+    await useComponentBuilderStore.getState().insert()
     expect(useEditorStore.getState().imports).toBe('')
   })
 
-  it("doesn't plan when the project setting is off", () => {
+  it("doesn't plan when the project setting is off", async () => {
     useProjectStore.setState({
       currentProjectSettings: { pathOverrides: {}, frontmatterMappings: {} },
     })
-    useComponentBuilderStore.getState().open(view)
-    useComponentBuilderStore.getState().selectComponent(callout)
-    expect(commands.planComponentImport).not.toHaveBeenCalled()
-  })
-
-  it('drops a plan that arrives after going back to the list', async () => {
-    let resolve: (plan: ImportPlan) => void = () => {}
-    vi.mocked(commands.planComponentImport).mockReturnValue(
-      new Promise(r => {
-        resolve = plan => r({ status: 'ok', data: plan })
-      })
-    )
-    useComponentBuilderStore.getState().open(view)
-    useComponentBuilderStore.getState().selectComponent(callout)
-    useComponentBuilderStore.getState().back()
-
-    resolve(add)
-    await new Promise(r => setTimeout(r, 0))
+    await select()
+    expect(planComponentImport).not.toHaveBeenCalled()
     expect(useComponentBuilderStore.getState().importPlan).toBeNull()
   })
 
-  it('sets an image prop to the name its image is imported as', async () => {
-    await select(add)
-    const rocket = { file_name: 'rocket.png', specifier: './rocket.png' }
-    vi.mocked(commands.planComponentImport).mockResolvedValue({
-      status: 'ok',
-      data: { ...add, images: ['rocket'] },
+  it('drops a plan that arrives after going back to the list', async () => {
+    const pending = deferred()
+    planComponentImport.mockReturnValueOnce(pending.promise)
+    useComponentBuilderStore.getState().open(view)
+    useComponentBuilderStore.getState().selectComponent(figure)
+    useComponentBuilderStore.getState().back()
+
+    pending.resolve(planWith())
+    await flush()
+    expect(useComponentBuilderStore.getState().importPlan).toBeNull()
+  })
+
+  it('uses the newest plan when picks are answered out of order', async () => {
+    await select()
+    const a = deferred()
+    const b = deferred()
+    planComponentImport.mockReturnValueOnce(a.promise)
+    planComponentImport.mockReturnValueOnce(b.promise)
+
+    void useComponentBuilderStore.getState().setImage('image', rocket)
+    void useComponentBuilderStore.getState().setEntry('related', first)
+    // The second pick builds on the first
+    expect(lastPicks()).toEqual({
+      images: [{ ...rocket, prop: 'image' }],
+      entries: [{ ...first, prop: 'related' }],
     })
 
+    b.resolve(planWith({ image: 'rocket', related: 'firstArticle' }))
+    a.resolve(planWith({ image: 'rocket' }))
+    await flush()
+    expect(useComponentBuilderStore.getState().importPlan?.names).toEqual({
+      image: 'rocket',
+      related: 'firstArticle',
+    })
+  })
+
+  it('inserts picks as the names they were imported and loaded as', async () => {
+    await select()
+    planComponentImport.mockResolvedValue(
+      answer(planWith({ image: 'rocket', related: 'firstArticle' }))
+    )
     await useComponentBuilderStore.getState().setImage('image', rocket)
-    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual({
-      images: [rocket],
-      entries: [],
-    })
-    expect(useComponentBuilderStore.getState().values.image).toBe('rocket')
-
-    await useComponentBuilderStore.getState().setImage('image', undefined)
-    expect(useComponentBuilderStore.getState().values.image).toBeUndefined()
-  })
-
-  it('inserts a picked image as its path with the switch off', async () => {
-    const figure: MdxComponent = {
-      ...callout,
-      name: 'Figure',
-      props: [
-        {
-          name: 'image',
-          prop_type: 'ImageMetadata',
-          kind: { kind: 'image' },
-          is_optional: false,
-          default_value: null,
-          description: null,
-        },
-      ],
-    }
-    await select(add, figure)
-    vi.mocked(commands.planComponentImport).mockResolvedValue({
-      status: 'ok',
-      data: { ...add, images: ['rocket'] },
-    })
-    await useComponentBuilderStore
-      .getState()
-      .setImage('image', { file_name: 'rocket.png', specifier: './rocket.png' })
-
-    const snippet = () => vi.mocked(insertSnippet).mock.lastCall?.[1]
-    useComponentBuilderStore.getState().insert()
-    expect(snippet()).toContain('image={rocket}')
-
-    await select(add, figure)
-    await useComponentBuilderStore
-      .getState()
-      .setImage('image', { file_name: 'rocket.png', specifier: './rocket.png' })
-    useComponentBuilderStore.getState().setAddImport(false)
-    useComponentBuilderStore.getState().insert()
-    expect(snippet()).toContain('image="./rocket.png"')
-  })
-
-  it('sets an entry prop to the name it loads its entry as', async () => {
-    const figure: MdxComponent = {
-      ...callout,
-      name: 'Figure',
-      props: [
-        {
-          name: 'related',
-          prop_type: "CollectionEntry<'articles'>",
-          kind: { kind: 'collectionEntry', collection: 'articles' },
-          is_optional: true,
-          default_value: null,
-          description: null,
-        },
-      ],
-    }
-    const first = { collection: 'articles', id: 'first-article' }
-    await select(add, figure)
-    vi.mocked(commands.planComponentImport).mockResolvedValue({
-      status: 'ok',
-      data: { ...add, entries: ['firstArticle'] },
-    })
     await useComponentBuilderStore.getState().setEntry('related', first)
-    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual({
-      images: [],
-      entries: [first],
-    })
-
-    const snippet = () => vi.mocked(insertSnippet).mock.lastCall?.[1]
-    useComponentBuilderStore.getState().setAddImport(false)
-    useComponentBuilderStore.getState().insert()
-    // With the switch off, the entry goes in as its id
-    expect(snippet()).toContain('related="first-article"')
-
-    await select(add, figure)
-    vi.mocked(commands.planComponentImport).mockResolvedValue({
-      status: 'ok',
-      data: { ...add, entries: ['firstArticle'] },
-    })
-    await useComponentBuilderStore.getState().setEntry('related', first)
-    useComponentBuilderStore.getState().insert()
-    expect(snippet()).toContain('related={firstArticle}')
+    await useComponentBuilderStore.getState().insert()
+    expect(inserted()).toContain('image={rocket}')
+    expect(inserted()).toContain('related={firstArticle}')
   })
 
-  it("keeps out an image that can't be imported", async () => {
-    await select(add)
-    vi.mocked(commands.planComponentImport).mockResolvedValue({
+  it('inserts picks as their path and id when there are no imports', async () => {
+    // With the switch off, or when nothing could be planned
+    for (const off of [true, false]) {
+      await select()
+      await useComponentBuilderStore.getState().setImage('image', rocket)
+      await useComponentBuilderStore.getState().setEntry('related', first)
+      if (off) {
+        useComponentBuilderStore.getState().setAddImport(false)
+      } else {
+        planComponentImport.mockResolvedValue(answer(null))
+      }
+      await useComponentBuilderStore.getState().insert()
+      expect(inserted()).toContain('image="./rocket.png"')
+      expect(inserted()).toContain('related="first-article"')
+    }
+  })
+
+  it("drops an image that can't be imported", async () => {
+    await select()
+    planComponentImport.mockResolvedValueOnce({
       status: 'error',
       error: "b.png isn't in src/",
     })
-
     await useComponentBuilderStore
       .getState()
       .setImage('image', { file_name: 'b.png', specifier: '/public/b.png' })
-    expect(toast.error).toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith('Couldn’t use that image', {
+      description: "b.png isn't in src/",
+    })
     expect(useComponentBuilderStore.getState().images).toEqual({})
-    expect(useComponentBuilderStore.getState().importPlan).toEqual(add)
   })
 })

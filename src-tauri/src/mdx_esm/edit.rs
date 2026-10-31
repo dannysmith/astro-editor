@@ -1,9 +1,7 @@
 //! Adding an import to an ESM block. New text is spliced in, so everything else
 //! stays exactly as the writer formatted it.
 
-use std::ops::Range;
-
-use super::block::line_end;
+use super::block::extend_through_line_tail;
 use super::imports::{Binding, Esm, Import, Statement};
 
 /// How a file writes its imports
@@ -23,18 +21,17 @@ impl Default for Style {
     }
 }
 
-/// Adds an import of `name` from `source` to `block`. A named import joins an
-/// existing import from the same module (compared as text) that it can be
-/// added to. Anything else gets a line of its own after the last import, or
-/// above the first export when there are no imports. Returns the new block, and
-/// where the statement added or changed is in it.
+/// Adds an import of `name` from `source` to `block`, returning the new block.
+/// A named import joins an existing import from the same module (compared as
+/// text) that it can be added to. Anything else gets a line of its own after
+/// the last import, or above the first export when there are no imports.
 pub fn add_import(
     block: &Esm,
     name: &str,
     binding: &Binding,
     source: &str,
     style: Style,
-) -> (String, Range<usize>) {
+) -> String {
     let text = &block.text;
 
     if let Binding::Named(imported) = binding {
@@ -54,41 +51,26 @@ pub fn add_import(
         });
         if let Some((statement, import)) = target {
             let (at, insert) = merge(text, statement, import, &specifier);
-            let end = statement.range.end + insert.len();
-            return (splice(text, at, &insert), statement.range.start..end);
+            return splice(text, at, &insert);
         }
     }
 
     let statement = new_statement(name, binding, source, style);
     let last_import = block.imports().last().map(|(statement, _)| statement);
-    let (at, insert, start) = match (last_import, block.statements.first()) {
-        (Some(last), _) => {
-            let at = line_end(text, last.range.end);
-            (at, format!("\n{statement}"), at + 1)
-        }
-        (None, Some(first)) => {
-            let at = line_start(text, first.range.start);
-            (at, format!("{statement}\n"), at)
-        }
-        (None, None) if text.trim().is_empty() => {
-            let end = statement.len();
-            return (statement, 0..end);
-        }
-        // Only comments, which stay above it
-        (None, None) => (text.len(), format!("\n{statement}"), text.len() + 1),
-    };
-    (splice(text, at, &insert), start..start + statement.len())
+    match (last_import, block.statements.first()) {
+        (Some(last), _) => splice(text, after(text, last), &format!("\n{statement}")),
+        (None, Some(first)) => splice(
+            text,
+            line_start(text, first.range.start),
+            &format!("{statement}\n"),
+        ),
+        (None, None) => append(text, &statement),
+    }
 }
 
 /// Adds `export const name = await getEntry('collection', 'id')` at the end of
-/// `block`. Returns the new block, and where the statement is in it.
-pub fn add_entry_load(
-    block: &Esm,
-    name: &str,
-    collection: &str,
-    id: &str,
-    style: Style,
-) -> (String, Range<usize>) {
+/// `block`, returning the new block
+pub fn add_entry_load(block: &Esm, name: &str, collection: &str, id: &str, style: Style) -> String {
     let text = &block.text;
     let semicolon = if style.semicolons { ";" } else { "" };
     let statement = format!(
@@ -96,19 +78,25 @@ pub fn add_entry_load(
         quoted(collection, style),
         quoted(id, style)
     );
-    // After the last statement's line, or after a block of only comments
-    let at = match block.statements.last() {
-        Some(last) => line_end(text, last.range.end),
-        None if text.trim().is_empty() => {
-            let end = statement.len();
-            return (statement, 0..end);
-        }
-        None => text.len(),
-    };
-    (
-        splice(text, at, &format!("\n{statement}")),
-        at + 1..at + 1 + statement.len(),
-    )
+    match block.statements.last() {
+        Some(last) => splice(text, after(text, last), &format!("\n{statement}")),
+        None => append(text, &statement),
+    }
+}
+
+/// Where a new line can go after `statement`: the end of its line, keeping a
+/// trailing comment with it, unless the line goes on into something else
+fn after(text: &str, statement: &Statement) -> usize {
+    extend_through_line_tail(text, statement.range.end)
+}
+
+/// `statement` as the whole block, or after a block of only comments
+fn append(text: &str, statement: &str) -> String {
+    if text.trim().is_empty() {
+        statement.to_string()
+    } else {
+        format!("{text}\n{statement}")
+    }
 }
 
 /// Where and what to insert to add `specifier` to `import`, matching how its
@@ -135,7 +123,11 @@ fn merge(text: &str, statement: &Statement, import: &Import, specifier: &str) ->
     let indent = &line[..line.len() - line.trim_start().len()];
 
     match (one_per_line, comma) {
-        (true, Some(at)) => (at, format!("\n{indent}{specifier},")),
+        // After a comment on the last name's line, which describes that name
+        (true, Some(at)) => (
+            extend_through_line_tail(text, at),
+            format!("\n{indent}{specifier},"),
+        ),
         (true, None) => (last.range.end, format!(",\n{indent}{specifier}")),
         (false, Some(at)) => (at, format!(" {specifier},")),
         (false, None) => (last.range.end, format!(", {specifier}")),
@@ -173,17 +165,14 @@ fn splice(text: &str, at: usize, insert: &str) -> String {
 mod tests {
     use super::*;
 
-    /// Adds the import and returns the new block and the statement added or changed
-    fn add(block: &str, name: &str, binding: Binding, source: &str) -> (String, String) {
-        let (text, range) = add_import(
+    fn add(block: &str, name: &str, binding: Binding, source: &str) -> String {
+        add_import(
             &Esm::parse(block).unwrap(),
             name,
             &binding,
             source,
             Style::default(),
-        );
-        let statement = text[range].to_string();
-        (text, statement)
+        )
     }
 
     fn named(name: &str) -> Binding {
@@ -194,10 +183,7 @@ mod tests {
     fn starts_an_empty_block() {
         assert_eq!(
             add("", "Callout", Binding::Default, "./Callout.astro"),
-            (
-                "import Callout from './Callout.astro';".into(),
-                "import Callout from './Callout.astro';".into()
-            )
+            "import Callout from './Callout.astro';"
         );
     }
 
@@ -226,25 +212,43 @@ mod tests {
     #[test]
     fn goes_after_the_last_import_and_leaves_the_rest_alone() {
         let block = "import a from 'a'; // keep\n\nimport b from 'b';\n\nexport const meta = {\n  x: 1,\n};";
-        let (text, statement) = add(block, "C", Binding::Default, "./c");
         assert_eq!(
-            text,
+            add(block, "C", Binding::Default, "./c"),
             "import a from 'a'; // keep\n\nimport b from 'b';\nimport C from './c';\n\nexport const meta = {\n  x: 1,\n};"
         );
-        assert_eq!(statement, "import C from './c';");
+    }
+
+    #[test]
+    fn never_lands_inside_a_comment_or_statement_on_the_same_line() {
+        assert_eq!(
+            add("import a from 'a' /* x\ny */", "C", Binding::Default, "./c"),
+            "import a from 'a'\nimport C from './c'; /* x\ny */"
+        );
+        assert_eq!(
+            add(
+                "import a from 'a'; export const x = {\n  y: 1 }",
+                "C",
+                Binding::Default,
+                "./c"
+            ),
+            "import a from 'a';\nimport C from './c'; export const x = {\n  y: 1 }"
+        );
     }
 
     #[test]
     fn goes_above_exports_when_there_are_no_imports() {
-        let (text, _) = add("// Data\nexport const a = 1;", "C", Binding::Default, "./c");
-        assert_eq!(text, "// Data\nimport C from './c';\nexport const a = 1;");
+        assert_eq!(
+            add("// Data\nexport const a = 1;", "C", Binding::Default, "./c"),
+            "// Data\nimport C from './c';\nexport const a = 1;"
+        );
     }
 
     #[test]
     fn keeps_a_block_of_only_comments() {
-        let (text, statement) = add("// Nothing yet", "C", Binding::Default, "./c");
-        assert_eq!(text, "// Nothing yet\nimport C from './c';");
-        assert_eq!(statement, "import C from './c';");
+        assert_eq!(
+            add("// Nothing yet", "C", Binding::Default, "./c"),
+            "// Nothing yet\nimport C from './c';"
+        );
     }
 
     #[test]
@@ -256,17 +260,14 @@ mod tests {
                 named("Card"),
                 "x"
             ),
-            (
-                "import { Aside, Card } from 'x'; // note".into(),
-                "import { Aside, Card } from 'x';".into()
-            )
+            "import { Aside, Card } from 'x'; // note"
         );
         assert_eq!(
-            add("import { Aside, } from 'x'", "Card", named("Card"), "x").0,
+            add("import { Aside, } from 'x'", "Card", named("Card"), "x"),
             "import { Aside, Card, } from 'x'"
         );
         assert_eq!(
-            add("import { Aside } from 'x'", "Card", named("Box"), "x").0,
+            add("import { Aside } from 'x'", "Card", named("Box"), "x"),
             "import { Aside, Box as Card } from 'x'"
         );
     }
@@ -280,21 +281,28 @@ mod tests {
                 named("Card"),
                 "x"
             ),
-            (
-                "import {\n    Aside,\n    Badge,\n    Card,\n} from 'x'".into(),
-                "import {\n    Aside,\n    Badge,\n    Card,\n} from 'x'".into()
-            )
+            "import {\n    Aside,\n    Badge,\n    Card,\n} from 'x'"
         );
         assert_eq!(
-            add("import {\n  Aside\n} from 'x'", "Card", named("Card"), "x").0,
+            add("import {\n  Aside\n} from 'x'", "Card", named("Card"), "x"),
             "import {\n  Aside,\n  Card\n} from 'x'"
+        );
+        // The comment stays with the name it describes
+        assert_eq!(
+            add(
+                "import {\n  Aside, // first\n  Badge, // second\n} from 'x'",
+                "Card",
+                named("Card"),
+                "x"
+            ),
+            "import {\n  Aside, // first\n  Badge, // second\n  Card,\n} from 'x'"
         );
     }
 
     #[test]
     fn adds_braces_to_a_default_import() {
         assert_eq!(
-            add("import Widget from './w'", "Gauge", named("Gauge"), "./w").0,
+            add("import Widget from './w'", "Gauge", named("Gauge"), "./w"),
             "import Widget, { Gauge } from './w'"
         );
     }
@@ -306,29 +314,20 @@ mod tests {
             quote: '"',
             semicolons: false,
         };
-        let (text, range) = add_entry_load(
-            &Esm::parse(block).unwrap(),
-            "post",
-            "blog",
-            "it's \"new\"",
-            style,
-        );
         assert_eq!(
-            text,
+            add_entry_load(&Esm::parse(block).unwrap(), "post", "blog", "it's \"new\"", style),
             "import { getEntry } from \"astro:content\"\nexport const a = 1 // note\nexport const post = await getEntry(\"blog\", \"it's \\\"new\\\"\")"
         );
         assert_eq!(
-            &text[range],
-            "export const post = await getEntry(\"blog\", \"it's \\\"new\\\"\")"
+            add_entry_load(
+                &Esm::parse("").unwrap(),
+                "post",
+                "blog",
+                "a",
+                Style::default()
+            ),
+            "export const post = await getEntry('blog', 'a');"
         );
-        let (text, _) = add_entry_load(
-            &Esm::parse("").unwrap(),
-            "post",
-            "blog",
-            "a",
-            Style::default(),
-        );
-        assert_eq!(text, "export const post = await getEntry('blog', 'a');");
     }
 
     #[test]
@@ -342,8 +341,12 @@ mod tests {
             ("import 'x';", named("C")),
             ("import { a } from 'y';", named("C")),
         ] {
-            let (text, statement) = add(block, "C", binding, "x");
-            assert_eq!(text, format!("{block}\n{statement}"), "{block}");
+            let statement = new_statement("C", &binding, "x", Style::default());
+            assert_eq!(
+                add(block, "C", binding, "x"),
+                format!("{block}\n{statement}"),
+                "{block}"
+            );
         }
     }
 }

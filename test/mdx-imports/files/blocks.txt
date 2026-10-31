@@ -1,10 +1,13 @@
-# The ESM block the editor hides in each file here. Checked by
-# `mdx_corpus_tests` in `src-tauri/src/commands/files.rs`.
+# The ESM block the editor hides in each file here, and the ESM further down
+# that counts as already imported. Checked by `mdx_corpus_tests` in
+# `src-tauri/src/commands/files.rs`.
 
 === astro-docs/editor-setup.mdx
 import PackageManagerTabs from '~/components/tabs/PackageManagerTabs.astro'
 import { Steps } from '@astrojs/starlight/components';
 import Badge from "~/components/Badge.astro"
+--- further down
+import ReadMore from '~/components/ReadMore.astro';
 
 === astro-docs/getting-started.mdx
 import { CardGrid } from '@astrojs/starlight/components'
@@ -113,6 +116,8 @@ export default function Layout({ children }) {
 
 === handwritten/import-later-only.mdx
 (none)
+--- further down
+import Callout from '../components/Callout.astro'
 
 === handwritten/import-then-heading.mdx
 import Callout from '../components/Callout.astro'
@@ -164,12 +169,18 @@ export const post = await getEntry('blog', 'hello-world')
 
 === starlight-docs/components/tabs.mdx
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+--- further down
+import Preview from '~/components/component-preview.astro';
 
 === starlight-docs/environmental-impact.mdx
 (none)
+--- further down
+import CarbonComparison from '../../components/carbon-comparison.astro';
 
 === starlight-docs/guides/authoring-content.mdx
 (none)
+--- further down
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
 
 === starlight-docs/index.mdx
 import { CardGrid, Card } from '@astrojs/starlight/components';
@@ -180,6 +191,8 @@ import Testimonial from '~/components/testimonial.astro';
 
 === starlight-docs/manual-setup.mdx
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+--- further down
+import { FileTree } from '@astrojs/starlight/components';
 
 === taskdn/desktop/overview.mdx
 import { Image } from 'astro:assets'

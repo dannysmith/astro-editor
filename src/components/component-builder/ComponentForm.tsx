@@ -19,11 +19,15 @@ import {
 } from '../ui/select'
 import { FormField } from './FormField'
 import {
-  snippetInput,
   useComponentBuilderStore,
   type ClientDirective,
 } from '../../store/componentBuilderStore'
-import { buildPreview, insertsAsBlock } from '../../lib/editor/snippet-builder'
+import { useProjectStore } from '../../store/projectStore'
+import {
+  buildPreview,
+  insertsAsBlock,
+  withPicks,
+} from '../../lib/editor/snippet-builder'
 import { isOnEmptyLine } from '../../lib/editor/commands/insertSnippet'
 import { FrameworkBadge } from './FrameworkBadge'
 import { PropField } from './PropField'
@@ -51,6 +55,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
   const images = useComponentBuilderStore(state => state.images)
   const entries = useComponentBuilderStore(state => state.entries)
   const addImport = useComponentBuilderStore(state => state.addImport)
+  const importPlan = useComponentBuilderStore(state => state.importPlan)
   const clientDirective = useComponentBuilderStore(
     state => state.clientDirective
   )
@@ -80,11 +85,11 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
     component,
     editorView ? isOnEmptyLine(editorView) : false
   )
-  const snippet = snippetInput(
+  const tag = withPicks(
     component,
     values,
     { images, entries },
-    addImport
+    addImport ? importPlan?.names : undefined
   )
 
   return (
@@ -93,7 +98,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
       onKeyDown={e => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          insert()
+          void insert()
         }
       }}
     >
@@ -162,12 +167,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
 
       <div className="border-t px-4 py-3">
         <code className={codeBoxClassName}>
-          {buildPreview(
-            snippet.component,
-            snippet.values,
-            clientDirective,
-            block
-          )}
+          {buildPreview(tag.component, tag.values, clientDirective, block)}
         </code>
       </div>
 
@@ -182,7 +182,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
             <CommandShortcut>esc</CommandShortcut> Back
           </span>
         </div>
-        <Button ref={insertRef} size="sm" onClick={insert}>
+        <Button ref={insertRef} size="sm" onClick={() => void insert()}>
           Insert
         </Button>
       </div>
@@ -191,15 +191,29 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
 }
 
 /**
- * Whether Insert adds imports for the component and its images, with a switch
+ * Whether Insert adds imports for the component and its picks, with a switch
  * to leave them out, or that the component is already imported. Expands to
  * show the lines. Hidden when there's no plan: the setting is off, or no
  * import could be worked out safely.
  */
 function ImportRow() {
   const plan = useComponentBuilderStore(state => state.importPlan)
+  const planning = useComponentBuilderStore(state => state.planning)
   const addImport = useComponentBuilderStore(state => state.addImport)
   const setAddImport = useComponentBuilderStore(state => state.setAddImport)
+  const addsImports = useProjectStore(
+    state => state.currentProjectSettings?.addComponentImports ?? false
+  )
+
+  // Holds the row's place while the first plan is worked out, so Insert
+  // doesn't move under the pointer
+  if (!plan && planning && addsImports) {
+    return (
+      <div className="flex min-h-11 items-center border-t px-4 py-2 text-xs text-muted-foreground">
+        Checking imports…
+      </div>
+    )
+  }
   if (!plan || (plan.added.length === 0 && !plan.existing)) return null
 
   const adds = plan.added.length > 0

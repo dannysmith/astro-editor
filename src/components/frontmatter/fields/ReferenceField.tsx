@@ -66,12 +66,18 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
       : []
     : []
 
+  // A value that isn't one of the collection's ids (a typo, a renamed entry)
+  // shows as it's written, so it can be seen and removed
+  const optionFor = (value: string): EntryOption | undefined =>
+    options.find(opt => opt.value === value) ??
+    (isLoading ? undefined : { value, label: value })
+
   // Get current selection label for single select
-  const selectedOption = options.find(opt => opt.value === selectedValue)
+  const selectedOption = selectedValue ? optionFor(selectedValue) : undefined
 
   // Get selected options for multi-select
   const selectedOptions = selectedValues
-    .map(val => options.find(opt => opt.value === val))
+    .map(optionFor)
     .filter((opt): opt is EntryOption => !!opt)
 
   // Handle multi-select toggle
