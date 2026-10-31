@@ -100,7 +100,8 @@ Real files to test the splitter and import insertion against, used for manual te
 - [ ] Plan the import when a component is selected and keep it, with an `addImport` flag, in `componentBuilderStore`. `insert()` applies it if the flag is on, kept separate from `buildSnippet`. A failure never blocks inserting the tag.
 - [ ] The preview row with its toggle on the configure step
 - [ ] Starlight components and components from slot templates
-- [ ] Try it in the app on the test projects, then run `astro build` in a test project to confirm the imports work
+- [ ] Make `test/dummy-astro-project` build its MDX. It has no `@astrojs/mdx`, no React, Vue or Svelte integrations, and no `@/*` alias, although its MDX imports `@/components/mdx`. `test/starlight-minimal` already builds MDX through Starlight.
+- [ ] Try it in the app on the test projects, then run `astro build` in them to confirm the imports work
 - [ ] Update `website/src/content/docs/editor/mdx-components.mdx` (it says imports "may" come in a future release) and `docs/developer/mdx-components.md`
 
 ### Phase 5: Image props
