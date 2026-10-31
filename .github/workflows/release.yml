@@ -1,14 +1,13 @@
 name: 'Release Astro Editor'
 
+# Builds a release from a version tag. A tag with a `-` in it is a test build
+# (`v1.0.21-test.3`, made by `bun run test-build`): it gets its version set
+# here rather than committed, and is published as a prerelease once every
+# platform has built. Real releases are left as drafts to publish by hand.
+
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., v1.0.0)'
-        required: true
-        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,22 +26,44 @@ jobs:
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
     env:
-      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+      RELEASE_TAG: ${{ github.ref_name }}
+      TEST_BUILD: ${{ contains(github.ref_name, '-') }}
     steps:
+      - uses: actions/checkout@v7
+        if: env.TEST_BUILD == 'true'
+
+      # test-build writes the release's name and notes into the tag message.
+      # checkout can leave an annotated tag lightweight, so fetch it explicitly
+      - name: Read test build notes
+        id: notes
+        if: env.TEST_BUILD == 'true'
+        run: |
+          git fetch --depth=1 --force origin "+refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          {
+            echo "name=$(git for-each-ref --format='%(contents:subject)' "refs/tags/$RELEASE_TAG")"
+            echo 'body<<EOF_RELEASE_BODY'
+            git for-each-ref --format='%(contents:body)' "refs/tags/$RELEASE_TAG"
+            echo 'EOF_RELEASE_BODY'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create draft release
         id: create-release
         uses: actions/github-script@v9
+        env:
+          TEST_BUILD_NAME: ${{ steps.notes.outputs.name }}
+          TEST_BUILD_BODY: ${{ steps.notes.outputs.body }}
         with:
           script: |
             const tag = process.env.RELEASE_TAG
+            const testBuild = process.env.TEST_BUILD === 'true'
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: tag,
-              name: `Astro Editor ${tag}`,
-              body: `## Astro Editor ${tag}\n`,
+              name: testBuild ? process.env.TEST_BUILD_NAME : `Astro Editor ${tag}`,
+              body: testBuild ? process.env.TEST_BUILD_BODY : `## Astro Editor ${tag}\n`,
               draft: true,
-              prerelease: false,
+              prerelease: testBuild,
             })
             return data.id
 
@@ -93,6 +114,14 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      # Test builds aren't committed with their version, so set it here. Runs
+      # after the install because it changes package.json
+      - name: Set test build version
+        if: contains(github.ref_name, '-')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bun scripts/release-version.js "$RELEASE_TAG"
+
       - name: Install Rust targets for universal binary
         if: matrix.platform == 'macos-15'
         run: |
@@ -142,14 +171,16 @@ jobs:
   # draft release. The website links to these stable URLs
   # (/releases/latest/download/astro-editor-latest.*), so we never commit
   # installers to the repo. tauri-action names assets with the version, so we
-  # add fixed-name copies here.
+  # add fixed-name copies here. Test builds skip it: /releases/latest never
+  # points at a prerelease.
   publish-stable-assets:
     needs: publish-tauri
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ github.ref_name || inputs.version }}
+      RELEASE_TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
@@ -207,3 +238,27 @@ jobs:
           to_upload=( astro-editor-latest.* SHA256SUMS )
           gh release upload "$RELEASE_TAG" --clobber "${to_upload[@]}"
           echo "Uploaded: ${to_upload[*]}"
+
+  # Publish a test build as a prerelease once every platform has uploaded, so
+  # testers can download it. If any build failed this never runs and the draft
+  # stays hidden. The release is addressed by id and its tag set again, because
+  # tauri-action can strip the tag off a draft (tauri-action#914).
+  publish-test-build:
+    needs: [create-release, publish-tauri]
+    if: contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Publish prerelease
+        run: |
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            -f tag_name="$RELEASE_TAG" \
+            -F draft=false \
+            -F prerelease=true \
+            -f make_latest=false \
+            --jq .html_url

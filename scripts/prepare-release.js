@@ -3,6 +3,7 @@
 import fs from 'fs'
 import { execSync } from 'child_process'
 import readline from 'readline'
+import { bumpPatch, setVersion } from './release-version.js'
 
 function exec(command, options = {}) {
   try {
@@ -28,12 +29,6 @@ function askQuestion(question) {
       resolve(answer.trim())
     })
   })
-}
-
-function bumpPatch(version) {
-  const parts = version.split('.')
-  parts[2] = String(Number(parts[2]) + 1)
-  return parts.join('.')
 }
 
 async function resolveVersion() {
@@ -70,8 +65,36 @@ async function resolveVersion() {
 }
 
 async function prepareRelease() {
+  // Releases normally come from main. Anywhere else is a hotfix branch made
+  // from the latest release tag, which gets merged back into main afterwards
+  const branch = exec('git branch --show-current', { silent: true }).trim()
+  if (!branch) {
+    console.error('❌ Not on a branch. Switch to main or a hotfix branch.')
+    process.exit(1)
+  }
+  const onMain = branch === 'main'
+  if (!onMain) {
+    const answer = await askQuestion(
+      `⚠️  You're on ${branch}, not main. Releasing from here is for hotfixes.\n❓ Continue? (y/N): `
+    )
+    if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
+      process.exit(0)
+    }
+  }
+
+  console.log('🔍 Fetching tags...')
+  exec('git fetch --tags', { silent: true })
+
   const cleanVersion = await resolveVersion()
   const tagVersion = `v${cleanVersion}`
+
+  const existingTag = exec(`git tag --list ${tagVersion}`, {
+    silent: true,
+  }).trim()
+  if (existingTag) {
+    console.error(`❌ Tag ${tagVersion} already exists.`)
+    process.exit(1)
+  }
 
   console.log(`🚀 Preparing release ${tagVersion}...\n`)
 
@@ -94,39 +117,8 @@ async function prepareRelease() {
     exec('bun run check:all')
     console.log('✅ All checks passed')
 
-    // Update package.json
-    console.log('\n📝 Updating package.json...')
-    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-    const oldPkgVersion = pkg.version
-    pkg.version = cleanVersion
-    fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
-    console.log(`   ${oldPkgVersion} → ${cleanVersion}`)
-
-    // Update Cargo.toml
-    console.log('📝 Updating Cargo.toml...')
-    const cargoPath = 'src-tauri/Cargo.toml'
-    const cargoToml = fs.readFileSync(cargoPath, 'utf8')
-    const oldCargoVersion = cargoToml.match(/version = "([^"]*)"/)
-    const updatedCargo = cargoToml.replace(
-      /version = "[^"]*"/,
-      `version = "${cleanVersion}"`
-    )
-    fs.writeFileSync(cargoPath, updatedCargo)
-    console.log(
-      `   ${oldCargoVersion ? oldCargoVersion[1] : 'unknown'} → ${cleanVersion}`
-    )
-
-    // Update tauri.conf.json
-    console.log('📝 Updating tauri.conf.json...')
-    const tauriConfigPath = 'src-tauri/tauri.conf.json'
-    const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'))
-    const oldTauriVersion = tauriConfig.version
-    tauriConfig.version = cleanVersion
-    fs.writeFileSync(
-      tauriConfigPath,
-      JSON.stringify(tauriConfig, null, 2) + '\n'
-    )
-    console.log(`   ${oldTauriVersion} → ${cleanVersion}`)
+    console.log('')
+    setVersion(cleanVersion)
 
     // Run bun install to update the lockfile
     console.log('\n📦 Updating lock files...')
@@ -135,6 +127,9 @@ async function prepareRelease() {
 
     // Verify configurations
     console.log('\n🔍 Verifying configurations...')
+    const tauriConfig = JSON.parse(
+      fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')
+    )
 
     if (!tauriConfig.bundle?.createUpdaterArtifacts) {
       console.warn(
@@ -160,7 +155,7 @@ async function prepareRelease() {
     console.log(`   git add .`)
     console.log(`   git commit -S -m "chore: release ${tagVersion}"`)
     console.log(`   git tag -m "Release ${tagVersion}" ${tagVersion}`)
-    console.log(`   git push origin main --tags`)
+    console.log(`   git push --atomic origin HEAD ${tagVersion}`)
 
     console.log('\n🚀 After pushing:')
     console.log('   • GitHub Actions will automatically build the release')
@@ -185,8 +180,9 @@ async function prepareRelease() {
       console.log('🏷️  Creating tag...')
       exec(`git tag -m "Release ${tagVersion}" ${tagVersion}`)
 
+      // Only this branch and the new tag, so stray local tags never start a build
       console.log('📤 Pushing to remote...')
-      exec('git push origin main --tags')
+      exec(`git push --atomic origin HEAD ${tagVersion}`)
 
       console.log(`\n🎊 Release ${tagVersion} has been published!`)
       console.log(
@@ -198,6 +194,11 @@ async function prepareRelease() {
       console.log(
         '\n⚠️  Remember: You need to manually publish the draft release on GitHub!'
       )
+      if (!onMain) {
+        console.log(
+          `⚠️  Then open a PR from ${branch} into main so the fix and the version bump land there too.`
+        )
+      }
     } else {
       console.log('\n📝 Git commands saved for manual execution.')
       console.log("   Run them when you're ready to release.")

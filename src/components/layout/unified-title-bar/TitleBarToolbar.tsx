@@ -4,6 +4,8 @@ import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { useUIStore } from '../../../store/uiStore'
 import { useCreateFile } from '../../../hooks/useCreateFile'
+import { useAppVersionQuery } from '../../../hooks/queries/useAppVersionQuery'
+import { Badge } from '../../ui/badge'
 import { Button } from '../../ui/button'
 import {
   Save,
@@ -58,6 +60,10 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
 
   const { createNewFile } = useCreateFile()
 
+  // Test builds are the only versions with a prerelease part (`1.0.21-test.3`)
+  const { data: appVersion } = useAppVersionQuery()
+  const isTestBuild = appVersion?.includes('-') ?? false
+
   const handleSave = () => {
     if (currentFile && isDirty) {
       void saveFile()
@@ -83,6 +89,16 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
     >
       <div className="flex flex-1 items-center gap-2" data-tauri-drag-region>
         {leftSlot}
+
+        {isTestBuild && (
+          <Badge
+            variant="outline"
+            className="text-muted-foreground"
+            data-tauri-drag-region
+          >
+            Test build {appVersion}
+          </Badge>
+        )}
 
         <Button
           onClick={toggleSidebar}

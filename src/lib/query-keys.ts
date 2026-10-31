@@ -38,5 +38,7 @@ export const queryKeys = {
     ] as const,
   projectDependencies: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'dependencies'] as const,
+  // Not tied to a project
+  appVersion: ['appVersion'] as const,
   // Add more keys here as needed
 }
