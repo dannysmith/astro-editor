@@ -138,3 +138,22 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }}
+
+      # A build that compiles can still crash at startup, and nobody runs the app on
+      # Windows before a release (#351). Launch it and fail if it exits within 20s.
+      # GitHub sets CI=true, which skips the startup telemetry event.
+      - name: Smoke test (app starts)
+        if: matrix.platform == 'windows-latest'
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $exe = 'src-tauri/target/release/astro-editor.exe'
+          if (-not (Test-Path $exe)) { throw "Built app not found at $exe" }
+          $app = Start-Process -FilePath $exe -PassThru `
+            -RedirectStandardOutput smoke-stdout.log -RedirectStandardError smoke-stderr.log
+          $null = $app.Handle # without this, ExitCode is empty after the process exits
+          $exited = $app.WaitForExit(20000)
+          if (-not $exited) { Stop-Process -Id $app.Id -Force; $app.WaitForExit() }
+          Get-Content smoke-stdout.log, smoke-stderr.log -ErrorAction SilentlyContinue
+          if ($exited) { throw "The app exited during startup with code $($app.ExitCode)" }
+          Write-Output 'The app was still running after 20s'
