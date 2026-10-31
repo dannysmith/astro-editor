@@ -100,13 +100,24 @@ export type {
    * - `added` - The statements added or changed, empty when nothing is
    * - `existing` - The statement that already imports the component, which may be something else of the same name
    * - `images` - The name each image is imported as, in the order they were given
+   * - `entries` - The name each entry is loaded as, in the order they were given
    */
   ImportPlan,
+  /**
+   * The images and collection entries picked for a component's props, which
+   * the file has to import or load.
+   */
+  PropImports,
   /**
    * An image picked for an image prop: its file's name, which its import's
    * name comes from, and the path to import it from.
    */
   ImageImport,
+  /**
+   * A collection entry picked for an entry prop: its collection and its id in
+   * Astro, which the file loads with `getEntry`.
+   */
+  EntryImport,
   /**
    * Information about a component prop.
    *

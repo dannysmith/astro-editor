@@ -29,6 +29,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
 import { FormField } from './FormField'
 import { canPickImages, ImagePropField } from './ImagePropField'
+import { EntryPropField } from './EntryPropField'
 
 /** Lists longer than this get a searchable combobox rather than a select */
 const SEARCHABLE_OPTIONS = 12
@@ -61,6 +62,18 @@ export function PropField({ prop }: { prop: PropInfo }) {
     return (
       <ImagePropField
         prop={prop}
+        label={name}
+        required={required}
+        description={prop.description ?? ''}
+      />
+    )
+  }
+
+  if (kind.kind === 'collectionEntry' && settings?.addComponentImports) {
+    return (
+      <EntryPropField
+        prop={prop}
+        collection={kind.collection}
         label={name}
         required={required}
         description={prop.description ?? ''}

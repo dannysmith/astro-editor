@@ -40,6 +40,7 @@ const add: ImportPlan = {
   added: ["import Callout from '../../components/mdx/Callout.astro'"],
   existing: null,
   images: [],
+  entries: [],
 }
 
 const view = { state: { doc: { toString: () => 'Body' } } } as EditorView
@@ -132,9 +133,10 @@ describe('componentBuilderStore imports', () => {
     })
 
     await useComponentBuilderStore.getState().setImage('image', rocket)
-    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual([
-      rocket,
-    ])
+    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual({
+      images: [rocket],
+      entries: [],
+    })
     expect(useComponentBuilderStore.getState().values.image).toBe('rocket')
 
     await useComponentBuilderStore.getState().setImage('image', undefined)
@@ -176,6 +178,49 @@ describe('componentBuilderStore imports', () => {
     useComponentBuilderStore.getState().setAddImport(false)
     useComponentBuilderStore.getState().insert()
     expect(snippet()).toContain('image="./rocket.png"')
+  })
+
+  it('sets an entry prop to the name it loads its entry as', async () => {
+    const figure: MdxComponent = {
+      ...callout,
+      name: 'Figure',
+      props: [
+        {
+          name: 'related',
+          prop_type: "CollectionEntry<'articles'>",
+          kind: { kind: 'collectionEntry', collection: 'articles' },
+          is_optional: true,
+          default_value: null,
+          description: null,
+        },
+      ],
+    }
+    const first = { collection: 'articles', id: 'first-article' }
+    await select(add, figure)
+    vi.mocked(commands.planComponentImport).mockResolvedValue({
+      status: 'ok',
+      data: { ...add, entries: ['firstArticle'] },
+    })
+    await useComponentBuilderStore.getState().setEntry('related', first)
+    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual({
+      images: [],
+      entries: [first],
+    })
+
+    const snippet = () => vi.mocked(insertSnippet).mock.lastCall?.[1]
+    useComponentBuilderStore.getState().setAddImport(false)
+    useComponentBuilderStore.getState().insert()
+    // With the switch off, the entry goes in as its id
+    expect(snippet()).toContain('related="first-article"')
+
+    await select(add, figure)
+    vi.mocked(commands.planComponentImport).mockResolvedValue({
+      status: 'ok',
+      data: { ...add, entries: ['firstArticle'] },
+    })
+    await useComponentBuilderStore.getState().setEntry('related', first)
+    useComponentBuilderStore.getState().insert()
+    expect(snippet()).toContain('related={firstArticle}')
   })
 
   it("keeps out an image that can't be imported", async () => {

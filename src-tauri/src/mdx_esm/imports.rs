@@ -5,7 +5,9 @@
 use std::ops::Range;
 
 use swc_common::Spanned;
-use swc_ecma_ast::{Decl, ImportDecl, ImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem};
+use swc_ecma_ast::{
+    Decl, ExprOrSpread, ImportDecl, ImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem,
+};
 
 use super::block::{find_block, line_end, line_starts_esm, offset, parse_chunk};
 
@@ -22,6 +24,15 @@ pub struct Statement {
     pub import: Option<Import>,
     /// The names an export declares: `x` in `export const x = …`
     pub declares: Vec<String>,
+    /// The collection entries an export loads, like the component builder adds them
+    pub loads: Vec<EntryLoad>,
+}
+
+/// `export const name = await getEntry('collection', 'id')`
+pub struct EntryLoad {
+    pub name: String,
+    pub collection: String,
+    pub id: String,
 }
 
 pub struct Import {
@@ -83,6 +94,10 @@ impl Esm {
                         ModuleDecl::ExportDecl(export) => declared_names(&export.decl),
                         _ => Vec::new(),
                     },
+                    loads: match decl {
+                        ModuleDecl::ExportDecl(export) => entry_loads(&export.decl),
+                        _ => Vec::new(),
+                    },
                 })
             })
             .collect::<Option<_>>()?;
@@ -116,6 +131,45 @@ impl Esm {
             imported.chain(statement.declares.iter().map(String::as_str))
         })
     }
+
+    /// The name the code loads an entry as, if it does
+    pub fn name_loading(&self, collection: &str, id: &str) -> Option<&str> {
+        self.statements
+            .iter()
+            .flat_map(|statement| &statement.loads)
+            .find(|load| load.collection == collection && load.id == id)
+            .map(|load| load.name.as_str())
+    }
+}
+
+/// The entries a declaration loads with `await getEntry('collection', 'id')`
+fn entry_loads(decl: &Decl) -> Vec<EntryLoad> {
+    let Decl::Var(var) = decl else {
+        return Vec::new();
+    };
+    var.decls
+        .iter()
+        .filter_map(|d| {
+            let name = d.name.as_ident()?.sym.to_string();
+            let call = d.init.as_ref()?.as_await_expr()?.arg.as_call()?;
+            let callee = call.callee.as_expr()?.as_ident()?;
+            let [collection, id] = call.args.as_slice() else {
+                return None;
+            };
+            if callee.sym != "getEntry" {
+                return None;
+            }
+            let string = |arg: &ExprOrSpread| {
+                let value = &arg.expr.as_lit()?.as_str()?.value;
+                Some(value.to_string_lossy().to_string())
+            };
+            Some(EntryLoad {
+                name,
+                collection: string(collection)?,
+                id: string(id)?,
+            })
+        })
+        .collect()
 }
 
 /// The names a declaration binds. Destructuring isn't followed, since nothing
@@ -306,6 +360,17 @@ mod tests {
             esm.bindings().collect::<Vec<_>>(),
             ["A", "c", "d", "e", "f"]
         );
+    }
+
+    #[test]
+    fn finds_the_entries_it_loads() {
+        let esm = Esm::parse(
+            "import { getEntry } from 'astro:content'\nexport const post = await getEntry(\"blog\", 'first-post');\nexport const other = getEntry('blog', 'x')",
+        )
+        .unwrap();
+        assert_eq!(esm.name_loading("blog", "first-post"), Some("post"));
+        // Not awaited
+        assert_eq!(esm.name_loading("blog", "x"), None);
     }
 
     #[test]

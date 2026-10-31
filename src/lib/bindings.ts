@@ -103,13 +103,13 @@ export const commands = {
 	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
 	/**
-	 *  The imports the component builder would add with `component`, and with
-	 *  `images` for its image props, to the file at `file_path`, whose import block
-	 *  and body are `imports` and `body` as the editor holds them. Saves nothing.
-	 *  `None` when there's no import it can be sure of. An error when an image
-	 *  isn't somewhere Astro can import it from.
+	 *  The imports the component builder would add with `component`, and with the
+	 *  images and entries picked for its props (`props`), to the file at
+	 *  `file_path`, whose import block and body are `imports` and `body` as the
+	 *  editor holds them. Saves nothing. `None` when there's no import it can be
+	 *  sure of. An error when an image isn't somewhere Astro can import it from.
 	 */
-	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent, images: ImageImport[]) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component, images })),
+	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent, props: PropImports) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component, props })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
@@ -152,6 +152,16 @@ export type DirectoryScanResult = {
 	files: FileEntry[],
 };
 
+/**
+ *  A collection entry picked for an entry prop, which the file loads with
+ *  `getEntry`
+ */
+export type EntryImport = {
+	collection: string,
+	/**  The entry's id in Astro */
+	id: string,
+};
+
 export type FileEntry = {
 	id: string,
 	path: string,
@@ -182,6 +192,8 @@ export type ImportPlan = {
 	existing: string | null,
 	/**  The name each image is imported as, in the order they were given */
 	images: string[],
+	/**  The name each entry is loaded as, in the order they were given */
+	entries: string[],
 };
 
 export type MarkdownContent = {
@@ -211,6 +223,12 @@ export type MdxComponent = {
 	 *  e.g. the `TabItem`s inside `Tabs`
 	 */
 	slot_template: string | null,
+};
+
+/**  What was picked for the props whose values the file has to import or load */
+export type PropImports = {
+	images: ImageImport[],
+	entries: EntryImport[],
 };
 
 export type PropInfo = {

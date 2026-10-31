@@ -10,7 +10,7 @@ use pathdiff::diff_paths;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use super::edit::{add_import, Style};
+use super::edit::{add_entry_load, add_import, Style};
 use super::imports::{body_esm, Binding, Esm, Import};
 use crate::commands::files::parse_frontmatter_internal;
 use crate::mdx_components::package_dependencies;
@@ -25,6 +25,22 @@ pub struct ImageImport {
     pub specifier: String,
 }
 
+/// A collection entry picked for an entry prop, which the file loads with
+/// `getEntry`
+#[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
+pub struct EntryImport {
+    pub collection: String,
+    /// The entry's id in Astro
+    pub id: String,
+}
+
+/// What was picked for the props whose values the file has to import or load
+#[derive(Serialize, Deserialize, Clone, Debug, Default, specta::Type)]
+pub struct PropImports {
+    pub images: Vec<ImageImport>,
+    pub entries: Vec<EntryImport>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, specta::Type)]
 pub struct ImportPlan {
     /// The import block with everything added
@@ -36,12 +52,14 @@ pub struct ImportPlan {
     pub existing: Option<String>,
     /// The name each image is imported as, in the order they were given
     pub images: Vec<String>,
+    /// The name each entry is loaded as, in the order they were given
+    pub entries: Vec<String>,
 }
 
-/// Plans the imports for inserting `component` into `file`, with `images` for
-/// its image props. `imports` and `body` are the file's import block and body.
-/// `None` when there's no import we can be sure of, such as when the block
-/// isn't only imports and exports.
+/// Plans the imports for inserting `component` into `file`, with `props` for
+/// the images and entries picked for its props. `imports` and `body` are the
+/// file's import block and body. `None` when there's no import we can be sure
+/// of, such as when the block isn't only imports and exports.
 ///
 /// Paths are absolute and canonical. `collection_dir` is the file's collection,
 /// whose other files show how the site writes imports.
@@ -52,7 +70,7 @@ pub fn plan_component_import(
     imports: &str,
     body: &str,
     component: &MdxComponent,
-    images: &[ImageImport],
+    props: &PropImports,
 ) -> Option<ImportPlan> {
     let block = Esm::parse(imports)?;
     let file_esm: Vec<Esm> = std::iter::once(block).chain(body_esm(body)).collect();
@@ -71,12 +89,13 @@ pub fn plan_component_import(
     } else {
         None
     };
-    if missing.is_empty() && images.is_empty() {
+    if missing.is_empty() && props.images.is_empty() && props.entries.is_empty() {
         return Some(ImportPlan {
             imports: imports.to_string(),
             added: Vec::new(),
             existing,
             images: Vec::new(),
+            entries: Vec::new(),
         });
     }
 
@@ -112,21 +131,26 @@ pub fn plan_component_import(
                 Some((relative_specifier(&path), binding_of(component)))
             })?
         };
-        add(&mut text, &mut added, name, &binding, &source, style)?;
+        let change = add_import(&Esm::parse(&text)?, name, &binding, &source, style);
+        record(&mut text, &mut added, change);
     }
 
+    // Images and entries can be picked twice, or already be in the file for
+    // something else, and then their existing name is used
+    let body_esm = &file_esm[1..];
     let mut taken: HashSet<String> = file_esm
         .iter()
         .flat_map(|e| e.bindings())
         .chain(names)
+        .chain(["getEntry"])
         .map(String::from)
         .collect();
+
     let mut image_names = Vec::new();
-    for image in images {
-        // Picked twice, or already imported for something else in the file
+    for image in &props.images {
         let block = Esm::parse(&text)?;
         let already = std::iter::once(&block)
-            .chain(&file_esm[1..])
+            .chain(body_esm)
             .flat_map(|e| e.imports())
             .filter(|(_, import)| import.source == image.specifier && !import.type_only)
             .flat_map(|(_, import)| &import.specifiers)
@@ -135,20 +159,53 @@ pub fn plan_component_import(
         let name = match already {
             Some(name) => name,
             None => {
-                let name = unique_name(&image_name(&image.file_name), &taken);
-                add(
-                    &mut text,
-                    &mut added,
-                    &name,
-                    &Binding::Default,
-                    &image.specifier,
-                    style,
-                )?;
+                let name = unique_name(
+                    &variable_name(&file_stem(&image.file_name), "image"),
+                    &taken,
+                );
+                let change = add_import(&block, &name, &Binding::Default, &image.specifier, style);
+                record(&mut text, &mut added, change);
                 taken.insert(name.clone());
                 name
             }
         };
         image_names.push(name);
+    }
+
+    let mut entry_names = Vec::new();
+    for entry in &props.entries {
+        let block = Esm::parse(&text)?;
+        let already = std::iter::once(&block)
+            .chain(body_esm)
+            .find_map(|e| e.name_loading(&entry.collection, &entry.id))
+            .map(String::from);
+        let name = match already {
+            Some(name) => name,
+            None => {
+                let has_get_entry = std::iter::once(&block)
+                    .chain(body_esm)
+                    .any(|e| e.statement_importing("getEntry").is_some());
+                if !has_get_entry {
+                    let get_entry = Binding::Named("getEntry".to_string());
+                    let change = add_import(&block, "getEntry", &get_entry, "astro:content", style);
+                    record(&mut text, &mut added, change);
+                }
+                // The last part of the id: `2024/first-post` gives `firstPost`
+                let last = entry.id.rsplit('/').next().unwrap_or_default();
+                let name = unique_name(&variable_name(last, "entry"), &taken);
+                let change = add_entry_load(
+                    &Esm::parse(&text)?,
+                    &name,
+                    &entry.collection,
+                    &entry.id,
+                    style,
+                );
+                record(&mut text, &mut added, change);
+                taken.insert(name.clone());
+                name
+            }
+        };
+        entry_names.push(name);
     }
 
     Some(ImportPlan {
@@ -159,20 +216,15 @@ pub fn plan_component_import(
         imports: text,
         existing,
         images: image_names,
+        entries: entry_names,
     })
 }
 
-/// Adds an import to `text`, keeping `added` (where the statements added or
-/// changed so far are) up to date as the text around them moves
-fn add(
-    text: &mut String,
-    added: &mut Vec<Range<usize>>,
-    name: &str,
-    binding: &Binding,
-    source: &str,
-    style: Style,
-) -> Option<()> {
-    let (new_text, range) = add_import(&Esm::parse(text)?, name, binding, source, style);
+/// Takes `change`, the new text and the statement added or changed in it, and
+/// keeps `added` (where the statements added or changed so far are) up to date
+/// as the text around them moves
+fn record(text: &mut String, added: &mut Vec<Range<usize>>, change: (String, Range<usize>)) {
+    let (new_text, range) = change;
     let grew = new_text.len() - text.len();
     // A statement that was joined is replaced by its new range
     added.retain(|r| r.start != range.start);
@@ -182,7 +234,6 @@ fn add(
     added.push(range);
     added.sort_by_key(|r| r.start);
     *text = new_text;
-    Some(())
 }
 
 /// Whether the image at `specifier`, a path the editor wrote for `file`, is
@@ -199,16 +250,19 @@ pub fn importable_image(project_root: &Path, file: &Path, specifier: &str) -> bo
         .is_ok_and(|path| path.starts_with(project_root.join("src")))
 }
 
-/// A variable name for an image, from its file name: `hero-image.png` gives
-/// `heroImage`. Leading numbers, like the date the editor puts on copied files,
-/// are dropped.
-fn image_name(file_name: &str) -> String {
-    let stem = Path::new(file_name)
+fn file_stem(file_name: &str) -> String {
+    Path::new(file_name)
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+/// A variable name for an image or entry (`kind`), from its file name or id:
+/// `hero-image` gives `heroImage`. Leading numbers, like the date the editor
+/// puts on copied files, are dropped. Falls back to `kind` when nothing's left.
+fn variable_name(text: &str, kind: &str) -> String {
     let mut name = String::new();
-    let words = stem
+    let words = text
         .split(|c: char| !c.is_alphanumeric())
         .filter(|word| !word.is_empty())
         .skip_while(|word| word.chars().all(char::is_numeric));
@@ -229,11 +283,12 @@ fn image_name(file_name: &str) -> String {
         }
     }
     if name.is_empty() {
-        "image".to_string()
+        kind.to_string()
     } else if name.starts_with(char::is_numeric) {
-        format!("image{name}")
+        format!("{kind}{name}")
     } else if RESERVED_WORDS.contains(&name.as_str()) {
-        format!("{name}Image")
+        let (first, rest) = kind.split_at(1);
+        format!("{name}{}{rest}", first.to_uppercase())
     } else {
         name
     }
@@ -455,24 +510,58 @@ mod tests {
             .unwrap()
     }
 
-    /// Plans for a file in an empty collection
+    /// Plans for a file in an empty collection, with images picked by their
+    /// file name and path
     fn plan(
         imports: &str,
         body: &str,
         component: &MdxComponent,
         images: &[(&str, &str)],
     ) -> Option<ImportPlan> {
-        let project = tempfile::TempDir::new().unwrap();
-        let root = project.path().canonicalize().unwrap();
-        let collection = root.join("src/content/docs");
-        fs::create_dir_all(&collection).unwrap();
-        let images: Vec<_> = images
+        let images = images
             .iter()
             .map(|(file_name, specifier)| ImageImport {
                 file_name: file_name.to_string(),
                 specifier: specifier.to_string(),
             })
             .collect();
+        plan_props(
+            imports,
+            body,
+            component,
+            PropImports {
+                images,
+                entries: Vec::new(),
+            },
+        )
+    }
+
+    /// Plans with entries picked by their collection and id
+    fn plan_entries(imports: &str, entries: &[(&str, &str)]) -> ImportPlan {
+        let entries = entries
+            .iter()
+            .map(|(collection, id)| EntryImport {
+                collection: collection.to_string(),
+                id: id.to_string(),
+            })
+            .collect();
+        let props = PropImports {
+            images: Vec::new(),
+            entries,
+        };
+        plan_props(imports, "", &starlight("Aside"), props).unwrap()
+    }
+
+    fn plan_props(
+        imports: &str,
+        body: &str,
+        component: &MdxComponent,
+        props: PropImports,
+    ) -> Option<ImportPlan> {
+        let project = tempfile::TempDir::new().unwrap();
+        let root = project.path().canonicalize().unwrap();
+        let collection = root.join("src/content/docs");
+        fs::create_dir_all(&collection).unwrap();
         plan_component_import(
             &root,
             &collection,
@@ -480,8 +569,43 @@ mod tests {
             imports,
             body,
             component,
-            &images,
+            &props,
         )
+    }
+
+    #[test]
+    fn loads_entries_with_get_entry() {
+        let plan = plan_entries(
+            "import { Aside } from '@astrojs/starlight/components'",
+            &[("articles", "2024/first-post"), ("authors", "jane")],
+        );
+        assert_eq!(plan.entries, ["firstPost", "jane"]);
+        assert_eq!(
+            plan.imports,
+            "import { Aside } from '@astrojs/starlight/components'\nimport { getEntry } from 'astro:content'\nexport const firstPost = await getEntry('articles', '2024/first-post')\nexport const jane = await getEntry('authors', 'jane')"
+        );
+        assert_eq!(
+            plan.added,
+            [
+                "import { getEntry } from 'astro:content'",
+                "export const firstPost = await getEntry('articles', '2024/first-post')",
+                "export const jane = await getEntry('authors', 'jane')"
+            ]
+        );
+    }
+
+    #[test]
+    fn joins_an_astro_content_import_and_reuses_loaded_entries() {
+        let block = "import { Aside } from '@astrojs/starlight/components';\nimport { getCollection } from 'astro:content';\nexport const post = await getEntry('articles', 'a');";
+        let plan = plan_entries(block, &[("articles", "a"), ("articles", "get-entry")]);
+        assert_eq!(plan.entries, ["post", "getEntry2"]);
+        assert_eq!(
+            plan.added,
+            [
+                "import { getCollection, getEntry } from 'astro:content';",
+                "export const getEntry2 = await getEntry('articles', 'get-entry');"
+            ]
+        );
     }
 
     #[test]
@@ -494,6 +618,7 @@ mod tests {
                 added: vec!["import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'".into()],
                 existing: None,
                 images: vec![],
+                entries: vec![],
             })
         );
     }
@@ -506,6 +631,7 @@ mod tests {
             added: vec![],
             existing: Some(card.into()),
             images: vec![],
+            entries: vec![],
         };
         assert_eq!(
             plan(card, "", &starlight("Card"), &[]),
@@ -614,15 +740,42 @@ mod tests {
     }
 
     #[test]
-    fn names_images_after_their_files() {
-        assert_eq!(image_name("hero-image.png"), "heroImage");
-        assert_eq!(image_name("heroImage.png"), "heroImage");
-        assert_eq!(image_name("2026-10-31-rocket.webp"), "rocket");
-        assert_eq!(image_name("IMG_1234.JPG"), "img1234");
-        assert_eq!(image_name("2x.png"), "image2x");
-        assert_eq!(image_name("class.png"), "classImage");
-        assert_eq!(image_name("2026-10-31.png"), "image");
-        assert_eq!(image_name("café au lait.png"), "caféAuLait");
+    fn names_images_and_entries_after_their_files() {
+        assert_eq!(
+            variable_name(&file_stem("hero-image.png"), "image"),
+            "heroImage"
+        );
+        assert_eq!(
+            variable_name(&file_stem("heroImage.png"), "image"),
+            "heroImage"
+        );
+        assert_eq!(
+            variable_name(&file_stem("2026-10-31-rocket.webp"), "image"),
+            "rocket"
+        );
+        assert_eq!(
+            variable_name(&file_stem("IMG_1234.JPG"), "image"),
+            "img1234"
+        );
+        assert_eq!(variable_name(&file_stem("2x.png"), "image"), "image2x");
+        assert_eq!(
+            variable_name(&file_stem("class.png"), "image"),
+            "classImage"
+        );
+        assert_eq!(
+            variable_name(&file_stem("2026-10-31.png"), "image"),
+            "image"
+        );
+        assert_eq!(
+            variable_name(&file_stem("café au lait.png"), "image"),
+            "caféAuLait"
+        );
+        assert_eq!(
+            variable_name("1709876543210-timestamp-filename-format", "entry"),
+            "timestampFilenameFormat"
+        );
+        assert_eq!(variable_name("default", "entry"), "defaultEntry");
+        assert_eq!(variable_name("2024", "entry"), "entry");
     }
 
     #[test]
@@ -704,7 +857,7 @@ mod tests {
                     &parsed.imports,
                     &parsed.content,
                     component,
-                    &[],
+                    &PropImports::default(),
                 );
                 let actual = plan
                     .filter(|plan| !plan.added.is_empty())

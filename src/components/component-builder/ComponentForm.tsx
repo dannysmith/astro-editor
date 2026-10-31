@@ -49,6 +49,7 @@ const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
 export function ComponentForm({ component }: { component: MdxComponent }) {
   const values = useComponentBuilderStore(state => state.values)
   const images = useComponentBuilderStore(state => state.images)
+  const entries = useComponentBuilderStore(state => state.entries)
   const addImport = useComponentBuilderStore(state => state.addImport)
   const clientDirective = useComponentBuilderStore(
     state => state.clientDirective
@@ -79,7 +80,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
     component,
     editorView ? isOnEmptyLine(editorView) : false
   )
-  const snippet = snippetInput(component, values, images, addImport)
+  const snippet = snippetInput(
+    component,
+    values,
+    { images, entries },
+    addImport
+  )
 
   return (
     <div

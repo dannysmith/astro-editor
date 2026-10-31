@@ -80,6 +80,42 @@ pub fn add_import(
     (splice(text, at, &insert), start..start + statement.len())
 }
 
+/// Adds `export const name = await getEntry('collection', 'id')` at the end of
+/// `block`. Returns the new block, and where the statement is in it.
+pub fn add_entry_load(
+    block: &Esm,
+    name: &str,
+    collection: &str,
+    id: &str,
+    style: Style,
+) -> (String, Range<usize>) {
+    let text = &block.text;
+    let quote = |value: &str| {
+        let q = style.quote;
+        let escaped = value.replace('\\', "\\\\").replace(q, &format!("\\{q}"));
+        format!("{q}{escaped}{q}")
+    };
+    let semicolon = if style.semicolons { ";" } else { "" };
+    let statement = format!(
+        "export const {name} = await getEntry({}, {}){semicolon}",
+        quote(collection),
+        quote(id)
+    );
+    // After the last statement's line, or after a block of only comments
+    let at = match block.statements.last() {
+        Some(last) => line_end(text, last.range.end),
+        None if text.trim().is_empty() => {
+            let end = statement.len();
+            return (statement, 0..end);
+        }
+        None => text.len(),
+    };
+    (
+        splice(text, at, &format!("\n{statement}")),
+        at + 1..at + 1 + statement.len(),
+    )
+}
+
 /// Where and what to insert to add `specifier` to `import`, matching how its
 /// names are laid out: on one line or one per line, with or without a trailing
 /// comma. An import with only a default gains braces: `import X, { Y } from …`.
@@ -250,6 +286,38 @@ mod tests {
             add("import Widget from './w'", "Gauge", named("Gauge"), "./w").0,
             "import Widget, { Gauge } from './w'"
         );
+    }
+
+    #[test]
+    fn loads_an_entry_at_the_end_in_the_style() {
+        let block = "import { getEntry } from \"astro:content\"\nexport const a = 1 // note";
+        let style = Style {
+            quote: '"',
+            semicolons: false,
+        };
+        let (text, range) = add_entry_load(
+            &Esm::parse(block).unwrap(),
+            "post",
+            "blog",
+            "it's \"new\"",
+            style,
+        );
+        assert_eq!(
+            text,
+            "import { getEntry } from \"astro:content\"\nexport const a = 1 // note\nexport const post = await getEntry(\"blog\", \"it's \\\"new\\\"\")"
+        );
+        assert_eq!(
+            &text[range],
+            "export const post = await getEntry(\"blog\", \"it's \\\"new\\\"\")"
+        );
+        let (text, _) = add_entry_load(
+            &Esm::parse("").unwrap(),
+            "post",
+            "blog",
+            "a",
+            Style::default(),
+        );
+        assert_eq!(text, "export const post = await getEntry('blog', 'a');");
     }
 
     #[test]

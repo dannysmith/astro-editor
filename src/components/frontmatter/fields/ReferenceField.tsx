@@ -1,10 +1,10 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
-import { useProjectStore } from '../../../store/projectStore'
-import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
-import { useCollectionFilesQuery } from '../../../hooks/queries/useCollectionFilesQuery'
-import { useFileBasedCollectionQuery } from '../../../hooks/queries/useFileBasedCollectionQuery'
+import {
+  useCollectionEntriesQuery,
+  type EntryOption,
+} from '../../../hooks/queries/useCollectionEntriesQuery'
 import { Button } from '../../ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover'
 import {
@@ -23,15 +23,9 @@ import { FieldType } from '../../../lib/schema'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 import { NONE_SENTINEL } from './constants'
-import { astroEntryId } from '../../../lib/entry-id'
 
 interface ReferenceFieldProps extends FieldProps {
   field?: SchemaField
-}
-
-interface ReferenceOption {
-  value: string // slug/id
-  label: string // title from frontmatter or fallback
 }
 
 export const ReferenceField: React.FC<ReferenceFieldProps> = ({
@@ -46,7 +40,6 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
-  const projectPath = useProjectStore(state => state.projectPath)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference
@@ -56,66 +49,8 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
     ? field?.subReference
     : field?.reference || field?.referenceCollection
 
-  const currentProjectSettings = useProjectStore(
-    state => state.currentProjectSettings
-  )
-
-  // Get collections to find the collection path
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
-  const currentCollection = collections.find(
-    c => c.name === referencedCollection
-  )
-
-  // Fetch files from the referenced collection (for regular glob-based collections)
-  const { data: regularFiles, isLoading: isLoadingRegular } =
-    useCollectionFilesQuery(
-      projectPath,
-      referencedCollection || '',
-      currentCollection?.path || null
-    )
-
-  // Try file-based collection if not found in regular collections
-  const { data: fileBasedFiles, isLoading: isLoadingFileBased } =
-    useFileBasedCollectionQuery(
-      projectPath,
-      !currentCollection ? referencedCollection || null : null
-    )
-
-  // Use whichever query returned data
-  const files = regularFiles || fileBasedFiles
-  const isLoading = isLoadingRegular || isLoadingFileBased
-
-  // Build options from collection files
-  const options: ReferenceOption[] = React.useMemo(() => {
-    if (!files) return []
-
-    return files.map(file => {
-      // A file-based collection's entries (`authors.json`) use their own
-      // `id`, which the app's id has after `<collection>/`
-      const id = regularFiles
-        ? astroEntryId(file)
-        : file.id.slice(file.collection.length + 1)
-      // Try common display fields in priority order
-      // Don't search for "any string" - could grab description/bio
-      const label =
-        // Try frontmatter properties (works for both glob and file collections)
-        (file.frontmatter?.title as string | undefined) ||
-        (file.frontmatter?.name as string | undefined) ||
-        (file.frontmatter?.slug as string | undefined) ||
-        // Final fallbacks - FileEntry properties
-        id || // ID always exists
-        file.name || // Filename always exists
-        'Untitled'
-
-      return {
-        value: id,
-        label,
-      }
-    })
-  }, [files, regularFiles])
+  const { options, isLoading, found } =
+    useCollectionEntriesQuery(referencedCollection)
 
   // Handle single select value
   const selectedValue = isMultiSelect
@@ -137,7 +72,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   // Get selected options for multi-select
   const selectedOptions = selectedValues
     .map(val => options.find(opt => opt.value === val))
-    .filter((opt): opt is ReferenceOption => !!opt)
+    .filter((opt): opt is EntryOption => !!opt)
 
   // Handle multi-select toggle
   const handleMultiSelectToggle = (optionValue: string) => {
@@ -235,7 +170,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
               <CommandEmpty>
                 {isLoading
                   ? 'Loading...'
-                  : !currentCollection && !fileBasedFiles
+                  : !found
                     ? `Collection "${referencedCollection}" not found`
                     : 'No items found.'}
               </CommandEmpty>
