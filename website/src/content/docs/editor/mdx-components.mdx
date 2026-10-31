@@ -156,14 +156,14 @@ An MDX file has to import every component it uses, in the lines between its fron
 Turn on **Add Imports for MDX Components** in [Project Settings](/preferences/#experimental) and the builder adds them for you. It's off by default and set per project.
 
 <Aside type="caution">
-Leave it off if your site uses [Astro Auto Import](https://github.com/delucis/astro-auto-import) or something similar. A component imported twice breaks the build.
+Leave it off if your site uses [Astro Auto Import](https://github.com/delucis/astro-auto-import) or something similar. A component imported twice breaks the build. If your `package.json` lists `astro-auto-import`, the setting shows a reminder.
 </Aside>
 
 With it on, the form has an **Add import** row under the preview. The switch leaves the import out this time, and clicking the row shows the lines it will add or change. The switch is back on each time you open the builder.
 
 ![The BookCard form filled in for Atomic Habits, with the import row open showing four lines: the BookCard import, the cover image's import, the getEntry import and the line that loads the review](../../../assets/mdx-builder-imports.png)
 
-Inserting that BookCard adds these lines to the file:
+After inserting that BookCard, the top of the file looks like this:
 
 ```mdx title="books-that-stuck.mdx"
 import { Callout } from '@/components/mdx'
@@ -177,9 +177,9 @@ export const atomicHabits = await getEntry('books', 'atomic-habits')
 
 The builder works through these in order:
 
-1. **If the file already imports something with that name, nothing is added.** That includes imports further down the file, which docs sites often have, but not imports inside code blocks. The row says **Already imported** and shows the existing import, so you'll notice if it's a different component with the same name, like Starlight's `Card` when you picked your own.
+1. **If the file already has something with that name, nothing is added.** That's an import, including one further down the file (which docs sites often have) but not one inside a code block, or a component written in the file with `export const`. The row says **Already imported** and shows that line, so you'll notice if it's a different component with the same name, like Starlight's `Card` when you picked your own.
 2. **A package's components are imported from the package**, like `import { Tabs, TabItem } from '@astrojs/starlight/components'`, including the components their content uses.
-3. **If another MDX file in the same collection imports the component, that import is copied.** This is how your site's aliases and index files get used without Astro Editor having to understand them:
+3. **If another MDX file imports the component, that import is copied.** This is how your site's aliases and index files get used without Astro Editor having to understand them:
 
    ```mdx
    import Callout from '@components/mdx/Callout.astro'   // an alias
@@ -187,21 +187,23 @@ The builder works through these in order:
    import { Callout } from '@/components/mdx'              // an index file
    ```
 
-   It looks at every MDX file under the collection's folder. A relative path is only copied from a file in the same folder, since it wouldn't work from anywhere else. And an import from a package your `package.json` lists is never copied for one of your own components, because it's a different component with the same name.
+   It looks at the collection's files first, then the other collections'. A relative path is only copied from a file in the same folder, since it wouldn't work from anywhere else, and a relative or root path is only copied if it leads to the component (or to an index file in its folder). Imports from Astro's own modules, like `import { Image } from 'astro:assets'`, and from packages your `package.json` lists are never copied for one of your own components, because they're a different component with the same name.
 4. **Otherwise, it's a relative path from the file to the component, with its extension**, as in Astro's docs: `import BookCard from '../../../components/mdx/BookCard.astro'`. React components that are only exported by name are imported by name: `import { Rating } from '../../components/mdx/Rating.tsx'`.
 
-Astro Editor doesn't read the aliases in your `tsconfig.json`, so the first time you use a component anywhere in a collection, it gets a relative path even if your site uses aliases. It works, but you may want to change it to match the rest of your site. From then on, other files copy your version.
+Astro Editor doesn't read the aliases in your `tsconfig.json`, so the first time you use a component anywhere in your content, it gets a relative path even if your site uses aliases. It works, but you may want to change it to match the rest of your site. From then on, other files copy your version.
 
-The same goes for index files: if a file imports `{ Callout }` from `@/components/mdx`, a component exported from that same index file but not yet imported anywhere in the collection still gets a relative path of its own.
+The same goes for index files: if a file imports `{ Callout }` from `@/components/mdx`, a component exported from that same index file but not yet imported anywhere still gets a relative path of its own.
 
 ### How It's Written
 
 - **Quotes and semicolons match the file's other imports**, or the collection's if the file has none. If there are none at all, it uses single quotes and semicolons.
-- **A new import goes after the file's last import.** A named import joins an existing one from the same module: `import { Steps } from '…'` becomes `import { Steps, Tabs, TabItem } from '…'`, on one line or one per line, whichever the file uses.
+- **A new import goes after the imports at the top of the file**, or at the very top if there are none there. A named import joins an existing one from the same module: `import { Steps } from '…'` becomes `import { Steps, Tabs, TabItem } from '…'`, on one line or one per line, whichever the file uses.
 - **Nothing else changes.** Your formatting, comments and blank lines in those lines stay exactly as they were.
 - **Undo removes the component but not its import.** An unused import doesn't break anything.
 
-If the lines between the frontmatter and the content contain something other than imports and exports, the builder can't be sure where an import should go, so it hides the row and adds nothing.
+The import is worked out again when you press Insert, against the file as it is then, so inserting straight after picking, or a change to the file made outside Astro Editor while the builder is open, can't give a wrong or missing import.
+
+A component whose file name isn't capitalised, like `my-callout.astro`, gets no import: MDX reads `<my-callout>` as an HTML tag, so the import wouldn't do anything.
 
 ### Images
 
@@ -215,17 +217,18 @@ The name comes from the image's original file name:
 | `2026-10-31-rocket.webp` | `rocket`, with the date dropped |
 | `IMG_1234.JPG` | `img1234` |
 | `class.png` | `classImage`, since `class` isn't allowed as a name |
+| `file.png` | `fileImage`, since MDX files already have a `file` |
 | `rocket.png`, when `rocket` is already used in the file | `rocket2` |
 
 If the file already imports that image, its existing name is used and nothing is added.
 
 Astro can only import images from inside `src/`. If your images go somewhere else, like `public/`, image props keep the text box, and picking an image that's already in `public/` shows an error.
 
-With the **Add import** switch off, the image goes in as its path instead (`cover="../../../assets/articles/2026-10-31-atomic-habits-cover.jpg"`), ready for you to import it yourself.
+With the **Add import** switch off, or if no import can be worked out for the file, the image goes in as its path instead (`cover="../../../assets/articles/2026-10-31-atomic-habits-cover.jpg"`), ready for you to import it yourself.
 
 ### Collection Entries
 
-Props that take an entry from one of your collections, like `review?: CollectionEntry<'books'>`, get a searchable list of that collection's entries. This works for collections of files and for `file()` collections like an `authors.json`.
+Props that take an entry from one of your collections, like `review?: CollectionEntry<'books'>`, get a searchable list of that collection's entries. This works for collections of files and for `file()` collections like an `authors.json`. Each entry shows its id under its title, to tell apart entries with the same title. If Astro Editor can't list the collection, the prop keeps a text box.
 
 The builder loads the entry you pick with `getEntry`, adding its import (or joining an existing `astro:content` import) and an `export const` at the end of those lines:
 
@@ -238,7 +241,7 @@ export const atomicHabits = await getEntry('books', 'atomic-habits')
 
 The name comes from the last part of the entry's id (`2024/first-post` gives `firstPost`), and if the file already loads that entry, its existing name is used. With the switch off, the entry goes in as its id instead (`review="atomic-habits"`).
 
-The id is the one Astro gives the entry: its `slug` frontmatter if it has one, otherwise its path in the collection without the extension, lowercased, with punctuation dropped and spaces turned into hyphens (`2024/My Post!.md` becomes `2024/my-post`). If your collection uses its own `generateId`, the ids won't match. Astro then warns that the entry wasn't found when it builds, and the prop is `undefined`.
+The id is the one Astro gives the entry: its `slug` frontmatter if it has one, otherwise its path in the collection without the extension, lowercased, with punctuation dropped and spaces turned into hyphens (`2024/My Post!.md` becomes `2024/my-post`). If your collection uses its own `generateId`, the ids won't match. Renaming the entry's file or changing its `slug` later has the same effect on a `getEntry` line already written. Either way, Astro warns that the entry wasn't found when it builds, and the prop is `undefined`.
 
 ## What are "MDX" Components?
 
