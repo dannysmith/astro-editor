@@ -139,9 +139,8 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      # A build that compiles can still crash at startup, and nobody runs the app on
-      # Windows before a release (#351). Launch it and fail if it exits within 20s.
-      # GitHub sets CI=true, which skips the startup telemetry event.
+      # A build that compiles can still crash at startup, so launch it and fail if it
+      # exits within 20s. GitHub sets CI=true, which skips startup telemetry.
       - name: Smoke test (app starts)
         if: matrix.platform == 'windows-latest'
         timeout-minutes: 3

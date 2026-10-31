@@ -111,9 +111,8 @@ pub fn run() {
             log::info!("Platform: {}", std::env::consts::OS);
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
-            // Send telemetry on startup (non-blocking, fails silently). Dev builds
-            // and CI (the startup smoke test in ci.yml) skip it so they don't count
-            // as installs.
+            // Send telemetry on startup (non-blocking, fails silently). Dev builds and
+            // CI (ci.yml launches the app) skip it so they don't count as installs.
             if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
                 let app_handle = app.handle().clone();
                 let version = package_info.version.to_string();
@@ -144,17 +143,10 @@ pub fn run() {
             // Create menu state
             let mut menu_state = MenuState::new();
 
-            // Accelerators use CmdOrCtrl (Cmd on macOS, Ctrl elsewhere), never Cmd,
-            // Command, Super or Meta. Windows menus only take Ctrl, Alt and Shift, and
-            // since muda 0.20 any other modifier fails the menu build, which aborts
-            // startup (#351). Gate macOS-only shortcuts with cfg, like this one.
-            // Windows and Linux toggle full screen with F11 in useKeyboardShortcuts.
-            #[cfg(target_os = "macos")]
-            let fullscreen_accelerator = Some("Ctrl+Cmd+F");
-            #[cfg(not(target_os = "macos"))]
-            let fullscreen_accelerator = None::<&str>;
-
-            // Create macOS menu bar
+            // Create the menu bar. Accelerators use CmdOrCtrl, never Cmd, Command, Super
+            // or Meta: Windows menus only take Ctrl, Alt and Shift, and muda fails the
+            // whole menu on any other modifier, which aborts startup. Gate macOS-only
+            // shortcuts on the platform, like Enter Full Screen's.
             let file_menu = Submenu::with_items(
                 app,
                 "File",
@@ -275,7 +267,8 @@ pub fn run() {
                         "enter_fullscreen",
                         "Enter Full Screen",
                         true,
-                        fullscreen_accelerator,
+                        // Windows and Linux use F11 (useKeyboardShortcuts)
+                        cfg!(target_os = "macos").then_some("Ctrl+Cmd+F"),
                     )?,
                 ],
             )?;
