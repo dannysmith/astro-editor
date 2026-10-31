@@ -5,7 +5,7 @@
 use std::ops::Range;
 
 use swc_common::Spanned;
-use swc_ecma_ast::{ImportDecl, ImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem};
+use swc_ecma_ast::{Decl, ImportDecl, ImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem};
 
 use super::block::{find_block, line_end, line_starts_esm, offset, parse_chunk};
 
@@ -20,6 +20,8 @@ pub struct Statement {
     pub range: Range<usize>,
     /// `None` for an export
     pub import: Option<Import>,
+    /// The names an export declares: `x` in `export const x = …`
+    pub declares: Vec<String>,
 }
 
 pub struct Import {
@@ -77,6 +79,10 @@ impl Esm {
                         }
                         _ => None,
                     },
+                    declares: match decl {
+                        ModuleDecl::ExportDecl(export) => declared_names(&export.decl),
+                        _ => Vec::new(),
+                    },
                 })
             })
             .collect::<Option<_>>()?;
@@ -97,6 +103,34 @@ impl Esm {
         self.imports()
             .find(|(_, import)| import.specifiers.iter().any(|s| s.local == name))
             .map(|(statement, _)| &self.text[statement.range.clone()])
+    }
+
+    /// Every name the code binds, imported or exported
+    pub fn bindings(&self) -> impl Iterator<Item = &str> {
+        self.statements.iter().flat_map(|statement| {
+            let imported = statement
+                .import
+                .iter()
+                .flat_map(|import| &import.specifiers)
+                .map(|s| s.local.as_str());
+            imported.chain(statement.declares.iter().map(String::as_str))
+        })
+    }
+}
+
+/// The names a declaration binds. Destructuring isn't followed, since nothing
+/// the builder adds would clash with it.
+fn declared_names(decl: &Decl) -> Vec<String> {
+    match decl {
+        Decl::Var(var) => var
+            .decls
+            .iter()
+            .filter_map(|d| d.name.as_ident())
+            .map(|ident| ident.sym.to_string())
+            .collect(),
+        Decl::Fn(f) => vec![f.ident.sym.to_string()],
+        Decl::Class(c) => vec![c.ident.sym.to_string()],
+        _ => Vec::new(),
     }
 }
 
@@ -260,6 +294,18 @@ mod tests {
             Some("import {\n  B,\n  Card,\n} from 'b'")
         );
         assert_eq!(esm.statement_importing("C"), None);
+    }
+
+    #[test]
+    fn lists_the_names_it_binds() {
+        let esm = Esm::parse(
+            "import A, { b as c } from 'x'\nexport const d = 1, e = 2\nexport function f() {}",
+        )
+        .unwrap();
+        assert_eq!(
+            esm.bindings().collect::<Vec<_>>(),
+            ["A", "c", "d", "e", "f"]
+        );
     }
 
     #[test]

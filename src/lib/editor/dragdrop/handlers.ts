@@ -34,7 +34,9 @@ export const parseFileDropPayload = (
 }
 
 /**
- * Check if drop position is within element bounds
+ * Check if drop position is within element bounds, and the element isn't
+ * covered there, as it is by a dialog like the component builder, whose
+ * image picker takes drops of its own
  * @param position - Drop position
  * @param element - DOM element to check
  * @returns true if position is within element bounds
@@ -48,11 +50,13 @@ export const isDropWithinElement = (
   }
 
   const rect = element.getBoundingClientRect()
+  const topmost = document.elementFromPoint(position.x, position.y)
   return (
     position.x >= rect.left &&
     position.x <= rect.right &&
     position.y >= rect.top &&
-    position.y <= rect.bottom
+    position.y <= rect.bottom &&
+    (!topmost || element.contains(topmost))
   )
 }
 

@@ -1,6 +1,6 @@
 use crate::commands::files::validate_project_path;
 use crate::mdx_components::{self, starlight};
-use crate::mdx_esm::{self, ImportPlan};
+use crate::mdx_esm::{self, ImageImport, ImportPlan};
 use crate::models::MdxComponent;
 use std::path::Path;
 
@@ -20,9 +20,11 @@ pub async fn scan_mdx_components(
     Ok(components)
 }
 
-/// The import the component builder would add with `component` to the file at
-/// `file_path`, whose import block and body are `imports` and `body` as the
-/// editor holds them. Saves nothing. `None` when there's no import it can be sure of.
+/// The imports the component builder would add with `component`, and with
+/// `images` for its image props, to the file at `file_path`, whose import block
+/// and body are `imports` and `body` as the editor holds them. Saves nothing.
+/// `None` when there's no import it can be sure of. An error when an image
+/// isn't somewhere Astro can import it from.
 #[tauri::command]
 #[specta::specta]
 pub async fn plan_component_import(
@@ -32,12 +34,22 @@ pub async fn plan_component_import(
     imports: String,
     body: String,
     component: MdxComponent,
+    images: Vec<ImageImport>,
 ) -> Result<Option<ImportPlan>, String> {
     let file = validate_project_path(&file_path, &project_path)?;
     let collection_dir = validate_project_path(&collection_path, &project_path)?;
     let project_root = Path::new(&project_path)
         .canonicalize()
         .map_err(|_| "Invalid project root".to_string())?;
+    if let Some(image) = images
+        .iter()
+        .find(|image| !mdx_esm::importable_image(&project_root, &file, &image.specifier))
+    {
+        return Err(format!(
+            "{} isn't in src/, and Astro can only import images from there",
+            image.file_name
+        ));
+    }
     Ok(mdx_esm::plan_component_import(
         &project_root,
         &collection_dir,
@@ -45,5 +57,6 @@ pub async fn plan_component_import(
         &imports,
         &body,
         &component,
+        &images,
     ))
 }

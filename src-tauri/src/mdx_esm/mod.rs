@@ -8,4 +8,4 @@ mod imports;
 mod plan;
 
 pub use block::split_esm_block;
-pub use plan::{plan_component_import, ImportPlan};
+pub use plan::{importable_image, plan_component_import, ImageImport, ImportPlan};

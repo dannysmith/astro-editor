@@ -24,13 +24,16 @@ import {
 } from '../ui/combobox'
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
+import { useEditorStore } from '../../store/editorStore'
+import { useProjectStore } from '../../store/projectStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
 import { FormField } from './FormField'
+import { canPickImages, ImagePropField } from './ImagePropField'
 
 /** Lists longer than this get a searchable combobox rather than a select */
 const SEARCHABLE_OPTIONS = 12
 
-/** What to type for props that take an imported variable, until there are pickers for them */
+/** What to type for props that take an imported variable, when there's no picker for them */
 function bindingHint(prop: PropInfo): string | undefined {
   switch (prop.kind.kind) {
     case 'image':
@@ -46,11 +49,25 @@ function bindingHint(prop: PropInfo): string | undefined {
 export function PropField({ prop }: { prop: PropInfo }) {
   const value = useComponentBuilderStore(state => state.values[prop.name])
   const setValue = useComponentBuilderStore(state => state.setValue)
+  const settings = useProjectStore(state => state.currentProjectSettings)
+  const collection = useEditorStore(state => state.currentFile?.collection)
   const id = React.useId()
   const labelId = `${id}-label`
 
   const { name, kind } = prop
   const required = !prop.is_optional
+
+  if (kind.kind === 'image' && canPickImages(settings, collection)) {
+    return (
+      <ImagePropField
+        prop={prop}
+        label={name}
+        required={required}
+        description={prop.description ?? ''}
+      />
+    )
+  }
+
   const description = [prop.description, bindingHint(prop)]
     .filter(Boolean)
     .join(' ')

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import type { ImportPlan, MdxComponent } from '@/types'
 import { commands } from '@/lib/bindings'
+import { toast } from '../lib/toast'
+import { insertSnippet } from '../lib/editor/commands/insertSnippet'
 import { useComponentBuilderStore } from './componentBuilderStore'
 import { useEditorStore } from './editorStore'
 import { useProjectStore } from './projectStore'
@@ -19,6 +21,7 @@ vi.mock('../lib/editor/commands/insertSnippet', () => ({
   insertSnippet: vi.fn(),
   isOnEmptyLine: () => true,
 }))
+vi.mock('../lib/toast', () => ({ toast: { error: vi.fn() } }))
 
 const callout: MdxComponent = {
   name: 'Callout',
@@ -33,21 +36,22 @@ const callout: MdxComponent = {
 }
 
 const add: ImportPlan = {
-  kind: 'add',
   imports: "import Callout from '../../components/mdx/Callout.astro'",
-  statement: "import Callout from '../../components/mdx/Callout.astro'",
+  added: ["import Callout from '../../components/mdx/Callout.astro'"],
+  existing: null,
+  images: [],
 }
 
 const view = { state: { doc: { toString: () => 'Body' } } } as EditorView
 
 /** Selects Callout and waits for its plan */
-async function select(plan: ImportPlan) {
+async function select(plan: ImportPlan, component = callout) {
   vi.mocked(commands.planComponentImport).mockResolvedValue({
     status: 'ok',
     data: plan,
   })
   useComponentBuilderStore.getState().open(view)
-  useComponentBuilderStore.getState().selectComponent(callout)
+  useComponentBuilderStore.getState().selectComponent(component)
   await vi.waitFor(() =>
     expect(useComponentBuilderStore.getState().importPlan).toEqual(plan)
   )
@@ -117,5 +121,75 @@ describe('componentBuilderStore imports', () => {
     resolve(add)
     await new Promise(r => setTimeout(r, 0))
     expect(useComponentBuilderStore.getState().importPlan).toBeNull()
+  })
+
+  it('sets an image prop to the name its image is imported as', async () => {
+    await select(add)
+    const rocket = { file_name: 'rocket.png', specifier: './rocket.png' }
+    vi.mocked(commands.planComponentImport).mockResolvedValue({
+      status: 'ok',
+      data: { ...add, images: ['rocket'] },
+    })
+
+    await useComponentBuilderStore.getState().setImage('image', rocket)
+    expect(vi.mocked(commands.planComponentImport).mock.lastCall?.[6]).toEqual([
+      rocket,
+    ])
+    expect(useComponentBuilderStore.getState().values.image).toBe('rocket')
+
+    await useComponentBuilderStore.getState().setImage('image', undefined)
+    expect(useComponentBuilderStore.getState().values.image).toBeUndefined()
+  })
+
+  it('inserts a picked image as its path with the switch off', async () => {
+    const figure: MdxComponent = {
+      ...callout,
+      name: 'Figure',
+      props: [
+        {
+          name: 'image',
+          prop_type: 'ImageMetadata',
+          kind: { kind: 'image' },
+          is_optional: false,
+          default_value: null,
+          description: null,
+        },
+      ],
+    }
+    await select(add, figure)
+    vi.mocked(commands.planComponentImport).mockResolvedValue({
+      status: 'ok',
+      data: { ...add, images: ['rocket'] },
+    })
+    await useComponentBuilderStore
+      .getState()
+      .setImage('image', { file_name: 'rocket.png', specifier: './rocket.png' })
+
+    const snippet = () => vi.mocked(insertSnippet).mock.lastCall?.[1]
+    useComponentBuilderStore.getState().insert()
+    expect(snippet()).toContain('image={rocket}')
+
+    await select(add, figure)
+    await useComponentBuilderStore
+      .getState()
+      .setImage('image', { file_name: 'rocket.png', specifier: './rocket.png' })
+    useComponentBuilderStore.getState().setAddImport(false)
+    useComponentBuilderStore.getState().insert()
+    expect(snippet()).toContain('image="./rocket.png"')
+  })
+
+  it("keeps out an image that can't be imported", async () => {
+    await select(add)
+    vi.mocked(commands.planComponentImport).mockResolvedValue({
+      status: 'error',
+      error: "b.png isn't in src/",
+    })
+
+    await useComponentBuilderStore
+      .getState()
+      .setImage('image', { file_name: 'b.png', specifier: '/public/b.png' })
+    expect(toast.error).toHaveBeenCalled()
+    expect(useComponentBuilderStore.getState().images).toEqual({})
+    expect(useComponentBuilderStore.getState().importPlan).toEqual(add)
   })
 })

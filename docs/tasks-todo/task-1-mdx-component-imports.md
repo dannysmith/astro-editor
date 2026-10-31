@@ -108,10 +108,12 @@ Real files to test the splitter and import insertion against, used for manual te
 
 ### Phase 5: Image props
 
-- [ ] An image picker for `image` props in the builder, copying the file into the project with `processFileToAssets` as `ImageField` does
-- [ ] Add `import <name> from '<path>'` and insert `src={name}`. Name the binding from the file name, unique among the file's existing bindings. The image's import line joins the preview row.
-- [ ] Only images under `src/` can be imported. If the collection's assets directory is in `public/`, keep the text field.
-- [ ] Remove the image hint from `bindingHint`
+- [x] An image picker for `image` props in the builder (`ImagePropField`), copying the file into the project with `processFileToAssets` as `ImageField` does. Shown when the setting is on; otherwise image props keep the text field and its hint.
+- [x] Add `import <name> from '<path>'` and insert `image={name}`. The plan command takes the picked images and names each after its file (`hero-image.png` gives `heroImage`, dates and other leading numbers dropped, reserved words get `Image`), unique among every name the file binds, including `export const`s. An image the file already imports keeps its name. The plan now lists every statement it adds (`added`), plus the component's `existing` import, and the row shows them all. The switch covers the image imports too, and with it off a picked image goes in as its path, `image="../../assets/a.png"`, which is easier to fix in a code editor than a name nothing imports.
+- [x] Only images under `src/` can be imported: the picker only shows when the collection's assets directory is under `src/`, and the command refuses an image elsewhere (one already in `public/`, say), which the builder shows as a toast
+- [x] The image hint in `bindingHint` stays for the text field fallback
+- [x] Drops on the picker no longer also go to the editor behind the dialog: the editor's drop handler and `FileUploadButton` ignore drops on anything covering them
+- [x] Tried in the app: dropping an image onto Figure's picker copied it, named it `styleguideImage`, and the inserted Figure and both imports built, with Astro optimising the image
 
 ### Phase 6: Collection-entry props
 

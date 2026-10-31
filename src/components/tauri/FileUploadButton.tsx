@@ -158,12 +158,15 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
             // Check if drop happened on this button using position
             if (!buttonRef.current || !position) return
 
+            // …and not on something covering it, like a dialog
             const rect = buttonRef.current.getBoundingClientRect()
+            const topmost = document.elementFromPoint(position.x, position.y)
             const isOverButton =
               position.x >= rect.left &&
               position.x <= rect.right &&
               position.y >= rect.top &&
-              position.y <= rect.bottom
+              position.y <= rect.bottom &&
+              (!topmost || buttonRef.current.contains(topmost))
 
             if (!isOverButton) return
 

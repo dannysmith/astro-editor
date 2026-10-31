@@ -104,11 +104,13 @@ export const commands = {
 	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
 	/**
-	 *  The import the component builder would add with `component` to the file at
-	 *  `file_path`, whose import block and body are `imports` and `body` as the
-	 *  editor holds them. Saves nothing. `None` when there's no import it can be sure of.
+	 *  The imports the component builder would add with `component`, and with
+	 *  `images` for its image props, to the file at `file_path`, whose import block
+	 *  and body are `imports` and `body` as the editor holds them. Saves nothing.
+	 *  `None` when there's no import it can be sure of. An error when an image
+	 *  isn't somewhere Astro can import it from.
 	 */
-	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component })),
+	planComponentImport: (projectPath: string, collectionPath: string, filePath: string, imports: string, body: string, component: MdxComponent, images: ImageImport[]) => typedError<ImportPlan | null, string>(__TAURI_INVOKE("plan_component_import", { projectPath, collectionPath, filePath, imports, body, component, images })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
@@ -161,14 +163,27 @@ export type FileEntry = {
 	frontmatter: { [key in string]: Value } | null,
 };
 
-export type ImportPlan = 
-/**  The new import block, and the statement added or changed in it */
-{ kind: "add"; imports: string; statement: string } | 
-/**
- *  The component's name is already imported, by `statement`. It may import
- *  something else of the same name, and then the writer's import wins.
- */
-{ kind: "alreadyImported"; statement: string };
+/**  An image picked for an image prop, which the file has to import */
+export type ImageImport = {
+	/**  The picked file's name, which the import's binding is named after */
+	file_name: string,
+	/**  The path to import it from, as the editor writes image paths */
+	specifier: string,
+};
+
+export type ImportPlan = {
+	/**  The import block with everything added */
+	imports: string,
+	/**  The statements added or changed, in the order they're in the block */
+	added: string[],
+	/**
+	 *  The statement that already imports the component, if one does. It may
+	 *  import something else of the same name, and then the writer's import wins.
+	 */
+	existing: string | null,
+	/**  The name each image is imported as, in the order they were given */
+	images: string[],
+};
 
 export type MarkdownContent = {
 	frontmatter: { [key in string]: Value },

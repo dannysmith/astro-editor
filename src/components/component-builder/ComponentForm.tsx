@@ -19,6 +19,7 @@ import {
 } from '../ui/select'
 import { FormField } from './FormField'
 import {
+  snippetInput,
   useComponentBuilderStore,
   type ClientDirective,
 } from '../../store/componentBuilderStore'
@@ -47,6 +48,8 @@ const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
  */
 export function ComponentForm({ component }: { component: MdxComponent }) {
   const values = useComponentBuilderStore(state => state.values)
+  const images = useComponentBuilderStore(state => state.images)
+  const addImport = useComponentBuilderStore(state => state.addImport)
   const clientDirective = useComponentBuilderStore(
     state => state.clientDirective
   )
@@ -76,6 +79,7 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
     component,
     editorView ? isOnEmptyLine(editorView) : false
   )
+  const snippet = snippetInput(component, values, images, addImport)
 
   return (
     <div
@@ -152,7 +156,12 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
 
       <div className="border-t px-4 py-3">
         <code className={codeBoxClassName}>
-          {buildPreview(component, values, clientDirective, block)}
+          {buildPreview(
+            snippet.component,
+            snippet.values,
+            clientDirective,
+            block
+          )}
         </code>
       </div>
 
@@ -176,43 +185,63 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
 }
 
 /**
- * Whether Insert adds the component's import, with a switch to leave it out,
- * or that its name is already imported. Expands to show the import line.
- * Hidden when there's no plan: the setting is off, or no import could be
- * worked out safely.
+ * Whether Insert adds imports for the component and its images, with a switch
+ * to leave them out, or that the component is already imported. Expands to
+ * show the lines. Hidden when there's no plan: the setting is off, or no
+ * import could be worked out safely.
  */
 function ImportRow() {
   const plan = useComponentBuilderStore(state => state.importPlan)
   const addImport = useComponentBuilderStore(state => state.addImport)
   const setAddImport = useComponentBuilderStore(state => state.setAddImport)
-  if (!plan) return null
+  if (!plan || (plan.added.length === 0 && !plan.existing)) return null
 
-  const adds = plan.kind === 'add'
+  const adds = plan.added.length > 0
+  const label = adds
+    ? plan.added.length > 1
+      ? 'Add imports'
+      : 'Add import'
+    : 'Already imported'
   return (
     <Collapsible className="border-t px-4 py-2">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <CollapsibleTrigger className="group flex items-center gap-1.5 rounded-sm text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
           <ChevronRight className="size-3.5 text-icon transition-transform group-data-panel-open:rotate-90" />
-          {adds ? 'Add import' : 'Already imported'}
+          {label}
         </CollapsibleTrigger>
         {adds && (
           <Switch
             checked={addImport}
             onCheckedChange={setAddImport}
-            aria-label="Add import"
+            aria-label={label}
           />
         )}
       </div>
-      <CollapsibleContent>
-        <code
-          className={cn(
-            codeBoxClassName,
-            'my-1',
-            (!adds || !addImport) && 'text-muted-foreground'
-          )}
-        >
-          {plan.statement}
-        </code>
+      <CollapsibleContent className="flex flex-col gap-1.5 py-1">
+        {adds && (
+          <code
+            className={cn(
+              codeBoxClassName,
+              !addImport && 'text-muted-foreground'
+            )}
+          >
+            {plan.added.join('\n')}
+          </code>
+        )}
+        {/* The import that already has the component's name, labelled when
+            there are imports to add above it */}
+        {plan.existing && (
+          <>
+            {adds && (
+              <span className="text-xs text-muted-foreground">
+                Already imported
+              </span>
+            )}
+            <code className={cn(codeBoxClassName, 'text-muted-foreground')}>
+              {plan.existing}
+            </code>
+          </>
+        )}
       </CollapsibleContent>
     </Collapsible>
   )

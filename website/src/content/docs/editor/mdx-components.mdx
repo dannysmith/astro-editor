@@ -38,7 +38,7 @@ Hitting <Kbd mac="Enter" windows="Enter" /> will open a form with a field for ea
 
 Each field matches what the prop accepts: a dropdown when it only takes a few set values (a searchable one when there are lots), a switch for true/false (or a choice of *Default*, *True* or *False* when the prop is optional), a date picker for dates, a number field for numbers and a text box for everything else. Lists of values get a field you can add several to. If a prop has a default, it's shown beside its name, and any doc comment is shown under the field.
 
-Props that take an imported image or a collection entry take the name of the variable instead, so you'll need to add the import (or load the entry) yourself.
+Props that take an imported image or a collection entry take the name of the variable instead, so you'll need to add the import (or load the entry) yourself. With [Adding Imports](#adding-imports) on, image props get an image picker instead.
 
 Optional props are only inserted if you give them a value, and Astro Editor writes each one in the right MDX syntax (`count={3}`, `date={new Date('2026-01-15')}` and so on). <Kbd mac="Cmd+Enter" windows="Ctrl+Enter" /> inserts the component with your cursor in the first required prop you left empty, or in its slot. Components that wrap content go in on lines of their own when you insert them on an empty line, so you can write markdown inside them. You can use <Kbd mac="Tab" windows="Tab" /> to move between them, and <Kbd mac="Esc" windows="Esc" /> takes you back to the list of components.
 
@@ -56,6 +56,10 @@ There's an experimental setting to have the builder add the import for you. Turn
 - If the file already imports something with that name, nothing is added and the row says **Already imported**. Click it to see the existing import. That way you'll notice if it's a different component with the same name.
 - Quotes and semicolons match the file's other imports, and everything else in those lines stays as you wrote it.
 - Undo removes the component but not its import. An unused import doesn't break anything.
+
+With the setting on, props that take an image, like `<Figure image={…}>`, get a **Select Image** button instead of a text box. You can also drop an image file onto it. As in the frontmatter panel, an image from outside your project is copied into your assets directory. The builder then imports it under a name taken from its file name (`hero-image.png` becomes `heroImage`) and uses that name for the prop. If the file already imports that image, its existing name is used. If you switch **Add import** off, the image goes in as its path instead (`image="../../assets/hero-image.png"`), ready for you to import it yourself.
+
+Astro can only import images from inside `src/`, so if your images go in `public/`, image props keep the text box.
 
 <Aside type="caution">
 Leave the setting off if your site uses [Astro Auto Import](https://github.com/delucis/astro-auto-import) or something like it. A component imported twice breaks the build.

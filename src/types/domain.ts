@@ -92,13 +92,21 @@ export type {
    */
   MdxComponent,
   /**
-   * The import the component builder adds with a component, planned without
-   * saving. Tagged by `kind`: `add` (with the new `imports` block and the
-   * `statement` added or changed in it) or `alreadyImported` (with the
-   * `statement` that imports the name, which may be something else of the
-   * same name).
+   * The imports the component builder adds with a component and the images
+   * picked for its props, planned without saving.
+   *
+   * Fields:
+   * - `imports` - The import block with everything added
+   * - `added` - The statements added or changed, empty when nothing is
+   * - `existing` - The statement that already imports the component, which may be something else of the same name
+   * - `images` - The name each image is imported as, in the order they were given
    */
   ImportPlan,
+  /**
+   * An image picked for an image prop: its file's name, which its import's
+   * name comes from, and the path to import it from.
+   */
+  ImageImport,
   /**
    * Information about a component prop.
    *

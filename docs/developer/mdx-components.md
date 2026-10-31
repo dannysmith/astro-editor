@@ -30,6 +30,10 @@ With the experimental project setting `addComponentImports` on, the builder also
 - **Edits splice text into the block** (`edit.rs`), so the writer's formatting, comments and blank lines survive. A block that isn't only imports and exports gets no plan at all.
 - **React components can be named exports.** The scanner records `named_export`; Astro, Vue and Svelte components are always default exports, and Starlight's are named.
 
+**Image props** get a picker (`ImagePropField`) when the setting is on and the collection's assets directory is under `src/`, the only place Astro imports images from; otherwise they keep a text field for a name the writer imports themselves. The picked file goes through `processFileToAssets`, like the frontmatter's image fields, and the store re-plans with every picked image (`images` on the command). Rust names each import after its file (`hero-image.png` gives `heroImage`, avoiding every name the file already binds), reuses an existing import of the same file, and refuses an image outside `src/`. The prop's value is the name, so the snippet builder writes `image={heroImage}`. The switch covers the image imports too: with it off, nothing is added and `snippetInput` writes each picked image as its path (`image="../../assets/a.png"`), which is easier to fix by hand than a name nothing imports.
+
+The editor's own drop handler and `FileUploadButton` both ignore drops on something covering them (`document.elementFromPoint`), so a drop on the builder's picker doesn't also insert a markdown image into the editor behind the dialog.
+
 `test/mdx-imports/sites/` has a small site for each way sites write imports, with cases in `cases.toml` that `cases_in_test_sites` runs. Add a case there for anything found in the wild. To check that added imports work, insert components in `temp-dummy-astro-project` or a copy of `test/starlight-minimal`, then run `bun install` and `bun run build` there. The dummy project renders every entry (`src/pages/[collection]/[...id].astro`), so a missing or wrong import fails the build.
 
 ## Starlight's components
