@@ -261,7 +261,7 @@ pub fn run() {
                     &MenuItem::with_id(
                         app,
                         "enter_fullscreen",
-                        "Enter Full Screen",
+                        "Toggle Full Screen",
                         true,
                         Some(if cfg!(target_os = "macos") {
                             "Ctrl+Cmd+F"
