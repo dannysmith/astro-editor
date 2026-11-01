@@ -347,7 +347,10 @@ pub fn run() {
                 }
                 "enter_fullscreen" => {
                     if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.set_fullscreen(true);
+                        // Toggle, so the F11 accelerator can also leave full screen
+                        if let Ok(is_fullscreen) = window.is_fullscreen() {
+                            let _ = window.set_fullscreen(!is_fullscreen);
+                        }
                     }
                 }
                 "about" => {
