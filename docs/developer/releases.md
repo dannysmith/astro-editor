@@ -38,6 +38,7 @@ How it fits together:
 - **Nothing is committed.** `release.yml` sets the version inside the runner with `scripts/release-version.js`, so no version change can end up on `main` or the feature branch.
 - **The version is the patch after the latest stable release:** `1.0.21-test.1`, `1.0.21-test.2` and so on. `1.0.21-test.3` sorts below `1.0.21`, so the updater offers nothing until 1.0.21 ships and then moves testers onto it. A test build numbered from the current release (`1.0.20-test.3`) would be offered 1.0.20 straight away and lose whatever was being tested. Testers aren't offered later test builds; send them the new link.
 - **Windows installers need a numeric version.** WiX only takes `major.minor.patch.build`, so `release-version.js` sets `bundle.windows.wix.version` to `1.0.21.3`. The MSI's filename keeps the full version. Tauri's WiX template allows downgrades, so the stable MSI installs over a test build.
+- **There's no `.rpm`.** RPM versions can't contain a `-`, and Tauri has no override for them like the WiX one, so the Linux job builds only the AppImage and `.deb`.
 - **It's the production app.** It has the same identifier, settings and telemetry uuid as the installed release and replaces it. The only difference is the version, which is also how the app knows it's a test build: any version with a `-` shows a "Test build" pill in the title bar.
 - **Nothing outside the release notices.** The updater, the website's download links and the Homebrew cask's livecheck all go through `/releases/latest`, which skips prereleases, and `fetch_release_notes` filters them out. `publish-release-notes.yml` skips prereleases, and `generate-release-pages.ts` lists only published stable releases. `publish-stable-assets` doesn't run.
 
@@ -48,7 +49,7 @@ How it fits together:
 Runs on a `v*` tag push. A tag containing `-` is a test build. The jobs run in sequence:
 
 - **`create-release`** makes one empty draft up front and passes its `release_id` to the build jobs. If each matrix job found or created the release itself, a tauri-action race ([tauri-action#914](https://github.com/tauri-apps/tauri-action/issues/914)) can split the assets across several drafts, each with an incomplete `latest.json`. For a test build, the draft is marked as a prerelease and takes its name and notes from the tag's message.
-- **`publish-tauri`** builds macOS (universal `.dmg` plus the `.app.tar.gz` updater artifact), Windows (`.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`) in parallel. Each job uploads to the shared draft and merges its platform's entries into `latest.json`. For a test build, it sets the version first.
+- **`publish-tauri`** builds macOS (universal `.dmg` plus the `.app.tar.gz` updater artifact), Windows (`.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`) in parallel. Each job uploads to the shared draft and merges its platform's entries into `latest.json`. For a test build, it sets the version first and skips the `.rpm`.
 - **`publish-stable-assets`** (releases only) adds stable-named copies (`astro-editor-latest.dmg`, `.msi`, `.AppImage`, `.deb`, `.rpm`) and a `SHA256SUMS` covering both sets of names. The website links to `/releases/latest/download/astro-editor-latest.*`, which always resolves to the newest published release, so the site never changes per release.
 - **`publish-test-build`** (test builds only) publishes the draft as a prerelease once every platform has uploaded. If a build fails it doesn't run, so nobody downloads a half-built release.
 
@@ -94,7 +95,7 @@ To test an update, install a published release, publish a newer one, and launch 
 Danny has no Linux machine, so:
 
 - `ci.yml` builds all three Linux formats and fails if bundling breaks.
-- To check `latest.json`, run `bun run test-build`, confirm the prerelease's `latest.json` has the three format keys with URLs and signatures, then delete it.
+- To check `latest.json`, run `bun run test-build`, confirm the prerelease's `latest.json` has the AppImage and `-deb` keys with URLs and signatures, then delete it. Test builds have no `.rpm`, so its key only appears on a real release.
 - To check that the packages install and their dependencies resolve, use Docker on a Mac:
 
   ```bash

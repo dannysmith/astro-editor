@@ -82,6 +82,9 @@ jobs:
             args: '--bundles msi'
           - platform: 'ubuntu-22.04'
             args: '--bundles appimage,deb,rpm'
+            # RPM versions can't contain a `-` and Tauri has no override for
+            # them, so test builds have no .rpm
+            test_build_args: '--bundles appimage,deb'
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 45
@@ -167,7 +170,7 @@ jobs:
           # release name/body and draft state are set by create-release.
           releaseId: ${{ needs.create-release.outputs.release_id }}
           uploadUpdaterJson: true
-          args: ${{ matrix.args }}
+          args: ${{ (contains(github.ref_name, '-') && matrix.test_build_args) || matrix.args }}
 
   # Publish stable-named copies of each installer plus a SHA256SUMS file to the
   # draft release. The website links to these stable URLs
