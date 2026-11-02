@@ -82,18 +82,26 @@ async function prepareRelease() {
     }
   }
 
-  console.log('🔍 Fetching tags...')
-  exec('git fetch --tags', { silent: true })
+  console.log('🔍 Fetching main and tags...')
+  exec('git fetch origin main --tags', { silent: true })
 
-  // A hotfix built from an older release would quietly drop everything since
+  // A hotfix must be built on the latest release and nothing else from main.
+  // Built from an older release it would drop everything since; built from
+  // main after the release it would ship unreleased work
   if (!onMain) {
     const tags = exec("git tag --list 'v*'", { silent: true }).split('\n')
     const latest = latestStableTag(tags)
+    const forkPoint = exec('git merge-base HEAD origin/main', {
+      silent: true,
+    }).trim()
     try {
       exec(`git merge-base --is-ancestor ${latest} HEAD`, { silent: true })
+      exec(`git merge-base --is-ancestor ${forkPoint} ${latest}`, {
+        silent: true,
+      })
     } catch {
       console.error(
-        `❌ ${branch} doesn't contain ${latest}, the latest release. Branch hotfixes from it: git switch -c hotfix/<version> ${latest}`
+        `❌ ${branch} isn't based on ${latest}, the latest release. Branch hotfixes from it: git switch -c hotfix/<version> ${latest}`
       )
       process.exit(1)
     }
