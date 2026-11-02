@@ -2,41 +2,53 @@
 
 ## Status
 
-**Current Phase:** Research done, waiting for go-ahead
+**Current Phase:** All done except Danny's checks, push, PR and merge
 **Branch:** deps-2026-11-02
 
-A small round: the last sweep merged on 2026-10-05. Everything is in range apart from a few 0.x bumps and the `notify` rc. Includes `website/` (Danny asked). One PR, one commit per phase, merged with a **merge commit**. The `zip` security fix ships with the rest, not as its own patch release.
+A small round: the last sweep merged on 2026-10-05. Includes `website/` (Danny asked). One PR, one commit per phase, merged with a **merge commit**. The `zip` security fix ships with the rest, not as its own patch release.
+
+## Remaining user actions
+
+1. **Smoke test** in `tauri:dev`:
+   - [x] Editor, highlighting and frontmatter form in light and dark; typing and auto-save (Claude)
+   - [x] External edit to the open file reloads through the watcher (notify rc.7) (Claude). New files added outside don't appear in the sidebar, but that's an older bug, now on #347
+   - [x] Sidebar and frontmatter panels collapse and reopen pixel-identical (react-resizable-panels 4.16) (Claude)
+   - [x] Check for Updates (updater 2.14.1) (Danny)
+   - [x] Open Project dialog (dialog plugin 2.8.4) (Danny)
+   - [ ] Deep link (deep-link 2.6.3)
+2. ~~**Telemetry worker**~~: staging deploy and `./stats.sh` both work. The `d1_databases` warning on `env.staging` is expected (staging doesn't touch the production database)
+3. **Push and PR:** add the `ci` label, merge with a merge commit, close Dependabot #355, move this doc to `tasks-done/`
+4. Merging deploys the website
 
 ## Plan
 
 ### Phase 1: Security fix
 
-- [ ] `cargo update -p zip`: 4.6.1 → 9.2.2 (via `tauri-plugin-updater`). Clears Dependabot alerts for `zip` (critical: zip cloaking, fixed in 9.0.5; high: symlink targets; medium: AES HMAC bypass)
+- [x] `zip` 4.6.1 → 9.2.2. Needed `tauri-plugin-updater` 2.14.1 too (2.14.0 capped `zip` at 4.x), so the JS updater plugin moved with it. Clears the three Dependabot alerts for `zip`. The macOS build doesn't compile `zip` at all (it wasn't downloaded until the Linux/Windows targets were fetched), so only Windows and Linux builds were affected
 
 ### Phase 2: Main app JS
 
-- [ ] `bun update` within ranges: TanStack Query 5.105, lucide 1.66, marked 18.1.2, react-resizable-panels 4.16, `@types/node`, baseline-browser-mapping, knip 6.44, oxlint 1.90, shadcn 4.23
-- [ ] `@rolldown/plugin-babel` 0.2.4 → 0.3.0 (only adds an opt-in `parallel` option; peer range still allows Babel 7)
-- [ ] `oxfmt` 0.74 → 0.75 (formatter fixes only), reformat as its own commit if anything changes
-- [ ] Check for nested `@lezer`/`@codemirror` copies and unexpected majors in peers
+- [x] `bun update` within ranges: TanStack Query 5.105, lucide 1.66, marked 18.1.2, react-resizable-panels 4.16, Tauri deep-link 2.6.3 and dialog 2.8.4, knip, oxlint 1.90, shadcn 4.23 and transitive patches. No unexpected majors; Babel stays on 7
+- [x] `@rolldown/plugin-babel` 0.3.0 (adds an opt-in `parallel` option). Vite build still applies the React Compiler
+- [x] `oxfmt` 0.75 (no formatting changes)
+- [x] No nested `@lezer`/`@codemirror` copies
 
 ### Phase 3: Rust
 
-- [ ] `cargo update` (tauri plugins deep-link 2.6.3, dialog 2.8.4, single-instance 2.5.5, updater 2.14.1, plus small crates)
-- [ ] Matching JS: `@tauri-apps/plugin-deep-link` 2.6.3, `plugin-dialog` 2.8.4, `plugin-updater` 2.14.1
-- [ ] `notify` `=9.0.0-rc.6` → `=9.0.0-rc.7` (macOS: keeps pending FSEvents across stream rebuilds, keeps the stream running on unchanged rewatch)
+- [x] `cargo update`: deep-link 2.6.3, dialog 2.8.4, single-instance 2.5.5 and small crates. The dialog plugin now uses only `rfd` 0.17, dropping the duplicate 0.16
+- [x] `notify` `=9.0.0-rc.7`
+- [x] Bindings regenerate unchanged
 
 ### Phase 4: Fixtures and website
 
-- [ ] Fixtures (`demo-project`, `dummy-astro-project`, `starlight-minimal`): Astro 7.3.5 → 7.4.5, Starlight → 0.42.8, integrations to latest. `astro sync`, commit regenerated schemas, `reset:testdata`
-- [ ] Website: Astro 7.4.5, Starlight 0.42.8, `@astrojs/check` 0.9.12, eslint, prettier, typescript-eslint, playwright-core minors
-- [ ] Website: withastro/astro#18088 merged 2026-10-05. If it's in 7.4.x, remove the Rolldown `onwarn` filter in `website/astro.config.mjs`
-- [ ] `bun run build` + `bun run check` in `website/`
+- [x] Fixtures: Astro 7.4.5, Starlight 0.42.8. `astro sync` produced no schema changes. `reset:testdata` done
+- [x] Website: Astro 7.4.5, Starlight 0.42.8, `@astrojs/check` 0.9.12 and tooling minors. Removed the Rolldown `onwarn` filter (Astro 7.4 dropped the head-inject directive). Text of all 71 built pages compared before and after: identical. Only CSS/JS change is Starlight adding `overflow: visible` to icons
+- [x] `bun run check` in `website/` clean
 
 ### Phase 5: Telemetry worker
 
-- [ ] wrangler 4.152 → 4.156 (supersedes Dependabot #355), `wrangler deploy --dry-run`
-- [ ] Danny: `bun run deploy:staging` and `./stats.sh`
+- [x] wrangler 4.156.2 (supersedes Dependabot #355), `wrangler deploy --dry-run` OK
+- [x] Danny: `bun run deploy:staging` and `./stats.sh`
 
 ### Phase 6: CI
 
@@ -44,26 +56,30 @@ A small round: the last sweep merged on 2026-10-05. Everything is in range apart
 
 ### Finish
 
-- [ ] `check:all`, production build, check for new warnings
-- [ ] Security audit (`bun audit` in each project)
-- [ ] Danny: smoke test
-- [ ] Push, PR with `ci` label, merge commit, close #355, move this doc to `tasks-done/`
+- [x] `check:all`: 846 frontend and 286 Rust tests pass
+- [x] Production build: `Astro Editor.app` 10.05 MiB, no new warnings (only `--no-sign` and Vite's existing chunk-size note)
+- [x] Security audit (see Issues encountered)
 
 ## Holds
 
-| Package                       | Current | Latest  | Why hold                                                                 |
-| ----------------------------- | ------- | ------- | ------------------------------------------------------------------------ |
-| `@babel/core`                 | 7.29.7  | 8.0.10  | React Compiler plugin is built against Babel 7 (AGENTS.md)               |
-| specta / specta-typescript    | rc.26 / 0.0.13 | rc.27 / 0.0.14 | tauri-specta is still rc.26; move all three together           |
-| typescript (website)          | 6.0.3   | 7.0.2   | `@astrojs/check` 0.9.12 still peers `^5 \|\| ^6`                          |
-| Rust edition 2024             | 2021    | —       | Optional, low value                                                      |
-| Tauri 3                       | —       | alpha   | Alpha                                                                    |
+| Package                    | Current        | Latest         | Why hold                                               |
+| -------------------------- | -------------- | -------------- | ------------------------------------------------------ |
+| `@babel/core`              | 7.29.7         | 8.0.10         | React Compiler plugin is built against Babel 7         |
+| specta / specta-typescript | rc.26 / 0.0.13 | rc.27 / 0.0.14 | tauri-specta is still rc.26; move all three together   |
+| typescript (website)       | 6.0.3          | 7.0.2          | `@astrojs/check` 0.9.12 still peers `^5 \|\| ^6`        |
+| Rust edition 2024          | 2021           | —              | Optional, low value                                    |
+| Tauri 3                    | —              | alpha          | Alpha                                                  |
 
 Holds from the September doc that no longer apply: pnpm (moved to bun), specta rc.25 stack overflow (fixed, now on rc.26), TypeScript 7 for the app (done).
 
 ## Decisions
 
-- Two branches: this one first, the #347 bugs after it merges. Save-on-quit gets its own branch; the project-settings bugs wait for the project rework
+- Two branches: this one first, the #347 bugs after it merges. Save-on-quit gets its own branch; the project-settings bugs moved to #361 for the project rework
 - `zip` fix ships with everything else
 
 ## Issues encountered
+
+1. **`bun audit`** finds two dev-only advisories that can't be fixed within range: `minimatch` <11.0.1 (via shadcn's CLI and ESLint/typescript-eslint, which require `^10`) and `deepmerge` ≤4.3.1 (via shadcn's CLI and the Svelte Vite plugin in `dummy-astro-project`, no patched release). Neither ships in the app
+2. **`cargo audit`** 0.21 couldn't parse CVSS 4.0 entries in the advisory database; upgraded to 0.22.2. No vulnerabilities. Six warnings, all in crates Tauri or tauri-specta pull in: `paste`, `proc-macro-error`, `zbus_names`, `zvariant` and `zvariant_derive` unmaintained (the last three are Linux-only D-Bus crates), and `glib` 0.18 unsound (`VariantStrIter`, Linux GTK)
+3. **Sandbox:** `cargo update`/`fetch` need to write to `~/.cargo/registry`, and `wrangler` to `~/Library/Preferences/.wrangler`, so both ran outside the sandbox
+4. **`demo-project` warns** "No entry type found" for its `.mdx` files during `astro sync`, because it doesn't install `@astrojs/mdx`. Not caused by this update
