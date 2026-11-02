@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** C. Command palette and preferences
+**Current Phase:** D. Keyboard shortcuts
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -33,8 +33,8 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 
 ## C. Command palette and preferences
 
-12. [ ] **Palette search ignores text after the first colon.** `CommandPalette.tsx` filters on `value.split(':')[1]`, and `value` is `id:label`, so "Open Collection: blog" only matches "Open Collection". *Checked*
-13. [ ] **Preference pane `FieldLabel`s have no `htmlFor`,** so clicking a label doesn't focus its input
+12. [x] **Palette search ignores text after the first colon.** `CommandPalette.tsx` filters on `value.split(':')[1]`, and `value` is `id:label`, so "Open Collection: blog" only matches "Open Collection". *Checked*
+13. [x] **Preference pane `FieldLabel`s have no `htmlFor`,** so clicking a label doesn't focus its input
 
 ## D. Keyboard shortcuts
 

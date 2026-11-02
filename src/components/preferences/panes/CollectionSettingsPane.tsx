@@ -53,6 +53,11 @@ export const CollectionSettingsPane: React.FC = () => {
     new Set()
   )
 
+  // Ids that tie each label to its control. Inputs use htmlFor; select
+  // triggers are buttons, which htmlFor would click, so they name themselves
+  // with aria-labelledby
+  const id = React.useId()
+
   const toggleCollection = (collectionName: string) => {
     const newExpanded = new Set(expandedCollections)
     if (newExpanded.has(collectionName)) {
@@ -210,7 +215,8 @@ export const CollectionSettingsPane: React.FC = () => {
     onChange: (value: string) => void,
     fieldType: FieldType,
     placeholder: string,
-    inheritedValue: string | string[]
+    inheritedValue: string | string[],
+    labelId: string
   ) => {
     const fields = getFieldsByType(collectionName, fieldType)
     const currentValue = value || 'inherited'
@@ -255,7 +261,7 @@ export const CollectionSettingsPane: React.FC = () => {
           if (val) onChange(val === 'inherited' ? '' : val)
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger aria-labelledby={labelId}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -351,6 +357,8 @@ export const CollectionSettingsPane: React.FC = () => {
 
           if (!effectiveSettings) return null
 
+          const fieldId = (key: string) => `${id}-${collection.name}-${key}`
+
           return (
             <Collapsible
               key={collection.name}
@@ -381,9 +389,12 @@ export const CollectionSettingsPane: React.FC = () => {
                     {/* Path Overrides Section */}
                     <SettingsSection title="Path Overrides">
                       <Field>
-                        <FieldLabel>Content Directory</FieldLabel>
+                        <FieldLabel htmlFor={fieldId('content')}>
+                          Content Directory
+                        </FieldLabel>
                         <FieldContent>
                           <PreferencesTextInput
+                            id={fieldId('content')}
                             value={
                               collectionOverride?.settings?.pathOverrides
                                 ?.contentDirectory || ''
@@ -405,9 +416,12 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
 
                       <Field>
-                        <FieldLabel>Assets Directory</FieldLabel>
+                        <FieldLabel htmlFor={fieldId('assets')}>
+                          Assets Directory
+                        </FieldLabel>
                         <FieldContent>
                           <PreferencesTextInput
+                            id={fieldId('assets')}
                             value={
                               collectionOverride?.settings?.pathOverrides
                                 ?.assetsDirectory || ''
@@ -431,7 +445,7 @@ export const CollectionSettingsPane: React.FC = () => {
                       <Field>
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <FieldLabel>
+                            <FieldLabel htmlFor={fieldId('absolute-paths')}>
                               Use Absolute Paths for Images
                             </FieldLabel>
                             <FieldDescription>
@@ -448,6 +462,7 @@ export const CollectionSettingsPane: React.FC = () => {
                             </FieldDescription>
                           </div>
                           <Switch
+                            id={fieldId('absolute-paths')}
                             checked={
                               collectionOverride?.settings
                                 ?.useAbsoluteAssetPaths ?? false
@@ -466,7 +481,9 @@ export const CollectionSettingsPane: React.FC = () => {
                     {/* File Defaults Section */}
                     <SettingsSection title="File Defaults">
                       <Field>
-                        <FieldLabel>Default File Type for New Files</FieldLabel>
+                        <FieldLabel id={fieldId('file-type')}>
+                          Default File Type for New Files
+                        </FieldLabel>
                         <FieldContent>
                           <Select
                             items={fileTypeItems}
@@ -484,7 +501,9 @@ export const CollectionSettingsPane: React.FC = () => {
                               )
                             }}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger
+                              aria-labelledby={fieldId('file-type')}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -506,7 +525,9 @@ export const CollectionSettingsPane: React.FC = () => {
                     {/* Frontmatter Mappings Section */}
                     <SettingsSection title="Frontmatter Mappings">
                       <Field>
-                        <FieldLabel>Published Date Field</FieldLabel>
+                        <FieldLabel id={fieldId('date-field')}>
+                          Published Date Field
+                        </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
                             collection.name,
@@ -520,7 +541,8 @@ export const CollectionSettingsPane: React.FC = () => {
                               ),
                             FieldType.Date,
                             'Select date field',
-                            effectiveSettings.frontmatterMappings.publishedDate
+                            effectiveSettings.frontmatterMappings.publishedDate,
+                            fieldId('date-field')
                           )}
                           <FieldDescription>
                             Field used for ordering files in the list
@@ -529,7 +551,9 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
 
                       <Field>
-                        <FieldLabel>Title Field</FieldLabel>
+                        <FieldLabel id={fieldId('title-field')}>
+                          Title Field
+                        </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
                             collection.name,
@@ -543,7 +567,8 @@ export const CollectionSettingsPane: React.FC = () => {
                               ),
                             FieldType.String,
                             'Select text field',
-                            effectiveSettings.frontmatterMappings.title
+                            effectiveSettings.frontmatterMappings.title,
+                            fieldId('title-field')
                           )}
                           <FieldDescription>
                             Field that gets special treatment in the frontmatter
@@ -553,7 +578,9 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
 
                       <Field>
-                        <FieldLabel>Description Field</FieldLabel>
+                        <FieldLabel id={fieldId('description-field')}>
+                          Description Field
+                        </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
                             collection.name,
@@ -567,7 +594,8 @@ export const CollectionSettingsPane: React.FC = () => {
                               ),
                             FieldType.String,
                             'Select text field',
-                            effectiveSettings.frontmatterMappings.description
+                            effectiveSettings.frontmatterMappings.description,
+                            fieldId('description-field')
                           )}
                           <FieldDescription>
                             Field that gets special treatment in the frontmatter
@@ -577,7 +605,9 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
 
                       <Field>
-                        <FieldLabel>Draft Field</FieldLabel>
+                        <FieldLabel id={fieldId('draft-field')}>
+                          Draft Field
+                        </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
                             collection.name,
@@ -591,7 +621,8 @@ export const CollectionSettingsPane: React.FC = () => {
                               ),
                             FieldType.Boolean,
                             'Select boolean field',
-                            effectiveSettings.frontmatterMappings.draft
+                            effectiveSettings.frontmatterMappings.draft,
+                            fieldId('draft-field')
                           )}
                           <FieldDescription>
                             Field that shows a draft marker in the file list
@@ -603,9 +634,12 @@ export const CollectionSettingsPane: React.FC = () => {
                     {/* Link URL Pattern Section */}
                     <SettingsSection title="Content Links">
                       <Field>
-                        <FieldLabel>Link URL Pattern</FieldLabel>
+                        <FieldLabel htmlFor={fieldId('url-pattern')}>
+                          Link URL Pattern
+                        </FieldLabel>
                         <FieldContent>
                           <PreferencesTextInput
+                            id={fieldId('url-pattern')}
                             value={
                               collectionOverride?.settings?.urlPattern || ''
                             }
