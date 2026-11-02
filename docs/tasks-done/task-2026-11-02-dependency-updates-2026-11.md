@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** All done except Danny's checks, push, PR and merge
+**Current Phase:** Done. Merged with a merge commit
 **Branch:** deps-2026-11-02
 
 A small round: the last sweep merged on 2026-10-05. Includes `website/` (Danny asked). One PR, one commit per phase, merged with a **merge commit**. The `zip` security fix ships with the rest, not as its own patch release.
@@ -15,10 +15,14 @@ A small round: the last sweep merged on 2026-10-05. Includes `website/` (Danny a
    - [x] Sidebar and frontmatter panels collapse and reopen pixel-identical (react-resizable-panels 4.16) (Claude)
    - [x] Check for Updates (updater 2.14.1) (Danny)
    - [x] Open Project dialog (dialog plugin 2.8.4) (Danny)
-   - [ ] Deep link (deep-link 2.6.3)
-2. ~~**Telemetry worker**~~: staging deploy and `./stats.sh` both work. The `d1_databases` warning on `env.staging` is expected (staging doesn't touch the production database)
-3. **Push and PR:** add the `ci` label, merge with a merge commit, close Dependabot #355, move this doc to `tasks-done/`
-4. Merging deploys the website
+   - [x] ~~Deep link (deep-link 2.6.3)~~: skipped. `astro-editor://` links go to the installed app, not `tauri dev`. Check it in the next release build
+2. **Telemetry worker:** staging deploy and `./stats.sh` both work. The `d1_databases` warning on `env.staging` is expected (staging doesn't touch the production database). No production deploy needed: only wrangler changed, not the worker code, and the bundle is the same size
+3. **PR:** opened with the `ci` label. This doc was moved to `tasks-done/` before pushing, so CI and review run once
+
+## After merge
+
+- Close Dependabot #355 (superseded)
+- Merging deploys the website
 
 ## Plan
 
