@@ -348,8 +348,11 @@ pub fn run() {
                     let _ = app.emit("menu-toggle-frontmatter", ());
                 }
                 "enter_fullscreen" => {
+                    // Toggle, so Ctrl+Cmd+F also leaves full screen
                     if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.set_fullscreen(true);
+                        if let Ok(is_fullscreen) = window.is_fullscreen() {
+                            let _ = window.set_fullscreen(!is_fullscreen);
+                        }
                     }
                 }
                 "about" => {
