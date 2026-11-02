@@ -10,12 +10,16 @@ interface FileChangeEvent {
   kind: string
 }
 
+// Events for the open file this soon after our own save are probably that save
+const OWN_SAVE_WINDOW_MS = 3000
+
 /**
  * Handles file-changed events from the Rust watcher
  *
  * Responsibilities:
- * 1. Listen for file-changed events from watcher
- * 2. Invalidate queries to trigger refetch
+ * 1. Refresh the sidebar and entry pickers when any content file is added,
+ *    removed, renamed or edited outside the app
+ * 2. Reload the open file when it changes on disk
  * 3. Respect isDirty state (don't reload user's unsaved work)
  * 4. Ignore events that occur immediately after our own save (race condition protection)
  */
@@ -28,9 +32,27 @@ export function useFileChangeHandler() {
       const { currentFile, isDirty, lastSaveTimestamp } =
         useEditorStore.getState()
       const { projectPath } = useProjectStore.getState()
+      if (!projectPath) return
 
-      // Only care about currently open file
-      if (!currentFile || currentFile.path !== path) {
+      const isOpenFile = currentFile?.path === path
+      const timeSinceLastSave =
+        lastSaveTimestamp === null ? Infinity : Date.now() - lastSaveTimestamp
+      const isOwnSave = isOpenFile && timeSinceLastSave < OWN_SAVE_WINDOW_MS
+
+      // Our own saves already refresh the file list (useEditorActions). Only
+      // queries on screen refetch, and scans don't write, so this can't loop
+      if (!isOwnSave) {
+        void queryClient.invalidateQueries({
+          predicate: ({ queryKey }) =>
+            queryKey[0] === queryKeys.all[0] &&
+            queryKey[1] === projectPath &&
+            // directoryContents and collectionFiles
+            (queryKey[3] === 'directory' || queryKey[4] === 'files'),
+        })
+      }
+
+      // The rest only concerns the open file
+      if (!currentFile || !isOpenFile) {
         return
       }
 
@@ -45,30 +67,22 @@ export function useFileChangeHandler() {
         return
       }
 
-      // Ignore events that occur within 3 seconds of our own save
-      // This prevents race conditions where the file watcher emits multiple events
-      // for a single save operation, and some events arrive after isDirty is cleared
-      if (lastSaveTimestamp) {
-        const timeSinceLastSave = Date.now() - lastSaveTimestamp
-        if (timeSinceLastSave < 3000) {
-          if (import.meta.env.DEV) {
-            void debug(
-              `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
-            )
-          }
-          return
+      // The watcher can emit several events for one save, and some arrive after
+      // isDirty is cleared
+      if (isOwnSave) {
+        if (import.meta.env.DEV) {
+          void debug(
+            `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
+          )
         }
+        return
       }
 
       // File is saved and not recently modified by us - safe to reload from disk
       void info(`External change detected on ${path} - reloading`)
-
-      if (projectPath) {
-        // Invalidate query - TanStack Query will refetch
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.fileContent(projectPath, currentFile.id),
-        })
-      }
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+      })
     }
 
     window.addEventListener('file-changed', handleFileChanged)

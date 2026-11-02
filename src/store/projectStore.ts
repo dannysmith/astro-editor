@@ -186,10 +186,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const unlistenFileChanged = await listen(
         'file-changed',
         (event: { payload: unknown }) => {
-          // File refresh is now handled by TanStack Query invalidation
-          // This event is kept for future use
-
-          // Dispatch custom event for editor store to handle recently saved file logic
+          // Handled by useFileChangeHandler (refreshes the sidebar and the open file)
           window.dispatchEvent(
             new CustomEvent('file-changed', {
               detail: event.payload,

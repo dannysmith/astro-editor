@@ -22,8 +22,7 @@ export interface CommandContext {
   toggleFrontmatterPanel: () => void
   saveFile: () => Promise<void>
   closeCurrentFile: () => void
-  loadCollections: () => void
-  loadCollectionFiles: () => void
+  reloadCollections: () => void
   openPreferences: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void

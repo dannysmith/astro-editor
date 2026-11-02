@@ -5,6 +5,8 @@ import { useUIStore } from '../../store/uiStore'
 import { useCollectionsQuery } from '../queries/useCollectionsQuery'
 import { useEditorActions } from '../editor/useEditorActions'
 import { CommandContext } from '../../lib/commands/types'
+import { queryClient } from '../../lib/query-client'
+import { queryKeys } from '../../lib/query-keys'
 
 /**
  * Creates command context from current app state
@@ -62,13 +64,14 @@ export function useCommandContext(): CommandContext {
     toggleFrontmatterPanel,
     saveFile,
     closeCurrentFile,
-    loadCollections: () => {
-      // Use custom event pattern since command context can't use React hooks
-      window.dispatchEvent(new CustomEvent('reload-collections'))
-    },
-    loadCollectionFiles: () => {
-      // Use custom event pattern since command context can't use React hooks
-      window.dispatchEvent(new CustomEvent('reload-collection-files'))
+    reloadCollections: () => {
+      const { projectPath } = useProjectStore.getState()
+      if (!projectPath) return
+      // Everything read from the project: schemas, file lists and file content.
+      // A refetch never replaces unsaved edits (see useEditorFileContent)
+      void queryClient.invalidateQueries({
+        queryKey: [...queryKeys.all, projectPath],
+      })
     },
     openPreferences: () => {
       // Dispatch a custom event that Layout can listen to

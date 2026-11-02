@@ -121,7 +121,7 @@ export const projectCommands: AppCommand[] = [
     icon: RefreshCw,
     group: 'project',
     execute: (context: CommandContext) => {
-      context.loadCollections()
+      context.reloadCollections()
       toast.success('Collections reloaded')
     },
     isAvailable: (context: CommandContext) => {
@@ -316,7 +316,6 @@ export function generateCollectionCommands(
     group: 'navigation' as const,
     execute: (context: CommandContext) => {
       context.setSelectedCollection(collection.name)
-      context.loadCollectionFiles()
     },
     isAvailable: (context: CommandContext) => {
       return context.selectedCollection !== collection.name
