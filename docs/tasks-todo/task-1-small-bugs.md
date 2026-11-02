@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** D. Keyboard shortcuts
+**Current Phase:** E. Code health
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -38,8 +38,8 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 
 ## D. Keyboard shortcuts
 
-14. [ ] **Cmd+W should close the window on macOS.** Today the `mod+w` hotkey (`useKeyboardShortcuts.ts`) wins over the native Close item on every platform, so Cmd+W closes the file and does nothing without one. *Checked by Danny.* On macOS, make it close the window like Notes or Ulysses: call `close()` on the window, which goes through the Rust `CloseRequested` handler (saves window state and hides it), and clicking the Dock icon brings it back with the same file open. On Windows and Linux, keep Ctrl+W closing the file (closing the only window would quit). Close File stays in the palette. Update the website's keyboard shortcut docs and `commands-and-shortcuts.md`
-15. [ ] **Other shortcuts are bound twice:** Cmd+S, Cmd+N, Cmd+Shift+O, Cmd+B/I/K and Option+Cmd+1–4 are both native menu accelerators and JS hotkeys or CodeMirror keymaps; Windows has no native menu, so the JS bindings are its only path. Check each fires once on macOS. If so, explain why both exist in `commands-and-shortcuts.md` and change nothing
+14. [x] **Cmd+W should close the window on macOS.** Today the `mod+w` hotkey (`useKeyboardShortcuts.ts`) wins over the native Close item on every platform, so Cmd+W closes the file and does nothing without one. *Checked by Danny.* On macOS, make it close the window like Notes or Ulysses: call `close()` on the window, which goes through the Rust `CloseRequested` handler (saves window state and hides it), and clicking the Dock icon brings it back with the same file open. On Windows and Linux, keep Ctrl+W closing the file (closing the only window would quit). Close File stays in the palette. Update the website's keyboard shortcut docs and `commands-and-shortcuts.md`
+15. [x] **Other shortcuts are bound twice:** Cmd+S, Cmd+N, Cmd+Shift+O, Cmd+B/I/K and Option+Cmd+1–4 are both native menu accelerators and JS hotkeys or CodeMirror keymaps; Windows has no native menu, so the JS bindings are its only path. Check each fires once on macOS. If so, explain why both exist in `commands-and-shortcuts.md` and change nothing
 
 ## E. Code health
 
