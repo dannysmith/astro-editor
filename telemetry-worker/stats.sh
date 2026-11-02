@@ -58,8 +58,22 @@ new_users=$(bunx wrangler d1 execute astro-telemetry --remote --json --command "
       HAVING MIN(created_at) >= datetime('now', '-7 days')
     )
 " 2>/dev/null | jq -r '.[0].results[0].new_users')
+# Test builds have a prerelease version like 1.0.21-test.3. Testers keep their
+# uuid, so they're already in the totals above
+test_build_users=$(bunx wrangler d1 execute astro-telemetry --remote --json --command "
+  SELECT COUNT(*) as users
+  FROM (
+    SELECT uuid, version
+    FROM telemetry_events
+    WHERE app_id = 'astro-editor'
+    GROUP BY uuid
+    HAVING created_at = MAX(created_at)
+  )
+  WHERE version LIKE '%-%'
+" 2>/dev/null | jq -r '.[0].results[0].users')
 printf "   ${BOLD}${GREEN}%-6s${RESET} total installs\n" "$total"
 printf "   ${BOLD}${YELLOW}%-6s${RESET} new this week\n" "$new_users"
+printf "   ${BOLD}${MAGENTA}%-6s${RESET} on a test build\n" "$test_build_users"
 
 header "🖥️  USERS BY PLATFORM"
 bunx wrangler d1 execute astro-telemetry --remote --json --command "
@@ -85,7 +99,9 @@ bunx wrangler d1 execute astro-telemetry --remote --json --command "
   GROUP BY version
   ORDER BY version DESC
 " 2>/dev/null | jq -r '.[0].results[] | "\(.version)|\(.users)"' | sort -t'.' -k1,1rn -k2,2rn -k3,3rn | while IFS='|' read -r ver count; do
-  printf "   ${MAGENTA}v%-8s${RESET} ${BOLD}%s${RESET} users\n" "$ver" "$count"
+  label=""
+  [[ "$ver" == *-* ]] && label=" ${DIM}(test build)${RESET}"
+  printf "   ${MAGENTA}v%-15s${RESET} ${BOLD}%s${RESET} users%b\n" "$ver" "$count" "$label"
 done
 
 header "📅 DAILY ACTIVE (Last 14 Days)"

@@ -21,6 +21,8 @@ permissions:
 
 jobs:
   publish-release-notes:
+    # Test builds are published as prereleases, which also fire `published`
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
