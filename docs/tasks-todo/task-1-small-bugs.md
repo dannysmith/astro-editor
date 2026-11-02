@@ -43,7 +43,7 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 
 ## E. Code health
 
-16. [ ] **Drop the direct `rfd` dependency.** `select_project_folder` calls `rfd::AsyncFileDialog` although `tauri-plugin-dialog` wraps `rfd` and has a Rust API. Since #362 our `rfd` is pinned to `gtk3` to avoid a Linux build clash; using the plugin removes the dependency and the pin. Retest Open Project
+16. [x] **Drop the direct `rfd` dependency.** `select_project_folder` calls `rfd::AsyncFileDialog` although `tauri-plugin-dialog` wraps `rfd` and has a Rust API. Since #362 our `rfd` is pinned to `gtk3` to avoid a Linux build clash; using the plugin removes the dependency and the pin. Retest Open Project
 17. [ ] **React Compiler bailouts** from real Rules of React violations: `Editor` (refs read during render), `FrontmatterField` and `useCommandPalette` ("existing memoization could not be preserved"), `ContentLinkerDialog` (`try/finally`). Fix `Editor` and `FrontmatterField` here, since they affect typing; move the others out if they turn out big
 18. [ ] **Unused code:** `mdxComponentsStore`, the `read_json_schema` command, `useDeleteFileMutation`, the editor registry's `save` and `addCursorsToLineEnds`, and `path-resolution.ts`'s `getEffective*` functions (nothing calls them; `collection-settings.ts` and `effective-settings.ts` do the same job). Do it last with the `codebase-hygiene` skill
 

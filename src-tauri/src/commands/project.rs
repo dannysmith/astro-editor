@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DirectoryScanResult {
@@ -135,14 +136,25 @@ fn is_blocked_directory(path: &Path) -> bool {
 #[tauri::command]
 #[specta::specta]
 pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    let file_dialog = rfd::AsyncFileDialog::new()
+    // The dialog reports back through a callback, which the channel turns
+    // into something to await
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
         .set_title("Select Astro Project Folder")
-        .pick_folder()
-        .await;
+        .pick_folder(move |folder| {
+            let _ = tx.send(folder);
+        });
+    let picked = rx
+        .await
+        .map_err(|e| format!("Folder dialog closed unexpectedly: {e}"))?;
 
-    match file_dialog {
+    match picked {
         Some(folder) => {
-            let folder_path = folder.path();
+            let folder_path = folder
+                .into_path()
+                .map_err(|e| format!("Invalid folder path: {e}"))?;
+            let folder_path = folder_path.as_path();
 
             // Check if the selected directory is in a blocked location
             if is_blocked_directory(folder_path) {

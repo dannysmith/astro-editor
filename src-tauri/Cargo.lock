@@ -151,7 +151,6 @@ dependencies = [
  "pathdiff",
  "regex",
  "reqwest",
- "rfd",
  "serde",
  "serde_json",
  "serde_norway",
