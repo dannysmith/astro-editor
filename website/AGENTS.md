@@ -2,7 +2,7 @@
 
 ## CRITICAL: Package Manager
 
-**Always use `bun`, never `pnpm` or `npm`, when working in `website/`.** This project is fully independent of the root Astro Editor pnpm workspace. It has its own `bun.lock` and `node_modules/`.
+**Always use `bun`, never `pnpm` or `npm`, when working in `website/`.** This project is fully independent of the root Astro Editor project. It has its own `bun.lock` and `node_modules/`.
 
 ## Project Overview
 

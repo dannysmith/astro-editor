@@ -4,6 +4,8 @@
 
 Build a comprehensive project management interface that allows users to view, configure, and manage all their registered projects and their content folder settings from a single, intuitive location.
 
+Fix the project settings bugs in #361 as part of this work.
+
 ## Problem Statement
 
 ### Current Pain Points
