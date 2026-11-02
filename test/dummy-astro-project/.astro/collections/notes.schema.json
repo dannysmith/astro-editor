@@ -204,6 +204,12 @@
         }
       ]
     },
+    "gallery": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "metadata": {
       "type": "object",
       "properties": {

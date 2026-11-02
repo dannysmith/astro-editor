@@ -74,6 +74,7 @@ To see current output, read `.astro/collections/` in any of the `test/` projects
 ## How other shapes become fields
 
 - **Objects with fixed fields are flattened** into a field each (`sponsor.name`), nullable ones too.
+- **Arrays of images** (`z.array(image())`, an array with `subType: image` once the Zod config is applied) get an image picker per image (`ImageArrayField`). Arrays of references whose collection the Zod parser didn't find fall through to YAML.
 - **Objects without fixed fields are edited as YAML:** records (`additionalProperties`) and `z.discriminatedUnion` (`oneOf`) are `object` fields, and tuples (`prefixItems` with `items: false`) are arrays of `unknown`.
 - **Literals:** an `enum`, or an `anyOf` of `const` (`z.union([z.literal('a'), z.literal('b')])`), is a dropdown when the values are strings and a number input when they're numbers, because the dropdown would save numbers as strings. A mix is a text input.
 - **Nullable fields** (`anyOf: [T, null]`, or Zod 4.5+'s `type: [T, "null"]`) take the type and constraints of `T`.

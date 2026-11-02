@@ -16,6 +16,9 @@ extra:
 sponsor:
   name: Example Co
   url: https://example.com
+gallery:
+  - /src/assets/articles/styleguide-image.jpg
+  - /src/assets/articles/styleguide-image.jpg
 ---
 
 This note's frontmatter covers the Zod 4 JSON schema shapes the parser handles specially:
@@ -26,3 +29,4 @@ This note's frontmatter covers the Zod 4 JSON schema shapes the parser handles s
 - **wordCount**: `int()`, with no safe-integer range shown
 - **coordinates** (tuple), **embed** (discriminated union) and **extra** (record): edited as YAML
 - **sponsor**: a nullable object, shown as its own fields
+- **gallery**: `z.array(image())`, an image picker for each image

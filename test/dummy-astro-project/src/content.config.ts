@@ -67,6 +67,7 @@ const notes = defineCollection({
         .optional(),
       extra: z.record(z.string(), z.string()).optional(),
       sponsor: z.object({ name: z.string(), url: z.string().url().optional() }).nullish(),
+      gallery: z.array(image()).optional(),
       metadata: z
         .object({
           category: z.string().describe('Category for organizing notes'),

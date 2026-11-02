@@ -12,6 +12,7 @@ import { ArrayField } from './ArrayField'
 import { ReferenceField } from './ReferenceField'
 import { YamlField } from './YamlField'
 import { ImageField } from './ImageField'
+import { ImageArrayField } from './ImageArrayField'
 
 interface FrontmatterFieldProps {
   name: string
@@ -81,7 +82,8 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   // - Array references come before complex arrays, which would otherwise send
   //   them to YamlField. An array of references whose collection the Zod parser
   //   didn't find has no subReference, so it still ends up there.
-  // - Arrays of anything but strings and numbers (dates, objects, images) use YamlField.
+  // - Arrays of images use ImageArrayField; arrays of anything else but strings
+  //   and numbers (dates, objects, tuples) use YamlField.
   // - Every typed check runs before the title and description mappings, so those
   //   textareas only replace plain string fields.
   // - Fields with no schema are strings, except string arrays, which are
@@ -147,6 +149,18 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   if (isArrayReference) {
     return (
       <ReferenceField
+        name={name}
+        label={label}
+        required={required}
+        field={field}
+      />
+    )
+  }
+
+  // Handle arrays of images (z.array(image())) with an image picker each
+  if (isComplexArray && field?.subType === FieldType.Image) {
+    return (
+      <ImageArrayField
         name={name}
         label={label}
         required={required}

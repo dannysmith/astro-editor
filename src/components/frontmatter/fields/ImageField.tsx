@@ -1,21 +1,8 @@
-import React, { useState } from 'react'
-import { debug } from '@tauri-apps/plugin-log'
+import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
-import { toast } from '../../../lib/toast'
-import { useProjectStore } from '../../../store/projectStore'
 import { FieldWrapper } from './FieldWrapper'
-import { ImageThumbnail } from './ImageThumbnail'
-import { FileUploadButton } from '../../tauri'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from '../../ui/input-group'
-import { processFileToAssets, IMAGE_EXTENSIONS } from '../../../lib/files'
-import { getCollectionSettings } from '../../../lib/project-registry'
-import { X, Loader2, Edit3, Check } from 'lucide-react'
+import { ImagePicker } from './ImagePicker'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
@@ -33,104 +20,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
-  const [isLoading, setIsLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState('')
-  const id = React.useId()
-  const labelId = `${id}-label`
-
-  const stringValue = typeof value === 'string' ? value : ''
-  // When editing, show edit value; otherwise show current value
-  const displayValue = isEditing ? editValue : stringValue
-
-  const handleFileSelect = async (filePath: string) => {
-    setIsLoading(true)
-
-    const { projectPath, currentProjectSettings } = useProjectStore.getState()
-    const { currentFile } = useEditorStore.getState()
-    const collection = currentFile?.collection
-
-    // Capture the starting file ID to detect file switches during async operation
-    const startingFileId = currentFile?.id
-
-    try {
-      // Validate context
-      if (!projectPath || !currentFile || !collection) {
-        throw new Error('No project or collection context available')
-      }
-
-      // Get path preference (defaults to true if not set)
-      const effectiveSettings = getCollectionSettings(
-        currentProjectSettings,
-        collection
-      )
-      const useRelativePaths = effectiveSettings.useRelativeAssetPaths
-
-      // Use shared utility with 'only-if-outside-project' strategy
-      const result = await processFileToAssets({
-        sourcePath: filePath,
-        projectPath,
-        collection,
-        projectSettings: currentProjectSettings,
-        copyStrategy: 'only-if-outside-project',
-        currentFilePath: currentFile.path,
-        useRelativePaths,
-      })
-
-      // CRITICAL: Check if the user switched files during the async operation
-      // If they did, DO NOT update frontmatter (would corrupt the new file)
-      const { currentFile: currentFileNow } = useEditorStore.getState()
-      if (currentFileNow?.id !== startingFileId) {
-        if (import.meta.env.DEV) {
-          void debug(
-            '[ImageField] File switched during image processing - aborting frontmatter update to prevent data corruption'
-          )
-        }
-        return
-      }
-
-      // Update frontmatter with path
-      updateFrontmatterField(name, result.relativePath)
-    } catch (error) {
-      toast.error('Failed to add image', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleClear = () => {
-    updateFrontmatterField(name, undefined)
-  }
-
-  const handleEditStart = () => {
-    setEditValue(stringValue)
-    setIsEditing(true)
-  }
-
-  const handleEditCancel = () => {
-    setEditValue('')
-    setIsEditing(false)
-  }
-
-  const handleEditSave = () => {
-    const trimmedPath = editValue.trim()
-
-    // Empty path means clear
-    if (!trimmedPath) {
-      updateFrontmatterField(name, undefined)
-      setIsEditing(false)
-      setEditValue('')
-      return
-    }
-
-    // Manual edit: user has full control, no validation
-    // If the path doesn't exist, the preview will simply fail to load
-    updateFrontmatterField(name, trimmedPath)
-    setIsEditing(false)
-    setEditValue('')
-  }
+  const labelId = `${React.useId()}-label`
 
   return (
     <FieldWrapper
@@ -144,83 +34,11 @@ export const ImageField: React.FC<ImageFieldProps> = ({
       constraints={field?.constraints}
       currentValue={value}
     >
-      <div className="space-y-2">
-        {/* Path display/edit with InputGroup - only shown when image exists */}
-        {stringValue && (
-          <InputGroup>
-            <InputGroupInput
-              aria-labelledby={labelId}
-              type="text"
-              value={displayValue}
-              onChange={e => setEditValue(e.target.value)}
-              placeholder="Enter image path (e.g., /src/assets/image.jpg)"
-              disabled={!isEditing}
-              onKeyDown={e => {
-                if (!isEditing) return
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleEditSave()
-                } else if (e.key === 'Escape') {
-                  e.preventDefault()
-                  handleEditCancel()
-                }
-              }}
-            />
-            <InputGroupAddon align="inline-end">
-              {isEditing ? (
-                <>
-                  <InputGroupButton
-                    size="icon-xs"
-                    onClick={handleEditSave}
-                    title="Save path"
-                  >
-                    <Check className="size-3.5" />
-                  </InputGroupButton>
-                  <InputGroupButton
-                    size="icon-xs"
-                    onClick={handleEditCancel}
-                    title="Cancel"
-                  >
-                    <X className="size-3.5" />
-                  </InputGroupButton>
-                </>
-              ) : (
-                <>
-                  <InputGroupButton
-                    size="icon-xs"
-                    onClick={handleEditStart}
-                    title="Edit path manually"
-                  >
-                    <Edit3 className="size-3.5" />
-                  </InputGroupButton>
-                  <InputGroupButton
-                    size="icon-xs"
-                    onClick={handleClear}
-                    title="Clear image"
-                  >
-                    <X className="size-3.5" />
-                  </InputGroupButton>
-                </>
-              )}
-            </InputGroupAddon>
-          </InputGroup>
-        )}
-
-        {/* File upload button - above preview */}
-        <FileUploadButton
-          id={id}
-          aria-labelledby={`${labelId} ${id}`}
-          accept={[...IMAGE_EXTENSIONS]}
-          onFileSelect={handleFileSelect}
-          disabled={isLoading}
-        >
-          {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-          {stringValue ? 'Change Image' : 'Select Image'}
-        </FileUploadButton>
-
-        {/* Preview - always shown when stringValue exists, never hidden during editing */}
-        {stringValue && <ImageThumbnail path={stringValue} />}
-      </div>
+      <ImagePicker
+        value={typeof value === 'string' ? value : ''}
+        onChange={path => updateFrontmatterField(name, path)}
+        labelId={labelId}
+      />
     </FieldWrapper>
   )
 }

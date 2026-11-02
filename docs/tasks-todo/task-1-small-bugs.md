@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** B. Schema parsing and frontmatter fields
+**Current Phase:** C. Command palette and preferences
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -29,7 +29,7 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 8. [x] **Nullable objects (`anyOf: [object, null]`) become string fields** (`handle_anyof_type`)
 9. [x] **Exclusive number bounds show as the next whole number.** `extract_constraints` turns `exclusiveMinimum: 0` into `min = 1`, so `z.number().gt(0)` shows "Min: 1" although `0.5` is valid. Keep exclusivity in `FieldConstraints` and show "> 0" (or only add 1 for integers). *Checked by CodeRabbit*
 10. [x] **`test_parse_astro6_file_based_collection` uses the old root shape.** Astro 7's `file()` root is `anyOf: [{type: array, items}, {type: object, additionalProperties}]` (see `test/*/.astro/collections/authors.schema.json`)
-11. [ ] **`z.array(image())` uses the YAML editor instead of an image picker.** Rust already types it as an array with `subType: image`, but `FrontmatterField` sends every array that isn't strings or numbers to `YamlField`. `ImageField` reads and writes by field path, which can't address array items. Fix: split `ImageField`'s picking and preview into a component that takes a value and `onChange`, use it in `ImageField` and a new `ImageArrayField` (thumbnails, remove, add). Also check arrays of references whose collection the Zod parser didn't find, which fall through to `YamlField` too
+11. [x] **`z.array(image())` uses the YAML editor instead of an image picker.** Rust already types it as an array with `subType: image`, but `FrontmatterField` sends every array that isn't strings or numbers to `YamlField`. `ImageField` reads and writes by field path, which can't address array items. Fix: split `ImageField`'s picking and preview into a component that takes a value and `onChange`, use it in `ImageField` and a new `ImageArrayField` (thumbnails, remove, add). Also check arrays of references whose collection the Zod parser didn't find, which fall through to `YamlField` too
 
 ## C. Command palette and preferences
 
@@ -50,3 +50,4 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 ## Issues encountered
 
 - **B (5–10) went a little wider than listed.** Records (`z.record`) also showed as a text input that blanked the object, so they now use the YAML editor with discriminated unions. `z.number().int()` showed Zod's safe-integer range ("-9007199254740991–9007199254740991") under every integer field; those bounds are now dropped. The `file()` branches in `parse_json_schema` were dead (`file()` collections never reach the parser) and misread `.catchall()` collections as `file()` ones, so they were removed rather than updated. The `notes` collection in `test/dummy-astro-project` has one field of each shape, with `zod4-shapes-test.md`
+- **One blank file load, not reproduced.** While testing #11, opening a note straight after an auto-save timed out in the agent bridge ("webview didn't respond") and the note opened with an empty editor and frontmatter. Opening it again worked, and six tries at the same sequence (saved and still dirty) all loaded and saved correctly. Worth watching for
