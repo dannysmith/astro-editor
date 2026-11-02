@@ -5,6 +5,7 @@
 import type { FileEntry } from '@/types'
 import { CompleteSchema, FieldType } from '../schema'
 import { parseIsoDate } from '../dates'
+import { DEFAULT_PUBLISHED_DATE_FIELDS } from '../project-registry/defaults'
 
 /**
  * Maps semantic field purposes to actual frontmatter field names.
@@ -51,6 +52,10 @@ export interface SortConfig {
 /**
  * Get published date from frontmatter
  *
+ * Tries the mapped field(s) first, then the standard names, so a file still
+ * shows its `pubDate` when the mapping names a field it doesn't have. Older
+ * settings files map `date` for every project, whatever the collection uses.
+ *
  * @param frontmatter - File frontmatter object
  * @param publishedDateField - Field name(s) to check for published date
  * @returns Date object (local midnight for ISO dates) if found and valid, null otherwise
@@ -59,9 +64,12 @@ export function getPublishedDate(
   frontmatter: Record<string, unknown>,
   publishedDateField: string | string[]
 ): Date | null {
-  const dateFields = Array.isArray(publishedDateField)
-    ? publishedDateField
-    : [publishedDateField]
+  const dateFields = [
+    ...(Array.isArray(publishedDateField)
+      ? publishedDateField
+      : [publishedDateField]),
+    ...DEFAULT_PUBLISHED_DATE_FIELDS,
+  ]
 
   for (const field of dateFields) {
     const value = frontmatter[field]

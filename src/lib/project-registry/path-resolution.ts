@@ -7,6 +7,7 @@
 
 import { ProjectSettings, CollectionSettings } from './types'
 import { ASTRO_PATHS } from '../constants'
+import { DEFAULT_PUBLISHED_DATE_FIELDS } from './defaults'
 
 /**
  * Get effective content directory path for a collection
@@ -125,7 +126,7 @@ export function getEffectiveFrontmatterMappings(
 } {
   // Define defaults
   const defaults = {
-    publishedDate: ['pubDate', 'date', 'publishedDate'] as string | string[],
+    publishedDate: DEFAULT_PUBLISHED_DATE_FIELDS as string | string[],
     title: 'title',
     description: 'description',
     draft: 'draft',

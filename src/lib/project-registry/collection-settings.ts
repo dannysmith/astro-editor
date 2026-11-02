@@ -9,6 +9,7 @@
 
 import { ProjectSettings } from './types'
 import { ASTRO_PATHS } from '../constants'
+import { DEFAULT_PUBLISHED_DATE_FIELDS } from './defaults'
 
 /**
  * Get effective settings for a specific collection with three-tier fallback
@@ -44,7 +45,7 @@ export function getCollectionSettings(
         mdxComponentsDirectory: ASTRO_PATHS.MDX_COMPONENTS_DIR,
       },
       frontmatterMappings: {
-        publishedDate: ['pubDate', 'date', 'publishedDate'],
+        publishedDate: DEFAULT_PUBLISHED_DATE_FIELDS,
         title: 'title',
         description: 'description',
         draft: 'draft',
@@ -66,7 +67,7 @@ export function getCollectionSettings(
       mdxComponentsDirectory: ASTRO_PATHS.MDX_COMPONENTS_DIR,
     },
     frontmatterMappings: {
-      publishedDate: ['pubDate', 'date', 'publishedDate'] as string | string[],
+      publishedDate: DEFAULT_PUBLISHED_DATE_FIELDS as string | string[],
       title: 'title',
       description: 'description',
       draft: 'draft',
