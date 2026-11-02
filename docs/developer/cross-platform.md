@@ -29,6 +29,18 @@ Astro Editor behaves like a macOS document app: closing the window doesn't quit.
 - **The dock icon reopens it.** `RunEvent::Reopen` shows the window when there are no visible windows, then calls `restore_state`. That has to come after `show()`: the window-state plugin only restores at startup, not after a hide and show.
 - **Teardown belongs in `RunEvent::Exit`.** It fires before the process exits, unlike `ExitRequested`, which doesn't fire for Cmd+Q on macOS ([tauri#9198](https://github.com/tauri-apps/tauri/issues/9198)). Don't use `prevent_exit()`: with the window-state plugin it can cause an endless `windowDidMove` loop.
 
+## Native menu and shortcuts
+
+The native menu is built in `setup()` in `src-tauri/src/lib.rs` on every platform:
+
+- **macOS:** the system menu bar.
+- **Windows:** built but not drawn, because the window has `decorations: false`. The title bar's overflow menu (`WindowsMenu.tsx`) stands in for it, and the JS hotkeys and CodeMirror keymaps handle every shortcut. The native accelerators shouldn't fire while the webview has focus: Tauri only checks them against messages in the app's own message loop, and WebView2's key presses don't pass through it.
+- **Linux:** a GTK menu bar below the native title bar. A shortcut bound both there and in JS runs once.
+
+**Accelerators use `CmdOrCtrl`, never `Cmd`, `Command`, `Super` or `Meta`.** Windows menus only support Ctrl, Alt and Shift, and muda fails the whole menu on any other modifier. The menu is built in `setup()`, so the app panics before its window opens. Gate a macOS-only shortcut on the platform, like Enter Full Screen's Ctrl+Cmd+F; Windows and Linux use F11, a JS hotkey in `useKeyboardShortcuts`.
+
+A bad accelerator compiles everywhere and only fails when the app starts on Windows, which is why CI launches the Windows build (see `releases.md`).
+
 ## Gotchas
 
 - **The title bar toolbar needs `transform-gpu` to fade.** Without it, WebKit leaves the children of `TitleBarToolbar` out of its opacity transition when the distraction-free bars hide, so they stay visible and then vanish at once. Putting the container on its own compositing layer fixes it.

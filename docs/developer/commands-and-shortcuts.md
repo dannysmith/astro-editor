@@ -11,7 +11,7 @@ The agent bridge lists and runs palette commands through `getAllCommands` too (`
 
 ## Native menu
 
-The menu is built in Rust in `src-tauri/src/lib.rs` with `MenuItem::with_id`. `on_menu_event` turns each id into a `menu-*` event (`menu-save`, `menu-format-bold`, …), and `src/hooks/useMenuEvents.ts` listens for them and calls stores, actions or the editor registry (formatting events go through `FORMAT_EVENT_MAP`). Adding a menu item means touching both files. On Windows, the title bar's overflow menu (`WindowsMenu.tsx`) emits the same `menu-*` events from JS, so `useMenuEvents` handles both.
+The menu is built in Rust in `src-tauri/src/lib.rs` with `MenuItem::with_id`. `on_menu_event` turns each id into a `menu-*` event (`menu-save`, `menu-format-bold`, …), and `src/hooks/useMenuEvents.ts` listens for them and calls stores, actions or the editor registry (formatting events go through `FORMAT_EVENT_MAP`). Adding a menu item means touching both files. Accelerators use `CmdOrCtrl`, never `Cmd`: a macOS-only modifier crashes the app at startup on Windows (see `cross-platform.md`). On Windows, the title bar's overflow menu (`WindowsMenu.tsx`) emits the same `menu-*` events from JS, so `useMenuEvents` handles both.
 
 **Formatting items are enabled only while the editor has focus and a file is open.** They're created disabled, and `useEditorFocusTracking` calls the `update_format_menu_state` command whenever editor focus or the current file changes. Menu accelerators fire wherever focus is, so without this, Cmd+B while typing in a frontmatter field would bold text in the editor.
 

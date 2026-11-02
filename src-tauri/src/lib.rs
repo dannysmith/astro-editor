@@ -112,9 +112,9 @@ pub fn run() {
             log::info!("Platform: {}", std::env::consts::OS);
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
-            // Send telemetry on startup (non-blocking, fails silently). Dev builds
-            // skip it so they don't count as installs.
-            if !cfg!(debug_assertions) {
+            // Send telemetry on startup (non-blocking, fails silently). Dev builds and
+            // CI (ci.yml launches the app) skip it so they don't count as installs.
+            if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
                 let app_handle = app.handle().clone();
                 let version = package_info.version.to_string();
                 tauri::async_runtime::spawn(async move {
@@ -144,7 +144,10 @@ pub fn run() {
             // Create menu state
             let mut menu_state = MenuState::new();
 
-            // Create macOS menu bar
+            // Create the menu bar. Accelerators use CmdOrCtrl, never Cmd, Command, Super
+            // or Meta: Windows menus only take Ctrl, Alt and Shift, and muda fails the
+            // whole menu on any other modifier, which aborts startup. Gate macOS-only
+            // shortcuts on the platform, like Enter Full Screen's.
             let file_menu = Submenu::with_items(
                 app,
                 "File",
@@ -166,25 +169,25 @@ pub fn run() {
             )?;
 
             // Create format menu items and store references
-            let format_bold = MenuItem::with_id(app, "format_bold", "Bold", false, Some("Cmd+B"))?;
+            let format_bold = MenuItem::with_id(app, "format_bold", "Bold", false, Some("CmdOrCtrl+B"))?;
             let format_italic =
-                MenuItem::with_id(app, "format_italic", "Italic", false, Some("Cmd+I"))?;
+                MenuItem::with_id(app, "format_italic", "Italic", false, Some("CmdOrCtrl+I"))?;
             let format_link =
-                MenuItem::with_id(app, "format_link", "Add Link", false, Some("Cmd+K"))?;
+                MenuItem::with_id(app, "format_link", "Add Link", false, Some("CmdOrCtrl+K"))?;
             let format_h1 =
-                MenuItem::with_id(app, "format_h1", "Heading 1", false, Some("Option+Cmd+1"))?;
+                MenuItem::with_id(app, "format_h1", "Heading 1", false, Some("Alt+CmdOrCtrl+1"))?;
             let format_h2 =
-                MenuItem::with_id(app, "format_h2", "Heading 2", false, Some("Option+Cmd+2"))?;
+                MenuItem::with_id(app, "format_h2", "Heading 2", false, Some("Alt+CmdOrCtrl+2"))?;
             let format_h3 =
-                MenuItem::with_id(app, "format_h3", "Heading 3", false, Some("Option+Cmd+3"))?;
+                MenuItem::with_id(app, "format_h3", "Heading 3", false, Some("Alt+CmdOrCtrl+3"))?;
             let format_h4 =
-                MenuItem::with_id(app, "format_h4", "Heading 4", false, Some("Option+Cmd+4"))?;
+                MenuItem::with_id(app, "format_h4", "Heading 4", false, Some("Alt+CmdOrCtrl+4"))?;
             let format_paragraph = MenuItem::with_id(
                 app,
                 "format_paragraph",
                 "Paragraph",
                 false,
-                Some("Option+Cmd+0"),
+                Some("Alt+CmdOrCtrl+0"),
             )?;
 
             // Store references for later access
@@ -265,7 +268,8 @@ pub fn run() {
                         "enter_fullscreen",
                         "Enter Full Screen",
                         true,
-                        Some("Ctrl+Cmd+F"),
+                        // Windows and Linux use F11 (useKeyboardShortcuts)
+                        cfg!(target_os = "macos").then_some("Ctrl+Cmd+F"),
                     )?,
                 ],
             )?;
@@ -279,7 +283,7 @@ pub fn run() {
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "check_updates", "Check for Updates...", true, None::<&str>)?,
                     &PredefinedMenuItem::separator(app)?,
-                    &MenuItem::with_id(app, "preferences", "Preferences...", true, Some("Cmd+,"))?,
+                    &MenuItem::with_id(app, "preferences", "Preferences...", true, Some("CmdOrCtrl+,"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &PredefinedMenuItem::hide(app, Some("Hide Astro Editor"))?,
                     &PredefinedMenuItem::hide_others(app, Some("Hide Others"))?,
@@ -344,8 +348,11 @@ pub fn run() {
                     let _ = app.emit("menu-toggle-frontmatter", ());
                 }
                 "enter_fullscreen" => {
+                    // Toggle, so Ctrl+Cmd+F also leaves full screen
                     if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.set_fullscreen(true);
+                        if let Ok(is_fullscreen) = window.is_fullscreen() {
+                            let _ = window.set_fullscreen(!is_fullscreen);
+                        }
                     }
                 }
                 "about" => {

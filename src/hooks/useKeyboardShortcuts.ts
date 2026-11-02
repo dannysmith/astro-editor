@@ -125,7 +125,7 @@ export function useKeyboardShortcuts(
     DEFAULT_HOTKEY_OPTS
   )
 
-  // F11: Toggle Full Screen (Windows only - macOS uses native Ctrl+Cmd+F)
+  // F11: Toggle Full Screen (Windows and Linux; macOS uses the native menu's Ctrl+Cmd+F)
   useHotkeys(
     'f11',
     () => {
@@ -138,6 +138,9 @@ export function useKeyboardShortcuts(
           toast.error('Failed to toggle fullscreen')
         })
     },
-    { ...DEFAULT_HOTKEY_OPTS, enabled: platform === 'windows' }
+    {
+      ...DEFAULT_HOTKEY_OPTS,
+      enabled: platform === 'windows' || platform === 'linux',
+    }
   )
 }
