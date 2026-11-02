@@ -3,7 +3,7 @@
 import fs from 'fs'
 import { execSync } from 'child_process'
 import readline from 'readline'
-import { bumpPatch, setVersion } from './release-version.js'
+import { bumpPatch, latestStableTag, setVersion } from './release-version.js'
 
 function exec(command, options = {}) {
   try {
@@ -84,6 +84,20 @@ async function prepareRelease() {
 
   console.log('🔍 Fetching tags...')
   exec('git fetch --tags', { silent: true })
+
+  // A hotfix built from an older release would quietly drop everything since
+  if (!onMain) {
+    const tags = exec("git tag --list 'v*'", { silent: true }).split('\n')
+    const latest = latestStableTag(tags)
+    try {
+      exec(`git merge-base --is-ancestor ${latest} HEAD`, { silent: true })
+    } catch {
+      console.error(
+        `❌ ${branch} doesn't contain ${latest}, the latest release. Branch hotfixes from it: git switch -c hotfix/<version> ${latest}`
+      )
+      process.exit(1)
+    }
+  }
 
   const cleanVersion = await resolveVersion()
   const tagVersion = `v${cleanVersion}`

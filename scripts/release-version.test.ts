@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { bumpPatch, nextTestVersion, wixVersion } from './release-version'
+import {
+  bumpPatch,
+  latestStableTag,
+  nextTestVersion,
+  wixVersion,
+} from './release-version'
 
 describe('bumpPatch', () => {
   it('bumps the patch number', () => {
@@ -15,6 +20,14 @@ describe('wixVersion', () => {
   it('rejects versions WiX could not take', () => {
     expect(() => wixVersion('1.0.21-test')).toThrow()
     expect(() => wixVersion('1.0.21')).toThrow()
+  })
+})
+
+describe('latestStableTag', () => {
+  it('picks the highest stable tag, ignoring prereleases', () => {
+    expect(
+      latestStableTag(['v1.0.9', 'v1.0.20', 'v1.0.21-test.1', 'v1.0.10'])
+    ).toBe('v1.0.20')
   })
 })
 

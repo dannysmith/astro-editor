@@ -118,6 +118,8 @@ jobs:
       # after the install because it changes package.json
       - name: Set test build version
         if: contains(github.ref_name, '-')
+        # Windows defaults to PowerShell, where $RELEASE_TAG isn't the env var
+        shell: bash
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: bun scripts/release-version.js "$RELEASE_TAG"

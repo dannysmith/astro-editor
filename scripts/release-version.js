@@ -34,6 +34,18 @@ export function wixVersion(version) {
   return `${match[1]}.${match[2]}`
 }
 
+/** The highest stable release tag (`v1.0.20`) among the repo's tag names */
+export function latestStableTag(tags) {
+  const latest = tags
+    .map(tag => tag.match(/^v(\d+)\.(\d+)\.(\d+)$/))
+    .filter(Boolean)
+    .map(match => match.slice(1).map(Number))
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2])
+    .at(-1)
+  if (!latest) throw new Error('No stable release tags found')
+  return `v${latest.join('.')}`
+}
+
 /**
  * The next test build version, from the repo's tag names: the patch after the
  * latest stable release, numbered after any test builds of it already tagged.
@@ -41,16 +53,7 @@ export function wixVersion(version) {
  * stable release, since `1.0.21-test.3` sorts below `1.0.21`.
  */
 export function nextTestVersion(tags) {
-  const stable = tags
-    .map(tag => tag.match(/^v(\d+)\.(\d+)\.(\d+)$/))
-    .filter(Boolean)
-    .map(match => match.slice(1).map(Number))
-    .sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2])
-
-  const latest = stable.at(-1)
-  if (!latest) throw new Error('No stable release tags found')
-
-  const base = bumpPatch(latest.join('.'))
+  const base = bumpPatch(latestStableTag(tags).slice(1))
   const numbers = tags
     .filter(tag => tag.startsWith(`v${base}-test.`))
     .map(tag => Number(tag.slice(`v${base}-test.`.length)))

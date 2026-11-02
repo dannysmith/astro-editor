@@ -20,7 +20,7 @@ git switch -c hotfix/1.0.21 v1.0.20
 bun run prepare-release
 ```
 
-`prepare-release` asks before releasing from a branch other than `main`, then works as usual. Once the release is published, open a PR from the hotfix branch into `main` and merge it, so `main` gets the fix and the version bump. `main`'s version files are still at the previous release, so they take the hotfix's version without a conflict, and the next release from `main` proposes the next patch. There's no long-lived release branch.
+`prepare-release` asks before releasing from a branch other than `main`, refuses one that doesn't contain the latest release tag, then works as usual. Once the release is published, open a PR from the hotfix branch into `main` and merge it, so `main` gets the fix and the version bump. `main`'s version files are still at the previous release, so they take the hotfix's version without a conflict, and the next release from `main` proposes the next patch. There's no long-lived release branch.
 
 ## Test builds
 
