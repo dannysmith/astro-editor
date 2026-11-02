@@ -10,7 +10,7 @@
 
 import { execFileSync, execSync } from 'child_process'
 import readline from 'readline'
-import { nextTestVersion } from './release-version.js'
+import { nextTestVersion, remoteTags } from './release-version.js'
 
 const REPO_URL = 'https://github.com/dannysmith/astro-editor'
 
@@ -75,11 +75,7 @@ async function testBuild() {
 
   // The remote's tags, so test builds made elsewhere or deleted since are counted correctly
   console.log('🔍 Reading tags from GitHub...')
-  const tags = git('ls-remote', '--tags', '--refs', 'origin')
-    .split('\n')
-    .map(line => line.split('refs/tags/')[1])
-    .filter(Boolean)
-  const version = nextTestVersion(tags)
+  const version = nextTestVersion(remoteTags())
   const tag = `v${version}`
 
   console.log(`\n🧪 Test build ${tag} from ${branch} at ${commit}`)

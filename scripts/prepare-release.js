@@ -3,7 +3,12 @@
 import fs from 'fs'
 import { execSync } from 'child_process'
 import readline from 'readline'
-import { bumpPatch, latestStableTag, setVersion } from './release-version.js'
+import {
+  bumpPatch,
+  latestStableTag,
+  remoteTags,
+  setVersion,
+} from './release-version.js'
 
 function exec(command, options = {}) {
   try {
@@ -89,8 +94,7 @@ async function prepareRelease() {
   // Built from an older release it would drop everything since; built from
   // main after the release it would ship unreleased work
   if (!onMain) {
-    const tags = exec("git tag --list 'v*'", { silent: true }).split('\n')
-    const latest = latestStableTag(tags)
+    const latest = latestStableTag(remoteTags())
     const forkPoint = exec('git merge-base HEAD origin/main', {
       silent: true,
     }).trim()

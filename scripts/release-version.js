@@ -4,6 +4,7 @@
 // file that holds it. release.yml runs it for test builds, which are never
 // committed.
 
+import { execFileSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -32,6 +33,19 @@ export function wixVersion(version) {
     throw new Error(`Can't make a Windows installer version from ${version}`)
   }
   return `${match[1]}.${match[2]}`
+}
+
+/**
+ * The tag names on GitHub. Local tags can include ones that were never pushed,
+ * which mustn't count as releases.
+ */
+export function remoteTags() {
+  return execFileSync('git', ['ls-remote', '--tags', '--refs', 'origin'], {
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .map(line => line.split('refs/tags/')[1])
+    .filter(Boolean)
 }
 
 /** The highest stable release tag (`v1.0.20`) among the repo's tag names */
