@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** A. Sidebar, watcher and collections
+**Current Phase:** B. Schema parsing and frontmatter fields
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -17,7 +17,7 @@ One commit per item or small group, `check:all` after each. Update `docs/develop
 1. [x] **Sidebar dates are missing for `pubDate` collections.** New projects' settings files are created from `DEFAULT_PROJECT_SETTINGS`, which saves the date field as `'date'`, so the `['pubDate', 'date', 'publishedDate']` fallback in `getEffectiveFrontmatterMappings` never applies. Date sorting breaks too. Astro's blog starter uses `pubDate`, so this likely hits most new users. *Checked:* `test/demo-project` shows no dates; `dummy-astro-project` only works because `pubDate` was mapped by hand. Fix: try the configured field, then the default list (fixes existing settings files without a migration), and stop seeding `'date'`
 2. [x] **Files added, renamed or deleted outside the app don't show in the sidebar,** and outside frontmatter edits leave titles, dates and draft badges stale. Nothing invalidates the collection's directory queries on watcher events, and `refetchOnWindowFocus` is off, so the list waits for navigation or the 5-minute rescan. Regressed in the TanStack Query migration (4ae37727). *Checked.* Fix: invalidate the current collection's directory queries on create, remove and rename, and on content changes outside the 3-second window after the app's own save. Remove the misleading comment in `projectStore.ts`
 3. [x] **Reload Collections does nothing.** `useCommandContext` dispatches `reload-collections` and `reload-collection-files`, but nothing listens. *Checked.* Fix: invalidate the collections and directory queries directly
-4. [ ] **`.astro/collections/` is only watched if it existed when watching started** (`watcher.rs`), so after a project's first `astro sync`, schema changes need the project reopened. Fix: watch something that always exists and filter, after checking how the watcher handles a directory appearing. Update `schema-system.md`
+4. [x] **`.astro/collections/` is only watched if it existed when watching started** (`watcher.rs`), so after a project's first `astro sync`, schema changes need the project reopened. Fix: watch something that always exists and filter, after checking how the watcher handles a directory appearing. Update `schema-system.md`
 
 ## B. Schema parsing and frontmatter fields
 

@@ -12,7 +12,21 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// (its loop should end) from one that died (its loop should rebuild it).
 pub struct WatcherEntry {
     generation: u64,
-    _watcher: RecommendedWatcher,
+    watcher: RecommendedWatcher,
+}
+
+/// A newly built watcher, its event receiver, and whether it watches the
+/// generated schemas folder (which doesn't exist until `astro sync` first runs)
+struct ProjectWatcher {
+    watcher: RecommendedWatcher,
+    rx: Receiver<Event>,
+    watches_schemas: bool,
+}
+
+fn schemas_dir(project_path: &str) -> PathBuf {
+    PathBuf::from(project_path)
+        .join(".astro")
+        .join("collections")
 }
 
 // Global watcher storage, keyed by project path
@@ -27,11 +41,10 @@ const DEBOUNCE_DURATION: Duration = Duration::from_millis(500);
 const RESCAN_INTERVAL: Duration = Duration::from_secs(300);
 
 /// Create a configured file watcher for a project's content directories.
-/// Returns the watcher and event receiver.
 fn create_project_watcher(
     project_path: &str,
     content_directory: Option<&str>,
-) -> Result<(RecommendedWatcher, Receiver<Event>), String> {
+) -> Result<ProjectWatcher, String> {
     let (tx, rx) = mpsc::channel();
     let project_path_log = project_path.to_string();
 
@@ -75,15 +88,21 @@ fn create_project_watcher(
         }
     }
 
-    // Watch the generated JSON schemas directory: .astro/collections/
-    let schemas_path = project_root.join(".astro").join("collections");
-    if schemas_path.exists() {
+    // Watch the generated JSON schemas directory: .astro/collections/. If it
+    // doesn't exist yet, the event loop adds it once it appears
+    let schemas_path = schemas_dir(project_path);
+    let watches_schemas = schemas_path.exists();
+    if watches_schemas {
         watcher
             .watch(&schemas_path, RecursiveMode::NonRecursive)
             .map_err(|e| format!("Failed to watch schemas directory: {e}"))?;
     }
 
-    Ok((watcher, rx))
+    Ok(ProjectWatcher {
+        watcher,
+        rx,
+        watches_schemas,
+    })
 }
 
 #[tauri::command]
@@ -99,7 +118,11 @@ pub async fn start_watching_project_with_content_dir(
     project_path: String,
     content_directory: Option<String>,
 ) -> Result<(), String> {
-    let (watcher, rx) = create_project_watcher(&project_path, content_directory.as_deref())?;
+    let ProjectWatcher {
+        watcher,
+        rx,
+        watches_schemas,
+    } = create_project_watcher(&project_path, content_directory.as_deref())?;
     let generation = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
 
     // Store the watcher so it doesn't get dropped. This replaces (and drops) any
@@ -109,7 +132,7 @@ pub async fn start_watching_project_with_content_dir(
         project_path.clone(),
         WatcherEntry {
             generation,
-            _watcher: watcher,
+            watcher,
         },
     );
 
@@ -125,6 +148,7 @@ pub async fn start_watching_project_with_content_dir(
             project_path,
             content_directory,
             generation,
+            watches_schemas,
         )
         .await;
     });
@@ -140,6 +164,8 @@ pub async fn start_watching_project_with_content_dir(
 /// - If the watcher dies (channel disconnects), it's automatically rebuilt
 /// - If it was stopped or replaced by a newer start (which also disconnects the
 ///   channel), the loop ends
+/// - Until `.astro/collections/` exists, each wake checks for it, then watches it
+///   and reloads the schemas
 async fn run_event_loop(
     app: AppHandle,
     watcher_map: WatcherMap,
@@ -147,6 +173,7 @@ async fn run_event_loop(
     project_path: String,
     content_directory: Option<String>,
     generation: u64,
+    mut watches_schemas: bool,
 ) {
     let mut event_buffer: Vec<Event> = Vec::new();
     let mut last_rescan = Instant::now();
@@ -161,6 +188,11 @@ async fn run_event_loop(
                 if !event_buffer.is_empty() {
                     process_events(&app, &mut event_buffer).await;
                     event_buffer.clear();
+                }
+
+                if !watches_schemas {
+                    watches_schemas =
+                        watch_new_schemas_dir(&app, &watcher_map, &project_path, generation);
                 }
 
                 // Periodic rescan as safety net for missed changes
@@ -193,7 +225,7 @@ async fn run_event_loop(
 
                 // Built without holding the lock, so a slow path can't block
                 // starting or stopping other projects' watchers
-                let (new_watcher, new_rx) =
+                let rebuilt =
                     match create_project_watcher(&project_path, content_directory.as_deref()) {
                         Ok(built) => built,
                         Err(e) => {
@@ -213,17 +245,53 @@ async fn run_event_loop(
                         project_path.clone(),
                         WatcherEntry {
                             generation,
-                            _watcher: new_watcher,
+                            watcher: rebuilt.watcher,
                         },
                     );
                 }
-                rx = new_rx;
+                rx = rebuilt.rx;
+                watches_schemas = rebuilt.watches_schemas;
                 last_rescan = Instant::now();
                 log::info!("File watcher rebuilt for {project_path}");
                 let _ = app.emit("watcher-rebuilt", &project_path);
             }
         }
     }
+}
+
+/// Watch `.astro/collections/` if it has appeared since the watcher started (a
+/// project's first `astro sync`), and reload the schemas it now holds. Returns
+/// whether it's watched.
+fn watch_new_schemas_dir(
+    app: &AppHandle,
+    watcher_map: &WatcherMap,
+    project_path: &str,
+    generation: u64,
+) -> bool {
+    let schemas_path = schemas_dir(project_path);
+    if !schemas_path.exists() {
+        return false;
+    }
+
+    let mut watchers = watcher_map.lock().unwrap();
+    // A stopped or replaced watcher is no longer this loop's to change
+    let Some(entry) = watchers
+        .get_mut(project_path)
+        .filter(|entry| entry.generation == generation)
+    else {
+        return false;
+    };
+    if let Err(e) = entry
+        .watcher
+        .watch(&schemas_path, RecursiveMode::NonRecursive)
+    {
+        log::warn!("Failed to watch new schemas directory for {project_path}: {e}");
+        return false;
+    }
+
+    log::info!("Watching new schemas directory for {project_path}");
+    let _ = app.emit("schema-changed", ());
+    true
 }
 
 #[tauri::command]
