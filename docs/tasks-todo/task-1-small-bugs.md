@@ -23,12 +23,12 @@ One commit per item or small group, `check:all` after each. Update `docs/develop
 
 Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the Rust parser (`schema_merger.rs`) doesn't handle. Add a Rust fixture for each shape first; `.astro/collections/` in `test/` shows real output.
 
-5. [ ] **`z.tuple`, numeric `z.literal` and numeric `z.enum` may fail the whole collection's JSON parse.** `JsonSchemaProperty` expects `items` to be a schema (tuples emit `items: false`) and `const_`/`enum_` to be strings. The collection then silently falls back to the Zod-only form (only image and reference fields). The most important item in this group
-6. [ ] **A union of literals is parsed as a plain string.** It becomes `anyOf` of `const`, not `enum`, so it shows a text input instead of a dropdown
-7. [ ] **`z.discriminatedUnion` becomes `oneOf`,** which Rust doesn't read, so the type is `unknown`. Check what the form shows; if it's the YAML editor, that may be right and only needs a test
-8. [ ] **Nullable objects (`anyOf: [object, null]`) become string fields** (`handle_anyof_type`)
-9. [ ] **Exclusive number bounds show as the next whole number.** `extract_constraints` turns `exclusiveMinimum: 0` into `min = 1`, so `z.number().gt(0)` shows "Min: 1" although `0.5` is valid. Keep exclusivity in `FieldConstraints` and show "> 0" (or only add 1 for integers). *Checked by CodeRabbit*
-10. [ ] **`test_parse_astro6_file_based_collection` uses the old root shape.** Astro 7's `file()` root is `anyOf: [{type: array, items}, {type: object, additionalProperties}]` (see `test/*/.astro/collections/authors.schema.json`)
+5. [x] **`z.tuple`, numeric `z.literal` and numeric `z.enum` may fail the whole collection's JSON parse.** `JsonSchemaProperty` expects `items` to be a schema (tuples emit `items: false`) and `const_`/`enum_` to be strings. The collection then silently falls back to the Zod-only form (only image and reference fields). The most important item in this group
+6. [x] **A union of literals is parsed as a plain string.** It becomes `anyOf` of `const`, not `enum`, so it shows a text input instead of a dropdown
+7. [x] **`z.discriminatedUnion` becomes `oneOf`,** which Rust doesn't read, so the type is `unknown`. Check what the form shows; if it's the YAML editor, that may be right and only needs a test
+8. [x] **Nullable objects (`anyOf: [object, null]`) become string fields** (`handle_anyof_type`)
+9. [x] **Exclusive number bounds show as the next whole number.** `extract_constraints` turns `exclusiveMinimum: 0` into `min = 1`, so `z.number().gt(0)` shows "Min: 1" although `0.5` is valid. Keep exclusivity in `FieldConstraints` and show "> 0" (or only add 1 for integers). *Checked by CodeRabbit*
+10. [x] **`test_parse_astro6_file_based_collection` uses the old root shape.** Astro 7's `file()` root is `anyOf: [{type: array, items}, {type: object, additionalProperties}]` (see `test/*/.astro/collections/authors.schema.json`)
 11. [ ] **`z.array(image())` uses the YAML editor instead of an image picker.** Rust already types it as an array with `subType: image`, but `FrontmatterField` sends every array that isn't strings or numbers to `YamlField`. `ImageField` reads and writes by field path, which can't address array items. Fix: split `ImageField`'s picking and preview into a component that takes a value and `onChange`, use it in `ImageField` and a new `ImageArrayField` (thumbnails, remove, add). Also check arrays of references whose collection the Zod parser didn't find, which fall through to `YamlField` too
 
 ## C. Command palette and preferences
@@ -48,3 +48,5 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 18. [ ] **Unused code:** `mdxComponentsStore`, the `read_json_schema` command, `useDeleteFileMutation`, the editor registry's `save` and `addCursorsToLineEnds`, and `path-resolution.ts`'s `getEffective*` functions (nothing calls them; `collection-settings.ts` and `effective-settings.ts` do the same job). Do it last with the `codebase-hygiene` skill
 
 ## Issues encountered
+
+- **B (5–10) went a little wider than listed.** Records (`z.record`) also showed as a text input that blanked the object, so they now use the YAML editor with discriminated unions. `z.number().int()` showed Zod's safe-integer range ("-9007199254740991–9007199254740991") under every integer field; those bounds are now dropped. The `file()` branches in `parse_json_schema` were dead (`file()` collections never reach the parser) and misread `.catchall()` collections as `file()` ones, so they were removed rather than updated. The `notes` collection in `test/dummy-astro-project` has one field of each shape, with `zod4-shapes-test.md`

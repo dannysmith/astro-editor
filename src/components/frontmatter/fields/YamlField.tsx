@@ -11,7 +11,8 @@ interface YamlFieldProps extends FieldProps {
 }
 
 /**
- * YamlField - A fallback field for complex array types (dates, objects, etc.)
+ * YamlField - A fallback field for complex arrays (dates, objects, tuples) and
+ * objects without fixed fields (records, discriminated unions)
  * Displays the value as YAML-like text for manual editing
  *
  * Note: This uses JSON.stringify for now. In the future, we could add

@@ -67,16 +67,15 @@ What follows from that:
 - **Images** are `{ "type": "string" }` because of the `image: () => z.string()` stub.
 - **References** are an `anyOf` of `{ "type": "number" }` (Astro 7), `{ "type": "string" }`, `{ id, collection }` and `{ slug, collection }`. `is_reference_field` detects them by the object branch.
 - **`$schema`:** Astro 7 adds an optional `$schema` property to object schemas so editors can validate data files. `parse_entry_schema` skips it.
-- **`file()` loader collections** have a root `anyOf` of an array of entries and an object of entries (`additionalProperties`).
+- **`file()` loader collections** have a root `anyOf` of an array of entries and an object of entries (`additionalProperties`). The parser never sees these: `file()` collections are left out of the collection list.
 
-To see current output, read `.astro/collections/` in any of the `test/` projects (regenerating them is in `testing.md`). The Rust tests in `schema_merger.rs` hold samples of each shape the parser handles.
+To see current output, read `.astro/collections/` in any of the `test/` projects (regenerating them is in `testing.md`). The Rust tests in `schema_merger.rs` hold samples of each shape the parser handles, and the `notes` collection in `test/dummy-astro-project` has one field of each (see `zod4-shapes-test.md`).
 
-## Known gaps
+## How other shapes become fields
 
-Tracked in #347:
-
-- **Nullable objects** become a string field instead of being flattened.
-- **`z.discriminatedUnion`** is emitted as `oneOf`, which Rust doesn't read, so the field comes out as `unknown` and renders as a text input.
-- **Literal unions** (`z.union([z.literal('a'), z.literal('b')])`) are emitted as an `anyOf` of `const`, and are parsed as plain strings rather than enums.
-- **`file()` collection roots:** the Rust file-collection branch and its test (`test_parse_astro6_file_based_collection`) use an older root shape. It doesn't matter while file collections stay out of the collection list.
-- **Tuples, numeric literals and numeric enums** (`items: false`, `const: 5`, `enum: [1, 2]`) don't fit our serde types, so one such field fails the whole collection's JSON parse and drops it to the Zod-only fallback.
+- **Objects with fixed fields are flattened** into a field each (`sponsor.name`), nullable ones too.
+- **Objects without fixed fields are edited as YAML:** records (`additionalProperties`) and `z.discriminatedUnion` (`oneOf`) are `object` fields, and tuples (`prefixItems` with `items: false`) are arrays of `unknown`.
+- **Literals:** an `enum`, or an `anyOf` of `const` (`z.union([z.literal('a'), z.literal('b')])`), is a dropdown when the values are strings and a number input when they're numbers, because the dropdown would save numbers as strings. A mix is a text input.
+- **Nullable fields** (`anyOf: [T, null]`, or Zod 4.5+'s `type: [T, "null"]`) take the type and constraints of `T`.
+- **Number bounds:** `exclusiveMinimum` stays exclusive for decimals (shown as "> 0") and becomes `min + 1` for integers. `z.number().int()` adds the safe integer range as bounds, which are dropped.
+- **Unknown fields don't fail the collection.** serde ignores keywords it doesn't know, so a new shape usually falls back to a text input. One that doesn't fit the types in `JsonSchemaProperty` fails the whole collection's JSON parse and drops it to the Zod-only form, so test new shapes against real output.

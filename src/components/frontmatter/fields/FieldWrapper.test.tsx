@@ -82,6 +82,23 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Min: 10')).toBeInTheDocument()
     })
 
+    it('formats exclusive bounds as comparisons', () => {
+      const constraints: FieldConstraints = {
+        min: 0,
+        max: 10,
+        minExclusive: true,
+        maxExclusive: true,
+      }
+
+      render(
+        <FieldWrapper label="Test" constraints={constraints} currentValue={5}>
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.getByText('> 0 • < 10')).toBeInTheDocument()
+    })
+
     it('formats max only', () => {
       const constraints: FieldConstraints = { max: 999 }
 

@@ -155,8 +155,9 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     )
   }
 
-  // Handle complex array fields (dates, objects, etc.) with YAML fallback
-  if (isComplexArray) {
+  // Handle complex arrays (dates, objects, tuples) and objects without fixed
+  // fields (records, discriminated unions) with the YAML editor
+  if (isComplexArray || fieldType === (FieldType.Object as string)) {
     return (
       <YamlField name={name} label={label} required={required} field={field} />
     )

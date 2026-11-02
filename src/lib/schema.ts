@@ -40,6 +40,10 @@ export interface SchemaField {
 export interface FieldConstraints {
   min?: number
   max?: number
+  /** `min` itself isn't allowed (`z.number().gt(min)`) */
+  minExclusive?: boolean
+  /** `max` itself isn't allowed (`z.number().lt(max)`) */
+  maxExclusive?: boolean
   minLength?: number
   maxLength?: number
   /** How many items an array takes */
@@ -61,7 +65,9 @@ export enum FieldType {
   Array = 'array',
   Enum = 'enum',
   Reference = 'reference',
-  Object = 'object', // For nested objects (rendered as grouped fields)
+  // Objects without fixed fields (records, discriminated unions), edited as
+  // YAML. Objects with fixed fields are flattened into a field each instead
+  Object = 'object',
   Unknown = 'unknown',
 }
 

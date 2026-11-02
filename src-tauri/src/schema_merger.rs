@@ -58,6 +58,12 @@ pub struct FieldConstraints {
     pub min: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
+    /// `min` itself isn't allowed (`z.number().gt(min)`)
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub min_exclusive: bool,
+    /// `max` itself isn't allowed (`z.number().lt(max)`)
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub max_exclusive: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_length: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,17 +99,6 @@ struct JsonSchemaDefinition {
     properties: Option<IndexMap<String, JsonSchemaProperty>>,
     #[serde(default)]
     required: Option<Vec<String>>,
-    #[serde(default)]
-    additional_properties: Option<CollectionAdditionalProperties>,
-}
-
-/// Additional properties at collection level (for file-based collections)
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum CollectionAdditionalProperties {
-    #[allow(dead_code)]
-    Boolean(bool),
-    Schema(Box<JsonSchemaDefinition>),
 }
 
 /// Additional properties at property level (for dynamic properties)
@@ -126,10 +121,15 @@ struct JsonSchemaProperty {
     format: Option<String>,
     #[serde(default)]
     any_of: Option<Vec<JsonSchemaProperty>>,
+    /// `z.discriminatedUnion`
+    #[serde(default)]
+    one_of: Option<Vec<JsonSchemaProperty>>,
+    /// Strings or numbers (`z.enum({ A: 1 })`)
     #[serde(rename = "enum", default)]
-    enum_: Option<Vec<String>>,
+    enum_: Option<Vec<Value>>,
+    /// A `z.literal`, string or number
     #[serde(rename = "const", default)]
-    const_: Option<String>,
+    const_: Option<Value>,
     #[serde(default)]
     items: Option<Box<ItemsType>>,
     #[serde(default)]
@@ -176,7 +176,8 @@ enum StringOrArray {
     Array(Vec<String>),
 }
 
-/// Array items can be single schema or tuple
+/// Array items: one schema for every item, or a tuple. Draft-07 tuples list the
+/// item schemas here; Zod 4 puts them in `prefixItems` and sets `items: false`.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
@@ -184,6 +185,8 @@ enum ItemsType {
     Single(Box<JsonSchemaProperty>),
     #[allow(dead_code)]
     Tuple(Vec<JsonSchemaProperty>),
+    #[allow(dead_code)]
+    Bool(bool),
 }
 
 /// Parse and merge schemas from all sources
@@ -233,7 +236,9 @@ pub fn create_complete_schema(
     Err("No schema available".to_string())
 }
 
-/// Parse Astro JSON schema (supports both Astro 5 and Astro 6 formats)
+/// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats). Only
+/// folder collections get here: `file()` collections are read as reference
+/// targets from their data file instead (`load_file_based_collection`).
 fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaDefinition, String> {
     log::debug!("[Schema] Parsing JSON schema for collection: {collection_name}");
 
@@ -248,16 +253,6 @@ fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaD
             .get(&collection_name_from_ref)
             .ok_or_else(|| format!("Collection definition not found: {collection_name}"))?;
 
-        // Check for file-based collection
-        if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
-            &collection_def.additional_properties
-        {
-            log::debug!("[Schema] File-based collection detected");
-            return parse_entry_schema(collection_name, entry_schema);
-        }
-
-        // Standard collection
-        log::debug!("[Schema] Standard collection detected");
         return parse_entry_schema(collection_name, collection_def);
     }
 
@@ -265,17 +260,6 @@ fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaD
     // { "$schema": "...", "type": "object", "properties": { ... }, "required": [...] }
     if let Ok(schema) = serde_json::from_str::<JsonSchemaDefinition>(json_schema) {
         log::debug!("[Schema] Detected Astro 6 format (flat schema)");
-
-        // Check for file-based collection
-        if let Some(CollectionAdditionalProperties::Schema(entry_schema)) =
-            &schema.additional_properties
-        {
-            log::debug!("[Schema] File-based collection detected");
-            return parse_entry_schema(collection_name, entry_schema);
-        }
-
-        // Standard collection
-        log::debug!("[Schema] Standard collection detected");
         return parse_entry_schema(collection_name, &schema);
     }
 
@@ -355,14 +339,21 @@ fn parse_field(
     // Determine field type
     let field_type_info = determine_field_type(field_schema)?;
 
+    // A nullable field's type, properties and constraints are on its non-null branch
+    let value_schema = field_schema
+        .any_of
+        .as_deref()
+        .and_then(nullable_inner)
+        .unwrap_or(field_schema);
+
     // Handle nested objects - recursively flatten
     if field_type_info.field_type == "unknown"
-        && non_null_type(&field_schema.type_) == Some("object")
+        && non_null_type(&value_schema.type_) == Some("object")
     {
-        if let Some(properties) = field_schema.properties.as_ref() {
+        if let Some(properties) = value_schema.properties.as_ref() {
             // Flatten nested object
             let mut nested_fields = Vec::new();
-            let nested_required: HashSet<String> = field_schema
+            let nested_required: HashSet<String> = value_schema
                 .required
                 .as_ref()
                 .map(|r| r.iter().cloned().collect())
@@ -379,15 +370,7 @@ fn parse_field(
         }
     }
 
-    // Extract constraints
-    let constraints = extract_constraints(
-        field_schema
-            .any_of
-            .as_deref()
-            .and_then(nullable_inner)
-            .unwrap_or(field_schema),
-        &field_type_info.field_type,
-    );
+    let constraints = extract_constraints(value_schema, &field_type_info.field_type);
 
     // Build field
     let field = SchemaField {
@@ -429,6 +412,39 @@ struct FieldTypeInfo {
     array_reference_collection: Option<String>,
 }
 
+impl FieldTypeInfo {
+    /// A field type with no sub-type, enum values or reference
+    fn plain(field_type: &str) -> Self {
+        Self {
+            field_type: field_type.to_string(),
+            sub_type: None,
+            enum_values: None,
+            reference_collection: None,
+            array_reference_collection: None,
+        }
+    }
+}
+
+/// The type for a field that takes one of a set of literal values (`enum`, or a
+/// union of `z.literal`s): a dropdown for strings, a number input for numbers
+/// (the dropdown would save them as strings), a text input for a mix
+fn literal_values_type(values: &[&Value]) -> FieldTypeInfo {
+    if let Some(strings) = values
+        .iter()
+        .map(|v| v.as_str().map(str::to_string))
+        .collect::<Option<Vec<_>>>()
+    {
+        return FieldTypeInfo {
+            enum_values: Some(strings),
+            ..FieldTypeInfo::plain("enum")
+        };
+    }
+    if values.iter().all(|v| v.is_number()) {
+        return FieldTypeInfo::plain("number");
+    }
+    FieldTypeInfo::plain("string")
+}
+
 /// Handle anyOf types (dates, references, nullable unions)
 fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, String> {
     if is_date_field(any_of) {
@@ -449,32 +465,26 @@ fn handle_anyof_type(any_of: &[JsonSchemaProperty]) -> Result<FieldTypeInfo, Str
             array_reference_collection: None,
         });
     }
-    // Handle nullable primitives (e.g., z.number().nullish() → anyOf: [number, null])
-    if let Some(primitive_type) = extract_nullable_primitive_type(any_of) {
-        return Ok(FieldTypeInfo {
-            field_type: primitive_type,
-            sub_type: None,
-            enum_values: None,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+    // Nullable fields (`z.number().nullish()` → anyOf: [number, null]) take the
+    // type of their non-null branch. A nullable object is flattened by parse_field
+    if let Some(inner) = nullable_inner(any_of) {
+        return determine_field_type(inner);
     }
-    // Handle nullable arrays (e.g., z.array(z.string()).nullish() → anyOf: [array, null])
-    if let Some(array_type) = extract_nullable_array_type(any_of) {
-        return Ok(array_type);
-    }
-    // Handle nullable enums (e.g., z.enum([...]).nullish() → anyOf: [enum, null])
-    if let Some(enum_type) = extract_nullable_enum_type(any_of) {
-        return Ok(enum_type);
+    // A union of literals (`z.union([z.literal('a'), z.literal('b')])`), maybe nullable
+    let literals: Option<Vec<&Value>> = any_of
+        .iter()
+        .filter(|branch| !is_null_schema(branch))
+        .map(|branch| branch.const_.as_ref())
+        .collect();
+    if let Some(literals) = literals.filter(|l| !l.is_empty()) {
+        return Ok(literal_values_type(&literals));
     }
     // Other unions - treat as string for now
-    Ok(FieldTypeInfo {
-        field_type: "string".to_string(),
-        sub_type: None,
-        enum_values: None,
-        reference_collection: None,
-        array_reference_collection: None,
-    })
+    Ok(FieldTypeInfo::plain("string"))
+}
+
+fn is_null_schema(schema: &JsonSchemaProperty) -> bool {
+    matches!(&schema.type_, Some(StringOrArray::String(t)) if t == "null")
 }
 
 /// The non-null branch of a nullable field (`anyOf: [T, null]`), which has the
@@ -483,55 +493,9 @@ fn nullable_inner(any_of: &[JsonSchemaProperty]) -> Option<&JsonSchemaProperty> 
     let [a, b] = any_of else {
         return None;
     };
-    let is_null =
-        |s: &JsonSchemaProperty| matches!(&s.type_, Some(StringOrArray::String(t)) if t == "null");
-    match (is_null(a), is_null(b)) {
+    match (is_null_schema(a), is_null_schema(b)) {
         (false, true) => Some(a),
         (true, false) => Some(b),
-        _ => None,
-    }
-}
-
-/// Extract primitive type from a nullable anyOf (e.g., [number, null] → "number")
-/// Returns None if not a simple nullable primitive pattern
-fn extract_nullable_primitive_type(any_of: &[JsonSchemaProperty]) -> Option<String> {
-    let inner = nullable_inner(any_of)?;
-    match &inner.type_ {
-        Some(StringOrArray::String(t))
-            if matches!(t.as_str(), "number" | "integer" | "boolean") =>
-        {
-            Some(t.clone())
-        }
-        // Strings with enum values are enums
-        Some(StringOrArray::String(t)) if t == "string" && inner.enum_.is_none() => Some(t.clone()),
-        _ => None,
-    }
-}
-
-/// Extract array type from a nullable anyOf (e.g., [array, null] → array info)
-/// Returns None if not a nullable array pattern
-fn extract_nullable_array_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
-    let inner = nullable_inner(any_of)?;
-    match &inner.type_ {
-        Some(StringOrArray::String(t)) if t == "array" => handle_array_type(inner).ok(),
-        _ => None,
-    }
-}
-
-/// Extract enum type from a nullable anyOf (e.g., [enum, null] → enum info)
-/// Returns None if not a nullable enum pattern
-fn extract_nullable_enum_type(any_of: &[JsonSchemaProperty]) -> Option<FieldTypeInfo> {
-    let inner = nullable_inner(any_of)?;
-    match &inner.type_ {
-        Some(StringOrArray::String(t)) if t == "string" && inner.enum_.is_some() => {
-            Some(FieldTypeInfo {
-                field_type: "enum".to_string(),
-                sub_type: None,
-                enum_values: inner.enum_.clone(),
-                reference_collection: None,
-                array_reference_collection: None,
-            })
-        }
         _ => None,
     }
 }
@@ -541,14 +505,11 @@ fn handle_array_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo,
     if let Some(items) = &field_schema.items {
         let item_type_info = match &**items {
             ItemsType::Single(item_schema) => determine_field_type(item_schema)?,
-            ItemsType::Tuple(_) => {
-                // Tuple - treat as JSON string for now
+            // Tuples: items of different types, edited as YAML
+            ItemsType::Tuple(_) | ItemsType::Bool(_) => {
                 return Ok(FieldTypeInfo {
-                    field_type: "string".to_string(),
-                    sub_type: None,
-                    enum_values: None,
-                    reference_collection: None,
-                    array_reference_collection: None,
+                    sub_type: Some("unknown".to_string()),
+                    ..FieldTypeInfo::plain("array")
                 });
             }
         };
@@ -583,20 +544,15 @@ fn handle_array_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo,
 
 /// Handle object types
 fn handle_object_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeInfo, String> {
-    // Records (with additionalProperties: true or schema) - treat as JSON string
+    // Records (with additionalProperties: true or schema) have no fixed fields to
+    // flatten, so they're edited whole, as YAML
     // Note: additionalProperties: false means "strict object", not a dynamic record
     if matches!(
         &field_schema.additional_properties,
         Some(PropertyAdditionalProperties::Boolean(true))
             | Some(PropertyAdditionalProperties::Schema(_))
     ) {
-        return Ok(FieldTypeInfo {
-            field_type: "string".to_string(),
-            sub_type: None,
-            enum_values: None,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+        return Ok(FieldTypeInfo::plain("object"));
     }
     // Nested objects (including those with additionalProperties: false) will be flattened by parse_field
     Ok(FieldTypeInfo {
@@ -669,26 +625,23 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         return handle_anyof_type(any_of);
     }
 
-    // Handle enum
-    if let Some(enum_values) = &field_schema.enum_ {
-        return Ok(FieldTypeInfo {
-            field_type: "enum".to_string(),
-            sub_type: None,
-            enum_values: Some(enum_values.clone()),
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+    // A discriminated union of objects: no fixed fields to flatten, so edited as YAML
+    if field_schema.one_of.is_some() {
+        return Ok(FieldTypeInfo::plain("object"));
     }
 
-    // Handle const (literal) - treat as string
-    if field_schema.const_.is_some() {
-        return Ok(FieldTypeInfo {
-            field_type: "string".to_string(),
-            sub_type: None,
-            enum_values: None,
-            reference_collection: None,
-            array_reference_collection: None,
-        });
+    // Handle enum
+    if let Some(enum_values) = &field_schema.enum_ {
+        return Ok(literal_values_type(&enum_values.iter().collect::<Vec<_>>()));
+    }
+
+    // A single literal: a text or number input
+    if let Some(value) = &field_schema.const_ {
+        return Ok(FieldTypeInfo::plain(if value.is_number() {
+            "number"
+        } else {
+            "string"
+        }));
     }
 
     let single_type = non_null_type(&field_schema.type_);
@@ -794,18 +747,32 @@ fn extract_constraints(
 ) -> Option<FieldConstraints> {
     let mut constraints = FieldConstraints::default();
 
-    // Numeric constraints
-    if let Some(min) = field_schema.minimum {
+    // Numeric constraints. `z.number().int()` adds the safe integer range as
+    // bounds, which say nothing useful, so they're left out
+    const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+    let is_integer = non_null_type(&field_schema.type_) == Some("integer");
+    if let Some(min) = field_schema.minimum.filter(|&m| m != -MAX_SAFE_INTEGER) {
         constraints.min = Some(min);
     }
-    if let Some(max) = field_schema.maximum {
+    if let Some(max) = field_schema.maximum.filter(|&m| m != MAX_SAFE_INTEGER) {
         constraints.max = Some(max);
     }
+    // `gt(0)` on an integer is `min(1)`; on a number it stays exclusive
     if let Some(exclusive_min) = field_schema.exclusive_minimum {
-        constraints.min = Some(exclusive_min + 1.0);
+        if is_integer {
+            constraints.min = Some(exclusive_min + 1.0);
+        } else {
+            constraints.min = Some(exclusive_min);
+            constraints.min_exclusive = true;
+        }
     }
     if let Some(exclusive_max) = field_schema.exclusive_maximum {
-        constraints.max = Some(exclusive_max - 1.0);
+        if is_integer {
+            constraints.max = Some(exclusive_max - 1.0);
+        } else {
+            constraints.max = Some(exclusive_max);
+            constraints.max_exclusive = true;
+        }
     }
 
     // String constraints
@@ -2069,35 +2036,127 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_astro6_file_based_collection() {
-        // Astro 6 file-based collection uses additionalProperties
+    fn catchall_collections_keep_their_fields() {
+        // `z.object({...}).catchall(z.string())` adds a root additionalProperties
         let json_schema = r##"{
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
             "properties": {
+                "title": { "type": "string" },
                 "$schema": { "type": "string" }
             },
-            "additionalProperties": {
-                "type": "object",
-                "properties": {
-                    "id": { "type": "string" },
-                    "title": { "type": "string" },
-                    "url": { "type": "string", "format": "uri" }
-                },
-                "required": ["id", "title", "url"]
-            }
+            "required": ["title"],
+            "additionalProperties": { "type": "string" }
         }"##;
 
-        let result = parse_json_schema("toolboxPages", json_schema);
-        assert!(result.is_ok());
+        let schema = parse_json_schema("posts", json_schema).unwrap();
+        let names: Vec<_> = schema.fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["title"]);
+    }
 
-        let schema = result.unwrap();
-        assert_eq!(schema.collection_name, "toolboxPages");
-        assert_eq!(schema.fields.len(), 3);
+    /// Zod 4.6's `toJSONSchema` output (with Astro 7's options) for shapes beyond
+    /// plain strings, numbers, enums and objects
+    const ZOD4_SHAPES_SCHEMA: &str = r##"{
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "tuple": {
+                "type": "array",
+                "prefixItems": [{ "type": "string" }, { "type": "number" }],
+                "items": false, "minItems": 2, "maxItems": 2
+            },
+            "numLiteral": { "type": "number", "const": 5 },
+            "strLiteral": { "type": "string", "const": "fixed" },
+            "numEnum": { "type": "number", "enum": [1, 2] },
+            "numLiteralUnion": { "anyOf": [
+                { "type": "number", "const": 1 }, { "type": "number", "const": 2 }
+            ] },
+            "literalUnion": { "anyOf": [
+                { "type": "string", "const": "a" }, { "type": "string", "const": "b" }
+            ] },
+            "nullableLiteralUnion": { "anyOf": [
+                { "type": "string", "const": "a" }, { "type": "string", "const": "b" }, { "type": "null" }
+            ] },
+            "mixedLiteralUnion": { "anyOf": [
+                { "type": "string", "const": "a" }, { "type": "number", "const": 1 }
+            ] },
+            "discriminated": { "oneOf": [
+                { "type": "object", "properties": { "kind": { "type": "string", "const": "video" }, "url": { "type": "string" } }, "required": ["kind", "url"] },
+                { "type": "object", "properties": { "kind": { "type": "string", "const": "image" }, "src": { "type": "string" } }, "required": ["kind", "src"] }
+            ] },
+            "record": { "type": "object", "propertyNames": { "type": "string" }, "additionalProperties": { "type": "string" } },
+            "nullableObject": { "anyOf": [
+                { "type": "object", "properties": { "name": { "type": "string" }, "age": { "type": "number" } }, "required": ["name"] },
+                { "type": "null" }
+            ] },
+            "nullableEmail": { "anyOf": [{ "type": "string", "format": "email" }, { "type": "null" }] },
+            "$schema": { "type": "string" }
+        },
+        "required": ["tuple", "numLiteral", "strLiteral", "numEnum", "numLiteralUnion", "literalUnion", "mixedLiteralUnion", "discriminated", "record", "nullableObject"]
+    }"##;
 
-        let url = schema.fields.iter().find(|f| f.name == "url").unwrap();
-        assert_eq!(url.field_type, "url");
-        assert!(url.required);
+    #[test]
+    fn zod4_shapes_parse_without_failing_the_collection() {
+        let schema = parse_json_schema("posts", ZOD4_SHAPES_SCHEMA).unwrap();
+        let field = |name: &str| schema.fields.iter().find(|f| f.name == name).unwrap();
+        let kind = |name: &str| {
+            let f = field(name);
+            (f.field_type.as_str(), f.sub_type.as_deref())
+        };
+
+        // Tuples are edited as YAML (an array of unknown items)
+        assert_eq!(kind("tuple"), ("array", Some("unknown")));
+        // Numeric literals and enums take a number, so the YAML stays a number
+        assert_eq!(kind("numLiteral"), ("number", None));
+        assert_eq!(kind("numEnum"), ("number", None));
+        assert_eq!(kind("numLiteralUnion"), ("number", None));
+        assert_eq!(kind("strLiteral"), ("string", None));
+        assert_eq!(kind("mixedLiteralUnion"), ("string", None));
+        // Unions of string literals are dropdowns, nullable or not
+        for name in ["literalUnion", "nullableLiteralUnion"] {
+            assert_eq!(kind(name), ("enum", None));
+            assert_eq!(
+                field(name).enum_values,
+                Some(vec!["a".to_string(), "b".to_string()])
+            );
+        }
+        // Objects without fixed fields are edited whole, as YAML
+        assert_eq!(kind("discriminated"), ("object", None));
+        assert_eq!(kind("record"), ("object", None));
+        // Nullable fields take their inner type, and nullable objects flatten
+        assert_eq!(kind("nullableEmail"), ("email", None));
+        assert_eq!(kind("nullableObject.name"), ("string", None));
+        assert_eq!(kind("nullableObject.age"), ("number", None));
+        assert!(field("nullableObject.name").required);
+        assert!(!field("nullableObject.age").required);
+    }
+
+    #[test]
+    fn exclusive_bounds_stay_exclusive_for_decimals() {
+        let constraints = |schema: serde_json::Value| {
+            let field: JsonSchemaProperty = serde_json::from_value(schema).unwrap();
+            extract_constraints(&field, "number").unwrap_or_default()
+        };
+
+        // z.number().gt(0).lt(10): 0.5 is valid, so the bounds stay 0 and 10
+        let decimal = constraints(serde_json::json!({
+            "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 10
+        }));
+        assert_eq!((decimal.min, decimal.max), (Some(0.0), Some(10.0)));
+        assert!(decimal.min_exclusive && decimal.max_exclusive);
+
+        // z.number().int().gt(0): the smallest valid value is 1
+        let integer = constraints(serde_json::json!({
+            "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991_i64
+        }));
+        assert_eq!((integer.min, integer.max), (Some(1.0), None));
+        assert!(!integer.min_exclusive);
+
+        // z.number().int() alone: Zod's safe-integer bounds aren't constraints
+        let plain_int = constraints(serde_json::json!({
+            "type": "integer", "minimum": -9007199254740991_i64, "maximum": 9007199254740991_i64
+        }));
+        assert_eq!(plain_int, FieldConstraints::default());
     }
 
     #[test]
