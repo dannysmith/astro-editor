@@ -49,6 +49,10 @@ Point Astro Editor at non-standard directories. [Overrides](/reference/overrides
 
 **Default File Type for New Files** — override the global default for this project, or inherit it.
 
+### Experimental
+
+**Add Imports for MDX Components** — off by default. When it's on, the [component builder](/editor/mdx-components/#adding-imports) also adds the import a component needs. Leave it off if your site imports components automatically. If `package.json` lists `astro-auto-import`, the setting reminds you.
+
 ## Collections
 
 Per-collection overrides, for when collections within a project have different structures or conventions. Pick a collection, then set any of the settings below. Each one falls back to the project setting, then the built-in default — the [three-tier fallback](/reference/overrides/).

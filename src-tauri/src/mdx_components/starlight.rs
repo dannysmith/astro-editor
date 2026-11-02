@@ -3,9 +3,9 @@
 //! Starlight's types by `scripts/starlight-components/generate.ts`, rather than read
 //! from the project's `node_modules`, whose layout changes between versions.
 
+use super::package_dependencies;
 use crate::models::MdxComponent;
 use serde::Deserialize;
-use std::fs;
 use std::path::Path;
 
 #[derive(Deserialize)]
@@ -15,15 +15,7 @@ struct StarlightComponents {
 
 /// Whether the project's `package.json` depends on Starlight
 pub fn uses_starlight(project_root: &Path) -> bool {
-    let Ok(text) = fs::read_to_string(project_root.join("package.json")) else {
-        return false;
-    };
-    let Ok(package) = serde_json::from_str::<serde_json::Value>(&text) else {
-        return false;
-    };
-    ["dependencies", "devDependencies"]
-        .iter()
-        .any(|key| package[key].get("@astrojs/starlight").is_some())
+    package_dependencies(project_root).contains("@astrojs/starlight")
 }
 
 /// Starlight's components, from the bundled list
@@ -36,15 +28,16 @@ pub fn components() -> Vec<MdxComponent> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::TempDir;
 
     #[test]
     fn bundled_list_loads() {
         let components = components();
         assert_eq!(components.len(), 12);
-        assert!(components
-            .iter()
-            .all(|c| c.import_source.as_deref() == Some("@astrojs/starlight/components")));
+        assert!(components.iter().all(|c| c.import_source.as_deref()
+            == Some("@astrojs/starlight/components")
+            && c.named_export));
     }
 
     #[test]

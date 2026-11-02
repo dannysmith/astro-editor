@@ -1,0 +1,39 @@
+# An `index.ts` that re-exports the components, imported through the `@/*`
+# alias, as in the test projects and on danny.is. `Timeline` isn't re-exported.
+
+[[case]]
+name = "adds to the existing import from the barrel"
+file = "src/content/notes/a.mdx"
+component = "Callout"
+expected = """
+import { Aside, Callout } from '@/components/mdx'
+"""
+
+[[case]]
+name = "adds to a multi-line import on its own line"
+file = "src/content/notes/c.mdx"
+component = "Callout"
+expected = """
+import {
+  Aside,
+  Figure,
+  Callout,
+} from '@/components/mdx'
+"""
+
+[[case]]
+name = "copies a named import from the barrel, though the component file has a default export"
+file = "src/content/notes/b.mdx"
+component = "Figure"
+expected = """
+import { Callout, Aside, Figure } from '@/components/mdx'
+"""
+
+[[case]]
+name = "falls back to a relative path for a component the barrel doesn't export"
+file = "src/content/notes/a.mdx"
+component = "Timeline"
+expected = """
+import { Aside } from '@/components/mdx'
+import Timeline from '../../components/mdx/Timeline.astro'
+"""

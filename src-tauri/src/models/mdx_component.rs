@@ -58,6 +58,8 @@ pub struct MdxComponent {
     /// The module a package's components are imported from, e.g. `@astrojs/starlight/components`;
     /// `None` for the project's own components
     pub import_source: Option<String>,
+    /// Imported by name (`import { Aside } from …`) rather than as its module's default export
+    pub named_export: bool,
     /// Content inserted inside the tag instead of an empty slot, as a CodeMirror snippet,
     /// e.g. the `TabItem`s inside `Tabs`
     pub slot_template: Option<String>,

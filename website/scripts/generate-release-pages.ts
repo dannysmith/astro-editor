@@ -194,10 +194,11 @@ async function main() {
   const includeAll = args.includes('--all')
   const dryRun = args.includes('--dry-run')
 
-  // Fetch all releases (list endpoint doesn't include body)
+  // Fetch published stable releases (list endpoint doesn't include body). The
+  // workflow's token can see drafts, and test builds are prereleases
   console.log('Fetching releases from GitHub...')
   const json = execSync(
-    `gh release list --repo ${REPO} --limit 100 --json tagName,name,publishedAt`,
+    `gh release list --repo ${REPO} --limit 100 --exclude-drafts --exclude-pre-releases --json tagName,name,publishedAt`,
     { encoding: 'utf-8' }
   )
   const summaries: Omit<Release, 'body'>[] = JSON.parse(json)

@@ -32,6 +32,7 @@ function component(
     description: null,
     framework: 'astro',
     import_source: null,
+    named_export: false,
     slot_template: null,
     ...overrides,
   }

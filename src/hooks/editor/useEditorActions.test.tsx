@@ -98,3 +98,33 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     expect(useEditorStore.getState().isDirty).toBe(false)
   })
 })
+
+describe('useEditorActions.saveFile when the same file changes mid-save', () => {
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Body',
+      frontmatter: {},
+      rawFrontmatter: '',
+      imports: '',
+      isDirty: true,
+      isFrontmatterDirty: false,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  it('stays dirty when an import is added during the save', async () => {
+    const release = holdSave('resolve')
+    const { saveFile } = renderActions()
+
+    const saving = saveFile(false)
+    useEditorStore.getState().setImports("import A from './a'")
+    release()
+    await saving
+
+    // Marked clean, the reload from disk would put back the old imports
+    expect(useEditorStore.getState().isDirty).toBe(true)
+  })
+})

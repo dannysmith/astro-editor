@@ -1,4 +1,5 @@
 import type { FileEntry } from '@/types'
+import { astroEntryId } from '../entry-id'
 
 /**
  * Build a relative file path from source to target
@@ -41,22 +42,11 @@ export function buildRelativePath(
 }
 
 /**
- * Resolve the slug for a file entry.
- * Returns frontmatter.slug if present, otherwise file.id
- */
-export function resolveSlug(file: FileEntry): string {
-  const slug = file.frontmatter?.slug
-  if (typeof slug === 'string' && slug.length > 0) {
-    return slug
-  }
-  return file.id
-}
-
-/**
- * Resolve a URL pattern template with a file's slug
+ * Resolve a URL pattern template with a file's slug: its id in Astro, which is
+ * its `slug` frontmatter if it has one
  */
 export function resolveUrlPattern(pattern: string, file: FileEntry): string {
-  return pattern.replace('{slug}', resolveSlug(file))
+  return pattern.replace('{slug}', astroEntryId(file))
 }
 
 /**

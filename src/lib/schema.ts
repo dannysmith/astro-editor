@@ -42,6 +42,9 @@ export interface FieldConstraints {
   max?: number
   minLength?: number
   maxLength?: number
+  /** How many items an array takes */
+  minItems?: number
+  maxItems?: number
   pattern?: string
   format?: 'email' | 'uri' | 'date-time' | 'date'
 }

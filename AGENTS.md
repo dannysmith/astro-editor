@@ -117,7 +117,7 @@ In `docs/developer/`. Read the ones for the area you're working in.
 - `testing.md`: where tests go and the test setup's mocks
 - `ast-grep-linting.md`: the architecture lint rules
 - `optimization.md`: build and bundle settings
-- `releases.md`: cutting a release, CI, updates and signing
+- `releases.md`: cutting a release, hotfixes, test builds, CI, updates and signing
 - `agent-tooling.md`: the dev identity, agent bridge, styleguide and logs
 
 ## Tasks

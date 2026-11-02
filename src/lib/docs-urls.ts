@@ -12,6 +12,7 @@ export const DOCS_URLS = {
   userGuide: `${DOCS_BASE}/getting-started/`,
   keyboardShortcuts: `${DOCS_BASE}/reference/keyboard-shortcuts/`,
   overrides: `${DOCS_BASE}/reference/overrides/`,
+  mdxComponents: `${DOCS_BASE}/editor/mdx-components/`,
   ideIntegration: `${DOCS_BASE}/file-management/ide-integration/`,
   advancedPreferences: `${DOCS_BASE}/reference/advanced-preferences/`,
 } as const

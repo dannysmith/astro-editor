@@ -1,0 +1,13 @@
+---
+title: Every kind of import
+---
+
+import type { Props } from '../components/types'
+import * as Icons from '../components/icons'
+import '../styles/prose.css'
+import Layout, { meta } from '../layouts/Post.astro'
+import { Card as StarCard } from '@astrojs/starlight/components'
+import raw from '../snippets/example.txt?raw'
+import logoUrl from '../assets/logo.svg?url'
+
+<StarCard title="Hello">Text</StarCard>

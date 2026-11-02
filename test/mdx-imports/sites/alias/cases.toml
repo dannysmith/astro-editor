@@ -1,0 +1,37 @@
+# A tsconfig alias (`@components/*`), single quotes and no semicolons, as in
+# the taskdn and Astro docs.
+
+[[case]]
+name = "copies the alias another file in the collection uses"
+file = "src/content/blog/other.mdx"
+component = "Callout"
+expected = """
+import Aside from '@components/mdx/Aside.astro'
+import Callout from '@components/mdx/Callout.astro'
+"""
+
+[[case]]
+name = "copies an alias from a file in another folder"
+file = "src/content/blog/2023/older.mdx"
+component = "Callout"
+expected = """
+import Callout from '@components/mdx/Callout.astro'
+"""
+
+[[case]]
+name = "falls back to a relative path for a component no file imports yet"
+file = "src/content/blog/other.mdx"
+component = "Figure"
+expected = """
+import Aside from '@components/mdx/Aside.astro'
+import Figure from '../../components/mdx/Figure.astro'
+"""
+
+[[case]]
+name = "doesn't copy Astro's own Image for the project's Image"
+file = "src/content/blog/other.mdx"
+component = "Image"
+expected = """
+import Aside from '@components/mdx/Aside.astro'
+import Image from '../../components/mdx/Image.astro'
+"""

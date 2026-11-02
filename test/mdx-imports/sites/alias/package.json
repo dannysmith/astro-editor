@@ -1,0 +1,9 @@
+{
+  "name": "alias",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*",
+    "@astrojs/mdx": "*"
+  }
+}

@@ -41,6 +41,7 @@
     "fix:all": "bun run lint:fix && bun run ast:fix && bun run format && bun run rust:fmt && bun run rust:clippy:fix",
     "reset:testdata": "rm -rf temp-dummy-astro-project && cp -r test/dummy-astro-project temp-dummy-astro-project",
     "prepare-release": "node scripts/prepare-release.js",
+    "test-build": "node scripts/test-build.js",
     "knip": "knip",
     "jscpd": "jscpd src src-tauri/src",
     "stats": "cd telemetry-worker && bun run stats && cd .."

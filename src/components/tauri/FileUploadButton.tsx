@@ -5,6 +5,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { Button } from '../ui/button'
 import type { VariantProps } from 'class-variance-authority'
 import { buttonVariants } from '../ui/button'
+import { isDropWithinElement } from '../../lib/editor/dragdrop'
 
 // GLOBAL deduplication tracker for drag-drop events
 // This prevents Tauri's duplicate event firing from affecting ANY FileUploadButton
@@ -155,17 +156,8 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
             const paths = payload.paths || []
             const position = payload.position
 
-            // Check if drop happened on this button using position
-            if (!buttonRef.current || !position) return
-
-            const rect = buttonRef.current.getBoundingClientRect()
-            const isOverButton =
-              position.x >= rect.left &&
-              position.x <= rect.right &&
-              position.y >= rect.top &&
-              position.y <= rect.bottom
-
-            if (!isOverButton) return
+            // Only a drop on this button, and not on something covering it
+            if (!isDropWithinElement(position, buttonRef.current)) return
 
             if (paths.length === 0) return
 

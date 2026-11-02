@@ -325,6 +325,7 @@
       "description": "A callout for notes, tips, cautions and warnings.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -379,6 +380,7 @@
       "description": "A small label, like “New” or “Deprecated”.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -689,6 +691,7 @@
       "description": "A box with a title, an optional icon and some content.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -710,6 +713,7 @@
       "description": "Lays out cards side by side.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": "\n  <Card title=\"${First card}\">\n    ${}\n  </Card>\n  <Card title=\"${Second card}\">\n    ${}\n  </Card>\n"
     },
     {
@@ -1040,6 +1044,7 @@
       "description": "One of Starlight’s built-in icons.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -1061,6 +1066,7 @@
       "description": "Content in tabs, each a TabItem.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": "\n  <TabItem label=\"${First tab}\">\n    ${}\n  </TabItem>\n  <TabItem label=\"${Second tab}\">\n    ${}\n  </TabItem>\n"
     },
     {
@@ -1371,6 +1377,7 @@
       "description": "One tab inside Tabs.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -1412,6 +1419,7 @@
       "description": "A card that links to another page.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -1422,6 +1430,7 @@
       "description": "Numbered steps, written as an ordered list.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": "\n\n1. ${First step}\n\n2. ${Second step}\n\n"
     },
     {
@@ -1432,6 +1441,7 @@
       "description": "A file and folder listing, written as a nested list.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": "\n\n- ${src/}\n  - ${index.md}\n- ${README.md}\n\n"
     },
     {
@@ -1771,6 +1781,7 @@
       "description": "A link that looks like a button.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     },
     {
@@ -1838,6 +1849,7 @@
       "description": "A code block from a string, for code that a fenced block can’t hold.",
       "framework": "astro",
       "import_source": "@astrojs/starlight/components",
+      "named_export": true,
       "slot_template": null
     }
   ]

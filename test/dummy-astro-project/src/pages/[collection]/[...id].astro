@@ -1,0 +1,27 @@
+---
+// A page for every entry, so the build compiles every Markdown and MDX file,
+// including the imports the component builder adds
+import { getCollection, render } from 'astro:content'
+
+export async function getStaticPaths() {
+  const collections = ['articles', 'notes', 'ideas', 'schemaless'] as const
+  const entries = (await Promise.all(collections.map(name => getCollection(name)))).flat()
+  return entries.map(entry => ({
+    params: { collection: entry.collection, id: entry.id },
+    props: { entry },
+  }))
+}
+
+const { entry } = Astro.props
+const { Content } = await render(entry)
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{entry.id}</title>
+  </head>
+  <body>
+    <Content />
+  </body>
+</html>

@@ -1,0 +1,27 @@
+# Paths from the project root (`/src/components/…`), with files that disagree
+# about semicolons and quotes, as on astro.build. Components live directly in
+# `src/components`.
+components_dir = "src/components"
+
+[[case]]
+name = "copies a root path and follows this file's style"
+file = "src/content/blog/no-semicolons.mdx"
+component = "Note"
+expected = """
+import Mention from '/src/components/Mention.astro'
+import Note from '/src/components/Note.astro'
+"""
+
+[[case]]
+name = "adds the import after the last import, not after the exports"
+file = "src/content/blog/semicolons.mdx"
+component = "Blockquote"
+expected = """
+import Note from "/src/components/Note.astro";
+import Mention from "/src/components/Mention.astro";
+import Blockquote from "../../components/Blockquote.astro";
+
+export const meta = {
+  featured: true,
+};
+"""

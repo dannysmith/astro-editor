@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { getCollectionSettings } from './collection-settings'
+import { canImportImages, getCollectionSettings } from './collection-settings'
 import { ProjectSettings } from './types'
 import { ASTRO_PATHS } from '../constants'
 
@@ -340,5 +340,53 @@ describe('getCollectionSettings', () => {
       expect(newsSettings.pathOverrides.assetsDirectory).toBe('src/assets')
       expect(newsSettings.frontmatterMappings.publishedDate).toBe('date')
     })
+  })
+})
+
+describe('canImportImages', () => {
+  function settings(overrides: Partial<ProjectSettings>): ProjectSettings {
+    return {
+      pathOverrides: {},
+      frontmatterMappings: {},
+      addComponentImports: true,
+      ...overrides,
+    }
+  }
+
+  it('imports images when the project adds imports and they go outside public/', () => {
+    expect(canImportImages(settings({}), 'notes')).toBe(true)
+    expect(
+      canImportImages(
+        settings({ pathOverrides: { assetsDirectory: './content/images/' } }),
+        'notes'
+      )
+    ).toBe(true)
+  })
+
+  it('falls back to a typed name when the setting is off or images go in public/', () => {
+    expect(
+      canImportImages(settings({ addComponentImports: false }), 'notes')
+    ).toBe(false)
+    expect(
+      canImportImages(
+        settings({ pathOverrides: { assetsDirectory: 'public/images' } }),
+        'notes'
+      )
+    ).toBe(false)
+    // A collection that keeps its images in public/
+    expect(
+      canImportImages(
+        settings({
+          collections: [
+            {
+              name: 'notes',
+              settings: { pathOverrides: { assetsDirectory: 'public/notes' } },
+            },
+          ],
+        }),
+        'notes'
+      )
+    ).toBe(false)
+    expect(canImportImages(settings({}), undefined)).toBe(false)
   })
 })

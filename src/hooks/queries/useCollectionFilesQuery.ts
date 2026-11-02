@@ -4,13 +4,15 @@ import { useQuery } from '@tanstack/react-query'
 import { commands, type FileEntry } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
+/** Every Markdown and MDX file in a collection, including its subfolders */
 const fetchCollectionFiles = async (
-  collectionPath: string
+  collectionPath: string,
+  collectionName: string
 ): Promise<FileEntry[]> => {
-  if (!collectionPath) {
-    throw new Error('Collection path is required to fetch files.')
-  }
-  const result = await commands.scanCollectionFiles(collectionPath)
+  const result = await commands.scanCollectionFilesRecursive(
+    collectionPath,
+    collectionName
+  )
   if (result.status === 'error') {
     throw new Error(result.error)
   }
@@ -27,7 +29,7 @@ export const useCollectionFilesQuery = (
       projectPath || '',
       collectionName || ''
     ),
-    queryFn: () => fetchCollectionFiles(collectionPath!),
+    queryFn: () => fetchCollectionFiles(collectionPath!, collectionName!),
     enabled: !!projectPath && !!collectionName && !!collectionPath,
   })
 }

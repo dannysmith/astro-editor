@@ -63,8 +63,8 @@ impl SourceModule {
 
     /// The source text of a node
     pub fn snippet(&self, span: Span) -> &str {
-        let lo = (span.lo.0 - self.start.0) as usize;
-        let hi = (span.hi.0 - self.start.0) as usize;
+        let lo = span.lo.0.saturating_sub(self.start.0) as usize;
+        let hi = span.hi.0.saturating_sub(self.start.0) as usize;
         self.src.get(lo..hi).unwrap_or("")
     }
 
@@ -687,7 +687,8 @@ fn string_tuple_values(ty: &TsType) -> Option<Vec<String>> {
     }
 }
 
-fn export_name(name: &ModuleExportName) -> String {
+/// The name an import or export specifier uses, written as a name or a string
+pub(crate) fn export_name(name: &ModuleExportName) -> String {
     match name {
         ModuleExportName::Ident(id) => id.sym.to_string(),
         ModuleExportName::Str(s) => s.value.to_string_lossy().to_string(),

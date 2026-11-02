@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildRelativePath,
-  resolveSlug,
   resolveUrlPattern,
   buildContentLink,
 } from './link-builder'
@@ -9,7 +8,7 @@ import type { FileEntry } from '@/types'
 
 function makeFile(overrides: Partial<FileEntry>): FileEntry {
   return {
-    id: 'test',
+    id: 'articles/test',
     path: '/project/src/content/articles/test.md',
     name: 'test',
     extension: 'md',
@@ -76,40 +75,6 @@ describe('buildRelativePath', () => {
   })
 })
 
-describe('resolveSlug', () => {
-  it('returns frontmatter slug when present', () => {
-    const file = makeFile({
-      id: 'articles/my-post',
-      frontmatter: { slug: 'custom-slug' },
-    })
-    expect(resolveSlug(file)).toBe('custom-slug')
-  })
-
-  it('falls back to id when no slug', () => {
-    const file = makeFile({
-      id: 'articles/my-post',
-      frontmatter: { title: 'My Post' },
-    })
-    expect(resolveSlug(file)).toBe('articles/my-post')
-  })
-
-  it('falls back to id when slug is empty', () => {
-    const file = makeFile({
-      id: 'articles/my-post',
-      frontmatter: { slug: '' },
-    })
-    expect(resolveSlug(file)).toBe('articles/my-post')
-  })
-
-  it('falls back to id when frontmatter is null', () => {
-    const file = makeFile({
-      id: 'articles/my-post',
-      frontmatter: null,
-    })
-    expect(resolveSlug(file)).toBe('articles/my-post')
-  })
-})
-
 describe('resolveUrlPattern', () => {
   it('replaces {slug} with frontmatter slug', () => {
     const file = makeFile({
@@ -120,14 +85,12 @@ describe('resolveUrlPattern', () => {
     )
   })
 
-  it('replaces {slug} with id when no slug field', () => {
+  it('replaces {slug} with the entry id when there is no slug field', () => {
     const file = makeFile({
       id: 'articles/my-post',
       frontmatter: { title: 'Test' },
     })
-    expect(resolveUrlPattern('/blog/{slug}', file)).toBe(
-      '/blog/articles/my-post'
-    )
+    expect(resolveUrlPattern('/blog/{slug}', file)).toBe('/blog/my-post')
   })
 })
 

@@ -126,6 +126,26 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Min 5 chars')).toBeInTheDocument()
     })
 
+    // A list's size, in items rather than characters
+    it.each<[FieldConstraints, string]>([
+      [{ maxItems: 3 }, 'Up to 3 items'],
+      [{ minItems: 1 }, 'At least 1 item'],
+      [{ minItems: 2, maxItems: 5 }, '2–5 items'],
+      [{ minItems: 1, maxItems: 1 }, 'Exactly 1 item'],
+    ])('formats %o as "%s"', (constraints, text) => {
+      render(
+        <FieldWrapper
+          label="Test"
+          constraints={constraints}
+          currentValue={['a']}
+        >
+          <input />
+        </FieldWrapper>
+      )
+
+      expect(screen.getByText(text)).toBeInTheDocument()
+    })
+
     it('formats maxLength only', () => {
       const constraints: FieldConstraints = { maxLength: 200 }
 

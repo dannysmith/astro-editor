@@ -28,6 +28,7 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
 // Type for mocked store state matching EditorState interface
 interface MockEditorState {
   setEditorContent: Mock
+  setImports: Mock
   currentFile: FileEntry | null
   saveFile: Mock
   isDirty: boolean
@@ -56,6 +57,7 @@ describe('useEditorHandlers', () => {
 
     mockStoreState = {
       setEditorContent: vi.fn(),
+      setImports: vi.fn(),
       currentFile: createMockFile(),
       saveFile: vi.fn(),
       isDirty: false,

@@ -4,37 +4,33 @@ mod prop_types;
 pub mod starlight;
 
 use crate::models::{ComponentFramework, MdxComponent, PropInfo, PropKind};
+use crate::utils::validate_project_path;
+pub(crate) use prop_types::export_name;
 use prop_types::{
     astro_frontmatter, default_text, destructured_defaults, untyped_props, unwrap_ts_expr,
     PropResolver, SourceModule,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use swc_common::{Span, Spanned};
 use swc_ecma_ast::*;
 use swc_ecma_visit::{Visit, VisitWith};
 use walkdir::WalkDir;
 
-/// Validates that a file path is within the project boundaries
-///
-/// This function prevents path traversal attacks by ensuring all file operations
-/// stay within the current project root directory.
-fn validate_project_path(file_path: &Path, project_root: &Path) -> Result<PathBuf, String> {
-    // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
-        .map_err(|_| "Invalid file path".to_string())?;
-    let canonical_root = project_root
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
-
-    // Ensure file is within project bounds
-    canonical_file
-        .strip_prefix(&canonical_root)
-        .map_err(|_| "File outside project directory".to_string())?;
-
-    Ok(canonical_file)
+/// The packages in the project's `package.json` dependencies and devDependencies
+pub fn package_dependencies(project_root: &Path) -> HashSet<String> {
+    let Ok(text) = fs::read_to_string(project_root.join("package.json")) else {
+        return HashSet::new();
+    };
+    let Ok(package) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return HashSet::new();
+    };
+    ["dependencies", "devDependencies"]
+        .iter()
+        .filter_map(|key| package[key].as_object())
+        .flat_map(|deps| deps.keys().cloned())
+        .collect()
 }
 
 /// Detects the framework based on file extension
@@ -125,6 +121,7 @@ struct ParsedProps {
     props: Vec<PropInfo>,
     has_slot: bool,
     description: Option<String>,
+    named_export: bool,
 }
 
 fn parse_component(
@@ -171,6 +168,7 @@ fn parse_component(
         description: parsed.description,
         framework,
         import_source: None,
+        named_export: parsed.named_export,
         slot_template: None,
     })
 }
@@ -231,6 +229,7 @@ fn parse_astro_props(content: &str, location: Option<Location>) -> Result<Parsed
         props,
         has_slot,
         description: source.leading_description(),
+        ..Default::default()
     })
 }
 
@@ -261,6 +260,7 @@ fn parse_react_props(
 ) -> Result<ParsedProps, String> {
     let (mut resolver, m) = resolver_for(content.to_string(), location, true)?;
     let source = resolver.module(m);
+    let named_export = react_named_export(&source.module, component_name);
 
     let mut candidates: Vec<ComponentFn> = Vec::new();
     let mut default_export: Option<ComponentFn> = None;
@@ -325,7 +325,10 @@ fn parse_react_props(
         .or(default_export.as_ref().filter(|c| typed(c)))
         .or_else(|| candidates.iter().rev().find(|c| typed(c)));
     let Some(component) = component else {
-        return Ok(ParsedProps::default());
+        return Ok(ParsedProps {
+            named_export,
+            ..Default::default()
+        });
     };
 
     let props_type = component
@@ -345,7 +348,52 @@ fn parse_react_props(
         props,
         has_slot,
         description: source.doc_before(component.span.lo),
+        named_export,
     })
+}
+
+/// Whether a React file's component is imported by name: the file has no default
+/// export and exports a function, class or variable named after the component
+fn react_named_export(module: &Module, component_name: &str) -> bool {
+    let is_name = |name: &ModuleExportName| export_name(name) == component_name;
+    let mut has_default = false;
+    let mut exports_name = false;
+    for item in &module.body {
+        let ModuleItem::ModuleDecl(decl) = item else {
+            continue;
+        };
+        match decl {
+            ModuleDecl::ExportDefaultDecl(_) | ModuleDecl::ExportDefaultExpr(_) => {
+                has_default = true
+            }
+            ModuleDecl::ExportDecl(export) => {
+                exports_name |= match &export.decl {
+                    Decl::Fn(f) => f.ident.sym == component_name,
+                    Decl::Class(c) => c.ident.sym == component_name,
+                    Decl::Var(var) => var
+                        .decls
+                        .iter()
+                        .any(|d| matches!(&d.name, Pat::Ident(id) if id.id.sym == component_name)),
+                    _ => false,
+                }
+            }
+            ModuleDecl::ExportNamed(named) => {
+                for specifier in &named.specifiers {
+                    let ExportSpecifier::Named(s) = specifier else {
+                        continue;
+                    };
+                    let exported = s.exported.as_ref().unwrap_or(&s.orig);
+                    if matches!(exported, ModuleExportName::Ident(id) if id.sym == "default") {
+                        has_default = true;
+                    } else if is_name(exported) {
+                        exports_name = true;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    !has_default && exports_name
 }
 
 /// The type annotation on a function parameter
@@ -453,6 +501,7 @@ fn parse_vue_props(content: &str, location: Option<Location>) -> Result<ParsedPr
         props,
         has_slot: content.contains("<slot"),
         description: None,
+        ..Default::default()
     })
 }
 
@@ -622,6 +671,7 @@ fn parse_svelte_props(content: &str, location: Option<Location>) -> Result<Parse
         props,
         has_slot,
         description: None,
+        ..Default::default()
     })
 }
 
@@ -639,58 +689,6 @@ fn includes_undefined(ty: &TsType) -> bool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-
-    #[test]
-    fn test_validate_project_path_valid() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let test_file = project_root.join("components").join("Alert.astro");
-
-        // Create test structure
-        fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        fs::write(&test_file, "test content").unwrap();
-
-        let result = validate_project_path(&test_file, &project_root);
-
-        assert!(result.is_ok());
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
-
-    #[test]
-    fn test_validate_project_path_traversal_attack() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let malicious_path = project_root.join("../../../etc/passwd");
-
-        // Create project directory
-        fs::create_dir_all(&project_root).unwrap();
-
-        let result = validate_project_path(&malicious_path, &project_root);
-
-        // Should fail due to path traversal
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert!(
-            error.contains("File outside project directory") || error.contains("Invalid file path")
-        );
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
 
     #[test]
     fn test_parse_props_from_typescript() {
@@ -941,6 +939,22 @@ interface Props {
 
         // Should fail gracefully
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn react_components_exported_by_name() {
+        let named = |code: &str| parse_react_props(code, "Alert", None).unwrap().named_export;
+        assert!(named("export function Alert({ a }: { a: string }) {}"));
+        assert!(named("export const Alert = ({ a }: { a: string }) => null"));
+        assert!(named("function Alert() {}\nexport { Alert }"));
+        assert!(!named(
+            "export default function Alert({ a }: { a: string }) {}"
+        ));
+        assert!(!named("function Alert() {}\nexport default Alert"));
+        assert!(!named("function Alert() {}\nexport { Alert as default }"));
+        // The default export wins when there's both
+        assert!(!named("export function Alert() {}\nexport default Alert"));
+        assert!(!named("export function Other() {}"));
     }
 
     #[test]
@@ -1487,6 +1501,7 @@ const props = defineProps<{
 #[cfg(test)]
 mod fixture_tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-components")

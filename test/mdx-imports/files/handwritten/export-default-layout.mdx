@@ -1,0 +1,19 @@
+---
+title: A layout defined in the file
+---
+
+import Wrapper from '../components/Wrapper.astro'
+
+export default function Layout({ children }) {
+  return (
+    <Wrapper>
+      <header>Shared header</header>
+
+      {children}
+    </Wrapper>
+  )
+}
+
+# The body
+
+Some text.

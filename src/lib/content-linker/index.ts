@@ -1,6 +1,5 @@
 export {
   buildRelativePath,
-  resolveSlug,
   resolveUrlPattern,
   buildContentLink,
   resolveTitle,

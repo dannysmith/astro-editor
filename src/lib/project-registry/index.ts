@@ -257,6 +257,14 @@ export class ProjectRegistryManager {
       }
     }
 
+    if ('addComponentImports' in settings) {
+      if (settings.addComponentImports === undefined) {
+        delete projectData.settings.addComponentImports
+      } else {
+        projectData.settings.addComponentImports = settings.addComponentImports
+      }
+    }
+
     // Update collections if property is present
     if ('collections' in settings) {
       if (settings.collections === undefined) {
@@ -338,6 +346,7 @@ export class ProjectRegistryManager {
       defaultFileType: projectData.settings.defaultFileType,
       // Include useAbsoluteAssetPaths (undefined by default, meaning use relative paths)
       useAbsoluteAssetPaths: projectData.settings.useAbsoluteAssetPaths,
+      addComponentImports: projectData.settings.addComponentImports,
       // Include collections array if present
       collections: projectData.settings.collections || [],
     }
