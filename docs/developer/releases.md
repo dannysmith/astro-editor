@@ -31,7 +31,7 @@ bun run test-build "Try the new component picker"
 bun run test-build --no-sign "..."   # skip the GPG prompt for the tag
 ```
 
-It refuses a dirty working tree, works out the next version from the tags on GitHub, runs `check:all`, then tags `HEAD` and pushes only the tag. The branch doesn't need pushing. The tag's message becomes the release's name and notes. When every platform has built, `release.yml` publishes it as a prerelease and the script's URL works. Delete test builds when you're done with them, in the GitHub UI or with `gh release delete v1.0.21-test.3 --cleanup-tag`.
+It refuses a dirty working tree, works out the next version from the tags on GitHub, runs `check:all`, then tags `HEAD` and pushes only the tag. The branch doesn't need pushing. The tag's message becomes the release's name and notes. When every platform has built, `release.yml` publishes it as a prerelease and the script's URL works. Delete test builds when you're done with them with `gh release delete v1.0.21-test.3 --cleanup-tag`, which deletes the tag too. Deleting one in the GitHub UI leaves its tag behind, so delete that as well (`git push origin --delete v1.0.21-test.3`).
 
 How it fits together:
 
