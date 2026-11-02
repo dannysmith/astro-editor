@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { CommandPalette } from './CommandPalette'
+import { CommandPalette, filterByLabel } from './CommandPalette'
 
 // Mock the useCommandPalette hook
 vi.mock('../../hooks/useCommandPalette', () => ({
@@ -52,5 +52,18 @@ describe('CommandPalette', () => {
 
     // Since the dialog is closed by default, it should not be visible
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('filterByLabel', () => {
+  const value = 'open-collection-blog:Open Collection: blog'
+
+  it('matches text after a colon in the label', () => {
+    expect(filterByLabel(value, 'blog')).toBe(1)
+    expect(filterByLabel(value, 'collection: b')).toBe(1)
+  })
+
+  it("doesn't match the command id", () => {
+    expect(filterByLabel(value, 'open-collection')).toBe(0)
   })
 })
