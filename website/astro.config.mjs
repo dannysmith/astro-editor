@@ -13,24 +13,6 @@ export default defineConfig({
   // Astro 7's default ('jsx') drops whitespace between inline elements on
   // separate lines, which runs words together in our components and plugins.
   compressHTML: true,
-  vite: {
-    build: {
-      rolldownOptions: {
-        // Astro prepends a dead "use astro:head-inject" directive to MDX modules,
-        // which Rolldown warns about once per MDX page. Remove once
-        // withastro/astro#18088 is released.
-        onwarn(warning, defaultHandler) {
-          if (
-            warning.code === 'MODULE_LEVEL_DIRECTIVE' &&
-            warning.message.includes('"use astro:head-inject"')
-          ) {
-            return
-          }
-          defaultHandler(warning)
-        },
-      },
-    },
-  },
   integrations: [
     starlight({
       plugins: [
