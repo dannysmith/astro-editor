@@ -1,11 +1,14 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { commands, type DirectoryScanResult } from '@/types'
+import { commands, type Collection, type DirectoryScanResult } from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { useCollectionsQuery } from './queries/useCollectionsQuery'
-import { useCreateFileMutation } from './mutations/useCreateFileMutation'
+import {
+  useCreateFileMutation,
+  type CreateFilePayload,
+} from './mutations/useCreateFileMutation'
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
@@ -48,6 +51,194 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
   }
 }
 
+/**
+ * Creates a file named for today in the folder open in the sidebar, with
+ * frontmatter from the collection's schema (a placeholder title, today's date,
+ * defaults for required fields), then opens it and focuses its title or the
+ * editor. Plain function rather than inline in the hook so the React Compiler
+ * can compile the hook (it can't handle `throw` inside `try`).
+ */
+async function createFileInCurrentFolder(
+  collections: Collection[],
+  createFile: (payload: CreateFilePayload) => Promise<unknown>
+): Promise<void> {
+  // Get current values from store state
+  const { selectedCollection, currentSubdirectory } = useProjectStore.getState()
+  const currentProjectPath = useProjectStore.getState().projectPath
+
+  if (!selectedCollection || !currentProjectPath) {
+    toast.error('No collection selected')
+    return
+  }
+
+  const collection = collections.find(c => c.name === selectedCollection)
+  if (!collection) {
+    toast.error('Collection not found')
+    return
+  }
+
+  // Calculate target directory (collection root or subdirectory)
+  const targetDirectory = currentSubdirectory
+    ? `${collection.path}/${currentSubdirectory}`
+    : collection.path
+
+  // Get the default file extension based on settings
+  const { globalSettings, currentProjectSettings } = useProjectStore.getState()
+  const fileExtension = getDefaultFileType(
+    globalSettings,
+    currentProjectSettings,
+    selectedCollection
+  )
+
+  // Generate filename based on today's date
+  const today = todayIsoDate()
+  let filename = `${today}.${fileExtension}`
+  let counter = 1
+
+  // Check if file exists in target directory and increment counter if needed
+  const existingResult = await commands.scanDirectory(
+    targetDirectory,
+    selectedCollection,
+    collection.path
+  )
+  if (existingResult.status === 'error') {
+    throw new Error(existingResult.error)
+  }
+  const existingDirContents: DirectoryScanResult = existingResult.data
+
+  const existingNames = new Set(
+    existingDirContents.files.map(f =>
+      f.extension ? `${f.name}.${f.extension}` : f.name
+    )
+  )
+
+  while (existingNames.has(filename)) {
+    filename = `${today}-${counter}.${fileExtension}`
+    counter++
+  }
+
+  // Generate default frontmatter from schema
+  const schema = collection.complete_schema
+    ? deserializeCompleteSchema(collection.complete_schema)
+    : null
+  const defaultFrontmatter: Record<string, unknown> = {}
+
+  // Track if we have a title field in the schema
+  let hasTitleField = false
+
+  // Generate default title
+  const singularName = singularize(selectedCollection)
+  const defaultTitle = `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
+
+  if (schema?.fields) {
+    for (const field of schema.fields) {
+      // Check if this is a title field
+      if (field.name.toLowerCase() === 'title') {
+        hasTitleField = true
+        // Always include title field with default value
+        defaultFrontmatter[field.name] = defaultTitle
+      }
+      // Check for date fields (pubDate, date, publishedDate)
+      else if (
+        field.type === FieldType.Date &&
+        (field.name.toLowerCase() === 'pubdate' ||
+          field.name.toLowerCase() === 'date' ||
+          field.name.toLowerCase() === 'publisheddate')
+      ) {
+        // Only add date fields if they exist in the schema
+        defaultFrontmatter[field.name] = today
+      }
+      // Include other required fields
+      else if (field.required) {
+        // Use field default if available, otherwise use type-based defaults
+        defaultFrontmatter[field.name] =
+          field.default !== undefined
+            ? field.default
+            : getDefaultValueForFieldType(field.type)
+      }
+    }
+  }
+
+  // Create YAML frontmatter with proper type formatting
+  const frontmatterYaml =
+    Object.keys(defaultFrontmatter).length > 0
+      ? `---\n${Object.entries(defaultFrontmatter)
+          .map(([key, value]) => {
+            if (typeof value === 'string') {
+              return `${key}: "${value}"`
+            } else if (typeof value === 'boolean') {
+              return `${key}: ${value}` // Don't quote booleans
+            } else if (Array.isArray(value)) {
+              return `${key}: []` // Empty array
+            } else if (typeof value === 'number') {
+              return `${key}: ${value}` // Don't quote numbers
+            }
+            return `${key}: ${String(value)}`
+          })
+          .join('\n')}\n---\n\n`
+      : ''
+
+  // Create the file in target directory (respects current subdirectory)
+  await createFile({
+    directory: targetDirectory,
+    filename,
+    content: frontmatterYaml,
+    projectPath: currentProjectPath,
+    collectionName: selectedCollection,
+  })
+
+  // Find and open the newly created file
+  const updatedResult = await commands.scanDirectory(
+    targetDirectory,
+    selectedCollection,
+    collection.path
+  )
+  if (updatedResult.status === 'error') {
+    throw new Error(updatedResult.error)
+  }
+  const updatedDirContents: DirectoryScanResult = updatedResult.data
+
+  const newFile = updatedDirContents.files.find(
+    f => (f.extension ? `${f.name}.${f.extension}` : f.name) === filename
+  )
+
+  if (newFile) {
+    // Get current functions from store state
+    const { openFile } = useEditorStore.getState()
+    const { frontmatterPanelVisible, toggleFrontmatterPanel } =
+      useUIStore.getState()
+
+    openFile(newFile)
+
+    // Open frontmatter panel if we have a title field
+    if (hasTitleField && !frontmatterPanelVisible) {
+      toggleFrontmatterPanel()
+    }
+
+    // Focus the appropriate element after a delay to allow UI to update
+    setTimeout(() => {
+      if (hasTitleField) {
+        // Try to find and focus the title field by ID
+        const titleField = document.getElementById(
+          'frontmatter-title-field'
+        ) as HTMLTextAreaElement
+        if (titleField) {
+          titleField.focus()
+          titleField.select()
+        }
+      } else {
+        // No title field, focus the main editor
+        const cmEditor = document.querySelector(
+          '.cm-editor .cm-content'
+        ) as HTMLElement
+        if (cmEditor) {
+          cmEditor.focus()
+        }
+      }
+    }, 200)
+  }
+}
+
 export const useCreateFile = () => {
   // PERFORMANCE FIX: Use selector syntax to avoid entire store subscriptions
   const projectPath = useProjectStore(state => state.projectPath)
@@ -77,196 +268,16 @@ export const useCreateFile = () => {
     }
 
     isCreatingRef.current = true
-
-    try {
-      // Access fresh collections via ref
-      const collections = collectionsRef.current
-
-      // Get current values from store state
-      const { selectedCollection, currentSubdirectory } =
-        useProjectStore.getState()
-      const currentProjectPath = useProjectStore.getState().projectPath
-
-      if (!selectedCollection || !currentProjectPath) {
-        toast.error('No collection selected')
-        return
-      }
-
-      const collection = collections.find(c => c.name === selectedCollection)
-      if (!collection) {
-        toast.error('Collection not found')
-        return
-      }
-
-      // Calculate target directory (collection root or subdirectory)
-      const targetDirectory = currentSubdirectory
-        ? `${collection.path}/${currentSubdirectory}`
-        : collection.path
-
-      // Get the default file extension based on settings
-      const { globalSettings, currentProjectSettings } =
-        useProjectStore.getState()
-      const fileExtension = getDefaultFileType(
-        globalSettings,
-        currentProjectSettings,
-        selectedCollection
-      )
-
-      // Generate filename based on today's date
-      const today = todayIsoDate()
-      let filename = `${today}.${fileExtension}`
-      let counter = 1
-
-      // Check if file exists in target directory and increment counter if needed
-      const existingResult = await commands.scanDirectory(
-        targetDirectory,
-        selectedCollection,
-        collection.path
-      )
-      if (existingResult.status === 'error') {
-        throw new Error(existingResult.error)
-      }
-      const existingDirContents: DirectoryScanResult = existingResult.data
-
-      const existingNames = new Set(
-        existingDirContents.files.map(f =>
-          f.extension ? `${f.name}.${f.extension}` : f.name
-        )
-      )
-
-      while (existingNames.has(filename)) {
-        filename = `${today}-${counter}.${fileExtension}`
-        counter++
-      }
-
-      // Generate default frontmatter from schema
-      const schema = collection.complete_schema
-        ? deserializeCompleteSchema(collection.complete_schema)
-        : null
-      const defaultFrontmatter: Record<string, unknown> = {}
-
-      // Track if we have a title field in the schema
-      let hasTitleField = false
-
-      // Generate default title
-      const singularName = singularize(selectedCollection)
-      const defaultTitle = `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
-
-      if (schema?.fields) {
-        for (const field of schema.fields) {
-          // Check if this is a title field
-          if (field.name.toLowerCase() === 'title') {
-            hasTitleField = true
-            // Always include title field with default value
-            defaultFrontmatter[field.name] = defaultTitle
-          }
-          // Check for date fields (pubDate, date, publishedDate)
-          else if (
-            field.type === FieldType.Date &&
-            (field.name.toLowerCase() === 'pubdate' ||
-              field.name.toLowerCase() === 'date' ||
-              field.name.toLowerCase() === 'publisheddate')
-          ) {
-            // Only add date fields if they exist in the schema
-            defaultFrontmatter[field.name] = today
-          }
-          // Include other required fields
-          else if (field.required) {
-            // Use field default if available, otherwise use type-based defaults
-            defaultFrontmatter[field.name] =
-              field.default !== undefined
-                ? field.default
-                : getDefaultValueForFieldType(field.type)
-          }
-        }
-      }
-
-      // Create YAML frontmatter with proper type formatting
-      const frontmatterYaml =
-        Object.keys(defaultFrontmatter).length > 0
-          ? `---\n${Object.entries(defaultFrontmatter)
-              .map(([key, value]) => {
-                if (typeof value === 'string') {
-                  return `${key}: "${value}"`
-                } else if (typeof value === 'boolean') {
-                  return `${key}: ${value}` // Don't quote booleans
-                } else if (Array.isArray(value)) {
-                  return `${key}: []` // Empty array
-                } else if (typeof value === 'number') {
-                  return `${key}: ${value}` // Don't quote numbers
-                }
-                return `${key}: ${String(value)}`
-              })
-              .join('\n')}\n---\n\n`
-          : ''
-
-      // Create the file in target directory (respects current subdirectory)
-      await createFileMutation.mutateAsync({
-        directory: targetDirectory,
-        filename,
-        content: frontmatterYaml,
-        projectPath: currentProjectPath,
-        collectionName: selectedCollection,
-      })
-
-      // Find and open the newly created file
-      const updatedResult = await commands.scanDirectory(
-        targetDirectory,
-        selectedCollection,
-        collection.path
-      )
-      if (updatedResult.status === 'error') {
-        throw new Error(updatedResult.error)
-      }
-      const updatedDirContents: DirectoryScanResult = updatedResult.data
-
-      const newFile = updatedDirContents.files.find(
-        f => (f.extension ? `${f.name}.${f.extension}` : f.name) === filename
-      )
-
-      if (newFile) {
-        // Get current functions from store state
-        const { openFile } = useEditorStore.getState()
-        const { frontmatterPanelVisible, toggleFrontmatterPanel } =
-          useUIStore.getState()
-
-        openFile(newFile)
-
-        // Open frontmatter panel if we have a title field
-        if (hasTitleField && !frontmatterPanelVisible) {
-          toggleFrontmatterPanel()
-        }
-
-        // Focus the appropriate element after a delay to allow UI to update
-        setTimeout(() => {
-          if (hasTitleField) {
-            // Try to find and focus the title field by ID
-            const titleField = document.getElementById(
-              'frontmatter-title-field'
-            ) as HTMLTextAreaElement
-            if (titleField) {
-              titleField.focus()
-              titleField.select()
-            }
-          } else {
-            // No title field, focus the main editor
-            const cmEditor = document.querySelector(
-              '.cm-editor .cm-content'
-            ) as HTMLElement
-            if (cmEditor) {
-              cmEditor.focus()
-            }
-          }
-        }, 200)
-      }
-    } catch (error) {
+    await createFileInCurrentFolder(
+      collectionsRef.current,
+      createFileMutation.mutateAsync
+    ).catch(error =>
       toast.error('Failed to create new file', {
         description:
           error instanceof Error ? error.message : 'Unknown error occurred',
       })
-    } finally {
-      isCreatingRef.current = false
-    }
+    )
+    isCreatingRef.current = false
   }, [createFileMutation]) // PERFORMANCE FIX: Use ref for collections, stable dependency array
 
   return { createNewFile }

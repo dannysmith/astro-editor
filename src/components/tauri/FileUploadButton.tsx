@@ -115,33 +115,15 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
   const handleClick = React.useCallback(async () => {
     if (disabled || isProcessing) return
 
-    try {
-      setIsProcessing(true)
-
-      const filters = [
-        {
-          name: 'Files',
-          extensions: accept,
-        },
-      ]
-
-      const selected = await open({
-        multiple: false,
-        filters,
-      })
-
-      // User cancelled
-      if (!selected) {
-        return
-      }
-
-      // Call the callback with the selected file path
-      await onFileSelectRef.current(selected)
-    } catch (error) {
-      void logError(`File selection error: ${String(error)}`)
-    } finally {
-      setIsProcessing(false)
-    }
+    setIsProcessing(true)
+    await open({
+      multiple: false,
+      filters: [{ name: 'Files', extensions: accept }],
+    })
+      // `selected` is null when the user cancels
+      .then(selected => selected && onFileSelectRef.current(selected))
+      .catch(error => logError(`File selection error: ${String(error)}`))
+    setIsProcessing(false)
   }, [accept, disabled, isProcessing])
 
   // Handle drag and drop via Tauri events

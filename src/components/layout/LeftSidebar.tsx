@@ -227,7 +227,7 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(file.id)
   }
 
-  const handleRenameSubmit = async (file: FileEntry, newName: string) => {
+  const handleRenameSubmit = (file: FileEntry, newName: string) => {
     const trimmedName = newName.trim()
     const originalFullName = file.extension
       ? `${file.name}.${file.extension}`
@@ -237,33 +237,38 @@ export const LeftSidebar: React.FC = () => {
       return
     }
 
-    try {
-      const directory = file.path.substring(0, file.path.lastIndexOf('/'))
-      const newPath = `${directory}/${trimmedName}`
-
-      const { projectPath, selectedCollection } = useProjectStore.getState()
-
-      if (projectPath && selectedCollection) {
-        await renameMutation.mutateAsync({
-          oldPath: file.path,
-          oldFileId: file.id,
-          newPath: newPath,
-          projectPath,
-          collectionName: selectedCollection,
-        })
-
-        // Update current file path if this is the current file
-        const { currentFile, updateCurrentFileAfterRename } =
-          useEditorStore.getState()
-        if (currentFile && currentFile.path === file.path) {
-          updateCurrentFileAfterRename(newPath)
-        }
-      }
-
+    const directory = file.path.substring(0, file.path.lastIndexOf('/'))
+    const newPath = `${directory}/${trimmedName}`
+    const { projectPath, selectedCollection } = useProjectStore.getState()
+    if (!projectPath || !selectedCollection) {
       setRenamingFileId(null)
-    } catch (error) {
-      void logError(`Failed to rename file: ${String(error)}`)
+      return
     }
+
+    // On failure the name stays editable, so the writer can try again
+    renameMutation.mutate(
+      {
+        oldPath: file.path,
+        oldFileId: file.id,
+        newPath,
+        projectPath,
+        collectionName: selectedCollection,
+      },
+      {
+        onSuccess: () => {
+          // Update current file path if this is the current file
+          const { currentFile, updateCurrentFileAfterRename } =
+            useEditorStore.getState()
+          if (currentFile?.path === file.path) {
+            updateCurrentFileAfterRename(newPath)
+          }
+          setRenamingFileId(null)
+        },
+        onError: error => {
+          void logError(`Failed to rename file: ${String(error)}`)
+        },
+      }
+    )
   }
 
   const handleRenameCancel = () => {

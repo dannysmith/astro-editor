@@ -4,6 +4,16 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { parseDeepLinkPath, resolveDeepLinkStartup } from '../lib/deep-link'
 
+function logOpenError(error: unknown) {
+  void logError(`Deep link failed to open: ${String(error)}`)
+}
+
+/** The `open` links the app was launched with, if any */
+async function getLaunchOpenUrls(): Promise<string[]> {
+  const launchUrls = await getCurrent()
+  return (launchUrls ?? []).filter(url => parseDeepLinkPath(url) !== null)
+}
+
 /**
  * Wires up the `astro-editor://open?path=...` URL scheme.
  *
@@ -46,36 +56,30 @@ export function useDeepLink(openFileByPath: (path: string) => Promise<void>) {
 
     const setup = async () => {
       // Cold start: retrieve the launch URL(s), if any.
-      try {
-        const launchUrls = await getCurrent()
-        const openUrls = (launchUrls ?? []).filter(
-          url => parseDeepLinkPath(url) !== null
-        )
+      // No launch URL / plugin unavailable — fall back to normal startup.
+      const openUrls = await getLaunchOpenUrls().catch((e: unknown) => {
+        void logError(`Deep link getCurrent failed: ${String(e)}`)
+        return []
+      })
 
-        // Let the persisted-project loader know whether to stand down.
-        resolveDeepLinkStartup(openUrls.length > 0)
+      // Let the persisted-project loader know whether to stand down.
+      resolveDeepLinkStartup(openUrls.length > 0)
 
-        if (!cancelled) {
-          for (const url of openUrls) {
-            await handleUrl(url)
-          }
+      if (!cancelled) {
+        for (const url of openUrls) {
+          await handleUrl(url).catch(logOpenError)
         }
-      } catch (e) {
-        // No launch URL / plugin unavailable — fall back to normal startup.
-        resolveDeepLinkStartup(false)
-        await logError(`Deep link getCurrent failed: ${String(e)}`)
       }
 
       // Warm: handle subsequent deep links while the app is running.
-      try {
-        unlisten = await onOpenUrl(urls => {
-          for (const url of urls) {
-            void handleUrl(url)
-          }
-        })
-      } catch (e) {
-        await logError(`Deep link onOpenUrl registration failed: ${String(e)}`)
-      }
+      unlisten = await onOpenUrl(urls => {
+        for (const url of urls) {
+          void handleUrl(url).catch(logOpenError)
+        }
+      }).catch((e: unknown) => {
+        void logError(`Deep link onOpenUrl registration failed: ${String(e)}`)
+        return undefined
+      })
     }
 
     void setup()

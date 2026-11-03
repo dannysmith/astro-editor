@@ -18,7 +18,7 @@ interface FileItemProps {
   frontmatterMappings: FrontmatterMappings
   onFileClick: (file: FileEntry) => void
   onContextMenu: (event: React.MouseEvent, file: FileEntry) => void
-  onRenameSubmit: (file: FileEntry, newName: string) => Promise<void>
+  onRenameSubmit: (file: FileEntry, newName: string) => void
   isRenaming: boolean
   onCancelRename: () => void
 }
@@ -89,7 +89,7 @@ export const FileItem: React.FC<FileItemProps> = ({
   const handleRenameKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      void onRenameSubmit(file, renameValue)
+      onRenameSubmit(file, renameValue)
     } else if (event.key === 'Escape') {
       event.preventDefault()
       onCancelRename()
@@ -97,7 +97,7 @@ export const FileItem: React.FC<FileItemProps> = ({
   }
 
   const handleRenameBlur = () => {
-    void onRenameSubmit(file, renameValue)
+    onRenameSubmit(file, renameValue)
   }
 
   return (

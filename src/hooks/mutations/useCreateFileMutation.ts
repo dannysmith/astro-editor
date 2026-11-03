@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 import { useProjectStore } from '@/store/projectStore'
 
-interface CreateFilePayload {
+export interface CreateFilePayload {
   directory: string
   filename: string
   content: string
