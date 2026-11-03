@@ -91,6 +91,10 @@ export const commands = {
 	openPreferencesFolder: () => typedError<null, string>(__TAURI_INVOKE("open_preferences_folder")),
 	/**  Resets all preferences by deleting the app data directory and restarting the app */
 	resetAllPreferences: () => typedError<null, string>(__TAURI_INVOKE("reset_all_preferences")),
+	/**  Quits once unsaved edits are saved (or the writer chose to quit without them). */
+	quitApp: () => __TAURI_INVOKE<void>("quit_app"),
+	/**  Stays open: the save failed and the writer is being asked what to do. */
+	cancelQuit: () => __TAURI_INVOKE<void>("cancel_quit"),
 	getAppVersion: () => typedError<string, string>(__TAURI_INVOKE("get_app_version")),
 	getPlatformInfo: () => typedError<string, string>(__TAURI_INVOKE("get_platform_info")),
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),

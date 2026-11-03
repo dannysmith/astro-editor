@@ -134,6 +134,9 @@ pub fn run() {
             #[cfg(debug_assertions)]
             agent_bridge::start(app.handle());
 
+            #[cfg(target_os = "macos")]
+            commands::quit::install_terminate_hook(app.handle());
+
             // Fix PATH environment variable for production builds
             // This ensures shell commands can find executables like 'code', 'cursor', etc.
             // if let Err(e) = fix_path_env::fix() {
@@ -273,6 +276,15 @@ pub fn run() {
                 ],
             )?;
 
+            // On macOS, AppKit's own Quit item sends `terminate:` straight from the
+            // menu, like the Dock does, so commands/quit.rs can save first. A custom
+            // item would send it from inside a tao event callback, which hangs.
+            #[cfg(target_os = "macos")]
+            let quit_item = PredefinedMenuItem::quit(app, Some("Quit Astro Editor"))?;
+            #[cfg(not(target_os = "macos"))]
+            let quit_item =
+                MenuItem::with_id(app, "quit", "Quit Astro Editor", true, Some("CmdOrCtrl+Q"))?;
+
             let app_menu = Submenu::with_items(
                 app,
                 "Astro Editor",
@@ -288,13 +300,7 @@ pub fn run() {
                     &PredefinedMenuItem::hide_others(app, Some("Hide Others"))?,
                     &PredefinedMenuItem::show_all(app, Some("Show All"))?,
                     &PredefinedMenuItem::separator(app)?,
-                    &MenuItem::with_id(
-                        app,
-                        "quit",
-                        "Quit Astro Editor",
-                        true,
-                        Some("CmdOrCtrl+Q"),
-                    )?,
+                    &quit_item,
                 ],
             )?;
 
@@ -384,9 +390,8 @@ pub fn run() {
                 "help_keyboard_shortcuts" => {
                     let _ = app.emit("menu-help-keyboard-shortcuts", ());
                 }
-                "quit" => {
-                    app.exit(0);
-                }
+                // Windows and Linux (macOS uses AppKit's Quit item)
+                "quit" => commands::quit::request_quit(app),
                 // Text formatting menu items
                 "format_bold" => {
                     let _ = app.emit("menu-format-bold", ());
@@ -432,6 +437,15 @@ pub fn run() {
                 if let Some(window) = app_handle.get_webview_window(&label) {
                     let _ = window.hide();
                 }
+            }
+            // Windows and Linux: closing the main window quits, so save first
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } if label == "main" => {
+                api.prevent_close();
+                commands::quit::request_quit(app_handle);
             }
             // macOS: Reopen window when dock icon is clicked
             #[cfg(target_os = "macos")]

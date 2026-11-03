@@ -62,6 +62,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             // preferences.rs commands
             crate::commands::preferences::open_preferences_folder,
             crate::commands::preferences::reset_all_preferences,
+            // quit.rs commands
+            crate::commands::quit::quit_app,
+            crate::commands::quit::cancel_quit,
             // diagnostics.rs commands
             crate::commands::diagnostics::get_app_version,
             crate::commands::diagnostics::get_platform_info,

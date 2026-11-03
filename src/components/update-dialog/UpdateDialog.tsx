@@ -2,6 +2,7 @@ import { marked } from 'marked'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { error as logError, info } from '@tauri-apps/plugin-log'
 import { useUpdateStore } from '@/store/updateStore'
+import { saveUnsavedEdits } from '@/lib/quit'
 import {
   Dialog,
   DialogContent,
@@ -169,6 +170,8 @@ function ReadyContent() {
   const closeDialog = useUpdateStore(s => s.closeDialog)
 
   const handleRelaunch = async () => {
+    // A failed save has shown an error; restarting now would lose the edits
+    if (!(await saveUnsavedEdits())) return
     try {
       await relaunch()
     } catch (err) {

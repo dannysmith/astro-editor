@@ -22,6 +22,7 @@ import { useMenuEvents } from '../../hooks/useMenuEvents'
 import { useDOMEventListeners } from '../../hooks/useDOMEventListeners'
 import { useEditorFileContent } from '../../hooks/useEditorFileContent'
 import { useFileChangeHandler } from '../../hooks/useFileChangeHandler'
+import { useSaveOnQuit } from '../../hooks/useSaveOnQuit'
 import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
 import { useDeepLink } from '../../hooks/useDeepLink'
@@ -123,6 +124,7 @@ export const Layout: React.FC = () => {
       useEditorStore.getState().setAutoSaveCallback(null)
     }
   }, [saveFile])
+  useSaveOnQuit()
 
   // Compose all decomposed hooks
   useProjectInitialization()
