@@ -20,7 +20,6 @@
     "core:window:allow-unminimize",
     "core:window:allow-set-theme",
     "opener:default",
-    "fs:allow-remove",
     "dialog:default",
     "updater:default",
     "process:default",
