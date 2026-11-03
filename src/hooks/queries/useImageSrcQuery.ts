@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { resolveImageSrc } from '@/lib/files'
 
@@ -7,9 +7,9 @@ import { resolveImageSrc } from '@/lib/files'
  * resolved through the asset protocol). Image previews and thumbnails share the
  * cache, so a thumbnail that remounts doesn't resolve its path again.
  *
- * Keeps the previous image while a new path resolves, so previews don't
- * flicker. A path that can't be resolved is an error, and previews show
- * nothing for it.
+ * A path that can't be resolved is an error, and previews show nothing for it.
+ * There's deliberately no placeholder data: showing the previous path's image
+ * while a new one resolves flashes the wrong image.
  */
 export const useImageSrcQuery = (
   imagePath: string | null | undefined,
@@ -24,7 +24,6 @@ export const useImageSrcQuery = (
     ),
     queryFn: () => resolveImageSrc(imagePath!, projectPath!, currentFilePath),
     enabled: !!imagePath && !!projectPath,
-    placeholderData: keepPreviousData,
     // A missing file isn't going to appear on a retry
     retry: false,
   })

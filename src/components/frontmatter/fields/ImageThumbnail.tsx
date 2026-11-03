@@ -32,6 +32,9 @@ export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
     <div className="relative w-full max-w-[200px]">
       {imageUrl ? (
         <img
+          // A new element per image: changing an <img>'s src keeps painting
+          // the old picture until the new one loads
+          key={imageUrl}
           src={imageUrl}
           alt="Preview"
           className="max-h-[150px] max-w-full rounded-md border border-border object-contain"

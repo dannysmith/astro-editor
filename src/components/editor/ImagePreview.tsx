@@ -9,9 +9,9 @@ interface ImagePreviewProps {
 }
 
 /**
- * The preview shown while Alt is held over an image path in the editor. Keeps
- * the last image while the next one resolves, and shows nothing for a path
- * that doesn't resolve or an image that doesn't load.
+ * The preview shown while Alt is held over an image path in the editor. Shows a
+ * spinner until the hovered image has loaded, and nothing for a path that
+ * doesn't resolve or an image that doesn't load.
  */
 const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
   hoveredImage,
@@ -23,8 +23,10 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
     projectPath,
     currentFilePath
   )
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
   // An image that fails to load is treated like a path that fails to resolve
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const isLoaded = !!imageUrl && imageUrl === loadedUrl
 
   if (!hoveredImage || isError || (imageUrl && imageUrl === failedUrl)) {
     return null
@@ -49,7 +51,7 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
         backdropFilter: 'blur(10px)',
       }}
     >
-      {!imageUrl && (
+      {!isLoaded && (
         <div
           style={{
             display: 'flex',
@@ -74,14 +76,18 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
 
       {imageUrl && (
         <img
+          // A new element per image: changing an <img>'s src keeps painting
+          // the old picture until the new one loads
+          key={imageUrl}
           src={imageUrl}
           alt="Preview"
           style={{
             maxWidth: '100%',
             maxHeight: '276px', // 300px - (12px padding * 2)
             objectFit: 'contain',
-            display: 'block',
+            display: isLoaded ? 'block' : 'none',
           }}
+          onLoad={() => setLoadedUrl(imageUrl)}
           onError={() => setFailedUrl(imageUrl)}
         />
       )}
