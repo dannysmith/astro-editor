@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { debug } from '@tauri-apps/plugin-log'
 import { useEditorStore } from '../../../store/editorStore'
+import { useProjectStore } from '../../../store/projectStore'
 import { ImageThumbnail } from './ImageThumbnail'
 import { FileUploadButton } from '../../tauri'
 import {
@@ -48,8 +49,9 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
 
   const handleFileSelect = async (filePath: string) => {
     setIsLoading(true)
-    // Capture the starting file ID to detect file switches during async operation
+    // Capture the starting file and project to detect switches during the copy
     const startingFileId = useEditorStore.getState().currentFile?.id
+    const startingProject = useProjectStore.getState().projectPath
 
     const result = await copyImageToAssets(filePath).catch(showAddImageError)
     setIsLoading(false)
@@ -57,7 +59,10 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
 
     // CRITICAL: Check if the user switched files during the async operation
     // If they did, DO NOT update frontmatter (would corrupt the new file)
-    if (useEditorStore.getState().currentFile?.id !== startingFileId) {
+    if (
+      useEditorStore.getState().currentFile?.id !== startingFileId ||
+      useProjectStore.getState().projectPath !== startingProject
+    ) {
       if (import.meta.env.DEV) {
         void debug(
           '[ImagePicker] File switched during image processing - aborting frontmatter update to prevent data corruption'

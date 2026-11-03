@@ -20,7 +20,8 @@ export interface CommandContext {
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
   closeCurrentFile: () => void
-  reloadCollections: () => void
+  /** Refetches everything read from the project; resolves once it's done */
+  reloadCollections: () => Promise<void>
   openPreferences: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void

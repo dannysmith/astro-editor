@@ -120,8 +120,8 @@ export const projectCommands: AppCommand[] = [
     description: 'Refresh the project structure',
     icon: RefreshCw,
     group: 'project',
-    execute: (context: CommandContext) => {
-      context.reloadCollections()
+    execute: async (context: CommandContext) => {
+      await context.reloadCollections()
       toast.success('Collections reloaded')
     },
     isAvailable: (context: CommandContext) => {

@@ -57,12 +57,12 @@ export function useCommandContext(): CommandContext {
     toggleSidebar,
     toggleFrontmatterPanel,
     closeCurrentFile,
-    reloadCollections: () => {
+    reloadCollections: async () => {
       const { projectPath } = useProjectStore.getState()
       if (!projectPath) return
       // Everything read from the project: schemas, file lists and file content.
       // A refetch never replaces unsaved edits (see useEditorFileContent)
-      void queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: [...queryKeys.all, projectPath],
       })
     },

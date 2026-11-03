@@ -42,12 +42,21 @@ export const ImageArrayField: React.FC<ImageArrayFieldProps> = ({
     updateFrontmatterField(name, next.length > 0 ? next : undefined)
   }
 
-  const handleChange = (index: number, path: string | undefined) => {
-    updateImages(current =>
-      path === undefined
-        ? current.filter((_, i) => i !== index)
-        : current.map((item, i) => (i === index ? path : item))
-    )
+  // Replaces or removes `oldPath`, which was at `index` when the change began.
+  // A picked file is copied first, so the list may have changed by then: use
+  // wherever that image is now, and drop the change if it's gone
+  const handleChange = (
+    index: number,
+    oldPath: string,
+    newPath: string | undefined
+  ) => {
+    updateImages(current => {
+      const at = current[index] === oldPath ? index : current.indexOf(oldPath)
+      if (at === -1) return current
+      return newPath === undefined
+        ? current.filter((_, i) => i !== at)
+        : current.map((item, i) => (i === at ? newPath : item))
+    })
   }
 
   return (
@@ -69,7 +78,7 @@ export const ImageArrayField: React.FC<ImageArrayFieldProps> = ({
             // editing state on its neighbour
             key={`${index}:${path}`}
             value={path}
-            onChange={newPath => handleChange(index, newPath)}
+            onChange={newPath => handleChange(index, path, newPath)}
             labelId={labelId}
           />
         ))}
