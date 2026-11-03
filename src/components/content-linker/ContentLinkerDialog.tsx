@@ -36,10 +36,10 @@ export function ContentLinkerDialog() {
     state => state.currentProjectSettings
   )
 
-  const { data: collections = EMPTY_COLLECTIONS } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const {
+    data: collections = EMPTY_COLLECTIONS,
+    isPending: isLoadingCollections,
+  } = useCollectionsQuery(projectPath, currentProjectSettings)
 
   const platform = usePlatform()
   const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
@@ -55,7 +55,10 @@ export function ContentLinkerDialog() {
       retry: false,
     })),
   })
-  const hasFetched = fileQueries.every(query => !query.isPending)
+  // Collections come first: with none loaded yet there are no file queries
+  const hasFetched =
+    !(isLoadingCollections && projectPath) &&
+    fileQueries.every(query => !query.isPending)
   const allFiles = fileQueries.flatMap(query => query.data ?? [])
 
   // Item value -> file, for the filter and the handlers

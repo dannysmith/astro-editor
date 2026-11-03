@@ -122,7 +122,10 @@ export const FileUploadButton: React.FC<FileUploadButtonProps> = ({
     })
       // `selected` is null when the user cancels
       .then(selected => selected && onFileSelectRef.current(selected))
-      .catch(error => logError(`File selection error: ${String(error)}`))
+      // Not returned: a failed log mustn't skip resetting isProcessing below
+      .catch(error => {
+        void logError(`File selection error: ${String(error)}`)
+      })
     setIsProcessing(false)
   }, [accept, disabled, isProcessing])
 

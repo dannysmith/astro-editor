@@ -245,30 +245,29 @@ export const LeftSidebar: React.FC = () => {
       return
     }
 
-    // On failure the name stays editable, so the writer can try again
-    renameMutation.mutate(
-      {
+    // mutateAsync rather than mutate's callbacks, which only run for the
+    // latest call. On failure the name stays editable, so the writer can retry
+    void renameMutation
+      .mutateAsync({
         oldPath: file.path,
         oldFileId: file.id,
         newPath,
         projectPath,
         collectionName: selectedCollection,
-      },
-      {
-        onSuccess: () => {
-          // Update current file path if this is the current file
-          const { currentFile, updateCurrentFileAfterRename } =
-            useEditorStore.getState()
-          if (currentFile?.path === file.path) {
-            updateCurrentFileAfterRename(newPath)
-          }
-          setRenamingFileId(null)
-        },
-        onError: error => {
-          void logError(`Failed to rename file: ${String(error)}`)
-        },
-      }
-    )
+      })
+      .then(() => {
+        // Update current file path if this is the current file
+        const { currentFile, updateCurrentFileAfterRename } =
+          useEditorStore.getState()
+        if (currentFile?.path === file.path) {
+          updateCurrentFileAfterRename(newPath)
+        }
+        // Another file may be being renamed by now
+        setRenamingFileId(current => (current === file.id ? null : current))
+      })
+      .catch((error: unknown) => {
+        void logError(`Failed to rename file: ${String(error)}`)
+      })
   }
 
   const handleRenameCancel = () => {

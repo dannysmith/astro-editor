@@ -41,7 +41,8 @@ interface CompilerEvent {
 
 const problems: string[] = []
 for await (const file of sourceFiles(SRC)) {
-  const relative = path.relative(SRC, file)
+  // Forward slashes on every platform, to match ALLOWED
+  const relative = path.relative(SRC, file).split(path.sep).join('/')
   if (relative in ALLOWED) continue
 
   const logger = {

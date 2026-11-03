@@ -625,9 +625,15 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         return handle_anyof_type(any_of);
     }
 
-    // A discriminated union of objects: no fixed fields to flatten, so edited as YAML
-    if field_schema.one_of.is_some() {
-        return Ok(FieldTypeInfo::plain("object"));
+    // A discriminated union of objects: no fixed fields to flatten, so edited as
+    // YAML. Other oneOfs fall through to the field's own type
+    if let Some(one_of) = &field_schema.one_of {
+        if one_of
+            .iter()
+            .all(|branch| non_null_type(&branch.type_) == Some("object"))
+        {
+            return Ok(FieldTypeInfo::plain("object"));
+        }
     }
 
     // Handle enum
@@ -635,12 +641,12 @@ fn determine_field_type(field_schema: &JsonSchemaProperty) -> Result<FieldTypeIn
         return Ok(literal_values_type(&enum_values.iter().collect::<Vec<_>>()));
     }
 
-    // A single literal: a text or number input
+    // A single literal: a number, toggle or text input
     if let Some(value) = &field_schema.const_ {
-        return Ok(FieldTypeInfo::plain(if value.is_number() {
-            "number"
-        } else {
-            "string"
+        return Ok(FieldTypeInfo::plain(match value {
+            Value::Number(_) => "number",
+            Value::Bool(_) => "boolean",
+            _ => "string",
         }));
     }
 
@@ -751,16 +757,23 @@ fn extract_constraints(
     // bounds, which say nothing useful, so they're left out
     const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
     let is_integer = non_null_type(&field_schema.type_) == Some("integer");
-    if let Some(min) = field_schema.minimum.filter(|&m| m != -MAX_SAFE_INTEGER) {
+    if let Some(min) = field_schema
+        .minimum
+        .filter(|&m| !(is_integer && m == -MAX_SAFE_INTEGER))
+    {
         constraints.min = Some(min);
     }
-    if let Some(max) = field_schema.maximum.filter(|&m| m != MAX_SAFE_INTEGER) {
+    if let Some(max) = field_schema
+        .maximum
+        .filter(|&m| !(is_integer && m == MAX_SAFE_INTEGER))
+    {
         constraints.max = Some(max);
     }
-    // `gt(0)` on an integer is `min(1)`; on a number it stays exclusive
+    // `gt(0)` on an integer is `min(1)` (the next whole number, so `gt(0.5)`
+    // is also `min(1)`); on a number it stays exclusive
     if let Some(exclusive_min) = field_schema.exclusive_minimum {
         if is_integer {
-            constraints.min = Some(exclusive_min + 1.0);
+            constraints.min = Some(exclusive_min.floor() + 1.0);
         } else {
             constraints.min = Some(exclusive_min);
             constraints.min_exclusive = true;
@@ -768,7 +781,7 @@ fn extract_constraints(
     }
     if let Some(exclusive_max) = field_schema.exclusive_maximum {
         if is_integer {
-            constraints.max = Some(exclusive_max - 1.0);
+            constraints.max = Some(exclusive_max.ceil() - 1.0);
         } else {
             constraints.max = Some(exclusive_max);
             constraints.max_exclusive = true;
@@ -2090,6 +2103,8 @@ mod tests {
                 { "type": "null" }
             ] },
             "nullableEmail": { "anyOf": [{ "type": "string", "format": "email" }, { "type": "null" }] },
+            "boolLiteral": { "type": "boolean", "const": true },
+            "scalarOneOf": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
             "$schema": { "type": "string" }
         },
         "required": ["tuple", "numLiteral", "strLiteral", "numEnum", "numLiteralUnion", "literalUnion", "mixedLiteralUnion", "discriminated", "record", "nullableObject"]
@@ -2122,6 +2137,9 @@ mod tests {
         }
         // Objects without fixed fields are edited whole, as YAML
         assert_eq!(kind("discriminated"), ("object", None));
+        // Only a oneOf of objects is edited whole
+        assert_ne!(kind("scalarOneOf").0, "object");
+        assert_eq!(kind("boolLiteral"), ("boolean", None));
         assert_eq!(kind("record"), ("object", None));
         // Nullable fields take their inner type, and nullable objects flatten
         assert_eq!(kind("nullableEmail"), ("email", None));
@@ -2151,6 +2169,12 @@ mod tests {
         }));
         assert_eq!((integer.min, integer.max), (Some(1.0), None));
         assert!(!integer.min_exclusive);
+
+        // z.number().int().gt(0.5): still the next whole number
+        let fractional = constraints(serde_json::json!({
+            "type": "integer", "exclusiveMinimum": 0.5, "exclusiveMaximum": 9.5
+        }));
+        assert_eq!((fractional.min, fractional.max), (Some(1.0), Some(9.0)));
 
         // z.number().int() alone: Zod's safe-integer bounds aren't constraints
         let plain_int = constraints(serde_json::json!({

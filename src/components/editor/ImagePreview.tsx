@@ -24,11 +24,12 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
     currentFilePath
   )
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
-  // An image that fails to load is treated like a path that fails to resolve
-  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  // An image that fails to load is treated like a path that fails to resolve,
+  // until it's hovered again (useImageHover makes a new object each time)
+  const [failedHover, setFailedHover] = useState<HoveredImage | null>(null)
   const isLoaded = !!imageUrl && imageUrl === loadedUrl
 
-  if (!hoveredImage || isError || (imageUrl && imageUrl === failedUrl)) {
+  if (!hoveredImage || isError || hoveredImage === failedHover) {
     return null
   }
 
@@ -88,7 +89,7 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
             display: isLoaded ? 'block' : 'none',
           }}
           onLoad={() => setLoadedUrl(imageUrl)}
-          onError={() => setFailedUrl(imageUrl)}
+          onError={() => setFailedHover(hoveredImage)}
         />
       )}
 

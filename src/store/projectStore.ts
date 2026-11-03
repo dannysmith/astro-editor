@@ -92,6 +92,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const projectSettings =
           await projectRegistryManager.getEffectiveSettings(projectId)
 
+        // Stop the previous project's watcher and listeners first; starting
+        // another doesn't, so they'd keep running and every event would be
+        // handled once per project opened
+        await get().stopFileWatcher()
+
         set({
           projectPath: path,
           currentProjectId: projectId,
