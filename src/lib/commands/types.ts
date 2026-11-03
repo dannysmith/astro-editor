@@ -11,7 +11,6 @@ export interface CommandContext {
   selectedCollection: string | null
   collections: Collection[]
   projectPath: string | null
-  isDirty: boolean
   globalSettings: GlobalSettings | null
 
   // Store actions
@@ -20,7 +19,6 @@ export interface CommandContext {
   setProject: (path: string) => void
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
-  saveFile: () => Promise<void>
   closeCurrentFile: () => void
   reloadCollections: () => void
   openPreferences: () => void
