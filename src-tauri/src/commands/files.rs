@@ -101,34 +101,21 @@ pub async fn rename_file(
 }
 
 /// Convert a string to kebab case
-fn to_kebab_case(s: &str) -> String {
-    let parts: Vec<&str> = s.split('.').collect();
-    let extension = if parts.len() > 1 { parts.last() } else { None };
-
-    let filename = if parts.len() > 1 {
-        parts[..parts.len() - 1].join(".")
-    } else {
-        s.to_string()
-    };
-
-    // Convert filename to kebab case
-    let kebab_filename = filename
+/// A file name without its extension in kebab case: lowercase, with spaces,
+/// underscores and dots as single hyphens and anything else non-alphanumeric
+/// dropped. Dots count as separators because the extension is already gone
+/// (`my.photo copy` → `my-photo-copy`).
+fn to_kebab_case(name_without_ext: &str) -> String {
+    name_without_ext
         .to_lowercase()
-        .replace([' ', '_'], "-")
+        .replace([' ', '_', '.'], "-")
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == '-')
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
-        .join("-");
-
-    // Reconstruct with extension if present
-    if let Some(ext) = extension {
-        format!("{}.{}", kebab_filename, ext.to_lowercase())
-    } else {
-        kebab_filename
-    }
+        .join("-")
 }
 
 #[tauri::command]
@@ -188,21 +175,22 @@ pub async fn copy_file_to_assets_with_override(
         .to_string_lossy();
 
     // Extract extension
-    let extension = source
+    let original_extension = source
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("");
+    let extension = original_extension.to_lowercase();
 
     // Create the base filename with date prefix
     let date_prefix = Local::now().format("%Y-%m-%d").to_string();
-    let name_without_ext = file_name.trim_end_matches(&format!(".{extension}"));
+    let name_without_ext = file_name.trim_end_matches(&format!(".{original_extension}"));
     let kebab_name = to_kebab_case(name_without_ext);
 
     // Build the new filename
     let mut base_name = format!("{date_prefix}-{kebab_name}");
     if !extension.is_empty() {
         base_name.push('.');
-        base_name.push_str(extension);
+        base_name.push_str(&extension);
     }
 
     // Atomically find available filename and copy file
@@ -1514,24 +1502,51 @@ Regular markdown content here."#;
 
     #[test]
     fn test_to_kebab_case() {
-        assert_eq!(to_kebab_case("My Image.png"), "my-image.png");
-        assert_eq!(to_kebab_case("some_file_name.jpg"), "some-file-name.jpg");
-        assert_eq!(to_kebab_case("UPPERCASE.PDF"), "uppercase.pdf");
+        assert_eq!(to_kebab_case("My Image"), "my-image");
+        assert_eq!(to_kebab_case("some_file_name"), "some-file-name");
+        assert_eq!(to_kebab_case("UPPERCASE"), "uppercase");
+        assert_eq!(to_kebab_case("already-kebab-case"), "already-kebab-case");
+        assert_eq!(to_kebab_case("file with   spaces"), "file-with-spaces");
         assert_eq!(
-            to_kebab_case("Mixed Case File Name.txt"),
-            "mixed-case-file-name.txt"
+            to_kebab_case("file___with___underscores"),
+            "file-with-underscores"
         );
+        // Dots in the name aren't an extension: it's already been removed
         assert_eq!(
-            to_kebab_case("already-kebab-case.md"),
-            "already-kebab-case.md"
+            to_kebab_case("mdx-builder-imports.C8C_tUAK_gNwzF copy"),
+            "mdx-builder-imports-c8c-tuak-gnwzf-copy"
         );
-        assert_eq!(
-            to_kebab_case("file with   spaces.png"),
-            "file-with-spaces.png"
-        );
-        assert_eq!(
-            to_kebab_case("file___with___underscores.js"),
-            "file-with-underscores.js"
+    }
+
+    #[tokio::test]
+    async fn test_copy_file_to_assets_kebab_cases_dotted_names() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let source_dir = TempDir::new().unwrap();
+        let project_dir = TempDir::new().unwrap();
+        let test_file_path = source_dir.path().join("Screen.Shot_2 copy.PNG");
+        fs::write(&test_file_path, b"fake image data").unwrap();
+
+        let relative_path = copy_file_to_assets(
+            test_file_path.to_str().unwrap().to_string(),
+            project_dir.path().to_str().unwrap().to_string(),
+            "blog".to_string(),
+            project_dir
+                .path()
+                .join("src/content/blog/post.md")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            false,
+        )
+        .await
+        .unwrap();
+
+        // Every dot, space and underscore before the extension becomes a hyphen
+        assert!(
+            relative_path.ends_with("-screen-shot-2-copy.png"),
+            "Unexpected name: {relative_path}"
         );
     }
 
