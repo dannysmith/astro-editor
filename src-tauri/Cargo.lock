@@ -141,6 +141,7 @@ version = "1.0.20"
 dependencies = [
  "block2",
  "chrono",
+ "dispatch2",
  "indexmap 2.14.2",
  "log",
  "notify",
