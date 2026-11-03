@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { convertFileSrc } from '@tauri-apps/api/core'
-import { commands } from '@/lib/bindings'
+import React, { useState } from 'react'
 import type { HoveredImage } from '../../hooks/editor/useImageHover'
+import { useImageSrcQuery } from '../../hooks/queries/useImageSrcQuery'
 
 interface ImagePreviewProps {
   hoveredImage: HoveredImage | null
@@ -9,81 +8,25 @@ interface ImagePreviewProps {
   currentFilePath: string | null
 }
 
-type LoadingState = 'idle' | 'loading' | 'success' | 'error'
-
+/**
+ * The preview shown while Alt is held over an image path in the editor. Keeps
+ * the last image while the next one resolves, and shows nothing for a path
+ * that doesn't resolve or an image that doesn't load.
+ */
 const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
   hoveredImage,
   projectPath,
   currentFilePath,
 }) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [loadingState, setLoadingState] = useState<LoadingState>('idle')
-  const prevUrlRef = React.useRef<string | null>(null)
+  const { data: imageUrl, isError } = useImageSrcQuery(
+    hoveredImage?.url,
+    projectPath,
+    currentFilePath
+  )
+  // An image that fails to load is treated like a path that fails to resolve
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
 
-  useEffect(() => {
-    const url = hoveredImage?.url
-    if (!url) {
-      return
-    }
-
-    // If we're hovering over the same URL, don't reload (just position changed)
-    if (url === prevUrlRef.current) {
-      return
-    }
-
-    prevUrlRef.current = url
-    let cancelled = false
-
-    const loadImage = async () => {
-      setLoadingState('loading')
-
-      try {
-        const path = url
-
-        // Check if it's a remote URL
-        if (path.startsWith('http://') || path.startsWith('https://')) {
-          if (!cancelled) {
-            setImageUrl(path)
-            setLoadingState('success')
-          }
-          return
-        }
-
-        // For local paths, resolve to absolute path
-        const result = await commands.resolveImagePath(
-          path,
-          projectPath,
-          currentFilePath ?? null
-        )
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
-
-        if (!cancelled) {
-          // Convert to asset protocol URL
-          const assetUrl = convertFileSrc(result.data)
-          setImageUrl(assetUrl)
-          setLoadingState('success')
-        }
-      } catch {
-        // Fail silently - don't show error state
-        if (!cancelled) {
-          setLoadingState('error')
-        }
-      }
-    }
-
-    void loadImage()
-
-    // Cleanup: only set cancelled flag to prevent stale updates
-    // Keep cached state (imageUrl, loadingState, prevUrlRef) to prevent flicker
-    return () => {
-      cancelled = true
-    }
-  }, [hoveredImage?.url, projectPath, currentFilePath])
-
-  // Don't render anything if no hovered image or if error state (fail silently)
-  if (!hoveredImage || loadingState === 'error') {
+  if (!hoveredImage || isError || (imageUrl && imageUrl === failedUrl)) {
     return null
   }
 
@@ -102,12 +45,11 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
         boxShadow: '0 4px 16px var(--image-preview-shadow)',
         padding: '12px',
         zIndex: 1000,
-        opacity: loadingState === 'idle' ? 0 : 1,
         transition: 'opacity 0.2s ease-in-out',
         backdropFilter: 'blur(10px)',
       }}
     >
-      {loadingState === 'loading' && (
+      {!imageUrl && (
         <div
           style={{
             display: 'flex',
@@ -130,7 +72,7 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
         </div>
       )}
 
-      {loadingState === 'success' && imageUrl && (
+      {imageUrl && (
         <img
           src={imageUrl}
           alt="Preview"
@@ -140,9 +82,7 @@ const ImagePreviewComponent: React.FC<ImagePreviewProps> = ({
             objectFit: 'contain',
             display: 'block',
           }}
-          onError={() => {
-            setLoadingState('error')
-          }}
+          onError={() => setFailedUrl(imageUrl)}
         />
       )}
 

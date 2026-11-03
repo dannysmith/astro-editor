@@ -1,8 +1,6 @@
 import React, { useState } from 'react'
 import { debug } from '@tauri-apps/plugin-log'
 import { useEditorStore } from '../../../store/editorStore'
-import { toast } from '../../../lib/toast'
-import { useProjectStore } from '../../../store/projectStore'
 import { ImageThumbnail } from './ImageThumbnail'
 import { FileUploadButton } from '../../tauri'
 import {
@@ -11,8 +9,11 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '../../ui/input-group'
-import { processFileToAssets, IMAGE_EXTENSIONS } from '../../../lib/files'
-import { getCollectionSettings } from '../../../lib/project-registry'
+import {
+  copyImageToAssets,
+  showAddImageError,
+  IMAGE_EXTENSIONS,
+} from '../../../lib/files'
 import { X, Loader2, Edit3, Check } from 'lucide-react'
 
 interface ImagePickerProps {
@@ -47,58 +48,25 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
 
   const handleFileSelect = async (filePath: string) => {
     setIsLoading(true)
-
-    const { projectPath, currentProjectSettings } = useProjectStore.getState()
-    const { currentFile } = useEditorStore.getState()
-    const collection = currentFile?.collection
-
     // Capture the starting file ID to detect file switches during async operation
-    const startingFileId = currentFile?.id
+    const startingFileId = useEditorStore.getState().currentFile?.id
 
-    try {
-      // Validate context
-      if (!projectPath || !currentFile || !collection) {
-        throw new Error('No project or collection context available')
+    const result = await copyImageToAssets(filePath).catch(showAddImageError)
+    setIsLoading(false)
+    if (!result) return
+
+    // CRITICAL: Check if the user switched files during the async operation
+    // If they did, DO NOT update frontmatter (would corrupt the new file)
+    if (useEditorStore.getState().currentFile?.id !== startingFileId) {
+      if (import.meta.env.DEV) {
+        void debug(
+          '[ImagePicker] File switched during image processing - aborting frontmatter update to prevent data corruption'
+        )
       }
-
-      // Get path preference (defaults to true if not set)
-      const effectiveSettings = getCollectionSettings(
-        currentProjectSettings,
-        collection
-      )
-      const useRelativePaths = effectiveSettings.useRelativeAssetPaths
-
-      // Use shared utility with 'only-if-outside-project' strategy
-      const result = await processFileToAssets({
-        sourcePath: filePath,
-        projectPath,
-        collection,
-        projectSettings: currentProjectSettings,
-        copyStrategy: 'only-if-outside-project',
-        currentFilePath: currentFile.path,
-        useRelativePaths,
-      })
-
-      // CRITICAL: Check if the user switched files during the async operation
-      // If they did, DO NOT update frontmatter (would corrupt the new file)
-      const { currentFile: currentFileNow } = useEditorStore.getState()
-      if (currentFileNow?.id !== startingFileId) {
-        if (import.meta.env.DEV) {
-          void debug(
-            '[ImagePicker] File switched during image processing - aborting frontmatter update to prevent data corruption'
-          )
-        }
-        return
-      }
-
-      onChange(result.relativePath)
-    } catch (error) {
-      toast.error('Failed to add image', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    onChange(result.relativePath)
   }
 
   const handleEditStart = () => {

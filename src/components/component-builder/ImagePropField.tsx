@@ -10,11 +10,11 @@ import {
 } from '../ui/input-group'
 import { ImageThumbnail } from '../frontmatter/fields/ImageThumbnail'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
-import { useEditorStore } from '../../store/editorStore'
-import { useProjectStore } from '../../store/projectStore'
-import { processFileToAssets, IMAGE_EXTENSIONS } from '../../lib/files'
-import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
-import { toast } from '../../lib/toast'
+import {
+  copyImageToAssets,
+  showAddImageError,
+  IMAGE_EXTENSIONS,
+} from '../../lib/files'
 import { FormField } from './FormField'
 
 /**
@@ -31,34 +31,15 @@ export function ImagePropField({ prop }: { prop: PropInfo }) {
 
   const handleFileSelect = async (filePath: string) => {
     setIsLoading(true)
-    try {
-      const { projectPath, currentProjectSettings } = useProjectStore.getState()
-      const { currentFile } = useEditorStore.getState()
-      if (!projectPath || !currentFile) throw new Error('No file is open')
-
-      const result = await processFileToAssets({
-        sourcePath: filePath,
-        projectPath,
-        collection: currentFile.collection,
-        projectSettings: currentProjectSettings,
-        copyStrategy: 'only-if-outside-project',
-        currentFilePath: currentFile.path,
-        useRelativePaths: getCollectionSettings(
-          currentProjectSettings,
-          currentFile.collection
-        ).useRelativeAssetPaths,
-      })
-      await setImage(prop.name, {
-        file_name: result.filename,
-        specifier: result.relativePath,
-      })
-    } catch (error) {
-      toast.error('Failed to add image', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    await copyImageToAssets(filePath)
+      .then(result =>
+        setImage(prop.name, {
+          file_name: result.filename,
+          specifier: result.relativePath,
+        })
+      )
+      .catch(showAddImageError)
+    setIsLoading(false)
   }
 
   return (

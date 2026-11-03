@@ -38,6 +38,10 @@ export const queryKeys = {
     ] as const,
   projectDependencies: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'dependencies'] as const,
+  // A loadable URL for an image path as written in a file. Relative paths
+  // depend on the file, so it's part of the key
+  imageSrc: (projectPath: string, filePath: string | null, imagePath: string) =>
+    [...queryKeys.all, projectPath, 'imageSrc', filePath, imagePath] as const,
   // Not tied to a project
   appVersion: ['appVersion'] as const,
   // Add more keys here as needed
