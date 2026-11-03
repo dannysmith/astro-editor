@@ -1,5 +1,4 @@
 import type { ProjectSettings } from '../project-registry/types'
-import type { ImageExtension } from './constants'
 
 /**
  * Options for processing files to assets directory
@@ -39,5 +38,3 @@ export interface ProcessFileToAssetsResult {
   /** Original filename (useful for markdown formatting) */
   filename: string
 }
-
-export type { ImageExtension }

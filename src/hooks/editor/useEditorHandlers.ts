@@ -31,18 +31,9 @@ export const useEditorHandlers = () => {
     }
   }, [])
 
-  // Handle manual save
-  const handleSave = useCallback(() => {
-    const { currentFile, isDirty, saveFile } = useEditorStore.getState()
-    if (currentFile && isDirty) {
-      void saveFile()
-    }
-  }, [])
-
   return {
     handleChange,
     handleFocus,
     handleBlur,
-    handleSave,
   }
 }

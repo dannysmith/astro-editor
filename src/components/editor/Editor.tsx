@@ -47,8 +47,7 @@ const EditorViewComponent: React.FC = () => {
     window.isEditorFocused = false
   }, [])
 
-  const { handleChange, handleFocus, handleBlur, handleSave } =
-    useEditorHandlers()
+  const { handleChange, handleFocus, handleBlur } = useEditorHandlers()
 
   const componentBuilderHandler = useCallback((view: EditorView) => {
     // Only open component builder for .mdx files
@@ -66,7 +65,6 @@ const EditorViewComponent: React.FC = () => {
   }, [])
 
   const { extensions, setupCommands, cleanupCommands } = useEditorSetup(
-    handleSave,
     handleFocus,
     handleBlur,
     {

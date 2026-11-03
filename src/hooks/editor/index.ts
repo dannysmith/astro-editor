@@ -14,6 +14,5 @@
 
 export { useEditorSetup } from './useEditorSetup'
 export { useEditorHandlers } from './useEditorHandlers'
-export { useTauriListeners } from './useTauriListeners'
 export { useImageHover } from './useImageHover'
 export type { HoveredImage } from './useImageHover'

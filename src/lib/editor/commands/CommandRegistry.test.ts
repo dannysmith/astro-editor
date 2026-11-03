@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { CommandRegistry } from './CommandRegistry'
@@ -14,26 +14,18 @@ const mockView = {
 describe('CommandRegistry', () => {
   let registry: CommandRegistry
   let mockCommands: EditorCommandRegistry
-  let mockSave: Mock<() => void>
 
   beforeEach(() => {
     registry = new CommandRegistry()
-    mockSave = vi.fn()
     mockDispatch.mockClear()
-    mockSave.mockClear()
 
     mockCommands = {
       toggleBold: vi.fn(() => true),
       toggleItalic: vi.fn(() => true),
       createLink: vi.fn(() => true),
       formatHeading: vi.fn((_level: number) => vi.fn(() => true)),
-      save: vi.fn(() => {
-        mockSave()
-        return true
-      }),
       toggleFocusMode: vi.fn(() => true),
       toggleTypewriterMode: vi.fn(() => true),
-      addCursorsToLineEnds: vi.fn(() => true),
     }
   })
 
@@ -80,13 +72,6 @@ describe('CommandRegistry', () => {
 
       expect(result).toBe(true)
       expect(mockCommands.createLink).toHaveBeenCalledWith(mockView)
-    })
-
-    it('should execute save command', () => {
-      const result = registry.execute('save')
-
-      expect(result).toBe(true)
-      expect(mockCommands.save).toHaveBeenCalledWith(mockView)
     })
 
     it('should handle formatHeading command with level argument', () => {
