@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** Done, apart from Danny's checks
+**Current Phase:** Done
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -44,10 +44,11 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 ## E. Code health
 
 16. [x] **Drop the direct `rfd` dependency.** `select_project_folder` calls `rfd::AsyncFileDialog` although `tauri-plugin-dialog` wraps `rfd` and has a Rust API. Since #362 our `rfd` is pinned to `gtk3` to avoid a Linux build clash; using the plugin removes the dependency and the pin. Retest Open Project
-17. [x] **React Compiler bailouts.** There were 16, not 4: besides real Rules of React violations, the compiler skips any component using `try`/`finally`, `throw` inside `try`, or `?:`/`&&`/`??` inside `try`. All fixed except the vendored shadcn `calendar.tsx`. Approach: data reads moved to TanStack queries (`useImageSrcQuery` for thumbnails and the Alt-hover preview; the Content Finder shares `collectionFiles` with the entry pickers); shared async work moved to `lib/files/images.ts`; the save and create-file bodies lifted to module-level functions, unchanged; short handlers use `.catch()`. `useCommandPalette` lost its hand-maintained dependency list and its side effects inside a state updater, and the palette context lost its unused `isDirty` and `saveFile`. `bun run compiler:check` (in `check:all`) now fails on any new bailout. Danny: try a rename from the sidebar's context menu (now `mutate` callbacks)
+17. [x] **React Compiler bailouts.** There were 16, not 4: besides real Rules of React violations, the compiler skips any component using `try`/`finally`, `throw` inside `try`, or `?:`/`&&`/`??` inside `try`. All fixed except the vendored shadcn `calendar.tsx`. Approach: data reads moved to TanStack queries (`useImageSrcQuery` for thumbnails and the Alt-hover preview; the Content Finder shares `collectionFiles` with the entry pickers); shared async work moved to `lib/files/images.ts`; the save and create-file bodies lifted to module-level functions, unchanged; short handlers use `.catch()`. `useCommandPalette` lost its hand-maintained dependency list and its side effects inside a state updater, and the palette context lost its unused `isDirty` and `saveFile`. `bun run compiler:check` (in `check:all`) now fails on any new bailout.
 18. [x] **Unused code.** Removed after checking each was unused, with when it went dead (see the "Remove dead" commits): `useDeleteFileMutation`, `mdxComponentsStore`, `useTauriListeners`, the editor registry's `save` and `addCursorsToLineEnds`, four `path-resolution.ts` functions, unused types, and six Tauri commands (`write_file`, `write_file_content`, `create_directory`, `update_frontmatter`, `get_app_info`, `read_json_schema`). The sidebar's Delete now goes through `delete_file` (it called the fs plugin's `remove` directly). knip now covers `scripts/`. Kept: barrel files and vendored shadcn sub-exports
 
 ## Issues encountered
 
 - **B (5–10) went a little wider than listed.** Records (`z.record`) also showed as a text input that blanked the object, so they now use the YAML editor with discriminated unions. `z.number().int()` showed Zod's safe-integer range ("-9007199254740991–9007199254740991") under every integer field; those bounds are now dropped. The `file()` branches in `parse_json_schema` were dead (`file()` collections never reach the parser) and misread `.catchall()` collections as `file()` ones, so they were removed rather than updated. The `notes` collection in `test/dummy-astro-project` has one field of each shape, with `zod4-shapes-test.md`
 - **One blank file load, not reproduced.** While testing #11, opening a note straight after an auto-save timed out in the agent bridge ("webview didn't respond") and the note opened with an empty editor and frontmatter. Opening it again worked, and six tries at the same sequence (saved and still dirty) all loaded and saved correctly. Worth watching for
+- **Found while testing:** the image preview flashed the previous image (from the TanStack Query move; fixed). Dragged or picked image names kept spaces and underscores after a dot (since Jul 2025; fixed). The fs plugin was unused once Delete moved to `delete_file`, so it and its broad file-system scope are gone
