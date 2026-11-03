@@ -27,49 +27,6 @@
     "os:default",
     "deep-link:default",
     {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ],
-      "deny": [
-        {
-          "path": "/System/**"
-        },
-        {
-          "path": "/usr/**"
-        },
-        {
-          "path": "/etc/**"
-        },
-        {
-          "path": "/bin/**"
-        },
-        {
-          "path": "/sbin/**"
-        },
-        {
-          "path": "/Library/Frameworks/**"
-        },
-        {
-          "path": "/Library/Extensions/**"
-        },
-        {
-          "path": "$HOME/Library/Keychains/**"
-        },
-        {
-          "path": "$HOME/.ssh/**"
-        },
-        {
-          "path": "$HOME/.aws/**"
-        },
-        {
-          "path": "$HOME/.docker/**"
-        }
-      ]
-    },
-    {
       "identifier": "opener:allow-open-path",
       "allow": [
         {
