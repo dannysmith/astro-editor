@@ -53,6 +53,6 @@ That check doesn't confirm the old path is gone, so two projects with the same p
 
 ## Recovery files
 
-When a save throws, the `catch` in `useEditorActions.saveFile` writes the unsaved content to `recovery/` (`{timestamp}-{name}.recovery.json` and `.recovery.md`) and a report to `crash-reports/` (`{timestamp}-crash.json`), keeps the file marked dirty, and shows an error toast.
+When a save throws, the `catch` in `saveCurrentFile` (`useEditorActions.ts`) writes the unsaved content to `recovery/` (`{timestamp}-{name}.recovery.json` and `.recovery.md`) and a report to `crash-reports/` (`{timestamp}-crash.json`), keeps the file marked dirty, and shows an error toast.
 
 That's all it is: a fallback dump for failed saves. Nothing is written on an actual crash, force quit or power loss. There's no UI to restore from these files, and nothing cleans them up. The real protection against losing work is auto-save's maximum delay; see `editor.md`.
