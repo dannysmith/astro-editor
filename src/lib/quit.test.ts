@@ -72,6 +72,18 @@ describe('answerQuitRequest', () => {
     expect(commands.quitApp).toHaveBeenCalledOnce()
   })
 
+  it('asks again after the dialog itself fails', async () => {
+    useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
+    vi.mocked(ask).mockRejectedValueOnce(new Error('dialog failed'))
+    await expect(answerQuitRequest()).rejects.toThrow('dialog failed')
+
+    vi.mocked(ask).mockResolvedValue(true)
+    await answerQuitRequest()
+
+    expect(ask).toHaveBeenCalledTimes(2)
+    expect(commands.quitApp).toHaveBeenCalledOnce()
+  })
+
   it('turns down a second request while the dialog is open', async () => {
     useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
     let answer: (quit: boolean) => void = () => {}

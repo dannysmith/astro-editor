@@ -57,11 +57,17 @@ pub fn request_quit(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(QUIT_TIMEOUT);
-        if *PENDING_REQUEST.lock().unwrap() != Some(id) {
-            return;
+        // Check and take the request in one step, so a `cancel_quit` in between
+        // can't be overridden
+        {
+            let mut pending = PENDING_REQUEST.lock().unwrap();
+            if *pending != Some(id) {
+                return;
+            }
+            *pending = None;
         }
         log::warn!("The frontend didn't answer the quit request, quitting anyway");
-        finish(&app, true);
+        finish(&app, true, true);
 
         // Still running means the main thread is stuck
         std::thread::sleep(FORCE_QUIT_DELAY);
@@ -75,19 +81,24 @@ pub fn request_quit(app: &AppHandle) {
 #[tauri::command]
 #[specta::specta]
 pub fn quit_app(app: AppHandle) {
-    finish(&app, true);
+    finish(&app, true, take_pending_request());
 }
 
 /// Stays open: the save failed and the writer is being asked what to do.
 #[tauri::command]
 #[specta::specta]
 pub fn cancel_quit(app: AppHandle) {
-    finish(&app, false);
+    finish(&app, false, take_pending_request());
 }
 
-fn finish(app: &AppHandle, quit: bool) {
-    let was_pending = PENDING_REQUEST.lock().unwrap().take().is_some();
+/// Clears the unanswered request. Returns whether there was one.
+fn take_pending_request() -> bool {
+    PENDING_REQUEST.lock().unwrap().take().is_some()
+}
 
+/// `was_pending` says whether this answers a request, which on macOS means
+/// AppKit is waiting for the reply.
+fn finish(app: &AppHandle, quit: bool, was_pending: bool) {
     // AppKit is waiting on `applicationShouldTerminate:` and terminates itself
     #[cfg(target_os = "macos")]
     if was_pending {

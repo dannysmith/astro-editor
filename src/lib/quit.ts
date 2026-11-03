@@ -36,20 +36,25 @@ export async function answerQuitRequest(): Promise<void> {
   // Rust quits by itself if it doesn't hear back soon, so answer before asking
   await commands.cancelQuit()
 
+  // Reset even if the dialog fails, or every later quit would be turned down
   askingToQuit = true
-  const fileName = useEditorStore.getState().currentFile?.name ?? 'this file'
-  // The window may be hidden (Cmd+W on macOS)
-  await getCurrentWindow().show()
-  const quitAnyway = await ask(
-    `Your latest changes to “${fileName}” couldn't be saved. If you quit now, they'll be lost.`,
-    {
-      title: 'Quit Without Saving?',
-      kind: 'warning',
-      okLabel: 'Quit Anyway',
-      cancelLabel: "Don't Quit",
-    }
-  )
-  askingToQuit = false
+  let quitAnyway = false
+  try {
+    const fileName = useEditorStore.getState().currentFile?.name ?? 'this file'
+    // The window may be hidden (Cmd+W on macOS)
+    await getCurrentWindow().show()
+    quitAnyway = await ask(
+      `Your latest changes to “${fileName}” couldn't be saved. If you quit now, they'll be lost.`,
+      {
+        title: 'Quit Without Saving?',
+        kind: 'warning',
+        okLabel: 'Quit Anyway',
+        cancelLabel: "Don't Quit",
+      }
+    )
+  } finally {
+    askingToQuit = false
+  }
 
   if (quitAnyway) await commands.quitApp()
 }
