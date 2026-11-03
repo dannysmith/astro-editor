@@ -46,12 +46,28 @@ const notes = defineCollection({
       description: z.string().optional(),
       pubDate: z.coerce.date().optional(),
       tags: z.array(z.string()).optional(),
-      // Nullable schema types for testing (Issue #68 follow-up)
+      // Nullable schema types for testing
       status: z.enum(['draft', 'review', 'published']).nullish(),
       keywords: z.array(z.string()).nullish(),
       scores: z.array(z.number()).nullish(),
       rating: z.number().nullish(),
       pinned: z.boolean().nullish(),
+      // Zod 4 JSON schema shapes: literal unions, numeric literals, exclusive
+      // bounds, integers, tuples, discriminated unions, records, nullable objects
+      layout: z.union([z.literal('wide'), z.literal('narrow')]).optional(),
+      priorityLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+      readingScore: z.number().gt(0).lt(10).optional(),
+      wordCount: z.number().int().optional(),
+      coordinates: z.tuple([z.number(), z.number()]).optional(),
+      embed: z
+        .discriminatedUnion('kind', [
+          z.object({ kind: z.literal('video'), url: z.string() }),
+          z.object({ kind: z.literal('quote'), text: z.string() }),
+        ])
+        .optional(),
+      extra: z.record(z.string(), z.string()).optional(),
+      sponsor: z.object({ name: z.string(), url: z.string().url().optional() }).nullish(),
+      gallery: z.array(image()).optional(),
       metadata: z
         .object({
           category: z.string().describe('Category for organizing notes'),

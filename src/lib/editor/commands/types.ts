@@ -14,8 +14,6 @@ export interface EditorCommandRegistry {
   toggleItalic: EditorCommand
   createLink: EditorCommand
   formatHeading: (level: HeadingLevel) => EditorCommand
-  save: EditorCommand
   toggleFocusMode: EditorCommand
   toggleTypewriterMode: EditorCommand
-  addCursorsToLineEnds: EditorCommand
 }

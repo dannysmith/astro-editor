@@ -45,6 +45,9 @@ const AUTO_SAVE_DELAY_ITEMS = [
 export const GeneralPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const { setTheme } = useTheme()
+  // Inputs use htmlFor; select triggers are buttons, which htmlFor would click,
+  // so they name themselves with aria-labelledby
+  const id = React.useId()
 
   const handleThemeChange = useCallback(
     (value: 'light' | 'dark' | 'system' | null) => {
@@ -115,9 +118,10 @@ export const GeneralPane: React.FC = () => {
 
       <SettingsSection title="General">
         <Field>
-          <FieldLabel>IDE Command</FieldLabel>
+          <FieldLabel htmlFor={`${id}-ide`}>IDE Command</FieldLabel>
           <FieldContent>
             <PreferencesTextInput
+              id={`${id}-ide`}
               value={globalSettings?.general?.ideCommand ?? ''}
               onCommit={value =>
                 void updateGlobal({ general: { ideCommand: value } })
@@ -135,14 +139,14 @@ export const GeneralPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Theme</FieldLabel>
+          <FieldLabel id={`${id}-theme`}>Theme</FieldLabel>
           <FieldContent>
             <Select
               items={THEME_ITEMS}
               value={globalSettings?.general?.theme || 'system'}
               onValueChange={handleThemeChange}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-labelledby={`${id}-theme`}>
                 <SelectValue placeholder="Select theme" />
               </SelectTrigger>
               <SelectContent>
@@ -160,14 +164,16 @@ export const GeneralPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Default File Type for New Files</FieldLabel>
+          <FieldLabel id={`${id}-file-type`}>
+            Default File Type for New Files
+          </FieldLabel>
           <FieldContent>
             <Select
               items={FILE_TYPE_ITEMS}
               value={globalSettings?.general?.defaultFileType || 'md'}
               onValueChange={handleDefaultFileTypeChange}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-labelledby={`${id}-file-type`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -187,10 +193,13 @@ export const GeneralPane: React.FC = () => {
 
       <SettingsSection title="Appearance">
         <Field>
-          <FieldLabel>Heading Color (Light Mode)</FieldLabel>
+          <FieldLabel htmlFor={`${id}-heading-light`}>
+            Heading Color (Light Mode)
+          </FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
               <input
+                id={`${id}-heading-light`}
                 type="color"
                 value={
                   globalSettings?.appearance?.headingColor?.light ||
@@ -216,10 +225,13 @@ export const GeneralPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Heading Color (Dark Mode)</FieldLabel>
+          <FieldLabel htmlFor={`${id}-heading-dark`}>
+            Heading Color (Dark Mode)
+          </FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
               <input
+                id={`${id}-heading-dark`}
                 type="color"
                 value={
                   globalSettings?.appearance?.headingColor?.dark ||
@@ -243,10 +255,11 @@ export const GeneralPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Editor Font Size</FieldLabel>
+          <FieldLabel htmlFor={`${id}-font-size`}>Editor Font Size</FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
               <Input
+                id={`${id}-font-size`}
                 type="number"
                 min={1}
                 max={30}
@@ -275,14 +288,14 @@ export const GeneralPane: React.FC = () => {
 
       <SettingsSection title="Editor">
         <Field>
-          <FieldLabel>Auto Save Delay</FieldLabel>
+          <FieldLabel id={`${id}-auto-save`}>Auto Save Delay</FieldLabel>
           <FieldContent>
             <Select
               items={AUTO_SAVE_DELAY_ITEMS}
               value={String(globalSettings?.general?.autoSaveDelay || 2)}
               onValueChange={handleAutoSaveDelayChange}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-labelledby={`${id}-auto-save`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

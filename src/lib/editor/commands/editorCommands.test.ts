@@ -6,7 +6,6 @@ import {
   createItalicCommand,
   createLinkCommand,
   createHeadingCommand,
-  createSaveCommand,
   createEditorCommandRegistry,
 } from './editorCommands'
 
@@ -107,48 +106,23 @@ describe('Editor Commands', () => {
     })
   })
 
-  describe('createSaveCommand', () => {
-    it('should create a command that calls the save callback', () => {
-      const mockSave = vi.fn()
-      const command = createSaveCommand(mockSave)
-      const result = command(mockView)
-
-      expect(result).toBe(true)
-      expect(mockSave).toHaveBeenCalledTimes(1)
-    })
-
-    it('should always call save callback (current behavior)', () => {
-      const mockSave = vi.fn()
-      const command = createSaveCommand(mockSave)
-
-      // This test verifies the current behavior - it always calls onSave
-      // In a real implementation, you might want to handle failures differently
-      expect(command(mockView)).toBe(true)
-      expect(mockSave).toHaveBeenCalledTimes(1)
-    })
-  })
-
   describe('createEditorCommandRegistry', () => {
     it('should create a complete command registry', () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
+      const registry = createEditorCommandRegistry()
 
       expect(registry).toHaveProperty('toggleBold')
       expect(registry).toHaveProperty('toggleItalic')
       expect(registry).toHaveProperty('createLink')
       expect(registry).toHaveProperty('formatHeading')
-      expect(registry).toHaveProperty('save')
 
       expect(typeof registry.toggleBold).toBe('function')
       expect(typeof registry.toggleItalic).toBe('function')
       expect(typeof registry.createLink).toBe('function')
       expect(typeof registry.formatHeading).toBe('function')
-      expect(typeof registry.save).toBe('function')
     })
 
     it('should have working toggleBold command', () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
+      const registry = createEditorCommandRegistry()
 
       const result = registry.toggleBold(mockView)
       expect(result).toBe(true)
@@ -157,8 +131,7 @@ describe('Editor Commands', () => {
     })
 
     it('should have working toggleItalic command', () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
+      const registry = createEditorCommandRegistry()
 
       const result = registry.toggleItalic(mockView)
       expect(result).toBe(true)
@@ -167,8 +140,7 @@ describe('Editor Commands', () => {
     })
 
     it('should have working createLink command', async () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
+      const registry = createEditorCommandRegistry()
       const { createMarkdownLink } = vi.mocked(
         await import('../markdown/formatting')
       )
@@ -179,8 +151,7 @@ describe('Editor Commands', () => {
     })
 
     it('should have working formatHeading command', () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
+      const registry = createEditorCommandRegistry()
 
       const headingCommand = registry.formatHeading(2)
       const result = headingCommand(mockView)
@@ -188,15 +159,6 @@ describe('Editor Commands', () => {
       expect(result).toBe(true)
       // oxlint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       expect((mockView as any).lastLevel).toBe(2)
-    })
-
-    it('should have working save command', () => {
-      const mockSave = vi.fn()
-      const registry = createEditorCommandRegistry(mockSave)
-
-      const result = registry.save(mockView)
-      expect(result).toBe(true)
-      expect(mockSave).toHaveBeenCalledTimes(1)
     })
   })
 })

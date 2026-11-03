@@ -86,10 +86,19 @@ export function useKeyboardShortcuts(
     DEFAULT_HOTKEY_OPTS
   )
 
-  // Cmd+W: Close Current File
+  // Cmd+W on macOS: close the window, like the red button. The app keeps
+  // running and the Dock icon brings the window back as it was (lib.rs hides it
+  // rather than closing it). Handled here because the page sees the key before
+  // the native Close menu item.
+  // Ctrl+W on Windows and Linux: close the current file, since closing the
+  // only window would quit
   useHotkeys(
     'mod+w',
     () => {
+      if (platform === 'macos') {
+        void getCurrentWindow().close()
+        return
+      }
       const { currentFile, closeCurrentFile } = useEditorStore.getState()
       if (currentFile) {
         closeCurrentFile()

@@ -28,6 +28,17 @@ interface ResizablePanelGroupProps extends Omit<
 
 type PanelLayout = Record<string, number>
 
+/** A panel group's saved layout, or undefined if there's none or it's unreadable */
+function readSavedLayout(autoSaveId: string | undefined) {
+  if (!autoSaveId) return undefined
+  try {
+    const stored = localStorage.getItem(`panel-v4:${autoSaveId}`)
+    return stored ? (JSON.parse(stored) as PanelLayout) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function ResizablePanelGroup({
   className,
   direction = 'horizontal',
@@ -36,15 +47,7 @@ function ResizablePanelGroup({
   ...props
 }: ResizablePanelGroupProps) {
   // Load saved layout on mount (lazy initializer runs once)
-  const [savedLayout] = useState<PanelLayout | undefined>(() => {
-    if (!autoSaveId) return undefined
-    try {
-      const stored = localStorage.getItem(`panel-v4:${autoSaveId}`)
-      return stored ? (JSON.parse(stored) as PanelLayout) : undefined
-    } catch {
-      return undefined
-    }
-  })
+  const [savedLayout] = useState(() => readSavedLayout(autoSaveId))
 
   // Save layout to localStorage on change
   const handleLayoutChange = useCallback(

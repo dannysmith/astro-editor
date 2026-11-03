@@ -32,6 +32,12 @@ export const ProjectSettingsPane: React.FC = () => {
   const usesAutoImport = dependencies.includes('astro-auto-import')
   const absolutePathsId = React.useId()
   const addImportsId = React.useId()
+  const contentDirId = React.useId()
+  const assetsDirId = React.useId()
+  const mdxDirId = React.useId()
+  // A select trigger is a button, which htmlFor would click, so it names
+  // itself with aria-labelledby
+  const fileTypeLabelId = React.useId()
 
   const handlePathOverrideChange = (
     key: 'contentDirectory' | 'assetsDirectory' | 'mdxComponentsDirectory',
@@ -103,9 +109,10 @@ export const ProjectSettingsPane: React.FC = () => {
         </p>
 
         <Field>
-          <FieldLabel>Content Directory</FieldLabel>
+          <FieldLabel htmlFor={contentDirId}>Content Directory</FieldLabel>
           <FieldContent>
             <PreferencesTextInput
+              id={contentDirId}
               value={
                 currentProjectSettings?.pathOverrides?.contentDirectory || ''
               }
@@ -121,9 +128,10 @@ export const ProjectSettingsPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Assets Directory</FieldLabel>
+          <FieldLabel htmlFor={assetsDirId}>Assets Directory</FieldLabel>
           <FieldContent>
             <PreferencesTextInput
+              id={assetsDirId}
               value={
                 currentProjectSettings?.pathOverrides?.assetsDirectory || ''
               }
@@ -139,9 +147,10 @@ export const ProjectSettingsPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>MDX Components Directory</FieldLabel>
+          <FieldLabel htmlFor={mdxDirId}>MDX Components Directory</FieldLabel>
           <FieldContent>
             <PreferencesTextInput
+              id={mdxDirId}
               value={
                 currentProjectSettings?.pathOverrides?.mdxComponentsDirectory ||
                 ''
@@ -183,14 +192,16 @@ export const ProjectSettingsPane: React.FC = () => {
 
       <SettingsSection title="File Defaults">
         <Field>
-          <FieldLabel>Default File Type for New Files</FieldLabel>
+          <FieldLabel id={fileTypeLabelId}>
+            Default File Type for New Files
+          </FieldLabel>
           <FieldContent>
             <Select
               items={fileTypeItems}
               value={currentProjectSettings?.defaultFileType || 'inherited'}
               onValueChange={handleDefaultFileTypeChange}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-labelledby={fileTypeLabelId}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

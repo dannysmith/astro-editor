@@ -227,7 +227,7 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(file.id)
   }
 
-  const handleRenameSubmit = async (file: FileEntry, newName: string) => {
+  const handleRenameSubmit = (file: FileEntry, newName: string) => {
     const trimmedName = newName.trim()
     const originalFullName = file.extension
       ? `${file.name}.${file.extension}`
@@ -237,33 +237,37 @@ export const LeftSidebar: React.FC = () => {
       return
     }
 
-    try {
-      const directory = file.path.substring(0, file.path.lastIndexOf('/'))
-      const newPath = `${directory}/${trimmedName}`
+    const directory = file.path.substring(0, file.path.lastIndexOf('/'))
+    const newPath = `${directory}/${trimmedName}`
+    const { projectPath, selectedCollection } = useProjectStore.getState()
+    if (!projectPath || !selectedCollection) {
+      setRenamingFileId(null)
+      return
+    }
 
-      const { projectPath, selectedCollection } = useProjectStore.getState()
-
-      if (projectPath && selectedCollection) {
-        await renameMutation.mutateAsync({
-          oldPath: file.path,
-          oldFileId: file.id,
-          newPath: newPath,
-          projectPath,
-          collectionName: selectedCollection,
-        })
-
+    // mutateAsync rather than mutate's callbacks, which only run for the
+    // latest call. On failure the name stays editable, so the writer can retry
+    void renameMutation
+      .mutateAsync({
+        oldPath: file.path,
+        oldFileId: file.id,
+        newPath,
+        projectPath,
+        collectionName: selectedCollection,
+      })
+      .then(() => {
         // Update current file path if this is the current file
         const { currentFile, updateCurrentFileAfterRename } =
           useEditorStore.getState()
-        if (currentFile && currentFile.path === file.path) {
+        if (currentFile?.path === file.path) {
           updateCurrentFileAfterRename(newPath)
         }
-      }
-
-      setRenamingFileId(null)
-    } catch (error) {
-      void logError(`Failed to rename file: ${String(error)}`)
-    }
+        // Another file may be being renamed by now
+        setRenamingFileId(current => (current === file.id ? null : current))
+      })
+      .catch((error: unknown) => {
+        void logError(`Failed to rename file: ${String(error)}`)
+      })
   }
 
   const handleRenameCancel = () => {

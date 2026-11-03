@@ -12,7 +12,7 @@
  * import { globalCommandRegistry, createEditorCommandRegistry } from './commands'
  *
  * // In component setup
- * const commands = createEditorCommandRegistry(() => saveFile())
+ * const commands = createEditorCommandRegistry()
  * globalCommandRegistry.register(commands, editorView)
  *
  * // In menu handlers

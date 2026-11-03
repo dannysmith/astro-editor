@@ -56,17 +56,6 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 
 #[tauri::command]
 #[specta::specta]
-pub async fn write_file(
-    file_path: String,
-    content: String,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    std::fs::write(&validated_path, content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn create_file(
     directory: String,
     filename: String,
@@ -112,34 +101,21 @@ pub async fn rename_file(
 }
 
 /// Convert a string to kebab case
-fn to_kebab_case(s: &str) -> String {
-    let parts: Vec<&str> = s.split('.').collect();
-    let extension = if parts.len() > 1 { parts.last() } else { None };
-
-    let filename = if parts.len() > 1 {
-        parts[..parts.len() - 1].join(".")
-    } else {
-        s.to_string()
-    };
-
-    // Convert filename to kebab case
-    let kebab_filename = filename
+/// A file name without its extension in kebab case: lowercase, with spaces,
+/// underscores and dots as single hyphens and anything else non-alphanumeric
+/// dropped. Dots count as separators because the extension is already gone
+/// (`my.photo copy` → `my-photo-copy`).
+fn to_kebab_case(name_without_ext: &str) -> String {
+    name_without_ext
         .to_lowercase()
-        .replace([' ', '_'], "-")
+        .replace([' ', '_', '.'], "-")
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == '-')
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
-        .join("-");
-
-    // Reconstruct with extension if present
-    if let Some(ext) = extension {
-        format!("{}.{}", kebab_filename, ext.to_lowercase())
-    } else {
-        kebab_filename
-    }
+        .join("-")
 }
 
 #[tauri::command]
@@ -199,21 +175,22 @@ pub async fn copy_file_to_assets_with_override(
         .to_string_lossy();
 
     // Extract extension
-    let extension = source
+    let original_extension = source
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("");
+    let extension = original_extension.to_lowercase();
 
     // Create the base filename with date prefix
     let date_prefix = Local::now().format("%Y-%m-%d").to_string();
-    let name_without_ext = file_name.trim_end_matches(&format!(".{extension}"));
+    let name_without_ext = file_name.trim_end_matches(&format!(".{original_extension}"));
     let kebab_name = to_kebab_case(name_without_ext);
 
     // Build the new filename
     let mut base_name = format!("{date_prefix}-{kebab_name}");
     if !extension.is_empty() {
         base_name.push('.');
-        base_name.push_str(extension);
+        base_name.push_str(&extension);
     }
 
     // Atomically find available filename and copy file
@@ -302,27 +279,6 @@ pub async fn parse_markdown_content(
         .map_err(|e| format!("Failed to read file: {e}"))?;
 
     parse_frontmatter(&content)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn update_frontmatter(
-    file_path: String,
-    frontmatter: IndexMap<String, Value>,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    let content = std::fs::read_to_string(&validated_path)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
-
-    let parsed = parse_frontmatter(&content)?;
-    let new_content = rebuild_markdown_with_frontmatter_and_imports(
-        &frontmatter,
-        &parsed.imports,
-        &parsed.content,
-    )?;
-
-    std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[tauri::command]
@@ -499,14 +455,6 @@ fn build_ordered_frontmatter(
 /// Parse YAML string to IndexMap using serde_norway
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
     serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
-}
-
-fn rebuild_markdown_with_frontmatter_and_imports(
-    frontmatter: &IndexMap<String, Value>,
-    imports: &str,
-    content: &str,
-) -> Result<String, String> {
-    rebuild_markdown_with_frontmatter_and_imports_ordered(frontmatter, imports, content, None)
 }
 
 /// Serialize a value to YAML format with proper indentation
@@ -813,31 +761,6 @@ pub async fn read_file_content(file_path: String, project_root: String) -> Resul
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn write_file_content(
-    file_path: String,
-    content: String,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-
-    // Create parent directories if they don't exist
-    if let Some(parent) = validated_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directories: {e}"))?;
-    }
-
-    std::fs::write(&validated_path, content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn create_directory(path: String, project_root: String) -> Result<(), String> {
-    let validated_path = validate_project_path(&path, &project_root)?;
-    std::fs::create_dir_all(&validated_path).map_err(|e| format!("Failed to create directory: {e}"))
-}
-
 /// Checks if a file path is within the project directory
 ///
 /// # Arguments
@@ -1101,40 +1024,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_write_file_success() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let test_file = project_root.join("test_write.md");
-        let test_content = "# Written Content\n\nThis was written by the test.";
-
-        // Create test structure
-        fs::create_dir_all(&project_root).unwrap();
-        fs::write(&test_file, "initial").unwrap(); // Create file first
-
-        let result = write_file(
-            test_file.to_string_lossy().to_string(),
-            test_content.to_string(),
-            project_root.to_string_lossy().to_string(),
-        )
-        .await;
-
-        assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-
-        // Verify content was written
-        let written_content = fs::read_to_string(&test_file).unwrap();
-        assert_eq!(written_content, test_content);
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
-
-    #[tokio::test]
     async fn test_create_file_success() {
         let temp_dir = std::env::temp_dir();
         use std::time::{SystemTime, UNIX_EPOCH};
@@ -1357,7 +1246,8 @@ This is a test post with arrays."#;
         let content = "# Content\n\nThis is the content.";
 
         let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", content).unwrap();
+            rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
+                .unwrap();
 
         assert!(result.starts_with("---\n"));
         // serde_norway doesn't quote simple strings without special characters
@@ -1521,8 +1411,13 @@ Regular markdown content here."#;
         let imports = "import React from 'react';\nimport { Component } from './Component';";
         let content = "# Test\n\n<Component />";
 
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, imports, content).unwrap();
+        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            imports,
+            content,
+            None,
+        )
+        .unwrap();
 
         assert!(result.starts_with("---\n"));
         assert!(result.contains("title: Test"));
@@ -1607,24 +1502,51 @@ Regular markdown content here."#;
 
     #[test]
     fn test_to_kebab_case() {
-        assert_eq!(to_kebab_case("My Image.png"), "my-image.png");
-        assert_eq!(to_kebab_case("some_file_name.jpg"), "some-file-name.jpg");
-        assert_eq!(to_kebab_case("UPPERCASE.PDF"), "uppercase.pdf");
+        assert_eq!(to_kebab_case("My Image"), "my-image");
+        assert_eq!(to_kebab_case("some_file_name"), "some-file-name");
+        assert_eq!(to_kebab_case("UPPERCASE"), "uppercase");
+        assert_eq!(to_kebab_case("already-kebab-case"), "already-kebab-case");
+        assert_eq!(to_kebab_case("file with   spaces"), "file-with-spaces");
         assert_eq!(
-            to_kebab_case("Mixed Case File Name.txt"),
-            "mixed-case-file-name.txt"
+            to_kebab_case("file___with___underscores"),
+            "file-with-underscores"
         );
+        // Dots in the name aren't an extension: it's already been removed
         assert_eq!(
-            to_kebab_case("already-kebab-case.md"),
-            "already-kebab-case.md"
+            to_kebab_case("mdx-builder-imports.C8C_tUAK_gNwzF copy"),
+            "mdx-builder-imports-c8c-tuak-gnwzf-copy"
         );
-        assert_eq!(
-            to_kebab_case("file with   spaces.png"),
-            "file-with-spaces.png"
-        );
-        assert_eq!(
-            to_kebab_case("file___with___underscores.js"),
-            "file-with-underscores.js"
+    }
+
+    #[tokio::test]
+    async fn test_copy_file_to_assets_kebab_cases_dotted_names() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let source_dir = TempDir::new().unwrap();
+        let project_dir = TempDir::new().unwrap();
+        let test_file_path = source_dir.path().join("Screen.Shot_2 copy.PNG");
+        fs::write(&test_file_path, b"fake image data").unwrap();
+
+        let relative_path = copy_file_to_assets(
+            test_file_path.to_str().unwrap().to_string(),
+            project_dir.path().to_str().unwrap().to_string(),
+            "blog".to_string(),
+            project_dir
+                .path()
+                .join("src/content/blog/post.md")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            false,
+        )
+        .await
+        .unwrap();
+
+        // Every dot, space and underscore before the extension becomes a hyphen
+        assert!(
+            relative_path.ends_with("-screen-shot-2-copy.png"),
+            "Unexpected name: {relative_path}"
         );
     }
 
@@ -2148,8 +2070,8 @@ folded: >
     }
 
     #[tokio::test]
-    async fn test_update_frontmatter_preserves_mdx_imports() {
-        // Regression test for: update_frontmatter should not delete MDX imports
+    async fn test_frontmatter_edit_preserves_mdx_imports() {
+        // Regression test: editing frontmatter must not delete MDX imports
         let temp_dir = std::env::temp_dir();
         use std::time::{SystemTime, UNIX_EPOCH};
         let timestamp = SystemTime::now()
@@ -2184,9 +2106,16 @@ This is the main content."#;
         );
         new_frontmatter.insert("draft".to_string(), Value::Bool(true));
 
-        let result = update_frontmatter(
+        // Save as the editor does after a frontmatter edit: the imports and body
+        // come separately from the parsed file
+        let parsed = parse_frontmatter(original_content).unwrap();
+        let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
-            new_frontmatter,
+            Some(new_frontmatter),
+            None,
+            parsed.content,
+            parsed.imports,
+            None,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -2335,8 +2264,13 @@ Content"#;
         );
         frontmatter.insert("emoji".to_string(), Value::String("✨🎉🔥".to_string()));
 
-        let serialized =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+        let serialized = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            "",
+            "Content",
+            None,
+        )
+        .unwrap();
         let reparsed = parse_frontmatter(&serialized).unwrap();
 
         assert_eq!(reparsed.frontmatter.get("title").unwrap(), "🚀 Test 世界");
@@ -2435,8 +2369,13 @@ Content"#;
         let mut frontmatter = IndexMap::new();
         frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
 
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            "",
+            "Content",
+            None,
+        )
+        .unwrap();
 
         assert!(!result.contains("\r\n"), "Should use LF, not CRLF");
         assert!(result.contains('\n'), "Should have LF line endings");

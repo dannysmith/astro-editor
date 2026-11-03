@@ -4,7 +4,7 @@ import {
   error as logError,
   warn as logWarn,
 } from '@tauri-apps/plugin-log'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { commands, type Collection, type JsonValue } from '@/types'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -60,6 +60,172 @@ function waitForProjectReady(
 }
 
 /**
+ * Saves the open file: writes its body, imports and frontmatter (in the
+ * schema's field order), marks it clean if nothing changed meanwhile, and
+ * refreshes the queries that show it. On failure, writes recovery data and a
+ * crash report and keeps the file dirty. Plain function rather than inline in
+ * the hook so the React Compiler can compile the hook (it can't handle `throw`
+ * inside `try`).
+ */
+async function saveCurrentFile(
+  queryClient: QueryClient,
+  showToast: boolean
+): Promise<void> {
+  const {
+    currentFile,
+    editorContent,
+    frontmatter,
+    rawFrontmatter,
+    isFrontmatterDirty,
+    imports,
+  } = useEditorStore.getState()
+  if (!currentFile) return
+
+  // Get project path using direct store access pattern
+  const { projectPath } = useProjectStore.getState()
+
+  if (!projectPath) {
+    throw new Error('No project path available')
+  }
+
+  try {
+    // Get schema field order from collections data - NO EVENTS!
+    // Direct synchronous access to query cache
+    let schemaFieldOrder: string[] | null = null
+    if (currentFile) {
+      try {
+        const collections = queryClient.getQueryData<Collection[]>(
+          queryKeys.collections(projectPath)
+        )
+        if (collections && Array.isArray(collections)) {
+          const collection = collections.find(
+            (c: Collection) => c.name === currentFile.collection
+          )
+          const schema = collection?.complete_schema
+            ? deserializeCompleteSchema(collection.complete_schema)
+            : null
+          schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
+        }
+      } catch (error) {
+        void logWarn(`Could not get schema field order: ${String(error)}`)
+      }
+    }
+
+    // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
+    const result = await commands.saveMarkdownContent(
+      currentFile.path,
+      isFrontmatterDirty ? (frontmatter as Record<string, JsonValue>) : null,
+      isFrontmatterDirty ? null : rawFrontmatter,
+      editorContent,
+      imports,
+      schemaFieldOrder,
+      projectPath
+    )
+    if (result.status === 'error') {
+      throw new Error(result.error)
+    }
+
+    // If another file was opened during the save (openFile saves the
+    // outgoing file), the store now holds that file's state: leave it alone
+    const currentState = useEditorStore.getState()
+    if (currentState.currentFile?.id === currentFile.id) {
+      // Clear auto-save timeout since we just saved
+      if (currentState.autoSaveTimeoutId) {
+        clearTimeout(currentState.autoSaveTimeoutId)
+      }
+
+      // Only mark as clean if content hasn't changed during save (race condition protection)
+      // Check the body, imports and frontmatter to avoid dropping unsaved edits
+      const contentUnchanged =
+        currentState.editorContent === editorContent &&
+        currentState.imports === imports
+      const frontmatterUnchanged =
+        JSON.stringify(currentState.frontmatter) === JSON.stringify(frontmatter)
+
+      useEditorStore.setState({
+        autoSaveTimeoutId: null,
+        isDirty: !contentUnchanged || !frontmatterUnchanged,
+        isFrontmatterDirty:
+          currentState.isFrontmatterDirty || !frontmatterUnchanged,
+        lastSaveTimestamp: Date.now(),
+      })
+    }
+
+    // Invalidate queries to update UI
+    if (projectPath) {
+      // Invalidate file content query to refresh cached content
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+      })
+
+      // Invalidate directory scans for this collection (root + all subdirectories)
+      if (currentFile.collection) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...queryKeys.all,
+            projectPath,
+            currentFile.collection,
+            'directory',
+          ],
+        })
+      }
+
+      // Entry pickers show titles and ids, which come from the frontmatter
+      // (a `slug` is the id)
+      if (isFrontmatterDirty) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.collectionFiles(
+            projectPath,
+            currentFile.collection
+          ),
+        })
+      }
+    }
+
+    // Show success toast only if requested
+    if (showToast) {
+      toast.success('File saved successfully')
+    }
+  } catch (error) {
+    void logError(`Save failed: ${String(error)}`)
+    void info('Attempting to save recovery data...')
+
+    // Save recovery data for the file that failed: the store's latest edits
+    // if it's still open, otherwise what this save tried to write
+    const state = useEditorStore.getState()
+    const stillOpen = state.currentFile?.id === currentFile.id
+    const recovered = await saveRecoveryData(
+      stillOpen
+        ? {
+            currentFile: state.currentFile,
+            projectPath,
+            editorContent: state.editorContent,
+            frontmatter: state.frontmatter,
+          }
+        : { currentFile, projectPath, editorContent, frontmatter }
+    )
+
+    const reason =
+      error instanceof Error ? error.message : 'Unknown error occurred'
+    toast.error('Save failed', {
+      description: `Could not save file: ${reason}.${recovered ? ' Recovery data has been saved.' : ''}`,
+    })
+
+    // Save crash report
+    await saveCrashReport(error as Error, {
+      currentFile: currentFile.path,
+      projectPath: projectPath || undefined,
+      action: 'save',
+    })
+
+    // Keep the file marked as dirty since save failed
+    if (stillOpen) {
+      useEditorStore.setState({ isDirty: true })
+    }
+  }
+}
+
+/**
  * Editor action hooks following the Hybrid Action Hooks pattern.
  *
  * User-triggered actions (like save, delete) live in hooks, which have natural
@@ -77,163 +243,7 @@ export function useEditorActions() {
   const queryClient = useQueryClient()
 
   const saveFile = useCallback(
-    async (showToast = true) => {
-      const {
-        currentFile,
-        editorContent,
-        frontmatter,
-        rawFrontmatter,
-        isFrontmatterDirty,
-        imports,
-      } = useEditorStore.getState()
-      if (!currentFile) return
-
-      // Get project path using direct store access pattern
-      const { projectPath } = useProjectStore.getState()
-
-      if (!projectPath) {
-        throw new Error('No project path available')
-      }
-
-      try {
-        // Get schema field order from collections data - NO EVENTS!
-        // Direct synchronous access to query cache
-        let schemaFieldOrder: string[] | null = null
-        if (currentFile) {
-          try {
-            const collections = queryClient.getQueryData<Collection[]>(
-              queryKeys.collections(projectPath)
-            )
-            if (collections && Array.isArray(collections)) {
-              const collection = collections.find(
-                (c: Collection) => c.name === currentFile.collection
-              )
-              const schema = collection?.complete_schema
-                ? deserializeCompleteSchema(collection.complete_schema)
-                : null
-              schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
-            }
-          } catch (error) {
-            void logWarn(`Could not get schema field order: ${String(error)}`)
-          }
-        }
-
-        // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
-        const result = await commands.saveMarkdownContent(
-          currentFile.path,
-          isFrontmatterDirty
-            ? (frontmatter as Record<string, JsonValue>)
-            : null,
-          isFrontmatterDirty ? null : rawFrontmatter,
-          editorContent,
-          imports,
-          schemaFieldOrder,
-          projectPath
-        )
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
-
-        // If another file was opened during the save (openFile saves the
-        // outgoing file), the store now holds that file's state: leave it alone
-        const currentState = useEditorStore.getState()
-        if (currentState.currentFile?.id === currentFile.id) {
-          // Clear auto-save timeout since we just saved
-          if (currentState.autoSaveTimeoutId) {
-            clearTimeout(currentState.autoSaveTimeoutId)
-          }
-
-          // Only mark as clean if content hasn't changed during save (race condition protection)
-          // Check the body, imports and frontmatter to avoid dropping unsaved edits
-          const contentUnchanged =
-            currentState.editorContent === editorContent &&
-            currentState.imports === imports
-          const frontmatterUnchanged =
-            JSON.stringify(currentState.frontmatter) ===
-            JSON.stringify(frontmatter)
-
-          useEditorStore.setState({
-            autoSaveTimeoutId: null,
-            isDirty: !contentUnchanged || !frontmatterUnchanged,
-            isFrontmatterDirty:
-              currentState.isFrontmatterDirty || !frontmatterUnchanged,
-            lastSaveTimestamp: Date.now(),
-          })
-        }
-
-        // Invalidate queries to update UI
-        if (projectPath) {
-          // Invalidate file content query to refresh cached content
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.fileContent(projectPath, currentFile.id),
-          })
-
-          // Invalidate directory scans for this collection (root + all subdirectories)
-          if (currentFile.collection) {
-            void queryClient.invalidateQueries({
-              queryKey: [
-                ...queryKeys.all,
-                projectPath,
-                currentFile.collection,
-                'directory',
-              ],
-            })
-          }
-
-          // Entry pickers show titles and ids, which come from the frontmatter
-          // (a `slug` is the id)
-          if (isFrontmatterDirty) {
-            void queryClient.invalidateQueries({
-              queryKey: queryKeys.collectionFiles(
-                projectPath,
-                currentFile.collection
-              ),
-            })
-          }
-        }
-
-        // Show success toast only if requested
-        if (showToast) {
-          toast.success('File saved successfully')
-        }
-      } catch (error) {
-        void logError(`Save failed: ${String(error)}`)
-        void info('Attempting to save recovery data...')
-
-        // Save recovery data for the file that failed: the store's latest edits
-        // if it's still open, otherwise what this save tried to write
-        const state = useEditorStore.getState()
-        const stillOpen = state.currentFile?.id === currentFile.id
-        const recovered = await saveRecoveryData(
-          stillOpen
-            ? {
-                currentFile: state.currentFile,
-                projectPath,
-                editorContent: state.editorContent,
-                frontmatter: state.frontmatter,
-              }
-            : { currentFile, projectPath, editorContent, frontmatter }
-        )
-
-        const reason =
-          error instanceof Error ? error.message : 'Unknown error occurred'
-        toast.error('Save failed', {
-          description: `Could not save file: ${reason}.${recovered ? ' Recovery data has been saved.' : ''}`,
-        })
-
-        // Save crash report
-        await saveCrashReport(error as Error, {
-          currentFile: currentFile.path,
-          projectPath: projectPath || undefined,
-          action: 'save',
-        })
-
-        // Keep the file marked as dirty since save failed
-        if (stillOpen) {
-          useEditorStore.setState({ isDirty: true })
-        }
-      }
-    },
+    (showToast = true) => saveCurrentFile(queryClient, showToast),
     [queryClient]
   )
 

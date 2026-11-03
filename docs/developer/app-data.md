@@ -1,6 +1,6 @@
 # App data
 
-What the app stores on the user's machine, where, and the reasoning behind the settings model. The settings model is due a rework (#82), so this covers the reasoning and gotchas rather than every setting; for the shapes, read `src/lib/project-registry/types.ts`.
+What the app stores on the user's machine, where, and the reasoning behind the settings model. The settings model is due a rework, so this covers the reasoning and gotchas rather than every setting; for the shapes, read `src/lib/project-registry/types.ts`.
 
 ## Where it lives
 
@@ -39,20 +39,20 @@ Project and collection settings resolve **collection → project → hard-coded 
 
 A project's ID is its `package.json` `name`, made filename-safe, or the folder name if there's no `package.json`. On a clash with an existing ID, a short hash of the path is appended (`utils.ts`). Keying on the name means a project keeps its settings when it's moved: if no registered project has the new path, `findMovedProject` looks for one with the same name and updates its path.
 
-That check doesn't confirm the old path is gone, so two projects with the same package name (say, two sites from the same Astro template) are treated as one project and share settings. This is tracked in #347.
+That check doesn't confirm the old path is gone, so two projects with the same package name (say, two sites from the same Astro template) are treated as one project and share settings, which is a bug.
 
 ## Gotchas
 
 - **`projectRegistryManager.updateProjectSettings` replaces `collections` wholesale.** Path overrides and frontmatter mappings are merged one level deep, but a `collections` array overwrites the stored one, so callers must send the full array. `usePreferences.updateCollectionSettings` does.
 - **A new collection setting must be added to the cleanup filter** in `updateCollectionSettings` (`src/hooks/usePreferences.ts`). It drops collections whose settings are all empty by checking each known field by name, so a field it doesn't know about is dropped on save.
-- **Changing project path overrides has side effects.** `projectStore.updateProjectSettings` saves and closes the open file (with a toast explaining why), invalidates the collection and directory queries, and restarts the file watcher, because the paths under the open file may have moved. Collection-level path changes go through `collections` and skip all of this, which is a bug (#347).
-- **A collection's content directory override is saved but not used** (a bug, #347). Collections are found by scanning the project-level content directory (`useCollectionsQuery`), and nothing reads the collection-level value except the preferences pane.
-- **New project files are seeded with `DEFAULT_PROJECT_SETTINGS`** (`defaults.ts`), so the project layer is rarely empty and the hard-coded defaults in `collection-settings.ts` seldom apply. The two sets of defaults have drifted apart on the published date field (#347), so change both.
+- **Changing project path overrides has side effects.** `projectStore.updateProjectSettings` saves and closes the open file (with a toast explaining why), invalidates the collection and directory queries, and restarts the file watcher, because the paths under the open file may have moved. Collection-level path changes go through `collections` and skip all of this, which is a bug.
+- **A collection's content directory override is saved but not used**, which is a bug. Collections are found by scanning the project-level content directory (`useCollectionsQuery`), and nothing reads the collection-level value except the preferences pane.
+- **New project files are seeded with `DEFAULT_PROJECT_SETTINGS`** (`defaults.ts`), so the project layer is rarely empty and the hard-coded defaults in `collection-settings.ts` seldom apply; change both together. The published date field is the exception: it isn't seeded, and `getPublishedDate` (`lib/files/sorting.ts`) tries `DEFAULT_PUBLISHED_DATE_FIELDS` after the mapped field, because older project files seeded `date` for every project.
 - **A preferences file that doesn't parse is treated as missing.** Global settings fall back to defaults and are overwritten on the next change. A broken project file is replaced with defaults as soon as the project opens. Take a copy before hand-editing one.
 - **Project files have a leftover top-level `collections` field that nothing reads.** Collection overrides are in `settings.collections`.
 
 ## Recovery files
 
-When a save throws, the `catch` in `useEditorActions.saveFile` writes the unsaved content to `recovery/` (`{timestamp}-{name}.recovery.json` and `.recovery.md`) and a report to `crash-reports/` (`{timestamp}-crash.json`), keeps the file marked dirty, and shows an error toast.
+When a save throws, the `catch` in `saveCurrentFile` (`useEditorActions.ts`) writes the unsaved content to `recovery/` (`{timestamp}-{name}.recovery.json` and `.recovery.md`) and a report to `crash-reports/` (`{timestamp}-crash.json`), keeps the file marked dirty, and shows an error toast.
 
 That's all it is: a fallback dump for failed saves. Nothing is written on an actual crash, force quit or power loss. There's no UI to restore from these files, and nothing cleans them up. The real protection against losing work is auto-save's maximum delay; see `editor.md`.

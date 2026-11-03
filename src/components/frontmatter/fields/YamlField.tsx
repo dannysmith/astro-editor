@@ -10,12 +10,19 @@ interface YamlFieldProps extends FieldProps {
   field?: SchemaField
 }
 
+/** A frontmatter value as the JSON the field shows, indented */
+const toJson = (value: unknown): string =>
+  value === undefined || value === null ? '' : JSON.stringify(value, null, 2)
+
 /**
- * YamlField - A fallback field for complex array types (dates, objects, etc.)
- * Displays the value as YAML-like text for manual editing
+ * YamlField - A fallback field for complex arrays (dates, objects, tuples) and
+ * objects without fixed fields (records, discriminated unions), edited as JSON
  *
- * Note: This uses JSON.stringify for now. In the future, we could add
- * a proper YAML library for better formatting.
+ * The text is a local draft, so it can be invalid JSON while the writer types;
+ * the store only gets valid values. The draft is replaced when the stored value
+ * changes some other way (another file, an outside edit), not by the writer's
+ * own edits, which would reformat the text under the cursor. Switching file
+ * always replaces it.
  */
 export const YamlField: React.FC<YamlFieldProps> = ({
   name,
@@ -24,40 +31,44 @@ export const YamlField: React.FC<YamlFieldProps> = ({
   field,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const fileId = useEditorStore(state => state.currentFile?.id)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
   const [error, setError] = React.useState<string | null>(null)
   const id = React.useId()
 
-  // Convert value to YAML-like string for display
-  const displayValue = React.useMemo(() => {
-    if (value === undefined || value === null) return ''
-
-    try {
-      // Format as indented JSON (close enough to YAML for arrays)
-      return JSON.stringify(value, null, 2)
-    } catch {
-      // Fallback for non-serializable values - always use JSON.stringify
-      return JSON.stringify(value)
-    }
-  }, [value])
+  const valueJson = JSON.stringify(value ?? null)
+  const [draft, setDraft] = React.useState(() => toJson(value))
+  // The stored value the draft matches, or was last written as, and its file:
+  // another file starts afresh even if its value is the same
+  const [draftValueJson, setDraftValueJson] = React.useState(valueJson)
+  const [draftFileId, setDraftFileId] = React.useState(fileId)
+  if (valueJson !== draftValueJson || fileId !== draftFileId) {
+    setDraftValueJson(valueJson)
+    setDraftFileId(fileId)
+    setDraft(toJson(value))
+    setError(null)
+  }
 
   const handleChange = (newValue: string) => {
+    setDraft(newValue)
+
     if (newValue.trim() === '') {
       // Empty value - clear the field
       setError(null)
+      setDraftValueJson('null')
       updateFrontmatterField(name, undefined)
       return
     }
 
     try {
-      // Try to parse as JSON
       const parsed = JSON.parse(newValue) as unknown
       setError(null)
+      setDraftValueJson(JSON.stringify(parsed))
       updateFrontmatterField(name, parsed)
     } catch (err) {
-      // Show validation error but don't update value
+      // Keep the draft and the last valid value until the JSON parses
       setError(err instanceof Error ? err.message : 'Invalid JSON')
     }
   }
@@ -68,9 +79,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
       htmlFor={id}
       required={required}
       description={
-        field && 'description' in field
-          ? field.description
-          : 'Edit as JSON array (e.g., ["item1", "item2"])'
+        field && 'description' in field ? field.description : 'Edit as JSON'
       }
       defaultValue={field?.default}
       constraints={field?.constraints}
@@ -79,9 +88,9 @@ export const YamlField: React.FC<YamlFieldProps> = ({
       <div className="space-y-2">
         <AutoExpandingTextarea
           id={id}
-          value={displayValue}
+          value={draft}
           onChange={e => handleChange(e.target.value)}
-          placeholder={`Enter ${label.toLowerCase()} as JSON array...`}
+          placeholder={`Enter ${label.toLowerCase()} as JSON...`}
           className="font-mono text-sm"
           minRows={3}
           maxRows={20}

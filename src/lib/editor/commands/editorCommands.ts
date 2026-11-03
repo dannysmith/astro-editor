@@ -1,7 +1,6 @@
 import { EditorView } from '@codemirror/view'
 import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
-import { addCursorsToLineEnds } from '../selection'
 import { HeadingLevel } from '../markdown/types'
 import { EditorCommand, EditorCommandRegistry } from './types'
 import { useUIStore } from '../../../store/uiStore'
@@ -35,16 +34,6 @@ export const createHeadingCommand = (level: HeadingLevel): EditorCommand => {
 }
 
 /**
- * Create a save command
- */
-export const createSaveCommand = (onSave: () => void): EditorCommand => {
-  return () => {
-    onSave()
-    return true
-  }
-}
-
-/**
  * Create a focus mode toggle command
  */
 export const createFocusModeCommand = (): EditorCommand => {
@@ -67,26 +56,15 @@ export const createTypewriterModeCommand = (): EditorCommand => {
 }
 
 /**
- * Create an add cursors to line ends command
- */
-export const createAddCursorsToLineEndsCommand = (): EditorCommand => {
-  return (view: EditorView) => addCursorsToLineEnds(view)
-}
-
-/**
  * Create a complete editor command registry
  */
-export const createEditorCommandRegistry = (
-  onSave: () => void
-): EditorCommandRegistry => {
+export const createEditorCommandRegistry = (): EditorCommandRegistry => {
   return {
     toggleBold: createBoldCommand(),
     toggleItalic: createItalicCommand(),
     createLink: createLinkCommand(),
     formatHeading: (level: HeadingLevel) => createHeadingCommand(level),
-    save: createSaveCommand(onSave),
     toggleFocusMode: createFocusModeCommand(),
     toggleTypewriterMode: createTypewriterModeCommand(),
-    addCursorsToLineEnds: createAddCursorsToLineEndsCommand(),
   }
 }

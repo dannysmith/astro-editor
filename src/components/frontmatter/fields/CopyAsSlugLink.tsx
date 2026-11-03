@@ -17,16 +17,11 @@ export const CopyAsSlugLink: React.FC<CopyAsSlugLinkProps> = ({ text }) => {
   if (!slug) return null
 
   const handleClick = () => {
-    void (async () => {
-      try {
-        const result = await commands.copyTextToClipboard(slug)
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
-      } catch (error) {
-        void logError(`Failed to copy slug: ${String(error)}`)
+    void commands.copyTextToClipboard(slug).then(result => {
+      if (result.status === 'error') {
+        void logError(`Failed to copy slug: ${result.error}`)
       }
-    })()
+    })
   }
 
   return (

@@ -1,96 +1,49 @@
-import React, { useEffect, useState } from 'react'
-import { convertFileSrc } from '@tauri-apps/api/core'
-import { commands } from '@/lib/bindings'
+import React from 'react'
 import { useProjectStore } from '../../../store/projectStore'
 import { useEditorStore } from '../../../store/editorStore'
+import { useImageSrcQuery } from '../../../hooks/queries/useImageSrcQuery'
 
 interface ImageThumbnailProps {
   path: string
 }
 
-type LoadingState = 'idle' | 'loading' | 'success' | 'error'
-
+/** A small preview of an image path from the open file. Shows nothing if the path doesn't resolve. */
 export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [loadingState, setLoadingState] = useState<LoadingState>('idle')
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentFile = useEditorStore(state => state.currentFile)
+  const currentFilePath = useEditorStore(state => state.currentFile?.path)
+  const { data: imageUrl, isError } = useImageSrcQuery(
+    path,
+    projectPath,
+    currentFilePath ?? null
+  )
+  // An image that fails to load is treated like a path that fails to resolve
+  const [failedUrl, setFailedUrl] = React.useState<string | null>(null)
 
-  useEffect(() => {
-    if (!path || !projectPath) {
-      return
-    }
-
-    let cancelled = false
-
-    const loadImage = async () => {
-      setLoadingState('loading')
-
-      try {
-        // Check if it's a remote URL
-        if (path.startsWith('http://') || path.startsWith('https://')) {
-          if (!cancelled) {
-            setImageUrl(path)
-            setLoadingState('success')
-          }
-          return
-        }
-
-        // For local paths, resolve to absolute path
-        const result = await commands.resolveImagePath(
-          path,
-          projectPath,
-          currentFile?.path ?? null
-        )
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
-
-        if (!cancelled) {
-          // Convert to asset protocol URL
-          const assetUrl = convertFileSrc(result.data)
-          setImageUrl(assetUrl)
-          setLoadingState('success')
-        }
-      } catch {
-        // Fail silently - don't show error state
-        if (!cancelled) {
-          setLoadingState('error')
-        }
-      }
-    }
-
-    void loadImage()
-
-    // Cleanup: only set cancelled flag to prevent stale updates
-    // Keep cached state to prevent flicker during transitions
-    return () => {
-      cancelled = true
-    }
-  }, [path, projectPath, currentFile?.path])
-
-  // Don't render anything if no path or if error state (fail silently)
-  if (!path || loadingState === 'error') {
+  if (
+    !path ||
+    !projectPath ||
+    isError ||
+    (imageUrl && imageUrl === failedUrl)
+  ) {
     return null
   }
 
   return (
     <div className="relative w-full max-w-[200px]">
-      {loadingState === 'loading' && (
-        <div className="flex h-24 items-center justify-center rounded-md border border-border bg-muted/30">
-          <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
-        </div>
-      )}
-
-      {loadingState === 'success' && imageUrl && (
+      {imageUrl ? (
         <img
+          // A new element per image: changing an <img>'s src keeps painting
+          // the old picture until the new one loads
+          key={imageUrl}
           src={imageUrl}
           alt="Preview"
           className="max-h-[150px] max-w-full rounded-md border border-border object-contain"
-          onError={() => {
-            setLoadingState('error')
-          }}
+          onError={() => setFailedUrl(imageUrl)}
         />
+      ) : (
+        <div className="flex h-24 items-center justify-center rounded-md border border-border bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+        </div>
       )}
     </div>
   )

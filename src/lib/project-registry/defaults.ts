@@ -4,14 +4,24 @@
 
 import { GlobalSettings, ProjectSettings, ProjectRegistry } from './types'
 
+/**
+ * Field names tried, in order, for a file's published date when the collection
+ * has no date mapping, and after the mapped field when it has one
+ */
+export const DEFAULT_PUBLISHED_DATE_FIELDS = [
+  'pubDate',
+  'date',
+  'publishedDate',
+]
+
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   pathOverrides: {
     contentDirectory: 'src/content/',
     assetsDirectory: 'src/assets/',
     mdxComponentsDirectory: 'src/components/mdx/',
   },
+  // No published date mapping, so DEFAULT_PUBLISHED_DATE_FIELDS applies
   frontmatterMappings: {
-    publishedDate: 'date', // Will try date, pubDate, publishedDate
     title: 'title',
     description: 'description',
     draft: 'draft',

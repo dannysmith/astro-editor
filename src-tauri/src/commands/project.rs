@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DirectoryScanResult {
@@ -135,14 +136,25 @@ fn is_blocked_directory(path: &Path) -> bool {
 #[tauri::command]
 #[specta::specta]
 pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    let file_dialog = rfd::AsyncFileDialog::new()
+    // The dialog reports back through a callback, which the channel turns
+    // into something to await
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
         .set_title("Select Astro Project Folder")
-        .pick_folder()
-        .await;
+        .pick_folder(move |folder| {
+            let _ = tx.send(folder);
+        });
+    let picked = rx
+        .await
+        .map_err(|e| format!("Folder dialog closed unexpectedly: {e}"))?;
 
-    match file_dialog {
+    match picked {
         Some(folder) => {
-            let folder_path = folder.path();
+            let folder_path = folder
+                .into_path()
+                .map_err(|e| format!("Invalid folder path: {e}"))?;
+            let folder_path = folder_path.as_path();
 
             // Check if the selected directory is in a blocked location
             if is_blocked_directory(folder_path) {
@@ -498,35 +510,6 @@ pub async fn load_file_based_collection(
     );
 
     Ok(files)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn read_json_schema(
-    project_path: String,
-    collection_name: String,
-) -> Result<String, String> {
-    let schema_path = PathBuf::from(&project_path)
-        .join(".astro")
-        .join("collections")
-        .join(format!("{collection_name}.schema.json"));
-
-    debug!(
-        "Astro Editor [JSON_SCHEMA] Reading JSON schema at: {}",
-        schema_path.display()
-    );
-
-    if !schema_path.exists() {
-        let err_msg = format!("JSON schema file not found: {}", schema_path.display());
-        debug!("Astro Editor [JSON_SCHEMA] {err_msg}");
-        return Err(err_msg);
-    }
-
-    std::fs::read_to_string(&schema_path).map_err(|e| {
-        let err_msg = format!("Failed to read JSON schema file: {e}");
-        error!("Astro Editor [JSON_SCHEMA] {err_msg}");
-        err_msg
-    })
 }
 
 /// Scan a single directory (non-recursive) for subdirectories and markdown/mdx files

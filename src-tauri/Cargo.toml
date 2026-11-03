@@ -31,12 +31,8 @@ serde_norway = "0.9.42"
 tokio = { version = "1", features = ["full"] }
 notify = "=9.0.0-rc.7"
 walkdir = "2"
-# Must use the same Linux backend as tauri-plugin-dialog (gtk3): both share one
-# rfd, and its build fails if gtk3 and the default xdg-portal are both enabled.
-rfd = { version = "0.17", default-features = false, features = ["gtk3"] }
 regex = "1.10"
 tauri-plugin-clipboard-manager = "2.3.0"
-tauri-plugin-fs = "2.4.0"
 tauri-plugin-dialog = "2.3.0"
 tauri-plugin-process = "2.3.0"
 tauri-plugin-log = "2.0.0"

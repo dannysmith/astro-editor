@@ -72,13 +72,22 @@ function formatMetadata(
   const parts: string[] = []
 
   if (constraints) {
-    // Numeric constraints
-    if (constraints.min !== undefined && constraints.max !== undefined) {
-      parts.push(`${constraints.min}–${constraints.max}`)
-    } else if (constraints.min !== undefined) {
-      parts.push(`Min: ${constraints.min}`)
-    } else if (constraints.max !== undefined) {
-      parts.push(`Max: ${constraints.max}`)
+    // Numeric constraints. Exclusive bounds (`gt`, `lt`) show as "> 0"
+    const { min, max, minExclusive, maxExclusive } = constraints
+    if (
+      min !== undefined &&
+      max !== undefined &&
+      !minExclusive &&
+      !maxExclusive
+    ) {
+      parts.push(`${min}–${max}`)
+    } else {
+      if (min !== undefined) {
+        parts.push(minExclusive ? `> ${min}` : `Min: ${min}`)
+      }
+      if (max !== undefined) {
+        parts.push(maxExclusive ? `< ${max}` : `Max: ${max}`)
+      }
     }
 
     // String length constraints

@@ -11,7 +11,6 @@ export interface CommandContext {
   selectedCollection: string | null
   collections: Collection[]
   projectPath: string | null
-  isDirty: boolean
   globalSettings: GlobalSettings | null
 
   // Store actions
@@ -20,10 +19,9 @@ export interface CommandContext {
   setProject: (path: string) => void
   toggleSidebar: () => void
   toggleFrontmatterPanel: () => void
-  saveFile: () => Promise<void>
   closeCurrentFile: () => void
-  loadCollections: () => void
-  loadCollectionFiles: () => void
+  /** Refetches everything read from the project; resolves once it's done */
+  reloadCollections: () => Promise<void>
   openPreferences: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void

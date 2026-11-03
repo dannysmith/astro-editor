@@ -28,10 +28,11 @@ These are for AI agents working with Danny.
 - **Use current docs.** Context7 first, then the web. Tauri **v2** only (v1 APIs differ and models default to them). Versions: React 19, TypeScript 7, Zustand 5, TanStack Query 5, Tailwind 4, shadcn 4 on Base UI, CodeMirror 6, Vite 8, Vitest 5.
 - **Rust:** modern formatting, `format!("{variable}")`. Clippy runs with `-D warnings` on all targets, tests included.
 - **Keep docs current.** When a change adds a pattern or invalidates one, update the doc in `docs/developer/`. Docs hold what the code can't say (reasons, constraints, gotchas); knowledge about one module goes in a comment next to it.
+- **Keep docs evergreen.** Describe how things are and why, not their history, and don't cite our own PRs or issues (a known bug is described, not linked). An upstream issue that explains a constraint, like tauri#9198, is fine.
 
 ## Rules
 
-Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)* or *(Oxlint)* fail `check:all`.
+Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)*, *(Oxlint)* or *(compiler:check)* fail `check:all`.
 
 - **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
 - **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
@@ -41,6 +42,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - **Log through `@tauri-apps/plugin-log`, not `console`.** Release builds strip `console.*`, so it never reaches a user's log. Release builds also log at debug level, so anything that fires per keystroke or per save goes behind `import.meta.env.DEV`. *(Oxlint)*
 - **Keep stateful panels mounted** and hide them instead. Unmounting loses panel sizes, scroll position and editor state.
 - **Don't add `useMemo`, `useCallback` or `React.memo` by default.** The React Compiler handles memoisation; it doesn't change the Zustand rules.
+- **Every component and hook must compile with the React Compiler.** It silently skips ones that break the Rules of React or use `try`/`finally`, `throw` inside `try`, or `?:`/`&&`/`??` inside `try`; move that logic into a plain function. See the architecture guide. *(compiler:check)*
 - **One copy of each `@lezer/*` and `@codemirror/*` package.** Duplicates break highlighting at runtime and typecheck. After `bun update`, `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing; if it doesn't, run `rm -rf node_modules bun.lock && bun install`.
 - **Keep `@babel/core` on 7.** `babel-plugin-react-compiler` is built against Babel 7, and nothing else pins it, so dependency updates will offer 8.
 - **Test in the app, not Chrome.** macOS runs WebKit, so CSS and behaviour that work in Chrome DevTools can fail. For example, `field-sizing: content` isn't supported (use `AutoExpandingTextarea`).
@@ -81,7 +83,7 @@ if (result.status === 'error') throw new Error(result.error)
 ## Scripts
 
 ```bash
-bun run check:all       # typecheck, Oxlint, ast-grep, Oxfmt, cargo fmt, Clippy, all tests. Run before finishing
+bun run check:all       # typecheck, Oxlint, ast-grep, React Compiler check, Oxfmt, cargo fmt, Clippy, all tests. Run before finishing
 bun run fix:all         # auto-fix lint and formatting
 bun run test            # Vitest in watch mode (test:run once; rust:test for cargo). `bun test` is bun's own runner and won't work
 bun run app help        # drive, inspect and screenshot the running dev app
@@ -122,4 +124,4 @@ In `docs/developer/`. Read the ones for the area you're working in.
 
 ## Tasks
 
-Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date. Known bugs that the docs mention are collected in issue #347 until each is fixed.
+Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date.

@@ -7,7 +7,6 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { commands } from '@/lib/bindings'
-import { remove } from '@tauri-apps/plugin-fs'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
@@ -203,7 +202,9 @@ export class FileContextMenu {
               const confirmed =
                 await FileContextMenu.showConfirmationDialog(fileName)
               if (confirmed) {
-                await remove(file.path)
+                // Through Rust, which refuses paths outside the project
+                const result = await commands.deleteFile(file.path, projectPath)
+                if (result.status === 'error') throw new Error(result.error)
                 // Refresh the file list if callback is provided
                 if (onRefresh) {
                   onRefresh()

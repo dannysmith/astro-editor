@@ -11,23 +11,21 @@ import {
 import { useCommandPalette } from '../../hooks/useCommandPalette'
 
 /**
+ * The palette's filter: matches the search against the command's label only,
+ * case-insensitively. Items' values are "id:label"; ids have no colons, but
+ * labels can ("Open Collection: blog").
+ */
+export function filterByLabel(value: string, search: string): number {
+  const label = value.slice(value.indexOf(':') + 1)
+  return label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+}
+
+/**
  * Command palette component with Cmd+P shortcut
  * Provides quick access to application commands
  */
 export function CommandPalette() {
   const { open, setOpen, commandGroups, executeCommand } = useCommandPalette()
-
-  // Custom filter function that only searches command labels
-  const customFilter = React.useCallback((value: string, search: string) => {
-    // Extract the label from the value (format: "id:label")
-    const label = value.split(':')[1] || value
-
-    // Case-insensitive search on label only
-    if (label.toLowerCase().includes(search.toLowerCase())) {
-      return 1
-    }
-    return 0
-  }, [])
 
   return (
     <CommandDialog
@@ -35,7 +33,7 @@ export function CommandPalette() {
       onOpenChange={setOpen}
       title="Command Palette"
       description="Type a command or search..."
-      filter={customFilter}
+      filter={filterByLabel}
       loop
     >
       <CommandInput placeholder="Type a command..." />

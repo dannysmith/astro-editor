@@ -59,7 +59,9 @@ The sidebar and frontmatter panel are collapsed and expanded through `react-resi
 
 The React Compiler compiles everything in `src/`, so don't add `useMemo`, `useCallback` or `React.memo` unless profiling shows a need. It doesn't change the Zustand rules: selectors and `getState()` still decide what re-renders.
 
-- **A component that breaks the Rules of React is silently left uncompiled.** A lint suppression hides the violation, not the bailout. #347 tracks the components that currently bail out.
+- **A component the compiler can't handle is silently left uncompiled.** That's one that breaks the Rules of React, and also one that uses syntax the compiler doesn't support yet: `try`/`finally`, `throw` inside `try`, or a conditional expression (`?:`, `&&`, `??`, `?.`) inside `try`, anywhere in the component, event handlers included. A lint suppression hides a violation, not the bailout. `bun run compiler:check` (part of `check:all`) fails on any bailout except the vendored shadcn `calendar.tsx`.
+- **The usual fix is to move async work out of the component** into a plain function, which the compiler doesn't touch: in `lib/` if it's shared or domain logic (`copyImageToAssets`, `resolveImageSrc`), otherwise at module level in the same file (`saveCurrentFile` in `useEditorActions.ts`). Reading data belongs in a TanStack query rather than an effect with a cancelled flag. Short handlers can use `.catch()` instead of `try`.
+- **Compiling a component for the first time can change its behaviour** if its render reads something the compiler can't see change: `getState()`, `Date.now()`, module-level state. It memoises the first value. Read those in callbacks and effects only.
 - **Lint names:** the rules are configured as `react/*` in `.oxlintrc.json`, but suppression comments use the `react-hooks/*` alias.
 
 ## Logging

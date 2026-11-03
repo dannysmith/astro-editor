@@ -19,7 +19,7 @@ Set `DEBUG_PLATFORM_OVERRIDE` in `src/hooks/usePlatform.ts` to `'windows'` or `'
 ## Tauri config
 
 - **Platform configs are JSON Merge Patch, which replaces arrays whole.** `tauri.macos.conf.json`, `tauri.windows.conf.json` and `tauri.linux.conf.json` each carry a full `windows` entry, so a window setting changed only in `tauri.conf.json` silently does nothing on any platform. Change it in all four files. The same applies to the dev overlay (`tauri.dev.conf.json`), which is why it holds no window settings.
-- **Only enable a config-driven feature that every platform's config needs, and put it on the base `tauri` dependency.** `tauri-build` compares the config-driven features (`protocol-asset`, `macos-private-api`, `isolation`) on the base `tauri` entry in `Cargo.toml` with what the merged config for the platform being built needs, and fails on a mismatch in either direction. It ignores target-specific `tauri` entries when a base one exists. So `assetProtocol` lives in `tauri.conf.json` and `protocol-asset` on the base dependency. #150 hit the other direction: `macos-private-api` on the base dependency broke Linux builds, whose config didn't enable it.
+- **Only enable a config-driven feature that every platform's config needs, and put it on the base `tauri` dependency.** `tauri-build` compares the config-driven features (`protocol-asset`, `macos-private-api`, `isolation`) on the base `tauri` entry in `Cargo.toml` with what the merged config for the platform being built needs, and fails on a mismatch in either direction. It ignores target-specific `tauri` entries when a base one exists. So `assetProtocol` lives in `tauri.conf.json` and `protocol-asset` on the base dependency. It fails in the other direction too: `macos-private-api` on the base dependency broke Linux builds, whose config didn't enable it.
 
 ## macOS window lifecycle
 
@@ -44,4 +44,4 @@ A bad accelerator compiles everywhere and only fails when the app starts on Wind
 ## Gotchas
 
 - **The title bar toolbar needs `transform-gpu` to fade.** Without it, WebKit leaves the children of `TitleBarToolbar` out of its opacity transition when the distraction-free bars hide, so they stay visible and then vanish at once. Putting the container on its own compositing layer fixes it.
-- **The webview log target is off on Linux.** It deadlocks inside `setup()` on WebKitGTK, so the window never appears (#150). Rust logs still reach stdout and the log file; they just don't show in the webview console.
+- **The webview log target is off on Linux.** It deadlocks inside `setup()` on WebKitGTK, so the window never appears. Rust logs still reach stdout and the log file; they just don't show in the webview console.

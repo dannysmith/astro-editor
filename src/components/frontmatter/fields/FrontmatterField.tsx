@@ -12,6 +12,7 @@ import { ArrayField } from './ArrayField'
 import { ReferenceField } from './ReferenceField'
 import { YamlField } from './YamlField'
 import { ImageField } from './ImageField'
+import { ImageArrayField } from './ImageArrayField'
 
 interface FrontmatterFieldProps {
   name: string
@@ -57,31 +58,22 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     field.subType !== FieldType.Number &&
     field.subType !== FieldType.Integer
 
-  // Check if field schema exists (stable boolean, not mutable object)
-  const hasFieldSchema = !!field
-
   // Check if this field should be treated as an array based on schema or frontmatter value
-  const shouldUseArrayField = React.useMemo(() => {
-    return (
-      !isArrayReference &&
-      !isComplexArray &&
-      (fieldType === (FieldType.Array as string) ||
-        fieldType === 'Array' ||
-        (!hasFieldSchema &&
-          Array.isArray(fieldValue) &&
-          fieldValue.every((item: unknown) => typeof item === 'string')))
-    )
-    // fieldValue comes from Zustand store - while we use selector syntax correctly,
-    // the compiler flags it as potentially mutable. This memoization is valid to
-    // avoid expensive .every() calls on re-renders.
-    // oxlint-disable-next-line react-hooks/preserve-manual-memoization
-  }, [isArrayReference, isComplexArray, fieldType, hasFieldSchema, fieldValue])
+  const shouldUseArrayField =
+    !isArrayReference &&
+    !isComplexArray &&
+    (fieldType === (FieldType.Array as string) ||
+      fieldType === 'Array' ||
+      (!field &&
+        Array.isArray(fieldValue) &&
+        fieldValue.every((item: unknown) => typeof item === 'string')))
 
   // Routing order matters: the first match wins.
   // - Array references come before complex arrays, which would otherwise send
   //   them to YamlField. An array of references whose collection the Zod parser
   //   didn't find has no subReference, so it still ends up there.
-  // - Arrays of anything but strings and numbers (dates, objects, images) use YamlField.
+  // - Arrays of images use ImageArrayField; arrays of anything else but strings
+  //   and numbers (dates, objects, tuples) use YamlField.
   // - Every typed check runs before the title and description mappings, so those
   //   textareas only replace plain string fields.
   // - Fields with no schema are strings, except string arrays, which are
@@ -155,8 +147,21 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     )
   }
 
-  // Handle complex array fields (dates, objects, etc.) with YAML fallback
-  if (isComplexArray) {
+  // Handle arrays of images (z.array(image())) with an image picker each
+  if (isComplexArray && field?.subType === FieldType.Image) {
+    return (
+      <ImageArrayField
+        name={name}
+        label={label}
+        required={required}
+        field={field}
+      />
+    )
+  }
+
+  // Handle complex arrays (dates, objects, tuples) and objects without fixed
+  // fields (records, discriminated unions) with the YAML editor
+  if (isComplexArray || fieldType === (FieldType.Object as string)) {
     return (
       <YamlField name={name} label={label} required={required} field={field} />
     )

@@ -92,6 +92,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const projectSettings =
           await projectRegistryManager.getEffectiveSettings(projectId)
 
+        // Stop the previous project's watcher and listeners first; starting
+        // another doesn't, so they'd keep running and every event would be
+        // handled once per project opened
+        await get().stopFileWatcher()
+
         set({
           projectPath: path,
           currentProjectId: projectId,
@@ -186,10 +191,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const unlistenFileChanged = await listen(
         'file-changed',
         (event: { payload: unknown }) => {
-          // File refresh is now handled by TanStack Query invalidation
-          // This event is kept for future use
-
-          // Dispatch custom event for editor store to handle recently saved file logic
+          // Handled by useFileChangeHandler (refreshes the sidebar and the open file)
           window.dispatchEvent(
             new CustomEvent('file-changed', {
               detail: event.payload,

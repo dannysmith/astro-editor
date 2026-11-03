@@ -29,7 +29,6 @@ const mockCreateEditorCommandRegistry = vi.mocked(
 ).createEditorCommandRegistry
 
 describe('useEditorSetup', () => {
-  let mockOnSave: () => void
   let mockOnFocus: () => void
   let mockOnBlur: () => void
   let mockEditorView: EditorView
@@ -38,7 +37,6 @@ describe('useEditorSetup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    mockOnSave = vi.fn()
     mockOnFocus = vi.fn()
     mockOnBlur = vi.fn()
 
@@ -52,10 +50,8 @@ describe('useEditorSetup', () => {
       toggleItalic: vi.fn(),
       createLink: vi.fn(),
       formatHeading: vi.fn(),
-      save: vi.fn(),
       toggleFocusMode: vi.fn(),
       toggleTypewriterMode: vi.fn(),
-      addCursorsToLineEnds: vi.fn(),
     }
 
     mockCreateExtensions.mockReturnValue([])
@@ -64,7 +60,7 @@ describe('useEditorSetup', () => {
 
   describe('initialization', () => {
     it('should create extensions with provided callbacks', () => {
-      renderHook(() => useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur))
+      renderHook(() => useEditorSetup(mockOnFocus, mockOnBlur))
 
       expect(mockCreateExtensions).toHaveBeenCalledWith({
         onFocus: mockOnFocus,
@@ -80,7 +76,7 @@ describe('useEditorSetup', () => {
       mockCreateExtensions.mockReturnValue(mockExtensions)
 
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       expect(result.current.extensions).toBe(mockExtensions)
@@ -88,7 +84,7 @@ describe('useEditorSetup', () => {
 
     it('should return setup and cleanup functions', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       expect(typeof result.current.setupCommands).toBe('function')
@@ -99,14 +95,14 @@ describe('useEditorSetup', () => {
   describe('setupCommands', () => {
     it('should create command registry and register with global registry', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       act(() => {
         result.current.setupCommands(mockEditorView)
       })
 
-      expect(mockCreateEditorCommandRegistry).toHaveBeenCalledWith(mockOnSave)
+      expect(mockCreateEditorCommandRegistry).toHaveBeenCalledTimes(1)
       // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledWith(
         mockCommands,
@@ -114,9 +110,9 @@ describe('useEditorSetup', () => {
       )
     })
 
-    it('should be stable when onSave does not change', () => {
+    it('should be stable across re-renders', () => {
       const { result, rerender } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
       const firstSetupCommands = result.current.setupCommands
 
@@ -124,41 +120,12 @@ describe('useEditorSetup', () => {
 
       expect(result.current.setupCommands).toBe(firstSetupCommands)
     })
-
-    it('should update when onSave changes', () => {
-      const { result, rerender } = renderHook(
-        ({ onSave }) => useEditorSetup(onSave, mockOnFocus, mockOnBlur),
-        { initialProps: { onSave: mockOnSave } }
-      )
-      const firstSetupCommands = result.current.setupCommands
-
-      const newOnSave = vi.fn()
-      rerender({ onSave: newOnSave })
-
-      expect(result.current.setupCommands).not.toBe(firstSetupCommands)
-    })
-
-    it('should use updated onSave callback', () => {
-      const newOnSave = vi.fn()
-      const { result, rerender } = renderHook(
-        ({ onSave }) => useEditorSetup(onSave, mockOnFocus, mockOnBlur),
-        { initialProps: { onSave: mockOnSave } }
-      )
-
-      rerender({ onSave: newOnSave })
-
-      act(() => {
-        result.current.setupCommands(mockEditorView)
-      })
-
-      expect(mockCreateEditorCommandRegistry).toHaveBeenCalledWith(newOnSave)
-    })
   })
 
   describe('cleanupCommands', () => {
     it('should unregister global command registry', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       act(() => {
@@ -171,7 +138,7 @@ describe('useEditorSetup', () => {
 
     it('should be stable across re-renders', () => {
       const { result, rerender } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
       const firstCleanupCommands = result.current.cleanupCommands
 
@@ -182,13 +149,12 @@ describe('useEditorSetup', () => {
 
     it('should remain stable when callbacks change', () => {
       const { result, rerender } = renderHook(
-        ({ onSave }) => useEditorSetup(onSave, mockOnFocus, mockOnBlur),
-        { initialProps: { onSave: mockOnSave } }
+        ({ onFocus }) => useEditorSetup(onFocus, mockOnBlur),
+        { initialProps: { onFocus: mockOnFocus } }
       )
       const firstCleanupCommands = result.current.cleanupCommands
 
-      const newOnSave = vi.fn()
-      rerender({ onSave: newOnSave })
+      rerender({ onFocus: vi.fn() })
 
       expect(result.current.cleanupCommands).toBe(firstCleanupCommands)
     })
@@ -197,7 +163,7 @@ describe('useEditorSetup', () => {
   describe('integration', () => {
     it('should handle complete setup and cleanup cycle', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       // Setup
@@ -205,7 +171,7 @@ describe('useEditorSetup', () => {
         result.current.setupCommands(mockEditorView)
       })
 
-      expect(mockCreateEditorCommandRegistry).toHaveBeenCalledWith(mockOnSave)
+      expect(mockCreateEditorCommandRegistry).toHaveBeenCalledTimes(1)
       // oxlint-disable-next-line @typescript-eslint/unbound-method
       expect(mockGlobalCommandRegistry.register).toHaveBeenCalledWith(
         mockCommands,
@@ -223,7 +189,7 @@ describe('useEditorSetup', () => {
 
     it('should handle multiple setup calls', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       act(() => {
@@ -238,7 +204,7 @@ describe('useEditorSetup', () => {
 
     it('should handle multiple cleanup calls', () => {
       const { result } = renderHook(() =>
-        useEditorSetup(mockOnSave, mockOnFocus, mockOnBlur)
+        useEditorSetup(mockOnFocus, mockOnBlur)
       )
 
       act(() => {
@@ -252,47 +218,14 @@ describe('useEditorSetup', () => {
   })
 
   describe('extensions recreation', () => {
-    it('should recreate extensions when callbacks change', () => {
-      const { rerender } = renderHook(
-        ({ onSave, onFocus, onBlur }) =>
-          useEditorSetup(onSave, onFocus, onBlur),
-        {
-          initialProps: {
-            onSave: mockOnSave,
-            onFocus: mockOnFocus,
-            onBlur: mockOnBlur,
-          },
-        }
-      )
-
-      expect(mockCreateExtensions).toHaveBeenCalledTimes(1)
-
-      const newOnSave = vi.fn()
-      rerender({ onSave: newOnSave, onFocus: mockOnFocus, onBlur: mockOnBlur })
-
-      expect(mockCreateExtensions).toHaveBeenCalledTimes(2)
-      expect(mockCreateExtensions).toHaveBeenLastCalledWith({
-        onFocus: mockOnFocus,
-        onBlur: mockOnBlur,
-        componentBuilderHandler: undefined,
-      })
-    })
-
     it('should recreate extensions when onFocus changes', () => {
       const { rerender } = renderHook(
-        ({ onSave, onFocus, onBlur }) =>
-          useEditorSetup(onSave, onFocus, onBlur),
-        {
-          initialProps: {
-            onSave: mockOnSave,
-            onFocus: mockOnFocus,
-            onBlur: mockOnBlur,
-          },
-        }
+        ({ onFocus, onBlur }) => useEditorSetup(onFocus, onBlur),
+        { initialProps: { onFocus: mockOnFocus, onBlur: mockOnBlur } }
       )
 
       const newOnFocus = vi.fn()
-      rerender({ onSave: mockOnSave, onFocus: newOnFocus, onBlur: mockOnBlur })
+      rerender({ onFocus: newOnFocus, onBlur: mockOnBlur })
 
       expect(mockCreateExtensions).toHaveBeenCalledTimes(2)
       expect(mockCreateExtensions).toHaveBeenLastCalledWith({
@@ -304,19 +237,12 @@ describe('useEditorSetup', () => {
 
     it('should recreate extensions when onBlur changes', () => {
       const { rerender } = renderHook(
-        ({ onSave, onFocus, onBlur }) =>
-          useEditorSetup(onSave, onFocus, onBlur),
-        {
-          initialProps: {
-            onSave: mockOnSave,
-            onFocus: mockOnFocus,
-            onBlur: mockOnBlur,
-          },
-        }
+        ({ onFocus, onBlur }) => useEditorSetup(onFocus, onBlur),
+        { initialProps: { onFocus: mockOnFocus, onBlur: mockOnBlur } }
       )
 
       const newOnBlur = vi.fn()
-      rerender({ onSave: mockOnSave, onFocus: mockOnFocus, onBlur: newOnBlur })
+      rerender({ onFocus: mockOnFocus, onBlur: newOnBlur })
 
       expect(mockCreateExtensions).toHaveBeenCalledTimes(2)
       expect(mockCreateExtensions).toHaveBeenLastCalledWith({

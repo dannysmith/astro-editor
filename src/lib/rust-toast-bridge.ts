@@ -61,8 +61,3 @@ export const initializeRustToastBridge = async () => {
     return () => {} // Return empty cleanup function
   }
 }
-
-/**
- * Cleanup function type for TypeScript
- */
-export type RustToastBridgeCleanup = () => void

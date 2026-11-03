@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import { error as logError } from '@tauri-apps/plugin-log'
+import { useQueries } from '@tanstack/react-query'
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,7 +15,9 @@ import { useEditorStore } from '../../store/editorStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
 import { resolveTitle } from '../../lib/content-linker'
-import { commands, type FileEntry, type Collection } from '@/types'
+import { type FileEntry, type Collection } from '@/types'
+import { queryKeys } from '../../lib/query-keys'
+import { fetchCollectionFiles } from '../../hooks/queries/useCollectionFilesQuery'
 import { usePlatform } from '../../hooks/usePlatform'
 
 const EMPTY_COLLECTIONS: Collection[] = []
@@ -35,76 +36,33 @@ export function ContentLinkerDialog() {
     state => state.currentProjectSettings
   )
 
-  const { data: collections = EMPTY_COLLECTIONS } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const {
+    data: collections = EMPTY_COLLECTIONS,
+    isPending: isLoadingCollections,
+  } = useCollectionsQuery(projectPath, currentProjectSettings)
 
   const platform = usePlatform()
   const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
 
-  const [allFiles, setAllFiles] = useState<FileEntry[]>([])
-  const [hasFetched, setHasFetched] = useState(false)
+  // Every collection's files, from the cache the entry pickers also use, so
+  // saves and outside changes keep it current (see useFileChangeHandler).
+  // A collection that fails to scan is left out
+  const fileQueries = useQueries({
+    queries: collections.map(collection => ({
+      queryKey: queryKeys.collectionFiles(projectPath || '', collection.name),
+      queryFn: () => fetchCollectionFiles(collection.path, collection.name),
+      enabled: isOpen && !!projectPath,
+      retry: false,
+    })),
+  })
+  // Collections come first: with none loaded yet there are no file queries
+  const hasFetched =
+    !(isLoadingCollections && projectPath) &&
+    fileQueries.every(query => !query.isPending)
+  const allFiles = fileQueries.flatMap(query => query.data ?? [])
 
-  // Build a lookup from value string -> FileEntry
-  const fileMapRef = useRef<Map<string, FileEntry>>(new Map())
-
-  // Derive a stable primitive key from collections to avoid re-fetching
-  // when TanStack Query returns a new array reference with identical data
-  const collectionsKey = collections.map(c => c.name).join(',')
-
-  // Fetch all files recursively when dialog opens
-  useEffect(() => {
-    if (!isOpen || !projectPath || collections.length === 0) {
-      return
-    }
-
-    let cancelled = false
-
-    const fetchAll = async () => {
-      try {
-        const results = await Promise.all(
-          collections.map(collection =>
-            commands.scanCollectionFilesRecursive(
-              collection.path,
-              collection.name
-            )
-          )
-        )
-
-        const files = results.flatMap(result =>
-          result.status === 'ok' ? result.data : []
-        )
-
-        if (!cancelled) {
-          setAllFiles(files)
-
-          // Build value -> file map
-          const map = new Map<string, FileEntry>()
-          for (const file of files) {
-            map.set(buildItemValue(file), file)
-          }
-          fileMapRef.current = map
-        }
-      } catch (error) {
-        void logError(`Failed to fetch content files: ${String(error)}`)
-        if (!cancelled) {
-          setAllFiles([])
-        }
-      } finally {
-        if (!cancelled) {
-          setHasFetched(true)
-        }
-      }
-    }
-
-    void fetchAll()
-
-    return () => {
-      cancelled = true
-    }
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, projectPath, collectionsKey])
+  // Item value -> file, for the filter and the handlers
+  const fileMap = new Map(allFiles.map(file => [buildItemValue(file), file]))
 
   // Get the currently highlighted item's value from the DOM.
   // Uses cmdk's internal [cmdk-item][aria-selected] attributes —
@@ -118,7 +76,7 @@ export function ContentLinkerDialog() {
   const customFilter = (value: string, search: string) => {
     const lower = search.toLowerCase()
     // value is file.path — also search against title, collection, and file name
-    const file = fileMapRef.current.get(value)
+    const file = fileMap.get(value)
     if (file) {
       const title = resolveTitle(file)
       if (
@@ -134,7 +92,7 @@ export function ContentLinkerDialog() {
   }
 
   const handleSelect = (value: string) => {
-    const file = fileMapRef.current.get(value)
+    const file = fileMap.get(value)
     if (file) {
       close()
       useEditorStore.getState().openFile(file)
@@ -145,7 +103,7 @@ export function ContentLinkerDialog() {
     const value = getSelectedValue()
     if (!value) return
 
-    const file = fileMapRef.current.get(value)
+    const file = fileMap.get(value)
     if (!file) return
 
     const currentFile = useEditorStore.getState().currentFile
@@ -177,12 +135,7 @@ export function ContentLinkerDialog() {
     <CommandDialog
       open={isOpen}
       onOpenChange={open => {
-        if (!open) {
-          close()
-          setAllFiles([])
-          setHasFetched(false)
-          fileMapRef.current = new Map()
-        }
+        if (!open) close()
       }}
       title="Content Linker"
       description="Search content to open or insert a link"

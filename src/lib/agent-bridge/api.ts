@@ -82,6 +82,7 @@ export function createAgentApi(deps: AgentApiDeps) {
      */
     async refreshProject() {
       useEditorStore.getState().closeCurrentFile()
+      await useProjectStore.getState().stopFileWatcher()
       await useProjectStore.getState().startFileWatcher()
       await deps.queryClient.invalidateQueries({ queryKey: queryKeys.all })
       await idle()

@@ -65,6 +65,13 @@ const FIELDS: SchemaField[][] = [
   ],
   [
     { name: 'cover', label: 'Cover', type: FieldType.Image, required: false },
+    {
+      name: 'gallery',
+      label: 'Gallery',
+      type: FieldType.Array,
+      subType: FieldType.Image,
+      required: false,
+    },
     { name: 'website', label: 'Website', type: FieldType.URL, required: false },
     {
       name: 'author',

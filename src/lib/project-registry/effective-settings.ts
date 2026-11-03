@@ -5,6 +5,7 @@
 import { ProjectSettings } from './types'
 import { ASTRO_PATHS } from '../constants'
 import { getCollectionSettings } from './collection-settings'
+import { DEFAULT_PUBLISHED_DATE_FIELDS } from './defaults'
 
 /**
  * Direct function for use outside React components
@@ -42,7 +43,7 @@ export const getEffectiveSettings = (
       mdxComponentsDirectory: ASTRO_PATHS.MDX_COMPONENTS_DIR,
     },
     frontmatterMappings: {
-      publishedDate: ['pubDate', 'date', 'publishedDate'],
+      publishedDate: DEFAULT_PUBLISHED_DATE_FIELDS,
       title: 'title',
       description: 'description',
       draft: 'draft',

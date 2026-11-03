@@ -51,6 +51,19 @@ describe('getPublishedDate', () => {
     expect(formatIsoDate(result!)).toBe('2024-01-15')
   })
 
+  it('falls back to the standard names when the mapped field is missing', () => {
+    // Older settings files map `date` even for collections that use `pubDate`
+    const frontmatter = { pubDate: '2024-01-15' }
+    const result = getPublishedDate(frontmatter, 'date')
+    expect(formatIsoDate(result!)).toBe('2024-01-15')
+  })
+
+  it('prefers the mapped field over the standard names', () => {
+    const frontmatter = { pubDate: '2024-01-15', updatedAt: '2024-03-01' }
+    const result = getPublishedDate(frontmatter, 'updatedAt')
+    expect(formatIsoDate(result!)).toBe('2024-03-01')
+  })
+
   it('should return null when field does not exist', () => {
     const frontmatter = {}
     const result = getPublishedDate(frontmatter, 'publishedDate')

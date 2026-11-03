@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useCommandContext } from './commands/useCommandContext'
 import { getAllCommands } from '../lib/commands/app-commands'
@@ -6,113 +6,70 @@ import { AppCommand, CommandGroup } from '../lib/commands/types'
 import { useUIStore } from '../store/uiStore'
 import { focusEditorDelayed } from '../lib/focus-utils'
 
+// The palette's groups, in order. A command whose group isn't here isn't shown
+const GROUP_ORDER: Array<{ key: AppCommand['group']; heading: string }> = [
+  { key: 'file', heading: 'File' },
+  { key: 'navigation', heading: 'Navigation' },
+  { key: 'project', heading: 'Project' },
+  { key: 'settings', heading: 'Settings' },
+  { key: 'highlight', heading: 'Highlights' },
+  { key: 'ide', heading: 'IDE' },
+  { key: 'help', heading: 'Help' },
+]
+
 /**
  * Hook for managing command palette state and commands
+ *
+ * The React Compiler memoises the command list on the context, which
+ * useCommandContext builds from store selectors, so the list only changes when
+ * something a command can read does.
  */
 export function useCommandPalette() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
   const context = useCommandContext()
-  // Use selector syntax for consistency
   const setDistractionFreeBarsHidden = useUIStore(
     state => state.setDistractionFreeBarsHidden
   )
 
-  // Custom setOpen that shows bars when command palette opens and returns focus when closed
-  const handleSetOpen = useCallback(
-    (value: boolean | ((prev: boolean) => boolean)) => {
-      setOpen(prev => {
-        const newValue = typeof value === 'boolean' ? value : value(prev)
+  // Opening shows the bars hidden by distraction-free mode; closing returns
+  // focus to the editor
+  const setOpen = (value: boolean) => {
+    setOpenState(value)
+    if (value) {
+      setDistractionFreeBarsHidden(false)
+    } else {
+      focusEditorDelayed()
+    }
+  }
 
-        // Show bars when command palette opens
-        if (newValue) {
-          setDistractionFreeBarsHidden(false)
-        } else {
-          // Return focus to editor when command palette closes
-          focusEditorDelayed()
-        }
-
-        return newValue
-      })
-    },
-    [setDistractionFreeBarsHidden]
-  )
-
-  // Handle Cmd+P (macOS) / Ctrl+P (Windows) keyboard shortcut
-  // Uses mod+ prefix which maps to Cmd on macOS and Ctrl on Windows
+  // Cmd+P (macOS) / Ctrl+P (Windows and Linux). react-hotkeys-hook keeps the
+  // first callback unless it's given dependencies, so `open` is one
   useHotkeys(
     'mod+p',
-    () => {
-      handleSetOpen(open => !open)
-    },
+    () => setOpen(!open),
     {
       preventDefault: true,
       enableOnFormTags: true,
       enableOnContentEditable: true,
-    }
+    },
+    [open]
   )
 
-  // Get all available commands based on current context.
-  // The dependency list is hand-maintained: primitive fields only, so the list
-  // isn't rebuilt on every render. A command whose isAvailable or label reads
-  // a context field that isn't listed here goes stale until something else
-  // changes, so add that field when adding such a command.
-  const collectionNames = context.collections.map(c => c.name).join('\n')
-  const commands = useMemo(
-    () => getAllCommands(context),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [
-      context.currentFile?.id,
-      context.selectedCollection,
-      context.projectPath,
-      context.globalSettings?.general?.ideCommand,
-      context.globalSettings?.general?.highlights?.nouns,
-      context.globalSettings?.general?.highlights?.verbs,
-      context.globalSettings?.general?.highlights?.adjectives,
-      context.globalSettings?.general?.highlights?.adverbs,
-      context.globalSettings?.general?.highlights?.conjunctions,
-      collectionNames, // A string, so a new array with the same names doesn't rebuild
-    ]
-  )
-
-  // Group commands by category
-  const commandGroups = useMemo((): CommandGroup[] => {
-    const groups: Record<string, AppCommand[]> = {}
-
-    commands.forEach(command => {
-      if (!groups[command.group]) {
-        groups[command.group] = []
-      }
-      groups[command.group]!.push(command)
-    })
-
-    // Define group order and labels
-    const groupOrder: Array<{ key: string; heading: string }> = [
-      { key: 'file', heading: 'File' },
-      { key: 'navigation', heading: 'Navigation' },
-      { key: 'project', heading: 'Project' },
-      { key: 'settings', heading: 'Settings' },
-      { key: 'highlight', heading: 'Highlights' },
-      { key: 'ide', heading: 'IDE' },
-      { key: 'help', heading: 'Help' },
-    ]
-
-    return groupOrder
-      .filter(group => groups[group.key] && groups[group.key]!.length > 0)
-      .map(group => ({
-        heading: group.heading,
-        commands: groups[group.key]!,
-      }))
-  }, [commands])
+  const commands = getAllCommands(context)
+  const commandGroups: CommandGroup[] = GROUP_ORDER.map(group => ({
+    heading: group.heading,
+    commands: commands.filter(command => command.group === group.key),
+  })).filter(group => group.commands.length > 0)
 
   // Execute a command and close the palette
   const executeCommand = async (command: AppCommand) => {
-    handleSetOpen(false) // This will automatically return focus to editor via handleSetOpen
+    setOpen(false) // Returns focus to the editor
     await command.execute(context)
   }
 
   return {
     open,
-    setOpen: handleSetOpen,
+    setOpen,
     commands,
     commandGroups,
     executeCommand,

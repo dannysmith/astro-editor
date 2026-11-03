@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, type RefObject } from 'react'
 import { EditorView } from '@codemirror/view'
 import { findImageUrlsAndPathsInText } from '../../lib/editor/urls/detection'
 
@@ -11,23 +11,25 @@ export interface HoveredImage {
 /**
  * Hook to track when the user hovers over an image URL with Alt key pressed
  *
- * @param view - CodeMirror EditorView instance
+ * Takes the view's ref rather than the view, because the view is created in an
+ * effect after the first render; the ref is only read in effects. The mouse
+ * listeners are only attached while Alt is held.
+ *
+ * @param viewRef - Ref to the CodeMirror EditorView instance
  * @param isAltPressed - Whether Alt key is currently pressed
  * @returns Currently hovered image URL info, or null
  */
 export const useImageHover = (
-  view: EditorView | null,
+  viewRef: RefObject<EditorView | null>,
   isAltPressed: boolean
 ): HoveredImage | null => {
   const [hoveredImage, setHoveredImage] = useState<HoveredImage | null>(null)
 
-  const handleMouseMove = useCallback(
-    (event: MouseEvent) => {
-      if (!view || !isAltPressed) {
-        setHoveredImage(null)
-        return
-      }
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !isAltPressed) return
 
+    const handleMouseMove = (event: MouseEvent) => {
       try {
         // Get document position from mouse coordinates
         const pos = view.posAtCoords({
@@ -42,11 +44,9 @@ export const useImageHover = (
 
         // Get the line containing this position
         const line = view.state.doc.lineAt(pos)
-        const lineText = line.text
-        const lineStart = line.from
 
         // Find all image URLs and paths in this line
-        const imageUrls = findImageUrlsAndPathsInText(lineText, lineStart)
+        const imageUrls = findImageUrlsAndPathsInText(line.text, line.from)
 
         // Check if cursor is within any image URL range
         const hoveredUrl = imageUrls.find(
@@ -72,40 +72,22 @@ export const useImageHover = (
         // Silently fail if position is out of bounds
         setHoveredImage(null)
       }
-    },
-    [view, isAltPressed]
-  )
-
-  useEffect(() => {
-    if (!view) return
-
-    // Get the editor DOM element
-    const editorDom = view.dom
-
-    // Add mouse move listener
-    editorDom.addEventListener('mousemove', handleMouseMove)
-
-    return () => {
-      editorDom.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [view, handleMouseMove])
-
-  // Clear on mouse leave
-  useEffect(() => {
-    if (!view) return
-
-    const editorDom = view.dom
 
     const handleMouseLeave = () => {
       setHoveredImage(null)
     }
 
-    editorDom.addEventListener('mouseleave', handleMouseLeave)
+    view.dom.addEventListener('mousemove', handleMouseMove)
+    view.dom.addEventListener('mouseleave', handleMouseLeave)
 
     return () => {
-      editorDom.removeEventListener('mouseleave', handleMouseLeave)
+      view.dom.removeEventListener('mousemove', handleMouseMove)
+      view.dom.removeEventListener('mouseleave', handleMouseLeave)
+      // Releasing Alt forgets the image, so pressing it again starts afresh
+      setHoveredImage(null)
     }
-  }, [view])
+  }, [viewRef, isAltPressed])
 
   // Return null if Alt is not pressed, otherwise return the hovered image
   // This ensures the image preview disappears immediately when Alt is released

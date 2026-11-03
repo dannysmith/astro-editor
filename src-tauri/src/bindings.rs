@@ -30,14 +30,12 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::menu::update_format_menu_state,
             // files.rs commands
             crate::commands::files::read_file,
-            crate::commands::files::write_file,
             crate::commands::files::create_file,
             crate::commands::files::delete_file,
             crate::commands::files::rename_file,
             crate::commands::files::copy_file_to_assets,
             crate::commands::files::copy_file_to_assets_with_override,
             crate::commands::files::parse_markdown_content,
-            crate::commands::files::update_frontmatter,
             crate::commands::files::save_markdown_content,
             crate::commands::files::save_recovery_data,
             crate::commands::files::save_crash_report,
@@ -45,8 +43,6 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::files::write_app_data_file,
             crate::commands::files::read_app_data_file,
             crate::commands::files::read_file_content,
-            crate::commands::files::write_file_content,
-            crate::commands::files::create_directory,
             crate::commands::files::is_path_in_project,
             crate::commands::files::get_relative_path,
             crate::commands::files::resolve_image_path,
@@ -56,7 +52,6 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::project::scan_project_with_content_dir,
             crate::commands::project::resolve_file_entry,
             crate::commands::project::load_file_based_collection,
-            crate::commands::project::read_json_schema,
             crate::commands::project::scan_directory,
             crate::commands::project::count_collection_files_recursive,
             crate::commands::project::scan_collection_files_recursive,
@@ -70,7 +65,6 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             // diagnostics.rs commands
             crate::commands::diagnostics::get_app_version,
             crate::commands::diagnostics::get_platform_info,
-            crate::commands::diagnostics::get_app_info,
             // ide.rs commands
             crate::commands::ide::open_path_in_ide,
             // mdx_components.rs commands

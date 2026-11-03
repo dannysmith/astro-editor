@@ -3,8 +3,9 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
 import { useCollectionsQuery } from '../queries/useCollectionsQuery'
-import { useEditorActions } from '../editor/useEditorActions'
 import { CommandContext } from '../../lib/commands/types'
+import { queryClient } from '../../lib/query-client'
+import { queryKeys } from '../../lib/query-keys'
 
 /**
  * Creates command context from current app state
@@ -21,7 +22,6 @@ export function useCommandContext(): CommandContext {
   )
 
   // Primitive subscriptions
-  const isDirty = useEditorStore(state => state.isDirty)
   const closeCurrentFile = useEditorStore(state => state.closeCurrentFile)
 
   const selectedCollection = useProjectStore(state => state.selectedCollection)
@@ -36,9 +36,6 @@ export function useCommandContext(): CommandContext {
     state => state.toggleFrontmatterPanel
   )
 
-  // Get editor actions (Hybrid Action Hooks pattern)
-  const { saveFile } = useEditorActions()
-
   // Get collections data from TanStack Query
   const { data: collections = [] } = useCollectionsQuery(
     projectPath,
@@ -50,7 +47,6 @@ export function useCommandContext(): CommandContext {
     selectedCollection,
     collections, // Now properly populated from TanStack Query
     projectPath,
-    isDirty,
     globalSettings,
     createNewFile: () => {
       // Dispatch a custom event that Layout can listen to
@@ -60,15 +56,15 @@ export function useCommandContext(): CommandContext {
     setProject,
     toggleSidebar,
     toggleFrontmatterPanel,
-    saveFile,
     closeCurrentFile,
-    loadCollections: () => {
-      // Use custom event pattern since command context can't use React hooks
-      window.dispatchEvent(new CustomEvent('reload-collections'))
-    },
-    loadCollectionFiles: () => {
-      // Use custom event pattern since command context can't use React hooks
-      window.dispatchEvent(new CustomEvent('reload-collection-files'))
+    reloadCollections: async () => {
+      const { projectPath } = useProjectStore.getState()
+      if (!projectPath) return
+      // Everything read from the project: schemas, file lists and file content.
+      // A refetch never replaces unsaved edits (see useEditorFileContent)
+      await queryClient.invalidateQueries({
+        queryKey: [...queryKeys.all, projectPath],
+      })
     },
     openPreferences: () => {
       // Dispatch a custom event that Layout can listen to

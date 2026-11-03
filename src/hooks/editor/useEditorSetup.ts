@@ -11,7 +11,6 @@ import {
  * Hook for setting up editor extensions and commands
  */
 export const useEditorSetup = (
-  onSave: () => void,
   onFocus: () => void,
   onBlur: () => void,
   keymapHandlers?: KeymapHandlers
@@ -24,13 +23,9 @@ export const useEditorSetup = (
   })
 
   // Set up editor commands when editor view is available
-  const setupCommands = useCallback(
-    (editorView: EditorView) => {
-      const commands = createEditorCommandRegistry(onSave)
-      globalCommandRegistry.register(commands, editorView)
-    },
-    [onSave]
-  )
+  const setupCommands = useCallback((editorView: EditorView) => {
+    globalCommandRegistry.register(createEditorCommandRegistry(), editorView)
+  }, [])
 
   // Cleanup commands
   const cleanupCommands = useCallback(() => {

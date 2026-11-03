@@ -122,6 +122,26 @@ describe('FrontmatterField Orchestrator', () => {
 
       expect(screen.getByRole('textbox')).toBeInTheDocument()
     })
+
+    it('should edit objects without fixed fields as YAML', () => {
+      useEditorStore.setState({
+        frontmatter: { media: { kind: 'video', url: 'https://example.com' } },
+      })
+      const objectField: SchemaField = {
+        name: 'media',
+        label: 'Media',
+        type: FieldType.Object,
+        required: false,
+      }
+
+      renderWithProviders(
+        <FrontmatterField name="media" label="Media" field={objectField} />
+      )
+
+      expect(screen.getByRole('textbox')).toHaveValue(
+        JSON.stringify({ kind: 'video', url: 'https://example.com' }, null, 2)
+      )
+    })
   })
 
   describe('Array Field Detection without Schema', () => {
