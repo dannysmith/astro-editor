@@ -1225,7 +1225,7 @@ mod tests {
 
     #[test]
     fn test_parse_anyof_nullable_number() {
-        // Regression test for GitHub issue #68: z.number().nullish() was incorrectly
+        // Regression test: z.number().nullish() was once wrongly
         // typed as "string" instead of "number", causing values to be stringified on save
         let json_schema = r##"{
             "$ref": "#/definitions/locations",

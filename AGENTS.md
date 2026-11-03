@@ -28,6 +28,7 @@ These are for AI agents working with Danny.
 - **Use current docs.** Context7 first, then the web. Tauri **v2** only (v1 APIs differ and models default to them). Versions: React 19, TypeScript 7, Zustand 5, TanStack Query 5, Tailwind 4, shadcn 4 on Base UI, CodeMirror 6, Vite 8, Vitest 5.
 - **Rust:** modern formatting, `format!("{variable}")`. Clippy runs with `-D warnings` on all targets, tests included.
 - **Keep docs current.** When a change adds a pattern or invalidates one, update the doc in `docs/developer/`. Docs hold what the code can't say (reasons, constraints, gotchas); knowledge about one module goes in a comment next to it.
+- **Keep docs evergreen.** Describe how things are and why, not their history, and don't cite our own PRs or issues (a known bug is described, not linked). An upstream issue that explains a constraint, like tauri#9198, is fine.
 
 ## Rules
 
@@ -123,4 +124,4 @@ In `docs/developer/`. Read the ones for the area you're working in.
 
 ## Tasks
 
-Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date. Known bugs that the docs mention are collected in issue #347 until each is fixed.
+Tasks live in `docs/tasks-todo/` as `task-[number]-[name].md` (lowest number is next; `x` means unprioritised). When one is done, move it to `docs/tasks-done/` renamed `task-YYYY-MM-DD-[number]-[name].md` with the completion date. `docs/tasks-done/` is history, and often out of date.

@@ -46,7 +46,7 @@ const notes = defineCollection({
       description: z.string().optional(),
       pubDate: z.coerce.date().optional(),
       tags: z.array(z.string()).optional(),
-      // Nullable schema types for testing (Issue #68 follow-up)
+      // Nullable schema types for testing
       status: z.enum(['draft', 'review', 'published']).nullish(),
       keywords: z.array(z.string()).nullish(),
       scores: z.array(z.number()).nullish(),
