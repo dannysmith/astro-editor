@@ -3,12 +3,26 @@ import { screen, fireEvent, act } from '@testing-library/react'
 import { YamlField } from './YamlField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
+import type { FileEntry } from '@/types'
 
 const stored = () => useEditorStore.getState().frontmatter.embed
 
+const file: FileEntry = {
+  id: 'notes/first',
+  name: 'first',
+  path: '/project/src/content/notes/first.md',
+  extension: 'md',
+  collection: 'notes',
+  last_modified: null,
+  frontmatter: null,
+}
+
 describe('YamlField', () => {
   beforeEach(() => {
-    useEditorStore.setState({ frontmatter: { embed: { kind: 'video' } } })
+    useEditorStore.setState({
+      currentFile: file,
+      frontmatter: { embed: { kind: 'video' } },
+    })
     renderWithProviders(<YamlField name="embed" label="Embed" />)
   })
 
@@ -40,5 +54,19 @@ describe('YamlField', () => {
     expect(screen.getByRole('textbox')).toHaveValue(
       JSON.stringify({ kind: 'image' }, null, 2)
     )
+  })
+
+  it('drops an unfinished draft when another file opens', () => {
+    const box = screen.getByRole('textbox')
+    fireEvent.change(box, { target: { value: '{ "kind": "vid' } })
+    // Another file with the same value: the stored value doesn't change
+    act(() => {
+      useEditorStore.setState({
+        currentFile: { ...file, id: 'notes/other' },
+        frontmatter: { embed: { kind: 'video' } },
+      })
+    })
+
+    expect(box).toHaveValue(JSON.stringify({ kind: 'video' }, null, 2))
   })
 })

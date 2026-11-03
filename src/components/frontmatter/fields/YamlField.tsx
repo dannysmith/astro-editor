@@ -21,7 +21,8 @@ const toJson = (value: unknown): string =>
  * The text is a local draft, so it can be invalid JSON while the writer types;
  * the store only gets valid values. The draft is replaced when the stored value
  * changes some other way (another file, an outside edit), not by the writer's
- * own edits, which would reformat the text under the cursor.
+ * own edits, which would reformat the text under the cursor. Switching file
+ * always replaces it.
  */
 export const YamlField: React.FC<YamlFieldProps> = ({
   name,
@@ -30,6 +31,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
   field,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const fileId = useEditorStore(state => state.currentFile?.id)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
@@ -38,10 +40,13 @@ export const YamlField: React.FC<YamlFieldProps> = ({
 
   const valueJson = JSON.stringify(value ?? null)
   const [draft, setDraft] = React.useState(() => toJson(value))
-  // The stored value the draft matches, or was last written as
+  // The stored value the draft matches, or was last written as, and its file:
+  // another file starts afresh even if its value is the same
   const [draftValueJson, setDraftValueJson] = React.useState(valueJson)
-  if (valueJson !== draftValueJson) {
+  const [draftFileId, setDraftFileId] = React.useState(fileId)
+  if (valueJson !== draftValueJson || fileId !== draftFileId) {
     setDraftValueJson(valueJson)
+    setDraftFileId(fileId)
     setDraft(toJson(value))
     setError(null)
   }
