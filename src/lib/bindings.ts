@@ -10,14 +10,12 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	updateFormatMenuState: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("update_format_menu_state", { enabled })),
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
-	writeFile: (filePath: string, content: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("write_file", { filePath, content, projectRoot })),
 	createFile: (directory: string, filename: string, content: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, currentFilePath, useRelativePaths })),
 	copyFileToAssetsWithOverride: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string | null, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets_with_override", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
-	updateFrontmatter: (filePath: string, frontmatter: { [key in string]: Value }, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("update_frontmatter", { filePath, frontmatter, projectRoot })),
 	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
@@ -25,8 +23,6 @@ export const commands = {
 	writeAppDataFile: (filePath: string, content: string) => typedError<null, string>(__TAURI_INVOKE("write_app_data_file", { filePath, content })),
 	readAppDataFile: (filePath: string) => typedError<string, string>(__TAURI_INVOKE("read_app_data_file", { filePath })),
 	readFileContent: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file_content", { filePath, projectRoot })),
-	writeFileContent: (filePath: string, content: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("write_file_content", { filePath, content, projectRoot })),
-	createDirectory: (path: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("create_directory", { path, projectRoot })),
 	/**
 	 *  Checks if a file path is within the project directory
 	 * 
@@ -82,7 +78,6 @@ export const commands = {
 	 */
 	resolveFileEntry: (filePath: string, projectPath: string, contentDirectory: string | null) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath, contentDirectory })),
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
-	readJsonSchema: (projectPath: string, collectionName: string) => typedError<string, string>(__TAURI_INVOKE("read_json_schema", { projectPath, collectionName })),
 	/**  Scan a single directory (non-recursive) for subdirectories and markdown/mdx files */
 	scanDirectory: (directoryPath: string, collectionName: string, collectionRoot: string) => typedError<DirectoryScanResult, string>(__TAURI_INVOKE("scan_directory", { directoryPath, collectionName, collectionRoot })),
 	/**  Count all markdown/mdx files recursively in a collection */
@@ -98,7 +93,6 @@ export const commands = {
 	resetAllPreferences: () => typedError<null, string>(__TAURI_INVOKE("reset_all_preferences")),
 	getAppVersion: () => typedError<string, string>(__TAURI_INVOKE("get_app_version")),
 	getPlatformInfo: () => typedError<string, string>(__TAURI_INVOKE("get_platform_info")),
-	getAppInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("get_app_info")),
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),
 	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
 	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
@@ -133,11 +127,6 @@ export const commands = {
 };
 
 /* Types */
-export type AppInfo = {
-	version: string,
-	platform: string,
-};
-
 export type Collection = {
 	name: string,
 	path: string,

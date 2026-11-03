@@ -142,10 +142,6 @@ export type {
    */
   ComponentFramework,
   /**
-   * Application info (version, platform).
-   */
-  AppInfo,
-  /**
    * JSON-compatible value type (serde_json::Value).
    * Used for dynamic frontmatter data.
    */

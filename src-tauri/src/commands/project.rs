@@ -512,35 +512,6 @@ pub async fn load_file_based_collection(
     Ok(files)
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn read_json_schema(
-    project_path: String,
-    collection_name: String,
-) -> Result<String, String> {
-    let schema_path = PathBuf::from(&project_path)
-        .join(".astro")
-        .join("collections")
-        .join(format!("{collection_name}.schema.json"));
-
-    debug!(
-        "Astro Editor [JSON_SCHEMA] Reading JSON schema at: {}",
-        schema_path.display()
-    );
-
-    if !schema_path.exists() {
-        let err_msg = format!("JSON schema file not found: {}", schema_path.display());
-        debug!("Astro Editor [JSON_SCHEMA] {err_msg}");
-        return Err(err_msg);
-    }
-
-    std::fs::read_to_string(&schema_path).map_err(|e| {
-        let err_msg = format!("Failed to read JSON schema file: {e}");
-        error!("Astro Editor [JSON_SCHEMA] {err_msg}");
-        err_msg
-    })
-}
-
 /// Scan a single directory (non-recursive) for subdirectories and markdown/mdx files
 #[tauri::command]
 #[specta::specta]

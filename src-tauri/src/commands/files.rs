@@ -56,17 +56,6 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 
 #[tauri::command]
 #[specta::specta]
-pub async fn write_file(
-    file_path: String,
-    content: String,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    std::fs::write(&validated_path, content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn create_file(
     directory: String,
     filename: String,
@@ -306,27 +295,6 @@ pub async fn parse_markdown_content(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn update_frontmatter(
-    file_path: String,
-    frontmatter: IndexMap<String, Value>,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    let content = std::fs::read_to_string(&validated_path)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
-
-    let parsed = parse_frontmatter(&content)?;
-    let new_content = rebuild_markdown_with_frontmatter_and_imports(
-        &frontmatter,
-        &parsed.imports,
-        &parsed.content,
-    )?;
-
-    std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn save_markdown_content(
     file_path: String,
     frontmatter: Option<IndexMap<String, Value>>,
@@ -499,14 +467,6 @@ fn build_ordered_frontmatter(
 /// Parse YAML string to IndexMap using serde_norway
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
     serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
-}
-
-fn rebuild_markdown_with_frontmatter_and_imports(
-    frontmatter: &IndexMap<String, Value>,
-    imports: &str,
-    content: &str,
-) -> Result<String, String> {
-    rebuild_markdown_with_frontmatter_and_imports_ordered(frontmatter, imports, content, None)
 }
 
 /// Serialize a value to YAML format with proper indentation
@@ -813,31 +773,6 @@ pub async fn read_file_content(file_path: String, project_root: String) -> Resul
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn write_file_content(
-    file_path: String,
-    content: String,
-    project_root: String,
-) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-
-    // Create parent directories if they don't exist
-    if let Some(parent) = validated_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directories: {e}"))?;
-    }
-
-    std::fs::write(&validated_path, content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn create_directory(path: String, project_root: String) -> Result<(), String> {
-    let validated_path = validate_project_path(&path, &project_root)?;
-    std::fs::create_dir_all(&validated_path).map_err(|e| format!("Failed to create directory: {e}"))
-}
-
 /// Checks if a file path is within the project directory
 ///
 /// # Arguments
@@ -1101,40 +1036,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_write_file_success() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let thread_id = std::thread::current().id();
-        let project_root = temp_dir.join(format!("test_project_{timestamp}_{thread_id:?}"));
-        let test_file = project_root.join("test_write.md");
-        let test_content = "# Written Content\n\nThis was written by the test.";
-
-        // Create test structure
-        fs::create_dir_all(&project_root).unwrap();
-        fs::write(&test_file, "initial").unwrap(); // Create file first
-
-        let result = write_file(
-            test_file.to_string_lossy().to_string(),
-            test_content.to_string(),
-            project_root.to_string_lossy().to_string(),
-        )
-        .await;
-
-        assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-
-        // Verify content was written
-        let written_content = fs::read_to_string(&test_file).unwrap();
-        assert_eq!(written_content, test_content);
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&project_root);
-    }
-
-    #[tokio::test]
     async fn test_create_file_success() {
         let temp_dir = std::env::temp_dir();
         use std::time::{SystemTime, UNIX_EPOCH};
@@ -1357,7 +1258,8 @@ This is a test post with arrays."#;
         let content = "# Content\n\nThis is the content.";
 
         let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", content).unwrap();
+            rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
+                .unwrap();
 
         assert!(result.starts_with("---\n"));
         // serde_norway doesn't quote simple strings without special characters
@@ -1521,8 +1423,13 @@ Regular markdown content here."#;
         let imports = "import React from 'react';\nimport { Component } from './Component';";
         let content = "# Test\n\n<Component />";
 
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, imports, content).unwrap();
+        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            imports,
+            content,
+            None,
+        )
+        .unwrap();
 
         assert!(result.starts_with("---\n"));
         assert!(result.contains("title: Test"));
@@ -2148,8 +2055,8 @@ folded: >
     }
 
     #[tokio::test]
-    async fn test_update_frontmatter_preserves_mdx_imports() {
-        // Regression test for: update_frontmatter should not delete MDX imports
+    async fn test_frontmatter_edit_preserves_mdx_imports() {
+        // Regression test: editing frontmatter must not delete MDX imports
         let temp_dir = std::env::temp_dir();
         use std::time::{SystemTime, UNIX_EPOCH};
         let timestamp = SystemTime::now()
@@ -2184,9 +2091,16 @@ This is the main content."#;
         );
         new_frontmatter.insert("draft".to_string(), Value::Bool(true));
 
-        let result = update_frontmatter(
+        // Save as the editor does after a frontmatter edit: the imports and body
+        // come separately from the parsed file
+        let parsed = parse_frontmatter(original_content).unwrap();
+        let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
-            new_frontmatter,
+            Some(new_frontmatter),
+            None,
+            parsed.content,
+            parsed.imports,
+            None,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -2335,8 +2249,13 @@ Content"#;
         );
         frontmatter.insert("emoji".to_string(), Value::String("✨🎉🔥".to_string()));
 
-        let serialized =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+        let serialized = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            "",
+            "Content",
+            None,
+        )
+        .unwrap();
         let reparsed = parse_frontmatter(&serialized).unwrap();
 
         assert_eq!(reparsed.frontmatter.get("title").unwrap(), "🚀 Test 世界");
@@ -2435,8 +2354,13 @@ Content"#;
         let mut frontmatter = IndexMap::new();
         frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
 
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports(&frontmatter, "", "Content").unwrap();
+        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            "",
+            "Content",
+            None,
+        )
+        .unwrap();
 
         assert!(!result.contains("\r\n"), "Should use LF, not CRLF");
         assert!(result.contains('\n'), "Should have LF line endings");
