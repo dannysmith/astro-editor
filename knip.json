@@ -1,9 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/main.tsx", "src/styleguide/main.tsx"],
-  "project": ["src/**/*.{ts,tsx,css}"],
+  "entry": [
+    "src/main.tsx",
+    "src/styleguide/main.tsx",
+    "scripts/*.ts",
+    "scripts/starlight-components/generate.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx,css}", "scripts/**/*.ts"],
   "ignore": ["src/test/**"],
-  "ignoreDependencies": ["@testing-library/user-event"],
+  "ignoreDependencies": [
+    "@testing-library/user-event",
+    "baseline-browser-mapping"
+  ],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": true
 }

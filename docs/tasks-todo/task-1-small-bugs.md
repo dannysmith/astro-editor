@@ -2,7 +2,7 @@
 
 ## Status
 
-**Current Phase:** E. Code health
+**Current Phase:** Done, apart from Danny's checks
 **Branch:** small-bugs
 **Issue:** #347
 
@@ -45,7 +45,7 @@ Astro 7 generates schemas with Zod 4's `z.toJSONSchema`, which emits shapes the 
 
 16. [x] **Drop the direct `rfd` dependency.** `select_project_folder` calls `rfd::AsyncFileDialog` although `tauri-plugin-dialog` wraps `rfd` and has a Rust API. Since #362 our `rfd` is pinned to `gtk3` to avoid a Linux build clash; using the plugin removes the dependency and the pin. Retest Open Project
 17. [x] **React Compiler bailouts.** There were 16, not 4: besides real Rules of React violations, the compiler skips any component using `try`/`finally`, `throw` inside `try`, or `?:`/`&&`/`??` inside `try`. All fixed except the vendored shadcn `calendar.tsx`. Approach: data reads moved to TanStack queries (`useImageSrcQuery` for thumbnails and the Alt-hover preview; the Content Finder shares `collectionFiles` with the entry pickers); shared async work moved to `lib/files/images.ts`; the save and create-file bodies lifted to module-level functions, unchanged; short handlers use `.catch()`. `useCommandPalette` lost its hand-maintained dependency list and its side effects inside a state updater, and the palette context lost its unused `isDirty` and `saveFile`. `bun run compiler:check` (in `check:all`) now fails on any new bailout. Danny: try a rename from the sidebar's context menu (now `mutate` callbacks)
-18. [ ] **Unused code:** `mdxComponentsStore`, the `read_json_schema` command, `useDeleteFileMutation`, the editor registry's `save` and `addCursorsToLineEnds`, and `path-resolution.ts`'s `getEffective*` functions (nothing calls them; `collection-settings.ts` and `effective-settings.ts` do the same job). Do it last with the `codebase-hygiene` skill
+18. [x] **Unused code.** Removed after checking each was unused, with when it went dead (see the "Remove dead" commits): `useDeleteFileMutation`, `mdxComponentsStore`, `useTauriListeners`, the editor registry's `save` and `addCursorsToLineEnds`, four `path-resolution.ts` functions, unused types, and six Tauri commands (`write_file`, `write_file_content`, `create_directory`, `update_frontmatter`, `get_app_info`, `read_json_schema`). The sidebar's Delete now goes through `delete_file` (it called the fs plugin's `remove` directly). knip now covers `scripts/`. Kept: barrel files and vendored shadcn sub-exports
 
 ## Issues encountered
 
