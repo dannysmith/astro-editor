@@ -4,8 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { commands, type FileEntry } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
-/** Every Markdown and MDX file in a collection, including its subfolders */
-const fetchCollectionFiles = async (
+/**
+ * Every Markdown and MDX file in a collection, including its subfolders. Also
+ * the Content Finder's queryFn, which shares this cache
+ */
+export const fetchCollectionFiles = async (
   collectionPath: string,
   collectionName: string
 ): Promise<FileEntry[]> => {
