@@ -64,13 +64,18 @@ export function parseSlot(contents: string): number | null {
   return Number.isInteger(slot) && slot >= 1 && slot <= MAX_SLOT ? slot : null
 }
 
-/** The slot recorded in a worktree, or null if setup hasn't claimed a valid one. */
+/**
+ * The slot recorded in a worktree, or null if setup hasn't claimed a valid one.
+ * Throws if the file exists but can't be read, rather than treat its slot as free.
+ */
 export async function readSlotFile(root: string): Promise<number | null> {
-  try {
-    return parseSlot(await readFile(path.join(root, SLOT_FILE), 'utf8'))
-  } catch {
-    return null
-  }
+  const contents = await readFile(path.join(root, SLOT_FILE), 'utf8').catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return null
+      throw error
+    }
+  )
+  return contents === null ? null : parseSlot(contents)
 }
 
 /** The lowest slot from 1 to MAX_SLOT that isn't taken, or null if all are. */
