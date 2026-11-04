@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { identityFor, lowestFreeSlot } from './dev-slot'
+import { identityFor, lowestFreeSlot, parseSlot } from './dev-slot'
 
 const base = {
   identifier: 'is.danny.astroeditor.dev',
@@ -25,6 +25,18 @@ describe('identityFor', () => {
       port: 1440,
       title: 'Astro Editor (Dev 2 · new-naming)',
     })
+  })
+})
+
+describe('parseSlot', () => {
+  it('reads a worktree slot', () => {
+    expect(parseSlot('3\n')).toBe(3)
+  })
+
+  it('treats anything else as no slot, never the main checkout', () => {
+    for (const contents of ['', '0', '5', '1.5', 'abc']) {
+      expect(parseSlot(contents)).toBeNull()
+    }
   })
 })
 

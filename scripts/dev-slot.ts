@@ -31,7 +31,8 @@ export type DevIdentity = {
   title: string
 }
 
-function git(cwd: string, ...args: string[]): string {
+/** Runs git in `cwd` and returns its trimmed output. Throws if it fails. */
+export function git(cwd: string, ...args: string[]): string {
   const result = Bun.spawnSync(['git', ...args], { cwd })
   if (!result.success) {
     throw new Error(`git ${args.join(' ')} failed: ${result.stderr.toString()}`)
@@ -57,10 +58,16 @@ export function checkout(): Checkout {
   }
 }
 
-/** The slot recorded in a worktree, or null if setup hasn't claimed one. */
+/** A slot file's slot: 1 to MAX_SLOT, or null for anything else. */
+export function parseSlot(contents: string): number | null {
+  const slot = Number(contents.trim())
+  return Number.isInteger(slot) && slot >= 1 && slot <= MAX_SLOT ? slot : null
+}
+
+/** The slot recorded in a worktree, or null if setup hasn't claimed a valid one. */
 export async function readSlotFile(root: string): Promise<number | null> {
   try {
-    return Number((await readFile(path.join(root, SLOT_FILE), 'utf8')).trim())
+    return parseSlot(await readFile(path.join(root, SLOT_FILE), 'utf8'))
   } catch {
     return null
   }
@@ -89,6 +96,17 @@ export function identityFor(
   }
 }
 
+/** The dev identity a slot has in this checkout. */
+export async function slotIdentity(
+  slot: number,
+  current: Checkout
+): Promise<DevIdentity> {
+  const base = (await Bun.file(
+    path.join(current.root, 'src-tauri/tauri.dev.conf.json')
+  ).json()) as { identifier: string; productName: string }
+  return identityFor(slot, base, current.branch)
+}
+
 /** This checkout's dev identity. Throws in a worktree that hasn't been set up. */
 export async function devIdentity(
   current = checkout()
@@ -99,10 +117,7 @@ export async function devIdentity(
       `this worktree has no dev slot yet. Run \`bun run setup\` in ${current.root}`
     )
   }
-  const base = (await Bun.file(
-    path.join(current.root, 'src-tauri/tauri.dev.conf.json')
-  ).json()) as { identifier: string; productName: string }
-  return { ...identityFor(slot, base, current.branch), ...current }
+  return { ...(await slotIdentity(slot, current)), ...current }
 }
 
 const shellQuote = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`
