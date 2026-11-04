@@ -22,7 +22,8 @@ Product principles (from `website/src/content/docs/getting-started/philosophy.md
 These are for AI agents working with Danny.
 
 - **Start of a session:** check `docs/tasks-todo/` for the current task, and `git status`. Read `docs/developer/architecture-guide.md` before changing anything structural, and the area doc for what you're touching.
-- **Never start a dev server.** Danny keeps `bun run tauri:dev` running. To see the app, use `bun run app` (the `app-control` skill). If it isn't running, ask.
+- **Never start a dev server.** Danny keeps `bun run tauri:dev` running in each checkout. To see the app, use `bun run app` (the `app-control` skill). If it isn't running, ask.
+- **You may be in a git worktree.** Your checkout is `git rev-parse --show-toplevel`: work only there, never in the main checkout or another worktree. `bun run app` always talks to this checkout's own dev app (`app status` shows its slot and branch). A new worktree needs `bun run setup` once (worktrunk runs it). Branch from `origin/main` unless told the work is stacked, and never commit to `main` from a worktree. See "Worktrees and dev slots" in `agent-tooling.md`.
 - **Commit only when asked.** Delete files with `rm -f` (`rm` is interactive in Danny's shell).
 - **Before finishing significant work:** check it against the architecture guide, remove debug code and leftovers from abandoned approaches, run `bun run check:all` and fix everything it reports.
 - **Use current docs.** Context7 first, then the web. Tauri **v2** only (v1 APIs differ and models default to them). Versions: React 19, TypeScript 7, Zustand 5, TanStack Query 5, Tailwind 4, shadcn 4 on Base UI, CodeMirror 6, Vite 8, Vitest 5.
@@ -56,10 +57,10 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `project-registry/` (settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
-- `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`), dev only
+- `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only
 - `src-tauri/src/`: Rust: `commands/` (one file per area), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `agent_bridge/` (dev only)
 - `test/`: Astro projects for manual and agent testing. Work in the gitignored copy, `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`
-- `scripts/`: the `app` CLI, release script and dev launcher
+- `scripts/`: the `app` CLI, release script, dev launcher, dev slots and setup
 
 Naming: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports.
 
@@ -89,7 +90,8 @@ bun run test            # Vitest in watch mode (test:run once; rust:test for car
 bun run app help        # drive, inspect and screenshot the running dev app
 bun run app logs        # recent warnings and errors from Rust, the webview and tauri:dev
 bun run reset:testdata  # reset temp-dummy-astro-project from test/
-bun run tauri:dev       # the dev app (agents: Danny keeps it running; never start it)
+bun run setup           # get a checkout ready; in a worktree, claim a dev slot and clone the Rust build
+bun run tauri:dev       # this checkout's dev app (agents: Danny keeps it running; never start it)
 ```
 
 Dev builds run as a separate app (`is.danny.astroeditor.dev`, "Astro Editor Dev") with their own settings, data and logs, so they never touch the installed app. See `docs/developer/agent-tooling.md`.

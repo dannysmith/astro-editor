@@ -4,7 +4,7 @@ Dev builds include tooling that lets coding agents (and you) see and drive the r
 
 ## Dev identity
 
-`bun run tauri:dev` runs `scripts/tauri-dev.sh`, which applies `src-tauri/tauri.dev.conf.json`. That overlay gives dev builds their own identifier (`is.danny.astroeditor.dev`) and product name ("Astro Editor Dev"), so they get their own:
+`bun run tauri:dev` runs `scripts/tauri-dev.sh`, which applies `src-tauri/tauri.dev.conf.json` and then an overlay for the checkout's dev slot (below). In the main checkout that gives dev builds their own identifier (`is.danny.astroeditor.dev`) and product name ("Astro Editor Dev"), so they get their own:
 
 - app data and preferences: `~/Library/Application Support/is.danny.astroeditor.dev/`
 - logs: `~/Library/Logs/is.danny.astroeditor.dev/`
@@ -12,7 +12,26 @@ Dev builds include tooling that lets coding agents (and you) see and drive the r
 
 The installed app and the dev build can run side by side without touching each other's state. Keep window settings out of the overlay (see Tauri config in `cross-platform.md`).
 
-The identity comes from the overlay; the agent bridge, telemetry skip and window title depend on it being a debug build. `tauri:dev` gives you both. Debug builds skip telemetry and the automatic update check, and title the window "Astro Editor (Dev)".
+The identity comes from the overlay; the agent bridge, telemetry skip and window title depend on it being a debug build. `tauri:dev` gives you both. Debug builds skip telemetry and the automatic update check, and title the window with the slot and branch, e.g. "Astro Editor (Dev · main)". The branch is the one checked out when `tauri:dev` started.
+
+### Worktrees and dev slots
+
+Each git worktree of the repo can run its own dev app alongside the others. `scripts/dev-slot.ts` works out which one a checkout owns, so `tauri:dev` and `bun run app` need no flags or setup beyond `bun run setup`, and it doesn't matter what created the worktree.
+
+| Slot | Checkout       | Identifier                    | Product name       | Vite port  |
+| ---- | -------------- | ----------------------------- | ------------------ | ---------- |
+| 0    | main           | `is.danny.astroeditor.dev`    | Astro Editor Dev   | 1420       |
+| 1–4  | a worktree     | `is.danny.astroeditor.dev<n>` | Astro Editor Dev n | 1420 + 10n |
+
+- **The identifier** gives each slot its own app data (and so agent bridge file), logs and single-instance socket. Two dev apps with the same identifier would share preferences, and the second would hand over to the first and quit. WKWebView storage (theme, panel sizes) is keyed by origin, so the port separates it too.
+- **The main checkout** is the one whose `git rev-parse --git-dir` is the shared `--git-common-dir`. It's always slot 0 and needs no file.
+- **A worktree** gets its slot from `bun run setup` (`scripts/setup.ts`), which takes the lowest one no other worktree has and whose Vite port is free (a removed worktree's dev app may still be running), and writes it to `dev-slot.local` (gitignored by `*.local`). Removing the worktree frees it. A slot file that doesn't hold 1–4 counts as no slot. `tauri:dev` in a worktree without one stops and says to run setup, rather than clash with slot 0.
+- **Setup** also empties the slot's app data when it claims it (before writing the slot file, so an interrupted run does it again), so a reused slot doesn't start with the last branch's preferences or recovery files, and clones the main checkout's `src-tauri/target/` and `.serena/` with `cp -cR` (APFS copy-on-write). Cargo doesn't hash absolute paths, so the first build in a new worktree recompiles only the app crate. Don't share one `CARGO_TARGET_DIR` instead: builds would queue on Cargo's lock and replace each other's running binary.
+- **`tauri:dev`** passes the slot's identifier, product name and `build.devUrl` as a second `--config`, and the port to Vite in `ASTRO_EDITOR_DEV_PORT` (the HMR port in `vite.config.ts` is only used with `TAURI_DEV_HOST`). The window title arrives in `ASTRO_EDITOR_DEV_TITLE`.
+
+Worktrees go next to the main checkout, not inside it, or the main checkout's Vite watcher and Vitest would pick up their files. `.config/wt.toml` makes [worktrunk](https://worktrunk.dev) run setup when it creates one: `wt switch -c <branch> -x claude` makes `../astro-editor.<branch>`, sets it up and starts Claude there. Claude's own `claude -w` puts worktrees in `.claude/worktrees/`, so keep it for throwaway subagent work. Each worktree's dev app is started by hand with `bun run tauri:dev` in a terminal of its own.
+
+The sandbox in `.claude/settings.json` lists each slot's app data folder (`is.danny.astroeditor.dev` to `.dev4`) so agents in any slot can reach their app's bridge file. They're listed one by one because a `*` pattern there matches the folder but not the files inside it. Keep the list in step with `MAX_SLOT`.
 
 ## Agent bridge
 
@@ -37,7 +56,7 @@ To add an app action, add a method to `createAgentApi` (or `createPageApi` if it
 
 ## Styleguide
 
-`styleguide.html` and `src/styleguide/` make up a second Vite entry. Vite only builds `index.html`, so it never ships. It shows every UI component the app uses, in each state. One section per page (`?section=<id>`) fits the dev window, so each can be screenshotted whole; overlays are rendered open on their own pages. `bun run app styleguide` shoots every section in both themes. The styleguide runs inside the dev app's webview, so Tauri calls work; it also opens in a browser at `localhost:1420/styleguide.html`.
+`styleguide.html` and `src/styleguide/` make up a second Vite entry. Vite only builds `index.html`, so it never ships. It shows every UI component the app uses, in each state. One section per page (`?section=<id>`) fits the dev window, so each can be screenshotted whole; overlays are rendered open on their own pages. `bun run app styleguide` shoots every section in both themes. The styleguide runs inside the dev app's webview, so Tauri calls work; it also opens in a browser at `localhost:1420/styleguide.html` (or the slot's port in a worktree).
 
 When you add or change a shared component, add it to a section in `src/styleguide/sections.tsx`.
 
@@ -63,7 +82,7 @@ What to ask users for when they report a problem is on the website's troubleshoo
 
 ### Dev logs
 
-Dev logs go to `~/Library/Logs/is.danny.astroeditor.dev/`:
+Dev logs go to `~/Library/Logs/is.danny.astroeditor.dev/` (`.dev<n>` for a worktree's slot):
 
 - **`Astro Editor Dev.log`:** Rust `log` output and webview logging. In dev builds `console.*` is forwarded there too, marked `[console]` (`lib/agent-bridge/console.ts`). It rotates like the release log.
 - **`tauri-dev.log`:** the `tauri:dev` terminal output (Vite and cargo), replaced on each run

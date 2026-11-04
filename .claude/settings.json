@@ -18,9 +18,19 @@
     "filesystem": {
       "allowRead": [
         "~/Library/Application Support/is.danny.astroeditor",
-        "~/Library/Application Support/is.danny.astroeditor.dev"
+        "~/Library/Application Support/is.danny.astroeditor.dev",
+        "~/Library/Application Support/is.danny.astroeditor.dev1",
+        "~/Library/Application Support/is.danny.astroeditor.dev2",
+        "~/Library/Application Support/is.danny.astroeditor.dev3",
+        "~/Library/Application Support/is.danny.astroeditor.dev4"
       ],
-      "allowWrite": ["~/Library/Application Support/is.danny.astroeditor.dev"]
+      "allowWrite": [
+        "~/Library/Application Support/is.danny.astroeditor.dev",
+        "~/Library/Application Support/is.danny.astroeditor.dev1",
+        "~/Library/Application Support/is.danny.astroeditor.dev2",
+        "~/Library/Application Support/is.danny.astroeditor.dev3",
+        "~/Library/Application Support/is.danny.astroeditor.dev4"
+      ]
     }
   }
 }

@@ -43,9 +43,10 @@ export default defineConfig(async () => ({
   //
   // 1. prevent vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  // 2. tauri expects a fixed port, fail if that port is not available. `tauri:dev`
+  // sets it per dev slot (scripts/dev-slot.ts), so each worktree gets its own
   server: {
-    port: 1420,
+    port: Number(process.env.ASTRO_EDITOR_DEV_PORT ?? 1420),
     strictPort: true,
     host: host || false,
     hmr: host

@@ -14,12 +14,27 @@ You'll need:
 Then:
 
 ```bash
-bun install
-bun run reset:testdata  # creates temp-dummy-astro-project, a test Astro project
-bun run tauri:dev       # runs the app
+bun run setup      # installs dependencies and creates temp-dummy-astro-project, a test Astro project
+bun run tauri:dev  # runs the app
 ```
 
-Open `temp-dummy-astro-project` in the app to try things out.
+Open `temp-dummy-astro-project` in the app to try things out. `bun run reset:testdata` puts it back as it was.
+
+## Working on several things at once
+
+Each git worktree of the repo runs its own dev app alongside the others, with its own app data, logs and port. The easiest way to manage them is [worktrunk](https://worktrunk.dev) (`brew install worktrunk && wt config shell install`):
+
+```bash
+wt switch -c my-branch -x claude  # new worktree at ../astro-editor.my-branch, set up, with Claude started in it
+cd ../astro-editor.my-branch && bun run tauri:dev # in another terminal in that worktree: opens "Astro Editor Dev 1" (or 2–4)
+code ../astro-editor.my-branch    # its own VS Code window
+
+wt list                           # all worktrees
+wt switch my-branch               # go back to one
+wt remove my-branch               # when its PR has merged: delete the worktree and branch, freeing its dev slot
+```
+
+Without worktrunk, `git worktree add ../astro-editor.my-branch -b my-branch origin/main`, then run `bun run setup` in the new folder. Keep worktrees next to the repo, not inside it. Up to four worktrees can have dev slots at once, and `bun run app status` shows which slot a checkout has. See "Worktrees and dev slots" in `docs/developer/agent-tooling.md`.
 
 ## Making changes
 

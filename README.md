@@ -110,9 +110,16 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) and [developer docs](docs/developer/
 **Quick start:**
 
 ```bash
-bun install
-bun run reset:testdata  # Creates test Astro project
+bun run setup       # Installs dependencies and creates a test Astro project
 bun run tauri:dev   # Starts dev server
+```
+
+**A new worktree** (each runs its own dev app; see [CONTRIBUTING.md](docs/CONTRIBUTING.md#working-on-several-things-at-once)):
+
+```bash
+wt switch -c my-branch -x claude   # Creates ../astro-editor.my-branch, sets it up and starts Claude
+bun run tauri:dev                  # In another terminal in that worktree
+wt remove my-branch                # Once its PR has merged
 ```
 
 **Development commands:**
