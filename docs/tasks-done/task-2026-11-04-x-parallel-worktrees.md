@@ -18,7 +18,7 @@ Left for Danny, since they're outside what Claude may change:
 - [x] `brew install worktrunk && wt config shell install`
 - [x] VS Code user settings: `git.detectWorktrees: true`, and `${activeRepositoryBranchName}` in `window.title`
 - [ ] Restart `tauri:dev` in the main checkout (one app-crate rebuild) and check the title reads "Astro Editor (Dev · <branch>)". Restarted and rebuilt; title still to check once the sandbox fix is in
-- [ ] Try it for real: `wt switch -c <branch> -x claude`, approve the hook, run `bun run tauri:dev` in the new worktree, and check both apps run and `bun run app status` in each finds its own
+- [x] Try it for real: `wt switch -c <branch> -x claude`, approve the hook, run `bun run tauri:dev` in the new worktree, and check both apps run and `bun run app status` in each finds its own
 
 ## What blocked a second dev app
 
