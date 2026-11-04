@@ -52,7 +52,9 @@ pub fn run() {
     // The single-instance plugin MUST be registered first. On Windows/Linux a deep
     // link spawns a new process with the URL as a CLI argument; this plugin forwards
     // that to the already-running instance (via the `deep-link` feature) and focuses
-    // it, instead of opening a second window. macOS is already single-instance.
+    // it, instead of opening a second window. On macOS, Launch Services keeps a bundled
+    // app single-instance; `tauri dev` runs the binary directly, so there the plugin's
+    // socket (named after the identifier) is what stops a second copy of a dev slot.
     #[cfg(desktop)]
     {
         tauri_builder =
@@ -125,10 +127,13 @@ pub fn run() {
                 });
             }
 
-            // Make the dev build easy to tell apart in Mission Control and the Window menu
+            // Make the dev build easy to tell apart in Mission Control and the Window menu.
+            // `tauri:dev` passes a title naming the checkout's dev slot and branch.
             #[cfg(debug_assertions)]
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_title("Astro Editor (Dev)");
+                let title = std::env::var("ASTRO_EDITOR_DEV_TITLE")
+                    .unwrap_or_else(|_| "Astro Editor (Dev)".to_string());
+                let _ = window.set_title(&title);
             }
 
             #[cfg(debug_assertions)]

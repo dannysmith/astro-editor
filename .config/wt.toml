@@ -1,0 +1,5 @@
+# worktrunk (https://worktrunk.dev) project hooks. `wt switch -c <branch>`
+# creates a worktree next to this checkout; setup gets it ready (dependencies, a
+# dev slot, a clone of the Rust build) before anything runs in it.
+[pre-start]
+setup = "bun run setup"

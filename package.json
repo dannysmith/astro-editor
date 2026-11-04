@@ -40,6 +40,7 @@
     "test:all": "bun run test:run && bun run rust:test",
     "check:all": "bun run typecheck && bun run lint && bun run ast:lint && bun run compiler:check && bun run format:check && bun run rust:fmt:check && bun run rust:clippy && bun run test:run && bun run rust:test",
     "fix:all": "bun run lint:fix && bun run ast:fix && bun run format && bun run rust:fmt && bun run rust:clippy:fix",
+    "setup": "bun scripts/setup.ts",
     "reset:testdata": "rm -rf temp-dummy-astro-project && cp -r test/dummy-astro-project temp-dummy-astro-project",
     "prepare-release": "node scripts/prepare-release.js",
     "test-build": "node scripts/test-build.js",

@@ -13,12 +13,14 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import type { Target } from '../src/lib/agent-bridge/page'
 import { diffShots } from './app-diff'
+import { devIdentity } from './dev-slot'
 import { parseDuration, parseLevel, readCrashes, readLogs } from './app-logs'
 
 const USAGE = `Usage: bun run app <command> [args] [flags]
 
 Looking
-  status                  App name, version, window size and theme
+  status                  App name, version, window size and theme, and the
+                          checkout, branch and dev slot it belongs to
   state                   Project, file, panels, theme, editor, dialogs and toasts
   tree                    Outline of the visible UI. Controls get [n] refs for click/fill
   shot [name]             PNGs of the window, light then dark, in docs/tasks-todo/temporary
@@ -113,20 +115,12 @@ const exists = (p: string) =>
     () => false
   )
 
-/** The dev app's identity, which decides where its data and logs live. */
-async function devConfig() {
-  const config = path.join(root, 'src-tauri/tauri.dev.conf.json')
-  return (await Bun.file(config).json()) as {
-    identifier: string
-    productName: string
-  }
-}
-
 // The bridge writes its port and token to the dev app's data dir on startup.
+// The dev identity (from this checkout's dev slot) decides which app that is.
 let bridge: BridgeInfo | undefined
 async function bridgeInfo(): Promise<BridgeInfo> {
   if (bridge) return bridge
-  const { identifier } = await devConfig()
+  const { identifier, root: checkoutRoot } = await devIdentity()
   const file = Bun.file(
     path.join(
       homedir(),
@@ -137,7 +131,7 @@ async function bridgeInfo(): Promise<BridgeInfo> {
   )
   if (!(await file.exists())) {
     throw new Error(
-      "the dev app isn't running. Start it with `bun run tauri:dev`"
+      `the dev app isn't running. Start it with \`bun run tauri:dev\` in ${checkoutRoot}`
     )
   }
   bridge = (await file.json()) as BridgeInfo
@@ -337,9 +331,11 @@ const commands: Record<string, () => Promise<void>> = {
       '/health'
     )
     const window = await call<WindowInfo>('GET', '/window')
+    const identity = await devIdentity()
     print(
       `${health.app} ${health.version} (pid ${health.pid})\n` +
-        `window ${window.width}x${window.height} @${window.scale}x, ${window.theme}`
+        `window ${window.width}x${window.height} @${window.scale}x, ${window.theme}\n` +
+        `slot ${identity.slot}, port ${identity.port}, ${identity.branch} in ${identity.root}`
     )
   },
 
@@ -487,7 +483,7 @@ const commands: Record<string, () => Promise<void>> = {
   },
 
   async logs() {
-    const { identifier, productName } = await devConfig()
+    const { identifier, productName } = await devIdentity()
     if (flags.crashes) {
       print(await readCrashes([productName, 'Astro Editor']))
       return

@@ -8,7 +8,19 @@ The aim is for each checkout to identify itself: the dev launcher and `bun run a
 
 The same pattern should carry over to Danny's other Tauri, web and Xcode projects, so keep the approach generic where it costs nothing.
 
-## What blocks a second dev app today
+## Status
+
+Built: dev slots (`scripts/dev-slot.ts`, used by `tauri-dev.sh`, `bun run app` and Vite), the window title, `bun run setup` (`scripts/setup.ts`), `.config/wt.toml`, and the docs (`agent-tooling.md`, `AGENTS.md`, `app-control` skill). Tested with two throwaway worktrees: slots 1 and 2 claimed, rerunning setup keeps the slot, the Rust build clones in about a second, and `bun run app` in a worktree looks for that worktree's app.
+
+Left for Danny, since they're outside what Claude may change:
+
+- [x] `.claude/settings.json` sandbox: list `is.danny.astroeditor.dev` and `.dev1` to `.dev4` in `allowRead` and `allowWrite` (auto mode refuses Claude editing its own sandbox). A `is.danny.astroeditor.dev*` glob let Claude list the folders but not read the files in them, so `bun run app` couldn't read the bridge file.
+- [x] `brew install worktrunk && wt config shell install`
+- [x] VS Code user settings: `git.detectWorktrees: true`, and `${activeRepositoryBranchName}` in `window.title`
+- [ ] Restart `tauri:dev` in the main checkout (one app-crate rebuild) and check the title reads "Astro Editor (Dev · <branch>)". Restarted and rebuilt; title still to check once the sandbox fix is in
+- [ ] Try it for real: `wt switch -c <branch> -x claude`, approve the hook, run `bun run tauri:dev` in the new worktree, and check both apps run and `bun run app status` in each finds its own
+
+## What blocked a second dev app
 
 - **Vite port:** `vite.config.ts` uses port 1420 with `strictPort`, and `src-tauri/tauri.conf.json` hardcodes `devUrl: http://localhost:1420`. A second instance fails immediately.
 - **Single-instance plugin:** `src-tauri/src/lib.rs` registers it on every desktop platform. On macOS it uses a socket named after the identifier (`/tmp/<identifier>_si.sock`), so a second dev app with the same identifier hands off to the first and quits. The comment there ("macOS is already single-instance") only holds for apps launched from Finder; `tauri dev` runs the binary directly.
@@ -35,7 +47,7 @@ The main checkout keeps today's identity (slot 0). Each worktree claims the lowe
 - `scripts/tauri-dev.sh` reads the slot and passes an inline overlay with `tauri dev -c` (identifier, productName, `build.devUrl`); `-c` can be given more than once and merges in order, after `tauri.dev.conf.json`. Vite reads its port from an env var the script sets (`beforeDevCommand` inherits it). `tauri dev --port` doesn't help: it only sets Tauri's built-in static server. The HMR port (1421) needs nothing: `vite.config.ts` only uses it when `TAURI_DEV_HOST` is set, for mobile; otherwise HMR shares the server port.
 - `scripts/app.ts` reads the slot alongside `devConfig()`, so `bun run app` in any checkout finds that checkout's bridge, data and logs. `app status` prints the checkout path, branch and slot.
 - The window title shows the slot and branch, e.g. "Astro Editor (Dev 2 · branch-name)". `lib.rs` already sets the dev title at runtime; build it from the product name plus a branch env var the launcher sets (captured at launch).
-- Add `is.danny.astroeditor.dev*` to the sandbox `allowRead`/`allowWrite` in `.claude/settings.json` (and Danny's global sandbox list). Globs work in all four `sandbox.filesystem` lists on macOS. `~/Library/Logs` is already readable.
+- List each slot's app data folder in the sandbox `allowRead`/`allowWrite` in `.claude/settings.json`. The docs say globs work, but `is.danny.astroeditor.dev*` only matched the folders themselves, not their contents. `~/Library/Logs` is already readable.
 - When setup claims a slot, it empties that slot's app data folder so a reused slot doesn't inherit the last branch's preferences, window state and recovery files. Don't copy slot 0's preferences: agents work in the test vault anyway.
 - Update `docs/developer/agent-tooling.md` (dev identity section) and the `app-control` skill.
 

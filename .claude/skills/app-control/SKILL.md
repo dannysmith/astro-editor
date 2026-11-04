@@ -7,7 +7,9 @@ description: See and drive the running Astro Editor dev app with `bun run app`, 
 
 `bun run app` drives the dev app that Danny keeps running with `bun run tauri:dev`. It talks to a debug-only bridge inside the app over localhost, so it works from the sandbox, doesn't need the app focused and never steals focus. Run `bun run --silent app help` for every command and flag (`--silent` drops bun's script echo).
 
-**Never start the dev server.** If `app status` says the app isn't running, ask Danny to start `bun run tauri:dev`. After Rust changes, `tauri dev` rebuilds and restarts the app by itself; poll `app status` until it answers.
+**Never start the dev server.** If `app status` says the app isn't running, ask Danny to start `bun run tauri:dev` in your checkout (the error names it). After Rust changes, `tauri dev` rebuilds and restarts the app by itself; poll `app status` until it answers.
+
+**Worktrees:** every checkout has its own dev app (a dev slot), and `bun run app` always drives the one for the checkout it runs in, so you never drive another session's app. `app status` shows the slot, port and branch. The screenshots, the test vault and the logs are this checkout's too.
 
 ## The loop for UI work
 
@@ -22,7 +24,7 @@ Always check light **and** dark (`shot` does both by default). Give shots descri
 
 | Command | What it does |
 | --- | --- |
-| `status` | App, version, window size and theme |
+| `status` | App, version, window size and theme, and the checkout's slot, port and branch |
 | `state` | Project, file, dirty flag, panels, modes, theme, editor selection, open dialogs and toasts |
 | `tree` | Outline of the visible UI. Controls get `[n]` refs for `click @n` and `fill @n` |
 | `shot [name]` | Light and dark PNGs. `--theme=light\|dark`, `--size=WxH` |
@@ -45,7 +47,7 @@ Always check light **and** dark (`shot` does both by default). Give shots descri
 
 ## Styleguide
 
-`localhost:1420/styleguide.html` shows every UI component the app uses in each state, one section per page (`?section=<id>`), overlays rendered open. Use `app styleguide` (or `app styleguide select menus`) when changing shared components. To compare, shoot a baseline first (`app styleguide --out=docs/tasks-todo/temporary/baseline`), make the change, shoot again, then run `app diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary`. It pairs each baseline shot with the newest shot of the same name, reports which are the same and boxes what changed (in image pixels, 2x on retina). Repeat shots of an unchanged page are pixel-identical, so any difference is real; look at the diff image (`docs/tasks-todo/temporary/diff/`) and the new shot to judge it. After `goto /styleguide.html?section=…`, `tree`, `click` and `key` work there too. Sections live in `src/styleguide/`; add to them when adding components.
+`localhost:1420/styleguide.html` (the slot's port in a worktree) shows every UI component the app uses in each state, one section per page (`?section=<id>`), overlays rendered open. Use `app styleguide` (or `app styleguide select menus`) when changing shared components. To compare, shoot a baseline first (`app styleguide --out=docs/tasks-todo/temporary/baseline`), make the change, shoot again, then run `app diff docs/tasks-todo/temporary/baseline docs/tasks-todo/temporary`. It pairs each baseline shot with the newest shot of the same name, reports which are the same and boxes what changed (in image pixels, 2x on retina). Repeat shots of an unchanged page are pixel-identical, so any difference is real; look at the diff image (`docs/tasks-todo/temporary/diff/`) and the new shot to judge it. After `goto /styleguide.html?section=…`, `tree`, `click` and `key` work there too. Sections live in `src/styleguide/`; add to them when adding components.
 
 ## Logs
 
