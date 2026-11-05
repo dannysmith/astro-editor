@@ -22,7 +22,7 @@ import {
   useComponentBuilderStore,
   type ClientDirective,
 } from '../../store/componentBuilderStore'
-import { useProjectStore } from '../../store/projectStore'
+import { useResolvedProjectSettings } from '../../hooks/settings'
 import {
   buildPreview,
   insertsAsBlock,
@@ -201,9 +201,8 @@ function ImportRow() {
   const planning = useComponentBuilderStore(state => state.planning)
   const addImport = useComponentBuilderStore(state => state.addImport)
   const setAddImport = useComponentBuilderStore(state => state.setAddImport)
-  const addsImports = useProjectStore(
-    state => state.currentProjectSettings?.addComponentImports ?? false
-  )
+  const addsImports =
+    useResolvedProjectSettings()?.addComponentImports.value ?? false
 
   // Holds the row's place while the first plan is worked out, so Insert
   // doesn't move under the pointer

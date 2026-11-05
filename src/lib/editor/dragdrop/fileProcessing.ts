@@ -1,8 +1,7 @@
 import { ProcessedFile } from './types'
-import { useProjectStore } from '../../../store/projectStore'
 import { useEditorStore } from '../../../store/editorStore'
 import { processFileToAssets, IMAGE_EXTENSIONS_WITH_DOTS } from '../../files'
-import { getCollectionSettings } from '../../project-registry'
+import { assetSettings } from '../../project-scan'
 
 /**
  * Check if a file is an image based on its extension
@@ -67,16 +66,7 @@ export const processDroppedFile = async (
   const isImage = isImageFile(filename)
 
   try {
-    // Get current file and settings
-    const { currentProjectSettings } = useProjectStore.getState()
     const { currentFile } = useEditorStore.getState()
-
-    // Get path preference (defaults to true if not set)
-    const effectiveSettings = getCollectionSettings(
-      currentProjectSettings,
-      collection
-    )
-    const useRelativePaths = effectiveSettings.useRelativeAssetPaths
 
     // Current file must be open for drag-and-drop to work
     if (!currentFile) {
@@ -88,10 +78,9 @@ export const processDroppedFile = async (
       sourcePath: filePath,
       projectPath,
       collection,
-      projectSettings: currentProjectSettings,
       copyStrategy: 'always',
       currentFilePath: currentFile.path,
-      useRelativePaths,
+      ...assetSettings(collection),
     })
 
     // Format as markdown (editor-specific concern)

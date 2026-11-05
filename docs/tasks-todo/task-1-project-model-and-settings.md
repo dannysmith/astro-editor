@@ -4,6 +4,16 @@ GitHub: #82, #361
 
 The first of four tasks reworking project and collection settings: this one, then the project list (task 2), the project settings dialog (task 3) and new file naming (task 4). This one changes what AE reads from a project and what it stores. Tasks 2 and 3 build the UI on it.
 
+## Status
+
+Built, on the `project-model-and-settings` branch: everything in Work below except the release notes. `check:all` passes, and it's been tried in the dev app with the test vault and `test/unusual-structure`.
+
+Where the build differs from the plan:
+
+- **Folders without entries** are found by walking each subfolder until the first entry, not once per collection scan.
+- **New files** get their name from a Rust command, `new_file_name`, and `create_file` now makes the folder for `<name>/index.md`.
+- **The Collections pane** also has the folder and skipped files settings, and lists collections whose folder is missing so it can be set.
+
 ## Problem
 
 - **AE's collections aren't Astro's.** `parse_collection_definitions` (`src-tauri/src/parser.rs`) takes collection names from the config, ignores each loader's `base` and `pattern`, and looks for `<content dir>/<name>`. Collections without that folder vanish silently, and if none match, every subfolder of the content dir becomes a collection. Sites with content elsewhere (#81) show nothing.
@@ -125,39 +135,39 @@ Collections are keyed by their Astro name. Settings for a collection that's no l
 
 ### Reading the project (Rust)
 
-- [ ] Find the config using Astro's names and order, in one place used by the scan, the watcher (`watcher.rs` has its own list) and `load_file_based_collection` (which also needs `loader: file(` to come first). Watch every candidate path, so a config created or renamed later is picked up.
-- [ ] Read every form of the `collections` export: shorthand (`{ blog }`), keyed (`{ posts: blog }`, `{ 'my-blog': blog }`), inline `defineCollection`, and mixtures of these. Follow identifiers to `const x = defineCollection(...)`, and to `const loader = glob(...)` if it's cheap.
-- [ ] Parse loaders as above: the folder, its source, and whether it exists.
-- [ ] Replace `complete_schema` with a collection status: the loader kind, the folder and its source, and the schema status with any error. Report config-level problems too.
-- [ ] Filter `scan_directory`, the recursive scans and the file counts by the pattern. Match Astro's matcher: turn on `globset`'s `literal_separator` so `*` doesn't cross `/`, strip `./` prefixes and trailing slashes from patterns, and skip dot folders. Treat patterns `globset` can't parse, such as extglobs like `@(md|mdx)`, as unreadable.
-- [ ] Make entry ids relative to `base` (`FileEntry.id` and `astroEntryId`).
-- [ ] Make `resolve_file_entry` (deep links) pick the owning collection by pattern, not just folder.
-- [ ] Make new file names match the pattern, as above.
-- [ ] Watch each collection folder, plus the config and `.astro/collections/`. Skip `node_modules`, `.git`, `dist` and `.astro` when a folder is the project root.
-- [ ] Keep the folder fallback, and report it as such.
+- [x] Find the config using Astro's names and order, in one place used by the scan, the watcher (`watcher.rs` has its own list) and `load_file_based_collection` (which also needs `loader: file(` to come first). Watch every candidate path, so a config created or renamed later is picked up.
+- [x] Read every form of the `collections` export: shorthand (`{ blog }`), keyed (`{ posts: blog }`, `{ 'my-blog': blog }`), inline `defineCollection`, and mixtures of these. Follow identifiers to `const x = defineCollection(...)`, and to `const loader = glob(...)` if it's cheap.
+- [x] Parse loaders as above: the folder, its source, and whether it exists.
+- [x] Replace `complete_schema` with a collection status: the loader kind, the folder and its source, and the schema status with any error. Report config-level problems too.
+- [x] Filter `scan_directory`, the recursive scans and the file counts by the pattern. Match Astro's matcher: turn on `globset`'s `literal_separator` so `*` doesn't cross `/`, strip `./` prefixes and trailing slashes from patterns, and skip dot folders. Treat patterns `globset` can't parse, such as extglobs like `@(md|mdx)`, as unreadable.
+- [x] Make entry ids relative to `base` (`FileEntry.id` and `astroEntryId`).
+- [x] Make `resolve_file_entry` (deep links) pick the owning collection by pattern, not just folder.
+- [x] Make new file names match the pattern, as above.
+- [x] Watch each collection folder, plus the config and `.astro/collections/`. Skip `node_modules`, `.git`, `dist` and `.astro` when a folder is the project root.
+- [x] Keep the folder fallback, and report it as such.
 
 ### Settings
 
-- [ ] Move the preferences files and the resolver to Rust: version 3 project files, with version 2 files renamed aside.
-- [ ] Detect field mappings by name and type, and constrain the new file type by the pattern.
-- [ ] Delete the TS fallback files (`collection-settings.ts`, `effective-settings.ts`, `path-resolution.ts`, `default-file-type.ts`) and the TS persistence.
-- [ ] Give every settings change the same side effects: save and close the open file if its folder moved, invalidate the queries, and restart the watcher (#361).
-- [ ] Identify projects by path, and remove moved-project matching.
+- [x] Move the preferences files and the resolver to Rust: version 3 project files, with version 2 files renamed aside.
+- [x] Detect field mappings by name and type, and constrain the new file type by the pattern.
+- [x] Delete the TS fallback files (`collection-settings.ts`, `effective-settings.ts`, `path-resolution.ts`, `default-file-type.ts`) and the TS persistence.
+- [x] Give every settings change the same side effects: save and close the open file if its folder moved, invalidate the queries, and restart the watcher (#361).
+- [x] Identify projects by path, and remove moved-project matching.
 
 ### Existing UI
 
-- [ ] Adapt the Project Settings and Collections panes so everything keeps working until task 3 replaces them, including the collection folder override. Showing sources can wait for task 3.
+- [x] Adapt the Project Settings and Collections panes so everything keeps working until task 3 replaces them, including the collection folder override. Showing sources can wait for task 3.
 
 ### Tests and fixtures
 
-- [ ] Rust tests: config file names, every `collections` form, string and URL bases, array and negated patterns, pattern prefixes, legacy collections, Starlight, data globs, and unknown loaders.
-- [ ] A test project with an unusual structure to try in the app: content outside `src/content`, a URL base, an array pattern, a legacy collection and a custom loader.
-- [ ] Resolver tests for every source of every setting.
+- [x] Rust tests: config file names, every `collections` form, string and URL bases, array and negated patterns, pattern prefixes, legacy collections, Starlight, data globs, and unknown loaders.
+- [x] A test project with an unusual structure to try in the app (`test/unusual-structure`): content outside `src/content`, a URL base, an array pattern and a custom loader. Legacy collections are only in the Rust tests, since Astro 7 refuses them without a flag.
+- [x] Resolver tests for every source of every setting.
 
 ### Docs
 
-- [ ] Rewrite `docs/developer/app-data.md` around this model, which is where it lives once this task is done. Update `schema-system.md`.
-- [ ] Update the user guide enough to stay true until task 3: `getting-started/introduction.mdx` (its requirements say collections must use `glob` and live in `src/content/`), `reference/overrides.mdx` and `preferences.mdx`.
+- [x] Rewrite `docs/developer/app-data.md` around this model, which is where it lives once this task is done. Update `schema-system.md`.
+- [x] Update the user guide enough to stay true until task 3: `getting-started/introduction.mdx` (its requirements say collections must use `glob` and live in `src/content/`), `reference/overrides.mdx` and `preferences.mdx`.
 - [ ] Release notes: projects may need setting up again.
 
 ## Known gaps

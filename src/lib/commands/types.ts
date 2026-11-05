@@ -1,5 +1,5 @@
 import type { FileEntry, Collection } from '@/types'
-import type { GlobalSettings } from '../project-registry'
+import type { GlobalSettings } from '@/lib/bindings'
 
 /**
  * Command system types for the application command palette

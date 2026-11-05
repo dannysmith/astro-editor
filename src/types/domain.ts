@@ -18,16 +18,18 @@ export type {
    * @see src-tauri/src/models/file_entry.rs
    *
    * Fields:
-   * - `id` - Unique identifier (relative path from collection root without extension)
+   * - `id` - `<collection>/<path from the collection's base, without extension>`
    * - `path` - Absolute file path
    * - `name` - Display name (filename without extension)
    * - `extension` - File extension ('md' or 'mdx')
    * - `collection` - Collection this file belongs to
    * - `last_modified` - Unix timestamp of last modification (null when unavailable)
    * - `frontmatter` - Parsed frontmatter data (null when not loaded)
+   * - `is_entry` - Whether the collection's pattern includes it (false for files
+   *   shown dimmed)
    *
-   * Note: Draft status is determined in the frontend using the user-configured
-   * draft field from settings, accessed via `file.frontmatter[draftField]`.
+   * Note: Draft status is determined in the frontend using the collection's
+   * draft field, accessed via `file.frontmatter[draftField]`.
    */
   FileEntry,
   /**
@@ -44,15 +46,17 @@ export type {
    */
   MarkdownContent,
   /**
-   * Represents an Astro content collection.
+   * A content collection, resolved from the content config, the project's
+   * settings and AE's conventions. Each resolved setting carries its source.
    *
    * This type is auto-generated from the Rust Collection struct.
    * @see src-tauri/src/models/collection.rs
    *
-   * Fields:
-   * - `name` - Collection name (e.g., "posts", "docs")
-   * - `path` - Absolute path to collection directory
-   * - `complete_schema` - Serialized CompleteSchema from Rust backend
+   * Key fields:
+   * - `name` - Its key in the config's `collections` export (e.g., "posts")
+   * - `path` - The folder the sidebar browses
+   * - `base` - What entry ids and the pattern are relative to
+   * - `completeSchema` - Serialized CompleteSchema from Rust backend
    */
   Collection,
   /**

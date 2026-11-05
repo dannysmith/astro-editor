@@ -1,61 +1,34 @@
 ---
 title: 'Overrides'
-description: 'Reference for path and field override settings'
+description: 'Reference for path and field settings'
 ---
 
-Astro Editor assumes a "standard" Astro project structure and defaults to some commonly-used frontmatter field names. If your project differs from these defaults, you can override them in the [Preferences](/preferences/) — either for the whole project or for a single content collection.
+Astro Editor reads your project rather than asking you about it: each collection's folder and file pattern come from its loader in `content.config.ts`, and its title, date, description and draft fields are detected in its schema. These settings are for when that isn't right. Set them in the [Preferences](/preferences/). Where these settings are stored on disk is covered in [Advanced Preferences](/reference/advanced-preferences/).
 
-Most of these overrides resolve through a three-tier fallback:
+Each setting lives in one place: the collection or the project. The image settings can be set for the project and overridden per collection.
 
-1. The **collection** setting, if you've set one
-2. otherwise the **project** setting, if you've set one
-3. otherwise Astro Editor's **built-in default**.
+## Collection settings
 
-The sections below list every override, its scope, and its default. Where these settings are stored on disk is covered in [Advanced Preferences](/reference/advanced-preferences/).
+| Setting | When it's not set |
+| --- | --- |
+| **Folder** | Read from the collection's `glob()` loader. If Astro Editor can't read the loader, `<content folder>/<collection name>` |
+| **Files the Pattern Leaves Out** | Hidden. Choose **Show them dimmed** to see files the loader's pattern excludes, like drafts named `_draft.md` |
+| **Published Date Field** | The first date field in the schema named `pubDate`, `date` or `publishedDate` |
+| **Title Field** | A text field named `title` |
+| **Description Field** | A text field named `description` |
+| **Draft Field** | A true/false field named `draft`. Without one, there's no draft badge or filter |
+| **Default File Type for New Files** | The global preference. If the collection's pattern only includes `.md` or only `.mdx` files, new files always use that type |
+| **Link URL Pattern** | Unset: links the [Content Finder](/editor/links/#internal-links) inserts use a relative file path. Use `{slug}`, filled from a file's `slug` frontmatter or its id, as in `/writing/{slug}` |
 
-## Path overrides
+When a collection has no schema, Astro Editor uses the field names above and reads them from each file's frontmatter.
 
-These tell Astro Editor where the relevant directories live, relative to the project root.
-
-| Setting | Scope | Default | Controls |
-| --- | --- | --- | --- |
-| **Content Directory** | Project + collection | `src/content` | Where collections are discovered |
-| **Assets Directory** | Project + collection | `src/assets` | Where dragged or inserted images are copied |
-| **MDX Components Directory** | Project only | `src/components/mdx` | Where the [component builder](/editor/mdx-components/) looks for components |
-
-The MDX components directory can only be set per project — it has no collection-level override.
-
-## Frontmatter field mappings
-
-These tell Astro Editor which frontmatter field to treat as each [special field](/frontmatter/special-fields/). They're configured per collection.
+## Project settings
 
 | Setting | Default | Controls |
 | --- | --- | --- |
-| **Title Field** | `title` | The field used as the file's *title*. Must be a string. |
-| **Published Date Field** | `date` | The field used to order the file list and shown in that list. Must be of type date. |
-| **Description Field** | `description` | The field rendered as the description in the frontmatter panel. |
-| **Draft Field** | `draft` | The field used to mark a file as a *draft*. Must be a boolean. |
+| **Content Directory** | `src/content` | Where collections are looked for when Astro Editor can't read their loader, and whose folders become collections when there's no content config |
+| **Assets Directory** | `src/assets` | Where dragged or inserted images are copied, in a folder named after the collection. Collections can override it |
+| **Use Absolute Paths for Images** | Off (relative) | When off, image paths are relative to the current file (`../../assets/image.png`); when on, they're from the project root (`/src/assets/image.png`). Collections can override it |
+| **MDX Components Directory** | `src/components/mdx` | Where the [component builder](/editor/mdx-components/) looks for components |
 
-## Image paths
-
-| Setting | Scope | Default | Effect |
-| --- | --- | --- | --- |
-| **Use Absolute Paths for Images** | Project + collection | Off (relative) | When off, inserted image paths are relative to the current file (e.g. `../../assets/image.png`); when on, they're absolute from the project root (e.g. `/src/assets/image.png`) |
-
-This applies to both image frontmatter fields and images dropped into the editor. See [Images & Files](/editor/images-and-files/).
-
-## Content links
-
-| Setting | Scope | Default | Effect |
-| --- | --- | --- | --- |
-| **Link URL Pattern** | Collection only | Unset | A template for links the [Content Finder](/editor/links/#internal-links) inserts. Use `{slug}`, which is filled from a file's `slug` frontmatter, falling back to its id. When unset, links use a relative file path instead. |
-
-For example, a pattern of `/writing/{slug}` turns a link into `/writing/my-post`.
-
-## New files
-
-| Setting | Scope | Default | Effect |
-| --- | --- | --- | --- |
-| **Default File Type for New Files** | Global + project + collection | `md` | Whether new files are created as Markdown (`.md`) or MDX (`.mdx`) |
-
-This can be set globally and overridden per-project and collection.
+The image path setting applies to image frontmatter fields and images dropped into the editor. See [Images & Files](/editor/images-and-files/).

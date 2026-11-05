@@ -6,13 +6,6 @@ import {
   FieldDescription,
   FieldContent,
 } from '@/components/ui/field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { usePreferences } from '../../../hooks/usePreferences'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
@@ -21,13 +14,9 @@ import { DOCS_URLS } from '../../../lib/docs-urls'
 import { useProjectDependenciesQuery } from '../../../hooks/queries/useProjectDependenciesQuery'
 
 export const ProjectSettingsPane: React.FC = () => {
-  const {
-    currentProjectSettings,
-    updateProject,
-    projectName,
-    globalSettings,
-    projectPath,
-  } = usePreferences()
+  const { projectSettings, updateProject, projectName, projectPath } =
+    usePreferences()
+  const settings = projectSettings?.project
   const { data: dependencies = [] } = useProjectDependenciesQuery(projectPath)
   const usesAutoImport = dependencies.includes('astro-auto-import')
   const absolutePathsId = React.useId()
@@ -35,51 +24,17 @@ export const ProjectSettingsPane: React.FC = () => {
   const contentDirId = React.useId()
   const assetsDirId = React.useId()
   const mdxDirId = React.useId()
-  // A select trigger is a button, which htmlFor would click, so it names
-  // itself with aria-labelledby
-  const fileTypeLabelId = React.useId()
 
   const handlePathOverrideChange = (
     key: 'contentDirectory' | 'assetsDirectory' | 'mdxComponentsDirectory',
     value: string
   ) => {
-    void updateProject({
-      pathOverrides: {
-        ...currentProjectSettings?.pathOverrides,
-        [key]: value || undefined, // Remove empty strings
-      },
-    })
+    void updateProject({ [key]: value || undefined })
   }
 
-  const handleDefaultFileTypeChange = (value: string | null) => {
-    if (!value) return
-    void updateProject({
-      ...currentProjectSettings,
-      defaultFileType:
-        value === 'inherited' ? undefined : (value as 'md' | 'mdx'),
-    })
-  }
-
-  const fileTypeItems = [
-    {
-      value: 'inherited',
-      label: (
-        <span className="text-muted-foreground">
-          Use global default:{' '}
-          {globalSettings?.general?.defaultFileType === 'mdx'
-            ? 'MDX'
-            : 'Markdown'}
-        </span>
-      ),
-    },
-    { value: 'md', label: 'Markdown (.md)' },
-    { value: 'mdx', label: 'MDX (.mdx)' },
-  ]
-
+  // Off is the default, so it's stored as unset
   const handleAbsolutePathsChange = (checked: boolean) => {
-    void updateProject({
-      useAbsoluteAssetPaths: checked,
-    })
+    void updateProject({ useAbsoluteAssetPaths: checked || undefined })
   }
 
   return (
@@ -95,7 +50,7 @@ export const ProjectSettingsPane: React.FC = () => {
         </h2>
         <p className="text-sm text-muted-foreground">
           These settings apply to this project only. If not set, default values
-          are used. Collection-specific overrides can be configured in the
+          are used. Collections can override the image settings in the
           Collections tab.
         </p>
       </div>
@@ -113,16 +68,16 @@ export const ProjectSettingsPane: React.FC = () => {
           <FieldContent>
             <PreferencesTextInput
               id={contentDirId}
-              value={
-                currentProjectSettings?.pathOverrides?.contentDirectory || ''
-              }
+              value={settings?.contentDirectory ?? ''}
               onCommit={value =>
                 handlePathOverrideChange('contentDirectory', value)
               }
               placeholder="src/content/"
             />
             <FieldDescription>
-              Path to Astro content directory (default: src/content/)
+              Where collections are looked for when their loader doesn't say,
+              and whose folders become collections when there's no content
+              config (default: src/content/)
             </FieldDescription>
           </FieldContent>
         </Field>
@@ -132,9 +87,7 @@ export const ProjectSettingsPane: React.FC = () => {
           <FieldContent>
             <PreferencesTextInput
               id={assetsDirId}
-              value={
-                currentProjectSettings?.pathOverrides?.assetsDirectory || ''
-              }
+              value={settings?.assetsDirectory ?? ''}
               onCommit={value =>
                 handlePathOverrideChange('assetsDirectory', value)
               }
@@ -151,10 +104,7 @@ export const ProjectSettingsPane: React.FC = () => {
           <FieldContent>
             <PreferencesTextInput
               id={mdxDirId}
-              value={
-                currentProjectSettings?.pathOverrides?.mdxComponentsDirectory ||
-                ''
-              }
+              value={settings?.mdxComponentsDirectory ?? ''}
               onCommit={value =>
                 handlePathOverrideChange('mdxComponentsDirectory', value)
               }
@@ -183,39 +133,10 @@ export const ProjectSettingsPane: React.FC = () => {
             </div>
             <Switch
               id={absolutePathsId}
-              checked={currentProjectSettings?.useAbsoluteAssetPaths ?? false}
+              checked={settings?.useAbsoluteAssetPaths ?? false}
               onCheckedChange={handleAbsolutePathsChange}
             />
           </div>
-        </Field>
-      </SettingsSection>
-
-      <SettingsSection title="File Defaults">
-        <Field>
-          <FieldLabel id={fileTypeLabelId}>
-            Default File Type for New Files
-          </FieldLabel>
-          <FieldContent>
-            <Select
-              items={fileTypeItems}
-              value={currentProjectSettings?.defaultFileType || 'inherited'}
-              onValueChange={handleDefaultFileTypeChange}
-            >
-              <SelectTrigger aria-labelledby={fileTypeLabelId}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {fileTypeItems.map(item => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              File type used when creating new files in this project
-            </FieldDescription>
-          </FieldContent>
         </Field>
       </SettingsSection>
 
@@ -242,9 +163,11 @@ export const ProjectSettingsPane: React.FC = () => {
             </div>
             <Switch
               id={addImportsId}
-              checked={currentProjectSettings?.addComponentImports ?? false}
+              checked={settings?.addComponentImports ?? false}
               onCheckedChange={checked =>
-                void updateProject({ addComponentImports: checked })
+                void updateProject({
+                  addComponentImports: checked || undefined,
+                })
               }
             />
           </div>

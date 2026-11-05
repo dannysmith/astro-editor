@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { FileEntry } from '@/types'
 import { commands } from '@/lib/bindings'
-import { ASTRO_PATHS } from '@/lib/constants'
+import { makeCollection, makeScan } from '../../test/fixtures'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionEntriesQuery } from './useCollectionEntriesQuery'
 
@@ -14,9 +14,6 @@ vi.mock('@/lib/bindings', () => ({
     scanCollectionFilesRecursive: vi.fn(),
     loadFileBasedCollection: vi.fn(),
   },
-}))
-vi.mock('@/lib/project-registry', () => ({
-  getEffectiveContentDirectory: () => ASTRO_PATHS.CONTENT_DIR,
 }))
 
 function file(
@@ -32,6 +29,7 @@ function file(
     collection,
     last_modified: null,
     frontmatter,
+    is_entry: true,
   }
 }
 
@@ -48,13 +46,10 @@ function entries(collection: string) {
 describe('useCollectionEntriesQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useProjectStore.setState({
-      projectPath: '/site',
-      currentProjectSettings: null,
-    })
+    useProjectStore.setState({ projectPath: '/site' })
     vi.mocked(commands.scanProject).mockResolvedValue({
       status: 'ok',
-      data: [{ name: 'articles', path: '/site/src/content/articles' }],
+      data: makeScan([makeCollection({ name: 'articles' })]),
     })
   })
 

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 
+use crate::models::collection::SchemaStatus;
+
 /// Complete schema definition sent to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,12 +191,21 @@ enum ItemsType {
     Bool(bool),
 }
 
-/// Parse and merge schemas from all sources
+/// A collection's schema, and how much of it AE could read
+pub struct MergedSchema {
+    pub schema: Option<SchemaDefinition>,
+    pub status: SchemaStatus,
+    /// Why the JSON schema couldn't be read
+    pub error: Option<String>,
+}
+
+/// Parse and merge schemas from all sources: the generated JSON schema, enhanced
+/// with the Zod helpers, or the helpers alone when there's no readable JSON
 pub fn create_complete_schema(
     collection_name: &str,
     json_schema: Option<&str>,
     zod_schema: Option<&str>,
-) -> Result<SchemaDefinition, String> {
+) -> MergedSchema {
     log::debug!(
         "[Schema] Creating complete schema for: {} (json: {}, zod: {})",
         collection_name,
@@ -202,38 +213,44 @@ pub fn create_complete_schema(
         zod_schema.is_some()
     );
 
-    // 1. Try JSON schema first (most accurate for structure)
-    if let Some(json) = json_schema {
-        match parse_json_schema(collection_name, json) {
-            Ok(mut schema) => {
-                log::debug!(
-                    "[Schema] Successfully parsed JSON schema with {} fields",
-                    schema.fields.len()
-                );
-                // 2. Enhance with Zod information (references and image types)
-                if let Some(zod) = zod_schema {
-                    if let Err(e) = enhance_schema_from_zod(&mut schema, zod) {
-                        log::warn!(
-                            "Failed to enhance schema with Zod data for {collection_name}: {e}"
-                        );
-                    }
+    let zod_only = || zod_schema.and_then(|zod| parse_zod_schema(collection_name, zod).ok());
+
+    let Some(json) = json_schema else {
+        let schema = zod_only();
+        let status = if schema.is_some() {
+            SchemaStatus::HelpersOnly
+        } else {
+            SchemaStatus::None
+        };
+        return MergedSchema {
+            schema,
+            status,
+            error: None,
+        };
+    };
+
+    match parse_json_schema(collection_name, json) {
+        Ok(mut schema) => {
+            if let Some(zod) = zod_schema {
+                if let Err(e) = enhance_schema_from_zod(&mut schema, zod) {
+                    log::warn!("Failed to enhance schema with Zod data for {collection_name}: {e}");
                 }
-                return Ok(schema);
             }
-            Err(e) => {
-                log::warn!("[Schema] Failed to parse JSON schema: {e}");
+            MergedSchema {
+                schema: Some(schema),
+                status: SchemaStatus::Complete,
+                error: None,
+            }
+        }
+        Err(e) => {
+            log::warn!("[Schema] Failed to parse JSON schema for {collection_name}: {e}");
+            MergedSchema {
+                schema: zod_only(),
+                status: SchemaStatus::Unreadable,
+                error: Some(e),
             }
         }
     }
-
-    // 3. Fallback to Zod-only parsing
-    if let Some(zod) = zod_schema {
-        log::debug!("[Schema] Falling back to Zod-only parsing");
-        return parse_zod_schema(collection_name, zod);
-    }
-
-    log::debug!("[Schema] No schema available for collection: {collection_name}");
-    Err("No schema available".to_string())
 }
 
 /// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats). Only

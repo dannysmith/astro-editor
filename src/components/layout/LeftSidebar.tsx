@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
-import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
+import { useFieldMappings } from '../../hooks/settings'
 import { FileItem } from './FileItem'
 import { FilterBar } from './FilterBar'
 import { openProjectViaDialog } from '../../lib/projects/actions'
@@ -43,9 +43,6 @@ export const LeftSidebar: React.FC = () => {
     state => state.currentSubdirectory
   )
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    useShallow(state => state.currentProjectSettings)
-  )
 
   // Get draft filter state from UI store (ephemeral, per-collection)
   const showDraftsOnly =
@@ -112,10 +109,7 @@ export const LeftSidebar: React.FC = () => {
 
   const [fileCounts, setFileCounts] = useState<Record<string, number>>({})
 
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
 
   const currentCollection = collections.find(c => c.name === selectedCollection)
 
@@ -125,12 +119,7 @@ export const LeftSidebar: React.FC = () => {
     isLoading: isLoadingDirectory,
     isError: hasDirectoryError,
     error: directoryError,
-  } = useDirectoryScanQuery(
-    projectPath,
-    selectedCollection,
-    currentCollection?.path || null,
-    currentSubdirectory
-  )
+  } = useDirectoryScanQuery(projectPath, currentCollection, currentSubdirectory)
   // Extract files and subdirectories in useMemo to avoid lint warnings
   const files = React.useMemo(() => dirContents?.files || [], [dirContents])
   const subdirectories = React.useMemo(
@@ -149,9 +138,8 @@ export const LeftSidebar: React.FC = () => {
 
       for (const collection of collections) {
         try {
-          const result = await commands.countCollectionFilesRecursive(
-            collection.path
-          )
+          const result =
+            await commands.countCollectionFilesRecursive(collection)
           if (result.status === 'error') {
             counts[collection.name] = 0
           } else {
@@ -176,10 +164,8 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [collections])
 
-  // Get effective settings for frontmatter field mappings (collection-aware)
-  const { frontmatterMappings } = useEffectiveSettings(
-    selectedCollection || undefined
-  )
+  // The collection's title, date and draft fields
+  const frontmatterMappings = useFieldMappings(selectedCollection || undefined)
 
   // State for rename functionality
   const [renamingFileId, setRenamingFileId] = React.useState<string | null>(
@@ -275,7 +261,7 @@ export const LeftSidebar: React.FC = () => {
   }
 
   // Parse the schema for the current collection
-  const completeSchemaJson = currentCollection?.complete_schema ?? null
+  const completeSchemaJson = currentCollection?.completeSchema ?? null
   const currentSchema = useMemo(() => {
     if (!completeSchemaJson) return null
     return deserializeCompleteSchema(completeSchemaJson)
@@ -518,7 +504,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {collections.map(collection => {
               const fileCount = fileCounts[collection.name] ?? 0
-              const hasSchema = Boolean(collection.complete_schema)
+              const hasSchema = Boolean(collection.completeSchema)
 
               return (
                 <button

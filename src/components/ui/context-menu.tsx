@@ -15,6 +15,7 @@ import { openInIde } from '../../lib/ide'
 import { getTitle } from '@/lib/files/sorting'
 import { getPlatform } from '@/hooks/usePlatform'
 import { getPlatformString } from '@/lib/platform-strings'
+import { fieldMappings, getCollection } from '@/lib/project-scan'
 
 interface ContextMenuOptions {
   file: FileEntry
@@ -70,14 +71,13 @@ export class FileContextMenu {
       const ideCommand = FileContextMenu.getIdeCommand()
 
       // Get project path and settings from store
-      const { projectPath, currentProjectSettings } = useProjectStore.getState()
+      const { projectPath } = useProjectStore.getState()
       if (!projectPath) {
         throw new Error('No project path available')
       }
 
-      // Get title field from settings (defaults to 'title')
-      const titleField =
-        currentProjectSettings?.frontmatterMappings?.title || 'title'
+      // The file's collection's title field
+      const titleField = fieldMappings(getCollection(file.collection)).title
 
       // Create menu items
       const currentPlatform = getPlatform()

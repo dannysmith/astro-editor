@@ -1,6 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react'
-import { useShallow } from 'zustand/react/shallow'
-import { commands, type Collection, type DirectoryScanResult } from '@/types'
+import { commands, type Collection } from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
@@ -12,7 +11,6 @@ import {
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
-import { getDefaultFileType } from '../lib/project-registry/default-file-type'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -82,44 +80,26 @@ async function createFileInCurrentFolder(
     ? `${collection.path}/${currentSubdirectory}`
     : collection.path
 
-  // Get the default file extension based on settings
-  const { globalSettings, currentProjectSettings } = useProjectStore.getState()
-  const fileExtension = getDefaultFileType(
-    globalSettings,
-    currentProjectSettings,
-    selectedCollection
-  )
-
-  // Generate filename based on today's date
-  const today = todayIsoDate()
-  let filename = `${today}.${fileExtension}`
-  let counter = 1
-
-  // Check if file exists in target directory and increment counter if needed
-  const existingResult = await commands.scanDirectory(
+  // A name for today the collection's pattern includes, in its new file type
+  const nameResult = await commands.newFileName(
     targetDirectory,
-    selectedCollection,
-    collection.path
+    collection,
+    todayIsoDate()
   )
-  if (existingResult.status === 'error') {
-    throw new Error(existingResult.error)
+  if (nameResult.status === 'error') {
+    throw new Error(nameResult.error)
   }
-  const existingDirContents: DirectoryScanResult = existingResult.data
-
-  const existingNames = new Set(
-    existingDirContents.files.map(f =>
-      f.extension ? `${f.name}.${f.extension}` : f.name
-    )
-  )
-
-  while (existingNames.has(filename)) {
-    filename = `${today}-${counter}.${fileExtension}`
-    counter++
+  const filename = nameResult.data
+  if (!filename) {
+    toast.error("A new file here wouldn't be part of the collection", {
+      description: "The collection's pattern leaves out files in this folder.",
+    })
+    return
   }
 
   // Generate default frontmatter from schema
-  const schema = collection.complete_schema
-    ? deserializeCompleteSchema(collection.complete_schema)
+  const schema = collection.completeSchema
+    ? deserializeCompleteSchema(collection.completeSchema)
     : null
   const defaultFrontmatter: Record<string, unknown> = {}
 
@@ -146,7 +126,7 @@ async function createFileInCurrentFolder(
           field.name.toLowerCase() === 'publisheddate')
       ) {
         // Only add date fields if they exist in the schema
-        defaultFrontmatter[field.name] = today
+        defaultFrontmatter[field.name] = todayIsoDate()
       }
       // Include other required fields
       else if (field.required) {
@@ -187,20 +167,15 @@ async function createFileInCurrentFolder(
     collectionName: selectedCollection,
   })
 
-  // Find and open the newly created file
-  const updatedResult = await commands.scanDirectory(
-    targetDirectory,
-    selectedCollection,
-    collection.path
+  // Open the new file
+  const newFileResult = await commands.resolveFileEntry(
+    `${targetDirectory}/${filename}`,
+    currentProjectPath
   )
-  if (updatedResult.status === 'error') {
-    throw new Error(updatedResult.error)
+  if (newFileResult.status === 'error') {
+    throw new Error(newFileResult.error)
   }
-  const updatedDirContents: DirectoryScanResult = updatedResult.data
-
-  const newFile = updatedDirContents.files.find(
-    f => (f.extension ? `${f.name}.${f.extension}` : f.name) === filename
-  )
+  const newFile = newFileResult.data
 
   if (newFile) {
     // Get current functions from store state
@@ -242,14 +217,7 @@ async function createFileInCurrentFolder(
 export const useCreateFile = () => {
   // PERFORMANCE FIX: Use selector syntax to avoid entire store subscriptions
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    useShallow(state => state.currentProjectSettings)
-  )
-
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
 
   const createFileMutation = useCreateFileMutation()
 

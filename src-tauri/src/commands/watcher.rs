@@ -40,10 +40,11 @@ const DEBOUNCE_DURATION: Duration = Duration::from_millis(500);
 /// Periodic rescan interval: emit rescan event every 5 minutes as a safety net
 const RESCAN_INTERVAL: Duration = Duration::from_secs(300);
 
-/// Create a configured file watcher for a project's content directories.
+/// Create a file watcher for a project: its collection folders, its content
+/// config and the generated JSON schemas.
 fn create_project_watcher(
     project_path: &str,
-    content_directory: Option<&str>,
+    folders: &[String],
 ) -> Result<ProjectWatcher, String> {
     let (tx, rx) = mpsc::channel();
     let project_path_log = project_path.to_string();
@@ -63,28 +64,30 @@ fn create_project_watcher(
 
     let project_root = PathBuf::from(project_path);
 
-    // Watch the content directory specifically (use override if provided)
-    let content_path = if let Some(content_dir) = content_directory {
-        project_root.join(content_dir)
-    } else {
-        project_root.join("src").join("content")
-    };
-
-    if content_path.exists() {
-        watcher
-            .watch(&content_path, RecursiveMode::Recursive)
-            .map_err(|e| format!("Failed to watch content directory: {e}"))?;
+    // Each collection folder, skipping any inside another
+    let mut folders: Vec<PathBuf> = folders.iter().map(PathBuf::from).collect();
+    folders.sort();
+    folders.dedup();
+    let mut watched: Vec<PathBuf> = Vec::new();
+    for folder in folders {
+        if folder.is_dir() && !watched.iter().any(|w| folder.starts_with(w)) {
+            watcher
+                .watch(&folder, RecursiveMode::Recursive)
+                .map_err(|e| format!("Failed to watch {}: {e}", folder.display()))?;
+            watched.push(folder);
+        }
     }
 
-    // Watch for schema changes: src/content/config.ts or src/content.config.ts
-    for config_path in [
-        project_root.join("src").join("content").join("config.ts"),
-        project_root.join("src").join("content.config.ts"),
+    // The content config: `src/` and `src/content/`, where every candidate file
+    // lives, so a config that's created or renamed later is seen too
+    for config_dir in [
+        project_root.join("src"),
+        project_root.join("src").join("content"),
     ] {
-        if config_path.exists() {
+        if config_dir.is_dir() && !watched.iter().any(|w| config_dir.starts_with(w)) {
             watcher
-                .watch(&config_path, RecursiveMode::NonRecursive)
-                .map_err(|e| format!("Failed to watch config file: {e}"))?;
+                .watch(&config_dir, RecursiveMode::NonRecursive)
+                .map_err(|e| format!("Failed to watch {}: {e}", config_dir.display()))?;
         }
     }
 
@@ -107,22 +110,18 @@ fn create_project_watcher(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn start_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
-    start_watching_project_with_content_dir(app, project_path, None).await
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn start_watching_project_with_content_dir(
+/// Watches a project. `folders` are its collection folders, which can be anywhere
+/// in the project.
+pub async fn start_watching_project(
     app: AppHandle,
     project_path: String,
-    content_directory: Option<String>,
+    folders: Vec<String>,
 ) -> Result<(), String> {
     let ProjectWatcher {
         watcher,
         rx,
         watches_schemas,
-    } = create_project_watcher(&project_path, content_directory.as_deref())?;
+    } = create_project_watcher(&project_path, &folders)?;
     let generation = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
 
     // Store the watcher so it doesn't get dropped. This replaces (and drops) any
@@ -146,7 +145,7 @@ pub async fn start_watching_project_with_content_dir(
             watcher_map_arc,
             rx,
             project_path,
-            content_directory,
+            folders,
             generation,
             watches_schemas,
         )
@@ -171,7 +170,7 @@ async fn run_event_loop(
     watcher_map: WatcherMap,
     mut rx: Receiver<Event>,
     project_path: String,
-    content_directory: Option<String>,
+    folders: Vec<String>,
     generation: u64,
     mut watches_schemas: bool,
 ) {
@@ -225,15 +224,14 @@ async fn run_event_loop(
 
                 // Built without holding the lock, so a slow path can't block
                 // starting or stopping other projects' watchers
-                let rebuilt =
-                    match create_project_watcher(&project_path, content_directory.as_deref()) {
-                        Ok(built) => built,
-                        Err(e) => {
-                            log::error!("Failed to rebuild file watcher for {project_path}: {e}");
-                            let _ = app.emit("watcher-error", &project_path);
-                            break;
-                        }
-                    };
+                let rebuilt = match create_project_watcher(&project_path, &folders) {
+                    Ok(built) => built,
+                    Err(e) => {
+                        log::error!("Failed to rebuild file watcher for {project_path}: {e}");
+                        let _ = app.emit("watcher-error", &project_path);
+                        break;
+                    }
+                };
                 {
                     let mut watchers = watcher_map.lock().unwrap();
                     // A start or stop may have happened while the watcher was built
@@ -313,7 +311,7 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
     for event in events.iter() {
         match &event.kind {
             EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
-                for path in &event.paths {
+                for path in event.paths.iter().filter(|p| !is_dependency(p)) {
                     // Check if it's a schema-related file
                     if is_schema_file(path) {
                         schema_changed = true;
@@ -352,13 +350,19 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
     }
 }
 
+/// Files in `node_modules`, which a collection folder at the project root would
+/// otherwise report
+fn is_dependency(path: &std::path::Path) -> bool {
+    path.components().any(|c| c.as_os_str() == "node_modules")
+}
+
 /// Check if a file path is a schema-related file
 fn is_schema_file(path: &std::path::Path) -> bool {
     // Normalize path to forward slashes for consistent cross-platform matching
     let path_str = crate::utils::path::normalize_path_for_serialization(path);
 
-    // Check for content config files
-    if path_str.ends_with("src/content/config.ts") || path_str.ends_with("src/content.config.ts") {
+    // Any of the files Astro reads the content config from
+    if crate::content_config::is_config_path(&path_str) {
         return true;
     }
 

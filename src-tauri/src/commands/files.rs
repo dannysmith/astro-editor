@@ -64,7 +64,19 @@ pub async fn create_file(
 ) -> Result<String, String> {
     // Validate directory is within project
     let validated_dir = validate_project_path(&directory, &project_root)?;
+
+    // `filename` may include folders (`<name>/index.md` for folder-per-entry
+    // collections), which are created, but never `..`
+    if Path::new(&filename)
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(format!("Invalid file name: {filename}"));
+    }
     let path = validated_dir.join(&filename);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create folder: {e}"))?;
+    }
 
     // Double-check the final path is still within project bounds
     let final_path_str = path.to_string_lossy().to_string();
@@ -627,131 +639,6 @@ pub async fn save_crash_report(app: tauri::AppHandle, report: Value) -> Result<(
         .map_err(|e| format!("Failed to write crash report: {e}"))?;
 
     Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?;
-
-    Ok(app_data_dir.to_string_lossy().to_string())
-}
-
-/// Validates that a file path is within the app data directory
-///
-/// This function prevents path traversal attacks for app data operations
-/// by ensuring all file operations stay within the app's data directory.
-/// Creates the app data directory if it doesn't exist.
-fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf, String> {
-    use log::info;
-
-    let app_data_dir = Path::new(app_data_dir);
-
-    // Create app data directory if it doesn't exist
-    if !app_data_dir.exists() {
-        info!(
-            "Astro Editor [PROJECT_REGISTRY] Creating app data directory: {}",
-            app_data_dir.display()
-        );
-        std::fs::create_dir_all(app_data_dir)
-            .map_err(|e| format!("Failed to create app data directory: {e}"))?;
-        info!("Astro Editor [PROJECT_REGISTRY] App data directory created successfully");
-    }
-
-    // If file_path is relative (just a filename), join it with app_data_dir
-    let file_path = if Path::new(file_path).is_absolute() {
-        Path::new(file_path).to_path_buf()
-    } else {
-        app_data_dir.join(file_path)
-    };
-
-    // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
-        .or_else(|_| {
-            // If file doesn't exist, try to canonicalize parent and append filename
-            if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
-                // Ensure parent directory exists
-                if !parent.as_os_str().is_empty() && !parent.exists() {
-                    info!(
-                        "Astro Editor [PROJECT_REGISTRY] Creating parent directory: {}",
-                        parent.display()
-                    );
-                    if let Err(e) = std::fs::create_dir_all(parent) {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to create parent directory: {e}"),
-                        ));
-                    }
-                }
-                parent.canonicalize().map(|p| p.join(filename))
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Invalid file path",
-                ))
-            }
-        })
-        .map_err(|e| format!("Invalid file path: {e}"))?;
-
-    let canonical_app_data = app_data_dir
-        .canonicalize()
-        .map_err(|e| format!("Invalid app data directory: {e}"))?;
-
-    // Ensure file is within app data bounds
-    canonical_file
-        .strip_prefix(&canonical_app_data)
-        .map_err(|_| "File outside app data directory".to_string())?;
-
-    Ok(canonical_file)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn write_app_data_file(
-    app: tauri::AppHandle,
-    file_path: String,
-    content: String,
-) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?
-        .to_string_lossy()
-        .to_string();
-
-    let validated_path = validate_app_data_path(&file_path, &app_data_dir)?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = validated_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create parent directory: {e}"))?;
-    }
-
-    std::fs::write(&validated_path, content)
-        .map_err(|e| format!("Failed to write app data file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn read_app_data_file(
-    app: tauri::AppHandle,
-    file_path: String,
-) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?
-        .to_string_lossy()
-        .to_string();
-
-    let validated_path = validate_app_data_path(&file_path, &app_data_dir)?;
-
-    std::fs::read_to_string(&validated_path)
-        .map_err(|e| format!("Failed to read app data file: {e}"))
 }
 
 #[tauri::command]
@@ -1440,64 +1327,6 @@ Regular markdown content here."#;
         assert_eq!(lines[second_frontmatter_end + 1], "");
         // Should have imports next
         assert!(lines[second_frontmatter_end + 2].starts_with("import"));
-    }
-
-    #[test]
-    fn test_validate_app_data_path_valid() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let app_data_dir = temp_dir.join(format!("app_data_{timestamp}"));
-        let test_file = app_data_dir.join("preferences").join("settings.json");
-
-        // Create test structure - ensure app_data_dir exists first
-        fs::create_dir_all(&app_data_dir).unwrap();
-        fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        fs::write(&test_file, "test content").unwrap();
-
-        let result = validate_app_data_path(
-            &test_file.to_string_lossy(),
-            &app_data_dir.to_string_lossy(),
-        );
-
-        assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&app_data_dir);
-    }
-
-    #[test]
-    fn test_validate_app_data_path_traversal_attack() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let app_data_dir = temp_dir.join(format!("app_data_{timestamp}"));
-        let malicious_path = app_data_dir.join("../../../etc/passwd");
-
-        // Create app data directory
-        fs::create_dir_all(&app_data_dir).unwrap();
-
-        let result = validate_app_data_path(
-            &malicious_path.to_string_lossy(),
-            &app_data_dir.to_string_lossy(),
-        );
-
-        // Should fail due to path traversal
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert!(
-            error.contains("File outside app data directory")
-                || error.contains("Invalid file path")
-        );
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&app_data_dir);
     }
 
     #[test]

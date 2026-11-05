@@ -25,11 +25,11 @@ import {
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useEditorStore } from '../../store/editorStore'
-import { useProjectStore } from '../../store/projectStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
 import { FormField } from './FormField'
 import { ImagePropField } from './ImagePropField'
-import { canImportImages } from '../../lib/project-registry/collection-settings'
+import { canImportImages } from '../../lib/project-scan'
+import { useCollection, useResolvedProjectSettings } from '../../hooks/settings'
 import { EntryPropField } from './EntryPropField'
 
 /** Lists longer than this get a searchable combobox rather than a select */
@@ -51,15 +51,18 @@ function bindingHint(prop: PropInfo): string | undefined {
 export function PropField({ prop }: { prop: PropInfo }) {
   const value = useComponentBuilderStore(state => state.values[prop.name])
   const setValue = useComponentBuilderStore(state => state.setValue)
-  const settings = useProjectStore(state => state.currentProjectSettings)
-  const collection = useEditorStore(state => state.currentFile?.collection)
+  const addsImports =
+    useResolvedProjectSettings()?.addComponentImports.value ?? false
+  const collection = useCollection(
+    useEditorStore(state => state.currentFile?.collection)
+  )
   const id = React.useId()
   const labelId = `${id}-label`
 
   const { name, kind } = prop
   const required = !prop.is_optional
 
-  if (kind.kind === 'image' && canImportImages(settings, collection)) {
+  if (kind.kind === 'image' && canImportImages(addsImports, collection)) {
     return <ImagePropField prop={prop} />
   }
 
@@ -110,7 +113,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
     </FormField>
   )
 
-  if (kind.kind === 'collectionEntry' && settings?.addComponentImports) {
+  if (kind.kind === 'collectionEntry' && addsImports) {
     return <EntryPropField prop={prop} fallback={textField} />
   }
 

@@ -22,31 +22,41 @@ import {
 } from '@/components/ui/field'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { usePreferences } from '../../../hooks/usePreferences'
-import { useCollectionsQuery } from '../../../hooks/queries/useCollectionsQuery'
-import { getCollectionSettings } from '../../../lib/project-registry/collection-settings'
+import { useProjectScanQuery } from '../../../hooks/queries/useCollectionsQuery'
 import { deserializeCompleteSchema, FieldType } from '../../../lib/schema'
-import { getDefaultFileType } from '../../../lib/project-registry/default-file-type'
 import type { SchemaField } from '../../../lib/schema'
-import type { CollectionSettings } from '../../../lib/project-registry/types'
+import type { Collection, CollectionSettings, FileType } from '@/lib/bindings'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
 import { DocsLink } from '../DocsLink'
 import { DOCS_URLS } from '../../../lib/docs-urls'
 
+type FieldSetting =
+  | 'publishedDateField'
+  | 'titleField'
+  | 'descriptionField'
+  | 'draftField'
+
+/** A path relative to the project, for showing */
+function relativePath(path: string, projectPath: string | null): string {
+  return projectPath && path.startsWith(`${projectPath}/`)
+    ? path.slice(projectPath.length + 1)
+    : path
+}
+
 export const CollectionSettingsPane: React.FC = () => {
   const {
-    currentProjectSettings,
+    projectSettings,
     updateCollectionSettings,
     projectPath,
     projectName,
     globalSettings,
   } = usePreferences()
 
-  // Get collections from TanStack Query
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  // Every collection with content, including ones whose folder is missing,
+  // so their folder can be set here
+  const { data: scan } = useProjectScanQuery(projectPath)
+  const collections = (scan?.collections ?? []).filter(c => c.kind !== 'data')
 
   // Track which collections are expanded
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(
@@ -73,9 +83,9 @@ export const CollectionSettingsPane: React.FC = () => {
     const fieldsMap = new Map<string, SchemaField[]>()
 
     collections.forEach(collection => {
-      if (collection.complete_schema) {
+      if (collection.completeSchema) {
         try {
-          const schema = deserializeCompleteSchema(collection.complete_schema)
+          const schema = deserializeCompleteSchema(collection.completeSchema)
           if (schema) {
             fieldsMap.set(collection.name, schema.fields)
           }
@@ -90,153 +100,35 @@ export const CollectionSettingsPane: React.FC = () => {
     return fieldsMap
   }, [collections])
 
-  // Get effective settings for a collection (including inherited values)
-  const getEffectiveSettings = (collectionName: string) => {
-    if (!currentProjectSettings) {
-      return null
-    }
-    return getCollectionSettings(currentProjectSettings, collectionName)
-  }
-
-  // Get collection-specific override (not inherited)
-  const getCollectionOverride = (
-    collectionName: string
-  ): CollectionSettings | undefined => {
-    return currentProjectSettings?.collections?.find(
-      c => c.name === collectionName
-    )
-  }
-
-  // Update a collection's path override
-  const handlePathOverrideChange = (
-    collectionName: string,
-    key: 'contentDirectory' | 'assetsDirectory',
-    value: string
-  ) => {
-    const existing = getCollectionOverride(collectionName)
-    const newSettings: CollectionSettings = {
-      name: collectionName,
-      settings: {
-        ...existing?.settings,
-        pathOverrides: {
-          ...existing?.settings?.pathOverrides,
-          [key]: value || undefined, // Remove empty strings
-        },
-      },
-    }
-
-    void updateCollectionSettings(collectionName, newSettings.settings)
-  }
-
-  // Update a collection's frontmatter mapping
-  const handleFrontmatterMappingChange = (
-    collectionName: string,
-    key: 'publishedDate' | 'title' | 'description' | 'draft',
-    value: string
-  ) => {
-    const existing = getCollectionOverride(collectionName)
-    const newSettings: CollectionSettings = {
-      name: collectionName,
-      settings: {
-        ...existing?.settings,
-        frontmatterMappings: {
-          ...existing?.settings?.frontmatterMappings,
-          [key]: value || undefined, // Remove empty strings
-        },
-      },
-    }
-
-    void updateCollectionSettings(collectionName, newSettings.settings)
-  }
-
-  // Reset all overrides for a collection
-  const handleResetCollection = (collectionName: string) => {
-    void updateCollectionSettings(collectionName, {})
-  }
-
-  // Update a collection's default file type
-  const handleDefaultFileTypeChange = (
-    collectionName: string,
-    value: 'md' | 'mdx' | undefined
-  ) => {
-    const existing = getCollectionOverride(collectionName)
-    const newSettings: CollectionSettings = {
-      name: collectionName,
-      settings: {
-        ...existing?.settings,
-        defaultFileType: value,
-      },
-    }
-    void updateCollectionSettings(collectionName, newSettings.settings)
-  }
-
-  // Update a collection's URL pattern
-  const handleUrlPatternChange = (collectionName: string, value: string) => {
-    const existing = getCollectionOverride(collectionName)
-    const newSettings: CollectionSettings = {
-      name: collectionName,
-      settings: {
-        ...existing?.settings,
-        urlPattern: value || undefined, // Remove empty strings
-      },
-    }
-    void updateCollectionSettings(collectionName, newSettings.settings)
-  }
-
-  // Update a collection's absolute paths setting
-  const handleAbsolutePathsChange = (
-    collectionName: string,
-    checked: boolean
-  ) => {
-    const existing = getCollectionOverride(collectionName)
-    const newSettings: CollectionSettings = {
-      name: collectionName,
-      settings: {
-        ...existing?.settings,
-        useAbsoluteAssetPaths: checked,
-      },
-    }
-    void updateCollectionSettings(collectionName, newSettings.settings)
-  }
-
-  // Filter fields by type for a specific collection
-  const getFieldsByType = (
-    collectionName: string,
-    fieldType: FieldType
-  ): SchemaField[] => {
-    const fields = collectionFields.get(collectionName) || []
-    return fields.filter(field => field.type === fieldType)
+  /** Changes a collection's settings; `undefined` or `''` unsets one */
+  const update = (collectionName: string, settings: CollectionSettings) => {
+    void updateCollectionSettings(collectionName, settings)
   }
 
   // Render a field select dropdown
   const renderFieldSelect = (
-    collectionName: string,
-    value: string | string[] | undefined,
-    onChange: (value: string) => void,
+    collection: Collection,
+    key: FieldSetting,
     fieldType: FieldType,
-    placeholder: string,
-    inheritedValue: string | string[],
     labelId: string
   ) => {
-    const fields = getFieldsByType(collectionName, fieldType)
-    const currentValue = value || 'inherited'
-    const displayValue =
-      typeof currentValue === 'string' ? currentValue : 'inherited'
-
-    // Format inherited value for display
-    const formatInheritedValue = (val: string | string[]): string => {
-      if (Array.isArray(val)) {
-        return val.join(', ')
-      }
-      return val
-    }
+    const fields = (collectionFields.get(collection.name) || []).filter(
+      field => field.type === fieldType
+    )
+    const stored = projectSettings?.collections[collection.name]?.[key]
+    const resolved = collection.settings[key]
+    const resolvedName = Array.isArray(resolved.value)
+      ? resolved.value.join(', ')
+      : resolved.value
 
     const items = [
       {
         value: 'inherited',
         label: (
           <span className="text-muted-foreground">
-            Use default: {formatInheritedValue(inheritedValue)}
+            {resolved.source === 'set'
+              ? 'Detect automatically'
+              : `Detected: ${resolvedName || 'none found'}`}
           </span>
         ),
       },
@@ -256,13 +148,17 @@ export const CollectionSettingsPane: React.FC = () => {
     return (
       <Select
         items={items}
-        value={displayValue}
+        value={stored || 'inherited'}
         onValueChange={val => {
-          if (val) onChange(val === 'inherited' ? '' : val)
+          if (val) {
+            update(collection.name, {
+              [key]: val === 'inherited' ? undefined : val,
+            })
+          }
         }}
       >
         <SelectTrigger aria-labelledby={labelId}>
-          <SelectValue placeholder={placeholder} />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {items.map(item => (
@@ -288,8 +184,7 @@ export const CollectionSettingsPane: React.FC = () => {
             )}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Configure collection-specific overrides for frontmatter mappings and
-            paths. These settings override project-level defaults.
+            Configure how Astro Editor reads each collection.
           </p>
         </div>
 
@@ -306,12 +201,8 @@ export const CollectionSettingsPane: React.FC = () => {
       value: 'inherited',
       label: (
         <span className="text-muted-foreground">
-          Use default:{' '}
-          {getDefaultFileType(
-            globalSettings,
-            currentProjectSettings,
-            undefined
-          ) === 'mdx'
+          Use global default:{' '}
+          {globalSettings?.general.defaultFileType === 'mdx'
             ? 'MDX'
             : 'Markdown'}
         </span>
@@ -319,6 +210,11 @@ export const CollectionSettingsPane: React.FC = () => {
     },
     { value: 'md', label: 'Markdown (.md)' },
     { value: 'mdx', label: 'MDX (.mdx)' },
+  ]
+
+  const skippedFilesItems = [
+    { value: 'hide', label: 'Hide them' },
+    { value: 'dim', label: 'Show them dimmed' },
   ]
 
   return (
@@ -332,13 +228,10 @@ export const CollectionSettingsPane: React.FC = () => {
             </span>
           )}
         </h2>
-        <p className="mb-2 text-sm text-muted-foreground">
-          Configure collection-specific overrides for frontmatter mappings and
-          paths. These settings override project-level defaults.
-        </p>
         <p className="text-sm text-muted-foreground">
-          <strong>Fallback chain:</strong> Collection override → Project setting
-          → Default value.{' '}
+          Astro Editor reads each collection&apos;s folder from the content
+          config and its fields from the schema. Change a setting here only when
+          that isn&apos;t right.{' '}
           <DocsLink href={DOCS_URLS.overrides}>Learn more</DocsLink>
         </p>
       </div>
@@ -346,17 +239,9 @@ export const CollectionSettingsPane: React.FC = () => {
       <div className="space-y-4">
         {collections.map(collection => {
           const isExpanded = expandedCollections.has(collection.name)
-          const effectiveSettings = getEffectiveSettings(collection.name)
-          const collectionOverride = getCollectionOverride(collection.name)
-          const hasOverrides =
-            !!collectionOverride?.settings?.pathOverrides ||
-            !!collectionOverride?.settings?.frontmatterMappings ||
-            !!collectionOverride?.settings?.defaultFileType ||
-            collectionOverride?.settings?.useAbsoluteAssetPaths !== undefined ||
-            !!collectionOverride?.settings?.urlPattern
-
-          if (!effectiveSettings) return null
-
+          const stored = projectSettings?.collections[collection.name] ?? {}
+          const resolved = collection.settings
+          const hasOverrides = Object.keys(stored).length > 0
           const fieldId = (key: string) => `${id}-${collection.name}-${key}`
 
           return (
@@ -381,40 +266,137 @@ export const CollectionSettingsPane: React.FC = () => {
                         Custom
                       </span>
                     )}
+                    {collection.folderStatus !== 'ok' && (
+                      <span className="text-xs text-muted-foreground">
+                        {collection.folderStatus === 'missing'
+                          ? 'Folder not found'
+                          : 'Folder outside the project'}
+                      </span>
+                    )}
                   </div>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
                   <div className="space-y-6 p-4 pt-0">
-                    {/* Path Overrides Section */}
-                    <SettingsSection title="Path Overrides">
+                    <SettingsSection title="Files">
                       <Field>
-                        <FieldLabel htmlFor={fieldId('content')}>
-                          Content Directory
+                        <FieldLabel htmlFor={fieldId('folder')}>
+                          Folder
                         </FieldLabel>
                         <FieldContent>
                           <PreferencesTextInput
-                            id={fieldId('content')}
-                            value={
-                              collectionOverride?.settings?.pathOverrides
-                                ?.contentDirectory || ''
-                            }
+                            id={fieldId('folder')}
+                            value={stored.folder ?? ''}
                             onCommit={value =>
-                              handlePathOverrideChange(
-                                collection.name,
-                                'contentDirectory',
-                                value
-                              )
+                              update(collection.name, { folder: value })
                             }
-                            placeholder={`Using project setting: ${effectiveSettings.pathOverrides.contentDirectory}`}
+                            placeholder={relativePath(
+                              collection.path,
+                              projectPath
+                            )}
                           />
                           <FieldDescription>
-                            Collection-specific content directory. Leave empty
-                            to use project setting.
+                            {collection.folderSource === 'config'
+                              ? 'Read from the content config. '
+                              : ''}
+                            Set this only if the collection&apos;s files are
+                            somewhere else, relative to the project root.
                           </FieldDescription>
                         </FieldContent>
                       </Field>
 
+                      <Field>
+                        <FieldLabel id={fieldId('skipped-files')}>
+                          Files the Pattern Leaves Out
+                        </FieldLabel>
+                        <FieldContent>
+                          <Select
+                            items={skippedFilesItems}
+                            value={resolved.skippedFiles.value}
+                            onValueChange={value => {
+                              if (value) {
+                                update(collection.name, {
+                                  skippedFiles:
+                                    value === 'hide' ? undefined : value,
+                                })
+                              }
+                            }}
+                          >
+                            <SelectTrigger
+                              aria-labelledby={fieldId('skipped-files')}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {skippedFilesItems.map(item => (
+                                <SelectItem key={item.value} value={item.value}>
+                                  {item.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FieldDescription>
+                            Markdown files in the folder that the
+                            collection&apos;s pattern
+                            {collection.patterns
+                              ? ` (${collection.patterns.join(', ')})`
+                              : ''}{' '}
+                            leaves out, like drafts named{' '}
+                            <code className="text-xs">_draft.md</code>.
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel id={fieldId('file-type')}>
+                          Default File Type for New Files
+                        </FieldLabel>
+                        <FieldContent>
+                          {resolved.newFileType.source === 'config' ? (
+                            <FieldDescription>
+                              New files are{' '}
+                              <code className="text-xs">
+                                .{resolved.newFileType.value}
+                              </code>
+                              , the only type the collection&apos;s pattern
+                              includes.
+                            </FieldDescription>
+                          ) : (
+                            <Select
+                              items={fileTypeItems}
+                              value={stored.defaultFileType ?? 'inherited'}
+                              onValueChange={value => {
+                                if (!value) return
+                                update(collection.name, {
+                                  defaultFileType:
+                                    value === 'inherited'
+                                      ? undefined
+                                      : (value as FileType),
+                                })
+                              }}
+                            >
+                              <SelectTrigger
+                                aria-labelledby={fieldId('file-type')}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fileTypeItems.map(item => (
+                                  <SelectItem
+                                    key={item.value}
+                                    value={item.value}
+                                  >
+                                    {item.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </FieldContent>
+                      </Field>
+                    </SettingsSection>
+
+                    <SettingsSection title="Images">
                       <Field>
                         <FieldLabel htmlFor={fieldId('assets')}>
                           Assets Directory
@@ -422,22 +404,17 @@ export const CollectionSettingsPane: React.FC = () => {
                         <FieldContent>
                           <PreferencesTextInput
                             id={fieldId('assets')}
-                            value={
-                              collectionOverride?.settings?.pathOverrides
-                                ?.assetsDirectory || ''
-                            }
+                            value={stored.assetsDirectory ?? ''}
                             onCommit={value =>
-                              handlePathOverrideChange(
-                                collection.name,
-                                'assetsDirectory',
-                                value
-                              )
+                              update(collection.name, {
+                                assetsDirectory: value,
+                              })
                             }
-                            placeholder={`Using project setting: ${effectiveSettings.pathOverrides.assetsDirectory}`}
+                            placeholder={resolved.assetsDirectory.value}
                           />
                           <FieldDescription>
-                            Collection-specific assets directory. Leave empty to
-                            use project setting.
+                            Where images added to this collection are copied.
+                            Leave empty to use the project setting.
                           </FieldDescription>
                         </FieldContent>
                       </Field>
@@ -449,8 +426,7 @@ export const CollectionSettingsPane: React.FC = () => {
                               Use Absolute Paths for Images
                             </FieldLabel>
                             <FieldDescription>
-                              Override to use absolute paths from project root
-                              (e.g.,{' '}
+                              Use absolute paths from project root (e.g.,{' '}
                               <code className="text-xs">
                                 /src/assets/image.png
                               </code>
@@ -463,66 +439,17 @@ export const CollectionSettingsPane: React.FC = () => {
                           </div>
                           <Switch
                             id={fieldId('absolute-paths')}
-                            checked={
-                              collectionOverride?.settings
-                                ?.useAbsoluteAssetPaths ?? false
-                            }
+                            checked={resolved.useAbsoluteAssetPaths.value}
                             onCheckedChange={checked =>
-                              handleAbsolutePathsChange(
-                                collection.name,
-                                checked
-                              )
+                              update(collection.name, {
+                                useAbsoluteAssetPaths: checked,
+                              })
                             }
                           />
                         </div>
                       </Field>
                     </SettingsSection>
 
-                    {/* File Defaults Section */}
-                    <SettingsSection title="File Defaults">
-                      <Field>
-                        <FieldLabel id={fieldId('file-type')}>
-                          Default File Type for New Files
-                        </FieldLabel>
-                        <FieldContent>
-                          <Select
-                            items={fileTypeItems}
-                            value={
-                              collectionOverride?.settings?.defaultFileType ||
-                              'inherited'
-                            }
-                            onValueChange={value => {
-                              if (!value) return
-                              handleDefaultFileTypeChange(
-                                collection.name,
-                                value === 'inherited'
-                                  ? undefined
-                                  : (value as 'md' | 'mdx')
-                              )
-                            }}
-                          >
-                            <SelectTrigger
-                              aria-labelledby={fieldId('file-type')}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {fileTypeItems.map(item => (
-                                <SelectItem key={item.value} value={item.value}>
-                                  {item.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FieldDescription>
-                            File type used when creating new files in this
-                            collection
-                          </FieldDescription>
-                        </FieldContent>
-                      </Field>
-                    </SettingsSection>
-
-                    {/* Frontmatter Mappings Section */}
                     <SettingsSection title="Frontmatter Mappings">
                       <Field>
                         <FieldLabel id={fieldId('date-field')}>
@@ -530,18 +457,9 @@ export const CollectionSettingsPane: React.FC = () => {
                         </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
-                            collection.name,
-                            collectionOverride?.settings?.frontmatterMappings
-                              ?.publishedDate,
-                            value =>
-                              handleFrontmatterMappingChange(
-                                collection.name,
-                                'publishedDate',
-                                value
-                              ),
+                            collection,
+                            'publishedDateField',
                             FieldType.Date,
-                            'Select date field',
-                            effectiveSettings.frontmatterMappings.publishedDate,
                             fieldId('date-field')
                           )}
                           <FieldDescription>
@@ -556,18 +474,9 @@ export const CollectionSettingsPane: React.FC = () => {
                         </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
-                            collection.name,
-                            collectionOverride?.settings?.frontmatterMappings
-                              ?.title,
-                            value =>
-                              handleFrontmatterMappingChange(
-                                collection.name,
-                                'title',
-                                value
-                              ),
+                            collection,
+                            'titleField',
                             FieldType.String,
-                            'Select text field',
-                            effectiveSettings.frontmatterMappings.title,
                             fieldId('title-field')
                           )}
                           <FieldDescription>
@@ -583,18 +492,9 @@ export const CollectionSettingsPane: React.FC = () => {
                         </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
-                            collection.name,
-                            collectionOverride?.settings?.frontmatterMappings
-                              ?.description,
-                            value =>
-                              handleFrontmatterMappingChange(
-                                collection.name,
-                                'description',
-                                value
-                              ),
+                            collection,
+                            'descriptionField',
                             FieldType.String,
-                            'Select text field',
-                            effectiveSettings.frontmatterMappings.description,
                             fieldId('description-field')
                           )}
                           <FieldDescription>
@@ -610,18 +510,9 @@ export const CollectionSettingsPane: React.FC = () => {
                         </FieldLabel>
                         <FieldContent>
                           {renderFieldSelect(
-                            collection.name,
-                            collectionOverride?.settings?.frontmatterMappings
-                              ?.draft,
-                            value =>
-                              handleFrontmatterMappingChange(
-                                collection.name,
-                                'draft',
-                                value
-                              ),
+                            collection,
+                            'draftField',
                             FieldType.Boolean,
-                            'Select boolean field',
-                            effectiveSettings.frontmatterMappings.draft,
                             fieldId('draft-field')
                           )}
                           <FieldDescription>
@@ -631,7 +522,6 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
                     </SettingsSection>
 
-                    {/* Link URL Pattern Section */}
                     <SettingsSection title="Content Links">
                       <Field>
                         <FieldLabel htmlFor={fieldId('url-pattern')}>
@@ -640,11 +530,9 @@ export const CollectionSettingsPane: React.FC = () => {
                         <FieldContent>
                           <PreferencesTextInput
                             id={fieldId('url-pattern')}
-                            value={
-                              collectionOverride?.settings?.urlPattern || ''
-                            }
+                            value={stored.urlPattern ?? ''}
                             onCommit={value =>
-                              handleUrlPatternChange(collection.name, value)
+                              update(collection.name, { urlPattern: value })
                             }
                             placeholder="/path/{slug}"
                           />
@@ -657,13 +545,19 @@ export const CollectionSettingsPane: React.FC = () => {
                       </Field>
                     </SettingsSection>
 
-                    {/* Reset Button */}
                     {hasOverrides && (
                       <div className="border-t pt-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleResetCollection(collection.name)}
+                          onClick={() =>
+                            void updateCollectionSettings(
+                              collection.name,
+                              Object.fromEntries(
+                                Object.keys(stored).map(key => [key, undefined])
+                              )
+                            )
+                          }
                         >
                           Reset to Defaults
                         </Button>

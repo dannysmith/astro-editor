@@ -1,11 +1,14 @@
 #[cfg(debug_assertions)]
 mod agent_bridge;
 mod bindings;
+mod collections;
 mod commands;
+mod content_config;
 mod mdx_components;
 mod mdx_esm;
 mod models;
 mod parser;
+mod preferences;
 mod schema_merger;
 mod telemetry;
 mod utils;

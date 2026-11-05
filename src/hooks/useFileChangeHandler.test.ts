@@ -15,6 +15,7 @@ const openFile: FileEntry = {
   collection: 'posts',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
 }
 
 const directoryKey = queryKeys.directoryContents('/project', 'posts', 'root')

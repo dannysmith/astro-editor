@@ -13,15 +13,6 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
-// Mock project store
-vi.mock('../../../store/projectStore', () => ({
-  useProjectStore: {
-    getState: vi.fn(() => ({
-      currentProjectSettings: null, // Use defaults (no overrides)
-    })),
-  },
-}))
-
 // Mock editor store
 vi.mock('../../../store/editorStore', () => ({
   useEditorStore: {
@@ -44,29 +35,13 @@ vi.mock('../../files', async () => {
   }
 })
 
-// Mock project registry
-vi.mock('../../project-registry', async () => {
-  const actual = await vi.importActual<typeof import('../../project-registry')>(
-    '../../project-registry'
-  )
-  return {
-    ...actual,
-    getCollectionSettings: vi.fn(() => ({
-      pathOverrides: {
-        contentDirectory: 'src/content/',
-        assetsDirectory: 'src/assets/',
-        mdxComponentsDirectory: 'src/components/mdx/',
-      },
-      frontmatterMappings: {
-        publishedDate: 'date',
-        title: 'title',
-        description: 'description',
-        draft: 'draft',
-      },
-      useRelativeAssetPaths: true,
-    })),
-  }
-})
+// The collection's image settings, as the scan resolves them by default
+vi.mock('../../project-scan', () => ({
+  assetSettings: () => ({
+    assetsDirectory: 'src/assets',
+    useRelativePaths: true,
+  }),
+}))
 
 const mockProcessFileToAssets = vi.mocked(
   (await import('../../files')).processFileToAssets
@@ -239,9 +214,9 @@ describe('File Processing', () => {
         sourcePath: '/path/to/image.png',
         projectPath: '/project/path',
         collection: 'collection',
-        projectSettings: null,
         copyStrategy: 'always',
         currentFilePath: '/project/path/src/content/blog/post.md',
+        assetsDirectory: 'src/assets',
         useRelativePaths: true,
       })
     })

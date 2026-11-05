@@ -1,21 +1,18 @@
 // src/hooks/queries/useCollectionFilesQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { commands, type FileEntry } from '@/types'
+import { commands, type Collection, type FileEntry } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
 /**
- * Every Markdown and MDX file in a collection, including its subfolders. Also
- * the Content Finder's queryFn, which shares this cache
+ * Every entry in a collection, including its subfolders. Files the pattern
+ * leaves out aren't entries, so they're never here. Also the Content Finder's
+ * queryFn, which shares this cache
  */
 export const fetchCollectionFiles = async (
-  collectionPath: string,
-  collectionName: string
+  collection: Collection
 ): Promise<FileEntry[]> => {
-  const result = await commands.scanCollectionFilesRecursive(
-    collectionPath,
-    collectionName
-  )
+  const result = await commands.scanCollectionFilesRecursive(collection)
   if (result.status === 'error') {
     throw new Error(result.error)
   }
@@ -24,15 +21,14 @@ export const fetchCollectionFiles = async (
 
 export const useCollectionFilesQuery = (
   projectPath: string | null,
-  collectionName: string | null,
-  collectionPath: string | null
+  collection: Collection | undefined
 ) => {
   return useQuery({
     queryKey: queryKeys.collectionFiles(
       projectPath || '',
-      collectionName || ''
+      collection?.name || ''
     ),
-    queryFn: () => fetchCollectionFiles(collectionPath!, collectionName!),
-    enabled: !!projectPath && !!collectionName && !!collectionPath,
+    queryFn: () => fetchCollectionFiles(collection!),
+    enabled: !!projectPath && !!collection,
   })
 }

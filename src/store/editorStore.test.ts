@@ -10,6 +10,7 @@ const fileEntry = (id: string): FileEntry => ({
   collection: 'blog',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
 })
 
 describe('editorStore.openFile', () => {

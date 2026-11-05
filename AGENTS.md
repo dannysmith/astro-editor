@@ -54,11 +54,11 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
 - `src/hooks/`: hooks, including queries and mutations (`queries/`, `mutations/`) and actions (`editor/useEditorActions.ts`)
 - `src/store/`: Zustand stores
-- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `project-registry/` (settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
+- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only
-- `src-tauri/src/`: Rust: `commands/` (one file per area), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `agent_bridge/` (dev only)
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `agent_bridge/` (dev only)
 - `test/`: Astro projects for manual and agent testing. Work in the gitignored copy, `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`
 - `scripts/`: the `app` CLI, release script, dev launcher, dev slots and setup
 

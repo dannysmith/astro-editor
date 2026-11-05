@@ -13,7 +13,7 @@ import { useContentLinkerStore } from '../../store/contentLinkerStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
+import { fieldMappings } from '../../lib/project-scan'
 import { resolveTitle } from '../../lib/content-linker'
 import { type FileEntry, type Collection } from '@/types'
 import { queryKeys } from '../../lib/query-keys'
@@ -32,14 +32,10 @@ export function ContentLinkerDialog() {
   const insertLink = useContentLinkerStore(state => state.insertLink)
 
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    state => state.currentProjectSettings
-  )
-
   const {
     data: collections = EMPTY_COLLECTIONS,
     isPending: isLoadingCollections,
-  } = useCollectionsQuery(projectPath, currentProjectSettings)
+  } = useCollectionsQuery(projectPath)
 
   const platform = usePlatform()
   const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
@@ -50,7 +46,7 @@ export function ContentLinkerDialog() {
   const fileQueries = useQueries({
     queries: collections.map(collection => ({
       queryKey: queryKeys.collectionFiles(projectPath || '', collection.name),
-      queryFn: () => fetchCollectionFiles(collection.path, collection.name),
+      queryFn: () => fetchCollectionFiles(collection),
       enabled: isOpen && !!projectPath,
       retry: false,
     })),
@@ -109,17 +105,13 @@ export function ContentLinkerDialog() {
     const currentFile = useEditorStore.getState().currentFile
     if (!currentFile) return
 
-    // Get effective settings for the target collection
-    const settings = getCollectionSettings(
-      currentProjectSettings,
-      file.collection
-    )
-
+    // The target collection's link pattern and title field
+    const collection = collections.find(c => c.name === file.collection)
     insertLink(
       file,
       currentFile,
-      settings.urlPattern,
-      settings.frontmatterMappings.title
+      collection?.settings.urlPattern ?? undefined,
+      fieldMappings(collection).title
     )
   }
 

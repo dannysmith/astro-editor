@@ -18,7 +18,7 @@ import type { MdxComponent } from '@/types'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useMdxComponentsQuery } from '../../hooks/queries/useMdxComponentsQuery'
 import { useProjectStore } from '../../store/projectStore'
-import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
+import { useResolvedProjectSettings } from '../../hooks/settings'
 import { ComponentForm } from './ComponentForm'
 import { FrameworkBadge } from './FrameworkBadge'
 
@@ -50,7 +50,8 @@ function groupBySource(components: MdxComponent[]) {
  */
 export function ComponentBuilderDialog() {
   const projectPath = useProjectStore(state => state.projectPath)
-  const { pathOverrides } = useEffectiveSettings()
+  const mdxComponentsDirectory =
+    useResolvedProjectSettings()?.mdxComponentsDirectory.value
   const isOpen = useComponentBuilderStore(state => state.isOpen)
   const step = useComponentBuilderStore(state => state.step)
   const selectedComponent = useComponentBuilderStore(
@@ -64,7 +65,7 @@ export function ComponentBuilderDialog() {
 
   const { data: components = [], isLoading } = useMdxComponentsQuery(
     projectPath,
-    pathOverrides.mdxComponentsDirectory
+    mdxComponentsDirectory
   )
 
   return (

@@ -5,15 +5,15 @@ The frontmatter form is built from each collection's schema. Rust reads two sour
 ## Two sources
 
 - **The JSON schema is the source of truth.** `astro sync` (and `astro dev`) writes `.astro/collections/<name>.schema.json` for each collection. Types, constraints, descriptions, defaults, enum values and required fields all come from there.
-- **The Zod config only adds `image()` and `reference()`.** Astro generates the JSON by calling the schema function with `image: () => z.string()`, so image fields come out as plain strings. `reference('authors')` comes out as a union of IDs and `{id, collection}` objects with the collection name gone. The Zod parser (`src-tauri/src/parser.rs`) finds those two helpers in the config text and nothing else, and `enhance_schema_from_zod` applies them: image fields become `image`, references get their target collection.
-- **Config lookup:** `src/content.config.ts` first, then the legacy `src/content/config.ts` (`parse_astro_config`). Collections that use the `file()` loader are left out of the collection list; they're only read as reference targets (`load_file_based_collection`).
-- **Changes reload the form.** The project watcher watches both config paths and `.astro/collections/`, and a change invalidates the collections query. If the schema folder doesn't exist yet when watching starts (before a project's first `astro sync`), the watcher's event loop checks for it each time it wakes, then watches it and reloads the schemas (`watch_new_schemas_dir` in `watcher.rs`). A config file created after watching starts isn't picked up until the 5-minute rescan.
+- **The Zod config only adds `image()` and `reference()`.** Astro generates the JSON by calling the schema function with `image: () => z.string()`, so image fields come out as plain strings. `reference('authors')` comes out as a union of IDs and `{id, collection}` objects with the collection name gone. The Zod parser (`src-tauri/src/parser.rs`) finds those two helpers in the collection's `schema` source, which `content_config` reads from the config, and nothing else, and `enhance_schema_from_zod` applies them: image fields become `image`, references get their target collection.
+- **Config lookup and loaders** are in `app-data.md`. Data collections (`file()` and the like) aren't in the collection list; `file()` JSON is only read as a reference target (`load_file_based_collection`).
+- **Changes reload the form.** The project watcher watches the folders the content config can be in and `.astro/collections/`, and a change rescans the project. If the schema folder doesn't exist yet when watching starts (before a project's first `astro sync`), the watcher's event loop checks for it each time it wakes, then watches it and reloads the schemas (`watch_new_schemas_dir` in `watcher.rs`).
 
 To support a new Astro helper, the touch points are `find_helper_calls` in `parser.rs`, `enhance_schema_from_zod` in `schema_merger.rs`, and the routing in `src/components/frontmatter/fields/FrontmatterField.tsx`.
 
 ## The Zod-only fallback
 
-If the JSON schema is missing or fails to parse, `create_complete_schema` falls back to the Zod parser's output alone. That output only contains the `image()` and `reference()` fields, all optional. The form then shows those fields plus whatever keys the file already has, without types, required markers, descriptions or defaults. If the config has no helpers either, the collection has no schema at all and the form shows only the file's keys.
+If the JSON schema is missing or fails to parse, `create_complete_schema` falls back to the Zod parser's output alone, and the collection's `schemaStatus` says which (`helpersOnly` or `unreadable`, with the error in `schemaError`). That output only contains the `image()` and `reference()` fields, all optional. The form then shows those fields plus whatever keys the file already has, without types, required markers, descriptions or defaults. If the config has no helpers either, the collection has no schema at all and the form shows only the file's keys.
 
 **This is the likeliest cause of "my fields don't show up" or "this field has the wrong type".** The usual reasons:
 
@@ -67,7 +67,7 @@ What follows from that:
 - **Images** are `{ "type": "string" }` because of the `image: () => z.string()` stub.
 - **References** are an `anyOf` of `{ "type": "number" }` (Astro 7), `{ "type": "string" }`, `{ id, collection }` and `{ slug, collection }`. `is_reference_field` detects them by the object branch.
 - **`$schema`:** Astro 7 adds an optional `$schema` property to object schemas so editors can validate data files. `parse_entry_schema` skips it.
-- **`file()` loader collections** have a root `anyOf` of an array of entries and an object of entries (`additionalProperties`). The parser never sees these: `file()` collections are left out of the collection list.
+- **`file()` loader collections** have a root `anyOf` of an array of entries and an object of entries (`additionalProperties`). The parser never sees these: data collections are left out of the collection list.
 
 To see current output, read `.astro/collections/` in any of the `test/` projects (regenerating them is in `testing.md`). The Rust tests in `schema_merger.rs` hold samples of each shape the parser handles, and the `notes` collection in `test/dummy-astro-project` has one field of each (see `zod4-shapes-test.md`).
 

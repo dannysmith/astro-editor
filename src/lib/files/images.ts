@@ -2,7 +2,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
-import { getCollectionSettings } from '../project-registry/collection-settings'
+import { assetSettings } from '../project-scan'
 import { toast } from '../toast'
 import { processFileToAssets } from './fileProcessing'
 import type { ProcessFileToAssetsResult } from './types'
@@ -16,7 +16,7 @@ import type { ProcessFileToAssetsResult } from './types'
 export async function copyImageToAssets(
   sourcePath: string
 ): Promise<ProcessFileToAssetsResult> {
-  const { projectPath, currentProjectSettings } = useProjectStore.getState()
+  const { projectPath } = useProjectStore.getState()
   const { currentFile } = useEditorStore.getState()
   if (!projectPath || !currentFile) {
     throw new Error('No file is open')
@@ -26,13 +26,9 @@ export async function copyImageToAssets(
     sourcePath,
     projectPath,
     collection: currentFile.collection,
-    projectSettings: currentProjectSettings,
     copyStrategy: 'only-if-outside-project',
     currentFilePath: currentFile.path,
-    useRelativePaths: getCollectionSettings(
-      currentProjectSettings,
-      currentFile.collection
-    ).useRelativeAssetPaths,
+    ...assetSettings(currentFile.collection),
   })
 }
 

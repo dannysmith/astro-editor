@@ -52,6 +52,7 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 # HTTP server for the debug-only agent bridge (src/agent_bridge)
 tiny_http = "0.12"
+globset = "0.4"
 
 # Native WKWebView snapshots for the agent bridge, and the app delegate hook
 # that saves before quitting (commands/quit.rs)

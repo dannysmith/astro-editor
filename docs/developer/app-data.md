@@ -1,6 +1,6 @@
 # App data
 
-What the app stores on the user's machine, where, and the reasoning behind the settings model. The settings model is due a rework, so this covers the reasoning and gotchas rather than every setting; for the shapes, read `src/lib/project-registry/types.ts`.
+What the app stores on the user's machine, where, and how a project's collections and settings are worked out. For the shapes, read `src-tauri/src/models/preferences.rs` (what's stored) and `src-tauri/src/models/collection.rs` (what's resolved).
 
 ## Where it lives
 
@@ -15,41 +15,84 @@ Dev builds use `is.danny.astroeditor.dev` instead, so they never read or write t
 Inside it:
 
 - `preferences/global-settings.json`: app-wide settings (theme, IDE command, auto-save delay, appearance and so on).
-- `preferences/project-registry.json`: every project ever opened (ID, name, path, dates) and which was open last.
-- `preferences/projects/{id}.json`: one project's settings, including its collection overrides.
+- `preferences/project-registry.json`: every project ever opened (id, name, path, dates) and which was open last.
+- `preferences/projects/{id}.json`: one project's settings, and its path.
 - `recovery/` and `crash-reports/`: see [Recovery Files](#recovery-files).
 - `telemetry.json`: the anonymous install ID. Release builds only.
 - `.window-state.json`: window size and position, from the window-state plugin.
 
 The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, and a skipped update version. Logs live elsewhere; see `agent-tooling.md`.
 
-All preferences reads and writes go through Rust commands (`readAppDataFile`, `writeAppDataFile`) that refuse paths outside the app data folder.
+## The model
 
-## How a setting resolves
+Everything AE knows about a project is one of two kinds of thing:
 
-Project and collection settings resolve **collection → project → hard-coded default**. There's deliberately no global layer for them: a project's paths or field names don't make sense as an app-wide default. The one exception is `defaultFileType` (md or mdx), which is a writing preference, so it goes collection → project → global → `'md'` (`default-file-type.ts`).
+- **What Astro says:** read from the project on every scan and never stored.
+- **What the user chose:** stored, and only when they set something.
 
-`collection-settings.ts` is where the fallbacks are written out.
+Rust combines them: `collections::scan_project` reads the content config (`content_config/`), applies the stored settings and the conventions, and returns a `ProjectScan`. The frontend holds it in the collections query and reads it through `lib/project-scan.ts` and the hooks in `hooks/settings/`. It never resolves a setting itself.
 
-- **Collection overrides are sparse.** `settings.collections` lists only collections the user has changed, never the collections discovered in the project. Nothing has to stay in sync with discovery, and settings for a collection that's since been removed are harmless.
-- **Path overrides are relative to the project root,** at both levels, not to the content directory: `content/blog/` means `<project>/content/blog/`. Assets go in a folder named after the collection inside the assets directory (`<assets>/<collection>/`), overridden or not.
-- **Frontmatter mappings are collection-scoped in the UI** (which field is the title, date, description, draft). Each collection has its own schema, so the dropdowns list that collection's fields; a project-level dropdown merged fields from every collection, which was confusing and often wrong. Project-level mappings still exist in the files and act as the fallback, but there's no UI for them.
+### What Astro says
 
-## Project IDs
+- **Content config:** the first of `src/content.config.{mjs,js,mts,ts}` that exists, else `src/content/config.{ts,js,mjs,mts}`, in Astro's own order. It's parsed as TypeScript with swc and read statically: the `collections` export, the `defineCollection()` behind each key (following local variables and renamed imports), and the loader inside it.
+- **Collection:** a key in the `collections` export. The key is the name (`{ posts: blog }` is `posts`) and names `.astro/collections/<name>.schema.json`.
+- **Loader:**
+  - `glob({ base, pattern })` loads entries from files. `base` is relative to the project root (default `.`); a `new URL(…, import.meta.url)` base is relative to the config file. `pattern` is a string or an array, where items starting with `!` (not `!(`) exclude files.
+  - **No loader** is a legacy collection, which Astro loads from `src/content/<name>` with everything but `_`-prefixed files and folders. When no collection has a loader, Astro also makes a collection of each undefined `src/content` folder, and so does AE.
+  - **Starlight's `docsLoader()`** is a glob on `src/content/docs`; its `i18nLoader()` is data.
+  - **Data:** `file()`, `i18nLoader()`, legacy `type: 'data'`, and globs whose pattern can only match data files. Not shown as collections. `file()` JSON is still read as a reference target (`load_file_based_collection`).
+  - **Unknown:** anything else, like a custom loader, a `base` built from variables, or a collection imported from another file. AE looks for it in `<content folder>/<name>`.
+- **Collection folder** (`Collection.path`): what the sidebar browses, `base` plus the pattern's fixed prefix (`blog/**/*.md` on `src/content` is `src/content/blog`). Entry ids and pattern matching stay relative to `base` (`Collection.base`), so `FileEntry.id` is `<collection>/<path from base>` and `astroEntryId` gives Astro's id.
+- **Schema:** see `schema-system.md`. Its status is complete, helpers only (no JSON, usually because `astro sync` hasn't run), unreadable (with the error), or none.
 
-A project's ID is its `package.json` `name`, made filename-safe, or the folder name if there's no `package.json`. On a clash with an existing ID, a short hash of the path is appended (`utils.ts`). Keying on the name means a project keeps its settings when it's moved: if no registered project has the new path, `findMovedProject` looks for one with the same name and updates its path.
+A collection whose folder is missing, or outside the project (Astro allows that; AE only reads and writes inside it), is still in the scan with its `folderStatus`, but not in the sidebar (`isBrowsable`).
 
-That check doesn't confirm the old path is gone, so two projects with the same package name (say, two sites from the same Astro template) are treated as one project and share settings, which is a bug.
+With no config, or none AE can read, every subfolder of the content folder becomes a schemaless collection (`fallback` in the scan). This is deliberate: it keeps AE useful as an editor for Markdown files on disk.
 
-## Gotchas
+### Which files are entries
 
-- **`projectRegistryManager.updateProjectSettings` replaces `collections` wholesale.** Path overrides and frontmatter mappings are merged one level deep, but a `collections` array overwrites the stored one, so callers must send the full array. `usePreferences.updateCollectionSettings` does.
-- **A new collection setting must be added to the cleanup filter** in `updateCollectionSettings` (`src/hooks/usePreferences.ts`). It drops collections whose settings are all empty by checking each known field by name, so a field it doesn't know about is dropped on save.
-- **Changing project path overrides has side effects.** `projectStore.updateProjectSettings` saves and closes the open file (with a toast explaining why), invalidates the collection and directory queries, and restarts the file watcher, because the paths under the open file may have moved. Collection-level path changes go through `collections` and skip all of this, which is a bug.
-- **A collection's content directory override is saved but not used**, which is a bug. Collections are found by scanning the project-level content directory (`useCollectionsQuery`), and nothing reads the collection-level value except the preferences pane.
-- **New project files are seeded with `DEFAULT_PROJECT_SETTINGS`** (`defaults.ts`), so the project layer is rarely empty and the hard-coded defaults in `collection-settings.ts` seldom apply; change both together. The published date field is the exception: it isn't seeded, and `getPublishedDate` (`lib/files/sorting.ts`) tries `DEFAULT_PUBLISHED_DATE_FIELDS` after the mapped field, because older project files seeded `date` for every project.
-- **A preferences file that doesn't parse is treated as missing.** Global settings fall back to defaults and are overwritten on the next change. A broken project file is replaced with defaults as soon as the project opens. Take a copy before hand-editing one.
-- **Project files have a leftover top-level `collections` field that nothing reads.** Collection overrides are in `settings.collections`.
+`content_config/pattern.rs` matches like Astro's tinyglobby and picomatch for the forms people write: `*` doesn't cross `/`, `./` prefixes and trailing slashes are ignored. Patterns `globset` can't read (extglobs like `@(md|mdx)`) are reported in `patternError`, and the collection falls back to the legacy pattern, as do collections with no readable pattern.
+
+- **Files the pattern leaves out** are hidden, or shown dimmed when the collection's `skippedFiles` setting is `dim`, because a `README.md` should never show but drafts named `_draft.md` usually should. Dimmed files open and edit like any other, but `FileEntry.is_entry` is false, so the reference pickers and the Content Finder never offer them. With `hide`, folders without entries are hidden too. Files and folders starting with `.`, and `node_modules`, are always skipped.
+- **New files must match the pattern,** or they'd be written and never shown. `new_file_name` picks `<stem>.<ext>` or, for folder-per-entry patterns, `<stem>/index.<ext>`, avoiding clashes without regard to case. When no name could match, the new file command says so and creates nothing.
+
+### What the user chose
+
+A project's settings are sparse: a missing key is unset, nothing is ever seeded, and clearing a field removes it (`usePreferences` drops empty values). Each setting has one home; only the asset settings and the new file type have two levels.
+
+| Setting | Home | When unset |
+| --- | --- | --- |
+| Collection folder | Collection | From the loader; else `<content folder>/<name>` |
+| Files the pattern leaves out | Collection | Hide |
+| Title, description fields | Collection | A string field named `title` / `description` in the schema |
+| Published date field | Collection | The first date field named `pubDate`, `date` or `publishedDate` |
+| Draft field | Collection | A boolean field named `draft` |
+| Default sort | Collection | The sidebar's default |
+| New file type | Collection → global | The global preference |
+| Link URL pattern | Collection | A relative file path |
+| Assets folder | Project → collection | `src/assets`; images go in `<assets>/<collection>/` |
+| Absolute or relative image paths | Project → collection | Relative |
+| MDX components folder | Project | `src/components/mdx` |
+| Add component imports | Project | Off |
+| Content folder | Project | `src/content` |
+
+- **Field detection** looks in the schema by name and type. Without a schema, the conventional names apply and are read from each file's frontmatter. A schema without a matching field leaves the setting missing: no draft badge or filter, for example.
+- **The pattern decides the file type** when it only matches `.md` or only `.mdx`; the setting matters only when it allows both.
+- **A folder override replaces `base`,** and the pattern applies inside it.
+- **The content folder** is only used where the loader doesn't say: for unknown loaders and the folder fallback.
+
+Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, convention or missing. The settings UI shows it.
+
+## Settings files
+
+`preferences.rs` reads and writes all three files. Writes go through a temporary file and a rename.
+
+- **A file that doesn't parse is never overwritten.** It's renamed to `<name>.broken-<timestamp>.json`, the app carries on with defaults, and a toast says so.
+- **Global settings and the registry are read over their defaults,** so a setting added since a file was written gets its default.
+- **Project files are version 3.** An older one is renamed to `<id>.v2.json` when first read and the project starts with no settings; nothing migrates them. Each records the project's path, so a lost registry could be rebuilt.
+- **Projects are identified by their canonical path.** New projects get an id from their folder name and a random suffix, which never changes. A moved project is a new project; there's no guessing from `package.json` names.
+- **A settings change can move a collection's files.** `projectStore.updateProjectSettings` rescans, saves and closes the open file if its collection's folder, base or pattern changed, refreshes every file listing, and restarts the watcher if the collection folders moved.
+- **The watcher** watches each collection folder, `src/` and `src/content/` (for the content config, including one created later) and `.astro/collections/`. A change to the config or a schema rescans the project.
 
 ## Recovery files
 

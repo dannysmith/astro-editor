@@ -1,49 +1,41 @@
 // src/hooks/queries/useDirectoryScanQuery.ts
 
 import { useQuery } from '@tanstack/react-query'
-import { commands, type DirectoryScanResult } from '@/types'
+import { commands, type Collection, type DirectoryScanResult } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
 
 const fetchDirectoryContents = async (
   directoryPath: string,
-  collectionName: string,
-  collectionRoot: string
+  collection: Collection
 ): Promise<DirectoryScanResult> => {
-  if (!directoryPath || !collectionName || !collectionRoot) {
-    throw new Error(
-      'Directory path, collection name, and collection root are required.'
-    )
-  }
-  const result = await commands.scanDirectory(
-    directoryPath,
-    collectionName,
-    collectionRoot
-  )
+  const result = await commands.scanDirectory(directoryPath, collection)
   if (result.status === 'error') {
     throw new Error(result.error)
   }
   return result.data
 }
 
+/**
+ * One folder of a collection: its subfolders and files, as the collection's
+ * pattern and skipped files setting decide
+ */
 export const useDirectoryScanQuery = (
   projectPath: string | null,
-  collectionName: string | null,
-  collectionPath: string | null,
-  subdirectory: string | null // Relative path from collection root
+  collection: Collection | undefined,
+  subdirectory: string | null // Relative path from the collection folder
 ) => {
   return useQuery({
     queryKey: queryKeys.directoryContents(
       projectPath || '',
-      collectionName || '',
+      collection?.name || '',
       subdirectory || 'root'
     ),
     queryFn: () => {
       const fullPath = subdirectory
-        ? `${collectionPath}/${subdirectory}`
-        : collectionPath
-
-      return fetchDirectoryContents(fullPath!, collectionName!, collectionPath!)
+        ? `${collection!.path}/${subdirectory}`
+        : collection!.path
+      return fetchDirectoryContents(fullPath, collection!)
     },
-    enabled: !!projectPath && !!collectionName && !!collectionPath,
+    enabled: !!projectPath && !!collection,
   })
 }

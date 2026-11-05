@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { useEffectiveSettings } from '../../../hooks/settings/useEffectiveSettings'
+import { useFieldMappings } from '../../../hooks/settings'
 import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
@@ -28,7 +28,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   collectionName,
 }) => {
   const fieldValue = useEditorStore(state => state.frontmatter?.[name])
-  const { frontmatterMappings } = useEffectiveSettings(collectionName)
+  const frontmatterMappings = useFieldMappings(collectionName)
 
   // Determine field properties from SchemaField
   let fieldType: string

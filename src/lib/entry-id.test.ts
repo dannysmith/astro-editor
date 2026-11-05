@@ -11,6 +11,7 @@ function file(id: string, frontmatter: FileEntry['frontmatter'] = null) {
     collection: 'articles',
     last_modified: null,
     frontmatter,
+    is_entry: true,
   } satisfies FileEntry
 }
 

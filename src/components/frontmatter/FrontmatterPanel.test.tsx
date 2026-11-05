@@ -6,7 +6,11 @@ import type { Collection, FileEntry } from '@/types'
 import { renderWithProviders } from '../../test/test-utils'
 
 // Mock the query hook - will be configured per test
-import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
+import {
+  useCollectionsQuery,
+  useProjectScanQuery,
+} from '../../hooks/queries/useCollectionsQuery'
+import { makeCollection, makeScan } from '../../test/fixtures'
 vi.mock('../../hooks/queries/useCollectionsQuery')
 
 // Helper to create mock file entries with all required fields
@@ -18,12 +22,18 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
   collection: 'posts',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
   ...overrides,
 })
 
 describe('FrontmatterPanel Component', () => {
   // Helper to set up collections mock
   const mockCollectionsQuery = (collections: Collection[] = []) => {
+    // oxlint-disable-next-line @typescript-eslint/no-unsafe-argument
+    vi.mocked(useProjectScanQuery).mockReturnValue({
+      data: makeScan(collections),
+      // oxlint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     // oxlint-disable-next-line @typescript-eslint/no-unsafe-argument
     vi.mocked(useCollectionsQuery).mockReturnValue({
       data: collections,
@@ -84,10 +94,10 @@ describe('FrontmatterPanel Component', () => {
       rating: 5,
     }
 
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -117,7 +127,7 @@ describe('FrontmatterPanel Component', () => {
           },
         ],
       }),
-    }
+    })
 
     // Update mock to return collection
     mockCollectionsQuery([mockCollection])
@@ -152,10 +162,10 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle boolean input changes', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -166,7 +176,7 @@ describe('FrontmatterPanel Component', () => {
           },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 
@@ -186,10 +196,10 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should handle number input changes', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -200,7 +210,7 @@ describe('FrontmatterPanel Component', () => {
           },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 
@@ -229,10 +239,10 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use schema information when available', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -256,7 +266,7 @@ describe('FrontmatterPanel Component', () => {
           { name: 'tags', label: 'Tags', fieldType: 'array', required: false },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 
@@ -277,10 +287,10 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should show all schema fields even when not in frontmatter', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -303,7 +313,7 @@ describe('FrontmatterPanel Component', () => {
           },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 
@@ -344,16 +354,16 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use TagInput for array fields defined in schema', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           { name: 'tags', label: 'Tags', fieldType: 'array', required: false },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 
@@ -374,10 +384,10 @@ describe('FrontmatterPanel Component', () => {
   })
 
   it('should use TagInput for array fields not in schema but present in frontmatter', () => {
-    const mockCollection = {
+    const mockCollection = makeCollection({
       name: 'posts',
       path: '/project/posts',
-      complete_schema: JSON.stringify({
+      completeSchema: JSON.stringify({
         collectionName: 'posts',
         fields: [
           {
@@ -388,7 +398,7 @@ describe('FrontmatterPanel Component', () => {
           },
         ],
       }),
-    }
+    })
 
     mockCollectionsQuery([mockCollection])
 

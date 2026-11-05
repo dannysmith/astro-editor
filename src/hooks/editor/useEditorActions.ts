@@ -5,33 +5,29 @@ import {
   warn as logWarn,
 } from '@tauri-apps/plugin-log'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { commands, type Collection, type JsonValue } from '@/types'
+import { commands, type JsonValue } from '@/types'
+import type { ProjectScan } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'
 import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
 import { deserializeCompleteSchema } from '../../lib/schema'
-import {
-  projectRegistryManager,
-  getEffectiveContentDirectory,
-} from '../../lib/project-registry'
 import { findOwningProjectPath } from '../../lib/deep-link'
-import { ASTRO_PATHS } from '../../lib/constants'
 
 /**
- * Waits until the project store reflects `targetPath` as the active project with
- * its settings loaded. Resolves `false` if that doesn't happen within `timeoutMs`.
+ * Waits until the project store has the project `projectId` open, with its
+ * settings loaded. Resolves `false` if that doesn't happen within `timeoutMs`.
  *
  * `setProject` is fire-and-forget, so deep-link handling must wait for the switch
  * to complete before resolving/opening a file in the new project.
  */
 function waitForProjectReady(
-  targetPath: string,
+  projectId: string,
   timeoutMs = 8000
 ): Promise<boolean> {
   const state = useProjectStore.getState()
-  if (state.projectPath === targetPath && state.currentProjectSettings) {
+  if (state.currentProjectId === projectId && state.projectSettings) {
     return Promise.resolve(true)
   }
 
@@ -47,10 +43,7 @@ function waitForProjectReady(
     }, timeoutMs)
 
     handles.unsubscribe = useProjectStore.subscribe(current => {
-      if (
-        current.projectPath === targetPath &&
-        current.currentProjectSettings
-      ) {
+      if (current.currentProjectId === projectId && current.projectSettings) {
         clearTimeout(handles.timer)
         handles.unsubscribe?.()
         resolve(true)
@@ -94,18 +87,13 @@ async function saveCurrentFile(
     let schemaFieldOrder: string[] | null = null
     if (currentFile) {
       try {
-        const collections = queryClient.getQueryData<Collection[]>(
-          queryKeys.collections(projectPath)
-        )
-        if (collections && Array.isArray(collections)) {
-          const collection = collections.find(
-            (c: Collection) => c.name === currentFile.collection
-          )
-          const schema = collection?.complete_schema
-            ? deserializeCompleteSchema(collection.complete_schema)
-            : null
-          schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
-        }
+        const collection = queryClient
+          .getQueryData<ProjectScan>(queryKeys.collections(projectPath))
+          ?.collections.find(c => c.name === currentFile.collection)
+        const schema = collection?.completeSchema
+          ? deserializeCompleteSchema(collection.completeSchema)
+          : null
+        schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
       } catch (error) {
         void logWarn(`Could not get schema field order: ${String(error)}`)
       }
@@ -262,22 +250,20 @@ export function useEditorActions() {
       return
     }
 
-    // Find the known project that owns this file (initializing the registry if
-    // this is a cold start that raced ahead of normal initialization).
-    let knownProjectPaths: string[]
-    try {
-      knownProjectPaths = Object.values(
-        projectRegistryManager.getRegistry().projects
-      ).map(p => p.path)
-    } catch {
-      await projectRegistryManager.initialize()
-      knownProjectPaths = Object.values(
-        projectRegistryManager.getRegistry().projects
-      ).map(p => p.path)
+    // Find the known project that owns this file. The registry is read fresh,
+    // since on a cold start this can run before preferences have loaded.
+    const preferences = await commands.loadPreferences()
+    if (preferences.status === 'error') {
+      toast.error("Couldn't open that file", { description: preferences.error })
+      return
     }
-
-    const owningProjectPath = findOwningProjectPath(knownProjectPaths, filePath)
-    if (!owningProjectPath) {
+    const knownProjects = Object.values(preferences.data.registry.projects)
+    const owningProjectPath = findOwningProjectPath(
+      knownProjects.map(p => p.path),
+      filePath
+    )
+    const owningProject = knownProjects.find(p => p.path === owningProjectPath)
+    if (!owningProject) {
       toast.error("That file isn't in a project Astro Editor knows about", {
         description:
           'Open the project once, then links to its files will work.',
@@ -287,10 +273,10 @@ export function useEditorActions() {
 
     // Switch to the owning project if it isn't already active, then wait for it.
     const isCurrentProject =
-      useProjectStore.getState().projectPath === owningProjectPath
+      useProjectStore.getState().currentProjectId === owningProject.id
     if (!isCurrentProject) {
-      useProjectStore.getState().setProject(owningProjectPath)
-      const ready = await waitForProjectReady(owningProjectPath)
+      useProjectStore.getState().setProject(owningProject.path)
+      const ready = await waitForProjectReady(owningProject.id)
       if (!ready) {
         toast.error('Failed to open the project for that link')
         return
@@ -298,15 +284,7 @@ export function useEditorActions() {
     }
 
     // Resolve the file to a FileEntry within the project (reuses the Rust scan).
-    const { currentProjectSettings } = useProjectStore.getState()
-    const contentDirectory = getEffectiveContentDirectory(
-      currentProjectSettings
-    )
-    const result = await commands.resolveFileEntry(
-      filePath,
-      owningProjectPath,
-      contentDirectory !== ASTRO_PATHS.CONTENT_DIR ? contentDirectory : null
-    )
+    const result = await commands.resolveFileEntry(filePath, owningProject.path)
 
     if (result.status === 'error') {
       toast.error("Couldn't open that file", { description: result.error })

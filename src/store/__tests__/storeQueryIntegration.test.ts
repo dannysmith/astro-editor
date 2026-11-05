@@ -29,6 +29,7 @@ const createMockFileEntry = (
   collection: 'blog',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
   ...overrides,
 })
 

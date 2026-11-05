@@ -19,9 +19,6 @@ export const commands = {
 	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
-	getAppDataDir: () => typedError<string, string>(__TAURI_INVOKE("get_app_data_dir")),
-	writeAppDataFile: (filePath: string, content: string) => typedError<null, string>(__TAURI_INVOKE("write_app_data_file", { filePath, content })),
-	readAppDataFile: (filePath: string) => typedError<string, string>(__TAURI_INVOKE("read_app_data_file", { filePath })),
 	readFileContent: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file_content", { filePath, projectRoot })),
 	/**
 	 *  Checks if a file path is within the project directory
@@ -62,35 +59,67 @@ export const commands = {
 	 */
 	resolveImagePath: (imagePath: string, projectRoot: string, currentFilePath: string | null) => typedError<string, string>(__TAURI_INVOKE("resolve_image_path", { imagePath, projectRoot, currentFilePath })),
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
-	scanProject: (projectPath: string) => typedError<Collection[], string>(__TAURI_INVOKE("scan_project", { projectPath })),
-	scanProjectWithContentDir: (projectPath: string, contentDirectory: string | null) => typedError<Collection[], string>(__TAURI_INVOKE("scan_project_with_content_dir", { projectPath, contentDirectory })),
+	/**  The project's collections, resolved with its stored settings */
+	scanProject: (projectPath: string) => typedError<ProjectScan, string>(__TAURI_INVOKE("scan_project", { projectPath })),
 	/**
 	 *  Resolves an absolute file path to a `FileEntry` within the given project, if the
-	 *  file is a Markdown/MDX item owned by one of the project's content collections.
+	 *  file is a Markdown/MDX file in one of the project's collections.
 	 * 
 	 *  Used by the deep-link handler (`astro-editor://open?path=...`). `file_path` is
 	 *  untrusted input, so we canonicalize and verify it lives inside `project_path`
 	 *  before touching collections, guarding against `../` traversal.
 	 * 
 	 *  Returns `Ok(None)` when the path is valid and inside the project but isn't a
-	 *  Markdown item owned by a loadable collection (the caller opens the project and
-	 *  shows a "couldn't find that file" toast).
+	 *  Markdown file in a collection (the caller opens the project and shows a
+	 *  "couldn't find that file" toast).
 	 */
-	resolveFileEntry: (filePath: string, projectPath: string, contentDirectory: string | null) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath, contentDirectory })),
+	resolveFileEntry: (filePath: string, projectPath: string) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath })),
+	/**  A `file()` collection's entries, read from its JSON file as reference targets */
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
-	/**  Scan a single directory (non-recursive) for subdirectories and markdown/mdx files */
-	scanDirectory: (directoryPath: string, collectionName: string, collectionRoot: string) => typedError<DirectoryScanResult, string>(__TAURI_INVOKE("scan_directory", { directoryPath, collectionName, collectionRoot })),
-	/**  Count all markdown/mdx files recursively in a collection */
-	countCollectionFilesRecursive: (collectionPath: string) => typedError<number, string>(__TAURI_INVOKE("count_collection_files_recursive", { collectionPath })),
-	/**  Scan all markdown/mdx files recursively in a collection directory */
-	scanCollectionFilesRecursive: (collectionPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files_recursive", { collectionPath, collectionName })),
-	startWatchingProject: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("start_watching_project", { projectPath })),
-	startWatchingProjectWithContentDir: (projectPath: string, contentDirectory: string | null) => typedError<null, string>(__TAURI_INVOKE("start_watching_project_with_content_dir", { projectPath, contentDirectory })),
+	/**
+	 *  A collection folder's subfolders and Markdown files (not recursive). Files
+	 *  the collection's pattern leaves out are skipped, or marked as not entries if
+	 *  the collection shows them dimmed, and so are folders with nothing to show.
+	 */
+	scanDirectory: (directoryPath: string, collection: Collection) => typedError<DirectoryScanResult, string>(__TAURI_INVOKE("scan_directory", { directoryPath, collection })),
+	/**  How many entries a collection has, in all its folders */
+	countCollectionFilesRecursive: (collection: Collection) => typedError<number, string>(__TAURI_INVOKE("count_collection_files_recursive", { collection })),
+	/**
+	 *  Every entry in a collection, in all its folders, for the reference pickers and
+	 *  the Content Finder. Files the pattern leaves out aren't entries, so they're
+	 *  never included, whatever the collection's skipped files setting.
+	 */
+	scanCollectionFilesRecursive: (collection: Collection) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files_recursive", { collection })),
+	/**
+	 *  A free name, relative to `directory`, for a new file the collection's pattern
+	 *  includes: `<stem>.<ext>`, or `<stem>/index.<ext>` for folder-per-entry
+	 *  patterns, with `-1`, `-2`… added on a clash. Names are compared ignoring case,
+	 *  as macOS does. `None` when no name in `directory` would match, so a new file
+	 *  would be left out of the collection.
+	 */
+	newFileName: (directory: string, collection: Collection, stem: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem })),
+	/**
+	 *  Watches a project. `folders` are its collection folders, which can be anywhere
+	 *  in the project.
+	 */
+	startWatchingProject: (projectPath: string, folders: string[]) => typedError<null, string>(__TAURI_INVOKE("start_watching_project", { projectPath, folders })),
 	stopWatchingProject: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("stop_watching_project", { projectPath })),
 	/**  Opens the preferences folder in the system's default file manager */
 	openPreferencesFolder: () => typedError<null, string>(__TAURI_INVOKE("open_preferences_folder")),
 	/**  Resets all preferences by deleting the app data directory and restarting the app */
 	resetAllPreferences: () => typedError<null, string>(__TAURI_INVOKE("reset_all_preferences")),
+	/**
+	 *  Reads global settings and the project registry. A file that couldn't be read
+	 *  is set aside and replaced with defaults, with a toast saying so.
+	 */
+	loadPreferences: () => typedError<StoredPreferences, string>(__TAURI_INVOKE("load_preferences")),
+	saveGlobalSettings: (settings: GlobalSettings) => typedError<null, string>(__TAURI_INVOKE("save_global_settings", { settings })),
+	/**
+	 *  Registers the project at `project_path` if it's new, marks it as last opened,
+	 *  and returns it with its stored settings
+	 */
+	openProject: (projectPath: string) => typedError<OpenedProject, string>(__TAURI_INVOKE("open_project", { projectPath })),
+	saveProjectSettings: (projectId: string, settings: ProjectSettingsData) => typedError<null, string>(__TAURI_INVOKE("save_project_settings", { projectId, settings })),
 	/**  Quits once unsaved edits are saved (or the writer chose to quit without them). */
 	quitApp: () => __TAURI_INVOKE<void>("quit_app"),
 	/**  Stays open: the save failed and the writer is being asked what to do. */
@@ -131,13 +160,73 @@ export const commands = {
 };
 
 /* Types */
+export type AppearanceSettings = {
+	headingColor: HeadingColor,
+	/**  1-30; the editor uses 18 when unset */
+	editorBaseFontSize?: number | null,
+};
+
 export type Collection = {
+	/**  Its key in the content config's `collections` export, or its folder's name */
 	name: string,
+	kind: CollectionKind,
+	/**  The folder the sidebar browses: `base` plus the pattern's fixed prefix */
 	path: string,
-	complete_schema?: string | null,
+	/**  Where the pattern and entry ids are relative to */
+	base: string,
+	/**
+	 *  The loader's pattern. `None` when there isn't a readable one, and AE uses
+	 *  Astro's legacy pattern: everything except `_`-prefixed files and folders.
+	 */
+	patterns: string[] | null,
+	/**  Why the loader's pattern couldn't be used */
+	patternError: string | null,
+	folderSource: SettingSource,
+	folderStatus: FolderStatus,
+	schemaStatus: SchemaStatus,
+	/**  Why the generated JSON schema couldn't be read */
+	schemaError: string | null,
+	/**  Serialized `SchemaDefinition` */
+	completeSchema: string | null,
+	settings: ResolvedCollectionSettings,
+};
+
+export type CollectionKind = 
+/**  `glob()`, or a loader that wraps it */
+"glob" | 
+/**  No loader, so loaded from `src/content/<name>` */
+"legacy" | 
+/**  A loader AE doesn't know */
+"unknown" | 
+/**  A subfolder of the content folder, because there's no readable config */
+"folder" | 
+/**  Data files (JSON, YAML…), not editable content */
+"data";
+
+/**  Settings for one collection. Paths are relative to the project root. */
+export type CollectionSettings = {
+	/**  The folder to browse, replacing the loader's `base` */
+	folder?: string | null,
+	skippedFiles?: SkippedFiles | null,
+	titleField?: string | null,
+	descriptionField?: string | null,
+	publishedDateField?: string | null,
+	draftField?: string | null,
+	defaultSort?: DefaultSort | null,
+	defaultFileType?: FileType | null,
+	/**  A template for links to this collection's entries, like `/blog/{slug}` */
+	urlPattern?: string | null,
+	assetsDirectory?: string | null,
+	useAbsoluteAssetPaths?: boolean | null,
 };
 
 export type ComponentFramework = "astro" | "react" | "vue" | "svelte";
+
+export type DefaultSort = {
+	/**  A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
+	mode: string,
+	direction: SortDirection,
+};
 
 export type DirectoryInfo = {
 	name: string,
@@ -170,6 +259,46 @@ export type FileEntry = {
 	collection: string,
 	last_modified: number | null,
 	frontmatter: { [key in string]: Value } | null,
+	/**
+	 *  Whether the collection's pattern includes it. Files it leaves out are
+	 *  only listed when the collection shows them dimmed.
+	 */
+	is_entry: boolean,
+};
+
+export type FileType = "md" | "mdx";
+
+export type FolderStatus = "ok" | "missing" | 
+/**  AE only reads and writes inside the project */
+"outsideProject";
+
+export type GeneralSettings = {
+	ideCommand: string,
+	theme: Theme,
+	highlights: Highlights,
+	/**  Seconds after typing stops before saving */
+	autoSaveDelay: number,
+	/**  For new files when a collection allows both and doesn't set one */
+	defaultFileType: FileType,
+};
+
+export type GlobalSettings = {
+	general: GeneralSettings,
+	appearance: AppearanceSettings,
+	version: number,
+};
+
+export type HeadingColor = {
+	light: string,
+	dark: string,
+};
+
+export type Highlights = {
+	nouns: boolean,
+	verbs: boolean,
+	adjectives: boolean,
+	adverbs: boolean,
+	conjunctions: boolean,
 };
 
 /**  An image picked for an image prop, which the file has to import */
@@ -228,6 +357,68 @@ export type MdxComponent = {
 	slot_template: string | null,
 };
 
+/**  A project as opened: its registry entry and its stored settings */
+export type OpenedProject = {
+	project: ProjectMetadata,
+	settings: ProjectSettingsData,
+};
+
+export type ProjectMetadata = {
+	/**  Names the project's settings file. Never changes, even if the project moves. */
+	id: string,
+	name: string,
+	/**  Canonical path to the project folder */
+	path: string,
+	/**  ISO timestamps */
+	lastOpened: string,
+	created: string,
+};
+
+/**  Every project AE has opened */
+export type ProjectRegistry = {
+	projects: { [key in string]: ProjectMetadata },
+	lastOpenedProject: string | null,
+	version: number,
+};
+
+/**  Everything AE knows about a project's content */
+export type ProjectScan = {
+	/**  The content config, relative to the project root, if there is one */
+	configPath: string | null,
+	/**  Why the config couldn't be read */
+	configError: string | null,
+	/**  There's no readable config, so the collections are the content folder's subfolders */
+	fallback: boolean,
+	projectSettings: ResolvedProjectSettings,
+	collections: Collection[],
+};
+
+/**  Settings for the whole project. Paths are relative to the project root. */
+export type ProjectSettings = {
+	/**
+	 *  Where collections are looked for when their loader doesn't say, and the
+	 *  folder whose subfolders become collections when there's no readable config
+	 */
+	contentDirectory?: string | null,
+	/**  Images go in `<assets>/<collection>/`. Collections can override it. */
+	assetsDirectory?: string | null,
+	/**
+	 *  Write image paths from the project root rather than relative to the file.
+	 *  Collections can override it.
+	 */
+	useAbsoluteAssetPaths?: boolean | null,
+	mdxComponentsDirectory?: string | null,
+	/**  Experimental: the component builder adds the import a component needs */
+	addComponentImports?: boolean | null,
+};
+
+/**  A project's stored settings, as the frontend reads and edits them */
+export type ProjectSettingsData = {
+	project: ProjectSettings,
+	/**  Keyed by the collection's name in the content config */
+	collections: { [key in string]: CollectionSettings },
+};
+
 /**  What was picked for the props whose values the file has to import or load */
 export type PropImports = {
 	images: ImageImport[],
@@ -255,6 +446,76 @@ export type PropKind = { kind: "string" } | { kind: "number" } | { kind: "boolea
 { kind: "image" } | 
 /**  `CollectionEntry<'blog'>` from `astro:content` */
 { kind: "collectionEntry"; collection: string } | { kind: "unknown" };
+
+export type Resolved<T> = {
+	value: T,
+	source: SettingSource,
+};
+
+export type ResolvedCollectionSettings = {
+	skippedFiles: Resolved<SkippedFiles>,
+	titleField: Resolved<string | null>,
+	descriptionField: Resolved<string | null>,
+	/**  Fields to try for a file's published date, in order */
+	publishedDateField: Resolved<string[]>,
+	draftField: Resolved<string | null>,
+	defaultSort: DefaultSort | null,
+	newFileType: Resolved<FileType>,
+	urlPattern: string | null,
+	/**  Relative to the project root. Images go in `<assets>/<collection>/`. */
+	assetsDirectory: Resolved<string>,
+	useAbsoluteAssetPaths: Resolved<boolean>,
+};
+
+export type ResolvedProjectSettings = {
+	/**  Relative to the project root */
+	contentDirectory: Resolved<string>,
+	mdxComponentsDirectory: Resolved<string>,
+	addComponentImports: Resolved<boolean>,
+};
+
+export type SchemaStatus = 
+/**  From the generated JSON schema, with the config's helpers */
+"complete" | 
+/**
+ *  Only the config's `image()` and `reference()` helpers: there's no JSON
+ *  schema, usually because `astro sync` hasn't run
+ */
+"helpersOnly" | 
+/**  The JSON schema couldn't be read (see `schema_error`) */
+"unreadable" | 
+/**  The collection has no schema */
+"none";
+
+/**  Where a resolved setting's value came from */
+export type SettingSource = 
+/**  Set on the collection (or, for project settings, the project) */
+"set" | 
+/**  Set on the project, for a collection setting */
+"project" | 
+/**  The global preference */
+"global" | 
+/**  Read from the content config */
+"config" | 
+/**  Detected in the schema */
+"schema" | 
+/**  Astro's or AE's convention */
+"convention" | 
+/**  Nothing to go on */
+"missing";
+
+/**  What the file list does with Markdown files the collection's pattern leaves out */
+export type SkippedFiles = "hide" | "dim";
+
+export type SortDirection = "asc" | "desc";
+
+/**  Global settings and the project registry */
+export type StoredPreferences = {
+	globalSettings: GlobalSettings,
+	registry: ProjectRegistry,
+};
+
+export type Theme = "light" | "dark" | "system";
 
 export type Value = null | boolean | number | string | Value[] | { [key in string]: Value };
 
