@@ -12,8 +12,8 @@
 //! See `docs/developer/app-data.md`.
 
 use crate::models::preferences::{
-    GlobalSettings, ProjectMetadata, ProjectRegistry, ProjectSettingsData, ProjectSettingsFile,
-    PROJECT_SETTINGS_VERSION,
+    GlobalSettings, ListedProject, ProjectMetadata, ProjectRegistry, ProjectSettingsData,
+    ProjectSettingsFile, Relocation, PROJECT_SETTINGS_VERSION,
 };
 use log::{error, info, warn};
 use serde::de::DeserializeOwned;
@@ -153,18 +153,113 @@ impl Preferences {
         let _lock = lock();
         let registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
         find_project(&registry, &canonical)
-            .and_then(|id| {
-                let content = std::fs::read_to_string(self.project_file(&id)).ok()?;
-                serde_json::from_str::<ProjectSettingsFile>(&content)
-                    .ok()
-                    .filter(|file| file.version >= PROJECT_SETTINGS_VERSION)
-            })
+            .and_then(|id| self.read_current_project_file(&id))
             .map(|file| file.settings)
             .unwrap_or_default()
     }
 
+    /// Every registered project, most recently opened first, with whether its
+    /// folder is still there
+    pub fn list_projects(&self) -> Loaded<Vec<ListedProject>> {
+        let Loaded { value, problem } = self.load_registry();
+        let mut projects: Vec<ListedProject> = value
+            .projects
+            .into_values()
+            .map(|project| ListedProject {
+                missing: !Path::new(&project.path).is_dir(),
+                project,
+            })
+            .collect();
+        // ISO timestamps in one format, so they sort as strings
+        projects.sort_by(|a, b| b.project.last_opened.cmp(&a.project.last_opened));
+        Loaded {
+            value: projects,
+            problem,
+        }
+    }
+
+    /// Forgets a project and deletes its settings. The project's own files are
+    /// never touched.
+    pub fn remove_project(&self, project_id: &str) -> Result<(), String> {
+        let _lock = lock();
+        let mut registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        if registry.projects.shift_remove(project_id).is_none() {
+            return Err(format!("No project with id {project_id}"));
+        }
+        if registry.last_opened_project.as_deref() == Some(project_id) {
+            registry.last_opened_project = None;
+        }
+        self.delete_project_files(project_id)?;
+        info!("Astro Editor [PREFERENCES] Removed project {project_id}");
+        self.write(REGISTRY_FILE, &registry)
+    }
+
+    /// Points a project at the folder it moved to, keeping its settings. If
+    /// another registered project is already there, nothing changes unless
+    /// `replace` is set, in which case that project is removed first.
+    pub fn relocate_project(
+        &self,
+        project_id: &str,
+        path: &Path,
+        replace: bool,
+    ) -> Result<Relocation, String> {
+        let canonical = canonical_path(path)?;
+        let _lock = lock();
+        let mut registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        if !registry.projects.contains_key(project_id) {
+            return Err(format!("No project with id {project_id}"));
+        }
+
+        if let Some(other) = find_project(&registry, &canonical).filter(|id| id != project_id) {
+            if !replace {
+                return Ok(Relocation::AlreadyRegistered);
+            }
+            registry.projects.shift_remove(&other);
+            if registry.last_opened_project.as_deref() == Some(other.as_str()) {
+                registry.last_opened_project = Some(project_id.to_string());
+            }
+            self.delete_project_files(&other)?;
+            info!("Astro Editor [PREFERENCES] Removed project {other}, replaced by {project_id}");
+        }
+
+        let metadata = registry
+            .projects
+            .get_mut(project_id)
+            .expect("the project was checked above");
+        metadata.path = canonical.clone();
+        self.write(REGISTRY_FILE, &registry)?;
+        if let Some(file) = self.read_current_project_file(project_id) {
+            self.write_project_file(project_id, &canonical, &file.settings)?;
+        }
+        info!("Astro Editor [PREFERENCES] Relocated project {project_id} to {canonical}");
+        Ok(Relocation::Relocated)
+    }
+
     fn project_file(&self, id: &str) -> PathBuf {
         self.dir.join(PROJECTS_DIR).join(format!("{id}.json"))
+    }
+
+    /// A project's settings file if it's a current one. Read only: unlike
+    /// `read_project_file`, old and broken files are left where they are.
+    fn read_current_project_file(&self, id: &str) -> Option<ProjectSettingsFile> {
+        let content = std::fs::read_to_string(self.project_file(id)).ok()?;
+        serde_json::from_str::<ProjectSettingsFile>(&content)
+            .ok()
+            .filter(|file| file.version >= PROJECT_SETTINGS_VERSION)
+    }
+
+    /// Deletes a project's settings file and the version 2 file kept beside it
+    fn delete_project_files(&self, id: &str) -> Result<(), String> {
+        let projects = self.dir.join(PROJECTS_DIR);
+        for name in [format!("{id}.json"), format!("{id}.v2.json")] {
+            match std::fs::remove_file(projects.join(&name)) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(format!("Failed to delete {name}: {e}"));
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     /// A project's settings file. `None` when there isn't a current one: it's
@@ -488,6 +583,113 @@ mod tests {
 
         // Projects still open
         assert!(prefs.open_project(&project).is_ok());
+    }
+
+    /// Settings with one collection setting, to tell a project's settings apart
+    fn settings_with_draft_field(field: &str) -> ProjectSettingsData {
+        let mut settings = ProjectSettingsData::default();
+        settings.collections.insert(
+            "blog".to_string(),
+            CollectionSettings {
+                draft_field: Some(field.to_string()),
+                ..Default::default()
+            },
+        );
+        settings
+    }
+
+    #[test]
+    fn lists_projects_newest_first_and_flags_missing_ones() {
+        let (dir, prefs, project) = setup();
+        let other = dir.path().join("other");
+        std::fs::create_dir_all(&other).unwrap();
+        let first = prefs.open_project(&project).unwrap().metadata;
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let second = prefs.open_project(&other).unwrap().metadata;
+        std::fs::remove_dir_all(&other).unwrap();
+
+        let listed = prefs.list_projects().value;
+        let ids: Vec<_> = listed.iter().map(|p| p.project.id.as_str()).collect();
+        assert_eq!(ids, [second.id.as_str(), first.id.as_str()]);
+        assert!(listed[0].missing);
+        assert!(!listed[1].missing);
+    }
+
+    #[test]
+    fn removes_a_project_and_its_settings() {
+        let (_dir, prefs, project) = setup();
+        let id = prefs.open_project(&project).unwrap().metadata.id;
+        prefs
+            .save_project_settings(&id, &settings_with_draft_field("hidden"))
+            .unwrap();
+        let v2 = prefs.dir.join(PROJECTS_DIR).join(format!("{id}.v2.json"));
+        std::fs::write(&v2, "{}").unwrap();
+
+        prefs.remove_project(&id).unwrap();
+
+        let registry = prefs.load_registry().value;
+        assert!(registry.projects.is_empty());
+        assert_eq!(registry.last_opened_project, None);
+        assert!(!prefs.project_file(&id).exists());
+        assert!(!v2.exists());
+        assert!(project.exists());
+        assert!(prefs.remove_project(&id).is_err());
+    }
+
+    #[test]
+    fn relocates_a_moved_project_keeping_its_settings() {
+        let (dir, prefs, project) = setup();
+        let id = prefs.open_project(&project).unwrap().metadata.id;
+        let settings = settings_with_draft_field("hidden");
+        prefs.save_project_settings(&id, &settings).unwrap();
+        let moved = dir.path().join("moved");
+        std::fs::rename(&project, &moved).unwrap();
+
+        assert_eq!(
+            prefs.relocate_project(&id, &moved, false).unwrap(),
+            Relocation::Relocated
+        );
+
+        let canonical = canonical_path(&moved).unwrap();
+        assert_eq!(prefs.load_registry().value.projects[&id].path, canonical);
+        assert_eq!(
+            prefs.read_current_project_file(&id).unwrap().path,
+            canonical
+        );
+        let reopened = prefs.open_project(&moved).unwrap();
+        assert_eq!(reopened.metadata.id, id);
+        assert_eq!(reopened.settings, settings);
+    }
+
+    #[test]
+    fn relocating_onto_a_registered_folder_replaces_it_only_when_asked() {
+        let (dir, prefs, project) = setup();
+        let id = prefs.open_project(&project).unwrap().metadata.id;
+        let moved_settings = settings_with_draft_field("hidden");
+        prefs.save_project_settings(&id, &moved_settings).unwrap();
+        let moved = dir.path().join("moved");
+        std::fs::rename(&project, &moved).unwrap();
+        // Opened at its new place first, so it registered as a new project
+        let other = prefs.open_project(&moved).unwrap().metadata.id;
+        prefs
+            .save_project_settings(&other, &settings_with_draft_field("draft"))
+            .unwrap();
+
+        assert_eq!(
+            prefs.relocate_project(&id, &moved, false).unwrap(),
+            Relocation::AlreadyRegistered
+        );
+        assert_eq!(prefs.load_registry().value.projects.len(), 2);
+
+        assert_eq!(
+            prefs.relocate_project(&id, &moved, true).unwrap(),
+            Relocation::Relocated
+        );
+        let registry = prefs.load_registry().value;
+        assert_eq!(registry.projects.keys().collect::<Vec<_>>(), [&id]);
+        assert_eq!(registry.last_opened_project, Some(id.clone()));
+        assert!(!prefs.project_file(&other).exists());
+        assert_eq!(prefs.open_project(&moved).unwrap().settings, moved_settings);
     }
 
     #[test]

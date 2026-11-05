@@ -11,7 +11,21 @@ The left sidebar is your primary interface for navigating between files and coll
 
 ## Opening a Project
 
-Use `File > Open Project` or the *folder icon* in the sidebar to select and open your Astro project directory. Astro Editor will automatically scan for content collections and display them in the sidebar.
+`File > Open Project` (<Kbd mac="Cmd+Shift+O" windows="Ctrl+Shift+O" />), the *folder icon* in the sidebar or the project's name in the title bar shows the project list: every project you've opened in Astro Editor, most recent first. Type to search by name or path, and press <Kbd mac="Enter" windows="Enter" /> to open the highlighted project. To open a project for the first time, choose **Open Folder…** at the top of the list (or press <Kbd mac="Cmd+O" windows="Ctrl+O" />) and pick your Astro project's folder. Astro Editor scans it for content collections and shows them in the sidebar.
+
+Right-clicking a project in the list gives you these options:
+
+| Action | Description |
+| --- | --- |
+| **Reveal in Finder** | Show the project's folder in your OS's file explorer. |
+| **Open in IDE** | Open the project in your [configured IDE](/file-management/ide-integration/). Only shown when one is configured. |
+| **Copy Path** | Copy the project folder's path to the clipboard. |
+| **Locate…** | For a missing project: choose the folder it moved to. |
+| **Remove from Astro Editor…** | Remove the project from the list and delete its settings in Astro Editor. The project's own files aren't touched. You can also press <Kbd mac="Cmd+Backspace" windows="Ctrl+Backspace" />. The open project can't be removed. |
+
+### Moved projects
+
+Astro Editor remembers projects by their folder, so if you move or rename a project's folder, it shows as **Missing** in the list. Choose it (or right-click it and choose **Locate…**) and pick the folder's new location to open it with its settings as they were. If you've already opened the new folder with **Open Folder…**, Astro Editor asks before replacing that copy's settings with the missing project's.
 
 <Figure src={fileManager1} alt="The left sidebar listing the content collections found in an open Astro project" caption="Astro Editor scans the project and lists its content collections in the sidebar." />
 

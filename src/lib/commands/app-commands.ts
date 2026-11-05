@@ -22,7 +22,7 @@ import { AppCommand, CommandContext } from './types'
 import type { Collection } from '@/types'
 import { toast } from '../toast'
 import { openInIde } from '../ide'
-import { openProjectViaDialog } from '../projects/actions'
+import { showProjectList } from '../projects/actions'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
@@ -106,11 +106,11 @@ export const projectCommands: AppCommand[] = [
   {
     id: 'open-project',
     label: 'Open Project',
-    description: 'Select a new project folder',
+    description: 'Switch to another project or open a folder',
     icon: FolderOpen,
     group: 'project',
-    execute: async () => {
-      await openProjectViaDialog()
+    execute: () => {
+      showProjectList()
     },
     isAvailable: () => true,
   },

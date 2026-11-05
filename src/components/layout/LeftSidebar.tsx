@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { useFieldMappings } from '../../hooks/settings'
 import { FileItem } from './FileItem'
 import { FilterBar } from './FilterBar'
-import { openProjectViaDialog } from '../../lib/projects/actions'
+import { showProjectList } from '../../lib/projects/actions'
 import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
 import { filterFilesBySearch } from '../../lib/files/search'
@@ -352,7 +352,7 @@ export const LeftSidebar: React.FC = () => {
           )}
           {!selectedCollection && (
             <Button
-              onClick={() => void openProjectViaDialog()}
+              onClick={() => showProjectList()}
               variant="ghost"
               size="sm"
               className="size-7 p-0 text-muted-foreground"

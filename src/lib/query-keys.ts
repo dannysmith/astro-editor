@@ -2,6 +2,9 @@
 
 export const queryKeys = {
   all: ['project'] as const,
+  // Every registered project, for the project list. Not under `all`, which
+  // is one project's data
+  projectList: ['project-list'] as const,
   collections: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'collections'] as const,
   // Every file in a collection, with its frontmatter, for entry pickers

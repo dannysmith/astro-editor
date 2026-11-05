@@ -134,6 +134,24 @@ pub struct ProjectMetadata {
     pub created: String,
 }
 
+/// A registered project, as the project list shows it
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ListedProject {
+    pub project: ProjectMetadata,
+    /// Its folder isn't there, usually because it was moved or renamed
+    pub missing: bool,
+}
+
+/// What relocating a project did
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum Relocation {
+    Relocated,
+    /// Another registered project is at the new folder, so nothing changed
+    AlreadyRegistered,
+}
+
 /// A project's settings file, `projects/{id}.json`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]

@@ -21,6 +21,7 @@ import {
 import { FieldsSection } from './FieldsSection'
 import { ColoursSection } from './ColoursSection'
 import { ComponentBuilderSection } from './ComponentBuilderSection'
+import { ProjectListSection } from './ProjectListSection'
 
 interface Section {
   id: string
@@ -47,6 +48,7 @@ const SECTIONS: Section[] = [
   { id: 'frontmatter', title: 'Frontmatter fields', Component: FieldsSection },
   { id: 'sidebar', title: 'Sidebar and breadcrumb', Component: SidebarSection },
   { id: 'command', title: 'Command', Component: CommandSection },
+  { id: 'project-list', title: 'Project list', Component: ProjectListSection },
   { id: 'select', title: 'Select', Component: SelectSection, overlay: true },
   {
     id: 'date',

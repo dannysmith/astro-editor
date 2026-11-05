@@ -14,6 +14,7 @@ import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
 import { deserializeCompleteSchema } from '../../lib/schema'
 import { findOwningProjectPath } from '../../lib/deep-link'
+import { showProjectList } from '../../lib/projects/actions'
 
 /**
  * Waits until the project store has the project `projectId` open, with its
@@ -266,7 +267,9 @@ export function useEditorActions() {
     if (!owningProject) {
       toast.error("That file isn't in a project Astro Editor knows about", {
         description:
-          'Open the project once, then links to its files will work.',
+          'If its project has moved, locate it in the project list. Otherwise open the project once, then links to its files will work.',
+        action: { label: 'Show Projects', onClick: showProjectList },
+        duration: 10_000,
       })
       return
     }

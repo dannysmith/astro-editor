@@ -1,6 +1,7 @@
 use super::project::send_toast_notification;
 use crate::models::preferences::{
-    GlobalSettings, ProjectMetadata, ProjectRegistry, ProjectSettingsData,
+    GlobalSettings, ListedProject, ProjectMetadata, ProjectRegistry, ProjectSettingsData,
+    Relocation,
 };
 use crate::preferences::Preferences;
 use serde::{Deserialize, Serialize};
@@ -165,6 +166,38 @@ pub async fn save_project_settings(
     settings: ProjectSettingsData,
 ) -> Result<(), String> {
     Preferences::from_app(&app)?.save_project_settings(&project_id, &settings)
+}
+
+/// Every registered project, most recently opened first, with whether its
+/// folder is still there
+#[tauri::command]
+#[specta::specta]
+pub async fn list_projects(app: tauri::AppHandle) -> Result<Vec<ListedProject>, String> {
+    let listed = Preferences::from_app(&app)?.list_projects();
+    if let Some(problem) = &listed.problem {
+        show_problem(&app, problem);
+    }
+    Ok(listed.value)
+}
+
+/// Forgets a project and deletes its settings, leaving the project untouched
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_project(app: tauri::AppHandle, project_id: String) -> Result<(), String> {
+    Preferences::from_app(&app)?.remove_project(&project_id)
+}
+
+/// Points a project at the folder it moved to, keeping its settings. Reports
+/// `alreadyRegistered` instead if another project is there, unless `replace`.
+#[tauri::command]
+#[specta::specta]
+pub async fn relocate_project(
+    app: tauri::AppHandle,
+    project_id: String,
+    project_path: String,
+    replace: bool,
+) -> Result<Relocation, String> {
+    Preferences::from_app(&app)?.relocate_project(&project_id, Path::new(&project_path), replace)
 }
 
 fn show_problem(app: &tauri::AppHandle, problem: &str) {

@@ -120,6 +120,18 @@ export const commands = {
 	 */
 	openProject: (projectPath: string) => typedError<OpenedProject, string>(__TAURI_INVOKE("open_project", { projectPath })),
 	saveProjectSettings: (projectId: string, settings: ProjectSettingsData) => typedError<null, string>(__TAURI_INVOKE("save_project_settings", { projectId, settings })),
+	/**
+	 *  Every registered project, most recently opened first, with whether its
+	 *  folder is still there
+	 */
+	listProjects: () => typedError<ListedProject[], string>(__TAURI_INVOKE("list_projects")),
+	/**  Forgets a project and deletes its settings, leaving the project untouched */
+	removeProject: (projectId: string) => typedError<null, string>(__TAURI_INVOKE("remove_project", { projectId })),
+	/**
+	 *  Points a project at the folder it moved to, keeping its settings. Reports
+	 *  `alreadyRegistered` instead if another project is there, unless `replace`.
+	 */
+	relocateProject: (projectId: string, projectPath: string, replace: boolean) => typedError<Relocation, string>(__TAURI_INVOKE("relocate_project", { projectId, projectPath, replace })),
 	/**  Quits once unsaved edits are saved (or the writer chose to quit without them). */
 	quitApp: () => __TAURI_INVOKE<void>("quit_app"),
 	/**  Stays open: the save failed and the writer is being asked what to do. */
@@ -328,6 +340,13 @@ export type ImportPlan = {
 	names: { [key in string]: string },
 };
 
+/**  A registered project, as the project list shows it */
+export type ListedProject = {
+	project: ProjectMetadata,
+	/**  Its folder isn't there, usually because it was moved or renamed */
+	missing: boolean,
+};
+
 export type MarkdownContent = {
 	frontmatter: { [key in string]: Value },
 	content: string,
@@ -446,6 +465,11 @@ export type PropKind = { kind: "string" } | { kind: "number" } | { kind: "boolea
 { kind: "image" } | 
 /**  `CollectionEntry<'blog'>` from `astro:content` */
 { kind: "collectionEntry"; collection: string } | { kind: "unknown" };
+
+/**  What relocating a project did */
+export type Relocation = "relocated" | 
+/**  Another registered project is at the new folder, so nothing changed */
+"alreadyRegistered";
 
 export type Resolved<T> = {
 	value: T,

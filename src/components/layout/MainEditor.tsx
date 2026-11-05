@@ -2,7 +2,7 @@ import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
 import { Editor } from '../editor'
-import { openProjectViaDialog } from '../../lib/projects/actions'
+import { showProjectList } from '../../lib/projects/actions'
 import { Button } from '../ui/button'
 import { useProjectStore } from '@/store/projectStore'
 
@@ -18,7 +18,7 @@ const WelcomeScreen: React.FC = () => {
         </p>
         {projectPath == null && (
           <Button
-            onClick={() => void openProjectViaDialog()}
+            onClick={() => showProjectList()}
             className="self-center"
             variant="outline"
             size="sm"

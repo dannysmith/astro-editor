@@ -16,6 +16,8 @@ import {
 import { toast } from '../lib/toast'
 import { formatErrorForLogging } from '../lib/diagnostics'
 import { useEditorStore } from './editorStore'
+import { useUIStore } from './uiStore'
+import { projectName } from '../lib/projects/display'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
 import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
@@ -126,6 +128,18 @@ function deepMerge<T>(settings: T, patch: DeepPartial<T>): T {
 async function openProject(path: string, quiet = false): Promise<boolean> {
   const { getState, setState } = useProjectStore
   await info(`Astro Editor [PROJECT_SETUP] Opening project: ${path}`)
+
+  // Save unsaved edits first, or closing the file below loses them. If the
+  // save fails it has said so and kept recovery data; stay put
+  if (useEditorStore.getState().isDirty) {
+    await useEditorStore.getState().saveFile(false)
+    if (useEditorStore.getState().isDirty) {
+      await logWarn(
+        'Astro Editor [PROJECT_SETUP] Not switching projects: the open file has unsaved edits'
+      )
+      return false
+    }
+  }
 
   const result = await commands.openProject(path)
   if (result.status === 'error') {
@@ -379,8 +393,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       registry?.lastOpenedProject &&
       registry.projects[registry.lastOpenedProject]
     if (lastProject && !(await openProject(lastProject.path, true))) {
-      toast.info('Previous project no longer available', {
-        description: 'The last opened project could not be found.',
+      toast.warning(`Couldn't open ${projectName(lastProject.path)}`, {
+        description: 'It may have been moved or deleted.',
+        action: {
+          label: 'Show Projects',
+          onClick: () => useUIStore.getState().setProjectListOpen(true),
+        },
+        duration: 10_000,
       })
     }
   },

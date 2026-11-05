@@ -14,6 +14,7 @@ interface UIState {
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
+  projectListOpen: boolean
 
   // View filters (per-collection state, ephemeral)
   draftFilterByCollection: Record<string, boolean>
@@ -27,6 +28,7 @@ interface UIState {
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
+  setProjectListOpen: (open: boolean) => void
   handleTypingInEditor: () => void
   showBars: () => void
   toggleDraftFilter: (collectionName: string) => void
@@ -57,6 +59,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
+  projectListOpen: false,
   draftFilterByCollection: {},
   collectionViewState: {},
 
@@ -99,6 +102,15 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   showBars: () => {
     set({ distractionFreeBarsHidden: false })
+  },
+
+  setProjectListOpen: (open: boolean) => {
+    // Opening shows the bars distraction-free mode hid
+    set(
+      open
+        ? { projectListOpen: true, distractionFreeBarsHidden: false }
+        : { projectListOpen: false }
+    )
   },
 
   handleTypingInEditor: () => {
