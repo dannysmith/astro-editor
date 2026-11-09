@@ -8,6 +8,11 @@ The third of four tasks reworking project and collection settings. It builds on 
 
 Built, on the `project-model-and-settings` branch. `check:all` and the website checks pass. Tried in the dev app in light and dark with `temp-dummy-astro-project` (including a broken copy with a missing folder, an unreadable pattern, a missing schema and settings for a removed collection), `unusual-structure` and `starlight-minimal`, plus Default Sort, the review toast and the Preferences link. Still to do: new screenshots for the user guide, and trying the native pieces (folder pickers, the Clear confirmation, the menu items) by hand (`task-x-manual-checks-before-release.md`).
 
+Open questions, to settle before the screenshots:
+
+- **One Settings window?** Preferences and Project Settings could be one window, with "App" (General, Advanced) and "This Project" (the project, then each collection) in its sidebar. ⌘, and every project entry point would open it at the right page, the two near-identical dialog shells would become one, and Preferences' link to Project Settings would go away. Against it: project settings are mostly an explanation of the project, opened from project places.
+- **Drop the "Default" source label?** On an untouched project nearly every row says "Default". Showing a source only when it says something (set, config, schema, project, global, missing) would be calmer, at a small cost to "every value shows its source".
+
 Where the build differs from the plan:
 
 - **Statuses** (`lib/project-settings/status.ts`): errors are a missing folder, a folder outside the project, or an unreadable schema. Warnings are a schema Astro hasn't generated, an unreadable pattern, and the folder fallback (or no collections at all), which shows on the Project entry. The file list's collection rows show the same statuses (replacing their "No schema found" icon), so anything that works isn't a status: an unknown loader whose folder exists is explained by the Folder setting, and a field mapping with nothing to go on is a note on that setting. Only problems get an icon; fine collections have none.
