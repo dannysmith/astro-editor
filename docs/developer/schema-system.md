@@ -9,11 +9,11 @@ The frontmatter form is built from each collection's schema. Rust reads two sour
 - **Config lookup and loaders** are in `app-data.md`. Data collections (`file()` and the like) aren't in the collection list; `file()` JSON is only read as a reference target (`load_file_based_collection`).
 - **Changes reload the form.** The project watcher watches the folders the content config can be in and `.astro/collections/`, and a change rescans the project. If the schema folder doesn't exist yet when watching starts (before a project's first `astro sync`), the watcher's event loop checks for it each time it wakes, then watches it and reloads the schemas (`watch_new_schemas_dir` in `watcher.rs`).
 
-To support a new Astro helper, the touch points are `find_helper_calls` in `parser.rs`, `enhance_schema_from_zod` in `schema_merger.rs`, and the routing in `src/components/frontmatter/fields/FrontmatterField.tsx`.
+To support a new Astro helper, the touch points are `find_helper_calls` in `parser.rs`, `enhance_schema_from_zod` in `schema_merger.rs`, and the routing in `fieldControl` (`src/lib/field-control.ts`), which picks each field's control for the form and the project settings' schema view.
 
 ## The Zod-only fallback
 
-If the JSON schema is missing or fails to parse, `create_complete_schema` falls back to the Zod parser's output alone, and the collection's `schemaStatus` says which (`helpersOnly` or `unreadable`, with the error in `schemaError`). That output only contains the `image()` and `reference()` fields, all optional. The form then shows those fields plus whatever keys the file already has, without types, required markers, descriptions or defaults. If the config has no helpers either, the collection has no schema at all and the form shows only the file's keys.
+If the JSON schema is missing or fails to parse, `create_complete_schema` falls back to the Zod parser's output alone, and the collection's `schemaStatus` says which (`notGenerated` when the config has a schema but there's no JSON for it, or `unreadable`, with the error in `schemaError`). That output only contains the `image()` and `reference()` fields, all optional. The form then shows those fields plus whatever keys the file already has, without types, required markers, descriptions or defaults. If the config has no helpers, there's no schema to show at all and the form shows only the file's keys; the status is still `notGenerated` if the config defines a schema, and `none` only if it doesn't.
 
 **This is the likeliest cause of "my fields don't show up" or "this field has the wrong type".** The usual reasons:
 

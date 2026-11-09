@@ -203,16 +203,20 @@ export function getSortOptionsForCollection(
  * @param files - Array of file entries to sort
  * @param config - Sort configuration (mode and direction)
  * @param mappings - Frontmatter field mappings
+ * @param defaultSort - The collection's default sort setting, which the
+ *   `default` mode uses when it's set
  * @returns New sorted array (does not mutate original)
  */
 export function sortFiles(
   files: FileEntry[],
   config: SortConfig,
-  mappings: FieldMappings | null
+  mappings: FieldMappings | null,
+  defaultSort: SortConfig | null = null
 ): FileEntry[] {
-  // Default mode uses existing behavior
   if (config.mode === 'default') {
-    return sortFilesByPublishedDate(files, mappings)
+    return defaultSort && defaultSort.mode !== 'default'
+      ? sortFiles(files, defaultSort, mappings)
+      : sortFilesByPublishedDate(files, mappings)
   }
 
   const titleField = mappings?.title || 'title'

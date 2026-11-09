@@ -40,6 +40,9 @@ pub struct Loaded<T> {
 pub struct OpenedProject {
     pub metadata: ProjectMetadata,
     pub settings: ProjectSettingsData,
+    /// It had no current settings file: it's new, or its settings are from
+    /// before version 3 and were moved aside
+    pub new_settings: bool,
     pub problems: Vec<String>,
 }
 
@@ -114,6 +117,7 @@ impl Preferences {
 
         let (stored, problem) = self.read_project_file(&id);
         problems.extend(problem);
+        let new_settings = stored.is_none();
         let settings = match stored {
             Some(file) if file.path == canonical => file.settings,
             stored => {
@@ -126,6 +130,7 @@ impl Preferences {
         Ok(OpenedProject {
             metadata,
             settings,
+            new_settings,
             problems,
         })
     }
@@ -485,9 +490,11 @@ mod tests {
         let first = prefs.open_project(&project).unwrap();
         assert_eq!(first.metadata.name, "astro-blog");
         assert!(first.metadata.id.starts_with("my-site-"));
+        assert!(first.new_settings);
 
         let again = prefs.open_project(&project.join(".")).unwrap();
         assert_eq!(again.metadata.id, first.metadata.id);
+        assert!(!again.new_settings);
 
         let registry = prefs.load_registry().value;
         assert_eq!(registry.projects.len(), 1);
@@ -555,6 +562,7 @@ mod tests {
 
         let opened = prefs.open_project(&project).unwrap();
         assert_eq!(opened.settings, ProjectSettingsData::default());
+        assert!(opened.new_settings);
         assert!(opened.problems.is_empty());
         let aside = prefs.dir.join(PROJECTS_DIR).join(format!("{id}.v2.json"));
         assert_eq!(std::fs::read_to_string(aside).unwrap(), v2);

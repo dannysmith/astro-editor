@@ -12,6 +12,7 @@ import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
 import { ContentLinkerDialog } from '../content-linker'
 import { ProjectListDialog } from '../project-list'
+import { ProjectSettingsDialog } from '../project-settings'
 import { Toaster } from '../ui/sonner'
 import { PreferencesDialog } from '../preferences'
 import { AgentBridge } from '../agent-bridge'
@@ -258,6 +259,7 @@ export const Layout: React.FC = () => {
       <ComponentBuilderDialog />
       <ContentLinkerDialog />
       <ProjectListDialog />
+      <ProjectSettingsDialog />
       <PreferencesDialog
         open={preferencesOpen}
         onOpenChange={handleSetPreferencesOpen}

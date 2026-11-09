@@ -138,6 +138,9 @@ pub async fn save_global_settings(
 pub struct OpenedProject {
     pub project: ProjectMetadata,
     pub settings: ProjectSettingsData,
+    /// It had no current settings file: it's new, or its settings are from
+    /// before version 3 and were moved aside
+    pub new_settings: bool,
 }
 
 /// Registers the project at `project_path` if it's new, marks it as last opened,
@@ -155,6 +158,7 @@ pub async fn open_project(
     Ok(OpenedProject {
         project: opened.metadata,
         settings: opened.settings,
+        new_settings: opened.new_settings,
     })
 }
 

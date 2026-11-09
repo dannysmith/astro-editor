@@ -87,9 +87,10 @@ pub enum FolderStatus {
 pub enum SchemaStatus {
     /// From the generated JSON schema, with the config's helpers
     Complete,
-    /// Only the config's `image()` and `reference()` helpers: there's no JSON
-    /// schema, usually because `astro sync` hasn't run
-    HelpersOnly,
+    /// The config has a schema but there's no generated JSON for it, usually
+    /// because `astro sync` hasn't run. Only the config's `image()` and
+    /// `reference()` helpers are known.
+    NotGenerated,
     /// The JSON schema couldn't be read (see `schema_error`)
     Unreadable,
     /// The collection has no schema
@@ -152,4 +153,8 @@ pub struct ResolvedProjectSettings {
     pub content_directory: Resolved<String>,
     pub mdx_components_directory: Resolved<String>,
     pub add_component_imports: Resolved<bool>,
+    /// The project's default for collections. Relative to the project root.
+    pub assets_directory: Resolved<String>,
+    /// The project's default for collections
+    pub use_absolute_asset_paths: Resolved<bool>,
 }

@@ -5,6 +5,8 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import { commands, type ListedProject } from '@/lib/bindings'
 import { getPlatform } from '@/hooks/usePlatform'
 import { useProjectStore } from '../../store/projectStore'
+import { useUIStore } from '../../store/uiStore'
+import { showProjectSettings } from '../project-settings/actions'
 import { openInIde } from '../ide'
 import { getPlatformString } from '../platform-strings'
 import { toast } from '../toast'
@@ -12,7 +14,8 @@ import { locateProject, removeProject } from './actions'
 
 /**
  * The project list's native right-click menu. A missing project can only be
- * located, removed or have its path copied; the open project can't be removed.
+ * located, removed or have its path copied. The open project can't be removed,
+ * and is the only one whose settings can be opened.
  */
 export async function showProjectContextMenu(
   { project, missing }: ListedProject,
@@ -51,6 +54,17 @@ export async function showProjectContextMenu(
       },
     }),
     await PredefinedMenuItem.new({ item: 'Separator' }),
+    ...(project.path === projectPath
+      ? [
+          await MenuItem.new({
+            text: 'Project Settings…',
+            action: () => {
+              useUIStore.getState().setProjectListOpen(false)
+              showProjectSettings()
+            },
+          }),
+        ]
+      : []),
     ...(missing
       ? [
           await MenuItem.new({

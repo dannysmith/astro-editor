@@ -3,7 +3,7 @@ title: 'Overrides'
 description: 'Reference for path and field settings'
 ---
 
-Astro Editor reads your project rather than asking you about it: each collection's folder and file pattern come from its loader in `content.config.ts`, and its title, date, description and draft fields are detected in its schema. These settings are for when that isn't right. Set them in the [Preferences](/preferences/). Where these settings are stored on disk is covered in [Advanced Preferences](/reference/advanced-preferences/).
+Astro Editor reads your project rather than asking you about it: each collection's folder and file pattern come from its loader in `content.config.ts`, and its title, date, description and draft fields are detected in its schema. These settings are for when that isn't right. Set them in [Project Settings](/project-settings/), which shows what each one is using and where that came from. Where these settings are stored on disk is covered in [Advanced Preferences](/reference/advanced-preferences/).
 
 Each setting lives in one place: the collection or the project. The image settings can be set for the project and overridden per collection.
 
@@ -13,11 +13,14 @@ Each setting lives in one place: the collection or the project. The image settin
 | --- | --- |
 | **Folder** | Read from the collection's `glob()` loader. If Astro Editor can't read the loader, `<content folder>/<collection name>` |
 | **Files the Pattern Leaves Out** | Hidden. Choose **Show them dimmed** to see files the loader's pattern excludes, like drafts named `_draft.md` |
-| **Published Date Field** | The first date field in the schema named `pubDate`, `date` or `publishedDate` |
-| **Title Field** | A text field named `title` |
-| **Description Field** | A text field named `description` |
-| **Draft Field** | A true/false field named `draft`. Without one, there's no draft badge or filter |
-| **Default File Type for New Files** | The global preference. If the collection's pattern only includes `.md` or only `.mdx` files, new files always use that type |
+| **New Files** | The global preference. If the collection's pattern only includes `.md` or only `.mdx` files, new files always use that type |
+| **Default Sort** | Published date, newest first, with undated files at the top |
+| **Title** | A text field named `title` |
+| **Description** | A text field named `description` |
+| **Published Date** | The first date field in the schema named `pubDate`, `date` or `publishedDate` |
+| **Draft** | A true/false field named `draft`. Without one, there's no draft badge or filter |
+| **Assets Folder** | The project's |
+| **Use Absolute Paths for Images** | The project's |
 | **Link URL Pattern** | Unset: links the [Content Finder](/editor/links/#internal-links) inserts use a relative file path. Use `{slug}`, filled from a file's `slug` frontmatter or its id, as in `/writing/{slug}` |
 
 When a collection has no schema, Astro Editor uses the field names above and reads them from each file's frontmatter.
@@ -26,9 +29,10 @@ When a collection has no schema, Astro Editor uses the field names above and rea
 
 | Setting | Default | Controls |
 | --- | --- | --- |
-| **Content Directory** | `src/content` | Where collections are looked for when Astro Editor can't read their loader, and whose folders become collections when there's no content config |
-| **Assets Directory** | `src/assets` | Where dragged or inserted images are copied, in a folder named after the collection. Collections can override it |
+| **Content Folder** | `src/content` | Where collections are looked for when Astro Editor can't read their loader, and whose folders become collections when there's no readable content config |
+| **MDX Components Folder** | `src/components/mdx` | Where the [component builder](/editor/mdx-components/) looks for components |
+| **Assets Folder** | `src/assets` | Where dragged or inserted images are copied, in a folder named after the collection. Collections can override it |
 | **Use Absolute Paths for Images** | Off (relative) | When off, image paths are relative to the current file (`../../assets/image.png`); when on, they're from the project root (`/src/assets/image.png`). Collections can override it |
-| **MDX Components Directory** | `src/components/mdx` | Where the [component builder](/editor/mdx-components/) looks for components |
+| **Add Imports for MDX Components** | Off | Whether the [component builder](/editor/mdx-components/#adding-imports) adds the import a component needs. Experimental |
 
 The image path setting applies to image frontmatter fields and images dropped into the editor. See [Images & Files](/editor/images-and-files/).

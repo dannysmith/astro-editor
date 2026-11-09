@@ -53,7 +53,7 @@ const GROUPS: { title: string; tokens: string[] }[] = [
   },
   {
     title: 'Status',
-    tokens: ['draft', 'draft-bg', 'filter', 'filter-bg', 'required'],
+    tokens: ['draft', 'draft-bg', 'filter', 'filter-bg', 'required', 'warning'],
   },
   {
     title: 'Window controls',

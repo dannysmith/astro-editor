@@ -170,6 +170,8 @@
     oklch(0.6356 0.2082 25.3782),
     oklch(0.7123 0.1656 22.1776)
   );
+  /* Something AE is guessing at or can't fully use, like a missing schema */
+  --warning: light-dark(oklch(0.56 0.14 60), oklch(0.8 0.14 70));
 
   /* Editor: the iA Writer palette, for the writing surface only. Keep all of
      it, used or not (see docs/developer/editor-styles.md) */
@@ -286,6 +288,7 @@
   --color-draft: var(--draft);
   --color-draft-bg: var(--draft-bg);
   --color-filter: var(--filter);
+  --color-warning: var(--warning);
   --color-filter-bg: var(--filter-bg);
   --color-required: var(--required);
   --color-icon: var(--icon);

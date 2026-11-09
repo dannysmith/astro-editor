@@ -224,6 +224,7 @@ fn resolve_collection(
             &found.name,
             json_schema.as_deref(),
             helpers.as_deref(),
+            found.schema_source.is_some(),
         ))
     };
     let (schema, schema_status, schema_error) = match merged {
@@ -231,11 +232,16 @@ fn resolve_collection(
         None => (None, SchemaStatus::None, None),
     };
 
+    // Fields are detected in a complete schema only. Without the generated
+    // JSON, the schema is just the config's image() and reference() fields, so
+    // the conventional names apply, as with no schema
     let resolved = resolve_collection_settings(
         &set,
         &settings.project,
         global,
-        schema.as_ref(),
+        schema
+            .as_ref()
+            .filter(|_| schema_status == SchemaStatus::Complete),
         &pattern,
         patterns.is_some(),
     );
@@ -293,6 +299,8 @@ fn resolve_project_settings(set: &ProjectSettings) -> ResolvedProjectSettings {
             MDX_COMPONENTS_DIR.to_string(),
         ),
         add_component_imports: set_or(set.add_component_imports, false),
+        assets_directory: set_or(set.assets_directory.clone(), ASSETS_DIR.to_string()),
+        use_absolute_asset_paths: set_or(set.use_absolute_asset_paths, false),
     }
 }
 
@@ -667,16 +675,32 @@ mod tests {
             };"#,
         )
         .dir("src/blog");
-        assert_eq!(
-            site.scan().collections[0].schema_status,
-            SchemaStatus::HelpersOnly
-        );
+        let blog = &site.scan().collections[0];
+        assert_eq!(blog.schema_status, SchemaStatus::NotGenerated);
+        // The helpers alone don't say which field is the title
+        assert_eq!(blog.settings.title_field.source, SettingSource::Convention);
 
         let site = site.file(".astro/collections/blog.schema.json", "{ nope");
         let blog = &site.scan().collections[0];
         assert_eq!(blog.schema_status, SchemaStatus::Unreadable);
         assert!(blog.schema_error.is_some());
         assert!(blog.complete_schema.is_some(), "falls back to the helpers");
+    }
+
+    #[test]
+    fn reports_a_schema_without_helpers_that_astro_hasnt_generated() {
+        let site = Site::new(
+            r#"export const collections = {
+                blog: defineCollection({
+                    loader: glob({ pattern: '**/*.md', base: 'src/blog' }),
+                    schema: z.object({ title: z.string() }),
+                }),
+            };"#,
+        )
+        .dir("src/blog");
+        let blog = &site.scan().collections[0];
+        assert_eq!(blog.schema_status, SchemaStatus::NotGenerated);
+        assert!(blog.complete_schema.is_none());
     }
 
     #[test]
@@ -714,11 +738,19 @@ mod tests {
         assert!(!s.use_absolute_asset_paths.value);
         assert_eq!(s.use_absolute_asset_paths.source, SettingSource::Set);
         assert!(s.default_sort.is_some());
+        let project = &site.scan_with(&settings).project_settings;
+        assert_eq!(project.assets_directory.value, "src/images");
+        assert_eq!(project.assets_directory.source, SettingSource::Set);
+        assert!(project.use_absolute_asset_paths.value);
 
         // Unset, the file type comes from the global preference
-        let s = &site.scan().collections[0].settings;
+        let scan = site.scan();
+        let s = &scan.collections[0].settings;
         assert_eq!(s.new_file_type.source, SettingSource::Global);
         assert_eq!(s.assets_directory.value, ASSETS_DIR);
         assert_eq!(s.assets_directory.source, SettingSource::Convention);
+        let project = &scan.project_settings;
+        assert_eq!(project.assets_directory.source, SettingSource::Convention);
+        assert!(!project.use_absolute_asset_paths.value);
     }
 }

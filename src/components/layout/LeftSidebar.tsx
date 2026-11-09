@@ -12,13 +12,13 @@ import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutati
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import {
+  FolderCog,
   FolderOpen,
   ArrowLeft,
   FileText,
   Filter,
   Folder,
   ChevronRight,
-  AlertTriangle,
   SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -28,6 +28,12 @@ import { useFieldMappings } from '../../hooks/settings'
 import { FileItem } from './FileItem'
 import { FilterBar } from './FilterBar'
 import { showProjectList } from '../../lib/projects/actions'
+import { showProjectSettings } from '../../lib/project-settings/actions'
+import {
+  collectionProblems,
+  statusLevel,
+} from '../../lib/project-settings/status'
+import { StatusIcon, WithCode } from '../project-settings/Problems'
 import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
 import { filterFilesBySearch } from '../../lib/files/search'
@@ -260,6 +266,8 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(null)
   }
 
+  const defaultSort = currentCollection?.settings.defaultSort ?? null
+
   // Parse the schema for the current collection
   const completeSchemaJson = currentCollection?.completeSchema ?? null
   const currentSchema = useMemo(() => {
@@ -305,11 +313,13 @@ export const LeftSidebar: React.FC = () => {
         mode: collectionViewState.sortMode,
         direction: collectionViewState.sortDirection,
       },
-      frontmatterMappings
+      frontmatterMappings,
+      defaultSort
     )
   }, [
     files,
     frontmatterMappings,
+    defaultSort,
     showDraftsOnly,
     collectionViewState.searchQuery,
     collectionViewState.sortMode,
@@ -480,6 +490,17 @@ export const LeftSidebar: React.FC = () => {
               </Button>
             </>
           )}
+          {!selectedCollection && (
+            <Button
+              onClick={() => showProjectSettings()}
+              variant="ghost"
+              size="sm"
+              className="size-7 flex-shrink-0 p-0 text-muted-foreground"
+              title="Project Settings"
+            >
+              <FolderCog className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -504,7 +525,9 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {collections.map(collection => {
               const fileCount = fileCounts[collection.name] ?? 0
-              const hasSchema = Boolean(collection.completeSchema)
+              const problems = projectPath
+                ? collectionProblems(collection, projectPath)
+                : []
 
               return (
                 <button
@@ -517,15 +540,21 @@ export const LeftSidebar: React.FC = () => {
                       <span className="font-medium text-foreground">
                         {collection.name}
                       </span>
-                      {!hasSchema && (
+                      {problems[0] && (
                         <Tooltip>
                           <TooltipTrigger
                             render={
-                              <AlertTriangle className="size-3.5 text-muted-foreground" />
+                              <span className="inline-flex">
+                                <StatusIcon
+                                  level={statusLevel(problems)}
+                                  className="size-3.5"
+                                />
+                              </span>
                             }
                           />
-                          <TooltipContent side="right">
-                            No schema found - using defaults
+                          <TooltipContent side="right" className="max-w-64">
+                            <WithCode text={problems[0].message} /> See Project
+                            Settings.
                           </TooltipContent>
                         </Tooltip>
                       )}

@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { getPublishedDate, sortFilesByPublishedDate } from './sorting'
+import {
+  getPublishedDate,
+  sortFiles,
+  sortFilesByPublishedDate,
+} from './sorting'
 import { formatIsoDate } from '../dates'
 import type { FileEntry } from '@/types'
 
@@ -276,5 +280,26 @@ describe('sortFilesByPublishedDate', () => {
     const result = sortFilesByPublishedDate(files, mockMappings)
     expect(result[0]).toBe(file2)
     expect(result[1]).toBe(file1)
+  })
+})
+
+describe('sortFiles', () => {
+  const files = [
+    createMockFile({ id: 'b', frontmatter: { title: 'Bravo' } }),
+    createMockFile({
+      id: 'a',
+      frontmatter: { title: 'Alpha', publishedDate: '2024-01-01' },
+    }),
+  ]
+  const ids = (sorted: FileEntry[]) => sorted.map(f => f.id)
+
+  it('sorts the default mode by the collection’s default sort when it has one', () => {
+    const byTitle = { mode: 'title', direction: 'asc' as const }
+    const config = { mode: 'default', direction: 'desc' as const }
+    expect(ids(sortFiles(files, config, mockMappings, byTitle))).toEqual([
+      'a',
+      'b',
+    ])
+    expect(ids(sortFiles(files, config, mockMappings))).toEqual(['b', 'a'])
   })
 })

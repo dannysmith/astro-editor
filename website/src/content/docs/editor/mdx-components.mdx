@@ -153,7 +153,7 @@ If your project has its own component with the same name as one of Starlight's (
 
 An MDX file has to import every component it uses, in the lines between its frontmatter and its content. Astro Editor hides those lines while you write, and by default it leaves them alone. So after inserting a component, you'd need to add its import in a code editor, or the page breaks.
 
-Turn on **Add Imports for MDX Components** in [Project Settings](/preferences/#experimental) and the builder adds them for you. It's off by default and set per project.
+Turn on **Add Imports for MDX Components** in [Project Settings](/project-settings/#the-project) and the builder adds them for you. It's off by default and set per project.
 
 <Aside type="caution">
 Leave it off if your site uses [Astro Auto Import](https://github.com/delucis/astro-auto-import) or something similar. A component imported twice breaks the build. If your `package.json` lists `astro-auto-import`, the setting shows a reminder.
@@ -245,7 +245,7 @@ The id is the one Astro gives the entry: its `slug` frontmatter if it has one, o
 
 ## What are "MDX" Components?
 
-Any component meant to be used as above. By default, Astro Editor looks in `src/components/mdx/` and its subdirectories, but you can configure this in the [preferences](/preferences/#path-overrides). It works with components written in:
+Any component meant to be used as above. By default, Astro Editor looks in `src/components/mdx/` and its subdirectories, but you can configure this in the [Project Settings](/project-settings/#the-project). It works with components written in:
 
 - **Astro** (`.astro` files)
 - **React** (`.tsx`, `.jsx` files)

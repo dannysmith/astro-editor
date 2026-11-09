@@ -58,6 +58,8 @@ export function makeScan(
         source: 'convention',
       },
       addComponentImports: { value: false, source: 'convention' },
+      assetsDirectory: { value: 'src/assets', source: 'convention' },
+      useAbsoluteAssetPaths: { value: false, source: 'convention' },
       ...projectSettings,
     },
     collections,

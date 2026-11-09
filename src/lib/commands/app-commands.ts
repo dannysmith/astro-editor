@@ -1,5 +1,6 @@
 import {
   FileText,
+  FolderCog,
   FolderOpen,
   X,
   Sidebar,
@@ -23,6 +24,7 @@ import type { Collection } from '@/types'
 import { toast } from '../toast'
 import { openInIde } from '../ide'
 import { showProjectList } from '../projects/actions'
+import { showProjectSettings } from '../project-settings/actions'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
@@ -113,6 +115,19 @@ export const projectCommands: AppCommand[] = [
       showProjectList()
     },
     isAvailable: () => true,
+  },
+  {
+    id: 'project-settings',
+    label: 'Project Settings',
+    description: 'See how the project was read, and change its settings',
+    icon: FolderCog,
+    group: 'project',
+    execute: () => {
+      showProjectSettings()
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.projectPath)
+    },
   },
   {
     id: 'reload-collections',

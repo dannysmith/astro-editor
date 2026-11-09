@@ -47,6 +47,7 @@ const opened = {
       created: '2026-11-05T12:00:00.000Z',
     },
     settings: { project: {}, collections: {} },
+    newSettings: false,
   },
 }
 

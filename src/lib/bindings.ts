@@ -380,6 +380,11 @@ export type MdxComponent = {
 export type OpenedProject = {
 	project: ProjectMetadata,
 	settings: ProjectSettingsData,
+	/**
+	 *  It had no current settings file: it's new, or its settings are from
+	 *  before version 3 and were moved aside
+	 */
+	newSettings: boolean,
 };
 
 export type ProjectMetadata = {
@@ -496,16 +501,21 @@ export type ResolvedProjectSettings = {
 	contentDirectory: Resolved<string>,
 	mdxComponentsDirectory: Resolved<string>,
 	addComponentImports: Resolved<boolean>,
+	/**  The project's default for collections. Relative to the project root. */
+	assetsDirectory: Resolved<string>,
+	/**  The project's default for collections */
+	useAbsoluteAssetPaths: Resolved<boolean>,
 };
 
 export type SchemaStatus = 
 /**  From the generated JSON schema, with the config's helpers */
 "complete" | 
 /**
- *  Only the config's `image()` and `reference()` helpers: there's no JSON
- *  schema, usually because `astro sync` hasn't run
+ *  The config has a schema but there's no generated JSON for it, usually
+ *  because `astro sync` hasn't run. Only the config's `image()` and
+ *  `reference()` helpers are known.
  */
-"helpersOnly" | 
+"notGenerated" | 
 /**  The JSON schema couldn't be read (see `schema_error`) */
 "unreadable" | 
 /**  The collection has no schema */

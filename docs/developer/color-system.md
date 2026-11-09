@@ -29,7 +29,7 @@ All colour tokens live in one `:root` block near the top of `src/App.css`:
   - `--sidebar-*` is only for the preferences dialog's sidebar.
 
   Our own chrome tokens are `--heading`, `--icon`, `--active`, `--overlay`, `--image-preview*` and `--framework-*`.
-- **Status:** `--draft`, `--filter` (each with a `-bg` tint) and `--required`. A strong colour and its background tint are separate tokens, because each token name means one colour for every utility.
+- **Status:** `--draft`, `--filter` (each with a `-bg` tint), `--required`, and `--warning` for what AE couldn't fully read (errors use `--destructive`). A strong colour and its background tint are separate tokens, because each token name means one colour for every utility.
 - **Window controls:** the Windows caption buttons and the macOS traffic lights.
 - **Editor:** `--editor-color-*`, the iA Writer palette for the writing surface only (see `editor-styles.md`). Keep all of it, used or not. The chrome and the editor differ on purpose; for example, editor text in dark mode is softer than UI text. The app chrome uses the editor background in one place: the title bar when both panels are hidden, so the window reads as one surface.
 

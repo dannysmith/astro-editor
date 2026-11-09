@@ -200,11 +200,13 @@ pub struct MergedSchema {
 }
 
 /// Parse and merge schemas from all sources: the generated JSON schema, enhanced
-/// with the Zod helpers, or the helpers alone when there's no readable JSON
+/// with the Zod helpers, or the helpers alone when there's no readable JSON.
+/// `has_schema` says whether the config gives the collection a schema at all.
 pub fn create_complete_schema(
     collection_name: &str,
     json_schema: Option<&str>,
     zod_schema: Option<&str>,
+    has_schema: bool,
 ) -> MergedSchema {
     log::debug!(
         "[Schema] Creating complete schema for: {} (json: {}, zod: {})",
@@ -216,14 +218,13 @@ pub fn create_complete_schema(
     let zod_only = || zod_schema.and_then(|zod| parse_zod_schema(collection_name, zod).ok());
 
     let Some(json) = json_schema else {
-        let schema = zod_only();
-        let status = if schema.is_some() {
-            SchemaStatus::HelpersOnly
+        let status = if has_schema {
+            SchemaStatus::NotGenerated
         } else {
             SchemaStatus::None
         };
         return MergedSchema {
-            schema,
+            schema: zod_only(),
             status,
             error: None,
         };

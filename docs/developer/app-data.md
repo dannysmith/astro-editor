@@ -67,7 +67,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 | Title, description fields | Collection | A string field named `title` / `description` in the schema |
 | Published date field | Collection | The first date field named `pubDate`, `date` or `publishedDate` |
 | Draft field | Collection | A boolean field named `draft` |
-| Default sort | Collection | The sidebar's default |
+| Default sort | Collection | Published date, newest first; else title |
 | New file type | Collection → global | The global preference |
 | Link URL pattern | Collection | A relative file path |
 | Assets folder | Project → collection | `src/assets`; images go in `<assets>/<collection>/` |
@@ -80,8 +80,20 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 - **The pattern decides the file type** when it only matches `.md` or only `.mdx`; the setting matters only when it allows both.
 - **A folder override replaces `base`,** and the pattern applies inside it.
 - **The content folder** is only used where the loader doesn't say: for unknown loaders and the folder fallback.
+- **Default sort** is what the sidebar's Default sort mode does (`sortFiles`). The sort the writer picks in the sidebar stays per session.
 
-Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, convention or missing. The settings UI shows it.
+Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, convention or missing.
+
+### The project settings dialog
+
+`components/project-settings/` shows how AE has read the open project, and edits its settings. It only ever shows the open project, so it reads the scan and `projectStore.projectSettings` like the rest of the app. Every setting shows its source, with Reset when it's set.
+
+- **Statuses** come from `lib/project-settings/status.ts`, which the dialog's sidebar, the file list's collection rows and the review toast all use. Errors mean a collection can't be used properly: its folder is missing or outside the project, or its schema can't be read. Warnings mean AE has less to go on: no generated schema, an unreadable pattern, or the folder fallback. The file list shows statuses all the time, so things that work are never one: an unknown loader whose folder exists is explained by the Folder setting, and a field mapping with nothing to go on (no `draft` field) is a note on that setting, because plenty of sites don't have one.
+- **Field mappings without a generated schema** offer the frontmatter keys the collection's files have, by the type of their values (`frontmatterKeysOfType`), since there are no schema fields to offer. Rust only detects fields in a complete schema; the config's helpers alone don't say which field is the title.
+- **How a field is shown** comes from `fieldControl` in `lib/field-control.ts`, which `FrontmatterField` renders from, so the schema view always matches the form.
+- **Settings for collections no longer in the config** are listed with a Clear button, except with the folder fallback, when the config's collections aren't known and clearing would lose settings for a config that's only broken for now.
+- **The review toast:** `open_project` reports `newSettings` when the project had no version 3 settings file (it's new, or its old one was moved aside). Then, if anything has a status, a toast offers to open the dialog. Otherwise nothing appears.
+- **Ways in:** File > Project Settings…, the icon in the file list's header, the palette, the project list's context menu on the open project, and a link in Preferences' sidebar. Switching projects closes the dialog.
 
 ## Settings files
 

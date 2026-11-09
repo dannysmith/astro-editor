@@ -1,7 +1,8 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { useFieldMappings } from '../../../hooks/settings'
-import { FieldType, type SchemaField } from '../../../lib/schema'
+import { fieldControl } from '../../../lib/field-control'
+import type { SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
 import { NumberField } from './NumberField'
@@ -21,6 +22,7 @@ interface FrontmatterFieldProps {
   collectionName?: string
 }
 
+/** One frontmatter field, with the control `fieldControl` picks for it */
 export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   name,
   label,
@@ -28,231 +30,47 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   collectionName,
 }) => {
   const fieldValue = useEditorStore(state => state.frontmatter?.[name])
-  const frontmatterMappings = useFieldMappings(collectionName)
+  const mappings = useFieldMappings(collectionName)
+  const required = field?.required ?? false
+  const props = { name, label, required, field }
 
-  // Determine field properties from SchemaField
-  let fieldType: string
-  let required: boolean
-  let enumValues: string[] | undefined
-
-  if (field) {
-    fieldType = field.type
-    required = field.required
-    enumValues = field.enumValues
-  } else {
-    fieldType = 'string'
-    required = false
+  switch (fieldControl(name, field, fieldValue, mappings)) {
+    case 'boolean':
+      return <BooleanField name={name} label={label} field={field} />
+    case 'number':
+      return <NumberField {...props} />
+    case 'date':
+      return <DateField {...props} />
+    case 'enum':
+      return <EnumField {...props} options={field?.enumValues ?? []} />
+    case 'references':
+    case 'reference':
+      return <ReferenceField {...props} />
+    case 'images':
+      return <ImageArrayField {...props} />
+    case 'yaml':
+      return <YamlField {...props} />
+    case 'list':
+      return <ArrayField {...props} />
+    case 'image':
+      return <ImageField {...props} />
+    case 'email':
+      return <StringField {...props} type="email" />
+    case 'url':
+      return <StringField {...props} type="url" />
+    case 'title':
+      return (
+        <TextareaField
+          {...props}
+          className="text-lg font-bold text-heading"
+          minRows={1}
+          maxRows={3}
+          showCopyAsSlug
+        />
+      )
+    case 'description':
+      return <TextareaField {...props} minRows={3} maxRows={16} />
+    case 'text':
+      return <StringField {...props} />
   }
-
-  // Check if this is an array of references (should use ReferenceField in multi-select mode)
-  const isArrayReference =
-    (fieldType === (FieldType.Array as string) || fieldType === 'Array') &&
-    field?.subReference
-
-  // Check if this is a complex array (dates, objects, etc.) that should use YamlField
-  const isComplexArray =
-    !isArrayReference &&
-    (fieldType === (FieldType.Array as string) || fieldType === 'Array') &&
-    field?.subType &&
-    field.subType !== FieldType.String &&
-    field.subType !== FieldType.Number &&
-    field.subType !== FieldType.Integer
-
-  // Check if this field should be treated as an array based on schema or frontmatter value
-  const shouldUseArrayField =
-    !isArrayReference &&
-    !isComplexArray &&
-    (fieldType === (FieldType.Array as string) ||
-      fieldType === 'Array' ||
-      (!field &&
-        Array.isArray(fieldValue) &&
-        fieldValue.every((item: unknown) => typeof item === 'string')))
-
-  // Routing order matters: the first match wins.
-  // - Array references come before complex arrays, which would otherwise send
-  //   them to YamlField. An array of references whose collection the Zod parser
-  //   didn't find has no subReference, so it still ends up there.
-  // - Arrays of images use ImageArrayField; arrays of anything else but strings
-  //   and numbers (dates, objects, tuples) use YamlField.
-  // - Every typed check runs before the title and description mappings, so those
-  //   textareas only replace plain string fields.
-  // - Fields with no schema are strings, except string arrays, which are
-  //   inferred from the value.
-
-  // Handle boolean fields
-  if (
-    fieldType === (FieldType.Boolean as string) ||
-    fieldType === 'Boolean' ||
-    fieldType === 'checkbox'
-  ) {
-    return <BooleanField name={name} label={label} field={field} />
-  }
-
-  // Handle number/integer fields
-  if (
-    fieldType === (FieldType.Number as string) ||
-    fieldType === (FieldType.Integer as string) ||
-    fieldType === 'Number' ||
-    fieldType === 'number' ||
-    fieldType === 'integer'
-  ) {
-    return (
-      <NumberField
-        name={name}
-        label={label}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Handle date fields
-  if (
-    fieldType === (FieldType.Date as string) ||
-    fieldType === 'Date' ||
-    fieldType === 'date'
-  ) {
-    return (
-      <DateField name={name} label={label} required={required} field={field} />
-    )
-  }
-
-  // Handle enum fields
-  if (
-    (fieldType === (FieldType.Enum as string) ||
-      fieldType === 'Enum' ||
-      fieldType === 'enum') &&
-    enumValues
-  ) {
-    return (
-      <EnumField
-        name={name}
-        label={label}
-        options={enumValues}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Handle array reference fields (multi-select references)
-  if (isArrayReference) {
-    return (
-      <ReferenceField
-        name={name}
-        label={label}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Handle arrays of images (z.array(image())) with an image picker each
-  if (isComplexArray && field?.subType === FieldType.Image) {
-    return (
-      <ImageArrayField
-        name={name}
-        label={label}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Handle complex arrays (dates, objects, tuples) and objects without fixed
-  // fields (records, discriminated unions) with the YAML editor
-  if (isComplexArray || fieldType === (FieldType.Object as string)) {
-    return (
-      <YamlField name={name} label={label} required={required} field={field} />
-    )
-  }
-
-  // Handle array fields (strings and numbers)
-  if (shouldUseArrayField) {
-    return (
-      <ArrayField name={name} label={label} required={required} field={field} />
-    )
-  }
-
-  // Handle image fields
-  if (fieldType === (FieldType.Image as string) || fieldType === 'image') {
-    return (
-      <ImageField name={name} label={label} required={required} field={field} />
-    )
-  }
-
-  // Handle email fields
-  if (fieldType === (FieldType.Email as string) || fieldType === 'email') {
-    return (
-      <StringField
-        name={name}
-        label={label}
-        required={required}
-        type="email"
-        field={field}
-      />
-    )
-  }
-
-  // Handle URL fields
-  if (fieldType === (FieldType.URL as string) || fieldType === 'url') {
-    return (
-      <StringField
-        name={name}
-        label={label}
-        required={required}
-        type="url"
-        field={field}
-      />
-    )
-  }
-
-  // Handle reference fields
-  if (
-    fieldType === (FieldType.Reference as string) ||
-    fieldType === 'reference'
-  ) {
-    return (
-      <ReferenceField
-        name={name}
-        label={label}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Check if this field should get special treatment based on effective settings
-  if (name === frontmatterMappings.title) {
-    return (
-      <TextareaField
-        name={name}
-        label={label}
-        className="text-lg font-bold text-heading"
-        minRows={1}
-        maxRows={3}
-        required={required}
-        field={field}
-        showCopyAsSlug
-      />
-    )
-  }
-
-  if (name === frontmatterMappings.description) {
-    return (
-      <TextareaField
-        name={name}
-        label={label}
-        minRows={3}
-        maxRows={16}
-        required={required}
-        field={field}
-      />
-    )
-  }
-
-  // Default to string field
-  return (
-    <StringField name={name} label={label} required={required} field={field} />
-  )
 }

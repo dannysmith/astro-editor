@@ -15,6 +15,9 @@ interface UIState {
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
   projectListOpen: boolean
+  projectSettingsOpen: boolean
+  /** The project settings page shown: a collection's name, or null for the project */
+  projectSettingsPage: string | null
 
   // View filters (per-collection state, ephemeral)
   draftFilterByCollection: Record<string, boolean>
@@ -29,6 +32,9 @@ interface UIState {
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   setProjectListOpen: (open: boolean) => void
+  /** Opens the project settings at a page (see `projectSettingsPage`), or closes them */
+  setProjectSettingsOpen: (open: boolean, page?: string | null) => void
+  setProjectSettingsPage: (page: string | null) => void
   handleTypingInEditor: () => void
   showBars: () => void
   toggleDraftFilter: (collectionName: string) => void
@@ -60,6 +66,8 @@ export const useUIStore = create<UIState>((set, get) => ({
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
   projectListOpen: false,
+  projectSettingsOpen: false,
+  projectSettingsPage: null,
   draftFilterByCollection: {},
   collectionViewState: {},
 
@@ -111,6 +119,22 @@ export const useUIStore = create<UIState>((set, get) => ({
         ? { projectListOpen: true, distractionFreeBarsHidden: false }
         : { projectListOpen: false }
     )
+  },
+
+  setProjectSettingsOpen: (open: boolean, page: string | null = null) => {
+    set(
+      open
+        ? {
+            projectSettingsOpen: true,
+            projectSettingsPage: page,
+            distractionFreeBarsHidden: false,
+          }
+        : { projectSettingsOpen: false }
+    )
+  },
+
+  setProjectSettingsPage: (page: string | null) => {
+    set({ projectSettingsPage: page })
   },
 
   handleTypingInEditor: () => {

@@ -46,7 +46,7 @@ Icon-only buttons, like those in the title bar, look like this:
 
 ## Forms
 
-The frontmatter panel and the preferences dialog are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`. Project settings rows use `Setting` (`components/project-settings/Setting.tsx`), which adds the value's source and a Reset.
 
 - **Label wiring:** give a text control's label `htmlFor`, so clicking the label focuses it. Button-style controls (date, enum, reference and image pickers) instead get a `labelId` on the label and `aria-labelledby` on the button, because `htmlFor` would turn a label click into a button click and open the picker. `FieldWrapper` takes either.
 - **Preference text inputs use `PreferencesTextInput`,** which keeps the value in local state while typing and commits on blur or Enter. Settings are written to disk asynchronously, and committing on every keystroke made the cursor jump.

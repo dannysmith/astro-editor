@@ -18,6 +18,7 @@ import { formatErrorForLogging } from '../lib/diagnostics'
 import { useEditorStore } from './editorStore'
 import { useUIStore } from './uiStore'
 import { projectName } from '../lib/projects/display'
+import { hasProblems } from '../lib/project-settings/status'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
 import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
@@ -154,12 +155,13 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
     }
     return false
   }
-  const { project, settings } = result.data
+  const { project, settings, newSettings } = result.data
 
-  // Close the open file and stop the previous project's watcher and
-  // listeners first; starting another doesn't, so they'd keep running and
-  // every event would be handled once per project opened
+  // Close the open file, the previous project's settings, and its watcher and
+  // listeners first; starting another watcher doesn't stop them, so they'd
+  // keep running and every event would be handled once per project opened
   useEditorStore.getState().closeCurrentFile()
+  useUIStore.getState().setProjectSettingsOpen(false)
   await getState().stopFileWatcher()
 
   setState({
@@ -172,9 +174,24 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   await debug(`Astro Editor [PROJECT_SETUP] Project ID: ${project.id}`)
 
   // A cached scan could be from an earlier visit to this project
-  await rescan(project.path).catch(async (error: unknown) => {
+  const scan = await rescan(project.path).catch(async (error: unknown) => {
     await logWarn(`Astro Editor [PROJECT_SETUP] Scan failed: ${String(error)}`)
   })
+  // The first time a project is opened, or after its old settings were moved
+  // aside, say so if AE couldn't read all of it
+  if (newSettings && scan && hasProblems(scan, project.path)) {
+    toast.warning(
+      `Astro Editor couldn't read all of ${projectName(project.path)}`,
+      {
+        description: 'See what it found, and what to change.',
+        action: {
+          label: 'Review',
+          onClick: () => useUIStore.getState().setProjectSettingsOpen(true),
+        },
+        duration: 10_000,
+      }
+    )
+  }
   await getState().startFileWatcher()
   await info(`Astro Editor [PROJECT_SETUP] Opened project: ${project.id}`)
   return true
