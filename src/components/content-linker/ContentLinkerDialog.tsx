@@ -60,6 +60,12 @@ export function ContentLinkerDialog() {
   // Item value -> file, for the filter and the handlers
   const fileMap = new Map(allFiles.map(file => [buildItemValue(file), file]))
 
+  const collectionOf = (file: FileEntry) =>
+    collections.find(c => c.name === file.collection)
+  // The file's title, by its collection's title field
+  const titleOf = (file: FileEntry) =>
+    resolveTitle(file, fieldMappings(collectionOf(file)).title)
+
   // Get the currently highlighted item's value from the DOM.
   // Uses cmdk's internal [cmdk-item][aria-selected] attributes —
   // this is the recommended way to read selection state when cmdk
@@ -74,7 +80,7 @@ export function ContentLinkerDialog() {
     // value is file.path — also search against title, collection, and file name
     const file = fileMap.get(value)
     if (file) {
-      const title = resolveTitle(file)
+      const title = titleOf(file)
       if (
         title.toLowerCase().includes(lower) ||
         file.collection.toLowerCase().includes(lower) ||
@@ -106,7 +112,7 @@ export function ContentLinkerDialog() {
     if (!currentFile) return
 
     // The target collection's link pattern and title field
-    const collection = collections.find(c => c.name === file.collection)
+    const collection = collectionOf(file)
     insertLink(
       file,
       currentFile,
@@ -146,7 +152,7 @@ export function ContentLinkerDialog() {
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
               {allFiles.map(file => {
-                const title = resolveTitle(file)
+                const title = titleOf(file)
                 const value = buildItemValue(file)
 
                 return (

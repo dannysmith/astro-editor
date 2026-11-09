@@ -110,7 +110,13 @@ export async function renameOpenFile(stem: string): Promise<void> {
     })
     return
   }
-  const name = result.to.slice(result.to.lastIndexOf('/') + 1)
+  // A file in its own folder goes by the folder: `trip-lake/index.md`
+  const parts = result.to.split('/')
+  const file = parts.at(-1) ?? ''
+  const name =
+    file.startsWith('index.') && entryStem(result.to, collection) !== 'index'
+      ? parts.slice(-2).join('/')
+      : file
   if (result.to === result.from) {
     toast.info(`It's already named ${name}`)
     return
