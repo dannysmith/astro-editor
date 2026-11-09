@@ -6,12 +6,7 @@ The third of four tasks reworking project and collection settings. It builds on 
 
 ## Status
 
-Built, on the `project-model-and-settings` branch. `check:all` and the website checks pass. Tried in the dev app in light and dark with `temp-dummy-astro-project` (including a broken copy with a missing folder, an unreadable pattern, a missing schema and settings for a removed collection), `unusual-structure` and `starlight-minimal`, plus Default Sort, the review toast and the Preferences link. Still to do: new screenshots for the user guide, and trying the native pieces (folder pickers, the Clear confirmation, the menu items) by hand (`task-x-manual-checks-before-release.md`).
-
-Open questions, to settle before the screenshots:
-
-- **One Settings window?** Preferences and Project Settings could be one window, with "App" (General, Advanced) and "This Project" (the project, then each collection) in its sidebar. ⌘, and every project entry point would open it at the right page, the two near-identical dialog shells would become one, and Preferences' link to Project Settings would go away. Against it: project settings are mostly an explanation of the project, opened from project places.
-- **Drop the "Default" source label?** On an untouched project nearly every row says "Default". Showing a source only when it says something (set, config, schema, project, global, missing) would be calmer, at a small cost to "every value shows its source".
+Built, on the `project-model-and-settings` branch. `check:all` and the website checks pass. Tried in the dev app in light and dark with `temp-dummy-astro-project` (including a broken copy with a missing folder, an unreadable pattern, a missing schema and settings for a removed collection), `unusual-structure` and `starlight-minimal`, plus Default Sort, the review toast and the Preferences link. Still to do: trying the native pieces (folder pickers, the Clear confirmation, the menu items) by hand (`task-5-manual-checks-before-release.md`), and new screenshots for the user guide, which wait for the UX rework in `task-6-project-settings-ux.md`. Its open questions (one Settings window, dropping the "Default" label) moved there too.
 
 Where the build differs from the plan:
 
