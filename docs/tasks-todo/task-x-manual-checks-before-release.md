@@ -1,6 +1,6 @@
 # Manual checks before the next release
 
-Things the project list and project settings work (#82) does with native dialogs and menus, which the agent tooling can't click. Try them in a dev build, in `temp-dummy-astro-project` unless a step says otherwise. `bun run app reset` puts that project back afterwards.
+Things the project list, project settings (#82) and file naming (#87) work does with native dialogs, menus and real timing, which the agent tooling can't try. Try them in a dev build, in `temp-dummy-astro-project` unless a step says otherwise. `bun run app reset` puts that project back afterwards.
 
 ## Project settings
 
@@ -14,6 +14,17 @@ Things the project list and project settings work (#82) does with native dialogs
 - [ ] **File > Project Settings…** opens the dialog. With no project open, it does nothing.
 - [ ] **The project list:** right-click the open project. Project Settings… closes the list and opens the dialog, and it isn't offered on other projects.
 - [ ] **Keyboard:** Tab through a collection page, including the dropdowns. Escape closes the dialog and puts focus back in the editor.
+
+## File names
+
+Set the articles collection's File Names to **Date and title** first.
+
+- [ ] **Renamed from the title:** ⌘N, type a title, press Tab. The file is renamed (a toast says so) and the sidebar shows the new name, still selected. Change the title again: no second rename.
+- [ ] **Leaving by clicking another file:** ⌘N, type a title, then click straight onto another file in the sidebar. Nothing is lost, and there's only one copy of the new file, under one name or the other.
+- [ ] **Typing straight on:** ⌘N, type a title, click into the body and type at once. Everything typed is in the renamed file, and the date-named file doesn't come back. Quit and reopen to check.
+- [ ] **Published date link:** change a dated file's published date in the date picker. Rename file to match appears and renames just the date. Undo the date change: it appears again.
+- [ ] **Sidebar rename:** rename a file to the name of another one: it's refused and the other file is untouched. Rename one to the same name in different case: it takes.
+- [ ] **Undo:** after a rename, ⌘Z in the title or body doesn't do anything odd.
 
 ## Project list
 
