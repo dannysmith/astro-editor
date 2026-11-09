@@ -47,4 +47,8 @@ describe('slugFromTitle', () => {
   it('keeps digits', () => {
     expect(slugFromTitle('Top 10 Tips for 2026')).toBe('top-10-tips-2026')
   })
+
+  it('keeps accented letters without their accents', () => {
+    expect(slugFromTitle('Café Crème in Zürich')).toBe('cafe-creme-zurich')
+  })
 })

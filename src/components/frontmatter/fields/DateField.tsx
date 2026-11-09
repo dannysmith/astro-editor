@@ -3,12 +3,15 @@ import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
+import { RenameToDateLink } from './RenameToDateLink'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 import { formatIsoDate, parseIsoDate } from '../../../lib/dates'
 
 interface DateFieldProps extends FieldProps {
   field?: SchemaField
+  /** The collection's published date, which the file's name can follow */
+  isPublishedDate?: boolean
 }
 
 export const DateField: React.FC<DateFieldProps> = ({
@@ -16,6 +19,7 @@ export const DateField: React.FC<DateFieldProps> = ({
   label,
   required,
   field,
+  isPublishedDate = false,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
   const updateFrontmatterField = useEditorStore(
@@ -51,6 +55,13 @@ export const DateField: React.FC<DateFieldProps> = ({
         }}
         placeholder="Select date..."
       />
+      {isPublishedDate && (
+        <RenameToDateLink
+          date={
+            value && typeof value === 'string' ? parseIsoDate(value) : undefined
+          }
+        />
+      )}
     </FieldWrapper>
   )
 }

@@ -1,13 +1,16 @@
 use crate::collections;
+use crate::commands::files::rename_without_replacing;
 use crate::content_config::pattern::{EntryPattern, MARKDOWN_EXTENSIONS};
 use crate::content_config::{self, Loader};
 use crate::models::collection::ProjectScan;
 use crate::models::preferences::{FileType, SkippedFiles};
 use crate::models::{Collection, DirectoryInfo, FileEntry};
 use crate::preferences::Preferences;
+use crate::utils::validate_project_path;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
 use tauri_plugin_dialog::DialogExt;
@@ -365,9 +368,9 @@ pub async fn scan_collection_files_recursive(
 
 /// A free name, relative to `directory`, for a new file the collection's pattern
 /// includes: `<stem>.<ext>`, or `<stem>/index.<ext>` for folder-per-entry
-/// patterns, with `-1`, `-2`… added on a clash. Names are compared ignoring case,
-/// as macOS does. `None` when no name in `directory` would match, so a new file
-/// would be left out of the collection.
+/// patterns, with `-1`, `-2`… added on a clash (see `free_entry`). `None` when no
+/// name in `directory` would match, so a new file would be left out of the
+/// collection.
 #[tauri::command]
 #[specta::specta]
 pub async fn new_file_name(
@@ -376,37 +379,149 @@ pub async fn new_file_name(
     stem: String,
 ) -> Result<Option<String>, String> {
     let directory = PathBuf::from(directory);
-    let taken: Vec<String> = std::fs::read_dir(&directory)
-        .map_err(|e| format!("Failed to read directory: {e}"))?
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().to_lowercase())
-        .collect();
     let extension = match collection.settings.new_file_type.value {
         FileType::Md => "md",
         FileType::Mdx => "mdx",
     };
     let listing = CollectionListing::new(&collection);
+    let file = free_entry(&listing, &directory, &stem, None, &|name| {
+        vec![
+            directory.join(format!("{name}.{extension}")),
+            directory.join(name).join(format!("index.{extension}")),
+        ]
+    })?;
+    Ok(file.and_then(|file| {
+        let relative = file.strip_prefix(&directory).ok()?;
+        Some(relative.to_string_lossy().replace('\\', "/"))
+    }))
+}
+
+/// Renames an entry to `stem`, or the first free name after it (`-1`, `-2`…, as
+/// for new files), keeping its extension. A folder-per-entry file
+/// (`<name>/index.md`) has its folder renamed. Returns the file's new path, its
+/// path unchanged if it already has that name, or `None` if no such name would
+/// match the collection's pattern. Never replaces anything.
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_entry(
+    file_path: String,
+    collection: Collection,
+    stem: String,
+    project_root: String,
+) -> Result<Option<String>, String> {
+    let file = validate_project_path(&file_path, &project_root)?;
+    let (Some(directory), Some(file_name)) = (file.parent(), file.file_name()) else {
+        return Err("Invalid file path".to_string());
+    };
+    let extension = file.extension().unwrap_or_default().to_string_lossy();
+    let in_folder =
+        file.file_stem().is_some_and(|stem| stem == "index") && directory != collection.base;
+    let (target, directory) = match (in_folder, directory.parent()) {
+        (true, Some(parent)) => (directory, parent),
+        _ => (file.as_path(), directory),
+    };
+
+    let listing = CollectionListing::new(&collection);
+    let found = free_entry(&listing, directory, &stem, Some(target), &|name| {
+        vec![if in_folder {
+            directory.join(name).join(file_name)
+        } else {
+            directory.join(format!("{name}.{extension}"))
+        }]
+    })?;
+    let Some(new_file) = found else {
+        return Ok(None);
+    };
+    if new_file != file {
+        let new_target = match (in_folder, new_file.parent()) {
+            (true, Some(folder)) => folder,
+            _ => new_file.as_path(),
+        };
+        rename_without_replacing(target, new_target)?;
+    }
+    Ok(Some(new_file.to_string_lossy().to_string()))
+}
+
+/// The entry file for the first of `<stem>`, `<stem>-1`, `<stem>-2`… that's free
+/// in `directory`: the first of the paths `shapes` gives for the name that the
+/// collection's pattern includes. `None` if none of them is.
+///
+/// A name is taken, ignoring case as macOS does, by anything in the folder with
+/// that name, hidden files included; by a Markdown file with it before the
+/// extension (`post.mdx` takes `post`, as Astro would give both the id `post`);
+/// or by an entry elsewhere in the collection with it as its `slug`. `renaming`,
+/// a file or folder being renamed, takes nothing.
+fn free_entry(
+    listing: &CollectionListing,
+    directory: &Path,
+    stem: &str,
+    renaming: Option<&Path>,
+    shapes: &dyn Fn(&str) -> Vec<PathBuf>,
+) -> Result<Option<PathBuf>, String> {
+    if stem.is_empty() || stem.starts_with('.') || stem.contains(['/', '\\']) {
+        return Err(format!("\"{stem}\" isn't a file name"));
+    }
+    let is_renaming = |path: &Path| renaming.is_some_and(|renaming| path.starts_with(renaming));
+
+    let mut taken = HashSet::new();
+    for entry in std::fs::read_dir(directory)
+        .map_err(|e| format!("Failed to read directory: {e}"))?
+        .filter_map(|entry| entry.ok())
+    {
+        let path = entry.path();
+        if is_renaming(&path) {
+            continue;
+        }
+        if is_markdown(&path) {
+            if let Some(stem) = path.file_stem() {
+                taken.insert(stem.to_string_lossy().to_lowercase());
+            }
+        }
+        taken.insert(entry.file_name().to_string_lossy().to_lowercase());
+    }
+
+    let mut slugs = HashSet::new();
+    walk_markdown(&listing.collection.path, &mut |path| {
+        let slug = listing
+            .file_entry(path, true)
+            .filter(|entry| entry.is_entry && !is_renaming(path))
+            .and_then(|entry| {
+                entry
+                    .frontmatter?
+                    .get("slug")?
+                    .as_str()
+                    .map(str::to_lowercase)
+            });
+        slugs.extend(slug);
+        false
+    });
 
     for attempt in 0..1000 {
         let name = match attempt {
-            0 => stem.clone(),
+            0 => stem.to_string(),
             n => format!("{stem}-{n}"),
         };
-        let candidate = [
-            format!("{name}.{extension}"),
-            format!("{name}/index.{extension}"),
-        ]
-        .into_iter()
-        .find(|candidate| listing.is_entry(&directory.join(candidate)));
-        let Some(candidate) = candidate else {
+        let Some(file) = shapes(&name)
+            .into_iter()
+            .find(|file| listing.is_entry(file))
+        else {
             return Ok(None);
         };
-        let first_part = candidate.split('/').next().unwrap_or(&candidate);
-        if !taken.contains(&first_part.to_lowercase()) {
-            return Ok(Some(candidate));
+        let clashes = taken.contains(&name.to_lowercase())
+            || entry_id(&listing.collection.base, &file).is_some_and(|id| slugs.contains(&id));
+        if !clashes {
+            return Ok(Some(file));
         }
     }
-    Err("Couldn't find a free name for the new file".to_string())
+    Err("Couldn't find a free file name".to_string())
+}
+
+/// The id Astro gives the entry at `file`, lowercased: its path from the
+/// collection's base, without the extension or a final `/index`
+fn entry_id(base: &Path, file: &Path) -> Option<String> {
+    let relative = file.strip_prefix(base).ok()?.with_extension("");
+    let id = relative.to_string_lossy().replace('\\', "/").to_lowercase();
+    Some(id.strip_suffix("/index").map(str::to_string).unwrap_or(id))
 }
 
 /// Lists a collection's files: which are entries, and which to show
@@ -1057,5 +1172,84 @@ mod tests {
             Some("today.md")
         );
         assert_eq!(new_name(&top_level, "2024", "today"), None);
+    }
+
+    #[test]
+    fn new_file_names_avoid_names_astro_would_give_the_same_id() {
+        let (_temp, blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        std::fs::write(blog.path.join("notes.mdx"), "").unwrap();
+        std::fs::write(blog.path.join("2024/moved.md"), "---\nslug: taken\n---\n").unwrap();
+        assert_eq!(new_name(&blog, "", "notes").as_deref(), Some("notes-1.md"));
+        assert_eq!(new_name(&blog, "", "taken").as_deref(), Some("taken-1.md"));
+    }
+
+    fn rename(collection: &Collection, file: &str, stem: &str) -> Result<Option<String>, String> {
+        let root = collection.path.parent().unwrap().parent().unwrap();
+        tauri::async_runtime::block_on(rename_entry(
+            collection.path.join(file).to_string_lossy().to_string(),
+            collection.clone(),
+            stem.to_string(),
+            root.to_string_lossy().to_string(),
+        ))
+        .map(|path| {
+            path.map(|path| {
+                path.strip_prefix(&format!("{}/", collection.path.display()))
+                    .unwrap_or(&path)
+                    .to_string()
+            })
+        })
+    }
+
+    #[test]
+    fn renames_entries_without_replacing_anything() {
+        let (_temp, blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        assert_eq!(
+            rename(&blog, "post.md", "hello"),
+            Ok(Some("hello.md".to_string()))
+        );
+        assert!(!blog.path.join("post.md").exists());
+        assert_eq!(
+            rename(&blog, "hello.md", "readme"),
+            Ok(Some("readme-1.md".to_string()))
+        );
+        assert_eq!(
+            rename(&blog, "readme-1.md", "readme"),
+            Ok(Some("readme-1.md".to_string()))
+        );
+        assert!(rename(&blog, "2024/old.md", "../escape").is_err());
+    }
+
+    #[test]
+    fn renames_an_entry_to_its_own_name_in_another_case() {
+        let (_temp, blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        assert_eq!(
+            rename(&blog, "post.md", "Post"),
+            Ok(Some("Post.md".to_string()))
+        );
+        let names: Vec<String> = std::fs::read_dir(&blog.path)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(names.contains(&"Post.md".to_string()));
+    }
+
+    #[test]
+    fn renames_the_folder_of_a_folder_per_entry_file() {
+        let (_temp, blog) = blog_collection("'**/index.md'", SkippedFiles::Hide);
+        std::fs::create_dir_all(blog.path.join("trip")).unwrap();
+        std::fs::write(blog.path.join("trip/index.md"), "").unwrap();
+        assert_eq!(
+            rename(&blog, "trip/index.md", "lake"),
+            Ok(Some("lake/index.md".to_string()))
+        );
+        assert!(blog.path.join("lake/index.md").exists());
+        assert!(!blog.path.join("trip").exists());
+    }
+
+    #[test]
+    fn renames_nothing_when_no_name_would_be_an_entry() {
+        let (_temp, top_level) = blog_collection("'*.md'", SkippedFiles::Hide);
+        assert_eq!(rename(&top_level, "2024/old.md", "new"), Ok(None));
+        assert!(top_level.path.join("2024/old.md").exists());
     }
 }

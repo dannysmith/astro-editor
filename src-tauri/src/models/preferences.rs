@@ -215,6 +215,9 @@ pub struct CollectionSettings {
     pub default_sort: Option<DefaultSort>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_file_type: Option<FileType>,
+    /// How files are named, like `{YYYY-MM-DD}-{title}`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_name_pattern: Option<String>,
     /// A template for links to this collection's entries, like `/blog/{slug}`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url_pattern: Option<String>,

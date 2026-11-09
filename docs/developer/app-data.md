@@ -69,6 +69,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 | Draft field | Collection | A boolean field named `draft` |
 | Default sort | Collection | Published date, newest first; else title |
 | New file type | Collection → global | The global preference |
+| File name pattern | Collection | `{YYYY-MM-DD}`: today's date. Applied by `lib/files/file-name-pattern.ts`; Rust picks a free name |
 | Link URL pattern | Collection | A relative file path |
 | Assets folder | Project → collection | `src/assets`; images go in `<assets>/<collection>/` |
 | Absolute or relative image paths | Project → collection | Relative |

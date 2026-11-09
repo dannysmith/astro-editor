@@ -141,6 +141,9 @@ pub struct ResolvedCollectionSettings {
     /// Unset, the file list sorts by published date, newest first
     pub default_sort: Resolved<Option<DefaultSort>>,
     pub new_file_type: Resolved<FileType>,
+    /// How files are named, like `{YYYY-MM-DD}-{title}`. `{title}` is the title as
+    /// a slug, and other placeholders are date formats. Applied by the frontend.
+    pub file_name_pattern: Resolved<String>,
     /// Unset, links use the file's relative path
     pub url_pattern: Resolved<Option<String>>,
     /// Relative to the project root. Images go in `<assets>/<collection>/`.

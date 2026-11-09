@@ -107,9 +107,38 @@ pub async fn rename_file(
     project_root: String,
 ) -> Result<(), String> {
     let validated_old_path = validate_project_path(&old_path, &project_root)?;
-    let validated_new_path = validate_project_path(&new_path, &project_root)?;
-    std::fs::rename(&validated_old_path, &validated_new_path)
-        .map_err(|e| format!("Failed to rename file: {e}"))
+    // The folder is validated rather than the whole path, because resolving a
+    // path that exists gives its case on disk, which would undo a change of case
+    let new_path = Path::new(&new_path);
+    let (Some(folder), Some(name)) = (new_path.parent(), new_path.file_name()) else {
+        return Err("Invalid file path".to_string());
+    };
+    let validated_new_path = validate_project_path(folder, &project_root)?.join(name);
+    rename_without_replacing(&validated_old_path, &validated_new_path)
+}
+
+/// Renames a file or folder, refusing if something already has the new name,
+/// unless it's the same file under a name that differs only in case
+pub fn rename_without_replacing(from: &Path, to: &Path) -> Result<(), String> {
+    if to.symlink_metadata().is_ok() && !is_same_file(from, to) {
+        let name = to.file_name().unwrap_or_default().to_string_lossy();
+        return Err(format!("There's already a file named \"{name}\""));
+    }
+    std::fs::rename(from, to).map_err(|e| format!("Failed to rename file: {e}"))
+}
+
+#[cfg(unix)]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (a.symlink_metadata(), b.symlink_metadata()) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
 }
 
 /// Convert a string to kebab case
@@ -1345,6 +1374,29 @@ Regular markdown content here."#;
             to_kebab_case("mdx-builder-imports.C8C_tUAK_gNwzF copy"),
             "mdx-builder-imports-c8c-tuak-gnwzf-copy"
         );
+    }
+
+    #[tokio::test]
+    async fn rename_file_never_replaces_another_file() {
+        let project = tempfile::TempDir::new().unwrap();
+        let root = fs::canonicalize(project.path()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(root.join("b.md"), "b").unwrap();
+        let path = |name: &str| root.join(name).to_string_lossy().to_string();
+        let project_root = root.to_string_lossy().to_string();
+
+        let result = rename_file(path("a.md"), path("b.md"), project_root.clone()).await;
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(root.join("b.md")).unwrap(), "b");
+
+        rename_file(path("a.md"), path("A.md"), project_root)
+            .await
+            .unwrap();
+        let names: Vec<String> = fs::read_dir(&root)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(names.contains(&"A.md".to_string()));
     }
 
     #[tokio::test]

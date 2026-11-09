@@ -17,6 +17,7 @@ import {
   Link,
   BookOpen,
   Keyboard,
+  PenLine,
 } from 'lucide-react'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { AppCommand, CommandContext } from './types'
@@ -25,6 +26,7 @@ import { toast } from '../toast'
 import { openInIde } from '../ide'
 import { showProjectList } from '../projects/actions'
 import { showProjectSettings } from '../project-settings/actions'
+import { renameOpenFileFromPattern } from '../files/rename'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
@@ -53,6 +55,20 @@ export const fileCommands: AppCommand[] = [
     group: 'file',
     execute: (context: CommandContext) => {
       context.closeCurrentFile()
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.currentFile)
+    },
+  },
+  {
+    id: 'rename-file-from-pattern',
+    label: 'Rename File from Pattern',
+    description:
+      "Name the open file by its collection's file name pattern, from its title and date",
+    icon: PenLine,
+    group: 'file',
+    execute: () => {
+      void renameOpenFileFromPattern()
     },
     isAvailable: (context: CommandContext) => {
       return Boolean(context.currentFile)

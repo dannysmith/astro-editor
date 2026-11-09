@@ -5,6 +5,7 @@ import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { CopyAsSlugLink } from './CopyAsSlugLink'
 import { FieldWrapper } from './FieldWrapper'
+import { renameNewFileFromTitle } from '../../../lib/files/rename'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
@@ -13,7 +14,11 @@ interface TextareaFieldProps extends FieldProps {
   minRows?: number
   maxRows?: number
   field?: SchemaField
-  showCopyAsSlug?: boolean
+  /**
+   * The collection's title field: it gets the "Copy as slug" link and the id
+   * new files focus, and a new file is renamed from it on blur
+   */
+  isTitle?: boolean
 }
 
 export const TextareaField: React.FC<TextareaFieldProps> = ({
@@ -25,14 +30,14 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   maxRows = 6,
   required,
   field,
-  showCopyAsSlug = false,
+  isTitle = false,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
   const generatedId = React.useId()
-  const id = name === 'title' ? 'frontmatter-title-field' : generatedId
+  const id = isTitle ? 'frontmatter-title-field' : generatedId
 
   return (
     <FieldWrapper
@@ -54,8 +59,9 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
         maxRows={maxRows}
         value={valueToString(value)}
         onChange={e => updateFrontmatterField(name, e.target.value)}
+        onBlur={isTitle ? () => void renameNewFileFromTitle() : undefined}
       />
-      {showCopyAsSlug && <CopyAsSlugLink text={valueToString(value)} />}
+      {isTitle && <CopyAsSlugLink text={valueToString(value)} />}
     </FieldWrapper>
   )
 }

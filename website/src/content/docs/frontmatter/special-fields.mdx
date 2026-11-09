@@ -14,7 +14,7 @@ Represents the item's **title**. Uses `title` by default but can be overridden i
 - **Sorting** — used as the **Title** [sort option](/file-management/drafts-filtering-and-sorting/), and the alphabetical tiebreaker which the **Default** sort uses for files that share a date or have none.
 - **Filtering** — the filter box matches against the title as well as the filename.
 - **Content Finder** — entries are listed and searched by their title.
-- **New files** — a `title` field is pre-filled with a placeholder like "New Article".
+- **New files** — a `title` field is pre-filled with a placeholder like "New Article". If the collection's [file name pattern](/project-settings/#files) uses `{title}`, the file is renamed from the title when you first write one.
 
 ## Date
 
@@ -22,6 +22,7 @@ Represents the item's primary **date** – usually its published date. By defaul
 
 - **File list** — shown next to each file if set, and used by the **Default** sort (newest first).
 - **New files** — set to today's date when new files are created.
+- **File names** — if a file's name has a date in it, by its collection's [file name pattern](/project-settings/#files), a **Rename file to match** link appears below the date when the two differ. It changes only the date in the name.
 
 <Aside type="tip">
 If your posts use a date field with another name (such as `postedOn`), set it in the [Project Settings](/project-settings/#frontmatter-fields) so sorting works as you'd expect.

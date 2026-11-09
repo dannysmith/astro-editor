@@ -21,6 +21,8 @@ use std::path::{Path, PathBuf};
 const CONTENT_DIR: &str = "src/content";
 const ASSETS_DIR: &str = "src/assets";
 const MDX_COMPONENTS_DIR: &str = "src/components/mdx";
+/// How new files are named: today's date
+const FILE_NAME_PATTERN: &str = "{YYYY-MM-DD}";
 
 /// Field names tried, in order, for a file's published date
 const PUBLISHED_DATE_FIELDS: [&str; 3] = ["pubDate", "date", "publishedDate"];
@@ -377,6 +379,7 @@ fn resolve_collection_settings(
         draft_field: single(detect(&set.draft_field, &["draft"], "boolean")),
         default_sort: set_or(set.default_sort.clone().map(Some), None),
         new_file_type,
+        file_name_pattern: set_or(set.file_name_pattern.clone(), FILE_NAME_PATTERN.to_string()),
         url_pattern: set_or(set.url_pattern.clone().map(Some), None),
         assets_directory: collection_or_project(
             set.assets_directory.clone(),

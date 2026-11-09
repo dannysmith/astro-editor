@@ -93,11 +93,19 @@ export const commands = {
 	/**
 	 *  A free name, relative to `directory`, for a new file the collection's pattern
 	 *  includes: `<stem>.<ext>`, or `<stem>/index.<ext>` for folder-per-entry
-	 *  patterns, with `-1`, `-2`… added on a clash. Names are compared ignoring case,
-	 *  as macOS does. `None` when no name in `directory` would match, so a new file
-	 *  would be left out of the collection.
+	 *  patterns, with `-1`, `-2`… added on a clash (see `free_entry`). `None` when no
+	 *  name in `directory` would match, so a new file would be left out of the
+	 *  collection.
 	 */
 	newFileName: (directory: string, collection: Collection, stem: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem })),
+	/**
+	 *  Renames an entry to `stem`, or the first free name after it (`-1`, `-2`…, as
+	 *  for new files), keeping its extension. A folder-per-entry file
+	 *  (`<name>/index.md`) has its folder renamed. Returns the file's new path, its
+	 *  path unchanged if it already has that name, or `None` if no such name would
+	 *  match the collection's pattern. Never replaces anything.
+	 */
+	renameEntry: (filePath: string, collection: Collection, stem: string, projectRoot: string) => typedError<string | null, string>(__TAURI_INVOKE("rename_entry", { filePath, collection, stem, projectRoot })),
 	/**
 	 *  Watches a project. `folders` are its collection folders, which can be anywhere
 	 *  in the project.
@@ -226,6 +234,8 @@ export type CollectionSettings = {
 	draftField?: string | null,
 	defaultSort?: DefaultSort | null,
 	defaultFileType?: FileType | null,
+	/**  How files are named, like `{YYYY-MM-DD}-{title}` */
+	fileNamePattern?: string | null,
 	/**  A template for links to this collection's entries, like `/blog/{slug}` */
 	urlPattern?: string | null,
 	assetsDirectory?: string | null,
@@ -491,6 +501,11 @@ export type ResolvedCollectionSettings = {
 	/**  Unset, the file list sorts by published date, newest first */
 	defaultSort: Resolved<DefaultSort | null>,
 	newFileType: Resolved<FileType>,
+	/**
+	 *  How files are named, like `{YYYY-MM-DD}-{title}`. `{title}` is the title as
+	 *  a slug, and other placeholders are date formats. Applied by the frontend.
+	 */
+	fileNamePattern: Resolved<string>,
 	/**  Unset, links use the file's relative path */
 	urlPattern: Resolved<string | null>,
 	/**  Relative to the project root. Images go in `<assets>/<collection>/`. */

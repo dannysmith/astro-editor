@@ -34,6 +34,7 @@ export function makeCollection(
       draftField: { value: 'draft', source: 'convention' },
       defaultSort: { value: null, source: 'convention' },
       newFileType: { value: 'md', source: 'global' },
+      fileNamePattern: { value: '{YYYY-MM-DD}', source: 'convention' },
       urlPattern: { value: null, source: 'convention' },
       assetsDirectory: { value: 'src/assets', source: 'convention' },
       useAbsoluteAssetPaths: { value: false, source: 'convention' },

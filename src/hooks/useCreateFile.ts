@@ -11,6 +11,9 @@ import {
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
+import { fieldMappings } from '../lib/project-scan'
+import { fileNameStem } from '../lib/files/file-name-pattern'
+import { rememberNewFile } from '../lib/files/rename'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -50,11 +53,13 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
 }
 
 /**
- * Creates a file named for today in the folder open in the sidebar, with
- * frontmatter from the collection's schema (a placeholder title, today's date,
- * defaults for required fields), then opens it and focuses its title or the
- * editor. Plain function rather than inline in the hook so the React Compiler
- * can compile the hook (it can't handle `throw` inside `try`).
+ * Creates a file named by the collection's pattern (without a title yet) in
+ * the folder open in the sidebar, with frontmatter from the collection's
+ * schema (a placeholder title, today's date, defaults for required fields),
+ * then opens it and focuses its title or the editor. A file whose pattern uses
+ * the title is renamed once the title is written (`renameNewFileFromTitle`).
+ * Plain function rather than inline in the hook so the React Compiler can
+ * compile the hook (it can't handle `throw` inside `try`).
  */
 async function createFileInCurrentFolder(
   collections: Collection[],
@@ -80,11 +85,20 @@ async function createFileInCurrentFolder(
     ? `${collection.path}/${currentSubdirectory}`
     : collection.path
 
-  // A name for today the collection's pattern includes, in its new file type
+  // The collection's pattern with no title yet, which may leave just the date,
+  // or today's date if it leaves nothing
+  const today = todayIsoDate()
+  const stem =
+    fileNameStem(collection.settings.fileNamePattern.value, {
+      title: '',
+      date: new Date(),
+    }) || today
+
+  // A free name the collection's pattern includes, in its new file type
   const nameResult = await commands.newFileName(
     targetDirectory,
     collection,
-    todayIsoDate()
+    stem
   )
   if (nameResult.status === 'error') {
     throw new Error(nameResult.error)
@@ -110,22 +124,22 @@ async function createFileInCurrentFolder(
   const singularName = singularize(selectedCollection)
   const defaultTitle = `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
 
+  // The collection's title and published date fields
+  const mappings = fieldMappings(collection)
+  const dateFields = [mappings.publishedDate].flat()
+
   if (schema?.fields) {
     for (const field of schema.fields) {
-      // Check if this is a title field
-      if (field.name.toLowerCase() === 'title') {
+      if (field.name === mappings.title) {
         hasTitleField = true
         // Always include title field with default value
         defaultFrontmatter[field.name] = defaultTitle
       }
-      // Check for date fields (pubDate, date, publishedDate)
+      // The published date is today
       else if (
         field.type === FieldType.Date &&
-        (field.name.toLowerCase() === 'pubdate' ||
-          field.name.toLowerCase() === 'date' ||
-          field.name.toLowerCase() === 'publisheddate')
+        dateFields.includes(field.name)
       ) {
-        // Only add date fields if they exist in the schema
         defaultFrontmatter[field.name] = todayIsoDate()
       }
       // Include other required fields
@@ -184,6 +198,7 @@ async function createFileInCurrentFolder(
       useUIStore.getState()
 
     openFile(newFile)
+    if (hasTitleField) rememberNewFile(newFile.path, defaultTitle)
 
     // Open frontmatter panel if we have a title field
     if (hasTitleField && !frontmatterPanelVisible) {

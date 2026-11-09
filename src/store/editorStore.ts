@@ -35,7 +35,8 @@ interface EditorState {
   setAutoSaveCallback: (
     callback: ((showToast?: boolean) => Promise<void>) | null
   ) => void
-  updateCurrentFileAfterRename: (newPath: string) => void
+  /** Points the open file at its new name, keeping its unsaved state */
+  updateCurrentFileAfterRename: (newFile: FileEntry) => void
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -212,19 +213,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ autoSaveCallback: callback })
   },
 
-  updateCurrentFileAfterRename: (newPath: string) => {
-    const { currentFile } = get()
-    if (currentFile) {
-      set({
-        currentFile: {
-          ...currentFile,
-          path: newPath,
-          name: newPath
-            .substring(newPath.lastIndexOf('/') + 1)
-            .replace(/\.[^.]+$/, ''),
-        },
-      })
-    }
+  updateCurrentFileAfterRename: (newFile: FileEntry) => {
+    if (get().currentFile) set({ currentFile: newFile })
   },
 }))
 

@@ -40,7 +40,12 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
     case 'number':
       return <NumberField {...props} />
     case 'date':
-      return <DateField {...props} />
+      return (
+        <DateField
+          {...props}
+          isPublishedDate={[mappings.publishedDate].flat().includes(name)}
+        />
+      )
     case 'enum':
       return <EnumField {...props} options={field?.enumValues ?? []} />
     case 'references':
@@ -65,7 +70,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
           className="text-lg font-bold text-heading"
           minRows={1}
           maxRows={3}
-          showCopyAsSlug
+          isTitle
         />
       )
     case 'description':

@@ -26,6 +26,7 @@ import { DocsLink } from '../preferences/DocsLink'
 import { ProblemList, WithCode } from './Problems'
 import { FolderInput, Setting, SettingSelect } from './Setting'
 import { SchemaFields } from './SchemaFields'
+import { FileNamePatternInput } from './FileNamePatternInput'
 
 type FieldSetting =
   | 'titleField'
@@ -116,6 +117,12 @@ export function CollectionPage({
       />
     )
   }
+
+  // Patterns like `**/index.md` give each entry a folder
+  const folderPerEntry = Boolean(
+    collection.patterns?.length &&
+    collection.patterns.every(p => /(^|\/)index\.[^/]+$/.test(p))
+  )
 
   const sortChoices = defaultSortChoices(getSortOptionsForCollection(schema))
   const defaultSort = resolved.defaultSort.value
@@ -242,6 +249,28 @@ export function CollectionPage({
               />
             )
           }
+        </Setting>
+
+        <Setting
+          label="File Names"
+          source={resolved.fileNamePattern.source}
+          onReset={reset('fileNamePattern')}
+          description={
+            <WithCode text="How new files are named. `{title}` is the title as a slug, added when you first give a new file a title. Other placeholders are dates, from the published date or today, written with `YYYY`, `YY`, `MM`, `M`, `DD` and `D`. The Rename File from Pattern command renames any file to match." />
+          }
+        >
+          {({ id }) => (
+            <FileNamePatternInput
+              id={id}
+              value={resolved.fileNamePattern.value}
+              fileName={stem =>
+                folderPerEntry
+                  ? `${stem}/index.${resolved.newFileType.value}`
+                  : `${stem}.${resolved.newFileType.value}`
+              }
+              onChange={pattern => update({ fileNamePattern: pattern })}
+            />
+          )}
         </Setting>
 
         <Setting

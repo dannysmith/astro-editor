@@ -84,6 +84,7 @@ const COLLECTION: Collection = {
     draftField: { value: null, source: 'missing' },
     defaultSort: { value: null, source: 'convention' },
     newFileType: { value: 'md', source: 'global' },
+    fileNamePattern: { value: '{YYYY-MM-DD}-{title}', source: 'set' },
     urlPattern: { value: '/blog/{slug}', source: 'set' },
     assetsDirectory: { value: 'src/assets', source: 'convention' },
     useAbsoluteAssetPaths: { value: false, source: 'convention' },

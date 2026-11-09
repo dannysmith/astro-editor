@@ -36,6 +36,7 @@ import {
 import { StatusIcon, WithCode } from '../project-settings/Problems'
 import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
+import { followRenamedFile } from '../../lib/files/rename'
 import { filterFilesBySearch } from '../../lib/files/search'
 import { deserializeCompleteSchema } from '../../lib/schema'
 
@@ -248,12 +249,7 @@ export const LeftSidebar: React.FC = () => {
         collectionName: selectedCollection,
       })
       .then(() => {
-        // Update current file path if this is the current file
-        const { currentFile, updateCurrentFileAfterRename } =
-          useEditorStore.getState()
-        if (currentFile?.path === file.path) {
-          updateCurrentFileAfterRename(newPath)
-        }
+        void followRenamedFile(file.path, newPath, projectPath)
         // Another file may be being renamed by now
         setRenamingFileId(current => (current === file.id ? null : current))
       })

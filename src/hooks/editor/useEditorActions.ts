@@ -15,6 +15,7 @@ import { queryKeys } from '../../lib/query-keys'
 import { deserializeCompleteSchema } from '../../lib/schema'
 import { findOwningProjectPath } from '../../lib/deep-link'
 import { showProjectList } from '../../lib/projects/actions'
+import { renameUnderWay } from '../../lib/files/rename'
 
 /**
  * Waits until the project store has the project `projectId` open, with its
@@ -100,9 +101,13 @@ async function saveCurrentFile(
       }
     }
 
+    // If the file is being renamed, save to its new path, not the old one
+    const rename = renameUnderWay(currentFile.path)
+    const path = rename ? await rename : currentFile.path
+
     // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
     const result = await commands.saveMarkdownContent(
-      currentFile.path,
+      path,
       isFrontmatterDirty ? (frontmatter as Record<string, JsonValue>) : null,
       isFrontmatterDirty ? null : rawFrontmatter,
       editorContent,
@@ -117,7 +122,7 @@ async function saveCurrentFile(
     // If another file was opened during the save (openFile saves the
     // outgoing file), the store now holds that file's state: leave it alone
     const currentState = useEditorStore.getState()
-    if (currentState.currentFile?.id === currentFile.id) {
+    if (currentState.currentFile?.path === path) {
       // Clear auto-save timeout since we just saved
       if (currentState.autoSaveTimeoutId) {
         clearTimeout(currentState.autoSaveTimeoutId)
