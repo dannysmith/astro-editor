@@ -1,0 +1,12 @@
+---
+interface Props {
+  name: string
+  type: 'string' | 'number' | 'boolean'
+  required?: boolean
+}
+const { name, type, required = false } = Astro.props
+---
+
+<table class="api">
+  <tr><th>{name}</th><td>{type}</td><td>{required ? 'Required' : 'Optional'}</td></tr>
+</table>
