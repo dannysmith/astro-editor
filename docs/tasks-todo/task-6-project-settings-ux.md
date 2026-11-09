@@ -19,6 +19,28 @@ The structure and names should carry the mental model: AE reads your project and
 - **Overrides aren't obvious.** "Set by you · Reset" is easy to miss. Something like a pill when a setting is overridden. Rethink how settings are laid out generally, not just the label.
 - **New patterns go in the styleguide.** A setting row with its source and reset, the toggle with explanation, the project identity and so on. Try them in the styleguide first if that helps.
 
+## The copy
+
+Going through the test plan, the labels and controls work, but nearly every description reads as machine-written. Why:
+
+- **It explains the mechanism in AE's own words:** loader, pattern, entries, "readable content config". A writer thinks in files and folders. ("Where collections are looked for when their loader doesn't say, and whose folders become collections when there's no readable content config.")
+- **Descriptions repeat the label** as a noun phrase: "The components the component builder offers in MDX files." "The folder you browse in the file list."
+- **One sentence shape everywhere.** All four field warnings are "No X field, so Y". Four settings end "Collections can override this."
+- **The same fact three times.** A missing title says "Not found" next to the label, "Automatic: none" in the dropdown and "No string `title` field…" under it, with a warning triangle, for something that's often fine.
+- **Odd constructions:** "Loader: One Astro Editor can't read", "Shown dimmed, they open and edit as usual."
+- **The app names itself** ("Astro Editor can't read this collection's loader…"). Mac settings rarely do.
+- **On journal's page, the error and the Folder help say the same thing** one above the other.
+- **Raw errors show through:** an unreadable pattern shows "Couldn't read the pattern \`*.@(md|mdx)\`: extglobs aren't supported", backticks and all, in a code box.
+
+How to fix it:
+
+- **Most settings need no description.** A clear label and a placeholder showing the value in use are enough for MDX Components Folder. Where there is one, it says when you'd change the setting, or what you'll notice, not how AE works. "Components here can be inserted with ⌘/."
+- **Let the control explain itself.** Image paths becomes a choice between "Relative to the file" and "From the project root", each with its example path. Files the pattern leaves out becomes a toggle: "Show files Astro skips", with "Such as drafts named `_draft.md`. They're shown dimmed."
+- **Say things once.** "Collections can change these" goes once on the project's Images heading. When the status at the top shows a problem, the setting below it only offers the fix: a Choose Folder… button in the error itself.
+- **Missing isn't a warning.** "None" in the dropdown, and one grey line about what you won't get: "Without one, there's no draft badge or filter." Warnings are for things that are broken.
+- **Name things by what they are:** a custom loader is "Custom", and "Every Markdown file, except ones starting with `_`" says it's assumed: "Not known, so every `.md` and `.mdx` file except those starting with `_`."
+- **Mechanism goes in the user guide,** with one Learn more per section.
+
 ## Open questions
 
 From task 3:

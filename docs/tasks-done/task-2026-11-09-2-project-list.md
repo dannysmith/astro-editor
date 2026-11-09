@@ -6,7 +6,7 @@ The second of four tasks reworking project and collection settings. It depends o
 
 ## Status
 
-Built, on the `project-model-and-settings` branch. `check:all` passes. Opening, searching, switching, the startup message and the title bar were tried in the dev app; Remove, Locate… and the context menu use native dialogs and menus, so they're covered by the Rust tests and need trying by hand (`task-5-manual-checks-before-release.md`).
+Done, on the `project-model-and-settings` branch. `check:all` passes. Opening, searching, switching, the startup message and the title bar were tried in the dev app; Remove, Locate… and the context menu use native dialogs and menus, so they're covered by the Rust tests and need trying by hand (`task-5-manual-checks-before-release.md`).
 
 Where the build differs from the plan:
 

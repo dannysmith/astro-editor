@@ -6,7 +6,7 @@ The last of four tasks reworking project and collection settings. It adds a coll
 
 ## Status
 
-Built, on the `project-model-and-settings` branch. `check:all` passes. Tried in the dev app with `temp-dummy-astro-project`: the setting's presets, examples and error; a new file renamed on leaving the title, and only once; the published date link; the command, including a second run ("already named"); and renaming with unsaved edits, then typing on, which all landed in the renamed file. The native pieces and a few timing cases are in `task-5-manual-checks-before-release.md`.
+Done, on the `project-model-and-settings` branch. `check:all` passes. Tried in the dev app with `temp-dummy-astro-project`: the setting's presets, examples and error; a new file renamed on leaving the title, and only once; the published date link; the command, including a second run ("already named"); and renaming with unsaved edits, then typing on, which all landed in the renamed file. The native pieces and a few timing cases are in `task-5-manual-checks-before-release.md`.
 
 ## Problem
 
@@ -34,4 +34,4 @@ A per-collection **File Names** pattern, like `{YYYY-MM-DD}-{title}`, in the col
 - [x] Rename on title blur, the command, and the published date link.
 - [x] Tests for naming, clashes, the pattern and the rename sequence.
 - [x] The user guide: creating files, the setting, the command and the date link.
-- [ ] The manual checks (section 5 of `task-5-manual-checks-before-release.md`).
+- [x] The manual checks. Moved to task 5.

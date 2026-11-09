@@ -168,7 +168,7 @@ Collections are keyed by their Astro name. Settings for a collection that's no l
 
 - [x] Rewrite `docs/developer/app-data.md` around this model, which is where it lives once this task is done. Update `schema-system.md`.
 - [x] Update the user guide enough to stay true until task 3: `getting-started/introduction.mdx` (its requirements say collections must use `glob` and live in `src/content/`), `reference/overrides.mdx` and `preferences.mdx`.
-- [ ] Release notes: projects may need setting up again.
+- [x] Release notes: projects may need setting up again. Moved to task 8.
 
 ## Known gaps
 

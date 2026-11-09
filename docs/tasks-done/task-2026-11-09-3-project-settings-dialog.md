@@ -6,7 +6,7 @@ The third of four tasks reworking project and collection settings. It builds on 
 
 ## Status
 
-Built, on the `project-model-and-settings` branch. `check:all` and the website checks pass. Tried in the dev app in light and dark with `temp-dummy-astro-project` (including a broken copy with a missing folder, an unreadable pattern, a missing schema and settings for a removed collection), `unusual-structure` and `starlight-minimal`, plus Default Sort, the review toast and the Preferences link. Still to do: trying the native pieces (folder pickers, the Clear confirmation, the menu items) by hand (`task-5-manual-checks-before-release.md`), and new screenshots for the user guide, which wait for the UX rework in `task-6-project-settings-ux.md`. Its open questions (one Settings window, dropping the "Default" label) moved there too.
+Done, on the `project-model-and-settings` branch. `check:all` and the website checks pass. Tried in the dev app in light and dark with `temp-dummy-astro-project` (including a broken copy with a missing folder, an unreadable pattern, a missing schema and settings for a removed collection), `unusual-structure` and `starlight-minimal`, plus Default Sort, the review toast and the Preferences link. Still to do: trying the native pieces (folder pickers, the Clear confirmation, the menu items) by hand (`task-5-manual-checks-before-release.md`), and new screenshots for the user guide, which wait for the UX rework in `task-6-project-settings-ux.md`. Its open questions (one Settings window, dropping the "Default" label) moved there too.
 
 Where the build differs from the plan:
 
@@ -54,4 +54,4 @@ A separate dialog with a sidebar and a detail pane, laid out like Preferences. P
 - [x] The review toast.
 - [x] Remove the Project Settings and Collections panes from Preferences.
 - [x] Check it in the app, in light and dark mode, with each test project, including task 1's unusual one.
-- [ ] Rewrite `preferences.mdx` and `reference/overrides.mdx` in the user guide, with new screenshots. Rewritten, with a new `project-settings.mdx`; screenshots to do.
+- [x] Rewrite `preferences.mdx` and `reference/overrides.mdx` in the user guide, with new screenshots. Rewritten, with a new `project-settings.mdx`; the screenshots moved to task 6.
