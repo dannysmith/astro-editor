@@ -59,15 +59,19 @@ const SCHEMA: CompleteSchema = {
   ],
 }
 
-/** A collection with an unknown loader and no draft field, so it has notes to show */
+/**
+ * A collection with an unreadable pattern and no draft field, so it has a
+ * warning and a note to show
+ */
 const COLLECTION: Collection = {
   name: 'posts',
-  kind: 'unknown',
+  kind: 'glob',
   path: `${PROJECT}/src/content/posts`,
   base: `${PROJECT}/src/content/posts`,
   patterns: null,
-  patternError: null,
-  folderSource: 'convention',
+  patternError:
+    "Couldn't read the pattern `**/*.@(md|mdx)`: extglobs aren't supported",
+  folderSource: 'config',
   folderStatus: 'ok',
   schemaStatus: 'complete',
   schemaError: null,
@@ -78,9 +82,9 @@ const COLLECTION: Collection = {
     descriptionField: { value: null, source: 'missing' },
     publishedDateField: { value: ['published'], source: 'set' },
     draftField: { value: null, source: 'missing' },
-    defaultSort: null,
+    defaultSort: { value: null, source: 'convention' },
     newFileType: { value: 'md', source: 'global' },
-    urlPattern: null,
+    urlPattern: { value: '/blog/{slug}', source: 'set' },
     assetsDirectory: { value: 'src/assets', source: 'convention' },
     useAbsoluteAssetPaths: { value: false, source: 'convention' },
   },

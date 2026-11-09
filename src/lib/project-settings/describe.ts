@@ -1,6 +1,7 @@
 /**
- * How the project settings dialog words what AE has read: loaders, sources,
- * schema fields and sort orders. Text in backticks is shown as code.
+ * How the project settings dialog words and offers what AE has read: loaders,
+ * sources, schema fields, sort orders and frontmatter keys. Text in backticks
+ * is shown as code.
  */
 
 import type {

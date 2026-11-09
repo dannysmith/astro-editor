@@ -266,7 +266,7 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(null)
   }
 
-  const defaultSort = currentCollection?.settings.defaultSort ?? null
+  const defaultSort = currentCollection?.settings.defaultSort.value ?? null
 
   // Parse the schema for the current collection
   const completeSchemaJson = currentCollection?.completeSchema ?? null

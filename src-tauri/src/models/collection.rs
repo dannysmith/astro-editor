@@ -138,9 +138,11 @@ pub struct ResolvedCollectionSettings {
     /// Fields to try for a file's published date, in order
     pub published_date_field: Resolved<Vec<String>>,
     pub draft_field: Resolved<Option<String>>,
-    pub default_sort: Option<DefaultSort>,
+    /// Unset, the file list sorts by published date, newest first
+    pub default_sort: Resolved<Option<DefaultSort>>,
     pub new_file_type: Resolved<FileType>,
-    pub url_pattern: Option<String>,
+    /// Unset, links use the file's relative path
+    pub url_pattern: Resolved<Option<String>>,
     /// Relative to the project root. Images go in `<assets>/<collection>/`.
     pub assets_directory: Resolved<String>,
     pub use_absolute_asset_paths: Resolved<bool>,

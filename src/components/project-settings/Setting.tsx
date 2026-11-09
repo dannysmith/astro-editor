@@ -21,8 +21,8 @@ import { ProblemNote } from './Problems'
 
 interface SettingProps {
   label: string
-  /** Where its value came from; none for a setting with nothing to fall back to */
-  source?: SettingSource | null
+  /** Where its value came from */
+  source: SettingSource
   /** Unsets it. Offered when it's set. */
   onReset?: () => void
   description?: React.ReactNode
@@ -51,7 +51,7 @@ export function Setting({
       <FieldLabel id={labelId} htmlFor={id}>
         {label}
       </FieldLabel>
-      {source && <SourceNote source={source} onReset={onReset} />}
+      <SourceNote source={source} onReset={onReset} />
     </div>
   )
 

@@ -3,7 +3,7 @@
  *
  * Kept in one place so URLs are easy to update if the docs are restructured.
  * Used by the native Help menu, the command palette, and inline "Learn more"
- * links in the preferences panes. All are opened externally via `openPath`
+ * links in the preferences and project settings. All are opened externally via `openPath`
  * from `@tauri-apps/plugin-opener`.
  */
 const DOCS_BASE = 'https://astroeditor.danny.is'

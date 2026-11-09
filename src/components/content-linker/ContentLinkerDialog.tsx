@@ -110,7 +110,7 @@ export function ContentLinkerDialog() {
     insertLink(
       file,
       currentFile,
-      collection?.settings.urlPattern ?? undefined,
+      collection?.settings.urlPattern.value ?? undefined,
       fieldMappings(collection).title
     )
   }

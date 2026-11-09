@@ -488,9 +488,11 @@ export type ResolvedCollectionSettings = {
 	/**  Fields to try for a file's published date, in order */
 	publishedDateField: Resolved<string[]>,
 	draftField: Resolved<string | null>,
-	defaultSort: DefaultSort | null,
+	/**  Unset, the file list sorts by published date, newest first */
+	defaultSort: Resolved<DefaultSort | null>,
 	newFileType: Resolved<FileType>,
-	urlPattern: string | null,
+	/**  Unset, links use the file's relative path */
+	urlPattern: Resolved<string | null>,
 	/**  Relative to the project root. Images go in `<assets>/<collection>/`. */
 	assetsDirectory: Resolved<string>,
 	useAbsoluteAssetPaths: Resolved<boolean>,

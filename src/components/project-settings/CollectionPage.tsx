@@ -15,7 +15,6 @@ import {
   frontmatterKeysOfType,
   LOADER_LABELS,
   SCHEMA_STATUS_LABELS,
-  SOURCE_LABELS,
 } from '../../lib/project-settings/describe'
 import {
   collectionProblems,
@@ -119,8 +118,9 @@ export function CollectionPage({
   }
 
   const sortChoices = defaultSortChoices(getSortOptionsForCollection(schema))
-  const sortValue = resolved.defaultSort
-    ? `${resolved.defaultSort.mode}:${resolved.defaultSort.direction}`
+  const defaultSort = resolved.defaultSort.value
+  const sortValue = defaultSort
+    ? `${defaultSort.mode}:${defaultSort.direction}`
     : AUTOMATIC
 
   return (
@@ -130,13 +130,6 @@ export function CollectionPage({
           <dt className="text-muted-foreground">Loader</dt>
           <dd>
             <WithCode text={LOADER_LABELS[collection.kind]} />
-          </dd>
-          <dt className="text-muted-foreground">Folder</dt>
-          <dd>
-            <WithCode text={`\`${folder}\``} />{' '}
-            <span className="text-xs text-muted-foreground">
-              {SOURCE_LABELS[collection.folderSource]}
-            </span>
           </dd>
           <dt className="text-muted-foreground">Pattern</dt>
           <dd>
@@ -253,7 +246,7 @@ export function CollectionPage({
 
         <Setting
           label="Default Sort"
-          source={resolved.defaultSort ? 'set' : 'convention'}
+          source={resolved.defaultSort.source}
           onReset={reset('defaultSort')}
           description="How the file list is sorted until you change it there."
         >
@@ -374,7 +367,7 @@ export function CollectionPage({
       <SettingsSection title="Content Links">
         <Setting
           label="Link URL Pattern"
-          source={stored.urlPattern ? 'set' : null}
+          source={resolved.urlPattern.source}
           onReset={reset('urlPattern')}
           description={
             <>

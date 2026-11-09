@@ -26,8 +26,6 @@ function sparse<T extends object>(settings: T): T {
 export const usePreferences = () => {
   const globalSettings = useProjectStore(state => state.globalSettings)
   const projectSettings = useProjectStore(state => state.projectSettings)
-  const currentProjectId = useProjectStore(state => state.currentProjectId)
-  const projectPath = useProjectStore(state => state.projectPath)
 
   const updateGlobal = (settings: DeepPartial<GlobalSettings>) =>
     useProjectStore.getState().updateGlobalSettings(settings)
@@ -62,20 +60,11 @@ export const usePreferences = () => {
       .updateProjectSettings({ ...current, collections })
   }
 
-  // Get project name from path
-  const projectName = projectPath
-    ? projectPath.split('/').pop() || 'Unknown Project'
-    : null
-
   return {
     globalSettings,
     projectSettings,
     updateGlobal,
     updateProject,
     updateCollectionSettings,
-    hasProject: !!currentProjectId,
-    currentProjectId,
-    projectPath,
-    projectName,
   }
 }

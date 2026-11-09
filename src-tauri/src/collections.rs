@@ -375,9 +375,9 @@ fn resolve_collection_settings(
         description_field: single(detect(&set.description_field, &["description"], "string")),
         published_date_field: detect(&set.published_date_field, &PUBLISHED_DATE_FIELDS, "date"),
         draft_field: single(detect(&set.draft_field, &["draft"], "boolean")),
-        default_sort: set.default_sort.clone(),
+        default_sort: set_or(set.default_sort.clone().map(Some), None),
         new_file_type,
-        url_pattern: set.url_pattern.clone(),
+        url_pattern: set_or(set.url_pattern.clone().map(Some), None),
         assets_directory: collection_or_project(
             set.assets_directory.clone(),
             project.assets_directory.clone(),
@@ -737,7 +737,8 @@ mod tests {
         assert_eq!(s.assets_directory.source, SettingSource::Project);
         assert!(!s.use_absolute_asset_paths.value);
         assert_eq!(s.use_absolute_asset_paths.source, SettingSource::Set);
-        assert!(s.default_sort.is_some());
+        assert!(s.default_sort.value.is_some());
+        assert_eq!(s.default_sort.source, SettingSource::Set);
         let project = &site.scan_with(&settings).project_settings;
         assert_eq!(project.assets_directory.value, "src/images");
         assert_eq!(project.assets_directory.source, SettingSource::Set);
