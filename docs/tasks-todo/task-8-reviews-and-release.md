@@ -42,6 +42,8 @@ Fix these here or on main straight after this branch merges.
 
 ## Reviews 
 
+Tasks 1 and 2 (frontmatter fixes and small follow-ups, then reopening the last entry) each get their own PR first. Once both are merged, come back here and revisit these reviews on main before the release.
+
 Our recent work has made some fairly significant changes to how the app works so we should conduct a series of reviews looking at things like:
 
 - Adverserial review of the whole project management/settings approach.
