@@ -19,6 +19,6 @@ The astro-editor-plus fork does this (`useRememberLastEntry` and `lib/projects/l
 - [x] Tests: the path is stored relative and cleared on close; a missing or moved entry opens nothing; an overtaken open doesn't reopen; a deep link wins.
 - [x] Docs: the registry fields in `docs/developer/app-data.md`, and a line in the user guide where opening a project is described (`website/src/content/docs/file-management/overview.mdx`).
 - [x] Check it in the dev app (`bun run app`): open a file, switch project and back, quit and reopen.
-- [ ] `bun run check:all`, then a PR, and close #373 when it merges.
+- [x] `bun run check:all`, then a PR, and close #373 when it merges.
 
 Done: `lastEntry` on `ProjectMetadata`, written by `set_last_entry`; the frontend side is `lib/projects/last-entry.ts`. `editorStore` remembers on open and rename and forgets on close, except the close that comes with switching projects (`keepLastEntry`). `openProject` flushes first and reopens last; `saveUnsavedEdits` flushes before quitting or an update restart.
