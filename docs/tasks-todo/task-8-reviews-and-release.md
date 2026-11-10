@@ -60,4 +60,8 @@ Our recent work has made some fairly significant changes to how the app works so
 - [ ] Write up a thread for bluesdy showing these off as well as a post for the Astro discord.
 - [ ] Any other cleaning up in this repo on GH or here, before I make a release.
 - [ ] Release a prerelease and test it on my machine as my proper version of AE.
+  - [ ] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe.
+  - [ ] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
+  - [ ] Note every setting you had to set again, for the release notes.
+  - [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
 - [ ] Do the actual release.

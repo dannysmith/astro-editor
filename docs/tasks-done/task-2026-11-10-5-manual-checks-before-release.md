@@ -40,19 +40,14 @@ Use a test image from your Desktop, and check where it was copied in Finder and 
 
 Settings are stored in the app, not the repo, so the only changes to a site are files AE creates or renames. Check `git status` is clean before starting, and use it afterwards to see exactly what changed. `git restore` and `git clean` undo it.
 
-- [ ] **dannyis-astro-content:** set it up the way you'd really use it, then write one note from start to finish: a new file, a title, an image, a component and a link.
+- [x] **dannyis-astro-content:** set it up the way you'd really use it, then write one note from start to finish: a new file, a title, an image, a component and a link. Set up; its `atprotoLoader()` collections showed as errors, which led to the Other Loaders group.
   - Set articles and notes to `{YYYY-MM-DD}-{title}`, and projects to `{title}`.
   - Map projects' Description to `byline` and Published Date to `startDate`.
   - Set a Link URL Pattern for articles.
   - Keep Add Imports off: the site auto-imports components, and a manual import breaks its build.
   - Its image folders (`src/assets/articles`, `notes`, `projects`) are AE's default, so an image dragged into an article should land in `src/assets/articles/` with no setting at all.
 
-## Upgrading from 1.0.x (with the prerelease, in the real app)
-
-- [ ] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe.
-- [ ] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
-- [ ] Note every setting you had to set again. That list goes in the release notes.
-- [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
+The upgrade check, with the prerelease in the real app, moved to task 8.
 
 ## Checked in the dev app
 
@@ -82,3 +77,5 @@ Add a line for anything that didn't pass: what happened, and what you expected.
 - **Renaming a file in its own folder renamed the folder,** and CodeRabbit found it could move other entries with it: with `**/*.md`, renaming `2024/index.md` moved everything in `2024/`. Fixed: renaming only ever changes the file's name, and `index` files, which Astro names by their folder, are never renamed.
 - **The date picker opens on this month,** not the field's date, so changing `2025-05-01` means paging back eighteen months (`ui/date-picker.tsx` sets no `defaultMonth`). Not new. Fixed.
 - **Copying a test project into the checkout reloaded the dev app,** because Vite saw a new `tsconfig.json`. Fixed: `vite.config.ts` now ignores `temp-test-projects/`.
+- **Collections with a custom loader showed as errors.** dannyis-astro-content's `books` and `scrobbles` use `atprotoLoader()`, which fetches from an API, so AE couldn't find a folder and reported an error, with the review toast. Fixed: a collection whose loader AE can't read and whose folder it can't find is listed under Other Loaders, with no status.
+- **⌘N right after a new file was renamed showed that file's title.** File content was cached by path, and the second new file took the first one's date name, so it opened with the first one's cached frontmatter and was renamed from it. Fixed: opening a file, or following a rename, always reads it from disk.
