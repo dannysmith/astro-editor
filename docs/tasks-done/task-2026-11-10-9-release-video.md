@@ -15,7 +15,7 @@ For sharing the release (Bluesky, the Astro Discord, the blog post), so it shoul
    - **Auto-imports** (#357, experimental): inserting a component adds its `import`, matching how the site already imports things.
    - **Projects and Project Settings** (#82, #361): AE reads where each collection lives from its loader, so content outside `src/content` just works; the project list with project icons; Project Settings as a readout of what was found, where you only correct what's wrong.
    - **File names from a pattern** (#87): `{YYYY-MM-DD}-{title}` and friends, renamed once the title is written.
-4. **Everything else,** as one quick list scene: saving on quit, Astro 7, Base UI and the colour rework, the date fixes, the Windows crash, the many small fixes. Take the list from #354 and this branch's task docs.
+4. **Everything else,** as one quick list scene. Mostly what's new in 1.1.0 (#354's items after v1.0.20, and this branch's task docs): saving before quitting (#364), the Windows startup crash (#351), the window keeping its size across displays, Zod 4 tuples, literals and unions, image pickers for arrays of images, the sidebar refreshing on changes made outside the app, and the many small fixes. Highlights from 1.0.18–1.0.20 can go in too, such as Astro 7 support and dates you can't misread.
 5. **End card:** download link and version.
 
 ### How
@@ -30,6 +30,6 @@ Scene F (`sceneF` in `website/video/index.html`) shows the old MDX popup: search
 
 ## Done when
 
-- [ ] The 1.1.0 video is rendered and Danny has it.
-- [ ] The code used to make it is deleted.
-- [ ] The homepage video shows the props form, and its MP4 and poster are committed.
+- [x] The 1.1.0 video is rendered and Danny has it: 50s, built from a copy of `website/video/` with its own timeline and soundtrack (the opener and schema scenes reused through time remapping, the props form and imports, a new file renamed from its title, collections read from the config, the project list, Project Settings, and a list of everything else).
+- [x] The code used to make it is deleted, with the rest of `docs/tasks-todo/temporary/`.
+- [x] The homepage video shows the props form, and its MP4 is committed (the poster frame didn't change). Scene F now types "book", fills BookCard's form and inserts the tag; its sounds are retimed in `synth.mjs`. Danny updates the README's video on GitHub.

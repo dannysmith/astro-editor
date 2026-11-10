@@ -97,7 +97,7 @@ The homepage video is still accurate apart from scene F, which shows the old sea
   - Say that project settings from 1.0.x are set aside (renamed to `*.v2.json`), so projects may need setting up again. Most won't, because folders and fields are now detected. List the settings that had to be set again in the upgrade check (task 5).
 - [ ] Update the README as needed.
 - [ ] Close and consolidate all the GH Issues.
-- [ ] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. See task 9.
+- [x] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. Done in task 9.
 - [ ] Write up a quick blog post for my website showing off the new features, with screenshots.
 - [ ] Write up a thread for bluesdy showing these off as well as a post for the Astro discord.
 - [ ] Any other cleaning up in this repo on GH or here, before I make a release.

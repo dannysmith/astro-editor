@@ -956,6 +956,149 @@
         padding: 0 14px;
       }
 
+      /* MDX component builder: the props form */
+      #mdxForm {
+        padding-bottom: 4px;
+      }
+      .mf-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 22px 26px 0;
+        color: var(--app-ui-muted);
+      }
+      .mf-tag {
+        font-family: var(--mono);
+        font-size: 22px;
+        color: var(--app-ui);
+      }
+      .mf-head .close {
+        margin-left: auto;
+      }
+      .mf-desc {
+        padding: 8px 26px 18px 64px;
+        font-size: 16px;
+        color: var(--app-ui-muted);
+        border-bottom: 1px solid #333;
+      }
+      .mf-body {
+        padding: 18px 26px 4px;
+      }
+      .mf-field {
+        margin-bottom: 16px;
+      }
+      .mf-label {
+        font-size: 17px;
+        font-weight: 550;
+        color: var(--app-ui);
+        margin-bottom: 8px;
+      }
+      .mf-label i {
+        font-style: normal;
+        color: #e5484d;
+        margin-left: 6px;
+      }
+      .mf-input {
+        height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-radius: 9px;
+        background: var(--app-input);
+        border: 1px solid var(--app-input-border);
+        font-size: 18px;
+        color: var(--app-ui);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .mf-input.focus {
+        border-color: #5b9fd3;
+        box-shadow: 0 0 0 3px rgba(91, 159, 211, 0.25);
+      }
+      .mf-input .ph {
+        color: #777;
+      }
+      .mf-img {
+        justify-content: center;
+      }
+      .mf-img.set {
+        justify-content: flex-start;
+        padding-left: 6px;
+      }
+      #mfThumb {
+        width: 58px;
+        height: 34px;
+        object-fit: cover;
+        border-radius: 5px;
+      }
+      .mf-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .mf-row .mf-label {
+        margin: 0;
+      }
+      .mf-num {
+        width: 120px;
+      }
+      .mf-code {
+        margin: 6px 26px 0;
+        padding: 14px 16px;
+        border-radius: 9px;
+        background: #1a1a1a;
+        font-family: var(--mono);
+        font-size: 15.5px;
+        line-height: 1.5;
+        color: var(--app-ui);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .mf-imports {
+        margin: 14px 26px 0;
+        padding-top: 14px;
+        border-top: 1px solid #333;
+      }
+      .mf-imports .mf-row {
+        font-size: 17px;
+        color: var(--app-ui);
+      }
+      .mf-toggle {
+        position: relative;
+        width: 46px;
+        height: 26px;
+        border-radius: 13px;
+        background: #3a3a3a;
+      }
+      .mf-toggle b {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .mf-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding: 14px 26px 12px;
+        border-top: 1px solid #333;
+        font-size: 15px;
+        color: var(--app-ui-muted);
+      }
+      .mf-btn {
+        padding: 9px 20px;
+        border-radius: 9px;
+        background: #f2f0e5;
+        color: #111;
+        font-size: 17px;
+        font-weight: 600;
+      }
+
       /* ---------- Scene G: montage ---------- */
       #g-persp {
         position: absolute;
@@ -1334,17 +1477,62 @@
                 <div id="preview"><img src="assets/cat.jpg" alt="" /></div>
                 <div id="mdxDim"></div>
                 <div id="mdxPop">
-                  <div class="mdxSearch">
-                    <svg
-                      class="ico"
-                      viewBox="0 0 24 24"
-                      style="width: 22px; height: 22px; color: #888"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" /></svg
-                    ><span id="mdxQ"></span>
+                  <div id="mdxPick">
+                    <div class="mdxSearch">
+                      <svg
+                        class="ico"
+                        viewBox="0 0 24 24"
+                        style="width: 22px; height: 22px; color: #888"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" /></svg
+                      ><span id="mdxQ"></span>
+                    </div>
+                    <div class="mdxList" id="mdxList"></div>
                   </div>
-                  <div class="mdxList" id="mdxList"></div>
+                  <div id="mdxForm">
+                    <div class="mf-head">
+                      <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M19 12H5M12 19l-7-7 7-7" /></svg
+                      ><span class="mf-tag">&lt;BookCard&gt;</span
+                      ><span class="fw astro" id="mfFw"></span
+                      ><svg class="ico close" viewBox="0 0 24 24">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div class="mf-desc">
+                      A book with its cover and your rating, for reading lists.
+                    </div>
+                    <div class="mf-body">
+                      <div class="mf-field">
+                        <div class="mf-label">title<i>*</i></div>
+                        <div class="mf-input" id="mfTitle"></div>
+                      </div>
+                      <div class="mf-field">
+                        <div class="mf-label">author<i>*</i></div>
+                        <div class="mf-input" id="mfAuthor"></div>
+                      </div>
+                      <div class="mf-field">
+                        <div class="mf-label">cover<i>*</i></div>
+                        <div class="mf-input mf-img" id="mfCover">
+                          <img
+                            id="mfThumb"
+                            src="assets/atomic-habits.jpg"
+                            alt=""
+                          /><span id="mfCoverText"></span>
+                        </div>
+                      </div>
+                      <div class="mf-field mf-row">
+                        <div class="mf-label">rating</div>
+                        <div class="mf-input mf-num" id="mfRating"></div>
+                      </div>
+                    </div>
+                    <div class="mf-code" id="mfCode"></div>
+                    <div class="mf-foot">
+                      <span>⌘↵ Insert&nbsp;&nbsp;&nbsp;esc Back</span
+                      ><span class="mf-btn" id="mfInsert">Insert</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div id="sideR">
@@ -1590,17 +1778,21 @@
       }
       function jsxLine(l) {
         const m =
-          /^<(\/?)([A-Za-z][\w.]*)((?:\s+[\w:-]+(?:="[^"]*")?)*)\s*>$/.exec(l)
+          /^<(\/?)([A-Za-z][\w.]*)((?:\s+[\w:-]+(?:=(?:"[^"]*"|\{[^}]*\}))?)*)\s*(\/?)>$/.exec(
+            l
+          )
         if (!m) return null
         const attrs = m[3].replace(
-          /([\w:-]+)(?:=("[^"]*"))?/g,
+          /([\w:-]+)(?:=("[^"]*"|\{[^}]*\}))?/g,
           (_, a, v) =>
             `<span class="jx-a">${a}</span>` +
-            (v
-              ? `<span class="jx-e">=</span><span class="jx-s">${esc(v)}</span>`
-              : '')
+            (!v
+              ? ''
+              : v[0] === '{'
+                ? `<span class="jx-e">=${esc(v)}</span>`
+                : `<span class="jx-e">=</span><span class="jx-s">${esc(v)}</span>`)
         )
-        return `<span class="jx-b">&lt;${m[1]}</span><span class="jx-t">${m[2]}</span>${attrs}<span class="jx-b">&gt;</span>`
+        return `<span class="jx-b">&lt;${m[1]}</span><span class="jx-t">${m[2]}</span>${attrs}<span class="jx-b">${m[4]}&gt;</span>`
       }
       function renderLine(l, cls = '') {
         let m
@@ -1878,19 +2070,30 @@
       const IMG_T = 35.0
       const DOC_IMG =
         '\n\n![Cute Cat (1).jpg](../../assets/articles/2026-09-25-cute-cat-1.jpg)'
-      const MDX_T = 42.25
+      // F: ⌘/ opens the component list, "book" picks BookCard, Enter opens its
+      // props form, the fields fill in, and Insert writes the tag.
+      const MDX_ENTER = 41.0 // Enter on BookCard
+      const MDX_FORM = 41.15 // the list becomes the form
+      const COVER_T = 42.5 // the cover image is picked
+      const RATING_T = 42.75
+      const INSERT_T = 43.1 // Insert pressed
+      const MDX_T = 43.55 // the tag is in the doc
+      const tTitle = typer('Atomic Habits', 41.45, 0.034, 22)
+      const tAuthor = typer('James Clear', 41.98, 0.034, 23)
       const tF = typer(
-        'Works with Astro, React, Vue and Svelte components.',
-        42.8,
+        'The one book that finally made my habits stick.',
+        43.85,
         0.03,
         13
       )
+      const BOOK_TAG =
+        '<BookCard title="Atomic Habits" author="James Clear" cover={atomicHabitsCover} rating={5}>'
 
       const MDX_ITEMS = [
         ['InfoBox', '2 props + slot', 'vue'],
         ['Callout', '3 props + slot', 'astro'],
         ['Card', '3 props + slot', 'vue'],
-        ['BookmarkCard', '2 props', 'astro'],
+        ['BookCard', '10 props + slot', 'astro'],
         ['Alert', '3 props + slot', 'react'],
         ['Badge', '1 prop + slot', 'svelte'],
       ]
@@ -1903,14 +2106,13 @@
         svelte:
           '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.6 4.4c-2-2.8-5.9-3.7-8.7-1.9L6 5.6A5.6 5.6 0 0 0 3.5 9.4a5.9 5.9 0 0 0 .6 3.8 5.6 5.6 0 0 0-.8 2.1 6 6 0 0 0 1 4.5c2 2.8 5.9 3.7 8.7 1.9l4.9-3.1a5.6 5.6 0 0 0 2.5-3.8 5.9 5.9 0 0 0-.6-3.8 5.6 5.6 0 0 0 .8-2.1 6 6 0 0 0-1-4.5z"/></svg>',
       }
-      const mdxQuery = typer('call', 40.75, 0.16, 21)
+      const mdxQuery = typer('book', 40.4, 0.11, 21)
 
       function docAt(t) {
         let doc = DOC_BASE + tD1.at(t) + tD2.at(t)
         if (t >= IMG_T) doc += DOC_IMG
         if (t >= MDX_T)
-          doc +=
-            '\n\n<Callout type="info">\n' + tF.at(t) + MARK + '\n</Callout>'
+          doc += '\n\n' + BOOK_TAG + '\n' + tF.at(t) + MARK + '\n</BookCard>'
         else doc += MARK
         return doc
       }
@@ -1942,12 +2144,7 @@
           'Image preview',
           'Hold ⌥ and hover any image path to preview it.',
         ],
-        [
-          39.6,
-          45.3,
-          'MDX components',
-          'Insert components right from your project.',
-        ],
+        [39.6, 45.3, 'MDX components', 'Pick a component. Fill in a form.'],
       ]
       $('d-cap').innerHTML = D_CAPS.map(
         ([, , e, h]) =>
@@ -1977,8 +2174,8 @@
         [0, 0],
         [34.3, 0],
         [34.9, 150],
-        [41.9, 150],
-        [42.5, 330],
+        [43.3, 150],
+        [43.9, 330],
       ]
       function scrollAt(t) {
         let i = 0
@@ -2117,13 +2314,24 @@
           transform: `translateY(${press * 6}px) scale(${0.9 + 0.1 * E.outBack(seg(t, 39.7, 40.0))})`,
         })
         const open =
-          E.outExpo(seg(t, 40.1, 40.5)) * (1 - E.inCubic(seg(t, 42.0, 42.25)))
+          E.outExpo(seg(t, 40.1, 40.5)) *
+          (1 - E.inCubic(seg(t, MDX_T - 0.25, MDX_T)))
         show($('mdxDim'), open)
         show($('mdxPop'), open)
+        if (open <= 0) return
+        const form = t >= MDX_FORM
         S($('mdxPop'), {
+          top: form ? '56px' : '150px',
           transform: `translateY(${(1 - open) * -16}px) scale(${0.96 + 0.04 * open})`,
         })
-        if (open <= 0) return
+        S($('mdxPick'), { display: form ? 'none' : 'block' })
+        S($('mdxForm'), { display: form ? 'block' : 'none' })
+        if (form) mdxFormAt(t)
+        else mdxPickAt(t)
+      }
+
+      /** The component list, filtered as the query is typed */
+      function mdxPickAt(t) {
         const q = mdxQuery.at(t)
         const caretOn = t % 1 < 0.55 || t - mdxQuery.last(t) < 0.4
         html(
@@ -2135,7 +2343,7 @@
         const items = MDX_ITEMS.filter(([n]) =>
           n.toLowerCase().includes(q.toLowerCase())
         )
-        const enter = seg(t, 41.8, 41.9) * (1 - seg(t, 42.0, 42.1))
+        const enter = seg(t, MDX_ENTER - 0.05, MDX_ENTER + 0.05)
         html(
           $('mdxList'),
           items
@@ -2145,6 +2353,55 @@
             )
             .join('')
         )
+      }
+
+      /** BookCard's props form, filling in */
+      function mdxFormAt(t) {
+        S($('mdxForm'), {
+          opacity: E.outCubic(seg(t, MDX_FORM, MDX_FORM + 0.25)),
+        })
+        html($('mfFw'), FW_ICON.astro + 'astro')
+        const caretOn = t % 1 < 0.55
+        const field = (id, typer, from, to) => {
+          const focused = t >= from && t < to
+          $(id).classList.toggle('focus', focused)
+          const v = typer.at(t)
+          const caret = focused && (caretOn || t - typer.last(t) < 0.4)
+          html($(id), esc(v) + (caret ? CARET : ''))
+          return v
+        }
+        const title = field('mfTitle', tTitle, 41.35, 41.95)
+        const author = field('mfAuthor', tAuthor, 41.95, 42.4)
+        const cover = t >= COVER_T
+        $('mfCover').classList.toggle('set', cover)
+        S($('mfThumb'), {
+          display: cover ? 'block' : 'none',
+          transform: `scale(${0.6 + 0.4 * E.outBack(seg(t, COVER_T, COVER_T + 0.3))})`,
+        })
+        html(
+          $('mfCoverText'),
+          cover
+            ? '<span class="ph">../../assets/articles/2026-09-25-atomic-habits-cover.jpg</span>'
+            : 'Select Image'
+        )
+        const rated = t >= RATING_T
+        $('mfRating').classList.toggle(
+          'focus',
+          t >= RATING_T - 0.15 && t < INSERT_T
+        )
+        html($('mfRating'), rated ? '5' : '')
+        const tag = `<BookCard title="${title}" author="${author}" cover={${cover ? 'atomicHabitsCover' : ''}}${rated ? ' rating={5}' : ''}>`
+        html(
+          $('mfCode'),
+          [tag, '…', '</BookCard>'].map((l) => jsxLine(l) ?? esc(l)).join('\n')
+        )
+        const press =
+          seg(t, INSERT_T, INSERT_T + 0.08) *
+          (1 - seg(t, INSERT_T + 0.12, INSERT_T + 0.2))
+        S($('mfInsert'), {
+          transform: `scale(${1 - press * 0.06})`,
+          background: press > 0 ? '#ffffff' : '',
+        })
       }
 
       /* ---------------- Scene G: montage ---------------- */

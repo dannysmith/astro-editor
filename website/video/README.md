@@ -60,7 +60,7 @@ If you move scenes around in time, also retime the sound cues at the bottom of `
 | 0–8s | A: "You just want to write." → VS Code with red tags |
 | 8–13s | B: The caret becomes the app icon; title and tagline |
 | 13–22s | C: `content.config.ts` schema turns into a frontmatter form |
-| 22–45s | D–F: The app — typing, distraction-free, focus mode, image drop, ⌥-hover preview, MDX inserter |
+| 22–45s | D–F: The app — typing, distraction-free, focus mode, image drop, ⌥-hover preview, MDX component builder (pick BookCard, fill in its props form, insert) |
 | 45–52s | G: Tilted wall of screenshots with feature names cycling |
 | 52–60s | H: End card |
 
