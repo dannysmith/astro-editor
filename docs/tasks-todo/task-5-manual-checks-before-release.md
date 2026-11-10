@@ -32,9 +32,9 @@ Use a test image from your Desktop, and check where it was copied in Finder and 
 ## Native dialogs
 
 - [x] **Choose… outside the project:** on any folder setting, choose a folder outside the project. A toast says to choose one inside it, and nothing changes. Cancel in the picker changes nothing either.
-- [ ] **A moved project:** `cp -R temp-test-projects/personal-site temp-test-projects/personal-site-2`, open it, and set something. Rename the folder to `personal-site-moved`, then open the list: it shows as Missing. Enter (or Locate…) opens the folder picker, and picking the new folder opens it with its settings as they were.
+- [x] **A moved project:** `cp -R temp-test-projects/personal-site temp-test-projects/personal-site-2`, open it, and set something. Rename the folder to `personal-site-moved`, then open the list: it shows as Missing. Enter (or Locate…) opens the folder picker, and picking the new folder opens it with its settings as they were.
 - [x] **Remove:** Remove from Astro Editor… (and ⌘⌫ on the highlighted project) asks first. Cancel keeps it; Remove takes it out of the list. It's disabled for the open project.
-- [ ] **Clear for removed collections:** in the config, rename the `notes` key to `jottings`. Clear under Settings for Removed Collections asks first: Cancel keeps them; Clear removes them. Rename the key back.
+- [x] **Clear for removed collections:** in the config, rename the `notes` key to `jottings`. Clear under Settings for Removed Collections asks first: Cancel keeps them; Clear removes them. Rename the key back.
 
 ## Your own sites
 
