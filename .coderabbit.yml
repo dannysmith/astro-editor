@@ -7,6 +7,8 @@ reviews:
   path_filters:
     - '!**/*.md'
     - '!test/**'
+    - '!website/src/content/**'
+    - '!src/styleguide/**'
     - '!bun.lock'
     - '!src/lib/bindings.ts'
 
