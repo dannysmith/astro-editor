@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { screen, fireEvent, act } from '@testing-library/react'
-import { YamlField } from './YamlField'
+import { JsonField } from './JsonField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
 import type { FileEntry } from '@/types'
@@ -18,13 +18,13 @@ const file: FileEntry = {
   is_entry: true,
 }
 
-describe('YamlField', () => {
+describe('JsonField', () => {
   beforeEach(() => {
     useEditorStore.setState({
       currentFile: file,
       frontmatter: { embed: { kind: 'video' } },
     })
-    renderWithProviders(<YamlField name="embed" label="Embed" />)
+    renderWithProviders(<JsonField name="embed" label="Embed" />)
   })
 
   it('keeps invalid JSON in the box while the store keeps the last valid value', () => {

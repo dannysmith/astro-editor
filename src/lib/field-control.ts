@@ -14,7 +14,7 @@ export type FieldControl =
   | 'enum'
   | 'references'
   | 'images'
-  | 'yaml'
+  | 'json'
   | 'list'
   | 'image'
   | 'email'
@@ -32,7 +32,7 @@ export const FIELD_CONTROL_LABELS: Record<FieldControl, string> = {
   enum: 'Dropdown',
   references: 'Entry picker, several',
   images: 'Image picker, several',
-  yaml: 'Edited as YAML',
+  json: 'Edited as JSON',
   list: 'Tag input',
   image: 'Image picker',
   email: 'Email input',
@@ -46,10 +46,10 @@ export const FIELD_CONTROL_LABELS: Record<FieldControl, string> = {
 /**
  * The control for a field. The first match wins:
  * - Array references come before complex arrays, which would otherwise be
- *   YAML. An array of references whose collection the Zod parser didn't find
- *   has no `subReference`, so it's YAML.
+ *   JSON. An array of references whose collection the Zod parser didn't find
+ *   has no `subReference`, so it's JSON.
  * - Arrays of images get an image picker each; arrays of anything else but
- *   strings and numbers (dates, objects, tuples) are YAML.
+ *   strings and numbers (dates, objects, tuples) are JSON.
  * - Every typed control comes before the title and description mappings, so
  *   those only replace plain string fields.
  * - A field with no schema is text, except a string array, which is inferred
@@ -78,7 +78,7 @@ export function fieldControl(
   if (type === FieldType.Enum && field?.enumValues) return 'enum'
   if (isArrayReference) return 'references'
   if (isComplexArray && field?.subType === FieldType.Image) return 'images'
-  if (isComplexArray || type === FieldType.Object) return 'yaml'
+  if (isComplexArray || type === FieldType.Object) return 'json'
   if (
     isArray ||
     (!field &&

@@ -6,7 +6,7 @@ import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
 import type { SchemaField } from '../../../lib/schema'
 
-interface YamlFieldProps extends FieldProps {
+interface JsonFieldProps extends FieldProps {
   field?: SchemaField
 }
 
@@ -25,7 +25,7 @@ const toJson = (value: unknown): string =>
   value === undefined || value === null ? '' : JSON.stringify(value, null, 2)
 
 /**
- * YamlField - A fallback field for complex arrays (dates, objects, tuples) and
+ * JsonField - A fallback field for complex arrays (dates, objects, tuples) and
  * objects without fixed fields (records, discriminated unions), edited as JSON
  *
  * The text is a local draft, so it can be invalid JSON while the writer types;
@@ -34,7 +34,7 @@ const toJson = (value: unknown): string =>
  * own edits, which would reformat the text under the cursor. Switching file
  * always replaces it.
  */
-export const YamlField: React.FC<YamlFieldProps> = ({
+export const JsonField: React.FC<JsonFieldProps> = ({
   name,
   label,
   required,

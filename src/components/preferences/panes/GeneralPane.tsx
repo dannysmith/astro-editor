@@ -107,17 +107,17 @@ export const GeneralPane: React.FC = () => {
     <div className="space-y-6">
       <div className="mb-6 rounded-lg border bg-muted/50 p-4">
         <h2 className="mb-1 text-base font-semibold text-heading">
-          Global Settings
+          Global Preferences
         </h2>
         <p className="text-sm text-muted-foreground">
-          These settings apply across all projects and are stored globally on
-          your system.
+          These apply to every project. A project's own settings are in Project
+          Settings.
         </p>
       </div>
 
       <SettingsSection title="General">
         <Field>
-          <FieldLabel htmlFor={`${id}-ide`}>IDE Command</FieldLabel>
+          <FieldLabel htmlFor={`${id}-ide`}>IDE command</FieldLabel>
           <FieldContent>
             <PreferencesTextInput
               id={`${id}-ide`}
@@ -125,13 +125,13 @@ export const GeneralPane: React.FC = () => {
               onCommit={value =>
                 void updateGlobal({ general: { ideCommand: value } })
               }
-              placeholder="e.g., code, cursor, /usr/local/bin/nvim"
+              placeholder="code"
               className="max-w-md"
             />
             <FieldDescription>
-              The command to launch your editor. Use <code>code</code> or{' '}
-              <code>cursor</code> if installed in a standard location, or
-              provide the full path (e.g., <code>/usr/local/bin/nvim</code>).{' '}
+              The command that opens your code editor, like <code>code</code> or{' '}
+              <code>cursor</code>, or its full path, like{' '}
+              <code>/usr/local/bin/nvim</code>.{' '}
               <DocsLink href={DOCS_URLS.ideIntegration}>Learn more</DocsLink>
             </FieldDescription>
           </FieldContent>
@@ -157,15 +157,13 @@ export const GeneralPane: React.FC = () => {
               </SelectContent>
             </Select>
             <FieldDescription>
-              Choose your preferred color theme
+              System follows your Mac's appearance.
             </FieldDescription>
           </FieldContent>
         </Field>
 
         <Field>
-          <FieldLabel id={`${id}-file-type`}>
-            Default File Type for New Files
-          </FieldLabel>
+          <FieldLabel id={`${id}-file-type`}>New file type</FieldLabel>
           <FieldContent>
             <Select
               items={FILE_TYPE_ITEMS}
@@ -184,7 +182,8 @@ export const GeneralPane: React.FC = () => {
               </SelectContent>
             </Select>
             <FieldDescription>
-              File type used when creating new files across all projects
+              For new files in every project. A project or collection can set
+              its own in Project Settings.
             </FieldDescription>
           </FieldContent>
         </Field>
@@ -193,7 +192,7 @@ export const GeneralPane: React.FC = () => {
       <SettingsSection title="Appearance">
         <Field>
           <FieldLabel htmlFor={`${id}-heading-light`}>
-            Heading Color (Light Mode)
+            Heading colour in light mode
           </FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
@@ -216,16 +215,13 @@ export const GeneralPane: React.FC = () => {
               >
                 Reset
               </Button>
-            </div>
-            <FieldDescription>
-              Choose the color for markdown headings in light mode
-            </FieldDescription>
+            </div>{' '}
           </FieldContent>
         </Field>
 
         <Field>
           <FieldLabel htmlFor={`${id}-heading-dark`}>
-            Heading Color (Dark Mode)
+            Heading colour in dark mode
           </FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
@@ -246,15 +242,12 @@ export const GeneralPane: React.FC = () => {
               >
                 Reset
               </Button>
-            </div>
-            <FieldDescription>
-              Choose the color for markdown headings in dark mode
-            </FieldDescription>
+            </div>{' '}
           </FieldContent>
         </Field>
 
         <Field>
-          <FieldLabel htmlFor={`${id}-font-size`}>Editor Font Size</FieldLabel>
+          <FieldLabel htmlFor={`${id}-font-size`}>Editor font size</FieldLabel>
           <FieldContent>
             <div className="flex w-fit items-center gap-2">
               <Input
@@ -279,7 +272,7 @@ export const GeneralPane: React.FC = () => {
               </Button>
             </div>
             <FieldDescription>
-              Base font size for editor text (default: 18)
+              The size of text in the editor. 18 by default.
             </FieldDescription>
           </FieldContent>
         </Field>
@@ -287,7 +280,7 @@ export const GeneralPane: React.FC = () => {
 
       <SettingsSection title="Editor">
         <Field>
-          <FieldLabel id={`${id}-auto-save`}>Auto Save Delay</FieldLabel>
+          <FieldLabel id={`${id}-auto-save`}>Auto-save delay</FieldLabel>
           <FieldContent>
             <Select
               items={AUTO_SAVE_DELAY_ITEMS}
@@ -306,7 +299,8 @@ export const GeneralPane: React.FC = () => {
               </SelectContent>
             </Select>
             <FieldDescription>
-              Time in seconds before auto-saving changes
+              How long after you stop typing the file is saved. While you type,
+              it's also saved every 10 seconds.
             </FieldDescription>
           </FieldContent>
         </Field>

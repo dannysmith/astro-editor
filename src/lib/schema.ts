@@ -66,7 +66,7 @@ export enum FieldType {
   Enum = 'enum',
   Reference = 'reference',
   // Objects without fixed fields (records, discriminated unions), edited as
-  // YAML. Objects with fixed fields are flattened into a field each instead
+  // JSON. Objects with fixed fields are flattened into a field each instead
   Object = 'object',
   Unknown = 'unknown',
 }

@@ -1,13 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowUpRight, FolderCog, Settings, Wrench } from 'lucide-react'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
+import { ArrowUpRight, Settings, Wrench } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +21,8 @@ import { GeneralPane } from './panes/GeneralPane'
 import { DebugPane } from './panes/DebugPane'
 import { useProjectStore } from '../../store/projectStore'
 import { showProjectSettings } from '../../lib/project-settings/actions'
+import { useProjectScanQuery } from '../../hooks/queries/useCollectionsQuery'
+import { ProjectIcon } from '../project-list'
 
 interface PreferencesDialogProps {
   open: boolean
@@ -52,7 +46,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
 }) => {
   const [activePane, setActivePane] = useState<PreferencePane>('general')
   const projectPath = useProjectStore(state => state.projectPath)
-  const paneTitle = NAVIGATION_ITEMS.find(item => item.id === activePane)?.name
+  const { data: scan } = useProjectScanQuery(projectPath)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +88,11 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                             showProjectSettings()
                           }}
                         >
-                          <FolderCog />
+                          <ProjectIcon
+                            path={projectPath}
+                            favicon={scan?.favicon ?? null}
+                            className="size-4"
+                          />
                           <span>Project Settings</span>
                           <ArrowUpRight className="ml-auto text-muted-foreground" />
                         </SidebarMenuButton>
@@ -108,19 +106,9 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
 
           <main className="flex max-h-[600px] flex-1 flex-col overflow-hidden">
             <header className="flex h-16 shrink-0 items-center gap-2">
-              <div className="flex items-center gap-2 px-4">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem className="hidden md:block">
-                      <BreadcrumbLink href="#">Preferences</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{paneTitle}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
+              <h2 className="px-4 text-base font-semibold text-heading">
+                Preferences
+              </h2>
             </header>
 
             <div className="flex-1 overflow-y-auto p-4 pt-0">

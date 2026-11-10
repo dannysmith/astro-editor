@@ -21,7 +21,6 @@ import {
   Filter,
   Folder,
   ChevronRight,
-  Settings,
   SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -654,7 +653,11 @@ export const LeftSidebar: React.FC = () => {
             size="sm"
             className="w-full justify-start gap-2 text-muted-foreground"
           >
-            <Settings className="size-4" />
+            <ProjectIcon
+              path={projectPath}
+              favicon={scan?.favicon ?? null}
+              className="size-4"
+            />
             Project Settings
           </Button>
         </div>

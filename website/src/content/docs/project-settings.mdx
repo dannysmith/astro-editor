@@ -117,7 +117,7 @@ Which frontmatter field to treat as each [special field](/frontmatter/special-fi
 
 ### Schema
 
-Each field as Astro Editor read it: its name, type, whether it's required, its constraints, default and description, and how the frontmatter panel shows it, such as a date picker or an image picker. Fields the panel can't show with a proper control, like objects with no fixed fields, are edited as YAML and say so.
+Each field as Astro Editor read it: its name, type, whether it's required, its constraints, default and description, and how the frontmatter panel shows it, such as a date picker or an image picker. Fields the panel can't show with a proper control, like objects with no fixed fields, are edited as JSON and say so.
 
 Without a generated schema, Astro Editor only knows the fields that use `image()` or `reference()` in your config, if any. The panel still shows each file's other fields, as text, without types, defaults or required markers. Run `astro sync` (or `astro dev`) in your project to generate the schema.
 

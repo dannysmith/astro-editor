@@ -113,7 +113,7 @@ describe('FrontmatterField Orchestrator', () => {
       expect(screen.getByRole('textbox')).toBeInTheDocument()
     })
 
-    it('should edit objects without fixed fields as YAML', () => {
+    it('should edit objects without fixed fields as JSON', () => {
       useEditorStore.setState({
         frontmatter: { media: { kind: 'video', url: 'https://example.com' } },
       })

@@ -81,18 +81,16 @@ export const DebugPane: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="mb-6 rounded-lg border bg-muted/50 p-4">
-        <h2 className="mb-1 text-base font-semibold text-heading">
-          Advanced Settings
-        </h2>
+        <h2 className="mb-1 text-base font-semibold text-heading">Advanced</h2>
         <p className="text-sm text-muted-foreground">
-          Developer and diagnostic tools. Use with caution.{' '}
+          For troubleshooting. Resetting can't be undone.{' '}
           <DocsLink href={DOCS_URLS.advancedPreferences}>Learn more</DocsLink>
         </p>
       </div>
 
-      <SettingsSection title="Version Information">
+      <SettingsSection title="Version">
         <Field>
-          <FieldLabel>Application Version</FieldLabel>
+          <FieldLabel>Astro Editor</FieldLabel>
           <FieldContent>
             <div className="font-mono text-sm text-muted-foreground">
               {appVersion}
@@ -101,7 +99,7 @@ export const DebugPane: React.FC = () => {
         </Field>
 
         <Field>
-          <FieldLabel>Preferences Version</FieldLabel>
+          <FieldLabel>Preferences format</FieldLabel>
           <FieldContent>
             <div className="font-mono text-sm text-muted-foreground">
               {preferencesVersion}
@@ -112,19 +110,19 @@ export const DebugPane: React.FC = () => {
 
       <SettingsSection title="Maintenance">
         <Field>
-          <FieldLabel>Preferences Folder</FieldLabel>
+          <FieldLabel>Preferences folder</FieldLabel>
           <FieldContent>
             <Button variant="outline" onClick={handleOpenPreferencesFolder}>
               Open Preferences Folder
             </Button>
             <FieldDescription>
-              Opens the folder where all preferences and settings are stored
+              Where your preferences and each project's settings are stored.
             </FieldDescription>
           </FieldContent>
         </Field>
 
         <Field>
-          <FieldLabel>Reset All Preferences</FieldLabel>
+          <FieldLabel>Reset all preferences</FieldLabel>
           <FieldContent>
             <Button
               variant="destructive"
@@ -133,7 +131,8 @@ export const DebugPane: React.FC = () => {
               Reset All Preferences
             </Button>
             <FieldDescription>
-              Permanently delete all settings and restore defaults
+              Deletes your preferences and every project's settings. Your
+              projects' files aren't touched.
             </FieldDescription>
           </FieldContent>
         </Field>
@@ -144,18 +143,15 @@ export const DebugPane: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Reset All Preferences?</AlertDialogTitle>
             <AlertDialogDescription render={<div className="space-y-4" />}>
-              <p className="text-sm">
-                ⚠️ Warning: This will permanently delete:
-              </p>
+              <p className="text-sm">This deletes:</p>
               <ul className="list-disc space-y-1 pl-6 text-sm">
-                <li>All global preferences</li>
-                <li>All project-specific settings</li>
-                <li>Project registry and recent projects list</li>
+                <li>Your preferences</li>
+                <li>Every project's settings</li>
+                <li>The project list</li>
               </ul>
               <p className="text-sm">
-                The app will restart with default settings.
-                <br />
-                Your actual project files will not be affected.
+                Astro Editor then restarts. Your projects' files aren't touched,
+                and recovery files are kept.
               </p>
               <div className="flex items-center space-x-2 pt-2">
                 <Checkbox
@@ -169,7 +165,7 @@ export const DebugPane: React.FC = () => {
                   htmlFor="reset-confirm"
                   className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  I understand this cannot be undone
+                  I understand this can't be undone
                 </label>
               </div>
             </AlertDialogDescription>
@@ -187,7 +183,7 @@ export const DebugPane: React.FC = () => {
               disabled={!resetConfirmed || resetting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {resetting ? 'Resetting...' : 'Reset All Preferences'}
+              {resetting ? 'Resetting…' : 'Reset All Preferences'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

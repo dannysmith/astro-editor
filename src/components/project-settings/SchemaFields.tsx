@@ -40,7 +40,7 @@ function schemaNote(collection: Collection, hasFields: boolean): string | null {
 /** Why a field can't be edited with a proper control, if it can't */
 function limitation(field: SchemaField, control: string): string | null {
   if (field.type === FieldType.Unknown) return "Its type couldn't be read."
-  if (control === 'yaml') {
+  if (control === 'json') {
     return "There's no control for this type of field."
   }
   return null

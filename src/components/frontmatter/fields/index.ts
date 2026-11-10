@@ -7,7 +7,7 @@ export { DateField } from './DateField'
 export { EnumField } from './EnumField'
 export { ArrayField } from './ArrayField'
 export { ReferenceField } from './ReferenceField'
-export { YamlField } from './YamlField'
+export { JsonField } from './JsonField'
 
 // Orchestrator component
 export { FrontmatterField } from './FrontmatterField'

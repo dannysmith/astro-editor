@@ -11,7 +11,7 @@ import { DateField } from './DateField'
 import { EnumField } from './EnumField'
 import { ArrayField } from './ArrayField'
 import { ReferenceField } from './ReferenceField'
-import { YamlField } from './YamlField'
+import { JsonField } from './JsonField'
 import { ImageField } from './ImageField'
 import { ImageArrayField } from './ImageArrayField'
 
@@ -53,8 +53,8 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
       return <ReferenceField {...props} />
     case 'images':
       return <ImageArrayField {...props} />
-    case 'yaml':
-      return <YamlField {...props} />
+    case 'json':
+      return <JsonField {...props} />
     case 'list':
       return <ArrayField {...props} />
     case 'image':
