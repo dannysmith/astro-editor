@@ -8,6 +8,7 @@ import { resetToastMocks } from '../../test/mocks/toast'
 vi.mock('../../lib/query-client', () => ({
   queryClient: {
     invalidateQueries: vi.fn().mockResolvedValue(undefined),
+    resetQueries: vi.fn().mockResolvedValue(undefined),
   },
 }))
 

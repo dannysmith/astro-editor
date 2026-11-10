@@ -3,6 +3,8 @@ import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
+import { queryClient } from '../lib/query-client'
+import { queryKeys } from '../lib/query-keys'
 
 const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seconds)
 
@@ -39,6 +41,21 @@ interface EditorState {
   updateCurrentFileAfterRename: (newFile: FileEntry) => void
 }
 
+/**
+ * Drops any cached content for `file`, so the editor reads it from disk. The
+ * cache is keyed by path, and a path isn't a stable identity: renaming or
+ * deleting a file frees its path for another file, whose content the cache
+ * would otherwise serve from the old one.
+ */
+function readFromDisk(file: FileEntry) {
+  const { projectPath } = useProjectStore.getState()
+  if (!projectPath) return
+  void queryClient.resetQueries({
+    queryKey: queryKeys.fileContent(projectPath, file.id),
+    exact: true,
+  })
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Initial state
   currentFile: null,
@@ -71,6 +88,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (isDirty && autoSaveCallback) {
       void autoSaveCallback(false)
     }
+
+    // An opened file's content always comes from disk, never the cache
+    readFromDisk(file)
 
     // CRITICAL: Clear content FIRST, then set currentFile
     // This prevents Editor.tsx from reading stale content via getState()
@@ -214,7 +234,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateCurrentFileAfterRename: (newFile: FileEntry) => {
-    if (get().currentFile) set({ currentFile: newFile })
+    const { currentFile } = get()
+    if (!currentFile) return
+    // Its new path may have content cached from a file that was there before
+    if (newFile.id !== currentFile.id) readFromDisk(newFile)
+    set({ currentFile: newFile })
   },
 }))
 
