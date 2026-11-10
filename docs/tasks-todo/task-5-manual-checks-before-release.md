@@ -63,7 +63,7 @@ Tried by Claude, driving the dev app on fresh copies (`temp-test-projects/check-
 - **File name patterns:** `/`, `\`, `:` and a leading `.` are refused and not saved; `{YY}{MM}{DD}-{title}`, `notes-{title}` and `{D}-{M}-{YYYY}` give the right examples; a preset saves.
 - **Clashes:** a blog file titled "Reading" became `reading-1.md` (another post's `slug: reading`), and a note titled "TEA" became `tea-1.md` (`tea.md` exists). A new note got its `created` date through the mapping.
 - **Rename File from Pattern:** with Date, `on-walking.md` became `2025-02-14.md` from the mapped `created` date, and with the mapping reset, `tea.md` took today's date. On blog, "already named" with Date and title; `2024/moving-house.md` with Title, kept in its folder; `slug` untouched.
-- **docs:** a new page is `<today>/index.mdx` (MDX despite the Markdown preference), and its title renamed the folder to `deploying-site/`.
+- **docs:** a new page is `<today>/index.mdx` (MDX despite the Markdown preference). Its title renamed the folder to `deploying-site/`, which renaming no longer does (see Found).
 - **journal:** the Folder override typed in; a new entry is `<today>.md`; Rename file to match took `2025-05-01.md` to `2026-11-03.md`, then to `2026-11-09-1.md` when the date was taken.
 - **Link URL Pattern** `/blog/{slug}`: links went to `/blog/reading` (the slug), `/blog/2024/moving-house` and `/blog/2025-01-12-hello-again`.
 - **Default Sort** by title, and **New Files** set to MDX for blog.
@@ -71,7 +71,7 @@ Tried by Claude, driving the dev app on fresh copies (`temp-test-projects/check-
 - **A renamed collection's** settings show under Settings for Removed Collections, and come back when it's renamed back.
 - **An unreadable pattern** (`*.@(md|mdx)`) gives a warning in both sidebars and falls back to every Markdown file not starting with `_`.
 - **A schema that hasn't been generated:** the status says to run `astro sync`, the field dropdowns offer the files' keys, and the form shows them as text.
-- **unusual-structure:** posts' Draft maps to `unpublished`; a titled project became `garden-shed/index.md`; guides makes `.mdx`; field-notes leaves out `README.md` and `archive/`; feed is found by name.
+- **unusual-structure:** posts' Draft maps to `unpublished`; guides makes `.mdx`; field-notes leaves out `README.md` and `archive/`; feed is found by name.
 - **starlight-minimal:** a titled page in `guides/` became `guides/writing-first-page.md`.
 
 ## Found
@@ -79,6 +79,6 @@ Tried by Claude, driving the dev app on fresh copies (`temp-test-projects/check-
 Add a line for anything that didn't pass: what happened, and what you expected.
 
 - **The Content Finder ignores the title mapping.** It lists and searches notes by file name, though notes' title is mapped to `name`. The link it inserts does use the mapping. `ContentLinkerDialog.tsx` calls `resolveTitle(file)` without the collection's title field. Fixed.
-- **Renaming a folder-per-entry file toasts "Renamed to index.mdx",** not the folder's new name (`renameOpenFile` in `lib/files/rename.ts`). Fixed: it says `deploying-site/index.mdx`.
+- **Renaming a file in its own folder renamed the folder,** and CodeRabbit found it could move other entries with it: with `**/*.md`, renaming `2024/index.md` moved everything in `2024/`. Fixed: renaming only ever changes the file's name, and `index` files, which Astro names by their folder, are never renamed.
 - **The date picker opens on this month,** not the field's date, so changing `2025-05-01` means paging back eighteen months (`ui/date-picker.tsx` sets no `defaultMonth`). Not new. Fixed.
 - **Copying a test project into the checkout reloaded the dev app,** because Vite saw a new `tsconfig.json`. Fixed: `vite.config.ts` now ignores `temp-test-projects/`.

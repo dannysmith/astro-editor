@@ -37,16 +37,13 @@ export function renameUnderWay(path: string): Promise<string> | null {
 }
 
 /**
- * A file's entry name: its name without the extension, or for a
- * folder-per-entry file (`<name>/index.md`), its folder's name
+ * A file's name without its extension, or null for an `index` file. Astro
+ * names those by their folder, so they're never renamed (as `rename_entry`
+ * also enforces), and renaming only ever touches the file.
  */
-export function entryStem(path: string, collection: Collection): string {
-  const parts = path.split('/')
-  const name = (parts.at(-1) ?? '').replace(/\.[^.]+$/, '')
-  const folder = parts.slice(0, -1).join('/')
-  return name === 'index' && folder !== collection.base
-    ? (parts.at(-2) ?? name)
-    : name
+export function renamableStem(path: string): string | null {
+  const name = (path.split('/').at(-1) ?? '').replace(/\.[^.]+$/, '')
+  return name === 'index' ? null : name
 }
 
 /** The title and date a file's name is made from: today without a date */
@@ -71,6 +68,12 @@ export async function renameOpenFile(stem: string): Promise<void> {
   const { projectPath } = useProjectStore.getState()
   const collection = getCollection(currentFile?.collection)
   if (!currentFile || !projectPath || !collection) return
+  if (renamableStem(currentFile.path) === null) {
+    toast.info("Files named index aren't renamed", {
+      description: 'Astro names them by their folder.',
+    })
+    return
+  }
 
   // Save first. If that fails, or another file was opened meanwhile (which
   // saves this one again), leave the name alone
@@ -110,13 +113,7 @@ export async function renameOpenFile(stem: string): Promise<void> {
     })
     return
   }
-  // A file in its own folder goes by the folder: `trip-lake/index.md`
-  const parts = result.to.split('/')
-  const file = parts.at(-1) ?? ''
-  const name =
-    file.startsWith('index.') && entryStem(result.to, collection) !== 'index'
-      ? parts.slice(-2).join('/')
-      : file
+  const name = result.to.slice(result.to.lastIndexOf('/') + 1)
   if (result.to === result.from) {
     toast.info(`It's already named ${name}`)
     return
@@ -212,7 +209,7 @@ export async function renameNewFileFromTitle(): Promise<void> {
   if (!currentFile || !collection || placeholder === undefined) return
 
   const pattern = collection.settings.fileNamePattern.value
-  if (!patternHasTitle(pattern)) {
+  if (!patternHasTitle(pattern) || renamableStem(currentFile.path) === null) {
     newFiles.delete(currentFile.path)
     return
   }

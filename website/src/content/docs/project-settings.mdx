@@ -69,7 +69,7 @@ Collections with a warning or error show the same icon in the sidebar's collecti
 - Any other placeholder is a date, written with `YYYY`, `YY`, `MM`, `M`, `DD` and `D`, such as `{YYYY-MM-DD}` or `{YYYY}`. It's the file's published date, or today.
 - Everything else is kept as written, so `{YYYY}-{MM}-{DD}-{title}` and `notes-{title}` work too.
 
-The default, `{YYYY-MM-DD}`, names files with today's date. If a name is taken, `-1`, `-2` and so on are added. A name counts as taken by a file whose name differs only in case or extension (`post.mdx` takes `post`, since Astro would give both the same id), and by an entry whose `slug` is that name. A file in its own folder (`trip/index.md`) has its folder renamed. Renaming never touches the `slug` field.
+The default, `{YYYY-MM-DD}`, names files with today's date. If a name is taken, `-1`, `-2` and so on are added. A name counts as taken by a file whose name differs only in case or extension (`post.mdx` takes `post`, since Astro would give both the same id), and by an entry whose `slug` is that name. Renaming only changes the file's name, never its folder or the `slug` field, and files named `index` are never renamed, since Astro names them by their folder.
 
 To rename any file by the pattern, use the **Rename File from Pattern** command. When the published date changes, a **Rename file to match** link below it changes just the date in the file's name.
 

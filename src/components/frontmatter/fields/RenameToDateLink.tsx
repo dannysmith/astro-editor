@@ -2,7 +2,7 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { useCollection } from '../../../hooks/settings'
 import { stemWithDate } from '../../../lib/files/file-name-pattern'
-import { entryStem, renameOpenFile } from '../../../lib/files/rename'
+import { renamableStem, renameOpenFile } from '../../../lib/files/rename'
 
 /**
  * A link below the published date when the file's name has another date in it,
@@ -17,7 +17,8 @@ export const RenameToDateLink: React.FC<{ date: Date | undefined }> = ({
   const collection = useCollection(collectionName)
   if (!date || !path || !collection) return null
 
-  const stem = entryStem(path, collection)
+  const stem = renamableStem(path)
+  if (stem === null) return null
   const renamed = stemWithDate(
     stem,
     collection.settings.fileNamePattern.value,

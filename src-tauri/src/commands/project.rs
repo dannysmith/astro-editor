@@ -396,11 +396,15 @@ pub async fn new_file_name(
     }))
 }
 
-/// Renames an entry to `stem`, or the first free name after it (`-1`, `-2`…, as
-/// for new files), keeping its extension. A folder-per-entry file
-/// (`<name>/index.md`) has its folder renamed. Returns the file's new path, its
-/// path unchanged if it already has that name, or `None` if no such name would
-/// match the collection's pattern. Never replaces anything.
+/// Renames an entry's file to `stem`, or the first free name after it (`-1`,
+/// `-2`…, as for new files), in the same folder and keeping its extension. Only
+/// the file is renamed, never a folder. Returns the file's new path, its path
+/// unchanged if it already has that name, or `None` if no such name would match
+/// the collection's pattern. Never replaces anything.
+///
+/// `index` files are refused: Astro names them by their folder, so renaming one
+/// would change its id, and in a folder-per-entry collection take it out of the
+/// collection.
 #[tauri::command]
 #[specta::specta]
 pub async fn rename_entry(
@@ -410,37 +414,29 @@ pub async fn rename_entry(
     project_root: String,
 ) -> Result<Option<String>, String> {
     let file = validate_project_path(&file_path, &project_root)?;
-    let (Some(directory), Some(file_name)) = (file.parent(), file.file_name()) else {
+    let Some(directory) = file.parent() else {
         return Err("Invalid file path".to_string());
     };
+    if file.file_stem().is_some_and(|stem| stem == "index") {
+        return Err(INDEX_FILES_KEEP_THEIR_NAME.to_string());
+    }
     let extension = file.extension().unwrap_or_default().to_string_lossy();
-    let in_folder =
-        file.file_stem().is_some_and(|stem| stem == "index") && directory != collection.base;
-    let (target, directory) = match (in_folder, directory.parent()) {
-        (true, Some(parent)) => (directory, parent),
-        _ => (file.as_path(), directory),
-    };
 
     let listing = CollectionListing::new(&collection);
-    let found = free_entry(&listing, directory, &stem, Some(target), &|name| {
-        vec![if in_folder {
-            directory.join(name).join(file_name)
-        } else {
-            directory.join(format!("{name}.{extension}"))
-        }]
+    let found = free_entry(&listing, directory, &stem, Some(&file), &|name| {
+        vec![directory.join(format!("{name}.{extension}"))]
     })?;
     let Some(new_file) = found else {
         return Ok(None);
     };
     if new_file != file {
-        let new_target = match (in_folder, new_file.parent()) {
-            (true, Some(folder)) => folder,
-            _ => new_file.as_path(),
-        };
-        rename_without_replacing(target, new_target)?;
+        rename_without_replacing(&file, &new_file)?;
     }
     Ok(Some(new_file.to_string_lossy().to_string()))
 }
+
+const INDEX_FILES_KEEP_THEIR_NAME: &str =
+    "Files named index take their name from their folder, so Astro Editor doesn't rename them.";
 
 /// The entry file for the first of `<stem>`, `<stem>-1`, `<stem>-2`… that's free
 /// in `directory`: the first of the paths `shapes` gives for the name that the
@@ -450,7 +446,7 @@ pub async fn rename_entry(
 /// that name, hidden files included; by a Markdown file with it before the
 /// extension (`post.mdx` takes `post`, as Astro would give both the id `post`);
 /// or by an entry elsewhere in the collection with it as its `slug`. `renaming`,
-/// a file or folder being renamed, takes nothing.
+/// the file being renamed, takes nothing.
 fn free_entry(
     listing: &CollectionListing,
     directory: &Path,
@@ -461,7 +457,7 @@ fn free_entry(
     if stem.is_empty() || stem.starts_with('.') || stem.contains(['/', '\\']) {
         return Err(format!("\"{stem}\" isn't a file name"));
     }
-    let is_renaming = |path: &Path| renaming.is_some_and(|renaming| path.starts_with(renaming));
+    let is_renaming = |path: &Path| renaming == Some(path);
 
     let mut taken = HashSet::new();
     for entry in std::fs::read_dir(directory)
@@ -1234,16 +1230,18 @@ mod tests {
     }
 
     #[test]
-    fn renames_the_folder_of_a_folder_per_entry_file() {
-        let (_temp, blog) = blog_collection("'**/index.md'", SkippedFiles::Hide);
-        std::fs::create_dir_all(blog.path.join("trip")).unwrap();
-        std::fs::write(blog.path.join("trip/index.md"), "").unwrap();
-        assert_eq!(
-            rename(&blog, "trip/index.md", "lake"),
-            Ok(Some("lake/index.md".to_string()))
-        );
-        assert!(blog.path.join("lake/index.md").exists());
-        assert!(!blog.path.join("trip").exists());
+    fn never_renames_index_files_or_their_folders() {
+        // A folder of entries with an index page, and a folder per entry
+        for pattern in ["'**/*.md'", "'**/index.md'"] {
+            let (_temp, blog) = blog_collection(pattern, SkippedFiles::Hide);
+            std::fs::write(blog.path.join("2024/index.md"), "").unwrap();
+            assert_eq!(
+                rename(&blog, "2024/index.md", "lake"),
+                Err(INDEX_FILES_KEEP_THEIR_NAME.to_string())
+            );
+            assert!(blog.path.join("2024/index.md").exists());
+            assert!(blog.path.join("2024/old.md").exists());
+        }
     }
 
     #[test]

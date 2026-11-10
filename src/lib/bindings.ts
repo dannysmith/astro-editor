@@ -99,11 +99,15 @@ export const commands = {
 	 */
 	newFileName: (directory: string, collection: Collection, stem: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem })),
 	/**
-	 *  Renames an entry to `stem`, or the first free name after it (`-1`, `-2`…, as
-	 *  for new files), keeping its extension. A folder-per-entry file
-	 *  (`<name>/index.md`) has its folder renamed. Returns the file's new path, its
-	 *  path unchanged if it already has that name, or `None` if no such name would
-	 *  match the collection's pattern. Never replaces anything.
+	 *  Renames an entry's file to `stem`, or the first free name after it (`-1`,
+	 *  `-2`…, as for new files), in the same folder and keeping its extension. Only
+	 *  the file is renamed, never a folder. Returns the file's new path, its path
+	 *  unchanged if it already has that name, or `None` if no such name would match
+	 *  the collection's pattern. Never replaces anything.
+	 * 
+	 *  `index` files are refused: Astro names them by their folder, so renaming one
+	 *  would change its id, and in a folder-per-entry collection take it out of the
+	 *  collection.
 	 */
 	renameEntry: (filePath: string, collection: Collection, stem: string, projectRoot: string) => typedError<string | null, string>(__TAURI_INVOKE("rename_entry", { filePath, collection, stem, projectRoot })),
 	/**

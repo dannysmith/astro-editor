@@ -6,7 +6,7 @@ import { makeCollection, makeScan } from '../../test/fixtures'
 import { mockToast, resetToastMocks } from '../../test/mocks/toast'
 import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'
-import { entryStem, renameOpenFile, renameUnderWay } from './rename'
+import { renamableStem, renameOpenFile, renameUnderWay } from './rename'
 
 const blog = makeCollection({ name: 'blog' })
 
@@ -57,30 +57,22 @@ describe('renameOpenFile', () => {
     expect(renameUnderWay(entry('2026-01-05').path)).toBeNull()
   })
 
-  it('names a file in its own folder by the folder', async () => {
-    const page = (folder: string): FileEntry => ({
-      ...entry(`${folder}/index`),
-      path: `${blog.path}/${folder}/index.md`,
-    })
-    useEditorStore.setState({ currentFile: page('2026-01-05') })
-    globalThis.mockTauri.invoke.mockImplementation((cmd: string) => {
-      if (cmd === 'rename_entry') return Promise.resolve(page('trip-lake').path)
-      if (cmd === 'resolve_file_entry')
-        return Promise.resolve(page('trip-lake'))
-      return Promise.resolve(null)
+  it("doesn't rename index files, which Astro names by their folder", async () => {
+    useEditorStore.setState({
+      currentFile: { ...entry('trip'), path: `${blog.path}/trip/index.md` },
     })
 
     await renameOpenFile('trip-lake')
-    expect(mockToast.success).toHaveBeenCalledWith(
-      'Renamed to trip-lake/index.md'
-    )
+    const commands = globalThis.mockTauri.invoke.mock.calls.map(([cmd]) => cmd)
+    expect(commands).not.toContain('rename_entry')
+    expect(mockToast.info).toHaveBeenCalled()
   })
 })
 
-describe('entryStem', () => {
-  it('is the folder name for a folder-per-entry file', () => {
-    expect(entryStem(`${blog.path}/trip/index.md`, blog)).toBe('trip')
-    expect(entryStem(`${blog.path}/index.md`, blog)).toBe('index')
-    expect(entryStem(`${blog.path}/2024/post.mdx`, blog)).toBe('post')
+describe('renamableStem', () => {
+  it("is the file's name without its extension, or null for an index file", () => {
+    expect(renamableStem(`${blog.path}/2024/post.mdx`)).toBe('post')
+    expect(renamableStem(`${blog.path}/trip/index.md`)).toBeNull()
+    expect(renamableStem(`${blog.path}/index.md`)).toBeNull()
   })
 })
