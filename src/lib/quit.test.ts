@@ -92,12 +92,18 @@ describe('answerQuitRequest', () => {
     expect(commands.quitApp).not.toHaveBeenCalled()
   })
 
-  it('quits after a failed save if the writer chooses to', async () => {
+  it('quits after a failed save if the writer chooses to, remembering the open file', async () => {
+    useProjectStore.setState({ currentProjectId: 'blog' })
+    rememberLastEntry('/sites/blog/hello.md')
     useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
     vi.mocked(ask).mockResolvedValue(true)
 
     await answerQuitRequest()
 
+    expect(commands.setLastEntry).toHaveBeenCalledWith(
+      'blog',
+      '/sites/blog/hello.md'
+    )
     expect(commands.quitApp).toHaveBeenCalledOnce()
   })
 

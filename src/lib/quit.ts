@@ -61,5 +61,9 @@ export async function answerQuitRequest(): Promise<void> {
     askingToQuit = false
   }
 
-  if (quitAnyway) await commands.quitApp()
+  // The quit was cancelled before asking, so nothing is waiting on this write
+  if (quitAnyway) {
+    await flushLastEntry()
+    await commands.quitApp()
+  }
 }
