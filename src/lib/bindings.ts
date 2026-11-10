@@ -365,6 +365,8 @@ export type ListedProject = {
 	project: ProjectMetadata,
 	/**  Its folder isn't there, usually because it was moved or renamed */
 	missing: boolean,
+	/**  It's on a drive that isn't connected, so it may well come back */
+	disconnected: boolean,
 	/**  The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path */
 	favicon: string | null,
 };

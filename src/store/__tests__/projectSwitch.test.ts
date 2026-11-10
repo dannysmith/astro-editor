@@ -92,3 +92,38 @@ describe('switching projects with unsaved edits', () => {
     expect(useEditorStore.getState().editorContent).toBe('unsaved words')
   })
 })
+
+describe('opening two projects at once', () => {
+  beforeEach(() => {
+    useProjectStore.setState({ projectPath: null })
+    useEditorStore.setState({ currentFile: null, isDirty: false })
+    vi.mocked(commands.startWatchingProject).mockClear()
+  })
+
+  it('leaves the project to the later open, with one watcher', async () => {
+    const opening = (path: string) => ({
+      ...opened,
+      data: {
+        ...opened.data,
+        project: { ...opened.data.project, id: path, path },
+      },
+    })
+    // The first open answers last
+    let answerFirst: (value: typeof opened) => void = () => {}
+    vi.mocked(commands.openProject)
+      .mockReset()
+      .mockReturnValueOnce(new Promise(resolve => (answerFirst = resolve)))
+      .mockResolvedValueOnce(opening('/sites/second'))
+
+    useProjectStore.getState().setProject('/sites/first')
+    useProjectStore.getState().setProject('/sites/second')
+    await vi.waitFor(() =>
+      expect(useProjectStore.getState().projectPath).toBe('/sites/second')
+    )
+    answerFirst(opening('/sites/first'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(useProjectStore.getState().projectPath).toBe('/sites/second')
+    expect(commands.startWatchingProject).toHaveBeenCalledTimes(1)
+  })
+})

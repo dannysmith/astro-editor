@@ -20,7 +20,7 @@ import { useUIStore } from './uiStore'
 import { projectName } from '../lib/projects/display'
 import { hasProblems } from '../lib/project-settings/status'
 import { queryClient } from '../lib/query-client'
-import { queryKeys } from '../lib/query-keys'
+import { isFileListing, queryKeys } from '../lib/query-keys'
 import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
 import {
   fetchProjectScan,
@@ -121,13 +121,23 @@ function deepMerge<T>(settings: T, patch: DeepPartial<T>): T {
   return merged as T
 }
 
+/** Counts project opens, so an open that a later one overtook can stop */
+let openGeneration = 0
+
 /**
  * Opens the project at `path`: registers it, loads its settings and scan, and
  * starts watching it. Returns false if it couldn't be opened, after logging
  * why and, unless `quiet`, telling the writer.
+ *
+ * Another open can start while this one waits (two deep links, or a quick
+ * switch during a slow scan). This one then stops at its next step and
+ * returns true, leaving the project to the later open, so two never start a
+ * watcher each.
  */
 async function openProject(path: string, quiet = false): Promise<boolean> {
   const { getState, setState } = useProjectStore
+  const generation = ++openGeneration
+  const overtaken = () => generation !== openGeneration
   await info(`Astro Editor [PROJECT_SETUP] Opening project: ${path}`)
 
   // Save unsaved edits first, or closing the file below loses them. If the
@@ -143,6 +153,7 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   }
 
   const result = await commands.openProject(path)
+  if (overtaken()) return true
   if (result.status === 'error') {
     await logError(
       formatErrorForLogging('PROJECT_SETUP', 'Failed to open project', {
@@ -163,6 +174,7 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   useEditorStore.getState().closeCurrentFile()
   useUIStore.getState().setProjectSettingsOpen(false)
   await getState().stopFileWatcher()
+  if (overtaken()) return true
 
   setState({
     projectPath: project.path,
@@ -177,6 +189,7 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   const scan = await rescan(project.path).catch(async (error: unknown) => {
     await logWarn(`Astro Editor [PROJECT_SETUP] Scan failed: ${String(error)}`)
   })
+  if (overtaken()) return true
   // The first time a project is opened, or after its old settings were moved
   // aside, say so if AE couldn't read all of it
   if (newSettings && scan && hasProblems(scan, project.path)) {
@@ -389,6 +402,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       )
       return undefined
     })
+    // A content config change can move a collection or change its pattern
+    await queryClient.invalidateQueries({
+      predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
+    })
     await watchFolders(scan)
   },
 
@@ -506,13 +523,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     }
 
-    // Every listing of the project's files: the pattern, folder or skipped
-    // files setting may have changed what they show
+    // The pattern, folder or skipped files setting may have changed which
+    // files the listings show
     await queryClient.invalidateQueries({
-      predicate: query =>
-        query.queryKey[1] === projectPath &&
-        (query.queryKey.includes('directory') ||
-          query.queryKey.at(-1) === 'files'),
+      predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
     })
     await watchFolders(after)
   },

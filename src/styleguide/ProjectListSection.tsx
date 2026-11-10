@@ -20,6 +20,7 @@ function listed(
   return {
     project: { id: path, name: path, path, lastOpened, created: lastOpened },
     missing,
+    disconnected: path.startsWith('/Volumes/'),
     favicon: null,
   }
 }
@@ -29,6 +30,7 @@ const PROJECTS = [
   listed('/Users/writer/sites/docs', '2026-11-05T09:00:00Z'),
   listed('/Users/writer/clients/acme-site', '2026-11-04T15:00:00Z'),
   listed('/Users/writer/old/portfolio', '2026-03-28T10:00:00Z', true),
+  listed('/Volumes/Archive/sites/notes', '2026-02-11T10:00:00Z', true),
 ]
 
 /**

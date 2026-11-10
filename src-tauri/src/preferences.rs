@@ -172,6 +172,7 @@ impl Preferences {
             .into_values()
             .map(|project| ListedProject {
                 missing: !Path::new(&project.path).is_dir(),
+                disconnected: on_unmounted_drive(Path::new(&project.path)),
                 favicon: crate::collections::find_favicon(Path::new(&project.path)),
                 project,
             })
@@ -273,8 +274,10 @@ impl Preferences {
     /// with a message).
     fn read_project_file(&self, id: &str) -> (Option<ProjectSettingsFile>, Option<String>) {
         let path = self.project_file(id);
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            return (None, None);
+        let content = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (None, None),
+            Err(e) => return (None, Some(set_aside_broken(&path, &e.to_string()))),
         };
 
         let version = serde_json::from_str::<serde_json::Value>(&content)
@@ -342,17 +345,25 @@ impl Preferences {
     /// their default values
     fn read_or_default<T: DeserializeOwned + Serialize + Default>(&self, name: &str) -> Loaded<T> {
         let path = self.dir.join(name);
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            return Loaded {
-                value: T::default(),
-                problem: None,
-            };
+        let parsed = match std::fs::read_to_string(&path) {
+            Ok(content) => serde_json::from_str(&content)
+                .and_then(|stored| {
+                    let mut value = serde_json::to_value(T::default())?;
+                    merge(&mut value, stored);
+                    serde_json::from_value(value)
+                })
+                .map_err(|e| e.to_string()),
+            // Only a file that isn't there is missing. One that can't be read
+            // (permissions, not UTF-8) is set aside like a broken one, never
+            // taken as empty and written over
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Loaded {
+                    value: T::default(),
+                    problem: None,
+                };
+            }
+            Err(e) => Err(e.to_string()),
         };
-        let parsed = serde_json::from_str(&content).and_then(|stored| {
-            let mut value = serde_json::to_value(T::default())?;
-            merge(&mut value, stored);
-            serde_json::from_value(value)
-        });
         match parsed {
             Ok(value) => Loaded {
                 value,
@@ -360,7 +371,7 @@ impl Preferences {
             },
             Err(e) => Loaded {
                 value: T::default(),
-                problem: Some(set_aside_broken(&path, &e.to_string())),
+                problem: Some(set_aside_broken(&path, &e)),
             },
         }
     }
@@ -371,10 +382,24 @@ impl Preferences {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create preferences folder: {e}"))?;
         }
+        // A file that's there but can't be read or parsed is one
+        // `set_aside_broken` couldn't move, and may be the only copy of the
+        // writer's settings, so it's never written over
+        match std::fs::read_to_string(&path) {
+            Ok(existing) if serde_json::from_str::<serde_json::Value>(&existing).is_ok() => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            _ => return Err(format!("{name} couldn't be read, so it wasn't changed")),
+        }
         let json = serde_json::to_string_pretty(value)
             .map_err(|e| format!("Failed to serialize {name}: {e}"))?;
+        // Written in full and synced before the rename, so a crash or power
+        // cut can't leave an empty settings file
         let temp = path.with_extension("json.tmp");
-        std::fs::write(&temp, json).map_err(|e| format!("Failed to write {name}: {e}"))?;
+        let written = std::fs::File::create(&temp).and_then(|mut file| {
+            std::io::Write::write_all(&mut file, json.as_bytes())?;
+            file.sync_all()
+        });
+        written.map_err(|e| format!("Failed to write {name}: {e}"))?;
         std::fs::rename(&temp, &path).map_err(|e| format!("Failed to write {name}: {e}"))
     }
 }
@@ -400,9 +425,10 @@ fn lock() -> std::sync::MutexGuard<'static, ()> {
     LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Renames a file that doesn't parse out of the way, so it's never overwritten,
-/// and returns a message for the writer
-fn set_aside_broken(path: &Path, parse_error: &str) -> String {
+/// Renames a file that can't be read or doesn't parse out of the way, so it's
+/// never overwritten, and returns a message for the writer. If it can't be
+/// moved, it stays where it is, and `write` won't replace it.
+fn set_aside_broken(path: &Path, error: &str) -> String {
     let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -410,24 +436,46 @@ fn set_aside_broken(path: &Path, parse_error: &str) -> String {
     let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
     let aside = path.with_file_name(format!("{stem}.broken-{timestamp}.json"));
     error!(
-        "Astro Editor [PREFERENCES] {} couldn't be read ({parse_error}); moving it to {}",
+        "Astro Editor [PREFERENCES] {} couldn't be read ({error}); moving it to {}",
         path.display(),
         aside.display()
     );
-    if let Err(e) = std::fs::rename(path, &aside) {
-        error!("Astro Editor [PREFERENCES] Couldn't move the broken file aside: {e}");
-    }
     let name = path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("A settings file");
-    format!(
-        "{name} couldn't be read, so its settings were reset. The old file was kept as {}.",
-        aside
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or_default()
-    )
+    match std::fs::rename(path, &aside) {
+        Ok(()) => format!(
+            "{name} couldn't be read, so its settings were reset. The old file was kept as {}.",
+            aside
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+        ),
+        Err(e) => {
+            error!("Astro Editor [PREFERENCES] Couldn't move the broken file aside: {e}");
+            format!(
+                "{name} couldn't be read, so the default settings are in use. It was left as it is, and won't be changed until it can be read: {}",
+                path.display()
+            )
+        }
+    }
+}
+
+/// Whether `path` is on a macOS drive that isn't mounted: under
+/// `/Volumes/<drive>`, with no `/Volumes/<drive>`. Such a project isn't gone,
+/// so it shouldn't look like one to remove.
+fn on_unmounted_drive(path: &Path) -> bool {
+    let mut parts = path.components();
+    let drive = match (parts.next(), parts.next(), parts.next()) {
+        (Some(std::path::Component::RootDir), Some(volumes), Some(drive))
+            if volumes.as_os_str() == "Volumes" =>
+        {
+            drive
+        }
+        _ => return false,
+    };
+    !Path::new("/Volumes").join(drive).exists()
 }
 
 /// A project folder's path with symlinks resolved, so one folder is always
@@ -644,6 +692,37 @@ mod tests {
         assert!(prefs.open_project(&project).is_ok());
     }
 
+    #[test]
+    fn sets_aside_a_file_it_cant_read_rather_than_writing_over_it() {
+        let (_dir, prefs, project) = setup();
+        std::fs::create_dir_all(&prefs.dir).unwrap();
+        // Not UTF-8, so it can't be read as text
+        let unreadable = [0xff, 0xfe, 0x00];
+        std::fs::write(prefs.dir.join(REGISTRY_FILE), unreadable).unwrap();
+
+        let opened = prefs.open_project(&project).unwrap();
+        assert_eq!(opened.problems.len(), 1);
+        let kept: Vec<_> = std::fs::read_dir(&prefs.dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".broken-"))
+            .collect();
+        assert_eq!(std::fs::read(kept[0].path()).unwrap(), unreadable);
+    }
+
+    #[test]
+    fn wont_write_over_a_file_it_couldnt_set_aside() {
+        let (_dir, prefs, _project) = setup();
+        std::fs::create_dir_all(&prefs.dir).unwrap();
+        let path = prefs.dir.join(GLOBAL_SETTINGS_FILE);
+        std::fs::write(&path, "{ not json").unwrap();
+
+        assert!(prefs
+            .write(GLOBAL_SETTINGS_FILE, &GlobalSettings::default())
+            .is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ not json");
+    }
+
     /// Settings with one collection setting, to tell a project's settings apart
     fn settings_with_draft_field(field: &str) -> ProjectSettingsData {
         let mut settings = ProjectSettingsData::default();
@@ -672,6 +751,15 @@ mod tests {
         assert_eq!(ids, [second.id.as_str(), first.id.as_str()]);
         assert!(listed[0].missing);
         assert!(!listed[1].missing);
+    }
+
+    #[test]
+    fn tells_a_project_on_an_unplugged_drive_from_a_missing_one() {
+        assert!(on_unmounted_drive(Path::new(
+            "/Volumes/No Such Drive 4f9c/sites/blog"
+        )));
+        assert!(!on_unmounted_drive(Path::new("/Users/writer/sites/blog")));
+        assert!(!on_unmounted_drive(Path::new("/Volumes")));
     }
 
     #[test]

@@ -23,6 +23,9 @@ export const queryKeys = {
       'directory',
       subdirectory,
     ] as const,
+  // How many files each collection has, for the sidebar's collection list
+  collectionCounts: (projectPath: string) =>
+    [...queryKeys.all, projectPath, 'collectionCounts'] as const,
   fileContent: (projectPath: string, fileId: string) =>
     [...queryKeys.all, projectPath, 'files', fileId] as const,
   mdxComponents: (projectPath: string, mdxDirectories: string[]) =>
@@ -43,4 +46,23 @@ export const queryKeys = {
   // Not tied to a project
   appVersion: ['appVersion'] as const,
   // Add more keys here as needed
+}
+
+/**
+ * Whether a query lists the project's files: a folder's contents, a
+ * collection's files, or the collections' file counts. Files being added,
+ * removed or renamed make them stale, as do settings and content config
+ * changes that move a collection or change which files are its entries.
+ */
+export function isFileListing(
+  queryKey: readonly unknown[],
+  projectPath: string
+): boolean {
+  return (
+    queryKey[0] === queryKeys.all[0] &&
+    queryKey[1] === projectPath &&
+    (queryKey[2] === 'collectionCounts' ||
+      queryKey[3] === 'directory' ||
+      queryKey[4] === 'files')
+  )
 }

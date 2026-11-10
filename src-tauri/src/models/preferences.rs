@@ -141,6 +141,8 @@ pub struct ListedProject {
     pub project: ProjectMetadata,
     /// Its folder isn't there, usually because it was moved or renamed
     pub missing: bool,
+    /// It's on a drive that isn't connected, so it may well come back
+    pub disconnected: bool,
     /// The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path
     pub favicon: Option<String>,
 }

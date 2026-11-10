@@ -64,17 +64,18 @@ fn create_project_watcher(
 
     let project_root = PathBuf::from(project_path);
 
-    // Each collection folder, skipping any inside another
+    // Each collection folder, skipping any inside another. One that can't be
+    // watched is logged and skipped, so the others still are
     let mut folders: Vec<PathBuf> = folders.iter().map(PathBuf::from).collect();
     folders.sort();
     folders.dedup();
     let mut watched: Vec<PathBuf> = Vec::new();
     for folder in folders {
         if folder.is_dir() && !watched.iter().any(|w| folder.starts_with(w)) {
-            watcher
-                .watch(&folder, RecursiveMode::Recursive)
-                .map_err(|e| format!("Failed to watch {}: {e}", folder.display()))?;
-            watched.push(folder);
+            match watcher.watch(&folder, RecursiveMode::Recursive) {
+                Ok(()) => watched.push(folder),
+                Err(e) => log::warn!("Couldn't watch {}: {e}", folder.display()),
+            }
         }
     }
 

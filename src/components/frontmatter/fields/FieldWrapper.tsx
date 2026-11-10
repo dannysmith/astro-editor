@@ -142,8 +142,15 @@ function formatMetadata(
     }
   }
 
-  // Default value
-  if (defaultValue !== undefined) {
+  // Default value, unless it's empty (`''`, `[]`, `{}`), which would show a
+  // bare "Default:"
+  const emptyDefault =
+    defaultValue === '' ||
+    (Array.isArray(defaultValue) && defaultValue.length === 0) ||
+    (typeof defaultValue === 'object' &&
+      defaultValue !== null &&
+      Object.keys(defaultValue).length === 0)
+  if (defaultValue !== undefined && !emptyDefault) {
     const defaultStr =
       typeof defaultValue === 'string'
         ? defaultValue

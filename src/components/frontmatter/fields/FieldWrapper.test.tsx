@@ -273,6 +273,18 @@ describe('FieldWrapper', () => {
       expect(screen.getByText('Default: default text')).toBeInTheDocument()
     })
 
+    it("doesn't show an empty default", () => {
+      for (const empty of ['', [], {}]) {
+        const { unmount } = render(
+          <FieldWrapper label="Test" defaultValue={empty} currentValue="">
+            <input />
+          </FieldWrapper>
+        )
+        expect(screen.queryByText(/Default:/)).not.toBeInTheDocument()
+        unmount()
+      }
+    })
+
     it('hides default value when field has value', () => {
       render(
         <FieldWrapper

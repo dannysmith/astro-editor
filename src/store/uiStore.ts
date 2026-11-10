@@ -42,7 +42,11 @@ interface UIState {
 
   // Collection view state actions
   getCollectionViewState: (collectionName: string) => CollectionViewState
-  setSortMode: (collectionName: string, mode: string) => void
+  setSortMode: (
+    collectionName: string,
+    mode: string,
+    direction: 'asc' | 'desc'
+  ) => void
   setSortDirection: (collectionName: string, direction: 'asc' | 'desc') => void
   toggleSortDirection: (collectionName: string) => void
   setSearchQuery: (collectionName: string, query: string) => void
@@ -163,7 +167,11 @@ export const useUIStore = create<UIState>((set, get) => ({
     return get().collectionViewState[collectionName] || DEFAULT_VIEW_STATE
   },
 
-  setSortMode: (collectionName: string, mode: string) => {
+  setSortMode: (
+    collectionName: string,
+    mode: string,
+    direction: 'asc' | 'desc'
+  ) => {
     set(state => ({
       collectionViewState: {
         ...state.collectionViewState,
@@ -171,6 +179,7 @@ export const useUIStore = create<UIState>((set, get) => ({
           ...DEFAULT_VIEW_STATE,
           ...state.collectionViewState[collectionName],
           sortMode: mode,
+          sortDirection: direction,
         },
       },
     }))

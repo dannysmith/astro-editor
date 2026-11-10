@@ -101,12 +101,12 @@ Every resolved value carries its source (`SettingSource`): set, project, global,
 
 ## Settings files
 
-`preferences.rs` reads and writes all three files. Writes go through a temporary file and a rename.
+`preferences.rs` reads and writes all three files. Writes go through a temporary file, synced to disk before it's renamed over the old one, so a crash can't leave an empty file.
 
-- **A file that doesn't parse is never overwritten.** It's renamed to `<name>.broken-<timestamp>.json`, the app carries on with defaults, and a toast says so.
+- **A file that can't be read or doesn't parse is never overwritten.** Only a missing file counts as empty. Any other is renamed to `<name>.broken-<timestamp>.json`, the app carries on with defaults, and a toast says so. If it can't be renamed, it stays, and `write` refuses to replace it.
 - **Global settings and the registry are read over their defaults,** so a setting added since a file was written gets its default.
 - **Project files are version 3.** An older one is renamed to `<id>.v2.json` when first read and the project starts with no settings; nothing migrates them. Each records the project's path, so a lost registry could be rebuilt.
-- **Projects are identified by their canonical path.** New projects get an id from their folder name and a random suffix, which never changes. There's no guessing from `package.json` names: opening a moved project's new folder registers a new project, and the old entry shows as missing in the project list until it's located or removed.
+- **Projects are identified by their canonical path.** New projects get an id from their folder name and a random suffix, which never changes. There's no guessing from `package.json` names: opening a moved project's new folder registers a new project, and the old entry shows as missing in the project list until it's located or removed. One under `/Volumes/<drive>` whose drive isn't mounted shows as "Drive Not Connected" instead, since it isn't gone.
 - **The project list** (`components/project-list/`) reads the registry with `list_projects`, which is also the only place AE checks that projects' folders exist; nothing is checked at startup. `relocate_project` (Locate…) points an entry at its new folder, keeping its id and settings. If another entry already has that folder, usually because the writer opened it with Open Folder… first, it reports that and changes nothing; with `replace` it removes that entry and its settings first. `remove_project` deletes an entry, its settings file and any `.v2.json`, and never touches the project. The list won't remove the open project, whose settings would otherwise be written again on the next change.
 - **Switching projects saves the open file first,** and stays on the current project if that save fails, since closing the file would lose its edits.
 - **A settings change can move a collection's files.** `projectStore.updateProjectSettings` rescans, saves and closes the open file if its collection's folder, base or pattern changed, refreshes every file listing, and restarts the watcher if the collection folders moved.

@@ -2,6 +2,7 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { getNestedValue } from '../../../lib/object-utils'
 import { Input } from '../../ui/input'
+import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
@@ -40,15 +41,27 @@ export const StringField: React.FC<StringFieldProps> = ({
       constraints={field?.constraints}
       currentValue={value}
     >
-      <Input
-        id={id}
-        type={type}
-        name={name}
-        placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
-        className={className}
-        value={valueToString(value)}
-        onChange={e => updateFrontmatterField(name, e.target.value)}
-      />
+      {/* An <input> drops line breaks from its value, so editing a value that
+          has them would join its lines */}
+      {valueToString(value).includes('\n') ? (
+        <AutoExpandingTextarea
+          id={id}
+          name={name}
+          className={className}
+          value={valueToString(value)}
+          onChange={e => updateFrontmatterField(name, e.target.value)}
+        />
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          name={name}
+          placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
+          className={className}
+          value={valueToString(value)}
+          onChange={e => updateFrontmatterField(name, e.target.value)}
+        />
+      )}
     </FieldWrapper>
   )
 }

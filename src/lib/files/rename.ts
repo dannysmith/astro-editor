@@ -10,7 +10,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { fieldMappings, getCollection } from '../project-scan'
 import { queryClient } from '../query-client'
-import { queryKeys } from '../query-keys'
+import { isFileListing } from '../query-keys'
 import { slugFromTitle } from '../slug'
 import { toast } from '../toast'
 import { fileNameStem, patternHasTitle } from './file-name-pattern'
@@ -120,10 +120,7 @@ export async function renameOpenFile(stem: string): Promise<void> {
   }
 
   void queryClient.invalidateQueries({
-    predicate: ({ queryKey }) =>
-      queryKey[0] === queryKeys.all[0] &&
-      queryKey[1] === projectPath &&
-      (queryKey[3] === 'directory' || queryKey[4] === 'files'),
+    predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
   })
   toast.success(`Renamed to ${name}`)
 }

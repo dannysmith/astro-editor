@@ -556,12 +556,12 @@ fn rebuild_markdown_with_raw_frontmatter(
 ) -> Result<String, String> {
     let mut result = String::new();
 
-    // Add frontmatter with raw content (preserves original formatting)
+    // Add frontmatter with raw content (preserves original formatting). It's
+    // the lines between the markers joined by `parse_frontmatter`, so one that
+    // ends in `\n` ends in a blank line, which needs a line of its own
     result.push_str("---\n");
     result.push_str(raw_frontmatter);
-    if !raw_frontmatter.ends_with('\n') {
-        result.push('\n');
-    }
+    result.push('\n');
     result.push_str("---\n");
 
     // Add imports if present
@@ -2341,6 +2341,16 @@ X"#;
     // --- Trailing newline round-trip tests ---
     // These verify that save -> reload preserves trailing whitespace exactly,
     // preventing the editor scroll jump bug (full doc replacement on content mismatch).
+
+    #[test]
+    fn test_roundtrip_keeps_a_blank_line_before_the_closing_marker() {
+        let file = "---\ntitle: Test\n\n---\n\nHello world.\n";
+        let parsed = parse_frontmatter(file).unwrap();
+        let saved =
+            rebuild_markdown_with_raw_frontmatter(&parsed.raw_frontmatter, "", &parsed.content)
+                .unwrap();
+        assert_eq!(saved, file);
+    }
 
     #[test]
     fn test_roundtrip_content_no_trailing_newline() {

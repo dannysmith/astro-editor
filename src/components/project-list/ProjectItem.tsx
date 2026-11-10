@@ -11,11 +11,12 @@ import { ProjectIcon } from './ProjectIcon'
 
 /**
  * One project in the project list: its icon, folder name and path, and when it was
- * last opened, or that it's the open project. A missing project is dimmed.
+ * last opened, or that it's the open project. A missing project is dimmed,
+ * and one on a drive that isn't connected says so.
  * Search matches the name and the full path.
  */
 export function ProjectItem({
-  listed: { project, missing, favicon },
+  listed: { project, missing, disconnected, favicon },
   isOpen,
   home,
   now,
@@ -54,7 +55,11 @@ export function ProjectItem({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-          {missing && <Badge variant="outline">Missing</Badge>}
+          {missing && (
+            <Badge variant="outline">
+              {disconnected ? 'Drive Not Connected' : 'Missing'}
+            </Badge>
+          )}
           {isOpen ? (
             <Badge variant="secondary">Open</Badge>
           ) : (

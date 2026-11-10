@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { useShallow } from 'zustand/react/shallow'
-import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
@@ -10,6 +9,7 @@ import {
   useProjectScanQuery,
 } from '../../hooks/queries/useCollectionsQuery'
 import { useDirectoryScanQuery } from '../../hooks/queries/useDirectoryScanQuery'
+import { useCollectionCountsQuery } from '../../hooks/queries/useCollectionCountsQuery'
 import type { FileEntry, Collection } from '@/types'
 import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutation'
 import { Button } from '../ui/button'
@@ -35,6 +35,7 @@ import { showProjectList } from '../../lib/projects/actions'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import {
   collectionProblems,
+  isUnreadLoader,
   statusLevel,
 } from '../../lib/project-settings/status'
 import { StatusIcon, WithCode } from '../project-settings/Problems'
@@ -104,13 +105,6 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [])
 
-  const handleSortModeChange = useCallback((mode: string) => {
-    const { selectedCollection } = useProjectStore.getState()
-    if (selectedCollection) {
-      useUIStore.getState().setSortMode(selectedCollection, mode)
-    }
-  }, [])
-
   const handleSortDirectionToggle = useCallback(() => {
     const { selectedCollection } = useProjectStore.getState()
     if (selectedCollection) {
@@ -118,9 +112,18 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [])
 
-  const [fileCounts, setFileCounts] = useState<Record<string, number>>({})
-
   const { data: collections = [] } = useCollectionsQuery(projectPath)
+  const { data: fileCounts = {} } = useCollectionCountsQuery(
+    projectPath,
+    collections
+  )
+  // Collections whose folder is missing or outside the project. They're
+  // listed dimmed with their problem, rather than vanishing, and open Project
+  // Settings, where the problem can be fixed
+  const { data: scan } = useProjectScanQuery(projectPath)
+  const unavailable = (scan?.collections ?? []).filter(
+    c => c.kind !== 'data' && !isUnreadLoader(c) && c.folderStatus !== 'ok'
+  )
 
   const currentCollection = collections.find(c => c.name === selectedCollection)
 
@@ -139,41 +142,6 @@ export const LeftSidebar: React.FC = () => {
   )
 
   const renameMutation = useRenameFileMutation()
-
-  // Load file counts for all collections (recursive)
-  useEffect(() => {
-    let cancelled = false
-
-    const loadFileCounts = async () => {
-      const counts: Record<string, number> = {}
-
-      for (const collection of collections) {
-        try {
-          const result =
-            await commands.countCollectionFilesRecursive(collection)
-          if (result.status === 'error') {
-            counts[collection.name] = 0
-          } else {
-            counts[collection.name] = result.data
-          }
-        } catch {
-          counts[collection.name] = 0
-        }
-      }
-
-      if (!cancelled) {
-        setFileCounts(counts)
-      }
-    }
-
-    if (collections.length > 0) {
-      void loadFileCounts()
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [collections])
 
   // The collection's title, date and draft fields
   const frontmatterMappings = useFieldMappings(selectedCollection || undefined)
@@ -276,9 +244,17 @@ export const LeftSidebar: React.FC = () => {
   }, [completeSchemaJson])
 
   // Get sort options based on schema
-  const sortOptions = useMemo(() => {
-    return getSortOptionsForCollection(currentSchema)
-  }, [currentSchema])
+  const sortOptions = getSortOptionsForCollection(currentSchema)
+
+  // Each mode starts the natural way round: dates newest first, everything
+  // else A to Z or lowest first
+  const handleSortModeChange = (mode: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (!selectedCollection) return
+    const type = sortOptions.find(option => option.id === mode)?.type
+    const direction = type === 'date' || type === 'default' ? 'desc' : 'asc'
+    useUIStore.getState().setSortMode(selectedCollection, mode, direction)
+  }
 
   // Derived filter states for UI indicators
   const searchActive = collectionViewState.searchQuery.trim() !== ''
@@ -515,7 +491,8 @@ export const LeftSidebar: React.FC = () => {
         {!selectedCollection ? (
           // Collections List
           <div className="p-2">
-            {collections.map(collection => {
+            {[...collections, ...unavailable].map(collection => {
+              const available = collection.folderStatus === 'ok'
               const fileCount = fileCounts[collection.name] ?? 0
               const problems = projectPath
                 ? collectionProblems(collection, projectPath)
@@ -524,8 +501,15 @@ export const LeftSidebar: React.FC = () => {
               return (
                 <button
                   key={collection.name}
-                  onClick={() => handleCollectionClick(collection)}
-                  className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent"
+                  onClick={() =>
+                    available
+                      ? handleCollectionClick(collection)
+                      : showProjectSettings(collection.name)
+                  }
+                  className={cn(
+                    'w-full rounded-md p-3 text-left transition-colors hover:bg-accent',
+                    !available && 'opacity-60'
+                  )}
                 >
                   <div className="flex w-full items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -551,9 +535,11 @@ export const LeftSidebar: React.FC = () => {
                         </Tooltip>
                       )}
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {fileCount} item{fileCount !== 1 ? 's' : ''}
-                    </Badge>
+                    {available && (
+                      <Badge variant="secondary" className="text-xs">
+                        {fileCount} item{fileCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-1 font-mono text-xs text-muted-foreground">
                     {collection.path.split('/').pop()}
@@ -561,9 +547,11 @@ export const LeftSidebar: React.FC = () => {
                 </button>
               )
             })}
-            {collections.length === 0 && (
+            {collections.length === 0 && unavailable.length === 0 && (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                No collections found. Open an Astro project to get started.
+                {projectPath
+                  ? 'No collections found.'
+                  : 'Open an Astro project to get started.'}
               </div>
             )}
           </div>
