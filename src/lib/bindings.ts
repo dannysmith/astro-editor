@@ -10,7 +10,13 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	updateFormatMenuState: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("update_format_menu_state", { enabled })),
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
-	createFile: (directory: string, filename: string, content: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, projectRoot })),
+	/**
+	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
+	 *  is serialised as saving does (so dates come out unquoted and strings
+	 *  escaped), in schema field order. Key order doesn't survive the IPC, so it's
+	 *  passed separately
+	 */
+	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	/**

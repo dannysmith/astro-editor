@@ -145,6 +145,8 @@ export class FileContextMenu {
                 directory,
                 filename,
                 readResult.data,
+                null,
+                null,
                 projectPath
               )
               if (createResult.status === 'error') {

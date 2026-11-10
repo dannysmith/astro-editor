@@ -54,12 +54,18 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
+/// Creates a file holding `content`, under `frontmatter` if it's given, which
+/// is serialised as saving does (so dates come out unquoted and strings
+/// escaped), in schema field order. Key order doesn't survive the IPC, so it's
+/// passed separately
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
     directory: String,
     filename: String,
     content: String,
+    frontmatter: Option<IndexMap<String, Value>>,
+    schema_field_order: Option<Vec<String>>,
     project_root: String,
 ) -> Result<String, String> {
     // Validate directory is within project
@@ -89,6 +95,15 @@ pub async fn create_file(
         return Err("File already exists".to_string());
     }
 
+    let content = match frontmatter {
+        Some(fm) => rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &fm,
+            "",
+            &content,
+            schema_field_order,
+        )?,
+        None => content,
+    };
     std::fs::write(&validated_final_path, content)
         .map_err(|e| format!("Failed to create file: {e}"))?;
 
@@ -901,6 +916,8 @@ mod tests {
             content_dir.to_string_lossy().to_string(),
             "test_create.md".to_string(),
             test_content.to_string(),
+            None,
+            None,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -916,6 +933,44 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[tokio::test]
+    async fn test_create_file_with_frontmatter() {
+        let dir = tempfile::tempdir().unwrap();
+        let project_root = dir.path().to_string_lossy().to_string();
+        // Keys arrive sorted, as they do over IPC, with the order alongside
+        let frontmatter: IndexMap<String, Value> = serde_json::from_value(serde_json::json!({
+            "title": "Say \"hi\": now",
+            "pubDate": "2026-11-10",
+            "sponsor": { "name": "Acme" },
+            "tags": [],
+            "featured": false,
+        }))
+        .unwrap();
+        let order = ["title", "pubDate", "sponsor", "tags", "featured"]
+            .map(String::from)
+            .to_vec();
+
+        let path = create_file(
+            project_root.clone(),
+            "new.md".to_string(),
+            String::new(),
+            Some(frontmatter.clone()),
+            Some(order),
+            project_root,
+        )
+        .await
+        .unwrap();
+
+        let written = fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            written,
+            "---\ntitle: 'Say \"hi\": now'\npubDate: 2026-11-10\nsponsor:\n  name: Acme\ntags: []\nfeatured: false\n---\n"
+        );
+        let parsed = parse_frontmatter(&written).unwrap();
+        assert_eq!(parsed.frontmatter, frontmatter);
+        assert_eq!(parsed.content, "");
     }
 
     #[cfg(unix)]
@@ -940,6 +995,8 @@ mod tests {
                 content_dir.to_string_lossy().to_string(),
                 filename.to_string(),
                 String::new(),
+                None,
+                None,
                 project_root.to_string_lossy().to_string(),
             )
         };
@@ -975,6 +1032,8 @@ mod tests {
             malicious_dir.to_string_lossy().to_string(),
             "malicious.md".to_string(),
             "malicious content".to_string(),
+            None,
+            None,
             project_root.to_string_lossy().to_string(),
         )
         .await;

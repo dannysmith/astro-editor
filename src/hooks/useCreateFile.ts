@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { commands } from '@/types'
+import { commands, type JsonValue } from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
@@ -7,7 +7,8 @@ import {
   useCreateFileMutation,
   type CreateFilePayload,
 } from './mutations/useCreateFileMutation'
-import { deserializeCompleteSchema, FieldType } from '../lib/schema'
+import { deserializeCompleteSchema } from '../lib/schema'
+import { newFileFrontmatter } from '../lib/files/new-file'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
 import { fieldMappings, getCollection } from '../lib/project-scan'
@@ -30,31 +31,10 @@ const singularize = (word: string): string => {
   return word
 }
 
-// Helper function to get default value based on field type
-const getDefaultValueForFieldType = (type: FieldType): unknown => {
-  switch (type) {
-    case FieldType.String:
-    case FieldType.Email:
-    case FieldType.URL:
-      return ''
-    case FieldType.Number:
-    case FieldType.Integer:
-      return 0
-    case FieldType.Boolean:
-      return false
-    case FieldType.Date:
-      return todayIsoDate() // YYYY-MM-DD format
-    case FieldType.Array:
-      return []
-    default:
-      return ''
-  }
-}
-
 /**
  * Creates a file named by the collection's pattern (without a title yet) in
  * the folder open in the sidebar, with frontmatter from the collection's
- * schema (a placeholder title, today's date, defaults for required fields),
+ * schema (a placeholder title, today's date, see `newFileFrontmatter`),
  * then opens it and focuses its title or the editor. A file whose pattern uses
  * the title is renamed once the title is written (`renameNewFileFromTitle`).
  * Plain function rather than inline in the hook so the React Compiler can
@@ -109,72 +89,26 @@ async function createFileInCurrentFolder(
     return
   }
 
-  // Generate default frontmatter from schema
-  const schema = collection.completeSchema
-    ? deserializeCompleteSchema(collection.completeSchema)
-    : null
-  const defaultFrontmatter: Record<string, unknown> = {}
+  const fields = collection.completeSchema
+    ? (deserializeCompleteSchema(collection.completeSchema)?.fields ?? [])
+    : []
+  const mappings = fieldMappings(collection)
+  const hasTitleField = fields.some(f => f.name === mappings.title)
 
-  // Track if we have a title field in the schema
-  let hasTitleField = false
-
-  // Generate default title
   const singularName = singularize(selectedCollection)
   const defaultTitle = `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
-
-  // The collection's title and published date fields
-  const mappings = fieldMappings(collection)
-  const dateFields = [mappings.publishedDate].flat()
-
-  if (schema?.fields) {
-    for (const field of schema.fields) {
-      if (field.name === mappings.title) {
-        hasTitleField = true
-        // Always include title field with default value
-        defaultFrontmatter[field.name] = defaultTitle
-      }
-      // The published date is today
-      else if (
-        field.type === FieldType.Date &&
-        dateFields.includes(field.name)
-      ) {
-        defaultFrontmatter[field.name] = todayIsoDate()
-      }
-      // Include other required fields
-      else if (field.required) {
-        // Use field default if available, otherwise use type-based defaults
-        defaultFrontmatter[field.name] =
-          field.default !== undefined
-            ? field.default
-            : getDefaultValueForFieldType(field.type)
-      }
-    }
-  }
-
-  // Create YAML frontmatter with proper type formatting
-  const frontmatterYaml =
-    Object.keys(defaultFrontmatter).length > 0
-      ? `---\n${Object.entries(defaultFrontmatter)
-          .map(([key, value]) => {
-            if (typeof value === 'string') {
-              return `${key}: "${value}"`
-            } else if (typeof value === 'boolean') {
-              return `${key}: ${value}` // Don't quote booleans
-            } else if (Array.isArray(value)) {
-              return `${key}: []` // Empty array
-            } else if (typeof value === 'number') {
-              return `${key}: ${value}` // Don't quote numbers
-            }
-            return `${key}: ${String(value)}`
-          })
-          .join('\n')}\n---\n\n`
-      : ''
 
   // Create the file in target directory (respects current subdirectory)
   await createFile({
     directory: targetDirectory,
     filename,
-    content: frontmatterYaml,
+    frontmatter: newFileFrontmatter(
+      fields,
+      mappings,
+      defaultTitle,
+      today
+    ) as Record<string, JsonValue>,
+    schemaFieldOrder: fields.map(f => f.name),
     projectPath: currentProjectPath,
   })
 

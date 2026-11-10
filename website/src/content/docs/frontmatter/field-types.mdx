@@ -28,7 +28,7 @@ A few fields get richer controls and have their own sections below: [objects](#n
 Astro Editor surfaces the extra information in your schema as guidance beneath each field:
 
 - `.describe('…')` — shown as help text under the field
-- `.default(…)` — shown as a hint, and pre-filled into new files
+- `.default(…)` — shown as a hint. It isn't written into new files, since Astro uses it whenever the field is left out
 - `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters", "Up to 3 items" for a list, or "Pattern: …"
 
 ```ts

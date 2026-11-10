@@ -4,11 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import { isFileListing } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
+import type { JsonValue } from '@/types'
 
 export interface CreateFilePayload {
   directory: string
   filename: string
-  content: string
+  /** Written by Rust as YAML above an empty body, in schema field order */
+  frontmatter: Record<string, JsonValue>
+  schemaFieldOrder: string[]
   projectPath: string
 }
 
@@ -16,7 +19,9 @@ const createFile = async (payload: CreateFilePayload) => {
   const result = await commands.createFile(
     payload.directory,
     payload.filename,
-    payload.content,
+    '',
+    payload.frontmatter,
+    payload.schemaFieldOrder,
     payload.projectPath
   )
   if (result.status === 'error') {

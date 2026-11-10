@@ -25,9 +25,11 @@ Done: the first load after opening is kept as `frontmatterBaseline` and its text
 
 To do:
 
-- [ ] **Decide (Danny):** what a required field with no default gets. Leaving it out fails the build, and so does `''` for anything but a plain `z.string()`. Options: leave such fields out (the panel already marks them required, and the build error names the field); write `''` only for plain strings and leave the rest out; or something else.
-- [ ] Build the values as an object (nested where the schema nests) and let the Rust writer serialise them, as saving already does, so dates, nesting, objects and escaping come out right. The fork's `lib/files/new-file.ts` (commits `1577a65`, `62df387`) is worth reading.
-- [ ] Tests for each of the cases above.
+- [x] **Decide (Danny):** what a required field with no default gets. Leaving it out fails the build, and so does `''` for anything but a plain `z.string()`. Options: leave such fields out (the panel already marks them required, and the build error names the field); write `''` only for plain strings and leave the rest out; or something else.
+- [x] Build the values as an object (nested where the schema nests) and let the Rust writer serialise them, as saving already does, so dates, nesting, objects and escaping come out right. The fork's `lib/files/new-file.ts` (commits `1577a65`, `62df387`) is worth reading.
+- [x] Tests for each of the cases above.
+
+Done: leave them out (option 1). A required switch, date or list gets off, today or `[]` (unless it needs items); other required fields are left out, and so is every field inside an object, since the schema doesn't say whether the object is required. `newFileFrontmatter` (`lib/files/new-file.ts`) builds the values and `create_file` serialises them with the save writer, in schema order.
 
 ## Phase 3: Windows paths (#371)
 
