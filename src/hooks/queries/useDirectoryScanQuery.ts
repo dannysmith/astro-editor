@@ -3,12 +3,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { commands, type Collection, type DirectoryScanResult } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
+import { getCollection } from '@/lib/project-scan'
 
+/**
+ * Reads the collection from the latest scan, not the one it was given: a
+ * settings change rescans and then refetches, which can happen before
+ * components re-render with the new folder and pattern
+ */
 const fetchDirectoryContents = async (
-  directoryPath: string,
-  collection: Collection
+  collection: Collection,
+  subdirectory: string | null
 ): Promise<DirectoryScanResult> => {
-  const result = await commands.scanDirectory(directoryPath, collection)
+  const current = getCollection(collection.name) ?? collection
+  const directoryPath = subdirectory
+    ? `${current.path}/${subdirectory}`
+    : current.path
+  const result = await commands.scanDirectory(directoryPath, current)
   if (result.status === 'error') {
     throw new Error(result.error)
   }
@@ -30,12 +40,7 @@ export const useDirectoryScanQuery = (
       collection?.name || '',
       subdirectory || 'root'
     ),
-    queryFn: () => {
-      const fullPath = subdirectory
-        ? `${collection!.path}/${subdirectory}`
-        : collection!.path
-      return fetchDirectoryContents(fullPath, collection!)
-    },
+    queryFn: () => fetchDirectoryContents(collection!, subdirectory),
     enabled: !!projectPath && !!collection,
   })
 }
