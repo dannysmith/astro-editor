@@ -258,13 +258,8 @@ async function saveCurrentFile(
  * User-triggered actions (like save, delete) live in hooks, which have natural
  * access to both Zustand stores (via getState()) and TanStack Query data.
  * State-triggered actions (like auto-save) live in stores and call these hooks
- * via registered callbacks.
- *
- * This pattern eliminates the event bridge polling pattern and provides:
- * - Direct synchronous access to query data (no polling)
- * - Full type safety
- * - Clear data flow and dependencies
- * - Standard React patterns
+ * via registered callbacks, which read query data directly rather than
+ * firing events for a hook to pick up.
  */
 export function useEditorActions() {
   const queryClient = useQueryClient()

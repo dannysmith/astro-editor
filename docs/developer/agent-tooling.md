@@ -76,7 +76,7 @@ The installed app writes `Astro Editor.log` to:
 
 When the file reaches 5 MB it's renamed with its date and a new one starts; the two most recent old files are kept. The plugin's default (40 KB, then delete the file) would leave a support log nearly empty.
 
-Messages are prefixed `Astro Editor [TAG]` where an area has a tag, so a log can be searched by area. The common ones are `[PROJECT_SETUP]`, `[PROJECT_SCAN]`, `[PROJECT_DISCOVERY]`, `[PROJECT_REGISTRY]`, `[PREFERENCES]`, `[MIGRATION]`, `[FILE_COLLECTION]`, `[SCHEMA_MERGER]`, `[JSON_SCHEMA]` and `[WATCHER]`, plus `[JS_ERROR]` and `[PROMISE_REJECTION]` for uncaught frontend errors. Reuse an existing tag before adding one.
+The tags in use are `[PROJECT_SETUP]`, `[PROJECT_SCAN]`, `[PREFERENCES]`, `[LAST_ENTRY]`, `[FILE_COLLECTION]`, `[WATCHER]`, `[MDX]` and `[WINDOW_STATE]`, plus `[JS_ERROR]` and `[PROMISE_REJECTION]` for uncaught frontend errors. Schema parsing logs with a bare `[Schema]` prefix. Reuse an existing tag before adding one.
 
 What to ask users for when they report a problem is on the website's troubleshooting page (`website/src/content/docs/reference/troubleshooting.mdx`); keep its paths and tags in step with this section.
 

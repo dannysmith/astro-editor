@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 /// - Comments containing braces
 /// - Template literals or other JavaScript string features
 ///
-/// The current implementations also don't handle these cases, so we maintain existing behavior.
+/// Comments are stripped before it runs, so only braces inside strings can confuse it.
 fn find_matching_closing_brace(
     content: &str,
     start_pos: usize,
@@ -84,7 +84,7 @@ pub fn extract_helpers(schema_source: &str) -> Option<String> {
 }
 
 fn remove_comments(content: &str) -> String {
-    // Improved comment removal that handles edge cases better
+    // Skips comment markers inside strings, and handles escapes
     let mut result = String::new();
     let mut chars = content.chars().peekable();
     let mut in_string = false;
@@ -345,7 +345,7 @@ fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<Strin
 
 /// Extract special fields (image and reference helpers) using pattern matching
 ///
-/// This is the main entry point. Returns the JSON that `extract_zod_enhancements`
+/// Returns the JSON that `extract_zod_enhancements`
 /// and `parse_zod_schema` in `schema_merger.rs` read.
 fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
     // 1. Find all helper calls
@@ -423,7 +423,7 @@ fn extract_zod_special_fields(schema_text: &str) -> Option<String> {
         }
     }
 
-    // 3. Serialize to JSON (same format as before)
+    // 3. Serialize to the JSON schema_merger reads
     if !fields_json.is_empty() {
         let schema_json = serde_json::json!({
             "type": "zod",

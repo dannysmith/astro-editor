@@ -132,7 +132,7 @@ The sidebar is manually defined in `astro.config.mjs` using explicit `slug` entr
 
 - **Main docs** are grouped by topic directory (e.g. `getting-started/`, `editor/`, `file-management/`, `frontmatter/`). Most sections have an `overview.mdx` as their first page.
 - **Single top-level pages** live at the docs root: `getting-started.mdx` (Quick Start), `preferences.mdx`, and `privacy.mdx`.
-- **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, the command list, override settings, the URL scheme, YAML handling, troubleshooting, etc. These document *what* things do, not how to use them.
+- **Reference section** (`reference/`) is for technical reference — keyboard shortcuts, the command list, the settings reference, the URL scheme, YAML handling, troubleshooting, etc. These document *what* things do, not how to use them.
 - **Releases** (`releases/`) are generated from GitHub releases by the `scripts/generate-release-pages.ts` script (run manually, e.g. `npx tsx scripts/generate-release-pages.ts [--all] [--dry-run]`). The releases index page at `src/pages/releases/index.astro` lists them sorted by date. Don't create release pages by hand.
 
 ## Writing Style

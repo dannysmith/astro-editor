@@ -29,10 +29,8 @@ export interface SchemaField {
   // References
   reference?: string // Referenced collection name (for single reference)
   subReference?: string // Referenced collection name (for array of references)
-  referenceCollection?: string // Legacy - kept for backwards compatibility
 
-  // Nested Objects
-  nestedFields?: SchemaField[] // Child fields for object types
+  // Nested Objects, flattened into dot paths
   isNested?: boolean // Is this field nested under a parent?
   parentPath?: string // Parent path, e.g. "author" for "author.name"
 }
@@ -132,7 +130,6 @@ export function deserializeCompleteSchema(
       enumValues: field.enumValues,
       reference: field.referenceCollection,
       subReference: field.arrayReferenceCollection,
-      referenceCollection: field.referenceCollection, // Backwards compat
       isNested: field.isNested,
       parentPath: field.parentPath,
     }))

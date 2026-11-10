@@ -38,7 +38,7 @@ Mock `commands` from `@/lib/bindings` when testing code that calls them. Command
 
 ## The `test/` projects
 
-`test/dummy-astro-project`, `test/demo-project`, `test/starlight-minimal`, `test/unusual-structure` and `test/personal-site` are Astro sites for trying the app by hand, and for agents driving the dev app. They aren't fixtures for automated tests; nothing in the Vitest or Rust suites reads them.
+`test/dummy-astro-project`, `test/demo-project`, `test/starlight-minimal`, `test/unusual-structure` and `test/personal-site` are Astro sites for trying the app by hand, and for agents driving the dev app. They aren't fixtures for automated tests, with one exception: `reads_test_project_components` (`src-tauri/src/mdx_components/mod.rs`) reads `dummy-astro-project`'s MDX components, so changing those can fail it. The Rust fixtures for MDX are `test/mdx-components/` and `test/mdx-imports/` (see `mdx-components.md`).
 
 - **`dummy-astro-project`** is the main test project: collections with most field types, references, images and MDX components. `bun run reset:testdata` (or `bun run app reset`) copies it to `temp-dummy-astro-project`, which is gitignored, so you can edit freely and reset.
 - **`demo-project`** has the same shape with realistic articles, books and notes, for demos.

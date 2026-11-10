@@ -11,7 +11,6 @@ const DOCS_BASE = 'https://astroeditor.danny.is'
 export const DOCS_URLS = {
   userGuide: `${DOCS_BASE}/getting-started/`,
   keyboardShortcuts: `${DOCS_BASE}/reference/keyboard-shortcuts/`,
-  overrides: `${DOCS_BASE}/reference/overrides/`,
   mdxComponents: `${DOCS_BASE}/editor/mdx-components/`,
   specialFields: `${DOCS_BASE}/frontmatter/special-fields/`,
   fileNamePatterns: `${DOCS_BASE}/project-settings/#file-names`,

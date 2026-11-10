@@ -22,8 +22,13 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         // numbers. It also covers FileEntry.last_modified (Unix seconds). This disables
         // the check for any new u64/i64 field too, so keep large integers out of IPC types.
         .dangerously_cast_bigints_to_number()
-        // The frontend never sends these structs to Rust, so separate serialize/
-        // deserialize shapes (X_Serialize | X_Deserialize) would add nothing.
+        // One TypeScript type per struct, not X_Serialize and X_Deserialize. The
+        // structs the frontend sends (settings, a Collection, an MdxComponent)
+        // read back from what Rust wrote: skip_serializing_if only drops Nones,
+        // which `default` or an Option reads back as None, and serialize_path
+        // writes a string that deserialises as a PathBuf. Attributes that make
+        // the two directions differ (skip_deserializing, deserialize_with, a
+        // one-way rename) would need the phases back.
         .disable_serde_phases()
         .commands(collect_commands![
             // menu.rs commands
@@ -38,7 +43,6 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::files::save_markdown_content,
             crate::commands::files::save_recovery_data,
             crate::commands::files::save_crash_report,
-            crate::commands::files::read_file_content,
             crate::commands::files::is_path_in_project,
             crate::commands::files::get_relative_path,
             crate::commands::files::resolve_image_path,

@@ -21,7 +21,7 @@ Every field in your collection [schema](/frontmatter/overview/) becomes a contro
 | Email | `z.string().email()` | A single-line input, hinted as an email |
 | URL | `z.string().url()` | A single-line input, hinted as a URL |
 
-A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). Lists of non-text values (dates, objects, and so on), and objects without fixed fields, fall back to a raw JSON editor.
+A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), and objects without fixed fields, like a `z.record()`. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
 
 ## Descriptions, defaults & constraints
 

@@ -22,9 +22,6 @@ use tauri::{
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
-// Import for PATH environment fix in production builds
-// use fix_path_env;
-
 // Store menu item references for later access
 struct MenuState {
     format_items: HashMap<String, MenuItem<tauri::Wry>>,
@@ -145,12 +142,6 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             commands::quit::install_terminate_hook(app.handle());
-
-            // Fix PATH environment variable for production builds
-            // This ensures shell commands can find executables like 'code', 'cursor', etc.
-            // if let Err(e) = fix_path_env::fix() {
-            //     eprintln!("Warning: Failed to fix PATH environment: {}", e);
-            // }
 
             // Create menu state
             let mut menu_state = MenuState::new();

@@ -331,7 +331,9 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
                                     kind: format!("{:?}", event.kind),
                                 },
                             ) {
-                                eprintln!("Failed to emit file change event: {e}");
+                                log::warn!(
+                                    "Astro Editor [WATCHER] Failed to emit file change event: {e}"
+                                );
                             }
                         }
                     }
@@ -345,7 +347,7 @@ async fn process_events(app: &AppHandle, events: &mut [Event]) {
     // Emit schema-changed event once if any schema files changed
     if schema_changed {
         if let Err(e) = app.emit("schema-changed", ()) {
-            eprintln!("Failed to emit schema change event: {e}");
+            log::warn!("Astro Editor [WATCHER] Failed to emit schema change event: {e}");
         }
     }
 }

@@ -35,7 +35,7 @@ const WelcomeScreen: React.FC = () => {
 }
 
 export const MainEditor: React.FC = () => {
-  // PERFORMANCE FIX: Use specific selector instead of currentFile object to avoid cascade
+  // A boolean, not currentFile, so changes to the file object don't re-render this
   const hasCurrentFile = useEditorStore(state => !!state.currentFile)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
 

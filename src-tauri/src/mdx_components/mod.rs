@@ -51,12 +51,15 @@ pub fn scan(project_root: &Path, mdx_directory: &str) -> Vec<MdxComponent> {
 
     // Validate the MDX directory is within project bounds
     if !mdx_dir.exists() {
-        eprintln!("[MDX] Directory not found: {}", mdx_dir.display());
+        log::debug!(
+            "Astro Editor [MDX] Directory not found: {}",
+            mdx_dir.display()
+        );
         return vec![];
     }
     if let Err(e) = validate_project_path(&mdx_dir, project_root) {
-        eprintln!(
-            "[MDX] Directory outside project bounds: {}: {e}",
+        log::warn!(
+            "Astro Editor [MDX] Directory outside project bounds: {}: {e}",
             mdx_dir.display()
         );
         return vec![];
@@ -86,11 +89,14 @@ pub fn scan(project_root: &Path, mdx_directory: &str) -> Vec<MdxComponent> {
         match validate_project_path(path, project_root) {
             Ok(_) => match parse_component(path, project_root, detect_framework(path)) {
                 Ok(component) => components.push(component),
-                Err(e) => eprintln!("Error parsing MDX component {}: {e}", path.display()),
+                Err(e) => log::warn!(
+                    "Astro Editor [MDX] Error parsing MDX component {}: {e}",
+                    path.display()
+                ),
             },
             Err(e) => {
-                eprintln!(
-                    "Skipping file outside project directory: {}: {e}",
+                log::warn!(
+                    "Astro Editor [MDX] Skipping file outside project directory: {}: {e}",
                     path.display()
                 );
                 continue;
@@ -98,9 +104,8 @@ pub fn scan(project_root: &Path, mdx_directory: &str) -> Vec<MdxComponent> {
         }
     }
 
-    // Keep this summary log for production debugging
-    eprintln!(
-        "[MDX] Found {} components in {}",
+    log::debug!(
+        "Astro Editor [MDX] Found {} components in {}",
         components.len(),
         mdx_dir.display()
     );
@@ -1523,9 +1528,6 @@ mod fixture_tests {
             .unwrap_or_else(|| panic!("no prop {component}.{prop}"))
     }
 
-    /// Prints what every fixture folder reads as, for eyeballing. Each folder is
-    /// scanned as its own project, so imports resolve within it:
-    /// `cargo test --lib dump_all_fixtures -- --ignored --nocapture`
     /// The test project's components, which cover each prop kind and framework pattern
     #[test]
     fn reads_test_project_components() {
@@ -1579,6 +1581,9 @@ mod fixture_tests {
         );
     }
 
+    /// Prints what every fixture folder reads as, for eyeballing. Each folder is
+    /// scanned as its own project, so imports resolve within it:
+    /// `cargo test --lib dump_all_fixtures -- --ignored --nocapture`
     #[test]
     #[ignore]
     fn dump_all_fixtures() {

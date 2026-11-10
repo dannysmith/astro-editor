@@ -120,5 +120,5 @@ Astro Editor will only work properly with Astro projects which:
 <Aside>
 Content collections can contain non-markdown/MDX files, but they will not be shown in the editor.
 
-Some features require you to have certain properties in your schema: a date field is required for proper ordering in the file list; a boolean field is required to show and filter drafts; a text field is required to show titles in the sidebar.
+A few features use particular fields, which Astro Editor finds by name: `title` for each file's name in the sidebar, `description` for a larger text box, `pubDate`, `date` or `publishedDate` for the date files are sorted by, and `draft` to show and filter drafts. None of them is required. If your fields have other names, pick them in [Project Settings](/project-settings/#frontmatter). See [Special Fields](/frontmatter/special-fields/).
 </Aside>

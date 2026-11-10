@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { commands } from '@/lib/bindings'
 import { saveUnsavedEdits } from '@/lib/quit'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -66,15 +67,17 @@ export const DebugPane: React.FC = () => {
         setResetting(false)
         return
       }
-      try {
-        await commands.resetAllPreferences()
-        setResetDialogOpen(false)
-        setResetConfirmed(false)
-        // The app should reload automatically after reset
-      } catch {
-        // Reset failed - re-enable the button
+      // On success the app restarts; on failure, say why and let them retry
+      const result = await commands.resetAllPreferences()
+      if (result.status === 'error') {
+        toast.error("Couldn't reset preferences", {
+          description: result.error,
+        })
         setResetting(false)
+        return
       }
+      setResetDialogOpen(false)
+      setResetConfirmed(false)
     })()
   }, [resetConfirmed])
 

@@ -39,7 +39,7 @@ export function useCommandContext(): CommandContext {
   return {
     currentFile,
     selectedCollection,
-    collections, // Now properly populated from TanStack Query
+    collections,
     projectPath,
     globalSettings,
     createNewFile: () => {
@@ -88,6 +88,5 @@ export function useCommandContext(): CommandContext {
     toggleAllHighlights: () => {
       window.dispatchEvent(new CustomEvent('toggle-all-highlights'))
     },
-    // Future: editor selection context could be added here
   }
 }

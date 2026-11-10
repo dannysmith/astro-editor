@@ -109,8 +109,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // An opened file's content always comes from disk, never the cache
     readFromDisk(file)
 
-    // CRITICAL: Clear content FIRST, then set currentFile
-    // This prevents Editor.tsx from reading stale content via getState()
+    // The outgoing file's content is cleared in the same update that sets
+    // currentFile, so Editor.tsx never reads it against the new file.
+    // lastSaveTimestamp starts the maximum auto-save delay's clock, and also
+    // makes useFileChangeHandler ignore changes to the file on disk for its
+    // first few seconds, as it does after a save
     set({
       editorContent: '',
       frontmatter: {},
@@ -133,7 +136,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       })
     )
 
-    // Content will be loaded by useFileContentQuery hook
+    // useEditorFileContent loads the content
   },
 
   closeFile: async () => {

@@ -3,33 +3,32 @@ title: 'Preferences'
 description: 'Astro Editor preferences — General and Advanced'
 ---
 
-The preferences can be opened with <Kbd mac="Cmd+," windows="Ctrl+," /> or via the app menu. They apply to every project. Settings for one project and its collections are in [Project Settings](/project-settings/), which the Preferences sidebar links to when a project is open.
+Preferences are about you rather than a project, and apply to every project. A project's own settings are in [Project Settings](/project-settings/), which the Preferences sidebar links to when a project is open. [How settings work](/project-settings/#how-settings-work) explains the difference.
+
+Open Preferences with <Kbd mac="Cmd+," windows="Ctrl+," /> or from the app menu.
 
 ## General
 
-Global preferences that apply to every project.
+The pane starts with a **Global Preferences** note, as a reminder that these apply to every project.
 
 ![The General preferences pane](../../assets/prefs-general.png)
 
-**IDE Command** — the command used to launch your editor for "Open in IDE" (for example `code`, `cursor`, or a full path like `/usr/local/bin/nvim`). See [IDE Integration](/file-management/ide-integration/).
+**IDE command**: the command that opens your code editor for "Open in IDE", like `code` or `cursor`, or its full path, like `/usr/local/bin/nvim`. See [IDE Integration](/file-management/ide-integration/).
 
-**Theme** — Light, Dark, or System (System follows your operating system).
+**Theme**: Light, Dark or System, which follows your Mac's appearance.
 
-**Default File Type for New Files** — whether new files are created as Markdown (`.md`) or MDX (`.mdx`). Collections can override it — see [Overrides](/reference/overrides/).
+**New file type**: whether new files are Markdown (`.md`) or MDX (`.mdx`). A collection can set its own in [Project Settings](/project-settings/#new-files).
 
 ### Appearance
 
-**Heading Color (Light Mode)** / **Heading Color (Dark Mode)** — the colour of Markdown headings in the editor, set separately for each theme, each with a Reset button. See [the editor overview](/editor/overview/).
+**Heading colour in light mode** and **Heading colour in dark mode**: the colour of Markdown headings in the editor, each with a **Reset** button.
 
-**Editor Font Size** — the base font size for editor text, in pixels (default 18). The rest of the editor's typography scales from this.
+**Editor font size**: the size of text in the editor, in pixels (default 18). The rest of the editor's typography scales from it.
 
 ### Editor
 
-**Auto Save Delay** — how long after you stop typing before changes are written to disk: 1, 2, 5, or 10 seconds (default 2). See [Auto-save](/editor/overview/#auto-save).
+**Auto-save delay**: how long after you stop typing the file is saved: 1, 2, 5 or 10 seconds (default 2). See [Auto-save](/editor/overview/#auto-save).
 
 ## Advanced
 
-Diagnostics and maintenance rather than day-to-day settings. The tab shows the application and preferences versions, and offers two actions:
-
-- **Open Preferences Folder** — reveal where your settings are stored on disk (see [Advanced Preferences](/reference/advanced-preferences/)).
-- **Reset All Preferences** — delete every stored setting and restart the app. This is destructive and can't be undone, but it's useful if your settings ever become corrupted. See [Troubleshooting](/reference/troubleshooting/).
+For troubleshooting: the version numbers, the folder your preferences are stored in, and **Reset All Preferences**. See [Advanced Preferences](/reference/advanced-preferences/#the-advanced-tab).

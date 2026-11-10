@@ -100,7 +100,7 @@ const EditorViewComponent: React.FC = () => {
     handleModeChange()
   }, [handleModeChange, focusModeEnabled, typewriterModeEnabled])
 
-  // Track Alt key state for URL highlighting - moved back to component for timing
+  // Track Alt key state for URL highlighting
   // Uses ref for dispatch tracking (stable listener) + state for React rendering (useImageHover)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -326,7 +326,7 @@ const EditorViewComponent: React.FC = () => {
   )
 }
 
-// PERFORMANCE FIX: Memoize Editor to prevent re-renders when editorContent changes
+// Memoised so the editor never re-renders when editorContent changes
 // Only re-render when UI state actually changes, not on every keystroke
 const MemoizedEditor = React.memo(EditorViewComponent, () => {
   // Custom comparison - Editor has no props, so always equal unless React forces update

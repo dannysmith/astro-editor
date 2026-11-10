@@ -5,9 +5,10 @@
  * both core editor styling and extension-specific class definitions.
  *
  * THEMING ARCHITECTURE:
- * All colors and typography use CSS custom properties (variables) defined in
- * src/components/editor/editor.css. This allows the theme to adapt to light/dark
- * mode without rebuilding the extension.
+ * All colors and typography use CSS custom properties: colours from the
+ * --editor-color-* tokens in src/App.css, typography from
+ * src/components/editor/Editor.css. This allows the theme to adapt to
+ * light/dark mode without rebuilding the extension.
  *
  * KEY CSS VARIABLES USED:
  * - --editor-color-* : Colors (background, text, heading, mdtag, etc.)

@@ -104,12 +104,12 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 - [x] Bugs: 10–17, 19, 20, 22, 23
 - [x] Performance: 24, 25, 26
 - [x] UX: 27, 28, 29
-- [ ] Docs: 30–37
-- [ ] Release notes: 38, 39
+- [x] Docs: 30–37
+- [x] Release notes: 38, 39
 
 ## Phase 4: A note for danny.is
 
-- [ ] A short note (not a full article) on what's new in 1.1.0, with screenshots and the release video. Take the screenshots from the dev app (`bun run app shot`).
+- [x] A short note (not a full article) on what's new in 1.1.0, with screenshots and the release video. Take the screenshots from the dev app (`bun run app shot`).
 
 ## Phase 5: Prerelease
 
@@ -132,72 +132,79 @@ For the GitHub release; the website's release page is generated from it. Covers 
 
 ---
 
-This is the biggest release since 1.0. Astro Editor now reads where your content lives from your content config, has a project list and a Project Settings window, can name new files from their titles, and the MDX component builder gives you a form for each component's props.
+This is the biggest release since 1.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
 
-**Before you upgrade:** project settings from 1.0.x aren't carried over. The first time you open each project, its old settings file is renamed to `<project-id>.v2.json` (kept, not deleted) and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. [DANNY: the settings you had to set again in the prerelease check, or "None of mine needed setting up again."] Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
+**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` (kept, not deleted; `v2` is the old settings format), and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. [DANNY: the settings you had to set again in the prerelease check, or "None of mine needed setting up again."]
 
-### Collections are read from your content config
+Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
 
-Astro Editor used to assume every collection lived in `src/content/<name>`. It now reads each collection's folder and file pattern from its loader, as Astro does: `glob()` with any `base` and `pattern`, Starlight's `docsLoader()`, and legacy collections. Content outside `src/content` now works, and files your pattern leaves out (like `_draft.md`) are hidden, or shown dimmed if you'd rather see them. (#361)
+### Collections from your content config
+
+Astro Editor used to assume every collection lived in `src/content/<name>`. It now reads each collection's folder and file pattern from its loader, as Astro does. That covers `glob()` with any `base` and `pattern`, Starlight's `docsLoader()`, and legacy collections. Content outside `src/content` works, and files your pattern leaves out (like `_draft.md`) are hidden, or shown dimmed if you turn on **Show files Astro skips**. (#361)
 
 ### Project Settings
 
-Project and collection settings have moved out of Preferences into their own **Project Settings** window. It shows what Astro Editor found: where each collection lives, which frontmatter fields it uses as the title, date, description and draft, and each collection's schema as it reads it. Anything it couldn't work out is flagged, such as a missing folder or a schema that needs `astro sync`, so you only change what it got wrong. Open it from the bottom of the file list or the project's icon at the top. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#82)
+Project and collection settings have moved out of Preferences into their own **Project Settings** window. It shows what Astro Editor found for each collection: where it lives, which frontmatter fields it uses for the title, date, description and draft, and its schema. Anything it couldn't work out is flagged, such as a missing folder or a schema that needs `astro sync`, so you only change what it got wrong. Open it with the project's icon at the top of the file list, or **Project Settings** at the bottom. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#82)
 
-### A project list
+### Project list
 
-<kbd>⇧⌘O</kbd> opens a list of every project you've opened, with each site's favicon. Search it, switch projects, remove ones you're done with, and find ones you've moved. See [Opening a project](https://astroeditor.danny.is/file-management/overview/#opening-a-project).
+<kbd>⇧⌘O</kbd> opens a list of every project you've used, with each site's favicon. Search it, switch projects, remove ones you're done with, and point moved ones at their new folder. See [Opening a project](https://astroeditor.danny.is/file-management/overview/#opening-a-project).
 
-### New file names
+### File names from a pattern
 
-Each collection can name new files with a pattern, like `{YYYY-MM-DD}-{title}` or `{title}`. A new file is renamed once you've written its title. There's also a **Rename File from Pattern** command, and a link under the published date to rename a file to match when you change the date. See [File names](https://astroeditor.danny.is/project-settings/#file-names). (#87)
+Each collection can name new files with a pattern, like `{YYYY-MM-DD}-{title}` or `{title}`. A new file is named once you've written its title. There's also a **Rename File from Pattern** command, and when you change a file's date, a link under the date field renames the file to match. See [File names](https://astroeditor.danny.is/project-settings/#file-names). (#87)
 
-### A form for MDX components
+### Forms for MDX components
 
-Pick a component with <kbd>⌘/</kbd> and you now get a form for its props, built from their types: text boxes, number fields, switches, dropdowns, date pickers and lists. Image props get an image picker, and props that take a collection entry get an entry picker. It reads props from Astro, React, Vue and Svelte components, and in Starlight projects it offers Starlight's own components too. See [The MDX component builder](https://astroeditor.danny.is/editor/mdx-components/). (#350)
+Pick a component with <kbd>⌘/</kbd> and you get a form for its props, built from their types: text boxes, number fields, switches, dropdowns, date pickers and lists. Image props get an image picker, and props that take a collection entry get an entry picker. It reads props from Astro, React, Vue and Svelte components, and in Starlight projects it offers Starlight's own components too. See [The MDX component builder](https://astroeditor.danny.is/editor/mdx-components/). (#350)
 
 ### Adding imports (experimental)
 
-An MDX file has to import every component it uses. Turn on **Add imports** in Project Settings and the builder adds the import for you, copying how your site already imports things, along with any image or collection entry the component needs. It's off by default. Leave it off if your site uses Astro Auto Import. See [Adding imports](https://astroeditor.danny.is/editor/mdx-components/#adding-imports). (#357)
+An MDX file has to import every component it uses. Turn on **Add imports** in Project Settings and the builder adds the imports for you (the component's, and any image or collection entry it uses), written the same way your site already writes them. It's off by default. Leave it off if your site uses Astro Auto Import. See [Adding imports](https://astroeditor.danny.is/editor/mdx-components/#adding-imports). (#357)
 
 ### Saving when you quit
 
-Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the Dock, logging out or shutting down. If the save fails, it asks before quitting. (#364)
+Quitting waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the Dock, logging out or shutting down. If the save fails, it asks before quitting. Closing a file and switching projects save first too. (#364)
 
 ### Other improvements
 
-- **Back where you left off** – Opening a project reopens the file you had open when you last left it, if it's still there. (#373)
-- **Window size** – The window opens at the same size on every display. If it was last on a display that's no longer connected, it opens on one that is.
-- **Changes made outside the app** – The sidebar now updates when files are added, changed or removed outside Astro Editor, its file counts stay right, and Reload Collections works again.
-- **First `astro sync`** – Schemas generated after a project is open are picked up without reopening it.
-- **Zod 4 schemas** – Tuples, literals, unions and nullable objects no longer stop a collection's schema from loading.
+- **Back where you left off** – Opening a project reopens the file you last had open in it, if it still exists. (#373)
+- **New files' frontmatter** – Required fields with no sensible empty value (text, numbers, choices, images, references) are left for you to fill in, rather than given `""` or `0`, which looked filled in but could fail your site's build. The frontmatter panel marks them required, and Astro's build names any you miss. (#372)
+- **Undoing a frontmatter edit** – Changing a field and changing it back, or turning a switch on and off again, leaves the file exactly as it was, formatting and all. (#370)
+- **<kbd>⌘W</kbd>** – Closes the window, as the red button does. It used to close the open file.
+- **Running `astro sync` with a project open** – Astro Editor picks up the new schemas without you reopening the project.
 - **Lists of images** – Each item gets its own image picker.
-- **Multi-line text** – A text field whose value has line breaks keeps them.
-- **Command palette** – Search matches the whole of each command's name.
-- **<kbd>⌘W</kbd>** – Closes the window on macOS.
-- **Settings files that can't be read** – They're set aside as `<name>.broken-<date>.json` rather than written over, and you're told.
-- **New files' frontmatter** – Required fields with no sensible empty value (text, numbers, choices, images, references) are now left for you to fill in, rather than given `""` or `0`, which looked filled in but could fail your site's build. The panel marks them required, and Astro's build names any you miss. Dates are no longer quoted, so `z.date()` accepts them, and fields inside objects no longer get stray `sponsor.name:` keys. (#372)
-- **Undoing a frontmatter edit** – Changing a field and changing it back, or turning a switch on and off again, now leaves the file exactly as it was, formatting and all. (#370)
+- **Settings files that can't be read** – They're set aside as `<name>.broken-<date>.json` rather than written over, and Astro Editor tells you it's done this.
 
 ### Bug fixes
 
-- **Windows startup crash** – The app crashed on launch on Windows. (#351)
-- **Reference fields and content links** – These wrote Astro Editor's own ids (`articles/first-article`) where Astro expects `first-article`, and ignored `slug` frontmatter. They now write the ids Astro uses.
-- **Sort order** – Sorting by title or filename started Z to A. It now starts A to Z, and dates newest first.
-- **A blank line before the closing `---`** was dropped when only the body was edited.
-- **Dates with times** – Editing any frontmatter field cut every date with a time, like `2024-06-15T14:30:00Z`, down to the date. Times are now kept.
-- **References to `file()` collections** – The entry picker was empty when the collection's file held its entries as an object keyed by id, or any entry had a numeric id or none. It now reads these as Astro does, and reads YAML files too. (#376)
-- **The Content Finder** searched the `title` field even when a collection uses a different one.
-- **The JSON field** reverted text while you typed it, if it wasn't valid JSON yet.
+- **Windows** – The app crashed on launch. (#351)
+- **Reference fields and content links** – These wrote Astro Editor's own IDs (`articles/first-article`) where Astro expects `first-article`, and ignored `slug` frontmatter. They now write the IDs Astro uses.
+- **Undo after switching files** – Undoing straight after opening another file could bring back the previous file's text, which was then saved over the new one.
+- **Close File** – It threw away anything typed in the last couple of seconds. It now saves first.
+- **Deleting the open file** – The file stayed open, and the next save brought it back.
+- **Changes made outside the app** – The file list didn't update when files were added, changed or removed outside Astro Editor, its file counts went wrong, and **Reload Collections** didn't work.
+- **Zod 4 schemas** – Tuples, literals, unions and nullable objects stopped a collection's schema from loading.
+- **Window size** – With displays of different resolutions, the window could reopen at twice its size. It now opens at the same size on every display, and on one that's connected if its last display is gone.
+- **Multi-line text** – Editing a text field whose value had line breaks joined its lines.
+- **Command palette** – Search only matched part of some commands' names, so "blog" didn't find **Open Collection: blog**.
+- **Sort order** – Sorting by title or file name started Z to A. It now starts A to Z, and sorting by date starts with the newest.
+- **Dates with times** – Editing any frontmatter field cut every date with a time, like `2024-06-15T14:30:00Z`, down to the date.
+- **Dates in new files** – These were quoted, so `z.date()` rejected them, and fields inside objects got stray dotted keys like `sponsor.name:`. (#372)
+- **References to `file()` collections** – The entry picker was empty when the collection's file held its entries as an object keyed by ID, or an entry had a numeric ID or no ID. It now reads these as Astro does, and reads YAML files too. (#376)
+- **Blank line before the frontmatter's closing `---`** – This was dropped when only the body was edited.
+- **Content Finder** – It searched the `title` field even when a collection uses a different one.
+- **JSON field** – It reverted text while you typed it, if it wasn't valid JSON yet.
 - **Full screen** – <kbd>⌃⌘F</kbd> entered full screen but couldn't leave it.
-- **The date picker** opened on the current month instead of the field's date.
-- **Empty defaults** like `.default('')` showed a bare "Default:" under the field.
-- **List limits** were shown as characters instead of items.
-- **Image previews** flashed the previous image.
-- **Copied image names** kept dots from the original name. They now become dashes, as spaces do.
-- **Copy as slug** dropped accented letters entirely, so "Café" became `caf`. It now drops just the accent: `cafe`.
+- **Date picker** – It opened on the current month instead of the field's date.
+- **Empty defaults** – Defaults like `.default('')` showed a bare "Default:" under the field.
+- **List limits** – These were shown as characters instead of items.
+- **Image previews** – They flashed the previous image.
+- **Images copied into your project** – Dots in the file name were kept. They now become dashes, as spaces do.
+- **Copy as slug** – It dropped accented letters entirely, so "Café" became `caf`. It now drops just the accent: `cafe`.
 
 ### Under the hood
 
+- The unused file-system plugin, and the broad file access it was granted, are gone.
 - A security update for `zip`, used by the updater on Windows and Linux.
 - Dependency updates.

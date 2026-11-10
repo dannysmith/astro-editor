@@ -33,4 +33,4 @@ This is often not what you want, so each collection can have a URL pattern for t
 [My Blog Post](/writing/my-blog-post)
 ```
 
-The `{slug}` placeholder resolves to the content item's frontmatter `slug` field if one exists, or falls back to the item's ID (the filename without extension).
+The `{slug}` placeholder is the item's `slug` frontmatter if it has one. Otherwise it's the id Astro gives the entry: its path in the collection without the extension, lowercased and slugified, with a trailing `/index` dropped. So `2024/My Post.md` gives `2024/my-post`, and `2024/my-post/index.md` gives the same.

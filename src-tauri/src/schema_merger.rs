@@ -948,7 +948,7 @@ fn extract_zod_enhancements(
 
 /// Parse Zod schema (fallback when JSON schema unavailable)
 fn parse_zod_schema(collection_name: &str, zod_schema: &str) -> Result<SchemaDefinition, String> {
-    // Reuse existing Zod parsing logic from parser.rs but convert to SchemaField format
+    // Reads the JSON from parser.rs into SchemaFields
     #[derive(Deserialize)]
     struct ZodSchema {
         #[allow(dead_code)]

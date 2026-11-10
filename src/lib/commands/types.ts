@@ -32,13 +32,6 @@ export interface CommandContext {
   toggleHighlightAdverbs: () => void
   toggleHighlightConjunctions: () => void
   toggleAllHighlights: () => void
-
-  // Future extensibility
-  editorSelection?: {
-    text: string
-    from: number
-    to: number
-  }
 }
 
 export interface AppCommand {

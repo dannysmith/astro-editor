@@ -3,7 +3,7 @@ title: 'Special Fields'
 description: 'The frontmatter fields Astro Editor treats specially, and what they drive'
 ---
 
-Astro Editor treats a few frontmatter fields specially – both in the frontmatter sidebar and elsewhere. The **title**, **date**, **description**, and **draft** fields can each be remapped per collection in [Project Settings](/project-settings/#frontmatter) – the precise override rules are covered in [Overrides](/reference/overrides/).
+Astro Editor treats a few frontmatter fields specially – both in the frontmatter sidebar and elsewhere. The **title**, **date**, **description**, and **draft** fields can each be set to another field for a collection in [Project Settings](/project-settings/#frontmatter). What each uses when you haven't set it is in the [Settings Reference](/reference/settings/).
 
 ## Title
 
@@ -18,7 +18,7 @@ Represents the item's **title**. Uses `title` by default, or the field set in [P
 
 ## Date
 
-Represents the item's primary **date** – usually its published date. By default it's the first of `pubDate`, `date` or `publishedDate` that a file has, and you can set a different field in [Project Settings](/project-settings/#frontmatter). The date field is used here:
+Represents the item's primary **date** – usually its published date. With a generated schema, it's the first of `pubDate`, `date` and `publishedDate` that the schema defines as a date, and that one field is used for every file in the collection. Without a schema, each file is checked for those names in that order. You can set a different field in [Project Settings](/project-settings/#frontmatter). The date field is used here:
 
 - **File list** — shown next to each file if set, and used by the **Default** sort (newest first).
 - **New files** — set to today's date when new files are created.
@@ -30,15 +30,15 @@ If your posts use a date field with another name (such as `postedOn`), set it in
 
 ## Description
 
-This one is purely cosmetic: a field named `description` (or whatever's configured in the overrides) is rendered as an expanding multi-line textarea in the sidebar.
+This one is purely cosmetic: a field named `description` (or the one set in [Project Settings](/project-settings/#frontmatter)) is rendered as an expanding multi-line textarea in the sidebar.
 
 ## Draft
 
-Signifies that a content item is a **draft**. Defaults to `draft` but can be overridden. A file counts as a draft only when this field is set and is exactly `true`. It's used for:
+Signifies that a content item is a **draft**. Uses `draft` by default, or the field set in [Project Settings](/project-settings/#frontmatter). A file counts as a draft only when this field is set and is exactly `true`. It's used for:
 
 - **File list** — draft files show a **Draft** badge in the sidebar.
 - **Draft filtering** — the "Show Drafts Only" toggle uses this field. See [Drafts, Filtering & Sorting](/file-management/drafts-filtering-and-sorting/).
 
 ## Slug
 
-Unlike the fields above, `slug` isn't a configurable mapping. Astro Editor always looks for a field named exactly `slug` and uses it only when a collection has a URL pattern configured: the `{slug}` placeholder is filled from the `slug` field rather than the file's `id`. See [Overrides](/reference/overrides/) for more.
+Unlike the fields above, `slug` isn't a configurable mapping. Astro Editor always looks for a field named exactly `slug` and uses it only when a collection has a URL pattern configured: the `{slug}` placeholder is filled from the `slug` field rather than the entry's id. See [Links](/editor/links/#configuring-a-url-pattern) for more.

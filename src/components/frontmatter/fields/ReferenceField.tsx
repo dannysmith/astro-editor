@@ -47,7 +47,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   // Get the referenced collection name
   const referencedCollection = isMultiSelect
     ? field?.subReference
-    : field?.reference || field?.referenceCollection
+    : field?.reference
 
   const { options, isLoading, found } =
     useCollectionEntriesQuery(referencedCollection)

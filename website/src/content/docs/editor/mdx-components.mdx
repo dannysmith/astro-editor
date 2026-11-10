@@ -28,7 +28,7 @@ We can probably remember how to use a simple component like this, but components
 
 ## The MDX Component Builder
 
-Astro Editor helps by giving you an interface for finding components and inserting them into MDX files. When editing an MDX file, <Kbd mac="Cmd+/" windows="Ctrl+/" /> opens a palette showing all the components in your *MDX directory*, and you filter them by typing.
+Astro Editor helps by giving you an interface for finding components and inserting them into MDX files. When editing an MDX file, <Kbd mac="Cmd+/" windows="Ctrl+/" /> opens a palette showing all the components in your [MDX components folders](#what-are-mdx-components), plus those from packages like [Starlight](#starlights-components), and you filter them by typing.
 
 ![The MDX component builder palette listing the available components, each with a framework badge](../../../assets/mdx-builder-1.png)
 
@@ -175,35 +175,14 @@ export const atomicHabits = await getEntry('books', 'atomic-habits')
 
 ### Which Import It Adds
 
-The builder works through these in order:
-
-1. **If the file already has something with that name, nothing is added.** That's an import, including one further down the file (which docs sites often have) but not one inside a code block, or a component written in the file with `export const`. The row says **Already imported** and shows that line, so you'll notice if it's a different component with the same name, like Starlight's `Card` when you picked your own.
-2. **A package's components are imported from the package**, like `import { Tabs, TabItem } from '@astrojs/starlight/components'`, including the components their content uses.
-3. **If another MDX file imports the component, that import is copied.** This is how your site's aliases and index files get used without Astro Editor having to understand them:
-
-   ```mdx
-   import Callout from '@components/mdx/Callout.astro'   // an alias
-   import Callout from '/src/components/mdx/Callout.astro' // a root path
-   import { Callout } from '@/components/mdx'              // an index file
-   ```
-
-   It looks at the collection's files first, then the other collections'. A relative path is only copied from a file in the same folder, since it wouldn't work from anywhere else, and a relative or root path is only copied if it leads to the component (or to an index file in its folder). Imports from Astro's own modules, like `import { Image } from 'astro:assets'`, and from packages your `package.json` lists are never copied for one of your own components, because they're a different component with the same name.
-4. **Otherwise, it's a relative path from the file to the component, with its extension**, as in Astro's docs: `import BookCard from '../../../components/mdx/BookCard.astro'`. React components that are only exported by name are imported by name: `import { Rating } from '../../components/mdx/Rating.tsx'`.
+- **If the file already imports it, nothing is added.** The row says **Already imported** and shows that line.
+- **A package's components are imported from the package**, like `import { Tabs, TabItem } from '@astrojs/starlight/components'`.
+- **Otherwise, it copies how your other MDX files import the component**, so your site's aliases and index files are used.
+- **Failing that, it's a relative path** from the file to the component, like `import BookCard from '../../../components/mdx/BookCard.astro'`.
 
 Astro Editor doesn't read the aliases in your `tsconfig.json`, so the first time you use a component anywhere in your content, it gets a relative path even if your site uses aliases. It works, but you may want to change it to match the rest of your site. From then on, other files copy your version.
 
-The same goes for index files: if a file imports `{ Callout }` from `@/components/mdx`, a component exported from that same index file but not yet imported anywhere still gets a relative path of its own.
-
-### How It's Written
-
-- **Quotes and semicolons match the file's other imports**, or the collection's if the file has none. If there are none at all, it uses single quotes and semicolons.
-- **A new import goes after the imports at the top of the file**, or at the very top if there are none there. A named import joins an existing one from the same module: `import { Steps } from '…'` becomes `import { Steps, Tabs, TabItem } from '…'`, on one line or one per line, whichever the file uses.
-- **Nothing else changes.** Your formatting, comments and blank lines in those lines stay exactly as they were.
-- **Undo removes the component but not its import.** An unused import doesn't break anything.
-
-The import is worked out again when you press Insert, against the file as it is in the editor then, so inserting straight after picking can't give a missing import, and a change made outside Astro Editor is taken into account once the editor has loaded it.
-
-A component whose file name isn't capitalised, like `my-callout.astro`, gets no import: MDX reads `<my-callout>` as an HTML tag, so the import wouldn't do anything.
+The new import goes after the others at the top of the file, matching their quotes and semicolons, and nothing else in those lines changes. **Undo removes the component but not its import.** An unused import doesn't break anything.
 
 ### Images
 
@@ -241,7 +220,7 @@ export const atomicHabits = await getEntry('books', 'atomic-habits')
 
 The name comes from the last part of the entry's id (`2024/first-post` gives `firstPost`), and if the file already loads that entry, its existing name is used. With the switch off, the entry goes in as its id instead (`review="atomic-habits"`).
 
-The id is the one Astro gives the entry: its `slug` frontmatter if it has one, otherwise its path in the collection without the extension, lowercased, with punctuation dropped and spaces turned into hyphens (`2024/My Post!.md` becomes `2024/my-post`). If your collection uses its own `generateId`, the ids won't match. Renaming the entry's file or changing its `slug` later has the same effect on a `getEntry` line already written. Either way, Astro warns that the entry wasn't found when it builds, and the prop is `undefined`.
+The id is the one Astro gives the entry, so it won't match if your collection uses its own `generateId`, or if you later rename the file or change its `slug`.
 
 ## What are "MDX" Components?
 

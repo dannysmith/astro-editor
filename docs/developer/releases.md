@@ -40,18 +40,17 @@ How it fits together:
 - **Windows installers need a numeric version.** WiX only takes `major.minor.patch.build`, so `release-version.js` sets `bundle.windows.wix.version` to `1.0.21.3`. The MSI's filename keeps the full version. Tauri's WiX template allows downgrades, so the stable MSI installs over a test build.
 - **There's no `.rpm`.** RPM versions can't contain a `-`, and Tauri has no override for them like the WiX one, so the Linux job builds only the AppImage and `.deb`.
 - **It's the production app.** It has the same identifier, settings and telemetry uuid as the installed release and replaces it. The only difference is the version, which is also how the app knows it's a test build: any version with a `-` shows a "Test build" pill in the title bar.
-- **Nothing outside the release notices.** The updater, the website's download links and the Homebrew cask's livecheck all go through `/releases/latest`, which skips prereleases, and `fetch_release_notes` filters them out. `publish-release-notes.yml` skips prereleases, and `generate-release-pages.ts` lists only published stable releases. `publish-stable-assets` doesn't run.
+- **Nothing outside the release notices.** The updater, the website's download links and the Homebrew cask's livecheck all go through `/releases/latest`, which skips prereleases, and `fetch_release_notes` filters them out. `publish-release-notes.yml` skips prereleases, and `generate-release-pages.ts` lists only published stable releases. Test builds get no stable-named copies (below).
 
 ## Workflows
 
 ### `release.yml`: build and draft
 
-Runs on a `v*` tag push. A tag containing `-` is a test build. The jobs run in sequence:
+Runs on a `v*` tag push; a tag containing `-` is a test build. It builds every platform into one draft release.
 
-- **`create-release`** makes one empty draft up front and passes its `release_id` to the build jobs. If each matrix job found or created the release itself, a tauri-action race ([tauri-action#914](https://github.com/tauri-apps/tauri-action/issues/914)) can split the assets across several drafts, each with an incomplete `latest.json`. For a test build, the draft is marked as a prerelease and takes its name and notes from the tag's message.
-- **`publish-tauri`** builds macOS (universal `.dmg` plus the `.app.tar.gz` updater artifact), Windows (`.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`) in parallel. Each job uploads to the shared draft and merges its platform's entries into `latest.json`. For a test build, it sets the version first and skips the `.rpm`.
-- **`publish-stable-assets`** (releases only) adds stable-named copies (`astro-editor-latest.dmg`, `.msi`, `.AppImage`, `.deb`, `.rpm`) and a `SHA256SUMS` covering both sets of names. The website links to `/releases/latest/download/astro-editor-latest.*`, which always resolves to the newest published release, so the site never changes per release.
-- **`publish-test-build`** (test builds only) publishes the draft as a prerelease once every platform has uploaded. If a build fails it doesn't run, so nobody downloads a half-built release.
+- **The draft is made once, up front,** and its id passed to the build jobs. If each matrix job found or created the release itself, a tauri-action race ([tauri-action#914](https://github.com/tauri-apps/tauri-action/issues/914)) can split the assets across several drafts, each with an incomplete `latest.json`.
+- **A test build is published only once every platform has uploaded,** so a failed build never leaves a half-built prerelease for someone to download.
+- **Releases also get stable-named copies** of each installer (`astro-editor-latest.*`) and a `SHA256SUMS`. The website links to `/releases/latest/download/astro-editor-latest.*`, which always resolves to the newest published release, so the site never changes per release.
 
 Release builds have no Rust cache and always build cold. They couldn't restore `ci.yml`'s cache anyway (different job id, env vars and profile), and a tag-scoped cache is never read again.
 

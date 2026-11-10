@@ -300,7 +300,7 @@ pub async fn copy_file_to_assets(
     let final_path = if use_relative_paths {
         calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
     } else {
-        // Absolute path from project root (legacy behavior)
+        // From the project root, starting with `/` (the absolute image paths setting)
         format!("/{}", project_relative_path.replace('\\', "/"))
     };
 
@@ -360,11 +360,7 @@ pub async fn save_markdown_content(
     std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
-pub fn parse_frontmatter_internal(content: &str) -> Result<MarkdownContent, String> {
-    parse_frontmatter(content)
-}
-
-fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
+pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     // Track if original content ends with newline - lines() drops this info
     let original_ends_with_newline = content.ends_with('\n');
     let lines: Vec<&str> = content.lines().collect();
@@ -640,13 +636,6 @@ pub async fn save_crash_report(app: tauri::AppHandle, report: Value) -> Result<(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn read_file_content(file_path: String, project_root: String) -> Result<String, String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
-}
-
 /// Checks if a file path is within the project directory
 ///
 /// # Arguments
@@ -667,14 +656,9 @@ pub async fn is_path_in_project(file_path: String, project_path: String) -> bool
         .unwrap_or(false)
 }
 
-/// Gets the relative path of a file from the project root
-///
-/// # Arguments
-/// * `file_path` - The absolute path to the file
-/// * `project_path` - The absolute path to the project root
-///
-/// # Returns
-/// The relative path from project root, or an error if the file is not in the project
+/// The path to write in `current_file_path` for the file at `file_path`: relative
+/// to the current file's folder when `use_relative_paths`, otherwise from the
+/// project root, starting with `/`. An error if the file isn't in the project.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_relative_path(
@@ -696,7 +680,7 @@ pub async fn get_relative_path(
     let final_path = if use_relative_paths {
         calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
     } else {
-        // Absolute path from project root (legacy behavior)
+        // From the project root, starting with `/` (the absolute image paths setting)
         format!("/{}", project_relative_path.replace('\\', "/"))
     };
 

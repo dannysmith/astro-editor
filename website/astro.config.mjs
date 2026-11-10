@@ -13,6 +13,9 @@ export default defineConfig({
   // Astro 7's default ('jsx') drops whitespace between inline elements on
   // separate lines, which runs words together in our components and plugins.
   compressHTML: true,
+  redirects: {
+    '/reference/overrides': '/reference/settings/',
+  },
   integrations: [
     starlight({
       plugins: [
@@ -114,7 +117,7 @@ export default defineConfig({
           items: [
             { slug: 'reference/keyboard-shortcuts' },
             { slug: 'reference/commands' },
-            { slug: 'reference/overrides' },
+            { slug: 'reference/settings' },
             { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
             { slug: 'reference/yaml' },

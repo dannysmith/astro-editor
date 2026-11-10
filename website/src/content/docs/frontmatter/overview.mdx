@@ -13,48 +13,30 @@ To build the form, Astro Editor needs to understand your collection's schema. It
 
 ### 1. The generated JSON schema
 
-When Astro runs [`astro sync`](https://docs.astro.build/en/reference/cli-reference/#astro-sync) — which also happens automatically when you run `astro dev` or `astro build` — it writes a JSON Schema file for each collection into `.astro/collections/`, for example `.astro/collections/blog.schema.json`. This is Astro Editor's main source of truth, and it describes almost everything the form needs:
+When Astro runs [`astro sync`](https://docs.astro.build/en/reference/cli-reference/#astro-sync) (which `astro dev` and `astro build` also do), it writes a JSON schema for each collection into `.astro/collections/`, such as `.astro/collections/blog.schema.json`. This is where Astro Editor gets almost everything the form needs: each field's type, constraints, description and default, and which fields are required. Astro Editor watches this folder, so the form updates whenever the files are written again.
 
-- field types (string, number, boolean, date, array, object, enum)
-- constraints (min/max, minimum/maximum length, regex patterns)
-- descriptions (from `.describe()`)
-- default values, and which fields are required
-- nested objects, flattened into dotted paths like `coverImage.image`
+### 2. Your content config, for images and references
 
-Astro Editor watches this folder, so whenever these files are regenerated the form updates automatically.
+A JSON schema can't tell an `image()` field or a `reference()` field from plain text, so Astro Editor also reads your content config to find those two helpers. Everything else comes from the JSON schema.
 
-<Aside type="tip">
-If a field isn't appearing, or its type or validation looks wrong, the usual fix is to run `astro sync` (or just start your dev server) to regenerate these files. Astro Editor will pick up the changes on its own.
-</Aside>
-
-### 2. Your Zod schema (for Astro-specific helpers)
-
-A JSON schema can't describe two of Astro's helpers, so Astro Editor *also* reads your Zod schema directly — from `src/content.config.ts` or `src/content/config.ts` — purely to find them:
-
-- `image()` — shown as an image picker
-- `reference('collection')` — shown as a dropdown that links to another collection
-
-Take a schema like this:
-
-```ts title="src/content.config.ts" {6,7}
+```ts title="src/content.config.ts" {5,6}
 const blog = defineCollection({
   schema: ({ image }) =>
     z.object({
-      title: z.string().max(100), // type and 100-char limit come from the JSON schema
-      draft: z.boolean().default(false), // type and default come from the JSON schema
-      cover: image(), // recognised by reading this file
-      author: reference('authors'), // recognised by reading this file
+      title: z.string().max(100), // from the JSON schema
+      cover: image(), // found in the config: an image picker
+      author: reference('authors'), // found in the config: an entry picker
     }),
 })
 ```
 
-Here, `title` and `draft` (and their types, limits, and defaults) come from the generated JSON schema, while `cover` and `author` are recognised as an image picker and a reference dropdown by reading the config file itself. See [Field Types](/frontmatter/field-types/) for how each type maps to a control.
+See [Field Types](/frontmatter/field-types/) for the control each field gets.
 
 ### When there's no JSON schema
 
-If the generated JSON schema is missing or can't be read, Astro Editor falls back to reading your Zod schema on its own and inferring the fields from it. This handles most everyday schemas, but it's more limited than the JSON schema: it can miss or misread fields in schemas that are complex, built dynamically, spread in from other objects, or imported from a third-party package (Starlight's schemas, for instance). Running `astro sync` resolves nearly all of these, because it produces the complete JSON schema for Astro Editor to read.
+If the generated JSON schema is missing or can't be read, Astro Editor only knows the `image()` and `reference()` fields it found in your config, and treats them as optional. Every other field in a file is shown as plain text, without its type, default or required marker. A schema imported from another file, like Starlight's, gives nothing without the JSON schema.
 
-If neither source is available, no schema-driven form is generated and you'll simply see the file's existing frontmatter fields.
+To fix it, run `astro sync` (or start your dev server) in your project. Astro Editor picks up the new schema on its own. The **Schema** section of the collection's page in [Project Settings](/project-settings/#schema) shows exactly what was read, and the top of the page says if the schema is missing or couldn't be read.
 
 ## Field Order and Defaults
 

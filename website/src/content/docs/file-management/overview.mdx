@@ -24,11 +24,15 @@ Right-clicking a project in the list gives you these options:
 | **Copy Path** | Copy the project folder's path to the clipboard. |
 | **Project Settings…** | For the open project: open [Project Settings](/project-settings/). |
 | **Locate…** | For a missing project: choose the folder it moved to. |
-| **Remove from Astro Editor…** | Remove the project from the list and delete its settings in Astro Editor. The project's own files aren't touched. You can also press <Kbd mac="Cmd+Backspace" windows="Ctrl+Backspace" />. The open project can't be removed. |
+| **Remove from Astro Editor…** | Remove the project from the list and delete its settings in Astro Editor. The project's own files aren't touched. You can also press <Kbd mac="Cmd+Backspace" windows="Ctrl+Backspace" /> to remove the highlighted project. The open project can't be removed. |
+
+Switching projects saves the open file first. If it can't be saved, you stay where you are, and a message offers **Switch Anyway**, which loses its latest changes.
 
 ### Moved projects
 
 Astro Editor remembers projects by their folder, so if you move or rename a project's folder, it shows as **Missing** in the list. Choose it (or right-click it and choose **Locate…**) and pick the folder's new location to open it with its settings as they were. If you've already opened the new folder with **Open Folder…**, Astro Editor asks before replacing that copy's settings with the missing project's.
+
+A project on an external drive that isn't connected shows as **Drive Not Connected** instead, since it hasn't moved. Choosing it tells you to connect the drive.
 
 <Figure src={fileManager1} alt="The left sidebar listing the content collections found in an open Astro project" caption="Astro Editor scans the project and lists its content collections in the sidebar." />
 
@@ -39,6 +43,10 @@ For security reasons, Astro Editor cannot open projects located in certain syste
 ## Navigating between files
 
 Clicking on a collection name will show its files in the sidebar. Subdirectories are also shown and can be navigated as you'd expect.
+
+Each collection in the list shows how many files it has. When its folder isn't named after it, the folder's name is shown under the collection's. A collection with a problem has a warning or error icon, and hovering over the icon says what's wrong. [Project Settings](/project-settings/#collections) has the details and what to do. A collection whose folder is missing or outside the project is listed dimmed, and clicking it opens Project Settings instead of its files.
+
+The project's icon at the top of the list of collections, and the **Project Settings** button at the bottom, open Project Settings.
 
 <Figure src={fileManager2} alt="The sidebar showing the markdown files inside a collection, with a subdirectory listed above them" caption="Clicking a collection shows its files; any subdirectories appear above them." />
 
@@ -67,7 +75,7 @@ Right-clicking a file in the left sidebar gives you the following options:
 | **Reveal in Finder** | Open the file's location in your OS's file explorer. |
 | **Copy Path** | Copy the absolute file path to the clipboard. |
 | **Open in IDE** | Open the file in your [configured IDE](/file-management/ide-integration/). Only shown when one is configured. |
-| **Delete** | Delete the file. |
+| **Delete** | Delete the file, after asking. It isn't moved to the Bin, and if it's open, it's closed. |
 
 ## Creating New Files
 

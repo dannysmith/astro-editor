@@ -1,7 +1,7 @@
 // Fails if the React Compiler leaves any component or hook in src/ uncompiled.
 // The compiler skips a function silently when it breaks the Rules of React or
-// uses syntax it can't handle yet (try/finally, throw inside try, conditional
-// expressions inside try), so without this check a component can quietly lose
+// uses syntax it can't handle yet (try/finally, throw inside try, `?:`, `&&`,
+// `||`, `??` or `?.` inside try), so without this check a component can quietly lose
 // its memoisation. Run with `bun run compiler:check` (part of check:all).
 //
 // The fix is usually to move async or try/catch logic out of the component

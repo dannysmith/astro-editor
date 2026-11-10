@@ -1,17 +1,13 @@
-# Notes on Editor Typography and Colours
+# Editor typography and colours
 
-This file was compiled manually by Danny. This document is ONLY to be used for styling the markdown editor itself.
+The design spec for the markdown editor's writing surface, and only that. The `--editor-color-*` tokens in `src/App.css` implement its colours (converted to oklch and written with `light-dark()`), and `src/components/editor/Editor.css` its typography.
 
 ## Colour Palette
-
-These colour variables should be available in CSS inside the editor and anywhere else we need to use them. Even if these colours are not currently in use, they should remain available because we will use all of them at some point.
-
-They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted to oklch and written with `light-dark()`.
 
 ### Common Colours
 
 ```css
---color-carat: rgba(0, 195, 255, 1);
+--color-caret: rgba(0, 195, 255, 1); /* --editor-color-carat in App.css */
 ```
 
 ### Light Mode Colours
@@ -29,14 +25,9 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 --color-codeblock-background: rgba(238, 238, 238, 1);
 --color-selectedtext-background: rgba(185, 234, 250, 1);
 
---color-highlight-background: rgba(
-  252,
-  236,
-  147,
-  1
-); /* Unused - for the future */
---color-highlight-underline: rgba(255, 215, 0, 1); /* Unused - for the future */
---color-highlight-text: var(--color-text); /* Unused - for the future  */
+--color-highlight-background: rgba(252, 236, 147, 1);
+--color-highlight-underline: rgba(255, 215, 0, 1);
+--color-highlight-text: var(--color-text);
 ```
 
 ### Dark Mode Colours
@@ -54,20 +45,18 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 --color-codeblock-background: rgba(37, 37, 37, 1);
 --color-selectedtext-background: rgba(20, 68, 84, 1);
 
---color-highlight-background: rgba(68, 59, 15, 1); /* Unused - for the future */
---color-highlight-underline: rgba(214, 176, 0, 1); /* Unused - for the future */
---color-highlight-text: rgba(220, 206, 157, 1); /* Unused - for the future */
+--color-highlight-background: rgba(68, 59, 15, 1);
+--color-highlight-underline: rgba(214, 176, 0, 1);
+--color-highlight-text: rgba(220, 206, 157, 1);
 ```
-
-## Break Points
 
 ## Typography - Common
 
 ### Base
 
 - Font: iA Writer Duo Variable
-- Weight: 490
-- Letter Spacing: 0.07em
+- Weight: 490 (480 in dark mode)
+- Letter Spacing: 0 (0.005em in dark mode)
 
 ### Markdown Headings
 
@@ -82,6 +71,8 @@ They're implemented as the `--editor-color-*` tokens in `src/App.css`, converted
 - Font: iA Writer Duo Variable Italic
 
 ## Typography - Breakpoints
+
+Font sizes are at the default editor font size preference, 18px; they scale with it.
 
 ### Tiny Width (Default)
 
@@ -119,13 +110,13 @@ Line Height: 1.7916 (43px)
 
 Applies: Editor Pane width under 440px
 Left and Right Margin: 24px
-Content Width: Fluid
+Content Width: Fluid, at most 60ch
 
 ### Small Width
 
 Applies: Editor Pane width over 439px and under 875px
-Left and Right Margin: 74px
-Content Width: Fluid
+Left and Right Margin: 24px
+Content Width: Fluid, at most 60ch
 
 ### Medium Width
 
@@ -175,7 +166,7 @@ All Markdown not otherwise coloured: --color-text
 - Fenced code block background: --color-codeblock-background
 - Backtick Markers: --color-mdtag
 
-### Carat and Selection
+### Caret and Selection
 
-- Carat: --color-carat
+- Caret: --color-caret
 - Selected Text: --color-selectedtext-background

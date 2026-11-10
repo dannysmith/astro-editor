@@ -14,11 +14,12 @@ import { locateProject, removeProject } from './actions'
 
 /**
  * The project list's native right-click menu. A missing project can only be
- * located, removed or have its path copied. The open project can't be removed,
- * and is the only one whose settings can be opened.
+ * located, removed or have its path copied, and one on a drive that isn't
+ * connected isn't offered Locate…, since it hasn't moved. The open project
+ * can't be removed, and is the only one whose settings can be opened.
  */
 export async function showProjectContextMenu(
-  { project, missing }: ListedProject,
+  { project, missing, disconnected }: ListedProject,
   position: { x: number; y: number }
 ): Promise<void> {
   const { globalSettings, projectPath } = useProjectStore.getState()
@@ -65,7 +66,7 @@ export async function showProjectContextMenu(
           }),
         ]
       : []),
-    ...(missing
+    ...(missing && !disconnected
       ? [
           await MenuItem.new({
             text: 'Locate…',

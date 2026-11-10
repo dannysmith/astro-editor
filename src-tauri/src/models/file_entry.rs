@@ -52,7 +52,7 @@ impl FileEntry {
 
             format!("{collection}/{id_path}")
         } else {
-            // Fallback to old behavior if strip_prefix fails
+            // Not under the collection base: just its name
             format!("{collection}/{name}")
         };
 
@@ -70,7 +70,7 @@ impl FileEntry {
             extension,
             collection,
             last_modified,
-            frontmatter: None, // Will be populated by enhanced scanning
+            frontmatter: None, // Set by with_frontmatter when the scan reads it
             is_entry: true,
         }
     }

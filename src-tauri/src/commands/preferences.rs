@@ -24,7 +24,7 @@ pub async fn open_preferences_folder(app: tauri::AppHandle) -> Result<(), String
             .map_err(|e| format!("Failed to create app data directory: {e}"))?;
     }
 
-    // Use the opener plugin to open the folder
+    // Each platform's file manager opens a folder given as an argument
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;

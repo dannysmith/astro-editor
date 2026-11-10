@@ -15,7 +15,7 @@ Everything lives in the app's data directory:
 | Windows | `%LOCALAPPDATA%\is.danny.astroeditor\` |
 | Linux | `~/.local/share/is.danny.astroeditor/` |
 
-You can open this folder from the **Advanced** tab in [Preferences](/preferences/) via **Open Preferences Folder**.
+You can open this folder from the [Advanced tab](#the-advanced-tab) in Preferences.
 
 ## What's in there
 
@@ -23,17 +23,17 @@ Settings sit in a `preferences/` subfolder:
 
 | File | What it holds |
 | --- | --- |
-| `preferences/global-settings.json` | App-wide settings: theme customisation, configured IDE command, heading colours, auto-save delay and the default type for new files. |
-| `preferences/project-registry.json` | The list of projects you've opened, with their metadata and which was last open |
-| `preferences/projects/<project-id>.json` | One file per project containing project and collection [overrides](/reference/overrides/) |
+| `preferences/global-settings.json` | Your [Preferences](/preferences/), and app-wide choices like which [copyedit highlights](/editor/copyedit-modes/) are on |
+| `preferences/project-registry.json` | The list of projects you've opened, with which was last open and the file open in each |
+| `preferences/projects/<project-id>.json` | One file per project, holding what you've set in [Project Settings](/project-settings/) (see the [Settings Reference](/reference/settings/)) |
 
-Two sibling folders hold operational data rather than settings: `recovery/` keeps short-lived copies of unsaved work, and `crash-reports/` keeps crash diagnostics.
+Beside it, `window-state.json` remembers the window's size and position. Two more folders hold data rather than settings: `recovery/` and `crash-reports/`.
 
 ## Recovery
 
-Astro Editor auto-saves as you write, but as a safety net it also writes a recovery copy of your work if a save ever _fails_ — for example if the file becomes unwritable. Each copy is saved to the `recovery/` folder (a structured `.json` and a readable `.md` version) so your writing isn't lost.
+Astro Editor auto-saves as you write. If a save ever _fails_, for example because the file can't be written, it also writes a copy of your unsaved work to the `recovery/` folder (a structured `.json` and a readable `.md` version), and a report to `crash-reports/`.
 
-There's no in-app "restore" step — the files simply sit in that folder for you to copy back by hand if you ever need them.
+That's the only time either folder is written. Nothing is written when the app crashes, is force quit or loses power: auto-save is what protects your work then. There's no in-app restore step, and nothing deletes these files. They stay in those folders for you to copy back by hand, or delete, when you're done with them.
 
 ## How projects are identified
 
@@ -43,11 +43,15 @@ Projects are identified by their folder. If you move or rename a project's folde
 
 If a settings file can't be read, Astro Editor never writes over it. It renames it to `<name>.broken-<date>.json` beside the original, carries on with the defaults, and tells you. Your old settings are still in that file if you want to copy them back.
 
-Project settings from Astro Editor 1.0 can't be read by later versions. The first time each project opens, its old file is renamed to `<project-id>.v2.json` and the project starts with no settings. Most projects don't need any, since folders and fields are now read from the project itself.
+Project settings from Astro Editor 1.0 can't be read by later versions. The first time each project opens, its old file is renamed to `<project-id>.v2.json` and the project starts with no settings, so anything you changed in 1.0 needs setting again in [Project Settings](/project-settings/). Most projects don't need any, since folders and fields are read from the project itself.
 
-## The Advanced preferences tab
+## The Advanced tab
 
-The **Advanced** tab in Preferences is for diagnostics and maintenance. It shows the application and preferences versions and offers two actions:
+The **Advanced** tab in Preferences is for troubleshooting.
 
-- **Open Preferences Folder** — open the directory described above in your file explorer.
-- **Reset All Preferences** — delete every stored setting and restart the app. This is destructive and can't be undone but can be useful if your settings have somehow become corrupted.
+**Version** shows the version of **Astro Editor** and the **Preferences format** its settings files use.
+
+Under **Maintenance**:
+
+- **Preferences folder**: **Open Preferences Folder** opens the app's data directory, described above.
+- **Reset all preferences**: **Reset All Preferences** deletes your preferences, every project's settings and the project list, along with the window's size and position, then restarts Astro Editor. The open file is saved first. Your projects' files aren't touched, and recovery files and crash reports are kept. It can't be undone.

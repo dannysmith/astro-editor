@@ -52,8 +52,13 @@ Project settings are laid out differently, as a readout of what AE found rather 
 
 - **`SettingsGroup`** is a titled box of rows. A note at the heading's other end says something true of every row in it, once.
 - **`Setting`** is one row: the label and at most one line of help on the left, the control on the right (or full width below with `wide`). Most settings need no help; where there is some, it says what the setting is for or what you'll notice, not how AE works.
-- **Sources:** a value the user set gets a "Set by you" pill whose button resets it. Other sources go in a dropdown's first choice with `FoundValue` ("Detected: `title`"), and defaults aren't labelled. See "The project settings dialog" in `app-data.md`.
-- **Problems** go at the top of a page as a `ProblemCallout`, with a button when one can fix it, rather than under the setting.
+- **Sources** are shown once, with a "Set by you" pill or `FoundValue` in a dropdown's first choice; the rule is in "The project settings dialog" in `app-data.md`.
+- **Problems** go at the top of a page as a `ProblemCallout` (`Problems.tsx`), with a button when one can fix it, rather than under the setting.
+- **Statuses** come from `lib/project-settings/status.ts`, which the dialog's sidebar, the file list's collection rows and the review toast share. An error means a collection can't be used properly (its folder is missing or outside the project, or its schema can't be read); a warning means AE has less to go on (no generated schema, a `pattern` or `base` it couldn't read, the folder fallback). The file list shows statuses all the time, so something that works isn't one: not an unknown loader, which the page's opening sentence explains, and not a field mapping with nothing to go on, since plenty of sites have no `draft` field.
+- **Other Collections**, below the collections in the dialog's sidebar, holds data collections and loaders AE can't read (`isUnreadLoader`), since a custom loader often reads an API rather than files. AE doesn't edit them.
+- **The project's icon** is its favicon (`find_favicon` in Rust) or its folder name's initial on one of the `--project-*` colours, picked from its path, so there's nothing to store or set. It tells Project Settings from Preferences, and projects apart in the project list.
+
+The rest applies to all three:
 
 - **Label wiring:** give a text control's label `htmlFor`, so clicking the label focuses it. Button-style controls (date, enum, reference and image pickers) instead get a `labelId` on the label and `aria-labelledby` on the button, because `htmlFor` would turn a label click into a button click and open the picker. `FieldWrapper` takes either.
 - **Preference text inputs use `PreferencesTextInput`,** which keeps the value in local state while typing and commits on blur or Enter. Settings are written to disk asynchronously, and committing on every keystroke made the cursor jump.

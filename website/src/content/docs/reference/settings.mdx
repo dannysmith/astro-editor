@@ -1,0 +1,37 @@
+---
+title: 'Settings Reference'
+description: 'Every project and collection setting, and what Astro Editor uses when you have not set it'
+---
+
+Every setting in [Project Settings](/project-settings/), and what Astro Editor uses when you haven't set it. [How settings work](/project-settings/#how-settings-work) explains what's read from your project and what's stored. Where the settings files are is in [Advanced Preferences](/reference/advanced-preferences/).
+
+Each setting lives in one place: the collection or the project. The image settings can be set for the project and changed for each collection, and a collection's new file type falls back to your [Preferences](/preferences/).
+
+## Collection settings
+
+| Setting | When it's not set |
+| --- | --- |
+| [**Folder**](/project-settings/#files) | Read from the collection's `glob()` loader. If Astro Editor can't read the loader or its `base`, `<content folder>/<collection name>` |
+| [**Show files Astro skips**](/project-settings/#files) | Off: files the loader's pattern leaves out aren't shown |
+| [**Sort**](/project-settings/#files) | Published date, newest first, with undated files at the top. Without a published date field, title |
+| [**Type**](/project-settings/#new-files) (new files) | The **New file type** preference. If the collection's pattern only includes `.md` or only `.mdx` files, that type, and the setting is ignored |
+| [**Name**](/project-settings/#file-names) (new files) | `{YYYY-MM-DD}`: today's date |
+| [**Title**](/frontmatter/special-fields/#title) | A text field named `title` |
+| [**Description**](/frontmatter/special-fields/#description) | A text field named `description` |
+| [**Published date**](/frontmatter/special-fields/#date) | The first date field in the schema named `pubDate`, `date` or `publishedDate` |
+| [**Draft**](/frontmatter/special-fields/#draft) | A true/false field named `draft`. Without one, there's no draft badge or filter |
+| **Image folder** | The project's |
+| **Image paths** | The project's |
+| [**Link URLs**](/editor/links/#configuring-a-url-pattern) | A relative file path |
+
+The field settings look in the collection's generated schema. Without one, Astro Editor uses the names above and reads them from each file's frontmatter.
+
+## Project settings
+
+| Setting | When it's not set |
+| --- | --- |
+| [**MDX components folders**](/project-settings/#mdx-components) | `src/components/mdx` |
+| [**Add imports**](/editor/mdx-components/#adding-imports) (MDX components) | Off |
+| [**Image folder**](/project-settings/#images) | `src/assets`, with each collection's images in a folder named after it |
+| [**Image paths**](/project-settings/#images) | Relative to the file |
+| [**Content folder**](/project-settings/#content) | `src/content` |

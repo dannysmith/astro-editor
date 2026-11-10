@@ -610,7 +610,7 @@ export const LeftSidebar: React.FC = () => {
                     </button>
                   ))}
 
-                {/* Files (sorted by date) */}
+                {/* Files, in the chosen sort order */}
                 {filteredAndSortedFiles.map(file => {
                   const isSelected = currentFile?.id === file.id
 

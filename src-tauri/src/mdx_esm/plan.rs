@@ -575,7 +575,7 @@ fn style_of<'a>(imports: impl Iterator<Item = &'a Import>) -> Option<Style> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::files::parse_frontmatter_internal;
+    use crate::commands::files::parse_frontmatter;
     use crate::mdx_components::{self, starlight};
 
     #[derive(Deserialize)]
@@ -973,8 +973,7 @@ mod tests {
                     .find(|c| c.name == case.component && c.import_source == case.package)
                     .unwrap_or_else(|| panic!("{label}: no component {}", case.component));
                 let file = site.join(&case.file);
-                let parsed =
-                    parse_frontmatter_internal(&fs::read_to_string(&file).unwrap()).unwrap();
+                let parsed = parse_frontmatter(&fs::read_to_string(&file).unwrap()).unwrap();
                 // src/content/<collection>/…
                 let collection = file
                     .ancestors()

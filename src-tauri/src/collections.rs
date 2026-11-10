@@ -208,7 +208,7 @@ fn resolve_collection(
             Ok(pattern) => (pattern, Some(patterns.clone()), None),
             Err(e) => (EntryPattern::legacy(), None, Some(e)),
         },
-        // Built from variables, say. Without a warning, the legacy pattern would
+        // Built at run time, say. Without a warning, the legacy pattern would
         // quietly list every Markdown file under the base
         None if found.kind == CollectionKind::Glob => (
             EntryPattern::legacy(),

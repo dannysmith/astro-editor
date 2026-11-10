@@ -29,7 +29,6 @@ export const commands = {
 	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
-	readFileContent: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file_content", { filePath, projectRoot })),
 	/**
 	 *  Checks if a file path is within the project directory
 	 * 
@@ -42,14 +41,9 @@ export const commands = {
 	 */
 	isPathInProject: (filePath: string, projectPath: string) => __TAURI_INVOKE<boolean>("is_path_in_project", { filePath, projectPath }),
 	/**
-	 *  Gets the relative path of a file from the project root
-	 * 
-	 *  # Arguments
-	 *  * `file_path` - The absolute path to the file
-	 *  * `project_path` - The absolute path to the project root
-	 * 
-	 *  # Returns
-	 *  The relative path from project root, or an error if the file is not in the project
+	 *  The path to write in `current_file_path` for the file at `file_path`: relative
+	 *  to the current file's folder when `use_relative_paths`, otherwise from the
+	 *  project root, starting with `/`. An error if the file isn't in the project.
 	 */
 	getRelativePath: (filePath: string, projectPath: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("get_relative_path", { filePath, projectPath, currentFilePath, useRelativePaths })),
 	/**

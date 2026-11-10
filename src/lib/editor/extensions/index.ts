@@ -11,13 +11,11 @@
  *
  * Usage:
  * ```typescript
- * import { createExtensions, EDITOR_BASIC_SETUP } from './extensions'
+ * import { createExtensions } from './extensions'
  *
  * const extensions = createExtensions({
- *   onSave: () => saveFile(),
  *   onFocus: () => handleFocus(),
  *   onBlur: () => handleBlur(),
- *   isAltPressed: false
  * })
  * ```
  */

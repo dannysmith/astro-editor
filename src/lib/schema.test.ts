@@ -320,7 +320,6 @@ describe('deserializeCompleteSchema', () => {
 
       assertResult(result)
       expect(result.fields[0]!.reference).toBe('authors')
-      expect(result.fields[0]!.referenceCollection).toBe('authors')
     })
 
     it('should parse array reference collection', () => {
@@ -537,28 +536,6 @@ describe('deserializeCompleteSchema', () => {
       expect(result.fields[1]!.parentPath).toBe('seo.og')
     })
 
-    it('should preserve backwards compatibility with referenceCollection', () => {
-      const schemaJson = JSON.stringify({
-        collectionName: 'posts',
-        fields: [
-          {
-            name: 'author',
-            label: 'Author',
-            fieldType: 'reference',
-            required: true,
-            referenceCollection: 'authors',
-          },
-        ],
-      })
-
-      const result = deserializeCompleteSchema(schemaJson)
-
-      assertResult(result)
-      // Both reference and referenceCollection should be set
-      expect(result.fields[0]!.reference).toBe('authors')
-      expect(result.fields[0]!.referenceCollection).toBe('authors')
-    })
-
     it('should handle field with all properties defined', () => {
       const schemaJson = JSON.stringify({
         collectionName: 'posts',
@@ -598,7 +575,6 @@ describe('deserializeCompleteSchema', () => {
         enumValues: undefined,
         reference: undefined,
         subReference: undefined,
-        referenceCollection: undefined,
         isNested: undefined,
         parentPath: undefined,
       })

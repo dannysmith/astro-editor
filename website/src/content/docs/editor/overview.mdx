@@ -25,7 +25,15 @@ You can customise the base font size and heading colour in [Preferences](/prefer
 
 ## Auto-Save
 
-Astro Editor automatically saves your changes two seconds after you stop typing or when you hit <Kbd mac="Cmd+S" windows="Ctrl+S" />. An additional save occurs after ten seconds of constant typing to make sure long thoughts don't end up lost if something goes wrong.
+Astro Editor saves your changes shortly after you stop typing, or when you press <Kbd mac="Cmd+S" windows="Ctrl+S" />. The delay is two seconds unless you change **Auto-save delay** in [Preferences](/preferences/#editor) to 1, 5 or 10 seconds. While you keep typing, it also saves every 10 seconds, so a long stretch of writing is never far from disk.
+
+It also saves before anything that would lose your changes:
+
+- **Closing a file** (the **Close File** command, or `Ctrl+W` on Windows and Linux) saves it first. If the save fails, the file stays open.
+- **Switching projects** saves the open file first. If the save fails, you stay in the current project, and a message offers **Switch Anyway**, which loses the latest changes.
+- **Quitting**, in any way, saves first. If the save fails, Astro Editor asks before quitting.
+
+If a save fails, an error says so, and a copy of your unsaved work is kept in the [recovery folder](/reference/advanced-preferences/#recovery).
 
 ## The Command Palette
 

@@ -61,7 +61,7 @@ fn is_blocked_directory(path: &Path) -> bool {
     #[allow(unused_variables)]
     let normalized_lower = normalized_path.to_lowercase();
 
-    // Unix blocked directory patterns (matching our Tauri capabilities deny list)
+    // Unix system folders, and folders that hold credentials
     #[cfg(not(target_os = "windows"))]
     let blocked_patterns = [
         "/System/",
@@ -617,7 +617,7 @@ impl<'a> CollectionListing<'a> {
         entry.is_entry = is_entry;
         if frontmatter {
             if let Ok(content) = std::fs::read_to_string(path) {
-                if let Ok(parsed) = crate::commands::files::parse_frontmatter_internal(&content) {
+                if let Ok(parsed) = crate::commands::files::parse_frontmatter(&content) {
                     entry = entry.with_frontmatter(parsed.frontmatter);
                 }
             }
