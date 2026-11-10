@@ -6,7 +6,7 @@ use crate::models::collection::ProjectScan;
 use crate::models::preferences::{FileType, SkippedFiles};
 use crate::models::{Collection, DirectoryInfo, FileEntry};
 use crate::preferences::Preferences;
-use crate::utils::validate_project_path;
+use crate::utils::{normalize_path_for_serialization, validate_project_path};
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -432,7 +432,7 @@ pub async fn rename_entry(
     if new_file != file {
         rename_without_replacing(&file, &new_file)?;
     }
-    Ok(Some(new_file.to_string_lossy().to_string()))
+    Ok(Some(normalize_path_for_serialization(&new_file)))
 }
 
 const INDEX_FILES_KEEP_THEIR_NAME: &str =
@@ -1227,6 +1227,32 @@ mod tests {
             .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
             .collect();
         assert!(names.contains(&"Post.md".to_string()));
+    }
+
+    #[test]
+    fn returns_the_new_path_as_file_entries_give_it() {
+        // The frontend compares it with the open file's path, which has `/`
+        // separators on every platform
+        let (_temp, blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        let root = blog.path.parent().unwrap().parent().unwrap();
+        let renamed = tauri::async_runtime::block_on(rename_entry(
+            blog.path.join("2024/old.md").to_string_lossy().to_string(),
+            blog.clone(),
+            "new".to_string(),
+            root.to_string_lossy().to_string(),
+        ))
+        .unwrap()
+        .unwrap();
+
+        let entry = FileEntry::new(
+            blog.path.join("2024/new.md"),
+            blog.name.clone(),
+            blog.base.clone(),
+        );
+        assert_eq!(
+            serde_json::json!(renamed),
+            serde_json::to_value(entry).unwrap()["path"]
+        );
     }
 
     #[test]
