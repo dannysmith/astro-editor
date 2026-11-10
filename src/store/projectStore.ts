@@ -479,7 +479,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const after = await rescan(projectPath).catch(() => undefined)
 
     // If the open file's collection now has different files, the file may
-    // not be in it any more, so save and close it
+    // not be in it any more, so save and close it. If the save fails, it
+    // stays open with its edits.
     const { currentFile } = useEditorStore.getState()
     if (
       currentFile &&
@@ -496,11 +497,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           `Astro Editor [PREFERENCES] Failed to save before settings change: ${String(saveError)}`
         )
       }
-      toast.warning('Collection settings changed', {
-        description:
-          'The open file has been saved. Please reopen it to continue editing.',
-      })
-      useEditorStore.getState().closeCurrentFile()
+      if (!useEditorStore.getState().isDirty) {
+        toast.warning('Collection settings changed', {
+          description:
+            'The open file has been saved. Please reopen it to continue editing.',
+        })
+        useEditorStore.getState().closeCurrentFile()
+      }
     }
 
     // Every listing of the project's files: the pattern, folder or skipped

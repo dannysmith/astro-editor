@@ -75,6 +75,9 @@ pub async fn create_file(
     }
     let path = validated_dir.join(&filename);
     if let Some(parent) = path.parent() {
+        // Checked first, so a symlink to outside the project can't have a
+        // folder created through it
+        let parent = validate_project_path(parent, &project_root)?;
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create folder: {e}"))?;
     }
 
@@ -971,6 +974,44 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_create_file_folder_per_entry_and_symlinks() {
+        let temp_dir = std::env::temp_dir();
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = temp_dir.join(format!("test_create_nested_{timestamp}"));
+        let project_root = root.join("project");
+        let content_dir = project_root.join("content");
+        let outside = root.join("outside");
+        fs::create_dir_all(&content_dir).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, content_dir.join("linked")).unwrap();
+
+        let create = |filename: &str| {
+            create_file(
+                content_dir.to_string_lossy().to_string(),
+                filename.to_string(),
+                String::new(),
+                project_root.to_string_lossy().to_string(),
+            )
+        };
+
+        // A new folder for the entry is created
+        assert!(create("post/index.md").await.is_ok());
+        assert!(content_dir.join("post/index.md").exists());
+
+        // No folder is created through a symlink to outside the project
+        let result = create("linked/post/index.md").await;
+        assert!(result.is_err());
+        assert!(!outside.join("post").exists());
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[tokio::test]
