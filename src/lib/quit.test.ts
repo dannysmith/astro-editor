@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ask } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../store/editorStore'
+import { useProjectStore } from '../store/projectStore'
 import { answerQuitRequest } from './quit'
+import { flushLastEntry, rememberLastEntry } from './projects/last-entry'
 import type { FileEntry } from '@/types'
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn() }))
@@ -13,6 +15,8 @@ vi.mock('@/lib/bindings', () => ({
   commands: {
     quitApp: vi.fn(() => Promise.resolve()),
     cancelQuit: vi.fn(() => Promise.resolve()),
+    // The binding rethrows IPC failures rather than returning an error
+    setLastEntry: vi.fn(() => Promise.reject(new Error('IPC failed'))),
   },
 }))
 
@@ -42,6 +46,31 @@ describe('answerQuitRequest', () => {
     expect(commands.quitApp).toHaveBeenCalledOnce()
   })
 
+  it('saves and quits even when remembering the open file fails', async () => {
+    useProjectStore.setState({ currentProjectId: 'blog' })
+    rememberLastEntry('/sites/blog/hello.md')
+    useEditorStore.setState({ isDirty: true })
+
+    await answerQuitRequest()
+
+    expect(commands.setLastEntry).toHaveBeenCalled()
+    expect(succeedingSave).toHaveBeenCalledWith(false)
+    expect(commands.quitApp).toHaveBeenCalledOnce()
+  })
+
+  it('answers a failed save before remembering the open file', async () => {
+    useProjectStore.setState({ currentProjectId: 'blog' })
+    rememberLastEntry('/sites/blog/hello.md')
+    useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
+
+    await answerQuitRequest()
+
+    // Rust quits by itself if it isn't answered in time, so nothing else waits
+    expect(commands.cancelQuit).toHaveBeenCalledOnce()
+    expect(commands.setLastEntry).not.toHaveBeenCalled()
+    await flushLastEntry()
+  })
+
   it('saves unsaved edits before quitting', async () => {
     useEditorStore.setState({ isDirty: true })
 
@@ -63,12 +92,18 @@ describe('answerQuitRequest', () => {
     expect(commands.quitApp).not.toHaveBeenCalled()
   })
 
-  it('quits after a failed save if the writer chooses to', async () => {
+  it('quits after a failed save if the writer chooses to, remembering the open file', async () => {
+    useProjectStore.setState({ currentProjectId: 'blog' })
+    rememberLastEntry('/sites/blog/hello.md')
     useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
     vi.mocked(ask).mockResolvedValue(true)
 
     await answerQuitRequest()
 
+    expect(commands.setLastEntry).toHaveBeenCalledWith(
+      'blog',
+      '/sites/blog/hello.md'
+    )
     expect(commands.quitApp).toHaveBeenCalledOnce()
   })
 

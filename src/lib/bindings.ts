@@ -161,6 +161,11 @@ export const commands = {
 	 *  `alreadyRegistered` instead if another project is there, unless `replace`.
 	 */
 	relocateProject: (projectId: string, projectPath: string, replace: boolean) => typedError<Relocation, string>(__TAURI_INVOKE("relocate_project", { projectId, projectPath, replace })),
+	/**
+	 *  Remembers the entry open in a project (an absolute path), so opening the
+	 *  project reopens it, or forgets it with `None`
+	 */
+	setLastEntry: (projectId: string, filePath: string | null) => typedError<null, string>(__TAURI_INVOKE("set_last_entry", { projectId, filePath })),
 	/**  Quits once unsaved edits are saved (or the writer chose to quit without them). */
 	quitApp: () => __TAURI_INVOKE<void>("quit_app"),
 	/**  Stays open: the save failed and the writer is being asked what to do. */
@@ -437,6 +442,11 @@ export type ProjectMetadata = {
 	/**  ISO timestamps */
 	lastOpened: string,
 	created: string,
+	/**
+	 *  The entry open when the project was last left, relative to the project
+	 *  with `/`, so it survives the project moving. None when no file was open.
+	 */
+	lastEntry: string | null,
 };
 
 /**  Every project AE has opened */

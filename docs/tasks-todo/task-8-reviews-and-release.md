@@ -149,6 +149,7 @@ Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the
 
 ### Other improvements
 
+- **Back where you left off** – Opening a project reopens the file you had open when you last left it, if it's still there. (#373)
 - **Window size** – The window opens at the same size on every display. If it was last on a display that's no longer connected, it opens on one that is.
 - **Changes made outside the app** – The sidebar now updates when files are added, changed or removed outside Astro Editor, its file counts stay right, and Reload Collections works again.
 - **First `astro sync`** – Schemas generated after a project is open are picked up without reopening it.

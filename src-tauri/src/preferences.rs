@@ -254,6 +254,27 @@ impl Preferences {
         Ok(Relocation::Relocated)
     }
 
+    /// Remembers `file` as the entry open in the project, relative to it, so
+    /// opening the project can reopen it. `None`, or a file outside the
+    /// project, forgets it. Nothing is written when it's unchanged.
+    pub fn set_last_entry(&self, project_id: &str, file: Option<&Path>) -> Result<(), String> {
+        let _lock = lock();
+        let mut registry = self.read_registry()?;
+        let metadata = registry
+            .projects
+            .get_mut(project_id)
+            .ok_or_else(|| format!("No project with id {project_id}"))?;
+        let entry = file
+            .and_then(|file| file.strip_prefix(&metadata.path).ok())
+            .map(normalize_path_for_serialization)
+            .filter(|entry| !entry.is_empty());
+        if metadata.last_entry == entry {
+            return Ok(());
+        }
+        metadata.last_entry = entry;
+        self.write(REGISTRY_FILE, &registry)
+    }
+
     fn project_file(&self, id: &str) -> PathBuf {
         self.dir.join(PROJECTS_DIR).join(format!("{id}.json"))
     }
@@ -552,6 +573,7 @@ fn new_project(registry: &ProjectRegistry, canonical: &str, now: &str) -> Projec
         path: canonical.to_string(),
         last_opened: now.to_string(),
         created: now.to_string(),
+        last_entry: None,
     }
 }
 
@@ -796,6 +818,47 @@ mod tests {
         assert_eq!(ids, [second.id.as_str(), first.id.as_str()]);
         assert!(listed[0].missing);
         assert!(!listed[1].missing);
+    }
+
+    #[test]
+    fn remembers_the_last_entry_relative_to_the_project() {
+        let (dir, prefs, project) = setup();
+        let opened = prefs.open_project(&project).unwrap().metadata;
+        assert_eq!(opened.last_entry, None);
+        let root = Path::new(&opened.path);
+        let last_entry = || {
+            prefs.load_registry().value.projects[&opened.id]
+                .last_entry
+                .clone()
+        };
+
+        let post = root.join("src/content/blog/post.md");
+        prefs.set_last_entry(&opened.id, Some(&post)).unwrap();
+        assert_eq!(last_entry().as_deref(), Some("src/content/blog/post.md"));
+        // Reopening keeps it, and so does moving the project, being relative
+        let reopened = prefs.open_project(&project).unwrap().metadata;
+        assert_eq!(
+            reopened.last_entry.as_deref(),
+            Some("src/content/blog/post.md")
+        );
+        let moved = dir.path().join("moved-site");
+        std::fs::rename(&project, &moved).unwrap();
+        prefs.relocate_project(&opened.id, &moved, false).unwrap();
+        assert_eq!(last_entry().as_deref(), Some("src/content/blog/post.md"));
+
+        // A file outside the project, or none, forgets it
+        prefs.set_last_entry(&opened.id, Some(&post)).unwrap();
+        prefs
+            .set_last_entry(&opened.id, Some(&dir.path().join("elsewhere.md")))
+            .unwrap();
+        assert_eq!(last_entry(), None);
+        let moved_post = Path::new(&canonical_path(&moved).unwrap()).join("notes/a.md");
+        prefs.set_last_entry(&opened.id, Some(&moved_post)).unwrap();
+        assert_eq!(last_entry().as_deref(), Some("notes/a.md"));
+        prefs.set_last_entry(&opened.id, None).unwrap();
+        assert_eq!(last_entry(), None);
+
+        assert!(prefs.set_last_entry("no-such-project", None).is_err());
     }
 
     #[test]

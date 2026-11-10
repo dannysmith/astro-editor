@@ -4,6 +4,7 @@ import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
 import type { FrontmatterBaseline } from '../lib/files/frontmatter-baseline'
+import { rememberLastEntry } from '../lib/projects/last-entry'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
 
@@ -29,8 +30,14 @@ interface EditorState {
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
 
   // Actions
+  /** Opens `file` from disk, saving the open file first, and remembers it as the project's last entry */
   openFile: (file: FileEntry) => void
-  closeCurrentFile: () => void
+  /**
+   * Closes the open file, and forgets it as the project's last entry, so
+   * opening the project again doesn't undo the close. Switching projects
+   * passes `keepLastEntry`, since that file is the one to go back to.
+   */
+  closeCurrentFile: (options?: { keepLastEntry?: boolean }) => void
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
   setImports: (imports: string) => void
@@ -110,6 +117,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       autoSaveTimeoutId: null,
       lastSaveTimestamp: Date.now(),
     })
+    rememberLastEntry(file.path)
 
     // Update the selected collection to match the opened file's collection
     // Use custom event to communicate with project store (Bridge Pattern)
@@ -122,7 +130,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Content will be loaded by useFileContentQuery hook
   },
 
-  closeCurrentFile: () => {
+  closeCurrentFile: options => {
     // Clear auto-save timeout if it exists
     const { autoSaveTimeoutId } = get()
     if (autoSaveTimeoutId) {
@@ -142,6 +150,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
     })
+    if (!options?.keepLastEntry) rememberLastEntry(null)
   },
 
   saveFile: async (showToast = true) => {
@@ -245,6 +254,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Its new path may have content cached from a file that was there before
     if (newFile.id !== currentFile.id) readFromDisk(newFile)
     set({ currentFile: newFile })
+    rememberLastEntry(newFile.path)
   },
 }))
 

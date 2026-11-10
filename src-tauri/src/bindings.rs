@@ -65,6 +65,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::preferences::list_projects,
             crate::commands::preferences::remove_project,
             crate::commands::preferences::relocate_project,
+            crate::commands::preferences::set_last_entry,
             // quit.rs commands
             crate::commands::quit::quit_app,
             crate::commands::quit::cancel_quit,

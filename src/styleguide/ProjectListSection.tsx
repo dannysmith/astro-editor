@@ -18,7 +18,14 @@ function listed(
   missing = false
 ): ListedProject {
   return {
-    project: { id: path, name: path, path, lastOpened, created: lastOpened },
+    project: {
+      id: path,
+      name: path,
+      path,
+      lastOpened,
+      created: lastOpened,
+      lastEntry: null,
+    },
     missing,
     disconnected: path.startsWith('/Volumes/'),
     favicon: null,
