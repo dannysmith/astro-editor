@@ -58,8 +58,8 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only
-- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `agent_bridge/` (dev only)
-- `test/`: Astro projects for manual and agent testing. Work in the gitignored copy, `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `mdx_esm/` (finding an MDX file's import block, and planning imports to add), `agent_bridge/` (dev only)
+- `test/`: Astro projects for manual and agent testing. Work in the gitignored copies: `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`, and `temp-test-projects/`, which `bun run reset:testprojects` recreates from `personal-site`, `unusual-structure` and `starlight-minimal`
 - `scripts/`: the `app` CLI, release script, dev launcher, dev slots and setup
 
 Naming: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports.
@@ -90,6 +90,7 @@ bun run test            # Vitest in watch mode (test:run once; rust:test for car
 bun run app help        # drive, inspect and screenshot the running dev app
 bun run app logs        # recent warnings and errors from Rust, the webview and tauri:dev
 bun run reset:testdata  # reset temp-dummy-astro-project from test/
+bun run reset:testprojects # reset temp-test-projects/ from test/
 bun run setup           # get a checkout ready; in a worktree, claim a dev slot and clone the Rust build
 bun run tauri:dev       # this checkout's dev app (agents: Danny keeps it running; never start it)
 ```

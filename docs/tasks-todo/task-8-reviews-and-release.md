@@ -1,113 +1,113 @@
-# Task: Reviews & Admin
+# Task: Reviews and the 1.1.0 release
 
-## Fixes from the astro-editor-plus fork
+The work for 1.1.0 is merged: 162 commits since `v1.0.20`, with about 12,700 lines of Rust and 11,900 of frontend changed. What's left is a second round of reviews, the fixes they lead to, a note for danny.is, a prerelease tested on real sites, and the release.
 
-All dealt with on this branch, apart from two moved to issues (#372, #373). Notes on each item below.
+The first round (fixes from the astro-editor-plus fork, and the reviews before tasks 1 and 2) is recorded in `docs/tasks-done/task-2026-11-10-8-fork-fixes-and-first-review.md`.
 
-[GustavoGomez092/astro-editor-plus](https://github.com/GustavoGomez092/astro-editor-plus) is a fork built on main at `3af8e9bf`. Comparing it with this branch turned up the bugs below. They were found by tracing the code, plus two small scripts, and none has been reproduced in the app, so reproduce each one before fixing it. The fork's commit is given where its fix is worth reading (`git fetch https://github.com/GustavoGomez092/astro-editor-plus main`).
+## Phase 1: Tidy the repo
 
-### Project settings bugs on this branch
+- [x] **Look over the repo for anything that doesn't belong.** Nothing did: the tree was clean, `temporary/` was empty, and everything ignored is build output, the temporary test projects or Claude Code's own folders.
+- [x] **Check AGENTS.md and the README.** AGENTS.md was missing `mdx_esm/` and `reset:testprojects`. The README promised crash recovery and enforced field constraints (there's neither: see `app-data.md` and the website's field types page), listed theme and IDE settings under Project Settings, and didn't mention reopening the last file.
 
-- [x] **The sidebar shows a collection's old files after its folder, pattern or skipped files setting changes.** `useDirectoryScanQuery`'s query function holds the `Collection` from the last render, and its key (`queryKeys.directoryContents`) only has the collection's name. `updateProjectSettings` invalidates straight after `rescan`, before React re-renders with the new collection, so the refetch scans the old folder with the old pattern. Switching skipped files from Hide to Show dimmed shows no change. `refreshProjectScan`, which runs when the content config changes, never invalidates the listings at all, so editing a glob's `base` or `pattern` leaves the sidebar stale until something else refreshes it. Put the folder, pattern and skipped files setting in the key, or read the collection from the scan inside the query function. Fork: `aec8b28`. Done: the listings read the latest scan, and a content config change now refreshes them too.
-- [x] **Sidebar collection counts never refresh** (main too). `LeftSidebar` loads them in an effect that depends only on `collections`, and a rescan that finds the same collections keeps the same reference, so creating, deleting or renaming a file, in the app or outside it, leaves the count wrong. Make the counts a query under the project key and invalidate it with the folder listings. Fork: `cd56f11`, `6a81179`. Done: a query keyed by the collections' folders and patterns.
-- [x] **A preferences file that can't be read is treated as missing, then overwritten.** `read_or_default` and `read_project_file` treat any `read_to_string` error as no file. If the registry can't be read (permissions, not UTF-8), `open_project` writes a new one holding only the project being opened, and every other project is lost. Only `NotFound` should mean missing; anything else should be set aside like a file that doesn't parse. Fork: `f45ae1a`. Done.
-- [x] **When `set_aside_broken` can't move a file,** the message still says it was kept, and the next write replaces it. Don't write over a file that couldn't be set aside. Done: `write` won't replace a file it can't read or parse.
-- [x] **`Preferences::write` doesn't `sync_all` the temporary file before renaming it,** so a crash or power cut can leave an empty settings file, which is then set aside and the settings reset. Fork: `11b53ee`. Done.
-- [x] **`updateProjectSettings` closes the open file even when the save before it failed,** and the toast says it was saved. `openProject` already checks `isDirty` after saving; do the same here. Fixed in `e649e51e`.
-- [x] **Two project opens close together can overlap.** `setProject` fires `openProject` without a guard. The open that finishes last starts the watcher for whichever project is current by then, so it can start twice, and because `set()` overwrites the `_unlisten*` handles, every file event is then handled twice. It can also stop a watcher that hasn't started yet and show a false "Failed to stop file watcher" toast. A generation counter in `openProject`, checked after each `await`, covers it. It's rare: it needs two deep links, or quick switches during a slow scan. Fork: `0a4d185`, `a25a729`. Done.
-- [x] **A project on an unplugged drive shows as missing,** which invites Remove, and Remove deletes its settings. `list_projects` only checks `is_dir()`. When the path is under a `/Volumes` folder that isn't mounted, say the drive isn't connected instead. Fork: `07eebd3`. Done: it says "Drive Not Connected".
-- [x] **A collection whose folder is missing vanishes from the sidebar.** If every collection's folder is missing, the sidebar says "No collections found. Open an Astro project to get started", which is wrong with a project open. Listing them dimmed with their status icon would fix both. Done: listed dimmed, opening Project Settings.
-- [x] **One collection folder that can't be watched stops all watching.** `create_project_watcher` returns at the first `watch()` error. Skip that folder and watch the rest. Fork: `08547b4`. Done.
+## Phase 2: Reviews
 
-### Remember the last open entry
+Everything since `v1.0.20`. Reviewers read the code and the developer docs but not the task docs, so they judge the code as it is rather than as we meant it. They don't edit anything. Every finding is checked against the code before it goes in the findings list, then triaged in Phase 3.
 
-- [x] When a project opens, reopen the entry that was open when it was last left, if it's still there. The fork stores the entry's path relative to the project in its registry record, writes it a second after the open file changes (and before quitting or switching projects), and reopens it through `resolve_file_entry`. Fork: `useRememberLastEntry` and `lib/projects/last-entry.ts`. Moved to issue #373.
+- [x] **A. Adversarial review of projects and settings** (agent). Try to break the project model: the registry and settings files, how a project is identified, opened and moved, the scan (content config, loaders, patterns, overrides), the watcher, and how settings changes, rescans, project switches and reopening the last entry interact. Look for lost settings or content, races, states the UI can't get out of, and assumptions about Astro that don't hold for real sites. Start from `app-data.md` and `schema-system.md`.
+- [x] **B. Code review: Rust** (agent). `src-tauri/src` since `v1.0.20`, against AGENTS.md and the architecture guide: correctness, error handling, path safety (`validate_project_path`, `dunce`), blocking IO on the async runtime, the cost of scans, test quality, and design problems Clippy can't see.
+- [x] **C. Code review: frontend** (agent). `src/` since `v1.0.20`, against AGENTS.md, the architecture guide and `editor.md`: the Zustand rules, the React Compiler, the `hooks/` and `lib/` boundaries, data safety when saving and loading, query keys and invalidation, needless re-renders, test quality, and leftovers from abandoned approaches.
+- [x] **D. UX review of Project Settings and the other settings pages** (by hand, in the dev app). With personal-site, unusual-structure, starlight-minimal and the test vault, in light and dark. Does Project Settings show clearly what AE found and what you can change? Is the mental model (what Astro says and what you chose; project, collection and global) the same across Project Settings, Preferences, the project list and the file list? Names, icons, empty and error states. `task-2026-11-10-6-project-settings-ux.md` records what the first round settled; review what's changed since and what it left.
+- [x] **E. Website docs** (agent). `website/src/content/docs/` against the app as it is: wrong or stale statements, 1.1.0 features that are missing, and whether the settings pages give a writer the mental model they need (what's detected, what's set, where each setting lives, and why). Suggest cuts as well as additions.
+- [x] **F. Developer docs and code comments** (agent). `docs/developer/`, AGENTS.md and the comments in changed code: accurate, evergreen (no history, no PR numbers, no "now" or "new"), one place per fact (see `docs/README.md`), and no bloat, including docs that describe what the code visibly does.
+- [x] **G. Release notes** (by hand, then an agent). The draft below against `git log v1.0.20..main` and the issues closed since: anything missing, wrong or overstated, and the order. Then a cold read against Danny's writing guide.
 
-### Editor bugs, on main too
+### Findings
 
-Fix these here or on main straight after this branch merges.
+Checked against the code. Marked *(1.0.20)* where it was already in the last release. "Plausible" means the code path is real but the timing wasn't reproduced.
 
-- [x] **Clicking the open file again wipes it.** For a file with no unsaved edits, `openFile` gets past its only guard (`isDirty && currentFile?.id === file.id`) and clears the store. The sidebar passes the same `FileEntry`, so the effect in `useEditorFileContent` (`[data, currentFile]`) doesn't run again and the editor stays blank. The next keystroke saves the typed text with `rawFrontmatter: ''`, and the file loses its frontmatter and body. Return early when the path matches, still dispatching the event that selects the file's collection. `storeQueryIntegration.test.ts` asserts the clearing and needs changing. Fork: `c4b6cd5`, `8b5b120`. Not reproduced: `openFile` now always reloads the file from disk, and the content and frontmatter survive clicking it again.
-- [x] **New files can get frontmatter that fails the site's build.** In the frontmatter block of `useCreateFile`: Moved to issue #372.
-  - required fields with no default get `''` or `0`, which fail `email`, `url`, `image()`, enums and `reference()`;
-  - dates are quoted, so Astro reads them as strings and `z.date()` rejects them (the test project's `z.coerce.date()` hides this);
-  - nested required fields are written as literal `sponsor.name:` keys;
-  - object defaults come out as `[object Object]`, and `"` in a string isn't escaped.
+**Data safety**
 
-  Build the values as an object and let the Rust writer serialise them. Decide what a required field with no default should get: leaving it out fails the build too, and a plain `z.string()` passes with `''` but not when it's missing. Fork: `1577a65`, `62df387` (`lib/files/new-file.ts`).
-- [x] **Order, Title and Filename start sorted descending** (Z to A, 3 to 1). `DEFAULT_VIEW_STATE.sortDirection` is `'desc'` and `setSortMode` keeps the existing direction. Start dates newest first and everything else ascending. Fork: `4c98f05`, the direction part only. Done.
-- [x] **A blank line before the closing `---` is dropped on body-only saves.** `parse_frontmatter` joins the lines between the markers, and `rebuild_markdown_with_raw_frontmatter` skips the newline when the raw text already ends in one. Add a round-trip test: `mdx_corpus_tests` only compares non-blank lines, which is why this got through. Fork: `17eecc0`. Done, with a round-trip test.
-- [x] **`.default('')` shows a bare "Default:"** under the field (`FieldWrapper`). Leave out empty defaults (`''`, `[]`, `{}`). Fork: `96318d2`. Done.
-- [x] **Check whether multi-line values in text fields get flattened.** `StringField` is an `<input>`, which drops line breaks, so editing a value that has one probably joins its lines. If it does, use `AutoExpandingTextarea` when the value already contains a line break. They did (an `<input>` strips line breaks); such values now get the textarea.
+1. **Undo straight after switching files writes the previous file's text into the new one.** Loading a file goes into CodeMirror's undo history (`Editor.tsx:246-313` dispatch without `addToHistory: false`), so ⌘Z after opening B brings back A's text, marks B dirty, and auto-save writes it to B. *(1.0.20)* Fix: a fresh `EditorState` per file, and keep programmatic loads out of history.
+2. **Close File throws away unsaved edits.** `closeCurrentFile` clears `isDirty` without saving; the palette's Close File and Ctrl+W (Windows, Linux) call it directly. Keystrokes typed during a project switch are dropped the same way. Fix: user-facing closes save first and stay open if the save fails.
+3. **Deleting the open file leaves it open, and the next save recreates it** (`context-menu.tsx:198`). A failed delete is only logged. Fix: close it without saving after a delete; toast on failure.
+4. **Renaming the open file from the sidebar skips the rename guard** (`LeftSidebar.tsx:195`): no save first, no `renameUnderWay`, so an auto-save mid-rename can write the old file back. Fix: route it through `lib/files/rename.ts`.
+5. **Editing any frontmatter field unquotes date-like strings.** serde_norway writes `version: "2024-01-01"` as `version: 2024-01-01`, which Astro reads as a date, so a `z.string()` field fails the build. *(1.0.20)* Fix: quote strings that look like YAML timestamps unless the schema says the field is a date.
+6. **Saves aren't atomic.** `std::fs::write` truncates first, so a full disk or a save cut off at quit can leave the file empty or partial (`files.rs:349`). *(1.0.20)* Fix: temp file, sync, rename, keeping permissions. Needs a decision: it changes the file's inode, which some tools notice.
+7. **Reset All Preferences deletes recovery files too** (all of `AppLocalData`), and restarts without saving the open file. *(1.0.20)*
+8. **Async inserts can land in a file opened meanwhile** (plausible): a dropped image, or the component builder's planned imports (`setImports`), after the open file changes. `ImagePicker` already guards against this.
+9. **Overlapping saves of the same file can land out of order** (plausible), leaving older text on disk with the file marked clean. Fix: one save at a time, queueing the next.
 
-## Reviews 
+**Bugs**
 
-Tasks 1 and 2 (frontmatter fixes and small follow-ups, then reopening the last entry) each get their own PR first. Once both are merged, come back here and revisit these reviews on main before the release.
+10. **An inline loader is described as unreadable.** `loader: async () => []` or `loader: { name, load }` (both standard Astro) say "couldn't be read, perhaps because it's in another file". `read_loader` (`content_config/mod.rs:344`) returns no name for anything that isn't a call.
+11. **AstroPaper's folder can't be read.** `base: \`./${BLOG_PATH}\`` (and `'./' + X`) is unreadable (`string_value`, `content_config/mod.rs:436`), so the folder is guessed, with a warning; older AstroPaper puts posts elsewhere, so the guess is wrong. Fix: evaluate templates and `+` whose parts resolve to strings.
+12. **A project moved while open traps the file.** Every auto-save fails (with a toast and recovery files each time), and switching projects is refused with only a log line. Fix: say why, and offer to switch anyway since recovery data is written.
+13. **Global settings changes overwrite each other.** `updateGlobalSettings` merges into the store's old value and sets it after saving, so a colour picker drag or quick toggles can save an in-between value. Fix: as `updateProjectSettings` does.
+14. **YAML field (really JSON) loses its text** when an edit parses to `[]` or `""`, which deletes the key and resets the draft.
+15. **The folder fallback with the content folder set to `.`** makes `node_modules`, `dist` and `public` collections and watches all of `node_modules`.
+16. **Quick project switches show "Failed to stop file watcher"**, and can leak a set of watcher listeners (plausible), so events are handled twice.
+17. **A project on a disconnected drive invites Locate…** on Enter, and the startup toast says it "may have been moved or deleted".
+18. **Symlinked collection folders**: the last entry and deep links don't resolve, and outside changes to the open file aren't matched.
+19. **Collections spread into the export** (`{ ...docs, blog }`) vanish silently; the "part of the config couldn't be read" warning can never show.
+20. **Nested frontmatter objects come back with their keys sorted** after any frontmatter edit (only top-level keys follow the schema).
+21. **A UTF-8 byte-order mark** shifts swc's spans, garbling schema helpers and component props, and hides frontmatter after it.
+22. **Path checks:** `scan_directory`, the count and listing commands, `new_file_name` and `load_file_based_collection` don't use `validate_project_path`; `copy_file_to_assets` creates folders before checking them and leaves a 0-byte file if the copy fails; a dangling symlink passes validation.
+23. Smaller: reopening the open file blanks and reloads it (cursor jumps to the top); deep links set broken settings files aside without a toast; a config change during a settings rescan can skip closing the open file (plausible); removing or replacing a project deletes its settings before the registry write; an empty `---\n---` block is dropped on save; CRLF files become LF.
 
-Our recent work has made some fairly significant changes to how the app works so we should conduct a series of reviews looking at things like:
+**Performance**
 
-- Adverserial review of the whole project management/settings approach.
-- UX review of the project settings stuff and making the mental model of how it all works consistent and good. Most of this is now `task-6-project-settings-ux.md`; review what it leaves. Likewise: are our settings pages designed well and designed to help people understand and use them. Also: icons, names etc.
-- Full code review of recent changes to check that they are compliant with the architecture guides and other developer guidance and also with what would be considered best practice. might consider having sub-agents also review for performance etc.
-- We should do a review of the website documentation. Most of this should have been updated as we go, but we should look at that around the project stuff. We should look for opportunities to better explain the mental model needed when it comes to settings and how this works and what all of these things are for, if necessary and also check that we haven't added too much bloat to the developer docs.
-- We should obviously also review the developer docs and code comments to ensure they're evergreen etc.
+24. **The watcher loop blocks a tokio worker** for as long as a project is open (`watcher.rs:182`). *(1.0.20)*
+25. **Every scan canonicalises every registered project's path under the preferences lock**, so one project on a stale network mount can hang every scan and settings write. Fix: match by stored canonical string.
+26. Each ⌘N and rename parses every file in the collection for `slug`s, listings parse whole files for frontmatter, and the Zod parser recompiles its regexes per call (#374 covers some).
 
-### How they were run
+**UX**
 
-Three agents reviewed cold, given the code and the developer docs but not the task docs: an adversarial review of the project model and settings, a Rust code review and a frontend code review. The UX, website docs, developer docs and video reviews were done by hand in the dev app (personal-site, unusual-structure, dannyis-astro-content). Every agent finding was checked against the code before it was listed.
+27. **Preferences hasn't had Project Settings' copy pass**: Title Case labels, "Global Settings" (Project Settings says "Global preference"), "Choose your preferred color theme", missing full stops, "e.g.", a breadcrumb.
+28. **Project Settings has three icons**: the file list footer uses a cog (Preferences' General uses the same), the Preferences sidebar uses `FolderCog` (rejected in task 6), the dialog uses the project's identity.
+29. **"Edited as YAML"** in the schema view, for fields that are edited as JSON (`field-control.ts:35`, `schema-system.md`, `project-settings.mdx:120`).
 
-### Fixes
+**Website docs** (the reviewer's 25 items, the main ones)
 
-- [x] **The schema helper parser can panic** on non-ASCII text before `image()` or `reference()` (`parser.rs` mixes byte offsets and char indexes). Release builds abort on panic and reopen the last project, so the app would crash at every launch.
-- [x] **A folder override keeps the pattern's prefix,** so setting `src/content/blog` for `base: 'src/content', pattern: 'blog/**/*.md'` (the placeholder's own value) hides every file and new files can't be named.
-- [x] **Negations naming a folder** (`'!drafts'`) don't exclude the files in it, as tinyglobby does.
-- [x] **Settings saves race with rescans:** `rescan()` returns a scan already in flight, which may have read the old settings; quick edits overwrite each other; a save that finishes after a project switch stores the old project's settings.
-- [x] **Enter in a settings text field commits twice** (Enter, then the blur), so two saves, two rescans and possibly two sets of watcher listeners.
-- [x] **A `schema` imported from another file reads as no schema:** no `astro sync` warning, and the page says there's no schema.
-- [x] **A `glob()` whose `pattern` or `base` can't be read** gets no warning: an unread pattern becomes "every Markdown file" (the whole project with no `base`), and an unread base becomes a guessed folder presented as the loader's.
-- [x] **A collection imported from another file** is described as "a custom loader, which probably doesn't read files".
-- [x] **The startup notice that settings were reset can be lost:** `load_preferences` emits it before the toast listener exists. Return it instead, as `open_project` does.
-- [x] **Scans can set a broken registry aside silently** (`project_settings_for_path`, documented as read only).
-- [x] **Smaller frontend bugs:** the string field loses focus when its last line break is deleted; a settings change shows two toasts and saves a clean file; "Project opened successfully" shows when the open is refused; creating a file rescans the project but doesn't refresh counts; clearing the name pattern leaves the box blank; a favicon that fails once never shows again; the sidebar says "This directory is empty" when the selected collection becomes unavailable.
-- [x] **A collection folder created after the project opens is never watched.** The periodic rescan should rescan the project, which restarts the watcher. It now restarts the watcher once its refetch lands, if the folders changed.
-- [x] **Docs:** the website's "How projects are identified" describes `package.json` matching; four pages say "in the preferences" for project settings; stale `file()` schema notes in `schema_merger.rs` and `schema-system.md`; `app-data.md` says a lost registry "could be rebuilt".
-- [x] **Cleanups and tests:** one assets-copy command instead of two; `useCreateFile` reads the scan with `getCollection`; a test mock of a deleted module; `#[serde(default)]` instead of completing settings files by hand; a sort that runs before collections are reclassified; skipped files' frontmatter read then thrown away. Tests for `isFileListing`, the default sort, `renameNewFileFromTitle` and overlapping collections. `#[serde(default)]` made the fields optional in the TypeScript bindings, so both readers share one lenient parse instead (which also fixes scans and opens reading a partial file differently). The default sort was already tested.
-- [x] **UX:** the project list's "Open" badge reads like the Enter action ("Current" now); the sidebar repeats each collection's name as its folder (shown only when it differs); the welcome text asks for a project when one is open.
+30. Wrong: the no-schema fallback "handles most everyday schemas" (it only finds `image()` and `reference()`); stale component builder shortcuts; troubleshooting's log tags; auto-save delay stated as fixed; recovery folders described as crash and short-lived; `{slug}`'s fallback; "run `astro sync` and reopen the project"; the date field rule with a schema.
+31. Missing: saving before quitting and switching; the 1.0 settings reset outside Advanced Preferences; the file list's collection status icons and dimmed rows; project list shortcuts; that skipped files aren't entries.
+32. Mental model: a short "how settings work" at the top of Project Settings (read from Astro / set by you, stored on this computer and not in the repo / Preferences are about you); what to do for each status; the trade-off of setting a value (it's pinned); "Overrides" repeats Project Settings under an old name.
+33. Cuts: the Advanced tab described twice; about 700 words on how imports are computed; six ways into Project Settings.
 
-### To GitHub issues
+**Developer docs and comments**
 
-- [x] A new file or rename reads every file in the collection for `slug`s; scans do blocking IO on the async runtime. #374
-- [x] Follow collections imported from other files. A comment on #288, whose "follow relative imports" covers it.
-- [x] Adopt orphaned `projects/*.json` files by their stored path when the registry is lost, and don't overwrite an existing `.v2.json`. #375
-- [x] Object-form `file()` data as reference targets. #376
-- [x] #354 updated with this branch's work and its follow-ups.
+34. Wrong: the palette's dependency list (`commands-and-shortcuts.md`), "Windows and Linux have no native menu", `testing.md` on the test projects, log tags (`agent-tooling.md`), `editor-styles.md` vs `Editor.css`, `bindings.rs:25` ("the frontend never sends these structs").
+35. Evergreen: bug stories in `editor.md`; "compiled manually by Danny" in `editor-styles.md`; history in about a dozen comments; commented-out `fix_path_env`.
+36. Duplication and bloat: `app-data.md` has grown a Project Settings walkthrough that overlaps `ui-patterns.md`; menu rules in three places; `releases.md` re-describes `release.yml`.
+37. Gaps: `eprintln!` in `mdx_components` never reaches the log; dead fields (`referenceCollection`, `nestedFields`, `editorSelection`); `read_file_content` duplicates `read_file`.
 
-### Dropped
+**Release notes**
 
-- Each frontmatter field running its own scan query: query observers are cheap.
-- Canonicalising every registry entry per scan: the registry is small.
-- Custom `srcDir`: documented as unsupported.
+38. Accuracy: nothing wrong or overstated. #375 and #352 were closed as won't-do, so leaving them out is right. Worth adding under the hood: the unused file-system plugin and its broad permission are gone. Optional: Windows paths (#371).
+39. Writing (cold read against the writing guide): "Before you upgrade" gives no action and mixes two points; several improvements don't say what was different before; some improvements are really fixes; bug fixes use two formats; headings use four forms; a few overloaded sentences (Project Settings, imports, new files' frontmatter).
 
-### Marketing video
+## Phase 3: Triage and fix
 
-The homepage video is still accurate apart from scene F, which shows the old search-and-insert MDX popup. Update that scene to show the props form and the added import; project settings has no visual moment worth a scene. See task 9, which also makes a one-off video of what's new in 1.1.0.
+- [ ] Go through the findings with Danny: fix now, open an issue, or drop.
+- [ ] Fix on a branch, then PR and merge.
 
-## Admin
+## Phase 4: A note for danny.is
 
-- [ ] Any other cleaning up in this repo on GH or here, before I make a release.
-- [ ] Write up release notes for next release (which I think will be 1.1.0).
-  - Say that project settings from 1.0.x are set aside (renamed to `*.v2.json`), so projects may need setting up again. Most won't, because folders and fields are now detected. List the settings that had to be set again in the upgrade check (task 5).
-  - Drafted at the end of this doc. Fill in the `[DANNY: …]` marker after the prerelease check.
-- [x] Update the README as needed. The MDX components, file management, Project Settings and supported projects sections now describe 1.1.0.
-- [x] Close and consolidate all the GH Issues. Closed #82 and #87 (done in #368), noted on #371 what #368 fixed and what's left, labelled #370, #372, #374, #375 and #376, and ticked #368's items in #354. The rest are the follow-ups from this work, or in the icebox.
-- [x] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. Done in task 9.
-- [ ] Write up a quick blog post for my website showing off the new features, with screenshots and the video we made for the v1.1.0 release.
-- [ ] Release a prerelease and test it on my machine as my proper version of AE.
+- [ ] A short note (not a full article) on what's new in 1.1.0, with screenshots and the release video. Take the screenshots from the dev app (`bun run app shot`).
+
+## Phase 5: Prerelease
+
+- [ ] Build a prerelease and use it as my real copy of AE.
   - [ ] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe.
   - [ ] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
   - [ ] Note every setting you had to set again, for the release notes.
   - [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
-- [ ] Do the actual release.
+  - [ ] Try it on my real sites.
+
+## Phase 6: Release
+
+- [ ] Fill in the `[DANNY: …]` marker and finish the release notes.
+- [ ] Release (see `docs/developer/releases.md`).
+- [ ] Post the note.
 
 ## Release notes for 1.1.0 (draft)
 

@@ -1,0 +1,95 @@
+# Task: Fork fixes and the first review round
+
+The first part of task 8 (reviews and the 1.1.0 release), finished before tasks 1 and 2. The rest of task 8 continues in its own doc.
+
+## Fixes from the astro-editor-plus fork
+
+All dealt with on this branch, apart from two moved to issues (#372, #373). Notes on each item below.
+
+[GustavoGomez092/astro-editor-plus](https://github.com/GustavoGomez092/astro-editor-plus) is a fork built on main at `3af8e9bf`. Comparing it with this branch turned up the bugs below. They were found by tracing the code, plus two small scripts, and none has been reproduced in the app, so reproduce each one before fixing it. The fork's commit is given where its fix is worth reading (`git fetch https://github.com/GustavoGomez092/astro-editor-plus main`).
+
+### Project settings bugs on this branch
+
+- [x] **The sidebar shows a collection's old files after its folder, pattern or skipped files setting changes.** `useDirectoryScanQuery`'s query function holds the `Collection` from the last render, and its key (`queryKeys.directoryContents`) only has the collection's name. `updateProjectSettings` invalidates straight after `rescan`, before React re-renders with the new collection, so the refetch scans the old folder with the old pattern. Switching skipped files from Hide to Show dimmed shows no change. `refreshProjectScan`, which runs when the content config changes, never invalidates the listings at all, so editing a glob's `base` or `pattern` leaves the sidebar stale until something else refreshes it. Put the folder, pattern and skipped files setting in the key, or read the collection from the scan inside the query function. Fork: `aec8b28`. Done: the listings read the latest scan, and a content config change now refreshes them too.
+- [x] **Sidebar collection counts never refresh** (main too). `LeftSidebar` loads them in an effect that depends only on `collections`, and a rescan that finds the same collections keeps the same reference, so creating, deleting or renaming a file, in the app or outside it, leaves the count wrong. Make the counts a query under the project key and invalidate it with the folder listings. Fork: `cd56f11`, `6a81179`. Done: a query keyed by the collections' folders and patterns.
+- [x] **A preferences file that can't be read is treated as missing, then overwritten.** `read_or_default` and `read_project_file` treat any `read_to_string` error as no file. If the registry can't be read (permissions, not UTF-8), `open_project` writes a new one holding only the project being opened, and every other project is lost. Only `NotFound` should mean missing; anything else should be set aside like a file that doesn't parse. Fork: `f45ae1a`. Done.
+- [x] **When `set_aside_broken` can't move a file,** the message still says it was kept, and the next write replaces it. Don't write over a file that couldn't be set aside. Done: `write` won't replace a file it can't read or parse.
+- [x] **`Preferences::write` doesn't `sync_all` the temporary file before renaming it,** so a crash or power cut can leave an empty settings file, which is then set aside and the settings reset. Fork: `11b53ee`. Done.
+- [x] **`updateProjectSettings` closes the open file even when the save before it failed,** and the toast says it was saved. `openProject` already checks `isDirty` after saving; do the same here. Fixed in `e649e51e`.
+- [x] **Two project opens close together can overlap.** `setProject` fires `openProject` without a guard. The open that finishes last starts the watcher for whichever project is current by then, so it can start twice, and because `set()` overwrites the `_unlisten*` handles, every file event is then handled twice. It can also stop a watcher that hasn't started yet and show a false "Failed to stop file watcher" toast. A generation counter in `openProject`, checked after each `await`, covers it. It's rare: it needs two deep links, or quick switches during a slow scan. Fork: `0a4d185`, `a25a729`. Done.
+- [x] **A project on an unplugged drive shows as missing,** which invites Remove, and Remove deletes its settings. `list_projects` only checks `is_dir()`. When the path is under a `/Volumes` folder that isn't mounted, say the drive isn't connected instead. Fork: `07eebd3`. Done: it says "Drive Not Connected".
+- [x] **A collection whose folder is missing vanishes from the sidebar.** If every collection's folder is missing, the sidebar says "No collections found. Open an Astro project to get started", which is wrong with a project open. Listing them dimmed with their status icon would fix both. Done: listed dimmed, opening Project Settings.
+- [x] **One collection folder that can't be watched stops all watching.** `create_project_watcher` returns at the first `watch()` error. Skip that folder and watch the rest. Fork: `08547b4`. Done.
+
+### Remember the last open entry
+
+- [x] When a project opens, reopen the entry that was open when it was last left, if it's still there. The fork stores the entry's path relative to the project in its registry record, writes it a second after the open file changes (and before quitting or switching projects), and reopens it through `resolve_file_entry`. Fork: `useRememberLastEntry` and `lib/projects/last-entry.ts`. Moved to issue #373.
+
+### Editor bugs, on main too
+
+Fix these here or on main straight after this branch merges.
+
+- [x] **Clicking the open file again wipes it.** For a file with no unsaved edits, `openFile` gets past its only guard (`isDirty && currentFile?.id === file.id`) and clears the store. The sidebar passes the same `FileEntry`, so the effect in `useEditorFileContent` (`[data, currentFile]`) doesn't run again and the editor stays blank. The next keystroke saves the typed text with `rawFrontmatter: ''`, and the file loses its frontmatter and body. Return early when the path matches, still dispatching the event that selects the file's collection. `storeQueryIntegration.test.ts` asserts the clearing and needs changing. Fork: `c4b6cd5`, `8b5b120`. Not reproduced: `openFile` now always reloads the file from disk, and the content and frontmatter survive clicking it again.
+- [x] **New files can get frontmatter that fails the site's build.** In the frontmatter block of `useCreateFile`: Moved to issue #372.
+  - required fields with no default get `''` or `0`, which fail `email`, `url`, `image()`, enums and `reference()`;
+  - dates are quoted, so Astro reads them as strings and `z.date()` rejects them (the test project's `z.coerce.date()` hides this);
+  - nested required fields are written as literal `sponsor.name:` keys;
+  - object defaults come out as `[object Object]`, and `"` in a string isn't escaped.
+
+  Build the values as an object and let the Rust writer serialise them. Decide what a required field with no default should get: leaving it out fails the build too, and a plain `z.string()` passes with `''` but not when it's missing. Fork: `1577a65`, `62df387` (`lib/files/new-file.ts`).
+- [x] **Order, Title and Filename start sorted descending** (Z to A, 3 to 1). `DEFAULT_VIEW_STATE.sortDirection` is `'desc'` and `setSortMode` keeps the existing direction. Start dates newest first and everything else ascending. Fork: `4c98f05`, the direction part only. Done.
+- [x] **A blank line before the closing `---` is dropped on body-only saves.** `parse_frontmatter` joins the lines between the markers, and `rebuild_markdown_with_raw_frontmatter` skips the newline when the raw text already ends in one. Add a round-trip test: `mdx_corpus_tests` only compares non-blank lines, which is why this got through. Fork: `17eecc0`. Done, with a round-trip test.
+- [x] **`.default('')` shows a bare "Default:"** under the field (`FieldWrapper`). Leave out empty defaults (`''`, `[]`, `{}`). Fork: `96318d2`. Done.
+- [x] **Check whether multi-line values in text fields get flattened.** `StringField` is an `<input>`, which drops line breaks, so editing a value that has one probably joins its lines. If it does, use `AutoExpandingTextarea` when the value already contains a line break. They did (an `<input>` strips line breaks); such values now get the textarea.
+
+## Reviews 
+
+Tasks 1 and 2 (frontmatter fixes and small follow-ups, then reopening the last entry) each get their own PR first. Once both are merged, come back here and revisit these reviews on main before the release.
+
+Our recent work has made some fairly significant changes to how the app works so we should conduct a series of reviews looking at things like:
+
+- Adverserial review of the whole project management/settings approach.
+- UX review of the project settings stuff and making the mental model of how it all works consistent and good. Most of this is now `task-6-project-settings-ux.md`; review what it leaves. Likewise: are our settings pages designed well and designed to help people understand and use them. Also: icons, names etc.
+- Full code review of recent changes to check that they are compliant with the architecture guides and other developer guidance and also with what would be considered best practice. might consider having sub-agents also review for performance etc.
+- We should do a review of the website documentation. Most of this should have been updated as we go, but we should look at that around the project stuff. We should look for opportunities to better explain the mental model needed when it comes to settings and how this works and what all of these things are for, if necessary and also check that we haven't added too much bloat to the developer docs.
+- We should obviously also review the developer docs and code comments to ensure they're evergreen etc.
+
+### How they were run
+
+Three agents reviewed cold, given the code and the developer docs but not the task docs: an adversarial review of the project model and settings, a Rust code review and a frontend code review. The UX, website docs, developer docs and video reviews were done by hand in the dev app (personal-site, unusual-structure, dannyis-astro-content). Every agent finding was checked against the code before it was listed.
+
+### Fixes
+
+- [x] **The schema helper parser can panic** on non-ASCII text before `image()` or `reference()` (`parser.rs` mixes byte offsets and char indexes). Release builds abort on panic and reopen the last project, so the app would crash at every launch.
+- [x] **A folder override keeps the pattern's prefix,** so setting `src/content/blog` for `base: 'src/content', pattern: 'blog/**/*.md'` (the placeholder's own value) hides every file and new files can't be named.
+- [x] **Negations naming a folder** (`'!drafts'`) don't exclude the files in it, as tinyglobby does.
+- [x] **Settings saves race with rescans:** `rescan()` returns a scan already in flight, which may have read the old settings; quick edits overwrite each other; a save that finishes after a project switch stores the old project's settings.
+- [x] **Enter in a settings text field commits twice** (Enter, then the blur), so two saves, two rescans and possibly two sets of watcher listeners.
+- [x] **A `schema` imported from another file reads as no schema:** no `astro sync` warning, and the page says there's no schema.
+- [x] **A `glob()` whose `pattern` or `base` can't be read** gets no warning: an unread pattern becomes "every Markdown file" (the whole project with no `base`), and an unread base becomes a guessed folder presented as the loader's.
+- [x] **A collection imported from another file** is described as "a custom loader, which probably doesn't read files".
+- [x] **The startup notice that settings were reset can be lost:** `load_preferences` emits it before the toast listener exists. Return it instead, as `open_project` does.
+- [x] **Scans can set a broken registry aside silently** (`project_settings_for_path`, documented as read only).
+- [x] **Smaller frontend bugs:** the string field loses focus when its last line break is deleted; a settings change shows two toasts and saves a clean file; "Project opened successfully" shows when the open is refused; creating a file rescans the project but doesn't refresh counts; clearing the name pattern leaves the box blank; a favicon that fails once never shows again; the sidebar says "This directory is empty" when the selected collection becomes unavailable.
+- [x] **A collection folder created after the project opens is never watched.** The periodic rescan should rescan the project, which restarts the watcher. It now restarts the watcher once its refetch lands, if the folders changed.
+- [x] **Docs:** the website's "How projects are identified" describes `package.json` matching; four pages say "in the preferences" for project settings; stale `file()` schema notes in `schema_merger.rs` and `schema-system.md`; `app-data.md` says a lost registry "could be rebuilt".
+- [x] **Cleanups and tests:** one assets-copy command instead of two; `useCreateFile` reads the scan with `getCollection`; a test mock of a deleted module; `#[serde(default)]` instead of completing settings files by hand; a sort that runs before collections are reclassified; skipped files' frontmatter read then thrown away. Tests for `isFileListing`, the default sort, `renameNewFileFromTitle` and overlapping collections. `#[serde(default)]` made the fields optional in the TypeScript bindings, so both readers share one lenient parse instead (which also fixes scans and opens reading a partial file differently). The default sort was already tested.
+- [x] **UX:** the project list's "Open" badge reads like the Enter action ("Current" now); the sidebar repeats each collection's name as its folder (shown only when it differs); the welcome text asks for a project when one is open.
+
+### To GitHub issues
+
+- [x] A new file or rename reads every file in the collection for `slug`s; scans do blocking IO on the async runtime. #374
+- [x] Follow collections imported from other files. A comment on #288, whose "follow relative imports" covers it.
+- [x] Adopt orphaned `projects/*.json` files by their stored path when the registry is lost, and don't overwrite an existing `.v2.json`. #375
+- [x] Object-form `file()` data as reference targets. #376
+- [x] #354 updated with this branch's work and its follow-ups.
+
+### Dropped
+
+- Each frontmatter field running its own scan query: query observers are cheap.
+- Canonicalising every registry entry per scan: the registry is small.
+- Custom `srcDir`: documented as unsupported.
+
+### Marketing video
+
+The homepage video is still accurate apart from scene F, which shows the old search-and-insert MDX popup. Update that scene to show the props form and the added import; project settings has no visual moment worth a scene. See task 9, which also makes a one-off video of what's new in 1.1.0.

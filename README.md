@@ -15,14 +15,16 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 - Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.
-- Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing, and before the app quits. Crash recovery included.
+- Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing, and before the app quits. If a save fails, your unsaved text is kept in a recovery file.
+- Light/dark theme with system integration.
+- IDE integration (open files/projects in VSCode, Cursor, etc.).
 
 **Frontmatter & Schema Integration**
 
 - Generates editing forms from your Astro collection schemas with proper validation.
 - Supports all Zod types: strings, numbers, dates, booleans, enums, arrays, nested objects, references, and image fields.
 - Image fields provide drag-and-drop with automatic copying to your assets directory using relative paths by default (configurable per project/collection).
-- Field constraints (min/max, character limits) enforced in the UI.
+- Field constraints (min/max, character limits) shown as hints under each field.
 
 **MDX Components**
 
@@ -38,14 +40,12 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 - New files named by a pattern per collection: the date, the title, or both.
 - Context menu for rename, duplicate, reveal in Finder, copy path.
 - Command palette (`Cmd + P`) for quick file switching and command access.
-- Project list (`Cmd + Shift + O`) for switching between projects and finding ones you've moved.
+- Project list (`Cmd + Shift + O`) for switching between projects and finding ones you've moved. Opening a project takes you back to the file you had open.
 
 **Project Settings**
 
 - Shows what Astro Editor found in your project (each collection's folder, frontmatter fields and schema) and flags anything it couldn't work out.
 - Change only what it got wrong: collection folders, field mappings (title, date, draft, description), file names, image folders and more.
-- Light/dark theme with system integration.
-- IDE integration (open files/projects in VSCode, Cursor, etc.).
 
 ## Supported Astro Projects
 
