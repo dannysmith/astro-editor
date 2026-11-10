@@ -38,6 +38,25 @@ describe('collectionProblems', () => {
     expect(levels(collectionProblems(outside, '/site'))).toEqual(['error'])
   })
 
+  it("warns that a glob's folder is a guess when its base couldn't be read", () => {
+    const guessed = makeCollection({
+      name: 'blog',
+      kind: 'glob',
+      folderSource: 'convention',
+    })
+    const problems = collectionProblems(guessed, '/site')
+    expect(levels(problems)).toEqual(['warning'])
+    expect(problems[0]?.message).toContain('`src/content/blog`')
+    expect(problems[0]?.action).toBe('chooseFolder')
+
+    const missing = collectionProblems(
+      { ...guessed, folderStatus: 'missing' },
+      '/site'
+    )
+    expect(levels(missing)).toEqual(['error', 'warning'])
+    expect(missing.filter(p => p.action)).toHaveLength(1)
+  })
+
   it("doesn't report a loader AE can't read, unless its chosen folder is missing", () => {
     const guessed = makeCollection({
       name: 'books',

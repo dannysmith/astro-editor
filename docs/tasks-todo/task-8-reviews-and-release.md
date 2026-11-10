@@ -51,13 +51,53 @@ Our recent work has made some fairly significant changes to how the app works so
 - To consider rebuilding the marketing video to show some of the new features here In particular the MDX form component builder and the auto inserting stuff.
 - We should obviously also review the developer docs and code comments to ensure they're evergreen etc.
 
+### How they were run
+
+Three agents reviewed cold, given the code and the developer docs but not the task docs: an adversarial review of the project model and settings, a Rust code review and a frontend code review. The UX, website docs, developer docs and video reviews were done by hand in the dev app (personal-site, unusual-structure, dannyis-astro-content). Every agent finding was checked against the code before it was listed.
+
+### Fixes
+
+- [x] **The schema helper parser can panic** on non-ASCII text before `image()` or `reference()` (`parser.rs` mixes byte offsets and char indexes). Release builds abort on panic and reopen the last project, so the app would crash at every launch.
+- [x] **A folder override keeps the pattern's prefix,** so setting `src/content/blog` for `base: 'src/content', pattern: 'blog/**/*.md'` (the placeholder's own value) hides every file and new files can't be named.
+- [x] **Negations naming a folder** (`'!drafts'`) don't exclude the files in it, as tinyglobby does.
+- [x] **Settings saves race with rescans:** `rescan()` returns a scan already in flight, which may have read the old settings; quick edits overwrite each other; a save that finishes after a project switch stores the old project's settings.
+- [x] **Enter in a settings text field commits twice** (Enter, then the blur), so two saves, two rescans and possibly two sets of watcher listeners.
+- [x] **A `schema` imported from another file reads as no schema:** no `astro sync` warning, and the page says there's no schema.
+- [x] **A `glob()` whose `pattern` or `base` can't be read** gets no warning: an unread pattern becomes "every Markdown file" (the whole project with no `base`), and an unread base becomes a guessed folder presented as the loader's.
+- [x] **A collection imported from another file** is described as "a custom loader, which probably doesn't read files".
+- [x] **The startup notice that settings were reset can be lost:** `load_preferences` emits it before the toast listener exists. Return it instead, as `open_project` does.
+- [x] **Scans can set a broken registry aside silently** (`project_settings_for_path`, documented as read only).
+- [x] **Smaller frontend bugs:** the string field loses focus when its last line break is deleted; a settings change shows two toasts and saves a clean file; "Project opened successfully" shows when the open is refused; creating a file rescans the project but doesn't refresh counts; clearing the name pattern leaves the box blank; a favicon that fails once never shows again; the sidebar says "This directory is empty" when the selected collection becomes unavailable.
+- [x] **A collection folder created after the project opens is never watched.** The periodic rescan should rescan the project, which restarts the watcher. It now restarts the watcher once its refetch lands, if the folders changed.
+- [x] **Docs:** the website's "How projects are identified" describes `package.json` matching; four pages say "in the preferences" for project settings; stale `file()` schema notes in `schema_merger.rs` and `schema-system.md`; `app-data.md` says a lost registry "could be rebuilt".
+- [x] **Cleanups and tests:** one assets-copy command instead of two; `useCreateFile` reads the scan with `getCollection`; a test mock of a deleted module; `#[serde(default)]` instead of completing settings files by hand; a sort that runs before collections are reclassified; skipped files' frontmatter read then thrown away. Tests for `isFileListing`, the default sort, `renameNewFileFromTitle` and overlapping collections. `#[serde(default)]` made the fields optional in the TypeScript bindings, so both readers share one lenient parse instead (which also fixes scans and opens reading a partial file differently). The default sort was already tested.
+- [x] **UX:** the project list's "Open" badge reads like the Enter action ("Current" now); the sidebar repeats each collection's name as its folder (shown only when it differs); the welcome text asks for a project when one is open.
+
+### To GitHub issues
+
+- [x] A new file or rename reads every file in the collection for `slug`s; scans do blocking IO on the async runtime. #374
+- [x] Follow collections imported from other files. A comment on #288, whose "follow relative imports" covers it.
+- [x] Adopt orphaned `projects/*.json` files by their stored path when the registry is lost, and don't overwrite an existing `.v2.json`. #375
+- [x] Object-form `file()` data as reference targets. #376
+- [x] #354 updated with this branch's work and its follow-ups.
+
+### Dropped
+
+- Each frontmatter field running its own scan query: query observers are cheap.
+- Canonicalising every registry entry per scan: the registry is small.
+- Custom `srcDir`: documented as unsupported.
+
+### Marketing video
+
+The homepage video is still accurate apart from scene F, which shows the old search-and-insert MDX popup. Update that scene to show the props form and the added import; project settings has no visual moment worth a scene. See task 9, which also makes a one-off video of what's new in 1.1.0.
+
 ## Admin
 
 - [ ] Write up release notes for next release (which I think will be 1.1.0).
   - Say that project settings from 1.0.x are set aside (renamed to `*.v2.json`), so projects may need setting up again. Most won't, because folders and fields are now detected. List the settings that had to be set again in the upgrade check (task 5).
 - [ ] Update the README as needed.
 - [ ] Close and consolidate all the GH Issues.
-- [ ] Make a quick video showing off the new features since the last release. AI can probably do this for me?
+- [ ] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. See task 9.
 - [ ] Write up a quick blog post for my website showing off the new features, with screenshots.
 - [ ] Write up a thread for bluesdy showing these off as well as a post for the Astro discord.
 - [ ] Any other cleaning up in this repo on GH or here, before I make a release.

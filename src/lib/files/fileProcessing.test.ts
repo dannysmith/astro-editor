@@ -7,15 +7,7 @@ vi.mock('@/lib/bindings', () => ({
   commands: {
     isPathInProject: vi.fn(),
     copyFileToAssets: vi.fn(),
-    copyFileToAssetsWithOverride: vi.fn(),
     getRelativePath: vi.fn(),
-  },
-}))
-
-// Mock constants
-vi.mock('../constants', () => ({
-  ASTRO_PATHS: {
-    ASSETS_DIR: 'src/assets',
   },
 }))
 
@@ -52,6 +44,7 @@ describe('processFileToAssets', () => {
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -63,7 +56,7 @@ describe('processFileToAssets', () => {
     })
 
     it('should copy file to override assets directory', async () => {
-      vi.mocked(commands.copyFileToAssetsWithOverride).mockResolvedValue({
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
         data: 'custom/assets/2024-01-15-image.png',
       })
@@ -74,7 +67,7 @@ describe('processFileToAssets', () => {
         copyStrategy: 'always',
       })
 
-      expect(commands.copyFileToAssetsWithOverride).toHaveBeenCalledWith(
+      expect(commands.copyFileToAssets).toHaveBeenCalledWith(
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
@@ -107,6 +100,7 @@ describe('processFileToAssets', () => {
         '/Users/test/project/images/existing.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -136,6 +130,7 @@ describe('processFileToAssets', () => {
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -179,7 +174,7 @@ describe('processFileToAssets', () => {
 
     it('should use override assets directory when copying from outside project', async () => {
       vi.mocked(commands.isPathInProject).mockResolvedValue(false)
-      vi.mocked(commands.copyFileToAssetsWithOverride).mockResolvedValue({
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
         data: 'custom/assets/2024-01-15-image.png',
       })
@@ -190,7 +185,7 @@ describe('processFileToAssets', () => {
         copyStrategy: 'only-if-outside-project',
       })
 
-      expect(commands.copyFileToAssetsWithOverride).toHaveBeenCalledWith(
+      expect(commands.copyFileToAssets).toHaveBeenCalledWith(
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',

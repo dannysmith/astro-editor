@@ -289,9 +289,14 @@ impl<'a> Scope<'a> {
                 _ => Loader::Legacy,
             },
         };
-        let schema_source = self
-            .option(options, "schema")
-            .map(|schema| self.snippet(schema.span()));
+        // A schema AE can't follow, like one imported from another file, is
+        // still a schema: its source is just the name, with no helpers to find
+        let schema_source = match self.option(options, "schema") {
+            Some(schema) => Some(self.snippet(schema.span())),
+            None => self
+                .option_span(options, "schema")
+                .map(|span| self.snippet(span)),
+        };
 
         ConfigCollection {
             name,
@@ -299,6 +304,22 @@ impl<'a> Scope<'a> {
             has_loader: loader_option.is_some(),
             schema_source,
         }
+    }
+
+    /// Where an option's value is in an object literal, without resolving it
+    fn option_span(&self, object: &'a ObjectLit, key: &str) -> Option<Span> {
+        object.props.iter().find_map(|prop| {
+            let PropOrSpread::Prop(prop) = prop else {
+                return None;
+            };
+            match prop.as_ref() {
+                Prop::KeyValue(kv) if prop_name(&kv.key).as_deref() == Some(key) => {
+                    Some(kv.value.span())
+                }
+                Prop::Shorthand(ident) if ident.sym == key => Some(ident.span),
+                _ => None,
+            }
+        })
     }
 
     /// An option's value from an object literal, resolved
@@ -637,11 +658,13 @@ mod tests {
     fn returns_each_collections_schema_source() {
         let collections = parse(
             r#"
+            import { docsSchema } from './schemas';
             const postSchema = z.object({ cover: image() });
             export const collections = {
                 inline: defineCollection({ schema: ({ image }) => z.object({ cover: image() }) }),
                 shared: defineCollection({ schema: postSchema }),
                 none: defineCollection({}),
+                imported: defineCollection({ schema: docsSchema }),
             };
             "#,
         );
@@ -654,6 +677,7 @@ mod tests {
             Some("z.object({ cover: image() })")
         );
         assert_eq!(collections[2].schema_source, None);
+        assert_eq!(collections[3].schema_source.as_deref(), Some("docsSchema"));
     }
 
     #[test]

@@ -37,11 +37,9 @@ export const PreferencesTextInput: React.FC<PreferencesTextInputProps> = ({
     }
   }
 
+  // Blurring commits, so Enter doesn't commit a second time
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      commitIfChanged()
-      e.currentTarget.blur()
-    }
+    if (e.key === 'Enter') e.currentTarget.blur()
   }
 
   return (

@@ -7,7 +7,7 @@ Astro Editor treats a few frontmatter fields specially – both in the frontmatt
 
 ## Title
 
-Represents the item's **title**. Uses `title` by default but can be overridden in the preferences. The title field is special in the following ways:
+Represents the item's **title**. Uses `title` by default, or the field set in [Project Settings](/project-settings/#frontmatter). The title field is special in the following ways:
 
 - **File list** — shown as each file's name in the [sidebar](/file-management/overview/), falling back to the filename when unset.
 - **Frontmatter panel** — rendered as a larger, bold, auto-expanding input which always appears at the top of the panel. A **Copy as slug** button is shown below which copies a URL-friendly version of the title to your clipboard.
@@ -18,7 +18,7 @@ Represents the item's **title**. Uses `title` by default but can be overridden i
 
 ## Date
 
-Represents the item's primary **date** – usually its published date. By default it's the first of `pubDate`, `date` or `publishedDate` that a file has, and you can set a different field in the preferences. The date field is used here:
+Represents the item's primary **date** – usually its published date. By default it's the first of `pubDate`, `date` or `publishedDate` that a file has, and you can set a different field in [Project Settings](/project-settings/#frontmatter). The date field is used here:
 
 - **File list** — shown next to each file if set, and used by the **Default** sort (newest first).
 - **New files** — set to today's date when new files are created.

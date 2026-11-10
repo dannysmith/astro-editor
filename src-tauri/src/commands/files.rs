@@ -162,33 +162,16 @@ fn to_kebab_case(name_without_ext: &str) -> String {
         .join("-")
 }
 
+/// Copies a file into `<assets_directory>/<collection>/` (the folder relative to
+/// the project, as the collection's settings resolve it), named after the date
+/// and the file, and returns the path to write in the file
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_file_to_assets(
     source_path: String,
     project_path: String,
     collection: String,
-    current_file_path: String,
-    use_relative_paths: bool,
-) -> Result<String, String> {
-    copy_file_to_assets_with_override(
-        source_path,
-        project_path,
-        collection,
-        None,
-        current_file_path,
-        use_relative_paths,
-    )
-    .await
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn copy_file_to_assets_with_override(
-    source_path: String,
-    project_path: String,
-    collection: String,
-    assets_directory: Option<String>,
+    assets_directory: String,
     current_file_path: String,
     use_relative_paths: bool,
 ) -> Result<String, String> {
@@ -198,14 +181,9 @@ pub async fn copy_file_to_assets_with_override(
     let validated_project_root =
         dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
 
-    // Create the assets directory structure (use override if provided)
-    let assets_base = if let Some(assets_override) = assets_directory {
-        validated_project_root.join(assets_override)
-    } else {
-        validated_project_root.join("src").join("assets")
-    };
-
-    let assets_dir = assets_base.join(&collection);
+    let assets_dir = validated_project_root
+        .join(assets_directory)
+        .join(&collection);
 
     fs::create_dir_all(&assets_dir)
         .map_err(|e| format!("Failed to create assets directory: {e}"))?;
@@ -1450,6 +1428,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "blog".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/blog/post.md")
@@ -1486,6 +1465,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "blog".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/blog/post.md")
@@ -1541,6 +1521,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "posts".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/posts/post.md")
@@ -1587,6 +1568,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "newsletters".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/newsletters/post.md")

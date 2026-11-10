@@ -1,9 +1,8 @@
-import { useCallback, useRef, useEffect } from 'react'
-import { commands, type Collection } from '@/types'
+import { useRef } from 'react'
+import { commands } from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
-import { useCollectionsQuery } from './queries/useCollectionsQuery'
 import {
   useCreateFileMutation,
   type CreateFilePayload,
@@ -11,7 +10,7 @@ import {
 import { deserializeCompleteSchema, FieldType } from '../lib/schema'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
-import { fieldMappings } from '../lib/project-scan'
+import { fieldMappings, getCollection } from '../lib/project-scan'
 import { fileNameStem } from '../lib/files/file-name-pattern'
 import { rememberNewFile } from '../lib/files/rename'
 
@@ -62,7 +61,6 @@ const getDefaultValueForFieldType = (type: FieldType): unknown => {
  * compile the hook (it can't handle `throw` inside `try`).
  */
 async function createFileInCurrentFolder(
-  collections: Collection[],
   createFile: (payload: CreateFilePayload) => Promise<unknown>
 ): Promise<void> {
   // Get current values from store state
@@ -74,7 +72,7 @@ async function createFileInCurrentFolder(
     return
   }
 
-  const collection = collections.find(c => c.name === selectedCollection)
+  const collection = getCollection(selectedCollection)
   if (!collection) {
     toast.error('Collection not found')
     return
@@ -178,7 +176,6 @@ async function createFileInCurrentFolder(
     filename,
     content: frontmatterYaml,
     projectPath: currentProjectPath,
-    collectionName: selectedCollection,
   })
 
   // Open the new file
@@ -230,38 +227,26 @@ async function createFileInCurrentFolder(
 }
 
 export const useCreateFile = () => {
-  // PERFORMANCE FIX: Use selector syntax to avoid entire store subscriptions
-  const projectPath = useProjectStore(state => state.projectPath)
-  const { data: collections = [] } = useCollectionsQuery(projectPath)
-
   const createFileMutation = useCreateFileMutation()
-
-  // Use ref to avoid recreating callback on every query update
-  const collectionsRef = useRef(collections)
-  useEffect(() => {
-    collectionsRef.current = collections
-  }, [collections])
 
   // React ref for concurrency guard (doesn't trigger re-renders)
   const isCreatingRef = useRef(false)
 
-  const createNewFile = useCallback(async () => {
+  const createNewFile = async () => {
     if (isCreatingRef.current) {
       return // Silently ignore concurrent calls
     }
 
     isCreatingRef.current = true
-    await createFileInCurrentFolder(
-      collectionsRef.current,
-      createFileMutation.mutateAsync
-    ).catch(error =>
-      toast.error('Failed to create new file', {
-        description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      })
+    await createFileInCurrentFolder(createFileMutation.mutateAsync).catch(
+      error =>
+        toast.error('Failed to create new file', {
+          description:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        })
     )
     isCreatingRef.current = false
-  }, [createFileMutation]) // PERFORMANCE FIX: Use ref for collections, stable dependency array
+  }
 
   return { createNewFile }
 }

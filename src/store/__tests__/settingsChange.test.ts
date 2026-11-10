@@ -13,6 +13,7 @@ vi.mock('../../lib/query-client', () => ({
   queryClient: {
     fetchQuery,
     getQueryData,
+    cancelQueries: vi.fn().mockResolvedValue(undefined),
     invalidateQueries: vi.fn().mockResolvedValue(undefined),
   },
 }))
@@ -83,5 +84,32 @@ describe('changing the open file’s collection folder', () => {
 
     expect(useEditorStore.getState().currentFile).toEqual(file)
     expect(useEditorStore.getState().editorContent).toBe('unsaved words')
+  })
+})
+
+describe('a settings change while another is saving', () => {
+  beforeEach(() => {
+    fetchQuery.mockReset()
+    getQueryData.mockReturnValue(makeScan([makeCollection({ name: 'blog' })]))
+    fetchQuery.mockResolvedValue(makeScan([makeCollection({ name: 'blog' })]))
+    useProjectStore.setState({
+      projectPath: '/site',
+      currentProjectId: 'site-1234',
+      projectSettings: { project: {}, collections: {} },
+    })
+    useEditorStore.setState({ currentFile: null, isDirty: false })
+  })
+
+  it('builds on it, since the store has it before it’s saved', async () => {
+    const saving = useProjectStore.getState().updateProjectSettings(settings)
+    expect(useProjectStore.getState().projectSettings).toEqual(settings)
+    await saving
+  })
+
+  it('stops if the project changed before the save finished', async () => {
+    const saving = useProjectStore.getState().updateProjectSettings(settings)
+    useProjectStore.setState({ projectPath: '/other' })
+    await saving
+    expect(fetchQuery).not.toHaveBeenCalled()
   })
 })

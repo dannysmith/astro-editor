@@ -11,7 +11,7 @@ Each setting lives in one place: the collection or the project. The image settin
 
 | Setting | When it's not set |
 | --- | --- |
-| **Folder** | Read from the collection's `glob()` loader. If Astro Editor can't read the loader, `<content folder>/<collection name>` |
+| **Folder** | Read from the collection's `glob()` loader. If Astro Editor can't read the loader or its `base`, `<content folder>/<collection name>` |
 | **Show files Astro skips** | Off: files the loader's pattern leaves out, like drafts named `_draft.md`, aren't shown. On, they're shown dimmed |
 | **Type** (new files) | The global preference. If the collection's pattern only includes `.md` or only `.mdx` files, new files always use that type |
 | **Name** (new files) | `{YYYY-MM-DD}`: new files are named with today's date. `{title}` is the title as a slug; other placeholders are dates, like `{YYYY}` |

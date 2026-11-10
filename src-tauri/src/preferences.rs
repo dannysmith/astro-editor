@@ -68,6 +68,13 @@ impl Preferences {
         self.read_or_default(GLOBAL_SETTINGS_FILE)
     }
 
+    /// Global settings for a scan. Read only: a broken file counts as the
+    /// defaults, and is left for `load_global_settings` to set aside and report.
+    pub fn global_settings(&self) -> GlobalSettings {
+        let _lock = lock();
+        self.read_merged(GLOBAL_SETTINGS_FILE).unwrap_or_default()
+    }
+
     pub fn save_global_settings(&self, settings: &GlobalSettings) -> Result<(), String> {
         let _lock = lock();
         self.write(GLOBAL_SETTINGS_FILE, settings)
@@ -141,7 +148,7 @@ impl Preferences {
         settings: &ProjectSettingsData,
     ) -> Result<(), String> {
         let _lock = lock();
-        let registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        let registry = self.read_registry()?;
         let metadata = registry
             .projects
             .get(project_id)
@@ -156,7 +163,7 @@ impl Preferences {
             return ProjectSettingsData::default();
         };
         let _lock = lock();
-        let registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        let registry = self.read_registry().unwrap_or_default();
         find_project(&registry, &canonical)
             .and_then(|id| self.read_current_project_file(&id))
             .map(|file| file.settings)
@@ -189,7 +196,7 @@ impl Preferences {
     /// never touched.
     pub fn remove_project(&self, project_id: &str) -> Result<(), String> {
         let _lock = lock();
-        let mut registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        let mut registry = self.read_registry()?;
         if registry.projects.shift_remove(project_id).is_none() {
             return Err(format!("No project with id {project_id}"));
         }
@@ -212,7 +219,7 @@ impl Preferences {
     ) -> Result<Relocation, String> {
         let canonical = canonical_path(path)?;
         let _lock = lock();
-        let mut registry = self.read_or_default::<ProjectRegistry>(REGISTRY_FILE).value;
+        let mut registry = self.read_registry()?;
         if !registry.projects.contains_key(project_id) {
             return Err(format!("No project with id {project_id}"));
         }
@@ -250,7 +257,7 @@ impl Preferences {
     /// `read_project_file`, old and broken files are left where they are.
     fn read_current_project_file(&self, id: &str) -> Option<ProjectSettingsFile> {
         let content = std::fs::read_to_string(self.project_file(id)).ok()?;
-        serde_json::from_str::<ProjectSettingsFile>(&content)
+        parse_project_file(&content)
             .ok()
             .filter(|file| file.version >= PROJECT_SETTINGS_VERSION)
     }
@@ -295,34 +302,8 @@ impl Preferences {
             return (None, None);
         }
 
-        // A key that's missing reads as empty, and the file is written back
-        // complete. Without a path, `open_project` writes it with the right one.
-        let mut complete = true;
-        let parsed = serde_json::from_str::<serde_json::Value>(&content).and_then(|mut value| {
-            if let Some(object) = value.as_object_mut() {
-                for (key, empty) in [
-                    ("path", serde_json::json!("")),
-                    ("project", serde_json::json!({})),
-                    ("collections", serde_json::json!({})),
-                ] {
-                    if !object.contains_key(key) {
-                        complete = false;
-                        object.insert(key.to_string(), empty);
-                    }
-                }
-            }
-            serde_json::from_value::<ProjectSettingsFile>(value)
-        });
-        match parsed {
-            Ok(file) => {
-                if !complete && !file.path.is_empty() {
-                    info!("Astro Editor [PREFERENCES] Completing project settings: {id}");
-                    if let Err(e) = self.write_project_file(id, &file.path, &file.settings) {
-                        warn!("Astro Editor [PREFERENCES] Couldn't complete project settings: {e}");
-                    }
-                }
-                (Some(file), None)
-            }
+        match parse_project_file(&content) {
+            Ok(file) => (Some(file), None),
             Err(e) => (None, Some(set_aside_broken(&path, &e.to_string()))),
         }
     }
@@ -342,10 +323,30 @@ impl Preferences {
     }
 
     /// A file read over the defaults, so settings added since it was written get
-    /// their default values
+    /// their default values. A broken file is set aside and reported, so only
+    /// callers that pass the problem on to the writer use this; others use
+    /// `read_merged`, which leaves it alone.
     fn read_or_default<T: DeserializeOwned + Serialize + Default>(&self, name: &str) -> Loaded<T> {
-        let path = self.dir.join(name);
-        let parsed = match std::fs::read_to_string(&path) {
+        match self.read_merged(name) {
+            Ok(value) => Loaded {
+                value,
+                problem: None,
+            },
+            Err(e) => Loaded {
+                value: T::default(),
+                problem: Some(set_aside_broken(&self.dir.join(name), &e)),
+            },
+        }
+    }
+
+    /// A file read over the defaults, or the defaults if there isn't one. Only
+    /// a file that isn't there is missing: one that can't be read (permissions,
+    /// not UTF-8) or parsed is an error, never taken as empty and written over.
+    fn read_merged<T: DeserializeOwned + Serialize + Default>(
+        &self,
+        name: &str,
+    ) -> Result<T, String> {
+        match std::fs::read_to_string(self.dir.join(name)) {
             Ok(content) => serde_json::from_str(&content)
                 .and_then(|stored| {
                     let mut value = serde_json::to_value(T::default())?;
@@ -353,27 +354,16 @@ impl Preferences {
                     serde_json::from_value(value)
                 })
                 .map_err(|e| e.to_string()),
-            // Only a file that isn't there is missing. One that can't be read
-            // (permissions, not UTF-8) is set aside like a broken one, never
-            // taken as empty and written over
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Loaded {
-                    value: T::default(),
-                    problem: None,
-                };
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(T::default()),
             Err(e) => Err(e.to_string()),
-        };
-        match parsed {
-            Ok(value) => Loaded {
-                value,
-                problem: None,
-            },
-            Err(e) => Loaded {
-                value: T::default(),
-                problem: Some(set_aside_broken(&path, &e)),
-            },
         }
+    }
+
+    /// The registry, for changing or looking up a project. It's set aside only
+    /// where the writer is told (`open_project`, `list_projects`), never here.
+    fn read_registry(&self) -> Result<ProjectRegistry, String> {
+        self.read_merged(REGISTRY_FILE)
+            .map_err(|e| format!("The project list couldn't be read: {e}"))
     }
 
     fn write<T: Serialize>(&self, name: &str, value: &T) -> Result<(), String> {
@@ -402,6 +392,24 @@ impl Preferences {
         written.map_err(|e| format!("Failed to write {name}: {e}"))?;
         std::fs::rename(&temp, &path).map_err(|e| format!("Failed to write {name}: {e}"))
     }
+}
+
+/// A project settings file, where a missing key reads as empty: the next save
+/// writes it complete. Without a path, `open_project` writes it with the right
+/// one. (`#[serde(default)]` would do this, but would make the fields optional
+/// in the TypeScript bindings.)
+fn parse_project_file(content: &str) -> serde_json::Result<ProjectSettingsFile> {
+    let mut value = serde_json::from_str::<serde_json::Value>(content)?;
+    if let Some(object) = value.as_object_mut() {
+        for (key, empty) in [
+            ("path", serde_json::json!("")),
+            ("project", serde_json::json!({})),
+            ("collections", serde_json::json!({})),
+        ] {
+            object.entry(key).or_insert(empty);
+        }
+    }
+    serde_json::from_value(value)
 }
 
 /// Copies `stored` over `defaults`, object by object
@@ -644,27 +652,33 @@ mod tests {
     }
 
     #[test]
-    fn completes_a_project_file_missing_a_key() {
+    fn reads_a_project_file_missing_a_key() {
         let (_dir, prefs, project) = setup();
         let opened = prefs.open_project(&project).unwrap();
         let id = opened.metadata.id;
         let path = &opened.metadata.path;
 
-        for partial in [
-            serde_json::json!({ "version": 3, "path": path, "collections": { "blog": { "draftField": "hidden" } } }),
-            serde_json::json!({ "version": 3, "collections": { "blog": { "draftField": "hidden" } } }),
-        ] {
-            std::fs::write(prefs.project_file(&id), partial.to_string()).unwrap();
+        // Scans and opens read it the same way
+        let partial = serde_json::json!({ "version": 3, "path": path, "collections": { "blog": { "draftField": "hidden" } } });
+        std::fs::write(prefs.project_file(&id), partial.to_string()).unwrap();
+        assert_eq!(
+            prefs.project_settings_for_path(&project),
+            settings_with_draft_field("hidden")
+        );
+        let opened = prefs.open_project(&project).unwrap();
+        assert!(opened.problems.is_empty());
+        assert_eq!(opened.settings, settings_with_draft_field("hidden"));
 
-            let opened = prefs.open_project(&project).unwrap();
-            assert!(opened.problems.is_empty());
-            assert_eq!(opened.settings, settings_with_draft_field("hidden"));
-            let written: serde_json::Value =
-                serde_json::from_str(&std::fs::read_to_string(prefs.project_file(&id)).unwrap())
-                    .unwrap();
-            assert_eq!(written["path"], serde_json::json!(path));
-            assert_eq!(written["project"], serde_json::json!({}));
-        }
+        // Without a path, opening writes it
+        let pathless = serde_json::json!({ "version": 3, "collections": { "blog": { "draftField": "hidden" } } });
+        std::fs::write(prefs.project_file(&id), pathless.to_string()).unwrap();
+        let opened = prefs.open_project(&project).unwrap();
+        assert_eq!(opened.settings, settings_with_draft_field("hidden"));
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(prefs.project_file(&id)).unwrap())
+                .unwrap();
+        assert_eq!(written["path"], serde_json::json!(path));
+        assert_eq!(written["project"], serde_json::json!({}));
     }
 
     #[test]
@@ -690,6 +704,30 @@ mod tests {
 
         // Projects still open
         assert!(prefs.open_project(&project).is_ok());
+    }
+
+    #[test]
+    fn scans_leave_broken_files_for_an_open_to_report() {
+        let (_dir, prefs, project) = setup();
+        std::fs::create_dir_all(&prefs.dir).unwrap();
+        std::fs::write(prefs.dir.join(REGISTRY_FILE), "{ not json").unwrap();
+        std::fs::write(prefs.dir.join(GLOBAL_SETTINGS_FILE), "{ not json").unwrap();
+
+        assert_eq!(
+            prefs.project_settings_for_path(&project),
+            ProjectSettingsData::default()
+        );
+        assert_eq!(prefs.global_settings(), GlobalSettings::default());
+        assert!(prefs
+            .save_project_settings("any", &ProjectSettingsData::default())
+            .is_err());
+        assert!(prefs.remove_project("any").is_err());
+        for name in [REGISTRY_FILE, GLOBAL_SETTINGS_FILE] {
+            assert_eq!(
+                std::fs::read_to_string(prefs.dir.join(name)).unwrap(),
+                "{ not json"
+            );
+        }
     }
 
     #[test]

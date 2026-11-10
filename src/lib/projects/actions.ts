@@ -28,10 +28,9 @@ export async function openProjectViaDialog(): Promise<void> {
     })
     return
   }
-  if (result.data) {
-    useProjectStore.getState().setProject(result.data)
-    toast.success('Project opened successfully')
-  }
+  // No success toast, as when opening from the list: the switch shows it, and
+  // `setProject` reports its own failures
+  if (result.data) useProjectStore.getState().setProject(result.data)
 }
 
 /**

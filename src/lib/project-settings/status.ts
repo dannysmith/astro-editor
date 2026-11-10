@@ -84,6 +84,18 @@ export function collectionProblems(
     })
   }
 
+  // A glob's folder only comes from the convention when its `base` couldn't be
+  // read (built from variables, say)
+  if (collection.kind === 'glob' && collection.folderSource === 'convention') {
+    problems.push({
+      level: 'warning',
+      message: `Its loader's \`base\` couldn't be read, so its folder is assumed to be \`${folder}\`.`,
+      // A missing folder's error already has the button
+      action:
+        collection.folderStatus === 'missing' ? undefined : 'chooseFolder',
+    })
+  }
+
   if (collection.patternError) {
     problems.push({
       level: 'warning',

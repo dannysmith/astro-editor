@@ -37,16 +37,17 @@ export function ProjectIcon({
   favicon: string | null
   className?: string
 }) {
-  const [failed, setFailed] = useState(false)
+  // The favicon that failed to load, so another project's is still tried
+  const [failed, setFailed] = useState<string | null>(null)
   const classes = cn('size-8 shrink-0 rounded-[22%]', className)
 
-  if (favicon && !failed) {
+  if (favicon && favicon !== failed) {
     return (
       <img
         src={convertFileSrc(favicon)}
         alt=""
         draggable={false}
-        onError={() => setFailed(true)}
+        onError={() => setFailed(favicon)}
         className={cn(classes, 'object-contain')}
       />
     )

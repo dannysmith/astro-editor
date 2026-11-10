@@ -66,8 +66,16 @@ interface ProjectState {
   stopFileWatcher: () => Promise<void>
 }
 
-/** Reads the project's scan again, bypassing the cache */
-function rescan(projectPath: string): Promise<ProjectScan> {
+/**
+ * Reads the project's scan again, bypassing the cache. A scan already under
+ * way is cancelled rather than reused, since it may have read the settings
+ * from before a change.
+ */
+async function rescan(projectPath: string): Promise<ProjectScan> {
+  await queryClient.cancelQueries({
+    queryKey: queryKeys.collections(projectPath),
+    exact: true,
+  })
   return queryClient.fetchQuery({
     queryKey: queryKeys.collections(projectPath),
     queryFn: () => fetchProjectScan(projectPath),
@@ -106,6 +114,41 @@ async function watchFolders(scan: ProjectScan | undefined): Promise<void> {
   )
   await stopFileWatcher()
   await startFileWatcher()
+}
+
+/**
+ * Brings the file list up to date with a new scan: leaves the selected
+ * collection if it can't be browsed any more, goes back to its root if its
+ * files moved, refreshes every listing and restarts the watcher if the folders
+ * changed.
+ */
+async function showRescan(
+  projectPath: string,
+  before: ProjectScan | undefined,
+  after: ProjectScan | undefined
+): Promise<void> {
+  const { selectedCollection } = useProjectStore.getState()
+  if (selectedCollection && after) {
+    const collection = after.collections.find(
+      c => c.name === selectedCollection
+    )
+    if (!collection || !isBrowsable(collection)) {
+      useProjectStore.setState({
+        selectedCollection: null,
+        currentSubdirectory: null,
+      })
+    } else if (
+      collectionLayout(before, selectedCollection) !==
+      collectionLayout(after, selectedCollection)
+    ) {
+      useProjectStore.setState({ currentSubdirectory: null })
+    }
+  }
+
+  await queryClient.invalidateQueries({
+    predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
+  })
+  await watchFolders(after)
 }
 
 /** Merges `patch` into `settings`, object by object */
@@ -296,22 +339,25 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       })
 
       // Listen for watcher recovery events
+      // Refetches everything, then watches any collection folder that has
+      // appeared since (one missing when watching started isn't watched)
+      const refreshAll = async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.all })
+        await watchFolders(getProjectScan())
+      }
+
       const unlistenWatcherRescan = await listen('watcher-rescan', () => {
         void debug(
           'Astro Editor [WATCHER] Periodic rescan — refreshing queries'
         )
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.all,
-        })
+        void refreshAll()
       })
 
       const unlistenWatcherRebuilt = await listen('watcher-rebuilt', () => {
         void info(
           'Astro Editor [WATCHER] File watcher rebuilt after disconnection'
         )
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.all,
-        })
+        void refreshAll()
       })
 
       const unlistenWatcherError = await listen('watcher-error', () => {
@@ -396,6 +442,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const { projectPath } = get()
     if (!projectPath) return
 
+    const before = getProjectScan()
     const scan = await rescan(projectPath).catch(async (error: unknown) => {
       await logWarn(
         `Astro Editor [PROJECT_SCAN] Rescan failed: ${String(error)}`
@@ -403,10 +450,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return undefined
     })
     // A content config change can move a collection or change its pattern
-    await queryClient.invalidateQueries({
-      predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
-    })
-    await watchFolders(scan)
+    await showRescan(projectPath, before, scan)
   },
 
   loadPersistedProject: async () => {
@@ -449,6 +493,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       globalSettings: result.data.globalSettings,
       registry: result.data.registry,
     })
+    for (const problem of result.data.problems) {
+      toast.warning('Settings were reset', { description: problem })
+    }
   },
 
   updateGlobalSettings: async (patch: DeepPartial<GlobalSettings>) => {
@@ -479,11 +526,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return
     }
 
+    const before = getProjectScan()
+    // Set before saving, so a change made while this one saves builds on it
+    const previous = get().projectSettings
+    set({ projectSettings: settings })
     const result = await commands.saveProjectSettings(
       currentProjectId,
       settings
     )
+    if (get().projectPath !== projectPath) return
     if (result.status === 'error') {
+      set({ projectSettings: previous })
       toast.error('Failed to update project settings', {
         description: result.error,
       })
@@ -491,9 +544,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return
     }
 
-    const before = getProjectScan()
-    set({ projectSettings: settings })
     const after = await rescan(projectPath).catch(() => undefined)
+    if (get().projectPath !== projectPath) return
 
     // If the open file's collection now has different files, the file may
     // not be in it any more, so save and close it. If the save fails, it
@@ -507,12 +559,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       await info(
         'Astro Editor [PREFERENCES] Collection folder changed while its file is open - saving and closing it'
       )
-      try {
-        await useEditorStore.getState().saveFile()
-      } catch (saveError) {
-        await logError(
-          `Astro Editor [PREFERENCES] Failed to save before settings change: ${String(saveError)}`
-        )
+      if (useEditorStore.getState().isDirty) {
+        await useEditorStore.getState().saveFile(false)
       }
       if (!useEditorStore.getState().isDirty) {
         toast.warning('Collection settings changed', {
@@ -525,10 +573,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     // The pattern, folder or skipped files setting may have changed which
     // files the listings show
-    await queryClient.invalidateQueries({
-      predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
-    })
-    await watchFolders(after)
+    await showRescan(projectPath, before, after)
   },
 }))
 

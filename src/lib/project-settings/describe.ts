@@ -23,12 +23,15 @@ export function describeOrigin(
   scan: ProjectScan
 ): string {
   const config = scan.configPath ? ` in \`${scan.configPath}\`` : ''
-  const loader = collection.loaderName
-    ? `\`${collection.loaderName}()\``
-    : 'a custom loader'
+  const loader = `\`${collection.loaderName}()\``
+  // No loader name: the definition couldn't be followed, often because it's
+  // imported from another file, so whether it reads files is unknown
+  const unreadDefinition = `Its definition${config} couldn't be read, perhaps because it's in another file`
 
   if (isUnreadLoader(collection)) {
-    return `From ${loader}${config}, which probably doesn't read files.`
+    return collection.loaderName
+      ? `From ${loader}${config}, which probably doesn't read files.`
+      : `${unreadDefinition}.`
   }
   switch (collection.kind) {
     case 'glob':
@@ -36,7 +39,9 @@ export function describeOrigin(
     case 'legacy':
       return `A legacy collection${config}, without a loader.`
     case 'unknown':
-      return `From ${loader}${config}. Its folder is assumed to be the one named after it.`
+      return collection.loaderName
+        ? `From ${loader}${config}. Its folder is assumed to be the one named after it.`
+        : `${unreadDefinition}, so its folder is assumed to be the one named after it.`
     case 'folder':
       return `A folder in \`${scan.projectSettings.contentDirectory.value}\`.`
     case 'data':

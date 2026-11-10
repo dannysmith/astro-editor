@@ -270,9 +270,8 @@ pub fn create_complete_schema(
     }
 }
 
-/// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats). Only
-/// folder collections get here: `file()` collections are read as reference
-/// targets from their data file instead (`load_file_based_collection`).
+/// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats, and the
+/// array-or-object root of a `file()` collection, whose entry schema it takes)
 fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaDefinition, String> {
     log::debug!("[Schema] Parsing JSON schema for collection: {collection_name}");
 

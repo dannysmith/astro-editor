@@ -131,12 +131,27 @@ describe('describeOrigin', () => {
     const books = makeCollection({
       name: 'books',
       kind: 'unknown',
-      loaderName: null,
+      loaderName: 'atprotoLoader',
       folderStatus: 'missing',
       folderSource: 'convention',
     })
     expect(describeOrigin(books, scan)).toBe(
-      "From a custom loader in `src/content.config.ts`, which probably doesn't read files."
+      "From `atprotoLoader()` in `src/content.config.ts`, which probably doesn't read files."
+    )
+  })
+
+  it('says when a definition couldn’t be read, rather than guessing a loader', () => {
+    const blog = makeCollection({
+      name: 'blog',
+      kind: 'unknown',
+      loaderName: null,
+      folderSource: 'convention',
+    })
+    expect(describeOrigin(blog, scan)).toBe(
+      "Its definition in `src/content.config.ts` couldn't be read, perhaps because it's in another file, so its folder is assumed to be the one named after it."
+    )
+    expect(describeOrigin({ ...blog, folderStatus: 'missing' }, scan)).toBe(
+      "Its definition in `src/content.config.ts` couldn't be read, perhaps because it's in another file."
     )
   })
 

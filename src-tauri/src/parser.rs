@@ -204,34 +204,37 @@ fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
     matches
 }
 
+/// Whether a byte can be part of an identifier. Bytes of non-ASCII characters
+/// count, so a non-ASCII identifier is kept whole.
+fn is_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$' || !byte.is_ascii()
+}
+
 /// Find the field name by scanning backwards from a position to the nearest ':'
 /// Returns the field name (identifier before the colon)
+///
+/// Positions are byte offsets, as the regexes in `find_helper_calls` give them.
+/// Everything this looks for is ASCII, so scanning bytes is safe with any text.
 fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<String> {
-    let chars: Vec<char> = schema_text.chars().collect();
+    let bytes = schema_text.as_bytes();
     let mut pos = start_pos;
 
     // Scan backwards to find ':'
     while pos > 0 {
-        if chars[pos] == ':' {
+        if bytes[pos] == b':' {
             // Found colon, now scan backwards to find the field name
             let mut field_end = pos;
-            while field_end > 0 && chars[field_end - 1].is_whitespace() {
+            while field_end > 0 && bytes[field_end - 1].is_ascii_whitespace() {
                 field_end -= 1;
             }
 
             let mut field_start = field_end;
-            while field_start > 0 {
-                let ch = chars[field_start - 1];
-                if ch.is_alphanumeric() || ch == '_' || ch == '$' {
-                    field_start -= 1;
-                } else {
-                    break;
-                }
+            while field_start > 0 && is_identifier_byte(bytes[field_start - 1]) {
+                field_start -= 1;
             }
 
             if field_start < field_end {
-                let field_name: String = chars[field_start..field_end].iter().collect();
-                return Some(field_name);
+                return Some(schema_text[field_start..field_end].to_string());
             }
         }
         pos -= 1;
@@ -244,11 +247,11 @@ fn find_field_name_backwards(schema_text: &str, start_pos: usize) -> Option<Stri
 /// Returns true if z.array( appears between the last ':' and the helper position
 fn is_inside_array(schema_text: &str, helper_position: usize) -> bool {
     // Scan backwards from helper position to find the last ':'
-    let chars: Vec<char> = schema_text.chars().collect();
+    let bytes = schema_text.as_bytes();
     let mut pos = helper_position;
 
     while pos > 0 {
-        if chars[pos] == ':' {
+        if bytes[pos] == b':' {
             // Found the field colon, now check if z.array( appears between : and helper
             let between = &schema_text[pos..helper_position];
             return between.contains("z.array(");
@@ -269,20 +272,20 @@ fn find_immediate_field_name(schema_text: &str, position: usize) -> Option<Strin
 /// Build the parent path by traversing up through nested braces
 ///
 /// Returns a vector of parent field names (in reverse order - innermost to outermost)
-fn build_parent_path(schema_text: &str, start_position: usize, chars: &[char]) -> Vec<String> {
+fn build_parent_path(schema_text: &str, start_position: usize) -> Vec<String> {
+    let bytes = schema_text.as_bytes();
     let mut path_components = Vec::new();
     let mut brace_level = 0;
     let mut current_pos = start_position;
 
     while current_pos > 0 {
         current_pos -= 1;
-        let ch = chars[current_pos];
 
-        match ch {
-            '}' => {
+        match bytes[current_pos] {
+            b'}' => {
                 brace_level += 1;
             }
-            '{' => {
+            b'{' => {
                 brace_level -= 1;
 
                 // When we exit to a parent level (brace_level becomes negative)
@@ -316,14 +319,12 @@ fn build_parent_path(schema_text: &str, start_position: usize, chars: &[char]) -
 /// - Nested: "coverImage: z.object({ image: image() })" → "coverImage.image"
 /// - Deep: "meta: { author: { avatar: image() } }" → "meta.author.avatar"
 fn resolve_field_path(schema_text: &str, helper_position: usize) -> Result<String, String> {
-    let chars: Vec<char> = schema_text.chars().collect();
-
     // First, find the immediate field name for this helper
     if let Some(field_name) = find_immediate_field_name(schema_text, helper_position) {
         let mut path_components = vec![field_name];
 
         // Now trace backwards through brace levels to find parent fields
-        let parent_fields = build_parent_path(schema_text, helper_position, &chars);
+        let parent_fields = build_parent_path(schema_text, helper_position);
         path_components.extend(parent_fields);
 
         // Reverse to get the path from outermost to innermost
@@ -914,6 +915,29 @@ export const collections = {
         assert!(hero_field.is_some(), "Should find hero field");
         let hero_field = hero_field.unwrap();
         assert_eq!(hero_field["type"], "Image");
+    }
+
+    #[test]
+    fn finds_helpers_after_non_ascii_text() {
+        let content = r#"
+export const collections = {
+  test: defineCollection({
+    schema: ({ image }) => z.object({
+      title: z.string().describe('日本語のタイトル — ブログ記事の見出しです'),
+      meta: z.object({ hero: image() }),
+      author: reference('authors'),
+    }),
+  }),
+};
+"#;
+        let parsed_schema = helpers_in(content);
+        let names: Vec<&str> = parsed_schema["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, ["meta.hero", "author"]);
     }
 
     #[test]

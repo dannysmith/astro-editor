@@ -1,5 +1,4 @@
 import { commands } from '@/lib/bindings'
-import { ASTRO_PATHS } from '../constants'
 import type {
   ProcessFileToAssetsOptions,
   ProcessFileToAssetsResult,
@@ -44,29 +43,14 @@ export async function processFileToAssets(
   let wasCopied: boolean
 
   if (shouldCopy) {
-    // Copy file to assets directory
-    let result
-    if (assetsDirectory !== ASTRO_PATHS.ASSETS_DIR) {
-      // Use collection-specific or project-level override
-      result = await commands.copyFileToAssetsWithOverride(
-        sourcePath,
-        projectPath,
-        collection,
-        assetsDirectory,
-        currentFilePath,
-        useRelativePaths
-      )
-    } else {
-      // Use default assets directory
-      result = await commands.copyFileToAssets(
-        sourcePath,
-        projectPath,
-        collection,
-        currentFilePath,
-        useRelativePaths
-      )
-    }
-
+    const result = await commands.copyFileToAssets(
+      sourcePath,
+      projectPath,
+      collection,
+      assetsDirectory,
+      currentFilePath,
+      useRelativePaths
+    )
     if (result.status === 'error') {
       throw new Error(result.error)
     }

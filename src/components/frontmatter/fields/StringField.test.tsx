@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
+import type { FileEntry } from '@/types'
 import { StringField } from './StringField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
@@ -12,6 +13,26 @@ describe('StringField', () => {
     const box = screen.getByRole('textbox')
     expect(box.tagName).toBe('TEXTAREA')
     expect(box).toHaveValue('First line\nSecond')
+  })
+
+  it('stays a textarea when its last line break is deleted, until another file opens', () => {
+    const file = (path: string) => ({ path }) as FileEntry
+    useEditorStore.setState({
+      currentFile: file('/site/a.md'),
+      frontmatter: { summary: 'First line\nSecond' },
+    })
+    renderWithProviders(<StringField name="summary" label="Summary" />)
+
+    act(() => useEditorStore.setState({ frontmatter: { summary: 'First' } }))
+    expect(screen.getByRole('textbox').tagName).toBe('TEXTAREA')
+
+    act(() =>
+      useEditorStore.setState({
+        currentFile: file('/site/b.md'),
+        frontmatter: { summary: 'One line' },
+      })
+    )
+    expect(screen.getByRole('textbox').tagName).toBe('INPUT')
   })
 
   it('is a one-line input otherwise', () => {

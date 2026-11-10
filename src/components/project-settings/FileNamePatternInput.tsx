@@ -39,8 +39,12 @@ export function FileNamePatternInput({
 
   const parsed = parseFileNamePattern(pattern)
   const commit = (next: string) => {
-    if (!next.trim()) onChange(undefined)
-    else if (next !== value && 'parts' in parseFileNamePattern(next)) {
+    if (!next.trim()) {
+      // Shows the default until the reset comes back, and stays if the
+      // setting was already unset, when `value` won't change
+      setPattern(value)
+      onChange(undefined)
+    } else if (next !== value && 'parts' in parseFileNamePattern(next)) {
       onChange(next)
     }
   }
@@ -58,11 +62,9 @@ export function FileNamePatternInput({
         aria-invalid={pattern.trim() !== '' && 'error' in parsed}
         onChange={e => setPattern(e.target.value)}
         onBlur={() => commit(pattern)}
+        // Blurring commits, so Enter doesn't commit a second time
         onKeyDown={e => {
-          if (e.key === 'Enter') {
-            commit(pattern)
-            e.currentTarget.blur()
-          }
+          if (e.key === 'Enter') e.currentTarget.blur()
         }}
       />
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

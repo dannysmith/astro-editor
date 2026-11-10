@@ -27,7 +27,7 @@ By default, links inserted this way will use a relative path from the current fi
 [My Blog Post](../blog/my-blog-post.md)
 ```
 
-This is often not what you want, so it's possible to configure the format used for these links in the preferences on a per-collection basis, by supplying a URL pattern. For example, if your blog collection serves posts at `/writing/mypost` you can set the URL pattern to `/writing/{slug}`, which will cause links to blog posts to look like this instead:
+This is often not what you want, so each collection can have a URL pattern for these links, set in [Project Settings](/project-settings/#images-and-links). For example, if your blog collection serves posts at `/writing/mypost` you can set the URL pattern to `/writing/{slug}`, which will cause links to blog posts to look like this instead:
 
 ```markdown
 [My Blog Post](/writing/my-blog-post)

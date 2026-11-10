@@ -104,22 +104,27 @@ pub async fn reset_all_preferences(
 pub struct StoredPreferences {
     pub global_settings: GlobalSettings,
     pub registry: ProjectRegistry,
+    /// Files that couldn't be read, so were set aside and replaced with
+    /// defaults, for the frontend to say so. Returned rather than sent as a
+    /// toast, since this runs before the toast listener may be ready.
+    pub problems: Vec<String>,
 }
 
 /// Reads global settings and the project registry. A file that couldn't be read
-/// is set aside and replaced with defaults, with a toast saying so.
+/// is set aside and replaced with defaults, and reported in `problems`.
 #[tauri::command]
 #[specta::specta]
 pub async fn load_preferences(app: tauri::AppHandle) -> Result<StoredPreferences, String> {
     let preferences = Preferences::from_app(&app)?;
     let global = preferences.load_global_settings();
     let registry = preferences.load_registry();
-    for problem in [global.problem, registry.problem].into_iter().flatten() {
-        show_problem(&app, &problem);
-    }
     Ok(StoredPreferences {
         global_settings: global.value,
         registry: registry.value,
+        problems: [global.problem, registry.problem]
+            .into_iter()
+            .flatten()
+            .collect(),
     })
 }
 

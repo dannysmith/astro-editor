@@ -65,11 +65,11 @@ The top of a collection's page says where it comes from, such as `glob()` in `sr
 | Status | When |
 | --- | --- |
 | **Error** | The collection's folder doesn't exist, or is outside the project (Astro Editor only edits files inside the project), or its generated schema couldn't be read. A missing folder has a **Choose Folder…** button. |
-| **Warning** | The config has a schema, but Astro hasn't generated it, usually because `astro sync` hasn't run. Or the collection's file pattern couldn't be read. |
+| **Warning** | The config has a schema, but Astro hasn't generated it, usually because `astro sync` hasn't run. Or the loader's `pattern` or `base` couldn't be read, for example because it's built from variables. |
 
 A collection without a schema isn't a problem, but its page says so at the top, since its fields can only be edited as plain text.
 
-If Astro Editor can't read a collection's loader, it looks for a folder named after the collection in the content folder. When there is one, it uses that, and the page says so. When there isn't, the collection is listed under Other Collections.
+If Astro Editor can't read a collection's loader, or its definition (such as one imported from another file), it looks for a folder named after the collection in the content folder. When there is one, it uses that, and the page says so. When there isn't, the collection is listed under Other Collections.
 
 ### Files
 
@@ -125,7 +125,7 @@ Without a generated schema, Astro Editor only knows the fields that use `image()
 
 A data collection's page says where it's defined and shows its schema. If you've set an IDE in [Preferences](/preferences/), **Open in IDE** opens its files there.
 
-A collection whose loader probably doesn't read files, like one that fetches from an API, shows its schema and a **Folder** setting. If its entries are Markdown files in your project after all, choose their folder and it moves into the file list.
+A collection whose loader probably doesn't read files, like one that fetches from an API, shows its schema and a **Folder** setting. So does one whose definition couldn't be read and whose folder wasn't found. If its entries are Markdown files in your project after all, choose their folder and it moves into the file list.
 
 ## Opening a project for the first time
 

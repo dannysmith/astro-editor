@@ -14,7 +14,9 @@ const WelcomeScreen: React.FC = () => {
       <div className="flex flex-col gap-4 text-center text-muted-foreground">
         <h2 className="m-0 text-2xl font-light">Welcome to Astro Editor</h2>
         <p className="m-0 text-sm">
-          Select a project folder to get started, then choose a file to edit.
+          {projectPath == null
+            ? 'Select a project folder to get started, then choose a file to edit.'
+            : 'Choose a file to edit.'}
         </p>
         {projectPath == null && (
           <Button

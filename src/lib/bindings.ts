@@ -13,8 +13,12 @@ export const commands = {
 	createFile: (directory: string, filename: string, content: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
-	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, currentFilePath, useRelativePaths })),
-	copyFileToAssetsWithOverride: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string | null, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets_with_override", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
+	/**
+	 *  Copies a file into `<assets_directory>/<collection>/` (the folder relative to
+	 *  the project, as the collection's settings resolve it), named after the date
+	 *  and the file, and returns the path to write in the file
+	 */
+	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
 	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
@@ -122,7 +126,7 @@ export const commands = {
 	resetAllPreferences: () => typedError<null, string>(__TAURI_INVOKE("reset_all_preferences")),
 	/**
 	 *  Reads global settings and the project registry. A file that couldn't be read
-	 *  is set aside and replaced with defaults, with a toast saying so.
+	 *  is set aside and replaced with defaults, and reported in `problems`.
 	 */
 	loadPreferences: () => typedError<StoredPreferences, string>(__TAURI_INVOKE("load_preferences")),
 	saveGlobalSettings: (settings: GlobalSettings) => typedError<null, string>(__TAURI_INVOKE("save_global_settings", { settings })),
@@ -582,6 +586,12 @@ export type SortDirection = "asc" | "desc";
 export type StoredPreferences = {
 	globalSettings: GlobalSettings,
 	registry: ProjectRegistry,
+	/**
+	 *  Files that couldn't be read, so were set aside and replaced with
+	 *  defaults, for the frontend to say so. Returned rather than sent as a
+	 *  toast, since this runs before the toast listener may be ready.
+	 */
+	problems: string[],
 };
 
 export type Theme = "light" | "dark" | "system";

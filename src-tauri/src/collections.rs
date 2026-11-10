@@ -58,7 +58,7 @@ pub fn scan_project(
     }
 
     let fallback = defined.is_none();
-    let mut found: Vec<Found> = match defined {
+    let found: Vec<Found> = match defined {
         Some(defined) => {
             // Astro also makes collections from undefined `src/content` folders
             // when no collection has a loader
@@ -98,12 +98,12 @@ pub fn scan_project(
             })
             .collect(),
     };
-    found.sort_by_key(|c| c.kind == CollectionKind::Data);
-
-    let collections = found
+    let mut collections: Vec<Collection> = found
         .into_iter()
         .map(|found| resolve_collection(found, project, settings, global))
         .collect();
+    // Data last, after resolving, which can find a glob only matches data files
+    collections.sort_by_key(|c| c.kind == CollectionKind::Data);
 
     ProjectScan {
         config_path: config_path.map(|path| relative_to(&path, project)),
@@ -201,6 +201,13 @@ fn resolve_collection(
             Ok(pattern) => (pattern, Some(patterns.clone()), None),
             Err(e) => (EntryPattern::legacy(), None, Some(e)),
         },
+        // Built from variables, say. Without a warning, the legacy pattern would
+        // quietly list every Markdown file under the base
+        None if found.kind == CollectionKind::Glob => (
+            EntryPattern::legacy(),
+            None,
+            Some("The pattern isn't a string or a list of strings.".to_string()),
+        ),
         None => (EntryPattern::legacy(), None, None),
     };
 
@@ -209,7 +216,14 @@ fn resolve_collection(
         kind = CollectionKind::Data;
     }
 
-    // A folder override replaces `base`, and the pattern's prefix with it
+    // A folder override replaces `base`, and the pattern's prefix with it, so the
+    // pattern applies inside the folder
+    let patterns = match (&set.folder, patterns) {
+        (Some(_), Some(patterns)) if !pattern.prefix().is_empty() => Some(
+            crate::content_config::pattern::without_prefix(&patterns, pattern.prefix()),
+        ),
+        (_, patterns) => patterns,
+    };
     let (base, path, folder_source) = match &set.folder {
         Some(folder) => {
             let base = normalize(&project.join(folder));
@@ -589,6 +603,23 @@ mod tests {
         assert_eq!(blog.path, site.root().join("content/posts"));
         assert_eq!(blog.base, blog.path);
         assert_eq!(blog.folder_source, SettingSource::Set);
+        // The pattern's `blog/` prefix is the folder it replaces
+        let pattern = entry_pattern(blog);
+        assert!(pattern.is_match("post.md"));
+        assert!(pattern.is_match("2024/post.md"));
+    }
+
+    #[test]
+    fn a_glob_pattern_that_cant_be_read_is_reported() {
+        let site = Site::new(
+            r#"import { patterns } from './patterns';
+            export const collections = {
+                blog: defineCollection({ loader: glob({ pattern: patterns, base: 'src/content/blog' }) }),
+            };"#,
+        )
+        .dir("src/content/blog");
+        let scan = site.scan();
+        assert!(named(&scan, "blog").pattern_error.is_some());
     }
 
     #[test]

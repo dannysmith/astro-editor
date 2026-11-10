@@ -37,6 +37,9 @@ impl EntryPattern {
             let glob = compile(&pattern)?;
             if is_negation {
                 exclude.add(glob);
+                // As in tinyglobby, a negation that names a folder (`!drafts`)
+                // excludes everything in it
+                exclude.add(compile(&format!("{pattern}/**"))?);
             } else {
                 include.add(glob);
                 includes.push(pattern);
@@ -124,6 +127,27 @@ fn compile(pattern: &str) -> Result<Glob, String> {
         .map_err(|e| format!("Couldn't read the pattern `{pattern}`: {}", e.kind()))
 }
 
+/// The patterns with `prefix` (their shared literal folders, from `prefix()`)
+/// taken off the front, for a collection whose folder is set to the folder the
+/// prefix names. Negations that don't start with it are kept as they are.
+pub fn without_prefix(patterns: &[String], prefix: &str) -> Vec<String> {
+    patterns
+        .iter()
+        .map(|pattern| {
+            let (bang, rest) = match pattern.strip_prefix('!') {
+                Some(rest) if !rest.starts_with('(') => ("!", rest),
+                _ => ("", pattern.as_str()),
+            };
+            let rest = normalize(rest);
+            let inside = rest
+                .strip_prefix(prefix)
+                .and_then(|inside| inside.strip_prefix('/'))
+                .unwrap_or(&rest);
+            format!("{bang}{inside}")
+        })
+        .collect()
+}
+
 /// As tinyglobby does: no leading `./` and no trailing `/`
 fn normalize(pattern: &str) -> String {
     let mut pattern = pattern;
@@ -192,6 +216,29 @@ mod tests {
         assert!(!p.is_match("drafts/post.md"));
         assert!(!p.is_match("README.md"));
         assert!(p.is_match("docs/README.md"));
+    }
+
+    #[test]
+    fn negating_a_folder_excludes_its_files() {
+        let p = pattern(&["**/*.md", "!drafts", "!**/_archive"]);
+        assert!(p.is_match("post.md"));
+        assert!(!p.is_match("drafts/post.md"));
+        assert!(!p.is_match("drafts/old/post.md"));
+        assert!(!p.is_match("2024/_archive/post.md"));
+        assert!(p.is_match("drafts-and-more.md"));
+    }
+
+    #[test]
+    fn without_prefix_takes_the_folder_off_each_pattern() {
+        let patterns = [
+            "blog/**/*.md".to_string(),
+            "!blog/drafts".to_string(),
+            "!**/_*".to_string(),
+        ];
+        assert_eq!(
+            without_prefix(&patterns, "blog"),
+            ["**/*.md", "!drafts", "!**/_*"]
+        );
     }
 
     #[test]

@@ -61,7 +61,7 @@ export function ProjectItem({
             </Badge>
           )}
           {isOpen ? (
-            <Badge variant="secondary">Open</Badge>
+            <Badge variant="secondary">Current</Badge>
           ) : (
             <span>{formatLastOpened(project.lastOpened, now)}</span>
           )}

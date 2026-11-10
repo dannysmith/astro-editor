@@ -198,7 +198,7 @@ pub async fn scan_project(
     let project = canonical_project(&project_path)?;
     let preferences = Preferences::from_app(&app)?;
     let settings = preferences.project_settings_for_path(&project);
-    let global = preferences.load_global_settings().value;
+    let global = preferences.global_settings();
     Ok(collections::scan_project(&project, &settings, &global))
 }
 
@@ -356,10 +356,9 @@ pub async fn scan_collection_files_recursive(
     let listing = CollectionListing::new(&collection);
     let mut files = Vec::new();
     walk_markdown(&collection.path, &mut |path| {
-        if let Some(entry) = listing.file_entry(path, true) {
-            if entry.is_entry {
-                files.push(entry);
-            }
+        // Checked before reading the file, which skipped files aren't worth
+        if listing.is_entry(path) {
+            files.extend(listing.file_entry(path, true));
         }
         false
     });
@@ -636,7 +635,7 @@ pub async fn resolve_file_entry(
     let scan = collections::scan_project(
         &project,
         &preferences.project_settings_for_path(&project),
-        &preferences.load_global_settings().value,
+        &preferences.global_settings(),
     );
     resolve_file_in_scan(&file_path, &project, &scan)
 }
@@ -897,6 +896,37 @@ mod tests {
         assert_eq!(entry.name, "post");
         assert_eq!(entry.extension, "md");
         assert_eq!(entry.id, "blog/post");
+    }
+
+    #[tokio::test]
+    async fn resolves_overlapping_collections_to_the_most_specific_one() {
+        let (temp, post) = make_project_with_file("blog/post.md");
+        let draft = temp.path().join("src/content/blog/draft.mdx");
+        let about = temp.path().join("src/content/about.md");
+        std::fs::write(&draft, "# Draft\n").unwrap();
+        std::fs::write(&about, "# About\n").unwrap();
+        std::fs::write(
+            temp.path().join("src/content.config.ts"),
+            r#"export const collections = {
+                pages: defineCollection({ loader: glob({ base: 'src/content', pattern: '**/*.{md,mdx}' }) }),
+                blog: defineCollection({ loader: glob({ base: 'src/content/blog', pattern: '*.md' }) }),
+            };"#,
+        )
+        .unwrap();
+
+        let collection = |file: &PathBuf| {
+            resolve(
+                file.to_string_lossy().to_string(),
+                temp.path().to_string_lossy().to_string(),
+            )
+            .unwrap()
+            .expect("expected the file to resolve")
+            .collection
+        };
+        assert_eq!(collection(&post), "blog");
+        assert_eq!(collection(&about), "pages");
+        // Not one of blog's entries, so it's the collection whose pattern takes it
+        assert_eq!(collection(&draft), "pages");
     }
 
     #[tokio::test]

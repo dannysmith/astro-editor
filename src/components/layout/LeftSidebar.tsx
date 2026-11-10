@@ -493,6 +493,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="p-2">
             {[...collections, ...unavailable].map(collection => {
               const available = collection.folderStatus === 'ok'
+              const folder = collection.path.split('/').pop()
               const fileCount = fileCounts[collection.name] ?? 0
               const problems = projectPath
                 ? collectionProblems(collection, projectPath)
@@ -541,9 +542,12 @@ export const LeftSidebar: React.FC = () => {
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {collection.path.split('/').pop()}
-                  </div>
+                  {/* The folder, where it isn't just the collection's name */}
+                  {folder !== collection.name && (
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      {folder}
+                    </div>
+                  )}
                 </button>
               )
             })}
