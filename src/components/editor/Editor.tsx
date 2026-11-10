@@ -12,6 +12,7 @@ import { useEditorSetup, useEditorHandlers } from '../../hooks/editor'
 import { useImageHover } from '../../hooks/editor/useImageHover'
 import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { setCurrentEditorView } from '../../lib/editor/editor-view-ref'
+import { loadDocument } from '../../lib/editor/load-document'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
@@ -254,13 +255,7 @@ const EditorViewComponent: React.FC = () => {
       // Mark this as a programmatic update to prevent triggering the update listener
       isProgrammaticUpdate.current = true
 
-      viewRef.current.dispatch({
-        changes: {
-          from: 0,
-          to: viewRef.current.state.doc.length,
-          insert: editorContent,
-        },
-      })
+      loadDocument(viewRef.current, editorContent)
 
       // Reset the flag after the update is complete
       setTimeout(() => {
@@ -291,16 +286,9 @@ const EditorViewComponent: React.FC = () => {
           const currentSelection = viewRef.current.state.selection
           const cursorPos = currentSelection.main.anchor
 
-          viewRef.current.dispatch({
-            changes: {
-              from: 0,
-              to: viewRef.current.state.doc.length,
-              insert: newContent,
-            },
-            // Clamp cursor to valid range in new content
-            selection: {
-              anchor: Math.min(cursorPos, newContent.length),
-            },
+          // Clamp cursor to valid range in new content
+          loadDocument(viewRef.current, newContent, {
+            anchor: Math.min(cursorPos, newContent.length),
           })
 
           setTimeout(() => {

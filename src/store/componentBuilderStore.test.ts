@@ -140,6 +140,26 @@ describe('componentBuilderStore imports', () => {
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
 
+  it("doesn't insert into a file opened while it plans", async () => {
+    await select()
+    const pending = deferred()
+    planComponentImport.mockReturnValueOnce(pending.promise)
+
+    const inserting = useComponentBuilderStore.getState().insert()
+    useEditorStore.setState({
+      currentFile: {
+        ...useEditorStore.getState().currentFile!,
+        id: 'notes/b',
+        path: '/site/src/content/notes/b.mdx',
+      },
+    })
+    pending.resolve(planWith())
+    await inserting
+
+    expect(insertSnippet).not.toHaveBeenCalled()
+    expect(useEditorStore.getState().imports).toBe('')
+  })
+
   it('plans again on insert, against the file as it is then', async () => {
     const pending = deferred()
     planComponentImport.mockReturnValueOnce(pending.promise)

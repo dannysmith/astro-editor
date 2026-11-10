@@ -11,6 +11,8 @@ import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
+import { toast } from '../../lib/toast'
+import { deleteFile } from '../../lib/files/delete'
 import { openInIde } from '../../lib/ide'
 import { getTitle } from '@/lib/files/sorting'
 import { getPlatform } from '@/hooks/usePlatform'
@@ -205,8 +207,7 @@ export class FileContextMenu {
                 await FileContextMenu.showConfirmationDialog(fileName)
               if (confirmed) {
                 // Through Rust, which refuses paths outside the project
-                const result = await commands.deleteFile(file.path, projectPath)
-                if (result.status === 'error') throw new Error(result.error)
+                await deleteFile(file.path, projectPath)
                 // Refresh the file list if callback is provided
                 if (onRefresh) {
                   onRefresh()
@@ -214,6 +215,10 @@ export class FileContextMenu {
               }
             } catch (error) {
               void logError(`Failed to delete file: ${String(error)}`)
+              toast.error("Couldn't delete the file", {
+                description:
+                  error instanceof Error ? error.message : String(error),
+              })
             }
           })()
         },

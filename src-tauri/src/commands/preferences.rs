@@ -55,7 +55,9 @@ pub async fn open_preferences_folder(app: tauri::AppHandle) -> Result<(), String
     Ok(())
 }
 
-/// Resets all preferences by deleting the app data directory and restarting the app
+/// Resets all preferences by deleting the settings files and the window state,
+/// then restarts the app. Recovery files, crash reports and the telemetry id
+/// are kept: recovery files may hold the only copy of unsaved text.
 #[tauri::command]
 #[specta::specta]
 #[allow(unreachable_code)]
@@ -70,20 +72,21 @@ pub async fn reset_all_preferences(
         .resolve("", BaseDirectory::AppLocalData)
         .map_err(|e| format!("Failed to resolve app data directory: {e}"))?;
 
+    let preferences_dir = app_data_dir.join("preferences");
     info!(
         "Astro Editor [PREFERENCES] Resetting all preferences - deleting: {}",
-        app_data_dir.display()
+        preferences_dir.display()
     );
-
-    // Delete the entire app data directory
-    if app_data_dir.exists() {
-        std::fs::remove_dir_all(&app_data_dir)
+    if preferences_dir.exists() {
+        std::fs::remove_dir_all(&preferences_dir)
             .map_err(|e| format!("Failed to delete preferences: {e}"))?;
-
-        info!("Astro Editor [PREFERENCES] All preferences deleted successfully");
-    } else {
-        info!("Astro Editor [PREFERENCES] No preferences directory found to delete");
     }
+    let window_state = app_data_dir.join(crate::window_state::FILE_NAME);
+    if window_state.exists() {
+        std::fs::remove_file(&window_state)
+            .map_err(|e| format!("Failed to delete the window state: {e}"))?;
+    }
+    info!("Astro Editor [PREFERENCES] All preferences deleted successfully");
 
     // Restart the application
     info!("Astro Editor [PREFERENCES] Restarting application");

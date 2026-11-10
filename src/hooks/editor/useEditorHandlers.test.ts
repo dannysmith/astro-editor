@@ -40,6 +40,7 @@ interface MockEditorState {
   frontmatterBaseline: null
   imports: string
   openFile: Mock
+  closeFile: Mock
   closeCurrentFile: Mock
   updateFrontmatterField: Mock
   scheduleAutoSave: Mock
@@ -69,6 +70,7 @@ describe('useEditorHandlers', () => {
       frontmatterBaseline: null,
       imports: '',
       openFile: vi.fn(),
+      closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),
       updateFrontmatterField: vi.fn(),
       scheduleAutoSave: vi.fn(),

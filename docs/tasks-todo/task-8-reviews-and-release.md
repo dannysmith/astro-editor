@@ -32,7 +32,7 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 3. **Deleting the open file leaves it open, and the next save recreates it** (`context-menu.tsx:198`). A failed delete is only logged. Fix: close it without saving after a delete; toast on failure.
 4. **Renaming the open file from the sidebar skips the rename guard** (`LeftSidebar.tsx:195`): no save first, no `renameUnderWay`, so an auto-save mid-rename can write the old file back. Fix: route it through `lib/files/rename.ts`.
 5. **Editing any frontmatter field unquotes date-like strings.** serde_norway writes `version: "2024-01-01"` as `version: 2024-01-01`, which Astro reads as a date, so a `z.string()` field fails the build. *(1.0.20)* Fix: quote strings that look like YAML timestamps unless the schema says the field is a date.
-6. **Saves aren't atomic.** `std::fs::write` truncates first, so a full disk or a save cut off at quit can leave the file empty or partial (`files.rs:349`). *(1.0.20)* Fix: temp file, sync, rename, keeping permissions. Needs a decision: it changes the file's inode, which some tools notice.
+6. **Saves aren't atomic.** `std::fs::write` truncates first, so a full disk or a save cut off at quit can leave the file empty or partial (`files.rs:349`). *(1.0.20)* **Dropped:** an editor should write the file itself, as VS Code does, and replacing it changes its inode, which is surprising. The risk is small and nobody has reported it.
 7. **Reset All Preferences deletes recovery files too** (all of `AppLocalData`), and restarts without saving the open file. *(1.0.20)*
 8. **Async inserts can land in a file opened meanwhile** (plausible): a dropped image, or the component builder's planned imports (`setImports`), after the open file changes. `ImagePicker` already guards against this.
 9. **Overlapping saves of the same file can land out of order** (plausible), leaving older text on disk with the file marked clean. Fix: one save at a time, queueing the next.
@@ -87,8 +87,25 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 
 ## Phase 3: Triage and fix
 
-- [ ] Go through the findings with Danny: fix now, open an issue, or drop.
-- [ ] Fix on a branch, then PR and merge.
+- [x] Go through the findings with Danny: fix now, open an issue, or drop. Fixes are done on `main`, a commit per group, in this order: data safety, bugs, performance, UX, docs, release notes.
+
+**Decisions**
+
+- **Data safety:** fix 1, 2, 3, 4, 7, 8 and 9. Drop 5 until someone reports it (it's been there since 1.0, and editing the YAML in place for #370 would fix most of it) and 6 (an editor should write the file itself).
+- **Bugs:** fix 10–15, 17 and 20 (try serde_json's `preserve_order`; an issue if it ripples). 16: fix the false toast, drop the listener leak. 19: comment on #288 and delete the dead warning branch. 22: validate paths in the five commands, check the assets folder before creating it, and delete the empty file when a copy fails; drop the dangling symlink. 23: fix the deep link's silent set-aside and the delete order in remove and replace; drop the rest. Drop 18 and 21 until someone reports them.
+- **Performance:** fix 24 (`block_in_place` around `recv_timeout`) and 25 (canonicalise a stored path only when its folder name matches, ignoring case). 26: keep the parser's regexes in a `LazyLock`, and add the listings and import planning to #374.
+- **UX:** fix 27 (Preferences copy, layout unchanged), 28 (the project's own icon for the file list footer's Project Settings button and Preferences' link, so the cog only ever means Preferences) and 29 ("Edited as JSON", and `YamlField` renamed to match).
+- **Docs:** fix 30–37, after the code, so they describe the fixed behaviour (including "closing saves first"). "Overrides" becomes "Settings Reference" at `/reference/settings/`, redirected from the old URL. Two agents, one for `website/` and one for `docs/developer/` and code comments, with Danny reviewing their diffs.
+- **Release notes:** last. Add the file-system plugin's removal under the hood (not #371), apply the writing review, and add this round's fixes that affect people.
+
+**Fixes**
+
+- [x] Data safety: 1, 2, 3, 4, 7, 8, 9
+- [ ] Bugs: 10–17, 19, 20, 22, 23
+- [ ] Performance: 24, 25, 26
+- [ ] UX: 27, 28, 29
+- [ ] Docs: 30–37
+- [ ] Release notes: 38, 39
 
 ## Phase 4: A note for danny.is
 

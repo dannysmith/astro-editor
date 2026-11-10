@@ -135,7 +135,11 @@ export const commands = {
 	stopWatchingProject: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("stop_watching_project", { projectPath })),
 	/**  Opens the preferences folder in the system's default file manager */
 	openPreferencesFolder: () => typedError<null, string>(__TAURI_INVOKE("open_preferences_folder")),
-	/**  Resets all preferences by deleting the app data directory and restarting the app */
+	/**
+	 *  Resets all preferences by deleting the settings files and the window state,
+	 *  then restarts the app. Recovery files, crash reports and the telemetry id
+	 *  are kept: recovery files may hold the only copy of unsaved text.
+	 */
 	resetAllPreferences: () => typedError<null, string>(__TAURI_INVOKE("reset_all_preferences")),
 	/**
 	 *  Reads global settings and the project registry. A file that couldn't be read

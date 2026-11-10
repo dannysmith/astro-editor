@@ -125,6 +125,13 @@ export const handleTauriFileDrop = async (
     }
   }
 
+  // Copying can take a while. If another file is opened meanwhile, the editor
+  // holds that file now, and the text (relative to this one) doesn't belong
+  const anotherFileOpened = (): DropResult | null =>
+    useEditorStore.getState().currentFile?.id === currentFile!.id
+      ? null
+      : { success: false, insertText: '', error: 'Another file was opened' }
+
   // Process files normally
   try {
     const processedFiles = await processDroppedFiles(
@@ -132,6 +139,8 @@ export const handleTauriFileDrop = async (
       projectPath!,
       currentFile!.collection
     )
+    const switched = anotherFileOpened()
+    if (switched) return switched
 
     const insertText = processedFiles.map(file => file.markdownText).join('\n')
 
@@ -146,6 +155,9 @@ export const handleTauriFileDrop = async (
 
     return { success: true, insertText }
   } catch {
+    const switched = anotherFileOpened()
+    if (switched) return switched
+
     // Handle processing errors
     const fallbackText = buildFallbackMarkdownForPaths(filePaths)
 

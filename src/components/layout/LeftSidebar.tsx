@@ -41,7 +41,7 @@ import {
 import { StatusIcon, WithCode } from '../project-settings/Problems'
 import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
-import { followRenamedFile } from '../../lib/files/rename'
+import { renameFile } from '../../lib/files/rename'
 import { filterFilesBySearch } from '../../lib/files/search'
 import { deserializeCompleteSchema } from '../../lib/schema'
 
@@ -212,18 +212,20 @@ export const LeftSidebar: React.FC = () => {
 
     // mutateAsync rather than mutate's callbacks, which only run for the
     // latest call. On failure the name stays editable, so the writer can retry
-    void renameMutation
-      .mutateAsync({
+    void renameFile(file.path, newPath, projectPath, () =>
+      renameMutation.mutateAsync({
         oldPath: file.path,
         oldFileId: file.id,
         newPath,
         projectPath,
         collectionName: selectedCollection,
       })
-      .then(() => {
-        void followRenamedFile(file.path, newPath, projectPath)
+    )
+      .then(renamed => {
         // Another file may be being renamed by now
-        setRenamingFileId(current => (current === file.id ? null : current))
+        if (renamed) {
+          setRenamingFileId(current => (current === file.id ? null : current))
+        }
       })
       .catch((error: unknown) => {
         void logError(`Failed to rename file: ${String(error)}`)

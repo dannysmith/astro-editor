@@ -2,7 +2,8 @@
  * Renaming the open file to follow its collection's file name pattern: by the
  * Rename File from Pattern command, the published date's "Rename file to
  * match" link, and once for a file created this session, when its title is
- * first written.
+ * first written. Also the sidebar's rename, which guards the open file the
+ * same way: saved first, and never written back to its old path.
  */
 
 import { commands, type Collection, type FileEntry } from '@/lib/bindings'
@@ -64,7 +65,7 @@ export function fileNameValues(
  * extension. Saves unsaved edits first, and doesn't rename if that fails.
  */
 export async function renameOpenFile(stem: string): Promise<void> {
-  const { currentFile, isDirty, saveFile } = useEditorStore.getState()
+  const { currentFile } = useEditorStore.getState()
   const { projectPath } = useProjectStore.getState()
   const collection = getCollection(currentFile?.collection)
   if (!currentFile || !projectPath || !collection) return
@@ -75,19 +76,8 @@ export async function renameOpenFile(stem: string): Promise<void> {
     return
   }
 
-  // Save first. If that fails, or another file was opened meanwhile (which
-  // saves this one again), leave the name alone
-  if (isDirty) {
-    const before = useEditorStore.getState().lastSaveTimestamp
-    await saveFile(false)
-    const after = useEditorStore.getState()
-    if (
-      after.lastSaveTimestamp === before ||
-      after.currentFile?.path !== currentFile.path
-    ) {
-      return
-    }
-  }
+  const { isDirty } = useEditorStore.getState()
+  if (isDirty && !(await saveBeforeRename(currentFile.path))) return
 
   const rename = renameOnDisk(currentFile, collection, stem, projectPath)
   const from = currentFile.path
@@ -126,6 +116,57 @@ export async function renameOpenFile(stem: string): Promise<void> {
 }
 
 /**
+ * Saves the open file at `path`, which has unsaved edits. False if the save
+ * failed or another file was opened meanwhile (which saves this one again),
+ * so the file shouldn't be renamed. Only called when the file is dirty, so a
+ * clean file's rename starts straight away.
+ */
+async function saveBeforeRename(path: string): Promise<boolean> {
+  const { saveFile, lastSaveTimestamp } = useEditorStore.getState()
+  await saveFile(false)
+  const after = useEditorStore.getState()
+  return (
+    after.lastSaveTimestamp !== lastSaveTimestamp &&
+    after.currentFile?.path === path
+  )
+}
+
+/**
+ * Renames the file at `from` to `to` with `renameOnDisk`, which does it on
+ * disk, as the sidebar's rename does. If it's the open file, its unsaved
+ * edits are saved first (resolving false, unrenamed, if that fails), saves
+ * of the old path wait for the rename and go to the new one, and the store
+ * follows it. Rejects if the rename does.
+ */
+export async function renameFile(
+  from: string,
+  to: string,
+  projectPath: string,
+  renameOnDisk: () => Promise<unknown>
+): Promise<boolean> {
+  const isOpen = useEditorStore.getState().currentFile?.path === from
+  const { isDirty } = useEditorStore.getState()
+  if (isOpen && isDirty && !(await saveBeforeRename(from))) return false
+
+  const renaming = renameOnDisk().then(() =>
+    followRenamedFile(from, to, projectPath)
+  )
+  if (isOpen) {
+    pendingRename = {
+      from,
+      to: renaming.then(
+        () => to,
+        () => from
+      ),
+    }
+  }
+  await renaming.finally(() => {
+    if (isOpen) pendingRename = null
+  })
+  return true
+}
+
+/**
  * Renames the file in Rust and points the store at its new path, if it's
  * still open
  */
@@ -155,7 +196,7 @@ async function renameOnDisk(
  * Points the store at a renamed file's new path, if it's the open file: at
  * once, so a save can't write to the old path, then with the id it now has
  */
-export async function followRenamedFile(
+async function followRenamedFile(
   from: string,
   to: string,
   projectPath: string

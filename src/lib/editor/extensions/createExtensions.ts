@@ -41,7 +41,7 @@ import { EditorView, dropCursor, drawSelection } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { GFM } from '@lezer/markdown'
 import { syntaxHighlighting } from '@codemirror/language'
-import { history } from '@codemirror/commands'
+import { undoHistory } from '../load-document'
 import { closeBrackets } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
 import { markdownStyleExtension, comprehensiveHighlightStyle } from '../syntax'
@@ -93,7 +93,7 @@ export const createExtensions = (config: ExtensionConfig) => {
       extensions: [markdownStyleExtension, GFM],
     }),
     syntaxHighlighting(comprehensiveHighlightStyle),
-    history(),
+    undoHistory(),
 
     // Keymaps
     ...createKeymapExtensions(keymapHandlers),

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { commands } from '@/lib/bindings'
+import { saveUnsavedEdits } from '@/lib/quit'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -60,6 +61,11 @@ export const DebugPane: React.FC = () => {
 
     setResetting(true)
     void (async () => {
+      // The reset restarts the app, so save first; a failed save has said why
+      if (!(await saveUnsavedEdits())) {
+        setResetting(false)
+        return
+      }
       try {
         await commands.resetAllPreferences()
         setResetDialogOpen(false)

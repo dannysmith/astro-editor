@@ -56,6 +56,15 @@ function waitForProjectReady(
 }
 
 /**
+ * The latest save's write, while it's under way. Saves can overlap (Cmd+S
+ * during an auto-save, or the forced save while typing on a slow disk), so
+ * each write waits for the one before and they land in the order they were
+ * asked for. Each save still reads the store as soon as it's asked for, which
+ * switching files relies on.
+ */
+let writeUnderWay: Promise<void> | null = null
+
+/**
  * Saves the open file: writes its body, imports and frontmatter (in the
  * schema's field order, or the original text if its values are unchanged
  * from it), marks it clean if nothing changed meanwhile, and
@@ -118,15 +127,27 @@ async function saveCurrentFile(
       ? frontmatterBaseline.raw
       : rawFrontmatter
 
-    const result = await commands.saveMarkdownContent(
-      path,
-      writeValues ? (frontmatter as Record<string, JsonValue>) : null,
-      writeValues ? null : originalText,
-      editorContent,
-      imports,
-      fields ? fields.map(f => f.name) : null,
-      projectPath
+    // Waits for a write under way, so an older save can't land last
+    const save = () =>
+      commands.saveMarkdownContent(
+        path,
+        writeValues ? (frontmatter as Record<string, JsonValue>) : null,
+        writeValues ? null : originalText,
+        editorContent,
+        imports,
+        fields ? fields.map(f => f.name) : null,
+        projectPath
+      )
+    const write = writeUnderWay ? writeUnderWay.then(save) : save()
+    const settled = write.then(
+      () => undefined,
+      () => undefined
     )
+    writeUnderWay = settled
+    void settled.then(() => {
+      if (writeUnderWay === settled) writeUnderWay = null
+    })
+    const result = await write
     if (result.status === 'error') {
       throw new Error(result.error)
     }

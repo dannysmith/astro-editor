@@ -99,10 +99,7 @@ export function useKeyboardShortcuts(
         void getCurrentWindow().close()
         return
       }
-      const { currentFile, closeCurrentFile } = useEditorStore.getState()
-      if (currentFile) {
-        closeCurrentFile()
-      }
+      void useEditorStore.getState().closeFile()
     },
     DEFAULT_HOTKEY_OPTS
   )

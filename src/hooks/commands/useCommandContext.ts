@@ -19,7 +19,7 @@ export function useCommandContext(): CommandContext {
   )
 
   // Primitive subscriptions
-  const closeCurrentFile = useEditorStore(state => state.closeCurrentFile)
+  const closeFile = useEditorStore(state => state.closeFile)
 
   const selectedCollection = useProjectStore(state => state.selectedCollection)
   const projectPath = useProjectStore(state => state.projectPath)
@@ -50,7 +50,7 @@ export function useCommandContext(): CommandContext {
     setProject,
     toggleSidebar,
     toggleFrontmatterPanel,
-    closeCurrentFile,
+    closeFile,
     reloadCollections: async () => {
       const { projectPath } = useProjectStore.getState()
       if (!projectPath) return

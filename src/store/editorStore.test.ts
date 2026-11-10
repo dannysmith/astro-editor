@@ -111,3 +111,54 @@ describe('reading files from disk', () => {
     expect(queryClient.getQueryData(key('second'))).toBeUndefined()
   })
 })
+
+describe('editorStore.closeFile', () => {
+  beforeEach(() => {
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Unsaved edit',
+      isDirty: true,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  it('saves unsaved edits, then closes', async () => {
+    const save = vi.fn(() => {
+      useEditorStore.setState({ isDirty: false })
+      return Promise.resolve()
+    })
+    useEditorStore.setState({ autoSaveCallback: save })
+
+    await useEditorStore.getState().closeFile()
+
+    expect(save).toHaveBeenCalledWith(false)
+    expect(useEditorStore.getState().currentFile).toBeNull()
+  })
+
+  it('stays open with its edits when the save fails', async () => {
+    // A failed save keeps the file dirty
+    useEditorStore.setState({
+      autoSaveCallback: vi.fn(() => Promise.resolve()),
+    })
+
+    await useEditorStore.getState().closeFile()
+
+    expect(useEditorStore.getState().currentFile?.id).toBe('first')
+    expect(useEditorStore.getState().editorContent).toBe('Unsaved edit')
+  })
+
+  it('leaves a file opened during the save open', async () => {
+    const save = vi.fn(() => {
+      useEditorStore.setState({
+        currentFile: fileEntry('second'),
+        isDirty: false,
+      })
+      return Promise.resolve()
+    })
+    useEditorStore.setState({ autoSaveCallback: save })
+
+    await useEditorStore.getState().closeFile()
+
+    expect(useEditorStore.getState().currentFile?.id).toBe('second')
+  })
+})

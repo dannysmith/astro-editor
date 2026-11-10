@@ -20,7 +20,7 @@ use tauri::{
     PhysicalPosition, Runtime, WebviewWindow,
 };
 
-const FILE_NAME: &str = "window-state.json";
+pub(crate) const FILE_NAME: &str = "window-state.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

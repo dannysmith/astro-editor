@@ -33,9 +33,15 @@ interface EditorState {
   /** Opens `file` from disk, saving the open file first, and remembers it as the project's last entry */
   openFile: (file: FileEntry) => void
   /**
-   * Closes the open file, and forgets it as the project's last entry, so
-   * opening the project again doesn't undo the close. Switching projects
-   * passes `keepLastEntry`, since that file is the one to go back to.
+   * Closes the open file as the writer asked: saves its unsaved edits first,
+   * and leaves it open if that fails (the save has said why)
+   */
+  closeFile: () => Promise<void>
+  /**
+   * Clears the open file without saving, so callers save first. Forgets it as
+   * the project's last entry, so opening the project again doesn't undo the
+   * close. Switching projects passes `keepLastEntry`, since that file is the
+   * one to go back to.
    */
   closeCurrentFile: (options?: { keepLastEntry?: boolean }) => void
   saveFile: (showToast?: boolean) => Promise<void>
@@ -128,6 +134,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     )
 
     // Content will be loaded by useFileContentQuery hook
+  },
+
+  closeFile: async () => {
+    const { currentFile, isDirty, saveFile } = get()
+    if (!currentFile) return
+    if (isDirty) await saveFile(false)
+    // Still dirty means the save failed; another file means one was opened
+    // while saving, which isn't the one to close
+    const after = get()
+    if (after.isDirty || after.currentFile?.id !== currentFile.id) return
+    after.closeCurrentFile()
   },
 
   closeCurrentFile: options => {

@@ -54,7 +54,7 @@ export const fileCommands: AppCommand[] = [
     icon: X,
     group: 'file',
     execute: (context: CommandContext) => {
-      context.closeCurrentFile()
+      void context.closeFile()
     },
     isAvailable: (context: CommandContext) => {
       return Boolean(context.currentFile)

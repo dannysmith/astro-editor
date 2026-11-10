@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEditorActions } from './useEditorActions'
@@ -180,5 +180,49 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
 
     expect(args.frontmatter).toEqual(edited)
     expect(args.rawFrontmatter).toBeNull()
+  })
+})
+
+describe('useEditorActions.saveFile when saves overlap', () => {
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Older',
+      frontmatter: {},
+      rawFrontmatter: '',
+      imports: '',
+      isDirty: true,
+      isFrontmatterDirty: false,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  it('writes them in the order they were asked for', async () => {
+    const written: string[] = []
+    let finishFirst = () => {}
+    globalThis.mockTauri.invoke.mockImplementation(
+      (cmd: string, args?: unknown) => {
+        if (cmd !== 'save_markdown_content') return Promise.resolve(null)
+        written.push((args as { content: string }).content)
+        if (written.length > 1) return Promise.resolve(null)
+        return new Promise(resolve => (finishFirst = () => resolve(null)))
+      }
+    )
+    const { saveFile } = renderActions()
+
+    const first = saveFile(false)
+    await vi.waitFor(() => expect(written).toEqual(['Older']))
+    useEditorStore.setState({ editorContent: 'Newer' })
+    const second = saveFile(false)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    // The newer write waits for the older one to land
+    expect(written).toEqual(['Older'])
+
+    finishFirst()
+    await Promise.all([first, second])
+    expect(written).toEqual(['Older', 'Newer'])
+    expect(useEditorStore.getState().isDirty).toBe(false)
   })
 })

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileEntry } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -10,6 +10,7 @@ import {
   rememberNewFile,
   renamableStem,
   renameNewFileFromTitle,
+  renameFile,
   renameOpenFile,
   renameUnderWay,
 } from './rename'
@@ -157,5 +158,70 @@ describe('renamableStem', () => {
     expect(renamableStem(`${blog.path}/2024/post.mdx`)).toBe('post')
     expect(renamableStem(`${blog.path}/trip/index.md`)).toBeNull()
     expect(renamableStem(`${blog.path}/index.md`)).toBeNull()
+  })
+})
+
+describe('renameFile', () => {
+  const from = entry('old-name').path
+  const to = entry('new-name').path
+
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    globalThis.mockTauri.invoke.mockResolvedValue(entry('new-name'))
+    useEditorStore.setState({
+      currentFile: entry('old-name'),
+      isDirty: true,
+      lastSaveTimestamp: 1,
+    })
+  })
+
+  it('saves the open file first, then points saves at the new path', async () => {
+    const order: string[] = []
+    useEditorStore.setState({
+      autoSaveCallback: () => {
+        order.push('save')
+        useEditorStore.setState({ isDirty: false, lastSaveTimestamp: 2 })
+        return Promise.resolve()
+      },
+    })
+    let finishRename = () => {}
+    const renameOnDisk = () => {
+      order.push('rename')
+      return new Promise<void>(resolve => (finishRename = resolve))
+    }
+
+    const renaming = renameFile(from, to, '/site', renameOnDisk)
+    await vi.waitFor(() => expect(order).toEqual(['save', 'rename']))
+    const saveTo = renameUnderWay(from)
+    finishRename()
+
+    await expect(renaming).resolves.toBe(true)
+    await expect(saveTo).resolves.toBe(to)
+    expect(useEditorStore.getState().currentFile?.path).toBe(to)
+    expect(renameUnderWay(from)).toBeNull()
+  })
+
+  it("doesn't rename the open file if its save fails", async () => {
+    // A failed save leaves the file dirty and its save time unchanged
+    useEditorStore.setState({ autoSaveCallback: () => Promise.resolve() })
+    const renameOnDisk = vi.fn(() => Promise.resolve())
+
+    await expect(renameFile(from, to, '/site', renameOnDisk)).resolves.toBe(
+      false
+    )
+    expect(renameOnDisk).not.toHaveBeenCalled()
+    expect(useEditorStore.getState().currentFile?.path).toBe(from)
+  })
+
+  it('renames other files without saving the open one', async () => {
+    const save = vi.fn(() => Promise.resolve())
+    useEditorStore.setState({ autoSaveCallback: save })
+    const renameOnDisk = vi.fn(() => Promise.resolve())
+
+    await renameFile(entry('other').path, to, '/site', renameOnDisk)
+
+    expect(renameOnDisk).toHaveBeenCalled()
+    expect(save).not.toHaveBeenCalled()
+    expect(useEditorStore.getState().currentFile?.path).toBe(from)
   })
 })

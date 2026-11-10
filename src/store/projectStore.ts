@@ -215,6 +215,13 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   }
   const { project, settings, newSettings } = result.data
 
+  // Anything typed while the project was being registered is saved too
+  if (useEditorStore.getState().isDirty) {
+    await useEditorStore.getState().saveFile(false)
+    if (overtaken()) return true
+    if (useEditorStore.getState().isDirty) return false
+  }
+
   // Close the open file, the previous project's settings, and its watcher and
   // listeners first; starting another watcher doesn't stop them, so they'd
   // keep running and every event would be handled once per project opened
