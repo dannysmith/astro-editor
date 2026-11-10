@@ -6,16 +6,18 @@ import { flushLastEntry } from './projects/last-entry'
 
 /**
  * Saves the open file if it has unsaved edits, without waiting for auto-save,
- * and writes the project's remembered last entry. Resolves `true` when
+ * then writes the project's remembered last entry. Resolves `true` when
  * nothing is left unsaved. Call before anything that ends the app, like
  * quitting or restarting to install an update.
  */
 export async function saveUnsavedEdits(): Promise<boolean> {
   const { isDirty, saveFile } = useEditorStore.getState()
   if (isDirty) await saveFile(false)
+  // A failed save keeps the file dirty (and has shown an error). Answer
+  // straight away: Rust quits by itself if it doesn't hear back in time
+  if (useEditorStore.getState().isDirty) return false
   await flushLastEntry()
-  // A failed save keeps the file dirty (and has shown an error)
-  return !useEditorStore.getState().isDirty
+  return true
 }
 
 let askingToQuit = false

@@ -4,7 +4,7 @@ import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { answerQuitRequest } from './quit'
-import { rememberLastEntry } from './projects/last-entry'
+import { flushLastEntry, rememberLastEntry } from './projects/last-entry'
 import type { FileEntry } from '@/types'
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn() }))
@@ -56,6 +56,19 @@ describe('answerQuitRequest', () => {
     expect(commands.setLastEntry).toHaveBeenCalled()
     expect(succeedingSave).toHaveBeenCalledWith(false)
     expect(commands.quitApp).toHaveBeenCalledOnce()
+  })
+
+  it('answers a failed save before remembering the open file', async () => {
+    useProjectStore.setState({ currentProjectId: 'blog' })
+    rememberLastEntry('/sites/blog/hello.md')
+    useEditorStore.setState({ isDirty: true, autoSaveCallback: failingSave })
+
+    await answerQuitRequest()
+
+    // Rust quits by itself if it isn't answered in time, so nothing else waits
+    expect(commands.cancelQuit).toHaveBeenCalledOnce()
+    expect(commands.setLastEntry).not.toHaveBeenCalled()
+    await flushLastEntry()
   })
 
   it('saves unsaved edits before quitting', async () => {

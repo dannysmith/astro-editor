@@ -30,16 +30,29 @@ export function rememberLastEntry(filePath: string | null): void {
 }
 
 /**
- * Writes a remembered entry now. Call before quitting or switching projects.
- * Never throws: the binding rethrows IPC failures, and nothing that waits on
- * this should fail because of it.
+ * The latest write. Each write waits for the one before, so they land in
+ * order, and a flush waits for one already under way.
+ */
+let writing: Promise<void> = Promise.resolve()
+
+/**
+ * Writes a remembered entry now, and waits for any write under way. Call
+ * before quitting or switching projects. Never throws: the binding rethrows
+ * IPC failures, and nothing that waits on this should fail because of it.
  */
 export async function flushLastEntry(): Promise<void> {
   if (timer) clearTimeout(timer)
   timer = null
   const entry = pending
   pending = null
-  if (!entry) return
+  if (entry) writing = writing.then(() => write(entry))
+  await writing
+}
+
+async function write(entry: {
+  projectId: string
+  filePath: string | null
+}): Promise<void> {
   const failed = (reason: string) =>
     void logWarn(
       `Astro Editor [LAST_ENTRY] Couldn't remember the open file: ${reason}`
