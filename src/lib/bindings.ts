@@ -88,7 +88,10 @@ export const commands = {
 	 *  "couldn't find that file" toast).
 	 */
 	resolveFileEntry: (filePath: string, projectPath: string) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath })),
-	/**  A `file()` collection's entries, read from its JSON file as reference targets */
+	/**
+	 *  A `file()` collection's entries, read from its JSON or YAML file as
+	 *  reference targets
+	 */
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
 	/**
 	 *  A collection folder's subfolders and Markdown files (not recursive). Files

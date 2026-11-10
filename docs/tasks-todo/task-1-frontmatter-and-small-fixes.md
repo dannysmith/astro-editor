@@ -44,8 +44,10 @@ Done: `canonical_path`, `select_project_folder` and `create_file` return `/` pat
 
 ## Phase 4: `file()` data stored as an object (#376)
 
-- [ ] `load_file_based_collection` (`src-tauri/src/commands/project.rs`) only reads a JSON array, so a reference to a `file()` collection stored as an object keyed by id can't load its entries. For an object, use each key as the entry's id, as Astro does.
-- [ ] Test both shapes. YAML `file()` data isn't read at all; add it only if it's a few lines.
+- [x] `load_file_based_collection` (`src-tauri/src/commands/project.rs`) only reads a JSON array, so a reference to a `file()` collection stored as an object keyed by id can't load its entries. For an object, use each key as the entry's id, as Astro does.
+- [x] Test both shapes. YAML `file()` data isn't read at all; add it only if it's a few lines.
+
+Done: `file_collection_entries` reads both shapes as Astro's loader does (array ids from `id` or `slug`, numbers included, items without one skipped; object keys as ids, `$schema` ignored), and `.yml`/`.yaml` files are parsed with serde_norway. TOML was left out, since `toml` is only a dev-dependency. Object entries list in id order, as serde_json doesn't keep key order.
 
 ## Finishing
 

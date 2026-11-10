@@ -7,6 +7,7 @@ use crate::models::preferences::{FileType, SkippedFiles};
 use crate::models::{Collection, DirectoryInfo, FileEntry};
 use crate::preferences::Preferences;
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
+use indexmap::IndexMap;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -208,7 +209,8 @@ fn canonical_project(project_path: &str) -> Result<PathBuf, String> {
     dunce::canonicalize(project_path).map_err(|e| format!("Invalid project path: {e}"))
 }
 
-/// A `file()` collection's entries, read from its JSON file as reference targets
+/// A `file()` collection's entries, read from its JSON or YAML file as
+/// reference targets
 #[tauri::command]
 #[specta::specta]
 pub async fn load_file_based_collection(
@@ -241,40 +243,37 @@ pub async fn load_file_based_collection(
         file_path.display()
     );
 
-    let json_content = std::fs::read_to_string(&file_path)
+    let content = std::fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read collection file: {e}"))?;
-    let json_data: serde_json::Value =
-        serde_json::from_str(&json_content).map_err(|e| format!("Failed to parse JSON: {e}"))?;
-
-    let array = json_data
-        .as_array()
-        .ok_or_else(|| "Collection file must contain a JSON array".to_string())?;
+    let data: serde_json::Value = match file_path.extension().and_then(|e| e.to_str()) {
+        Some("json") => {
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse JSON: {e}"))?
+        }
+        Some("yml" | "yaml") => {
+            serde_norway::from_str(&content).map_err(|e| format!("Failed to parse YAML: {e}"))?
+        }
+        _ => {
+            return Err(format!(
+                "Can't read {}: only JSON and YAML files are supported",
+                file_path.display()
+            ))
+        }
+    };
 
     let collection_root = file_path.parent().unwrap_or(&file_path).to_path_buf();
-    let mut files = Vec::new();
-    for obj in array.iter().filter_map(|item| item.as_object()) {
-        // The entry's id is its `id`, or its `slug`
-        let item_id = obj
-            .get("id")
-            .and_then(|v| v.as_str())
-            .or_else(|| obj.get("slug").and_then(|v| v.as_str()))
-            .ok_or_else(|| {
-                "Missing unique identifier: collection items must have either 'id' or 'slug' field"
-                    .to_string()
-            })?
-            .to_string();
-
-        let frontmatter: indexmap::IndexMap<String, serde_json::Value> =
-            obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-        let mut file_entry = FileEntry::new(
-            file_path.clone(),
-            collection_name.clone(),
-            collection_root.clone(),
-        )
-        .with_frontmatter(frontmatter);
-        file_entry.id = format!("{collection_name}/{item_id}");
-        files.push(file_entry);
-    }
+    let files = file_collection_entries(data)?
+        .into_iter()
+        .map(|(id, values)| {
+            let mut file_entry = FileEntry::new(
+                file_path.clone(),
+                collection_name.clone(),
+                collection_root.clone(),
+            )
+            .with_frontmatter(values);
+            file_entry.id = format!("{collection_name}/{id}");
+            file_entry
+        })
+        .collect::<Vec<_>>();
 
     debug!(
         "Astro Editor [FILE_COLLECTION] Loaded {} items from {}",
@@ -283,6 +282,50 @@ pub async fn load_file_based_collection(
     );
 
     Ok(files)
+}
+
+/// A data entry's fields, shown to the entry picker as frontmatter
+type Fields = IndexMap<String, serde_json::Value>;
+
+/// The ids and values of a `file()` collection's entries, read from its parsed
+/// data as Astro's `file()` loader reads them: an array of items whose id is
+/// their `id` or `slug` (items with neither are skipped), or an object keyed
+/// by id (ignoring a top-level `$schema`). A value that isn't an object gives
+/// an entry with no fields, which can still be picked by its id.
+fn file_collection_entries(data: serde_json::Value) -> Result<Vec<(String, Fields)>, String> {
+    use serde_json::Value;
+
+    let fields = |value: Value| match value {
+        Value::Object(map) => map.into_iter().collect(),
+        _ => IndexMap::new(),
+    };
+    let id_of = |item: &serde_json::Map<String, Value>| {
+        let id = item
+            .get("id")
+            .filter(|v| !v.is_null())
+            .or_else(|| item.get("slug"))?;
+        match id {
+            Value::String(s) if !s.is_empty() => Some(s.clone()),
+            Value::Number(n) => Some(n.to_string()),
+            _ => None,
+        }
+    };
+
+    match data {
+        Value::Array(items) => Ok(items
+            .into_iter()
+            .filter_map(|item| {
+                let id = id_of(item.as_object()?)?;
+                Some((id, fields(item)))
+            })
+            .collect()),
+        Value::Object(entries) => Ok(entries
+            .into_iter()
+            .filter(|(key, value)| !(key == "$schema" && value.is_string()))
+            .map(|(id, value)| (id, fields(value)))
+            .collect()),
+        _ => Err("The collection's file must hold an array or an object".to_string()),
+    }
 }
 
 /// A collection folder's subfolders and Markdown files (not recursive). Files
@@ -688,6 +731,72 @@ fn resolve_file_in_scan(
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    fn entry_ids(data: serde_json::Value) -> Vec<String> {
+        file_collection_entries(data)
+            .unwrap()
+            .into_iter()
+            .map(|(id, _)| id)
+            .collect()
+    }
+
+    #[test]
+    fn reads_file_collection_arrays_by_id_or_slug() {
+        let data = serde_json::json!([
+            { "id": "jane", "name": "Jane" },
+            { "slug": "john" },
+            { "id": 7 },
+            { "id": null, "slug": "sam" },
+            { "name": "No id, skipped as Astro does" },
+            "not an object",
+        ]);
+        assert_eq!(entry_ids(data.clone()), ["jane", "john", "7", "sam"]);
+
+        let entries = file_collection_entries(data).unwrap();
+        assert_eq!(entries[0].1["name"], "Jane");
+    }
+
+    #[test]
+    fn reads_file_collection_objects_keyed_by_id() {
+        let data = serde_json::json!({
+            "$schema": "./authors.schema.json",
+            "jane": { "name": "Jane" },
+            "en": "English",
+        });
+        let entries = file_collection_entries(data).unwrap();
+        let ids: Vec<_> = entries.iter().map(|(id, _)| id.as_str()).collect();
+        assert_eq!(ids, ["en", "jane"]);
+        assert!(entries[0].1.is_empty());
+        assert_eq!(entries[1].1["name"], "Jane");
+
+        assert!(file_collection_entries(serde_json::json!("text")).is_err());
+    }
+
+    #[tokio::test]
+    async fn loads_a_yaml_file_collection() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src/data")).unwrap();
+        std::fs::write(
+            root.join("src/content.config.ts"),
+            "import { defineCollection } from 'astro:content';\nimport { file } from 'astro/loaders';\nconst authors = defineCollection({ loader: file('src/data/authors.yaml') });\nexport const collections = { authors };\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("src/data/authors.yaml"),
+            "jane:\n  name: Jane Doe\njohn:\n  name: John\n",
+        )
+        .unwrap();
+
+        let entries =
+            load_file_based_collection(root.to_string_lossy().to_string(), "authors".to_string())
+                .await
+                .unwrap();
+
+        let ids: Vec<_> = entries.iter().map(|e| e.id.as_str()).collect();
+        assert_eq!(ids, ["authors/jane", "authors/john"]);
+        assert_eq!(entries[0].frontmatter.as_ref().unwrap()["name"], "Jane Doe");
+    }
 
     #[test]
     #[cfg(not(target_os = "windows"))]

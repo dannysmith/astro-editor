@@ -171,6 +171,7 @@ Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the
 - **Sort order** – Sorting by title or filename started Z to A. It now starts A to Z, and dates newest first.
 - **A blank line before the closing `---`** was dropped when only the body was edited.
 - **Dates with times** – Editing any frontmatter field cut every date with a time, like `2024-06-15T14:30:00Z`, down to the date. Times are now kept.
+- **References to `file()` collections** – The entry picker was empty when the collection's file held its entries as an object keyed by id, or any entry had a numeric id or none. It now reads these as Astro does, and reads YAML files too. (#376)
 - **The Content Finder** searched the `title` field even when a collection uses a different one.
 - **The JSON field** reverted text while you typed it, if it wasn't valid JSON yet.
 - **Full screen** – <kbd>⌃⌘F</kbd> entered full screen but couldn't leave it.
