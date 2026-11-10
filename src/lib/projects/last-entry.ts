@@ -29,19 +29,27 @@ export function rememberLastEntry(filePath: string | null): void {
   timer = setTimeout(() => void flushLastEntry(), REMEMBER_DELAY_MS)
 }
 
-/** Writes a remembered entry now. Call before quitting or switching projects. */
+/**
+ * Writes a remembered entry now. Call before quitting or switching projects.
+ * Never throws: the binding rethrows IPC failures, and nothing that waits on
+ * this should fail because of it.
+ */
 export async function flushLastEntry(): Promise<void> {
   if (timer) clearTimeout(timer)
   timer = null
   const entry = pending
   pending = null
   if (!entry) return
-  const result = await commands.setLastEntry(entry.projectId, entry.filePath)
-  if (result.status === 'error') {
+  const failed = (reason: string) =>
     void logWarn(
-      `Astro Editor [LAST_ENTRY] Couldn't remember the open file: ${result.error}`
+      `Astro Editor [LAST_ENTRY] Couldn't remember the open file: ${reason}`
     )
-  }
+  await commands
+    .setLastEntry(entry.projectId, entry.filePath)
+    .then(result => {
+      if (result.status === 'error') failed(result.error)
+    })
+    .catch((error: unknown) => failed(String(error)))
 }
 
 /**

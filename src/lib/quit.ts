@@ -12,8 +12,8 @@ import { flushLastEntry } from './projects/last-entry'
  */
 export async function saveUnsavedEdits(): Promise<boolean> {
   const { isDirty, saveFile } = useEditorStore.getState()
-  await flushLastEntry()
   if (isDirty) await saveFile(false)
+  await flushLastEntry()
   // A failed save keeps the file dirty (and has shown an error)
   return !useEditorStore.getState().isDirty
 }
