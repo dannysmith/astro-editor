@@ -129,3 +129,56 @@ describe('useEditorActions.saveFile when the same file changes mid-save', () => 
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
 })
+
+describe('useEditorActions.saveFile with edited frontmatter', () => {
+  // The file as first loaded, and as our earlier save rewrote it
+  const original = 'title: "Hello"\npubDate: 2024-06-15T14:30:00Z'
+  const rewritten = 'title: Hello!\npubDate: 2024-06-15T14:30:00Z\n'
+  const loaded = { title: 'Hello', pubDate: '2024-06-15T14:30:00Z' }
+
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Body',
+      rawFrontmatter: rewritten,
+      frontmatterBaseline: { values: loaded, raw: original },
+      imports: '',
+      isDirty: true,
+      isFrontmatterDirty: true,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  async function save() {
+    const { saveFile } = renderActions()
+    await saveFile(false)
+    const call = globalThis.mockTauri.invoke.mock.calls.find(
+      ([cmd]) => cmd === 'save_markdown_content'
+    )
+    return call![1] as {
+      frontmatter: Record<string, unknown> | null
+      rawFrontmatter: string | null
+    }
+  }
+
+  it('writes the original text when the values are back to what was loaded', async () => {
+    useEditorStore.setState({ frontmatter: { ...loaded } })
+
+    const args = await save()
+
+    expect(args.frontmatter).toBeNull()
+    expect(args.rawFrontmatter).toBe(original)
+  })
+
+  it('writes the values when they differ from what was loaded', async () => {
+    const edited = { ...loaded, title: 'Hello!' }
+    useEditorStore.setState({ frontmatter: edited })
+
+    const args = await save()
+
+    expect(args.frontmatter).toEqual(edited)
+    expect(args.rawFrontmatter).toBeNull()
+  })
+})

@@ -3,6 +3,7 @@ import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { useProjectStore } from './projectStore'
 import { setNestedValue, deleteNestedValue } from '../lib/object-utils'
 import type { FileEntry } from '@/types'
+import type { FrontmatterBaseline } from '../lib/files/frontmatter-baseline'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
 
@@ -16,6 +17,8 @@ interface EditorState {
   editorContent: string // Content without frontmatter and imports
   frontmatter: Record<string, unknown> // Current frontmatter being edited
   rawFrontmatter: string // Original frontmatter string from disk
+  /** The frontmatter as first loaded after opening; see `FrontmatterBaseline` */
+  frontmatterBaseline: FrontmatterBaseline | null
   imports: string // MDX imports (hidden from editor)
 
   // Status state
@@ -62,6 +65,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editorContent: '',
   frontmatter: {},
   rawFrontmatter: '',
+  frontmatterBaseline: null,
   imports: '',
   isDirty: false,
   isFrontmatterDirty: false,
@@ -98,6 +102,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       editorContent: '',
       frontmatter: {},
       rawFrontmatter: '',
+      frontmatterBaseline: null,
       imports: '',
       currentFile: file,
       isDirty: false,
@@ -130,6 +135,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       editorContent: '',
       frontmatter: {},
       rawFrontmatter: '',
+      frontmatterBaseline: null,
       imports: '',
       isDirty: false,
       isFrontmatterDirty: false,

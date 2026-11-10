@@ -37,6 +37,7 @@ interface MockEditorState {
   editorContent: string
   frontmatter: Record<string, unknown>
   rawFrontmatter: string
+  frontmatterBaseline: null
   imports: string
   openFile: Mock
   closeCurrentFile: Mock
@@ -65,6 +66,7 @@ describe('useEditorHandlers', () => {
       editorContent: '',
       frontmatter: {},
       rawFrontmatter: '',
+      frontmatterBaseline: null,
       imports: '',
       openFile: vi.fn(),
       closeCurrentFile: vi.fn(),

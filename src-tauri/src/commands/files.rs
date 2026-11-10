@@ -408,41 +408,6 @@ fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
     })
 }
 
-/// Normalizes ISO datetime strings to date-only format recursively
-/// Converts "2024-01-15T00:00:00Z" -> "2024-01-15"
-fn normalize_dates(frontmatter: &mut IndexMap<String, Value>) {
-    for (_, value) in frontmatter.iter_mut() {
-        normalize_value(value);
-    }
-}
-
-/// Recursively normalizes dates in a Value
-fn normalize_value(value: &mut Value) {
-    match value {
-        Value::String(s)
-            if s.len() > 10 && s.contains('T') && (s.ends_with('Z') || s.contains('+')) =>
-        {
-            // If string looks like ISO datetime, extract date part
-            if let Some(date_part) = s.split('T').next() {
-                if date_part.len() == 10 && date_part.matches('-').count() == 2 {
-                    *s = date_part.to_string();
-                }
-            }
-        }
-        Value::Object(obj) => {
-            for (_, v) in obj.iter_mut() {
-                normalize_value(v);
-            }
-        }
-        Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                normalize_value(v);
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Builds an ordered IndexMap with schema fields first, then remaining fields alphabetically
 fn build_ordered_frontmatter(
     frontmatter: IndexMap<String, Value>,
@@ -478,7 +443,10 @@ fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String>
     serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
 }
 
-/// Serialize a value to YAML format with proper indentation
+/// Rebuilds the file with the frontmatter serialised from its values, schema
+/// fields first. Values are written as they are: dates and datetimes stay the
+/// strings they were read as (the date picker writes `YYYY-MM-DD`), and
+/// serde_norway leaves them unquoted, so Astro reads them as dates
 fn rebuild_markdown_with_frontmatter_and_imports_ordered(
     frontmatter: &IndexMap<String, Value>,
     imports: &str,
@@ -492,13 +460,9 @@ fn rebuild_markdown_with_frontmatter_and_imports_ordered(
         // Build ordered frontmatter (schema fields first, then alphabetical)
         let ordered = build_ordered_frontmatter(frontmatter.clone(), schema_field_order);
 
-        // Normalize dates (ISO datetime -> date-only)
-        let mut normalized = ordered;
-        normalize_dates(&mut normalized);
-
         // Serialize to YAML using serde_norway
         result.push_str("---\n");
-        let yaml = serde_norway::to_string(&normalized)
+        let yaml = serde_norway::to_string(&ordered)
             .map_err(|e| format!("Failed to serialize YAML: {e}"))?;
         result.push_str(&yaml);
         result.push_str("---\n");
@@ -1804,96 +1768,30 @@ folded: >
     }
 
     #[test]
-    fn test_date_normalization_in_nested_objects() {
-        // Test that date normalization works recursively in nested objects and arrays
-        let mut frontmatter = IndexMap::new();
+    fn test_frontmatter_edit_keeps_datetimes_in_other_keys() {
+        // Editing one field rewrites the whole block, which must keep the time
+        // in every datetime, unquoted so Astro still reads them as dates
+        let original = "---\ntitle: Old\npubDate: 2024-01-15T10:30:00Z\nmeta:\n  created: 2024-01-01T12:30:00+01:00\nevents:\n- 2024-02-14T09:00:00Z\nday: 2024-03-20\n---\n\nBody\n";
+        let parsed = parse_frontmatter(original).unwrap();
+        let mut frontmatter = parsed.frontmatter;
+        frontmatter.insert("title".to_string(), Value::String("New".to_string()));
 
-        // Add nested object with date
-        let mut metadata = serde_json::Map::new();
-        metadata.insert(
-            "deadline".to_string(),
-            Value::String("2024-01-15T00:00:00Z".to_string()),
+        let saved = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            &parsed.imports,
+            &parsed.content,
+            None,
+        )
+        .unwrap();
+
+        assert!(saved.contains("pubDate: 2024-01-15T10:30:00Z\n"), "{saved}");
+        assert!(
+            saved.contains("  created: 2024-01-01T12:30:00+01:00\n"),
+            "{saved}"
         );
-        metadata.insert(
-            "created".to_string(),
-            Value::String("2024-01-01T12:30:00+00:00".to_string()),
-        );
-        frontmatter.insert("metadata".to_string(), Value::Object(metadata));
-
-        // Add array with dates
-        let events = vec![
-            Value::String("2024-02-14T00:00:00Z".to_string()),
-            Value::String("2024-03-20T00:00:00Z".to_string()),
-        ];
-        frontmatter.insert("events".to_string(), Value::Array(events));
-
-        // Add top-level date
-        frontmatter.insert(
-            "publishDate".to_string(),
-            Value::String("2024-06-15T00:00:00Z".to_string()),
-        );
-
-        // Apply normalization
-        normalize_dates(&mut frontmatter);
-
-        // Verify nested object dates are normalized
-        let metadata = frontmatter.get("metadata").unwrap().as_object().unwrap();
-        assert_eq!(
-            metadata.get("deadline").unwrap(),
-            &Value::String("2024-01-15".to_string()),
-            "Nested object date should be normalized to date-only"
-        );
-        assert_eq!(
-            metadata.get("created").unwrap(),
-            &Value::String("2024-01-01".to_string()),
-            "Nested object date with timezone should be normalized"
-        );
-
-        // Verify array dates are normalized
-        let events = frontmatter.get("events").unwrap().as_array().unwrap();
-        assert_eq!(
-            events[0],
-            Value::String("2024-02-14".to_string()),
-            "Array date should be normalized"
-        );
-        assert_eq!(
-            events[1],
-            Value::String("2024-03-20".to_string()),
-            "Array date should be normalized"
-        );
-
-        // Verify top-level date is normalized
-        assert_eq!(
-            frontmatter.get("publishDate").unwrap(),
-            &Value::String("2024-06-15".to_string()),
-            "Top-level date should be normalized"
-        );
-    }
-
-    #[test]
-    fn test_date_normalization_preserves_non_dates() {
-        // Ensure date normalization doesn't affect strings that aren't ISO datetimes
-        let mut frontmatter = IndexMap::new();
-
-        frontmatter.insert(
-            "title".to_string(),
-            Value::String("My Post Title".to_string()),
-        );
-        frontmatter.insert("slug".to_string(), Value::String("my-post".to_string()));
-        frontmatter.insert(
-            "url".to_string(),
-            Value::String("https://example.com/path".to_string()),
-        );
-        frontmatter.insert(
-            "short_date".to_string(),
-            Value::String("2024-01-15".to_string()),
-        ); // Already date-only
-
-        let original = frontmatter.clone();
-        normalize_dates(&mut frontmatter);
-
-        // All non-datetime strings should be unchanged
-        assert_eq!(frontmatter, original);
+        assert!(saved.contains("- 2024-02-14T09:00:00Z\n"), "{saved}");
+        assert!(saved.contains("day: 2024-03-20\n"), "{saved}");
+        assert_eq!(parse_frontmatter(&saved).unwrap().frontmatter, frontmatter);
     }
 
     #[test]
