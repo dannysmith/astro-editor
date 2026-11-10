@@ -433,7 +433,7 @@ fn set_aside_broken(path: &Path, parse_error: &str) -> String {
 /// registered once
 pub fn canonical_path(path: &Path) -> Result<String, String> {
     let canonical =
-        std::fs::canonicalize(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
+        dunce::canonicalize(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
     Ok(canonical.to_string_lossy().to_string())
 }
 

@@ -25,12 +25,24 @@ export interface Problem {
   detail?: string
 }
 
+/**
+ * A path relative to the project, with `/` separators whatever the platform,
+ * or null if it's outside the project
+ */
+export function pathInProject(
+  path: string,
+  projectPath: string
+): string | null {
+  const normalise = (p: string) => p.replaceAll('\\', '/').replace(/\/+$/, '')
+  const inner = normalise(path)
+  const root = normalise(projectPath)
+  if (inner === root) return '.'
+  return inner.startsWith(`${root}/`) ? inner.slice(root.length + 1) : null
+}
+
 /** A path relative to the project, for showing */
 export function relativePath(path: string, projectPath: string): string {
-  if (path === projectPath) return '.'
-  return path.startsWith(`${projectPath}/`)
-    ? path.slice(projectPath.length + 1)
-    : path
+  return pathInProject(path, projectPath) ?? path
 }
 
 export function collectionProblems(

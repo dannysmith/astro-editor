@@ -34,12 +34,11 @@ pub fn validate_project_path(
     let project_root = project_root.as_ref();
 
     // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
+    let canonical_file = dunce::canonicalize(file_path)
         .or_else(|_| {
             // If file doesn't exist, try to canonicalize parent and append filename
             if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
-                parent.canonicalize().map(|p| p.join(filename))
+                dunce::canonicalize(parent).map(|p| p.join(filename))
             } else {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
@@ -49,9 +48,8 @@ pub fn validate_project_path(
         })
         .map_err(|_| "Invalid file path".to_string())?;
 
-    let canonical_root = project_root
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
+    let canonical_root =
+        dunce::canonicalize(project_root).map_err(|_| "Invalid project root".to_string())?;
 
     // Ensure file is within project bounds
     canonical_file

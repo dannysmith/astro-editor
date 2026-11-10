@@ -155,7 +155,7 @@ impl PropResolver {
         Self {
             modules: Vec::new(),
             by_path: HashMap::new(),
-            root: root.and_then(|r| r.canonicalize().ok()),
+            root: root.and_then(|r| dunce::canonicalize(r).ok()),
         }
     }
 
@@ -513,7 +513,7 @@ impl PropResolver {
             return None;
         }
         let dir = self.modules[from].path.as_ref()?.parent()?.to_path_buf();
-        let path = resolve_relative(&dir, specifier)?.canonicalize().ok()?;
+        let path = dunce::canonicalize(resolve_relative(&dir, specifier)?).ok()?;
         if !path.starts_with(&root) {
             return None;
         }

@@ -203,7 +203,7 @@ pub async fn scan_project(
 }
 
 fn canonical_project(project_path: &str) -> Result<PathBuf, String> {
-    std::fs::canonicalize(project_path).map_err(|e| format!("Invalid project path: {e}"))
+    dunce::canonicalize(project_path).map_err(|e| format!("Invalid project path: {e}"))
 }
 
 /// A `file()` collection's entries, read from its JSON file as reference targets
@@ -647,7 +647,7 @@ fn resolve_file_in_scan(
     scan: &ProjectScan,
 ) -> Result<Option<FileEntry>, String> {
     // A missing file resolves to None (not an error)
-    let Ok(file_canon) = std::fs::canonicalize(file_path) else {
+    let Ok(file_canon) = dunce::canonicalize(file_path) else {
         return Ok(None);
     };
 
@@ -1019,7 +1019,7 @@ mod tests {
     /// holding `post.md`, `_draft.md`, `README.md`, `2024/old.md` and `images/a.png`
     fn blog_collection(pattern: &str, skipped: SkippedFiles) -> (tempfile::TempDir, Collection) {
         let temp = tempfile::TempDir::new().unwrap();
-        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let root = dunce::canonicalize(temp.path()).unwrap();
         std::fs::create_dir_all(root.join("src/blog/2024")).unwrap();
         std::fs::create_dir_all(root.join("src/blog/images")).unwrap();
         for file in [
@@ -1113,7 +1113,7 @@ mod tests {
     #[test]
     fn ids_are_relative_to_the_base() {
         let temp = tempfile::TempDir::new().unwrap();
-        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let root = dunce::canonicalize(temp.path()).unwrap();
         std::fs::create_dir_all(root.join("src/content/blog")).unwrap();
         std::fs::write(root.join("src/content/blog/post.md"), "# Hi").unwrap();
         std::fs::write(

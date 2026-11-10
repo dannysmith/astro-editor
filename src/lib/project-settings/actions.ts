@@ -2,7 +2,7 @@ import { ask, open } from '@tauri-apps/plugin-dialog'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
 import { toast } from '../toast'
-import { relativePath } from './status'
+import { pathInProject } from './status'
 
 /**
  * Opens the open project's settings, at a collection's page or the project's.
@@ -31,8 +31,8 @@ export async function chooseProjectFolder(
   })
   if (typeof picked !== 'string') return null
 
-  const relative = relativePath(picked, projectPath)
-  if (relative === picked) {
+  const relative = pathInProject(picked, projectPath)
+  if (relative === null) {
     toast.error('Choose a folder inside the project', {
       description: 'Astro Editor only edits files inside the project.',
     })

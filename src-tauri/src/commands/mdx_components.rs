@@ -38,9 +38,8 @@ pub async fn plan_component_import(
 ) -> Result<Option<ImportPlan>, String> {
     let file = validate_project_path(&file_path, &project_path)?;
     let collection_dir = validate_project_path(&collection_path, &project_path)?;
-    let project_root = Path::new(&project_path)
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
+    let project_root =
+        dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
     if let Some(image) = props
         .images
         .iter()

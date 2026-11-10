@@ -3,6 +3,7 @@ import { makeCollection, makeScan } from '@/test/fixtures'
 import {
   collectionProblems,
   hasProblems,
+  pathInProject,
   projectProblems,
   statusLevel,
 } from './status'
@@ -127,5 +128,20 @@ describe('hasProblems', () => {
     const missing = makeCollection({ name: 'docs', folderStatus: 'missing' })
     expect(hasProblems(makeScan([fine]), '/site')).toBe(false)
     expect(hasProblems(makeScan([fine, missing]), '/site')).toBe(true)
+  })
+})
+
+describe('pathInProject', () => {
+  it('is the path inside the project, or null outside it', () => {
+    expect(pathInProject('/site/src/content', '/site')).toBe('src/content')
+    expect(pathInProject('/site', '/site/')).toBe('.')
+    expect(pathInProject('/site-2/src', '/site')).toBeNull()
+  })
+
+  it('takes Windows paths', () => {
+    expect(pathInProject('C:\\site\\src\\content', 'C:\\site')).toBe(
+      'src/content'
+    )
+    expect(pathInProject('C:\\other', 'C:\\site')).toBeNull()
   })
 })

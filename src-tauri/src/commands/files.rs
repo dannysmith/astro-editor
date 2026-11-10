@@ -192,9 +192,8 @@ pub async fn copy_file_to_assets_with_override(
     use std::fs;
 
     // Validate project path
-    let validated_project_root = Path::new(&project_path)
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
+    let validated_project_root =
+        dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
 
     // Create the assets directory structure (use override if provided)
     let assets_base = if let Some(assets_override) = assets_directory {
@@ -691,9 +690,9 @@ pub async fn is_path_in_project(file_path: String, project_path: String) -> bool
     let file = Path::new(&file_path);
     let project = Path::new(&project_path);
 
-    file.canonicalize()
+    dunce::canonicalize(file)
         .ok()
-        .and_then(|f| project.canonicalize().ok().map(|p| f.starts_with(p)))
+        .and_then(|f| dunce::canonicalize(project).ok().map(|p| f.starts_with(p)))
         .unwrap_or(false)
 }
 
@@ -713,12 +712,9 @@ pub async fn get_relative_path(
     current_file_path: String,
     use_relative_paths: bool,
 ) -> Result<String, String> {
-    let file = Path::new(&file_path)
-        .canonicalize()
-        .map_err(|e| format!("Invalid file path: {e}"))?;
-    let project = Path::new(&project_path)
-        .canonicalize()
-        .map_err(|e| format!("Invalid project path: {e}"))?;
+    let file = dunce::canonicalize(&file_path).map_err(|e| format!("Invalid file path: {e}"))?;
+    let project =
+        dunce::canonicalize(&project_path).map_err(|e| format!("Invalid project path: {e}"))?;
 
     let project_relative_path = file
         .strip_prefix(&project)
@@ -1379,7 +1375,7 @@ Regular markdown content here."#;
     #[tokio::test]
     async fn rename_file_never_replaces_another_file() {
         let project = tempfile::TempDir::new().unwrap();
-        let root = fs::canonicalize(project.path()).unwrap();
+        let root = dunce::canonicalize(project.path()).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(root.join("b.md"), "b").unwrap();
         let path = |name: &str| root.join(name).to_string_lossy().to_string();

@@ -280,7 +280,7 @@ pub fn entry_pattern(collection: &Collection) -> EntryPattern {
 }
 
 fn folder_status(path: &Path, project: &Path) -> FolderStatus {
-    let inside = match (std::fs::canonicalize(path), std::fs::canonicalize(project)) {
+    let inside = match (dunce::canonicalize(path), dunce::canonicalize(project)) {
         (Ok(folder), Ok(project)) => folder.starts_with(project),
         _ => normalize(path).starts_with(normalize(project)),
     };
@@ -447,7 +447,7 @@ mod tests {
         }
 
         fn root(&self) -> PathBuf {
-            std::fs::canonicalize(self.0.path()).unwrap()
+            dunce::canonicalize(self.0.path()).unwrap()
         }
 
         fn scan(&self) -> ProjectScan {

@@ -142,6 +142,7 @@ dependencies = [
  "block2",
  "chrono",
  "dispatch2",
+ "dunce",
  "globset",
  "indexmap 2.14.2",
  "log",
