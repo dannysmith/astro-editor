@@ -79,7 +79,7 @@ export function collectionProblems(
   } else if (collection.folderStatus === 'outsideProject') {
     problems.push({
       level: 'error',
-      message: `Its folder, \`${folder}\`, is outside the project, and only files inside it can be edited.`,
+      message: `Its folder, \`${folder}\`, is outside the project. Only files in the project can be edited.`,
       action: 'chooseFolder',
     })
   }
@@ -97,7 +97,7 @@ export function collectionProblems(
     problems.push({
       level: 'error',
       message:
-        "Its generated schema couldn't be read, so the form only knows its image and reference fields.",
+        "Its generated schema couldn't be read, so only its image and reference fields are known.",
       fix: 'Run `astro sync` in the project to generate it again.',
       detail: collection.schemaError ?? undefined,
     })
@@ -105,7 +105,7 @@ export function collectionProblems(
     problems.push({
       level: 'warning',
       message:
-        "Astro hasn't generated its schema yet, so the form doesn't know its fields' types, defaults or which are required.",
+        "Astro hasn't generated its schema yet, so the frontmatter panel doesn't know its fields' types, defaults or which are required.",
       fix: 'Run `astro sync` in the project to generate it.',
     })
   }

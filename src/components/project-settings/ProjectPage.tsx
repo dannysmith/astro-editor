@@ -199,7 +199,7 @@ export function ProjectPage({
       <SettingsGroup title="Content">
         <Setting
           label="Content folder"
-          help="Collections are looked for here when the content config doesn't say where they are."
+          help="Used for collections whose folder the content config doesn't give."
           source={resolved.contentDirectory.source}
           onReset={reset('contentDirectory')}
           resetTo="src/content"

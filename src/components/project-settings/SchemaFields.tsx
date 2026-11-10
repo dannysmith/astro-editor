@@ -41,7 +41,7 @@ function schemaNote(collection: Collection, hasFields: boolean): string | null {
 function limitation(field: SchemaField, control: string): string | null {
   if (field.type === FieldType.Unknown) return "Its type couldn't be read."
   if (control === 'yaml') {
-    return 'The form has no control for this type of field.'
+    return "There's no control for this type of field."
   }
   return null
 }

@@ -28,19 +28,19 @@ export function describeOrigin(
     : 'a custom loader'
 
   if (isUnreadLoader(collection)) {
-    return `Loaded by ${loader}${config}, so its entries probably don't come from files.`
+    return `From ${loader}${config}, which probably doesn't read files.`
   }
   switch (collection.kind) {
     case 'glob':
       return `From \`glob()\`${config}.`
     case 'legacy':
-      return `A legacy collection, defined without a loader${config}.`
+      return `A legacy collection${config}, without a loader.`
     case 'unknown':
-      return `Loaded by ${loader}${config}, so its files are taken to be in the folder named after it.`
+      return `From ${loader}${config}. Its folder is assumed to be the one named after it.`
     case 'folder':
       return `A folder in \`${scan.projectSettings.contentDirectory.value}\`.`
     case 'data':
-      return `JSON or YAML data, defined${config}. Data collections aren't edited here.`
+      return `JSON or YAML data${config ? ` from \`${scan.configPath}\`` : ''}. Data collections aren't edited here.`
   }
 }
 

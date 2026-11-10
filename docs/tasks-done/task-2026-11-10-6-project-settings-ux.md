@@ -2,6 +2,10 @@
 
 GitHub: #82
 
+## Status
+
+Done, on the `project-model-and-settings` branch. Beyond the plan: data collections now show their schemas (the scan skipped them, and Astro's schema for `file()` collections wasn't read), a collection without a schema says so at the top of its page, field mappings without a generated schema say which field the files use ("Found in files"), and the file list has a Project Settings button at its bottom.
+
 Task 3 built the Project Settings dialog. Using it, it works but reads as a form an AI laid out: the settings are named and explained by what they do internally, not by what a writer is trying to do, and project settings look almost the same as Preferences. This task rethinks it with a UX designer's eye before the user guide screenshots (task 3) are taken.
 
 ## Principle
@@ -84,8 +88,8 @@ Choosing the first choice is the same as resetting.
 - [x] The setting rows, sources, override pill and toggles.
 - [x] Several MDX components folders.
 - [x] Rewrite the copy. Each frontmatter field has one line saying what it drives (agreed with Danny), which also covers the missing case.
-- [ ] Have the copy reviewed cold, and apply what Danny agrees with.
+- [x] Have the copy reviewed cold, and apply what Danny agrees with. Much of the review was restyling and was left; the duplicated statements, wrong reset tooltips and tooltip order were fixed, then a final pass of our own replaced "the form" with "the frontmatter panel" and reworded the opening sentences.
 - [x] Update `project-settings.mdx`, `overrides.mdx`, `app-data.md`, `mdx-components.md`, `ui-patterns.md` and `test/personal-site/README.md`.
-- [ ] Take task 3's screenshots for the user guide.
+- [x] Take task 3's screenshots for the user guide, from `test/demo-project` (which now has a favicon).
 - [x] Remove the mockup. `ProjectSettingsSection` shows the real collection page.
-- [ ] Danny tries it in the app, including the folder pickers and Add Folder…, which agents can't drive.
+- [x] Danny tries it in the app, including the folder pickers and Add Folder…, which agents can't drive.

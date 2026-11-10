@@ -123,11 +123,11 @@ describe('describeOrigin', () => {
         scan
       )
     ).toBe(
-      'Loaded by `notionLoader()` in `src/content.config.ts`, so its files are taken to be in the folder named after it.'
+      'From `notionLoader()` in `src/content.config.ts`. Its folder is assumed to be the one named after it.'
     )
   })
 
-  it('says when a loader’s entries probably aren’t files', () => {
+  it('says when a loader probably doesn’t read files', () => {
     const books = makeCollection({
       name: 'books',
       kind: 'unknown',
@@ -136,7 +136,7 @@ describe('describeOrigin', () => {
       folderSource: 'convention',
     })
     expect(describeOrigin(books, scan)).toBe(
-      "Loaded by a custom loader in `src/content.config.ts`, so its entries probably don't come from files."
+      "From a custom loader in `src/content.config.ts`, which probably doesn't read files."
     )
   })
 

@@ -201,7 +201,7 @@ export function CollectionPage({
 
       {collection.schemaStatus === 'none' && (
         <NoteCallout
-          message="It has no schema, so the form shows each file's own fields as text, without types, defaults or required markers."
+          message="It has no schema, so its fields are edited as plain text, without types, defaults or required markers."
           fix={
             scan.configPath && collection.kind !== 'folder'
               ? `To get them, give it a \`schema\` in \`${scan.configPath}\`.`
@@ -256,7 +256,7 @@ export function CollectionPage({
 
         <Setting
           label="Sort"
-          help="Until you change it in the file list."
+          help="The file list's order, until you change it there."
           source={resolved.defaultSort.source}
           onReset={reset('defaultSort')}
           resetTo="newest first"
@@ -359,7 +359,7 @@ export function CollectionPage({
       >
         <Setting
           label="Title"
-          help="Names files in the file list, and heads the form."
+          help="Shown as each file's name in the file list, and as the title in the frontmatter panel."
           source={resolved.titleField.source}
           onReset={reset('titleField')}
           resetTo="automatic"
@@ -370,7 +370,7 @@ export function CollectionPage({
         </Setting>
         <Setting
           label="Description"
-          help="Gets a larger text box in the form."
+          help="Gets a larger text box in the frontmatter panel."
           source={resolved.descriptionField.source}
           onReset={reset('descriptionField')}
           resetTo="automatic"
@@ -381,7 +381,7 @@ export function CollectionPage({
         </Setting>
         <Setting
           label="Published date"
-          help="Dates and sorts the file list."
+          help="Shown beside each file in the file list, and used to sort it."
           source={resolved.publishedDateField.source}
           onReset={reset('publishedDateField')}
           resetTo="automatic"
@@ -471,7 +471,7 @@ export function CollectionPage({
         <Setting
           label="Link URLs"
           help={
-            <WithCode text="For links you insert with the Content Finder. `{slug}` is the entry's slug." />
+            <WithCode text="For links you insert with the Content Finder. `{slug}` is the file's slug." />
           }
           source={resolved.urlPattern.source}
           onReset={reset('urlPattern')}
