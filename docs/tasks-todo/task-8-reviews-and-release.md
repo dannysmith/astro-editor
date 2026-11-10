@@ -50,7 +50,6 @@ Our recent work has made some fairly significant changes to how the app works so
 - UX review of the project settings stuff and making the mental model of how it all works consistent and good. Most of this is now `task-6-project-settings-ux.md`; review what it leaves. Likewise: are our settings pages designed well and designed to help people understand and use them. Also: icons, names etc.
 - Full code review of recent changes to check that they are compliant with the architecture guides and other developer guidance and also with what would be considered best practice. might consider having sub-agents also review for performance etc.
 - We should do a review of the website documentation. Most of this should have been updated as we go, but we should look at that around the project stuff. We should look for opportunities to better explain the mental model needed when it comes to settings and how this works and what all of these things are for, if necessary and also check that we haven't added too much bloat to the developer docs.
-- To consider rebuilding the marketing video to show some of the new features here In particular the MDX form component builder and the auto inserting stuff.
 - We should obviously also review the developer docs and code comments to ensure they're evergreen etc.
 
 ### How they were run
@@ -95,21 +94,19 @@ The homepage video is still accurate apart from scene F, which shows the old sea
 
 ## Admin
 
+- [ ] Any other cleaning up in this repo on GH or here, before I make a release.
 - [ ] Write up release notes for next release (which I think will be 1.1.0).
   - Say that project settings from 1.0.x are set aside (renamed to `*.v2.json`), so projects may need setting up again. Most won't, because folders and fields are now detected. List the settings that had to be set again in the upgrade check (task 5).
   - Drafted at the end of this doc. Fill in the `[DANNY: …]` marker after the prerelease check.
 - [x] Update the README as needed. The MDX components, file management, Project Settings and supported projects sections now describe 1.1.0.
 - [x] Close and consolidate all the GH Issues. Closed #82 and #87 (done in #368), noted on #371 what #368 fixed and what's left, labelled #370, #372, #374, #375 and #376, and ticked #368's items in #354. The rest are the follow-ups from this work, or in the icebox.
 - [x] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. Done in task 9.
-- [ ] Write up a quick blog post for my website showing off the new features, with screenshots.
-- [ ] Write up a thread for bluesdy showing these off as well as a post for the Astro discord.
-- [ ] Any other cleaning up in this repo on GH or here, before I make a release.
+- [ ] Write up a quick blog post for my website showing off the new features, with screenshots and the video we made for the v1.1.0 release.
 - [ ] Release a prerelease and test it on my machine as my proper version of AE.
   - [ ] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe.
   - [ ] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
   - [ ] Note every setting you had to set again, for the release notes.
   - [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
-  - [ ] With a Retina and a 1x display, move the window between them, then quit and reopen: it keeps its size and display. Dock-reopen after Cmd+W, and unplug the external display with the window saved on it: it opens centred on the laptop (task 7).
 - [ ] Do the actual release.
 
 ## Release notes for 1.1.0 (draft)
