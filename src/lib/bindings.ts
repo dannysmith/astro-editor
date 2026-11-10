@@ -13,8 +13,8 @@ export const commands = {
 	/**
 	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
 	 *  is serialised as saving does (so dates come out unquoted and strings
-	 *  escaped), in schema field order. Key order doesn't survive the IPC, so it's
-	 *  passed separately. Returns the new file's path, with `/` on Windows too
+	 *  escaped), in schema field order. Returns the new file's path,
+	 *  with `/` on Windows too
 	 */
 	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
@@ -98,15 +98,15 @@ export const commands = {
 	 *  the collection's pattern leaves out are skipped, or marked as not entries if
 	 *  the collection shows them dimmed, and so are folders with nothing to show.
 	 */
-	scanDirectory: (directoryPath: string, collection: Collection) => typedError<DirectoryScanResult, string>(__TAURI_INVOKE("scan_directory", { directoryPath, collection })),
+	scanDirectory: (directoryPath: string, collection: Collection, projectPath: string) => typedError<DirectoryScanResult, string>(__TAURI_INVOKE("scan_directory", { directoryPath, collection, projectPath })),
 	/**  How many entries a collection has, in all its folders */
-	countCollectionFilesRecursive: (collection: Collection) => typedError<number, string>(__TAURI_INVOKE("count_collection_files_recursive", { collection })),
+	countCollectionFilesRecursive: (collection: Collection, projectPath: string) => typedError<number, string>(__TAURI_INVOKE("count_collection_files_recursive", { collection, projectPath })),
 	/**
 	 *  Every entry in a collection, in all its folders, for the reference pickers and
 	 *  the Content Finder. Files the pattern leaves out aren't entries, so they're
 	 *  never included, whatever the collection's skipped files setting.
 	 */
-	scanCollectionFilesRecursive: (collection: Collection) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files_recursive", { collection })),
+	scanCollectionFilesRecursive: (collection: Collection, projectPath: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("scan_collection_files_recursive", { collection, projectPath })),
 	/**
 	 *  A free name, relative to `directory`, for a new file the collection's pattern
 	 *  includes: `<stem>.<ext>`, or `<stem>/index.<ext>` for folder-per-entry
@@ -114,7 +114,7 @@ export const commands = {
 	 *  name in `directory` would match, so a new file would be left out of the
 	 *  collection.
 	 */
-	newFileName: (directory: string, collection: Collection, stem: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem })),
+	newFileName: (directory: string, collection: Collection, stem: string, projectPath: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem, projectPath })),
 	/**
 	 *  Renames an entry's file to `stem`, or the first free name after it (`-1`,
 	 *  `-2`…, as for new files), in the same folder and keeping its extension. Only
@@ -132,6 +132,10 @@ export const commands = {
 	 *  in the project.
 	 */
 	startWatchingProject: (projectPath: string, folders: string[]) => typedError<null, string>(__TAURI_INVOKE("start_watching_project", { projectPath, folders })),
+	/**
+	 *  Stops watching the project. A project with no watcher (it never started,
+	 *  or a quick switch reached it first) is already stopped, so that's fine.
+	 */
 	stopWatchingProject: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("stop_watching_project", { projectPath })),
 	/**  Opens the preferences folder in the system's default file manager */
 	openPreferencesFolder: () => typedError<null, string>(__TAURI_INVOKE("open_preferences_folder")),
@@ -226,6 +230,11 @@ export type Collection = {
 	kind: CollectionKind,
 	/**  For a loader AE can't read, its function's name, when it's called by name */
 	loaderName: string | null,
+	/**
+	 *  Its loader is written in place in the config (a function, or an object
+	 *  with `load`), so the definition was read but the loader can't be
+	 */
+	inlineLoader: boolean,
 	/**  The folder the sidebar browses: `base` plus the pattern's fixed prefix */
 	path: string,
 	/**  Where the pattern and entry ids are relative to */

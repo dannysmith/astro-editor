@@ -20,8 +20,10 @@ export const useCollectionCountsQuery = (
     queryFn: async (): Promise<Record<string, number>> => {
       const counts = await Promise.all(
         collections.map(async collection => {
-          const result =
-            await commands.countCollectionFilesRecursive(collection)
+          const result = await commands.countCollectionFilesRecursive(
+            collection,
+            projectPath ?? ''
+          )
           return [
             collection.name,
             result.status === 'ok' ? result.data : 0,

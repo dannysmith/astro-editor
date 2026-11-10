@@ -168,18 +168,51 @@ function deepMerge<T>(settings: T, patch: DeepPartial<T>): T {
 /** Counts project opens, so an open that a later one overtook can stop */
 let openGeneration = 0
 
+/** The latest global settings write, which the next one waits for */
+let globalSettingsWrite: Promise<unknown> = Promise.resolve()
+
+/**
+ * Saves the open file's unsaved edits before switching to the project at
+ * `path`. If the save fails, says the switch was stopped and offers to
+ * switch anyway, losing the latest edits. True when nothing is unsaved.
+ */
+async function saveBeforeSwitching(path: string): Promise<boolean> {
+  const { isDirty, saveFile } = useEditorStore.getState()
+  if (isDirty) await saveFile(false)
+  if (!useEditorStore.getState().isDirty) return true
+
+  await logWarn(
+    'Astro Editor [PROJECT_SETUP] Not switching projects: the open file has unsaved edits'
+  )
+  toast.error(`Didn't switch to ${projectName(path)}`, {
+    description:
+      "The open file couldn't be saved, so switching would lose its latest changes.",
+    action: {
+      label: 'Switch Anyway',
+      onClick: () => void openProject(path, { discardUnsaved: true }),
+    },
+    duration: 10_000,
+  })
+  return false
+}
+
 /**
  * Opens the project at `path`: registers it, loads its settings and scan,
  * starts watching it, and reopens the file that was open when it was last
  * left. Returns false if it couldn't be opened, after logging
- * why and, unless `quiet`, telling the writer.
+ * why and, unless `quiet`, telling the writer. The open file is saved first,
+ * and a failed save stops the switch unless `discardUnsaved`, which the
+ * writer chooses from the toast that says so.
  *
  * Another open can start while this one waits (two deep links, or a quick
  * switch during a slow scan). This one then stops at its next step and
  * returns true, leaving the project to the later open, so two never start a
  * watcher each.
  */
-async function openProject(path: string, quiet = false): Promise<boolean> {
+async function openProject(
+  path: string,
+  { quiet = false, discardUnsaved = false } = {}
+): Promise<boolean> {
   const { getState, setState } = useProjectStore
   const generation = ++openGeneration
   const overtaken = () => generation !== openGeneration
@@ -188,16 +221,9 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   await flushLastEntry()
 
   // Save unsaved edits first, or closing the file below loses them. If the
-  // save fails it has said so and kept recovery data; stay put
-  if (useEditorStore.getState().isDirty) {
-    await useEditorStore.getState().saveFile(false)
-    if (useEditorStore.getState().isDirty) {
-      await logWarn(
-        'Astro Editor [PROJECT_SETUP] Not switching projects: the open file has unsaved edits'
-      )
-      return false
-    }
-  }
+  // save fails (a project moved while open can't save at all) it has said so
+  // and kept recovery data; stay put unless the writer says otherwise
+  if (!discardUnsaved && !(await saveBeforeSwitching(path))) return false
 
   const result = await commands.openProject(path)
   if (overtaken()) return true
@@ -216,10 +242,10 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   const { project, settings, newSettings } = result.data
 
   // Anything typed while the project was being registered is saved too
-  if (useEditorStore.getState().isDirty) {
-    await useEditorStore.getState().saveFile(false)
+  if (!discardUnsaved && useEditorStore.getState().isDirty) {
+    const saved = await saveBeforeSwitching(path)
     if (overtaken()) return true
-    if (useEditorStore.getState().isDirty) return false
+    if (!saved) return false
   }
 
   // Close the open file, the previous project's settings, and its watcher and
@@ -483,9 +509,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const lastProject =
       registry?.lastOpenedProject &&
       registry.projects[registry.lastOpenedProject]
-    if (lastProject && !(await openProject(lastProject.path, true))) {
+    if (
+      lastProject &&
+      !(await openProject(lastProject.path, { quiet: true }))
+    ) {
+      // A project on a drive that isn't connected hasn't gone anywhere
+      const listed = await commands.listProjects()
+      const disconnected =
+        listed.status === 'ok' &&
+        listed.data.some(p => p.project.id === lastProject.id && p.disconnected)
       toast.warning(`Couldn't open ${projectName(lastProject.path)}`, {
-        description: 'It may have been moved or deleted.',
+        description: disconnected
+          ? "The drive it's on isn't connected."
+          : 'It may have been moved or deleted.',
         action: {
           label: 'Show Projects',
           onClick: () => useUIStore.getState().setProjectListOpen(true),
@@ -512,19 +548,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateGlobalSettings: async (patch: DeepPartial<GlobalSettings>) => {
-    const { globalSettings } = get()
-    if (!globalSettings) return
+    const { globalSettings: previous } = get()
+    if (!previous) return
 
-    const updated = deepMerge(globalSettings, patch)
-    const result = await commands.saveGlobalSettings(updated)
+    // Set before saving, so a change made while this one saves (a colour
+    // picker sends one per drag step) builds on it, and write in order, so
+    // the file ends with the latest
+    const updated = deepMerge(previous, patch)
+    set({ globalSettings: updated })
+    const write = globalSettingsWrite.then(() =>
+      commands.saveGlobalSettings(updated)
+    )
+    globalSettingsWrite = write.catch(() => undefined)
+    const result = await write
     if (result.status === 'error') {
+      // Unless a newer change has replaced these settings, which a rollback
+      // would undo
+      if (get().globalSettings === updated) set({ globalSettings: previous })
       toast.error('Failed to update global settings', {
         description: result.error,
       })
       await logError(`Failed to update global settings: ${result.error}`)
       return
     }
-    set({ globalSettings: updated })
 
     // The new file type can fall back to the global preference
     if (patch.general?.defaultFileType) {

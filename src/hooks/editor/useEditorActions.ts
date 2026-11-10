@@ -296,6 +296,10 @@ export function useEditorActions() {
       toast.error("Couldn't open that file", { description: preferences.error })
       return
     }
+    // Reading them sets aside settings files that can't be read, as at startup
+    for (const problem of preferences.data.problems) {
+      toast.warning('Settings were reset', { description: problem })
+    }
     const knownProjects = Object.values(preferences.data.registry.projects)
     const owningProjectPath = findOwningProjectPath(
       knownProjects.map(p => p.path),

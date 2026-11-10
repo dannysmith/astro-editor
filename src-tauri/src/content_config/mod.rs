@@ -94,6 +94,9 @@ pub enum Loader {
     /// another file, say). `name` is the loader function's, when it's called by
     /// name, as in `atprotoLoader(...)`.
     Unknown { name: Option<String> },
+    /// A loader written in place: a function, or an object with `load`, which
+    /// is read as unknown but isn't one AE failed to follow
+    Inline,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -233,6 +236,37 @@ impl<'a> Scope<'a> {
         None
     }
 
+    /// The string an expression always evaluates to: a string literal, or a
+    /// template literal or `+` whose parts resolve to strings, as in
+    /// `` base: `./${BLOG_PATH}` `` with `const BLOG_PATH = 'src/data/blog'`
+    fn string(&self, expr: &'a Expr) -> Option<String> {
+        self.string_at(expr, 0)
+    }
+
+    fn string_at(&self, expr: &'a Expr, depth: usize) -> Option<String> {
+        if depth > MAX_DEPTH {
+            return None;
+        }
+        match self.resolve(expr)? {
+            Expr::Lit(Lit::Str(s)) => Some(s.value.to_string_lossy().to_string()),
+            Expr::Tpl(tpl) => {
+                let mut value = String::new();
+                for (i, quasi) in tpl.quasis.iter().enumerate() {
+                    value.push_str(&quasi.cooked.as_ref()?.to_string_lossy());
+                    if let Some(part) = tpl.exprs.get(i) {
+                        value.push_str(&self.string_at(part, depth + 1)?);
+                    }
+                }
+                Some(value)
+            }
+            Expr::Bin(bin) if bin.op == BinaryOp::Add => {
+                let left = self.string_at(&bin.left, depth + 1)?;
+                Some(left + &self.string_at(&bin.right, depth + 1)?)
+            }
+            _ => None,
+        }
+    }
+
     /// The name a called function was imported as, or its local name
     fn callee_name(&self, call: &CallExpr) -> Option<String> {
         let Callee::Expr(callee) = &call.callee else {
@@ -284,7 +318,10 @@ impl<'a> Scope<'a> {
         let loader_option = self.option(options, "loader");
         let loader = match loader_option {
             Some(loader) => self.read_loader(loader),
-            None => match self.option(options, "type").and_then(string_value) {
+            None => match self
+                .option(options, "type")
+                .and_then(|expr| self.string(expr))
+            {
                 Some(kind) if kind == "data" => Loader::Data { file: None },
                 _ => Loader::Legacy,
             },
@@ -341,8 +378,10 @@ impl<'a> Scope<'a> {
     }
 
     fn read_loader(&self, loader: &'a Expr) -> Loader {
-        let Expr::Call(call) = loader else {
-            return Loader::Unknown { name: None };
+        let call = match loader {
+            Expr::Call(call) => call,
+            Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => return Loader::Inline,
+            _ => return Loader::Unknown { name: None },
         };
         let first_arg = call.args.first().and_then(|arg| self.resolve(&arg.expr));
 
@@ -371,7 +410,7 @@ impl<'a> Scope<'a> {
             },
             Some("file") => Loader::Data {
                 file: first_arg
-                    .and_then(string_value)
+                    .and_then(|expr| self.string(expr))
                     .map(|path| path.trim_start_matches("./").to_string()),
             },
             Some("i18nLoader") => Loader::Data { file: None },
@@ -384,7 +423,7 @@ impl<'a> Scope<'a> {
     /// A glob `base`: a string relative to the project root, or a URL. A relative
     /// URL (`new URL('./content', import.meta.url)`) is relative to the config file.
     fn read_base(&self, base: &'a Expr) -> Option<PathBuf> {
-        if let Some(path) = string_value(base) {
+        if let Some(path) = self.string(base) {
             return Some(PathBuf::from(path));
         }
         let Expr::New(new) = base else {
@@ -394,7 +433,9 @@ impl<'a> Scope<'a> {
             return None;
         }
         let args = new.args.as_ref()?;
-        let url = self.resolve(&args.first()?.expr).and_then(string_value)?;
+        let url = self
+            .resolve(&args.first()?.expr)
+            .and_then(|expr| self.string(expr))?;
 
         if let Some(absolute) = url.strip_prefix("file://") {
             return Some(PathBuf::from(absolute));
@@ -412,7 +453,7 @@ impl<'a> Scope<'a> {
     }
 
     fn read_patterns(&self, pattern: &'a Expr) -> Option<Vec<String>> {
-        if let Some(pattern) = string_value(pattern) {
+        if let Some(pattern) = self.string(pattern) {
             return Some(vec![pattern]);
         }
         let Expr::Array(array) = pattern else {
@@ -426,22 +467,9 @@ impl<'a> Scope<'a> {
                 if elem.spread.is_some() {
                     return None;
                 }
-                self.resolve(&elem.expr).and_then(string_value)
+                self.resolve(&elem.expr).and_then(|expr| self.string(expr))
             })
             .collect()
-    }
-}
-
-/// A string literal, or a template literal with nothing interpolated
-fn string_value(expr: &Expr) -> Option<String> {
-    match expr {
-        Expr::Lit(Lit::Str(s)) => Some(s.value.to_string_lossy().to_string()),
-        Expr::Tpl(tpl) if tpl.exprs.is_empty() => tpl
-            .quasis
-            .first()
-            .and_then(|quasi| quasi.cooked.as_ref())
-            .map(|cooked| cooked.to_string_lossy().to_string()),
-        _ => None,
     }
 }
 
@@ -565,6 +593,37 @@ mod tests {
     }
 
     #[test]
+    fn builds_strings_from_templates_and_concatenation() {
+        // AstroPaper's config, and the same with `+`
+        let collections = parse(
+            r#"
+            export const BLOG_PATH = "src/data/blog";
+            const ext = 'md';
+            export const collections = {
+                blog: defineCollection({ loader: glob({ pattern: `**/[^_]*.${ext}`, base: `./${BLOG_PATH}` }) }),
+                notes: defineCollection({ loader: glob({ pattern: '*.md', base: './' + BLOG_PATH + '/notes' }) }),
+                unknown: defineCollection({ loader: glob({ pattern: '*.md', base: `./${getPath()}` }) }),
+            };
+            "#,
+        );
+        assert_eq!(
+            collections[0].loader,
+            glob(path("./src/data/blog"), &["**/[^_]*.md"])
+        );
+        assert_eq!(
+            collections[1].loader,
+            glob(path("./src/data/blog/notes"), &["*.md"])
+        );
+        assert!(matches!(
+            collections[2].loader,
+            Loader::Glob {
+                base: GlobBase::Unreadable,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn reads_url_bases_relative_to_the_config() {
         assert_eq!(
             loader(
@@ -628,6 +687,7 @@ mod tests {
                 i18n: defineCollection({ loader: i18nLoader() }),
                 feed: defineCollection({ loader: rssLoader('https://example.com') }),
                 inline: defineCollection({ loader: async () => [] }),
+                inlineObject: defineCollection({ loader: { name: "api", load: async () => {} } }),
                 posts,
             };
             "#,
@@ -648,7 +708,8 @@ mod tests {
                 Loader::Unknown {
                     name: Some("rssLoader".to_string())
                 },
-                Loader::Unknown { name: None },
+                Loader::Inline,
+                Loader::Inline,
                 Loader::Unknown { name: None },
             ]
         );

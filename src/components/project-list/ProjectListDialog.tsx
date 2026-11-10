@@ -28,6 +28,8 @@ import {
   removeProject,
 } from '../../lib/projects/actions'
 import { showProjectContextMenu } from '../../lib/projects/context-menu'
+import { projectName } from '../../lib/projects/display'
+import { toast } from '../../lib/toast'
 import { OpenFolderButton } from './OpenFolderButton'
 import { ProjectItem } from './ProjectItem'
 
@@ -92,7 +94,15 @@ function ProjectList() {
     selected && byId.has(selected) ? selected : (fallback?.project.id ?? '')
 
   const choose = (listed: ListedProject) => {
-    if (listed.missing) {
+    // It hasn't moved, so Locate… would point it somewhere else
+    if (listed.disconnected) {
+      toast.info(
+        `${projectName(listed.project.path)} is on a drive that isn't connected`,
+        {
+          description: 'Connect the drive to open it.',
+        }
+      )
+    } else if (listed.missing) {
       void locateProject(listed.project)
     } else {
       openListedProject(listed.project.path)

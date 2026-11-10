@@ -82,6 +82,7 @@ pub fn scan_project(
                     patterns: None,
                     schema_source: None,
                     loader_name: None,
+                    inline_loader: false,
                 }))
                 .collect()
         }
@@ -95,6 +96,7 @@ pub fn scan_project(
                 patterns: None,
                 schema_source: None,
                 loader_name: None,
+                inline_loader: false,
             })
             .collect(),
     };
@@ -133,6 +135,7 @@ struct Found {
     patterns: Option<Vec<String>>,
     schema_source: Option<String>,
     loader_name: Option<String>,
+    inline_loader: bool,
 }
 
 impl Found {
@@ -147,6 +150,7 @@ impl Found {
             Loader::Unknown { name } => name.clone(),
             _ => None,
         };
+        let inline_loader = matches!(collection.loader, Loader::Inline);
 
         let (kind, (base, base_source), patterns) = match collection.loader {
             Loader::Glob { base, patterns } => {
@@ -169,7 +173,9 @@ impl Found {
                 );
                 (CollectionKind::Data, base, None)
             }
-            Loader::Unknown { .. } => (CollectionKind::Unknown, by_convention(content_dir), None),
+            Loader::Unknown { .. } | Loader::Inline => {
+                (CollectionKind::Unknown, by_convention(content_dir), None)
+            }
         };
 
         Self {
@@ -180,6 +186,7 @@ impl Found {
             patterns,
             schema_source: collection.schema_source,
             loader_name,
+            inline_loader,
         }
     }
 }
@@ -291,6 +298,7 @@ fn resolve_collection(
         folder_source,
         folder_status,
         loader_name: found.loader_name,
+        inline_loader: found.inline_loader,
         schema_status,
         schema_error,
         complete_schema: schema.and_then(|schema| serde_json::to_string(&schema).ok()),
@@ -423,7 +431,8 @@ fn resolve_collection_settings(
 }
 
 /// A folder's subfolders, as Astro lists them for legacy collections: not
-/// starting with `_` or `.`
+/// starting with `_` or `.`. `node_modules` is left out too, for a content
+/// folder set to the project root
 fn subfolders(dir: &Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -432,7 +441,7 @@ fn subfolders(dir: &Path) -> Vec<String> {
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().is_dir())
         .filter_map(|entry| entry.file_name().to_str().map(str::to_string))
-        .filter(|name| !name.starts_with(['_', '.']))
+        .filter(|name| !name.starts_with(['_', '.']) && name != "node_modules")
         .collect();
     names.sort();
     names
@@ -644,7 +653,8 @@ mod tests {
     fn falls_back_to_folders_without_a_config() {
         let site = Site::new("")
             .dir("src/content/notes")
-            .dir("src/content/.hidden");
+            .dir("src/content/.hidden")
+            .dir("src/content/node_modules");
         let scan = site.scan();
         assert!(scan.fallback);
         assert_eq!(scan.config_error, None);

@@ -12,13 +12,18 @@ import { getCollection } from '@/lib/project-scan'
  */
 const fetchDirectoryContents = async (
   collection: Collection,
-  subdirectory: string | null
+  subdirectory: string | null,
+  projectPath: string
 ): Promise<DirectoryScanResult> => {
   const current = getCollection(collection.name) ?? collection
   const directoryPath = subdirectory
     ? `${current.path}/${subdirectory}`
     : current.path
-  const result = await commands.scanDirectory(directoryPath, current)
+  const result = await commands.scanDirectory(
+    directoryPath,
+    current,
+    projectPath
+  )
   if (result.status === 'error') {
     throw new Error(result.error)
   }
@@ -40,7 +45,8 @@ export const useDirectoryScanQuery = (
       collection?.name || '',
       subdirectory || 'root'
     ),
-    queryFn: () => fetchDirectoryContents(collection!, subdirectory),
+    queryFn: () =>
+      fetchDirectoryContents(collection!, subdirectory, projectPath!),
     enabled: !!projectPath && !!collection,
   })
 }

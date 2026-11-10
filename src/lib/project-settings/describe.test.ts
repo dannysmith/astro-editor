@@ -140,6 +140,19 @@ describe('describeOrigin', () => {
     )
   })
 
+  it('names a loader written in place in the config', () => {
+    const journal = makeCollection({
+      name: 'journal',
+      kind: 'unknown',
+      inlineLoader: true,
+      folderStatus: 'missing',
+      folderSource: 'convention',
+    })
+    expect(describeOrigin(journal, scan)).toBe(
+      "From a loader written in `src/content.config.ts`, which probably doesn't read files."
+    )
+  })
+
   it('says when a definition couldn’t be read, rather than guessing a loader', () => {
     const blog = makeCollection({
       name: 'blog',

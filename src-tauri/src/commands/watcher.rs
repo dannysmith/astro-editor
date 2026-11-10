@@ -293,17 +293,14 @@ fn watch_new_schemas_dir(
     true
 }
 
+/// Stops watching the project. A project with no watcher (it never started,
+/// or a quick switch reached it first) is already stopped, so that's fine.
 #[tauri::command]
 #[specta::specta]
 pub async fn stop_watching_project(app: AppHandle, project_path: String) -> Result<(), String> {
     let watcher_map: State<WatcherMap> = app.state();
-    let mut watchers = watcher_map.lock().unwrap();
-
-    if watchers.remove(&project_path).is_some() {
-        Ok(())
-    } else {
-        Err("No watcher found for this project".to_string())
-    }
+    watcher_map.lock().unwrap().remove(&project_path);
+    Ok(())
 }
 
 async fn process_events(app: &AppHandle, events: &mut [Event]) {

@@ -10,6 +10,16 @@ interface YamlFieldProps extends FieldProps {
   field?: SchemaField
 }
 
+/**
+ * The JSON of what the store holds once `value` is written: an empty value
+ * (`[]`, `""`, `null`) removes the key, so nothing. The draft is compared with
+ * it, and replaced if they differ.
+ */
+const storedJson = (value: unknown): string =>
+  value === null || value === '' || (Array.isArray(value) && value.length === 0)
+    ? 'null'
+    : JSON.stringify(value)
+
 /** A frontmatter value as the JSON the field shows, indented */
 const toJson = (value: unknown): string =>
   value === undefined || value === null ? '' : JSON.stringify(value, null, 2)
@@ -65,7 +75,7 @@ export const YamlField: React.FC<YamlFieldProps> = ({
     try {
       const parsed = JSON.parse(newValue) as unknown
       setError(null)
-      setDraftValueJson(JSON.stringify(parsed))
+      setDraftValueJson(storedJson(parsed))
       updateFrontmatterField(name, parsed)
     } catch (err) {
       // Keep the draft and the last valid value until the JSON parses

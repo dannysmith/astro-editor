@@ -145,12 +145,6 @@ export function projectProblems(scan: ProjectScan): Problem[] {
       fix: 'If your content is somewhere else, change the content folder below.',
       detail: scan.configError ?? undefined,
     })
-  } else if (scan.configError) {
-    problems.push({
-      level: 'warning',
-      message: `Part of the content config, \`${scan.configPath}\`, couldn't be read.`,
-      detail: scan.configError,
-    })
   }
 
   if (scan.collections.every(c => c.kind === 'data')) {

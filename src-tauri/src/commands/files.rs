@@ -56,8 +56,8 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 
 /// Creates a file holding `content`, under `frontmatter` if it's given, which
 /// is serialised as saving does (so dates come out unquoted and strings
-/// escaped), in schema field order. Key order doesn't survive the IPC, so it's
-/// passed separately. Returns the new file's path, with `/` on Windows too
+/// escaped), in schema field order. Returns the new file's path,
+/// with `/` on Windows too
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
@@ -196,9 +196,17 @@ pub async fn copy_file_to_assets(
     let validated_project_root =
         dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
 
-    let assets_dir = validated_project_root
-        .join(assets_directory)
-        .join(&collection);
+    // Checked before it's created, so an assets setting like `../shared`
+    // can't create folders outside the project. It may not exist yet, so
+    // `validate_project_path` can't check it
+    let assets_dir = crate::content_config::normalize(
+        &validated_project_root
+            .join(assets_directory)
+            .join(&collection),
+    );
+    if !assets_dir.starts_with(&validated_project_root) {
+        return Err("File outside project directory".to_string());
+    }
 
     fs::create_dir_all(&assets_dir)
         .map_err(|e| format!("Failed to create assets directory: {e}"))?;
@@ -250,9 +258,12 @@ pub async fn copy_file_to_assets(
         {
             Ok(_) => {
                 // File created successfully, now copy the content
-                // Note: We created an empty file, so we need to copy over it
-                fs::copy(&source_path, &validated_path)
-                    .map_err(|e| format!("Failed to copy file content: {e}"))?;
+                // Note: We created an empty file, so we need to copy over it,
+                // and remove it again if the copy fails
+                if let Err(e) = fs::copy(&source_path, &validated_path) {
+                    let _ = fs::remove_file(&validated_path);
+                    return Err(format!("Failed to copy file content: {e}"));
+                }
                 break validated_path;
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -1572,6 +1583,28 @@ Regular markdown content here."#;
     }
 
     #[tokio::test]
+    async fn copy_file_to_assets_refuses_folders_outside_the_project() {
+        let root = tempfile::TempDir::new().unwrap();
+        let project = root.path().join("site");
+        fs::create_dir_all(&project).unwrap();
+        let image = root.path().join("photo.png");
+        fs::write(&image, b"png").unwrap();
+
+        let result = copy_file_to_assets(
+            image.to_string_lossy().to_string(),
+            project.to_string_lossy().to_string(),
+            "blog".to_string(),
+            "../shared".to_string(),
+            project.join("post.md").to_string_lossy().to_string(),
+            true,
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert!(!root.path().join("shared").exists());
+    }
+
+    #[tokio::test]
     async fn test_copy_file_to_assets_creates_directory() {
         use std::fs;
         use tempfile::TempDir;
@@ -1826,6 +1859,28 @@ folded: >
         let folded_str = folded.as_str().unwrap();
         assert!(folded_str.contains("This is a"));
         assert!(folded_str.contains("long description"));
+    }
+
+    #[test]
+    fn test_frontmatter_edit_keeps_nested_key_order() {
+        let original =
+            "---\ntitle: Old\nseo:\n  title: SEO title\n  description: About it\n---\n\nBody\n";
+        let parsed = parse_frontmatter(original).unwrap();
+        let mut frontmatter = parsed.frontmatter;
+        frontmatter.insert("title".to_string(), Value::String("New".to_string()));
+
+        let saved = rebuild_markdown_with_frontmatter_and_imports_ordered(
+            &frontmatter,
+            &parsed.imports,
+            &parsed.content,
+            None,
+        )
+        .unwrap();
+
+        assert!(
+            saved.contains("seo:\n  title: SEO title\n  description: About it\n"),
+            "{saved}"
+        );
     }
 
     #[test]

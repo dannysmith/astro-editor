@@ -15,6 +15,7 @@ export function makeCollection(
   return {
     kind: 'glob',
     loaderName: null,
+    inlineLoader: false,
     path,
     base: path,
     patterns: ['**/[^_]*.{md,mdx}'],

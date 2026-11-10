@@ -23,14 +23,19 @@ export function describeOrigin(
   scan: ProjectScan
 ): string {
   const config = scan.configPath ? ` in \`${scan.configPath}\`` : ''
-  const loader = `\`${collection.loaderName}()\``
-  // No loader name: the definition couldn't be followed, often because it's
-  // imported from another file, so whether it reads files is unknown
+  // A named loader, or one written in place in the config. Neither says what
+  // it reads. With neither, the definition couldn't be followed, often
+  // because it's imported from another file
+  const loader = collection.loaderName
+    ? `From \`${collection.loaderName}()\`${config}`
+    : collection.inlineLoader
+      ? `From a loader written in${config ? ` \`${scan.configPath}\`` : ' the content config'}`
+      : null
   const unreadDefinition = `Its definition${config} couldn't be read, perhaps because it's in another file`
 
   if (isUnreadLoader(collection)) {
-    return collection.loaderName
-      ? `From ${loader}${config}, which probably doesn't read files.`
+    return loader
+      ? `${loader}, which probably doesn't read files.`
       : `${unreadDefinition}.`
   }
   switch (collection.kind) {
@@ -39,8 +44,8 @@ export function describeOrigin(
     case 'legacy':
       return `A legacy collection${config}, without a loader.`
     case 'unknown':
-      return collection.loaderName
-        ? `From ${loader}${config}. Its folder is assumed to be the one named after it.`
+      return loader
+        ? `${loader}. Its folder is assumed to be the one named after it.`
         : `${unreadDefinition}, so its folder is assumed to be the one named after it.`
     case 'folder':
       return `A folder in \`${scan.projectSettings.contentDirectory.value}\`.`

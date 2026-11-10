@@ -46,7 +46,7 @@ export function ContentLinkerDialog() {
   const fileQueries = useQueries({
     queries: collections.map(collection => ({
       queryKey: queryKeys.collectionFiles(projectPath || '', collection.name),
-      queryFn: () => fetchCollectionFiles(collection),
+      queryFn: () => fetchCollectionFiles(collection, projectPath!),
       enabled: isOpen && !!projectPath,
       retry: false,
     })),

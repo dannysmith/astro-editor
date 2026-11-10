@@ -76,7 +76,8 @@ async function createFileInCurrentFolder(
   const nameResult = await commands.newFileName(
     targetDirectory,
     collection,
-    stem
+    stem,
+    currentProjectPath
   )
   if (nameResult.status === 'error') {
     throw new Error(nameResult.error)

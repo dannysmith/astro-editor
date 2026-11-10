@@ -44,6 +44,14 @@ describe('YamlField', () => {
     expect(box).toHaveValue('{"kind":"quote"}')
   })
 
+  it('keeps the text when it parses to an empty value, which removes the key', () => {
+    const box = screen.getByRole('textbox')
+    fireEvent.change(box, { target: { value: '[]' } })
+
+    expect(stored()).toBeUndefined()
+    expect(box).toHaveValue('[]')
+  })
+
   it('shows a value changed outside the field', () => {
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: '{ "kind": "vid' },

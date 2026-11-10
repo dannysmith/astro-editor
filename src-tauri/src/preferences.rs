@@ -208,9 +208,11 @@ impl Preferences {
         if registry.last_opened_project.as_deref() == Some(project_id) {
             registry.last_opened_project = None;
         }
+        // The registry first, so a failed write leaves the project with its settings
+        self.write(REGISTRY_FILE, &registry)?;
         self.delete_project_files(project_id)?;
         info!("Astro Editor [PREFERENCES] Removed project {project_id}");
-        self.write(REGISTRY_FILE, &registry)
+        Ok(())
     }
 
     /// Points a project at the folder it moved to, keeping its settings. If
@@ -229,16 +231,15 @@ impl Preferences {
             return Err(format!("No project with id {project_id}"));
         }
 
-        if let Some(other) = find_project(&registry, &canonical).filter(|id| id != project_id) {
+        let replaced = find_project(&registry, &canonical).filter(|id| id != project_id);
+        if let Some(other) = &replaced {
             if !replace {
                 return Ok(Relocation::AlreadyRegistered);
             }
-            registry.projects.shift_remove(&other);
+            registry.projects.shift_remove(other);
             if registry.last_opened_project.as_deref() == Some(other.as_str()) {
                 registry.last_opened_project = Some(project_id.to_string());
             }
-            self.delete_project_files(&other)?;
-            info!("Astro Editor [PREFERENCES] Removed project {other}, replaced by {project_id}");
         }
 
         let metadata = registry
@@ -246,7 +247,13 @@ impl Preferences {
             .get_mut(project_id)
             .expect("the project was checked above");
         metadata.path = canonical.clone();
+        // The registry first, so a failed write leaves the replaced project with
+        // its settings
         self.write(REGISTRY_FILE, &registry)?;
+        if let Some(other) = replaced {
+            self.delete_project_files(&other)?;
+            info!("Astro Editor [PREFERENCES] Removed project {other}, replaced by {project_id}");
+        }
         if let Some(file) = self.read_current_project_file(project_id) {
             self.write_project_file(project_id, &canonical, &file.settings)?;
         }

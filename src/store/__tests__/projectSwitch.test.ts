@@ -3,6 +3,7 @@ import { useEditorStore } from '../editorStore'
 import { useProjectStore } from '../projectStore'
 import { commands } from '@/lib/bindings'
 import { makeScan } from '../../test/fixtures'
+import { toast } from '../../lib/toast'
 import type { FileEntry } from '@/types'
 
 vi.mock('../../lib/query-client', () => ({
@@ -94,6 +95,26 @@ describe('switching projects with unsaved edits', () => {
     expect(commands.openProject).not.toHaveBeenCalled()
     expect(useProjectStore.getState().projectPath).toBe('/sites/blog')
     expect(useEditorStore.getState().editorContent).toBe('unsaved words')
+  })
+
+  it('switches anyway if the writer chooses to, after a failed save', async () => {
+    useEditorStore
+      .getState()
+      .setAutoSaveCallback(vi.fn(() => Promise.resolve()))
+
+    const error = vi.spyOn(toast, 'error')
+
+    useProjectStore.getState().setProject('/sites/docs')
+    await vi.waitFor(() => expect(error).toHaveBeenCalled())
+    const options = error.mock.calls.at(-1)?.[1] as {
+      action: { onClick: () => void }
+    }
+    options.action.onClick()
+
+    await vi.waitFor(() =>
+      expect(useProjectStore.getState().projectPath).toBe('/sites/docs')
+    )
+    expect(useEditorStore.getState().currentFile).toBeNull()
   })
 })
 

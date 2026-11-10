@@ -219,7 +219,7 @@ pub async fn load_file_based_collection(
 ) -> Result<Vec<FileEntry>, String> {
     debug!("Astro Editor [FILE_COLLECTION] Loading file-based collection: {collection_name}");
 
-    let project = PathBuf::from(&project_path);
+    let project = canonical_project(&project_path)?;
     let config_path = content_config::find_config(&project)
         .ok_or_else(|| "The project has no content config".to_string())?;
     let source =
@@ -243,6 +243,7 @@ pub async fn load_file_based_collection(
         file_path.display()
     );
 
+    validate_project_path(&file_path, &project)?;
     let content = std::fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read collection file: {e}"))?;
     let data: serde_json::Value = match file_path.extension().and_then(|e| e.to_str()) {
@@ -336,7 +337,9 @@ fn file_collection_entries(data: serde_json::Value) -> Result<Vec<(String, Field
 pub async fn scan_directory(
     directory_path: String,
     collection: Collection,
+    project_path: String,
 ) -> Result<DirectoryScanResult, String> {
+    validate_project_path(&directory_path, &project_path)?;
     let dir_path = PathBuf::from(&directory_path);
     if !dir_path.is_dir() {
         return Err(format!("Not a directory: {}", dir_path.display()));
@@ -378,7 +381,11 @@ pub async fn scan_directory(
 /// How many entries a collection has, in all its folders
 #[tauri::command]
 #[specta::specta]
-pub async fn count_collection_files_recursive(collection: Collection) -> Result<u32, String> {
+pub async fn count_collection_files_recursive(
+    collection: Collection,
+    project_path: String,
+) -> Result<u32, String> {
+    validate_project_path(&collection.path, &project_path)?;
     let listing = CollectionListing::new(&collection);
     let mut count = 0;
     walk_markdown(&collection.path, &mut |path| {
@@ -397,7 +404,9 @@ pub async fn count_collection_files_recursive(collection: Collection) -> Result<
 #[specta::specta]
 pub async fn scan_collection_files_recursive(
     collection: Collection,
+    project_path: String,
 ) -> Result<Vec<FileEntry>, String> {
+    validate_project_path(&collection.path, &project_path)?;
     let listing = CollectionListing::new(&collection);
     let mut files = Vec::new();
     walk_markdown(&collection.path, &mut |path| {
@@ -421,7 +430,9 @@ pub async fn new_file_name(
     directory: String,
     collection: Collection,
     stem: String,
+    project_path: String,
 ) -> Result<Option<String>, String> {
+    validate_project_path(&directory, &project_path)?;
     let directory = PathBuf::from(directory);
     let extension = match collection.settings.new_file_type.value {
         FileType::Md => "md",
@@ -763,11 +774,12 @@ mod tests {
             "jane": { "name": "Jane" },
             "en": "English",
         });
+        // In the file's order
         let entries = file_collection_entries(data).unwrap();
         let ids: Vec<_> = entries.iter().map(|(id, _)| id.as_str()).collect();
-        assert_eq!(ids, ["en", "jane"]);
-        assert!(entries[0].1.is_empty());
-        assert_eq!(entries[1].1["name"], "Jane");
+        assert_eq!(ids, ["jane", "en"]);
+        assert_eq!(entries[0].1["name"], "Jane");
+        assert!(entries[1].1.is_empty());
 
         assert!(file_collection_entries(serde_json::json!("text")).is_err());
     }
@@ -1192,10 +1204,48 @@ mod tests {
         (temp, scan.collections.into_iter().next().unwrap())
     }
 
+    /// The collection's folder stands in for the project the listings check
+    /// paths against, since everything listed is inside it
+    fn project(collection: &Collection) -> String {
+        collection.path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn listings_refuse_folders_outside_the_project() {
+        let (_temp, blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        let outside = tempfile::TempDir::new().unwrap();
+        let elsewhere = outside.path().to_string_lossy().to_string();
+
+        assert!(tauri::async_runtime::block_on(scan_directory(
+            elsewhere.clone(),
+            blog.clone(),
+            project(&blog)
+        ))
+        .is_err());
+        let moved = Collection {
+            path: outside.path().to_path_buf(),
+            ..blog.clone()
+        };
+        assert!(
+            tauri::async_runtime::block_on(count_collection_files_recursive(
+                moved.clone(),
+                project(&blog)
+            ))
+            .is_err()
+        );
+        assert!(
+            tauri::async_runtime::block_on(scan_collection_files_recursive(moved, project(&blog)))
+                .is_err()
+        );
+        let name = new_file_name(elsewhere, blog.clone(), "post".to_string(), project(&blog));
+        assert!(tauri::async_runtime::block_on(name).is_err());
+    }
+
     fn listed(collection: &Collection, dir: &str) -> (Vec<String>, Vec<(String, bool)>) {
         let result = tauri::async_runtime::block_on(scan_directory(
             collection.path.join(dir).to_string_lossy().to_string(),
             collection.clone(),
+            project(collection),
         ))
         .unwrap();
         let mut dirs: Vec<_> = result.subdirectories.into_iter().map(|d| d.name).collect();
@@ -1241,11 +1291,17 @@ mod tests {
     #[test]
     fn counts_and_collects_only_entries() {
         let (_temp, blog) = blog_collection("'**/[^_]*.md'", SkippedFiles::Dim);
-        let count =
-            tauri::async_runtime::block_on(count_collection_files_recursive(blog.clone())).unwrap();
+        let count = tauri::async_runtime::block_on(count_collection_files_recursive(
+            blog.clone(),
+            project(&blog),
+        ))
+        .unwrap();
         assert_eq!(count, 3);
-        let files =
-            tauri::async_runtime::block_on(scan_collection_files_recursive(blog.clone())).unwrap();
+        let files = tauri::async_runtime::block_on(scan_collection_files_recursive(
+            blog.clone(),
+            project(&blog),
+        ))
+        .unwrap();
         let mut ids: Vec<_> = files.into_iter().map(|f| f.id).collect();
         ids.sort();
         assert_eq!(ids, ["blog/2024/old", "blog/README", "blog/post"]);
@@ -1283,6 +1339,7 @@ mod tests {
             collection.path.join(dir).to_string_lossy().to_string(),
             collection.clone(),
             stem.to_string(),
+            project(collection),
         ))
         .unwrap()
     }

@@ -15,10 +15,14 @@ import { getCollection } from '@/lib/project-scan'
  * components re-render with the new folder and pattern.
  */
 export const fetchCollectionFiles = async (
-  collection: Collection
+  collection: Collection,
+  projectPath: string
 ): Promise<FileEntry[]> => {
   const current = getCollection(collection.name) ?? collection
-  const result = await commands.scanCollectionFilesRecursive(current)
+  const result = await commands.scanCollectionFilesRecursive(
+    current,
+    projectPath
+  )
   if (result.status === 'error') {
     throw new Error(result.error)
   }
@@ -34,7 +38,7 @@ export const useCollectionFilesQuery = (
       projectPath || '',
       collection?.name || ''
     ),
-    queryFn: () => fetchCollectionFiles(collection!),
+    queryFn: () => fetchCollectionFiles(collection!, projectPath!),
     enabled: !!projectPath && !!collection,
   })
 }

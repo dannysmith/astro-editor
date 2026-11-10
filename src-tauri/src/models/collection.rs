@@ -32,6 +32,9 @@ pub struct Collection {
     pub kind: CollectionKind,
     /// For a loader AE can't read, its function's name, when it's called by name
     pub loader_name: Option<String>,
+    /// Its loader is written in place in the config (a function, or an object
+    /// with `load`), so the definition was read but the loader can't be
+    pub inline_loader: bool,
     /// The folder the sidebar browses: `base` plus the pattern's fixed prefix
     #[specta(type = String)]
     #[serde(serialize_with = "serialize_path")]

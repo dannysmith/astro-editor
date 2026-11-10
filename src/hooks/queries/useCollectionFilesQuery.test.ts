@@ -17,10 +17,10 @@ describe('fetchCollectionFiles', () => {
     const after = { ...before, path: '/site/writing/blog' }
     queryClient.setQueryData(queryKeys.collections('/site'), makeScan([after]))
 
-    await fetchCollectionFiles(before)
+    await fetchCollectionFiles(before, '/site')
     expect(globalThis.mockTauri.invoke).toHaveBeenCalledWith(
       'scan_collection_files_recursive',
-      { collection: after }
+      { collection: after, projectPath: '/site' }
     )
   })
 })

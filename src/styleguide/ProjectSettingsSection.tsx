@@ -67,6 +67,7 @@ const COLLECTION: Collection = {
   name: 'posts',
   kind: 'glob',
   loaderName: null,
+  inlineLoader: false,
   path: `${PROJECT}/src/content/posts`,
   base: `${PROJECT}/src/content/posts`,
   patterns: null,
