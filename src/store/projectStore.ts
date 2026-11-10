@@ -536,7 +536,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     )
     if (get().projectPath !== projectPath) return
     if (result.status === 'error') {
-      set({ projectSettings: previous })
+      // Unless a newer change has replaced these settings, which a rollback
+      // would undo
+      if (get().projectSettings === settings) set({ projectSettings: previous })
       toast.error('Failed to update project settings', {
         description: result.error,
       })

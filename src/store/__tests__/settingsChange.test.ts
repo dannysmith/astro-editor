@@ -106,6 +106,23 @@ describe('a settings change while another is saving', () => {
     await saving
   })
 
+  it('keeps a newer change when an earlier save fails', async () => {
+    const { commands } = await import('@/lib/bindings')
+    let failFirst = () => {}
+    vi.mocked(commands.saveProjectSettings).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          failFirst = () => resolve({ status: 'error', error: 'disk full' })
+        })
+    )
+    const first = useProjectStore.getState().updateProjectSettings(settings)
+    const newer = { project: {}, collections: { blog: { folder: 'src/b' } } }
+    const second = useProjectStore.getState().updateProjectSettings(newer)
+    failFirst()
+    await Promise.all([first, second])
+    expect(useProjectStore.getState().projectSettings).toEqual(newer)
+  })
+
   it('stops if the project changed before the save finished', async () => {
     const saving = useProjectStore.getState().updateProjectSettings(settings)
     useProjectStore.setState({ projectPath: '/other' })

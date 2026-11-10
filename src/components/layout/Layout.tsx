@@ -110,7 +110,9 @@ export const Layout: React.FC = () => {
     setPreferencesOpen(open)
     if (!open) {
       setTimeout(() => {
-        focusEditor()
+        // Not when Preferences closed to open Project Settings, which would
+        // lose focus to the editor behind it
+        if (!useUIStore.getState().projectSettingsOpen) focusEditor()
       }, 100)
     }
   }, [])
