@@ -132,6 +132,9 @@ pub struct ProjectMetadata {
     /// ISO timestamps
     pub last_opened: String,
     pub created: String,
+    /// The entry open when the project was last left, relative to the project
+    /// with `/`, so it survives the project moving. None when no file was open.
+    pub last_entry: Option<String>,
 }
 
 /// A registered project, as the project list shows it

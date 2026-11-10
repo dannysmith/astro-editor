@@ -2,14 +2,17 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { ask } from '@tauri-apps/plugin-dialog'
 import { commands } from './bindings'
 import { useEditorStore } from '../store/editorStore'
+import { flushLastEntry } from './projects/last-entry'
 
 /**
- * Saves the open file if it has unsaved edits, without waiting for auto-save.
- * Resolves `true` when nothing is left unsaved. Call before anything that ends
- * the app, like quitting or restarting to install an update.
+ * Saves the open file if it has unsaved edits, without waiting for auto-save,
+ * and writes the project's remembered last entry. Resolves `true` when
+ * nothing is left unsaved. Call before anything that ends the app, like
+ * quitting or restarting to install an update.
  */
 export async function saveUnsavedEdits(): Promise<boolean> {
   const { isDirty, saveFile } = useEditorStore.getState()
+  await flushLastEntry()
   if (isDirty) await saveFile(false)
   // A failed save keeps the file dirty (and has shown an error)
   return !useEditorStore.getState().isDirty

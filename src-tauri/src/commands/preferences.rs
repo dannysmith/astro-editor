@@ -209,6 +209,18 @@ pub async fn relocate_project(
     Preferences::from_app(&app)?.relocate_project(&project_id, Path::new(&project_path), replace)
 }
 
+/// Remembers the entry open in a project (an absolute path), so opening the
+/// project reopens it, or forgets it with `None`
+#[tauri::command]
+#[specta::specta]
+pub async fn set_last_entry(
+    app: tauri::AppHandle,
+    project_id: String,
+    file_path: Option<String>,
+) -> Result<(), String> {
+    Preferences::from_app(&app)?.set_last_entry(&project_id, file_path.as_deref().map(Path::new))
+}
+
 fn show_problem(app: &tauri::AppHandle, problem: &str) {
     let _ = send_toast_notification(app, "warning", "Settings were reset", Some(problem));
 }

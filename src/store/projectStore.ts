@@ -22,6 +22,7 @@ import { hasProblems } from '../lib/project-settings/status'
 import { queryClient } from '../lib/query-client'
 import { isFileListing, queryKeys } from '../lib/query-keys'
 import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
+import { flushLastEntry, reopenLastEntry } from '../lib/projects/last-entry'
 import {
   fetchProjectScan,
   getProjectScan,
@@ -168,8 +169,9 @@ function deepMerge<T>(settings: T, patch: DeepPartial<T>): T {
 let openGeneration = 0
 
 /**
- * Opens the project at `path`: registers it, loads its settings and scan, and
- * starts watching it. Returns false if it couldn't be opened, after logging
+ * Opens the project at `path`: registers it, loads its settings and scan,
+ * starts watching it, and reopens the file that was open when it was last
+ * left. Returns false if it couldn't be opened, after logging
  * why and, unless `quiet`, telling the writer.
  *
  * Another open can start while this one waits (two deep links, or a quick
@@ -182,6 +184,8 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   const generation = ++openGeneration
   const overtaken = () => generation !== openGeneration
   await info(`Astro Editor [PROJECT_SETUP] Opening project: ${path}`)
+  // The project being left remembers its open file even if it was only just opened
+  await flushLastEntry()
 
   // Save unsaved edits first, or closing the file below loses them. If the
   // save fails it has said so and kept recovery data; stay put
@@ -214,7 +218,7 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   // Close the open file, the previous project's settings, and its watcher and
   // listeners first; starting another watcher doesn't stop them, so they'd
   // keep running and every event would be handled once per project opened
-  useEditorStore.getState().closeCurrentFile()
+  useEditorStore.getState().closeCurrentFile({ keepLastEntry: true })
   useUIStore.getState().setProjectSettingsOpen(false)
   await getState().stopFileWatcher()
   if (overtaken()) return true
@@ -250,6 +254,8 @@ async function openProject(path: string, quiet = false): Promise<boolean> {
   }
   await getState().startFileWatcher()
   await info(`Astro Editor [PROJECT_SETUP] Opened project: ${project.id}`)
+  // Back to the file that was open when the project was last left
+  await reopenLastEntry(project, overtaken)
   return true
 }
 
