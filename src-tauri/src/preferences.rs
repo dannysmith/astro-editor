@@ -291,8 +291,34 @@ impl Preferences {
             return (None, None);
         }
 
-        match serde_json::from_str(&content) {
-            Ok(file) => (Some(file), None),
+        // A key that's missing reads as empty, and the file is written back
+        // complete. Without a path, `open_project` writes it with the right one.
+        let mut complete = true;
+        let parsed = serde_json::from_str::<serde_json::Value>(&content).and_then(|mut value| {
+            if let Some(object) = value.as_object_mut() {
+                for (key, empty) in [
+                    ("path", serde_json::json!("")),
+                    ("project", serde_json::json!({})),
+                    ("collections", serde_json::json!({})),
+                ] {
+                    if !object.contains_key(key) {
+                        complete = false;
+                        object.insert(key.to_string(), empty);
+                    }
+                }
+            }
+            serde_json::from_value::<ProjectSettingsFile>(value)
+        });
+        match parsed {
+            Ok(file) => {
+                if !complete && !file.path.is_empty() {
+                    info!("Astro Editor [PREFERENCES] Completing project settings: {id}");
+                    if let Err(e) = self.write_project_file(id, &file.path, &file.settings) {
+                        warn!("Astro Editor [PREFERENCES] Couldn't complete project settings: {e}");
+                    }
+                }
+                (Some(file), None)
+            }
             Err(e) => (None, Some(set_aside_broken(&path, &e.to_string()))),
         }
     }
@@ -406,8 +432,8 @@ fn set_aside_broken(path: &Path, parse_error: &str) -> String {
 /// A project folder's path with symlinks resolved, so one folder is always
 /// registered once
 pub fn canonical_path(path: &Path) -> Result<String, String> {
-    let canonical = std::fs::canonicalize(path)
-        .map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
+    let canonical =
+        std::fs::canonicalize(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
     Ok(canonical.to_string_lossy().to_string())
 }
 
@@ -566,6 +592,30 @@ mod tests {
         assert!(opened.problems.is_empty());
         let aside = prefs.dir.join(PROJECTS_DIR).join(format!("{id}.v2.json"));
         assert_eq!(std::fs::read_to_string(aside).unwrap(), v2);
+    }
+
+    #[test]
+    fn completes_a_project_file_missing_a_key() {
+        let (_dir, prefs, project) = setup();
+        let opened = prefs.open_project(&project).unwrap();
+        let id = opened.metadata.id;
+        let path = &opened.metadata.path;
+
+        for partial in [
+            serde_json::json!({ "version": 3, "path": path, "collections": { "blog": { "draftField": "hidden" } } }),
+            serde_json::json!({ "version": 3, "collections": { "blog": { "draftField": "hidden" } } }),
+        ] {
+            std::fs::write(prefs.project_file(&id), partial.to_string()).unwrap();
+
+            let opened = prefs.open_project(&project).unwrap();
+            assert!(opened.problems.is_empty());
+            assert_eq!(opened.settings, settings_with_draft_field("hidden"));
+            let written: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(prefs.project_file(&id)).unwrap())
+                    .unwrap();
+            assert_eq!(written["path"], serde_json::json!(path));
+            assert_eq!(written["project"], serde_json::json!({}));
+        }
     }
 
     #[test]
