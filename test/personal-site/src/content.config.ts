@@ -55,6 +55,21 @@ const journal = defineCollection({
   }),
 })
 
+// Entries fetched from an API, so there are no files for AE to edit
+function bookmarksLoader(url: string) {
+  return {
+    name: 'bookmarks',
+    load: async () => {
+      void url
+    },
+  }
+}
+
+const bookmarks = defineCollection({
+  loader: bookmarksLoader('https://example.com/bookmarks.json'),
+  schema: z.object({ title: z.string(), url: z.string().url() }),
+})
+
 const authors = defineCollection({
   loader: file('./src/data/authors.json'),
   schema: z.object({ id: z.string(), name: z.string() }),
@@ -65,4 +80,4 @@ const links = defineCollection({
   schema: z.object({ title: z.string(), url: z.string().url() }),
 })
 
-export const collections = { blog, notes, docs, journal, authors, links }
+export const collections = { blog, notes, docs, journal, bookmarks, authors, links }

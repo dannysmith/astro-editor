@@ -66,6 +66,7 @@ const SCHEMA: CompleteSchema = {
 const COLLECTION: Collection = {
   name: 'posts',
   kind: 'glob',
+  loaderName: null,
   path: `${PROJECT}/src/content/posts`,
   base: `${PROJECT}/src/content/posts`,
   patterns: null,

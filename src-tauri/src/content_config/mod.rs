@@ -91,8 +91,9 @@ pub enum Loader {
     /// relative to the project root.
     Data { file: Option<String> },
     /// A loader AE doesn't know, or a collection it can't follow (imported from
-    /// another file, say)
-    Unknown,
+    /// another file, say). `name` is the loader function's, when it's called by
+    /// name, as in `atprotoLoader(...)`.
+    Unknown { name: Option<String> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -274,7 +275,7 @@ impl<'a> Scope<'a> {
         let Some(options) = options else {
             return ConfigCollection {
                 name,
-                loader: Loader::Unknown,
+                loader: Loader::Unknown { name: None },
                 has_loader: true,
                 schema_source: None,
             };
@@ -320,7 +321,7 @@ impl<'a> Scope<'a> {
 
     fn read_loader(&self, loader: &'a Expr) -> Loader {
         let Expr::Call(call) = loader else {
-            return Loader::Unknown;
+            return Loader::Unknown { name: None };
         };
         let first_arg = call.args.first().and_then(|arg| self.resolve(&arg.expr));
 
@@ -353,7 +354,9 @@ impl<'a> Scope<'a> {
                     .map(|path| path.trim_start_matches("./").to_string()),
             },
             Some("i18nLoader") => Loader::Data { file: None },
-            _ => Loader::Unknown,
+            other => Loader::Unknown {
+                name: other.map(str::to_string),
+            },
         }
     }
 
@@ -621,9 +624,11 @@ mod tests {
                 },
                 glob(path(STARLIGHT_DOCS_BASE), &[STARLIGHT_DOCS_PATTERN]),
                 Loader::Data { file: None },
-                Loader::Unknown,
-                Loader::Unknown,
-                Loader::Unknown,
+                Loader::Unknown {
+                    name: Some("rssLoader".to_string())
+                },
+                Loader::Unknown { name: None },
+                Loader::Unknown { name: None },
             ]
         );
     }

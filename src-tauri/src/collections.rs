@@ -80,6 +80,7 @@ pub fn scan_project(
                     base_source: SettingSource::Convention,
                     patterns: None,
                     schema_source: None,
+                    loader_name: None,
                 }))
                 .collect()
         }
@@ -92,6 +93,7 @@ pub fn scan_project(
                 base_source: SettingSource::Convention,
                 patterns: None,
                 schema_source: None,
+                loader_name: None,
             })
             .collect(),
     };
@@ -119,6 +121,7 @@ struct Found {
     base_source: SettingSource,
     patterns: Option<Vec<String>>,
     schema_source: Option<String>,
+    loader_name: Option<String>,
 }
 
 impl Found {
@@ -129,6 +132,10 @@ impl Found {
     ) -> Self {
         let name = collection.name;
         let by_convention = |dir: &Path| (dir.join(&name), SettingSource::Convention);
+        let loader_name = match &collection.loader {
+            Loader::Unknown { name } => name.clone(),
+            _ => None,
+        };
 
         let (kind, (base, base_source), patterns) = match collection.loader {
             Loader::Glob { base, patterns } => {
@@ -151,7 +158,7 @@ impl Found {
                 );
                 (CollectionKind::Data, base, None)
             }
-            Loader::Unknown => (CollectionKind::Unknown, by_convention(content_dir), None),
+            Loader::Unknown { .. } => (CollectionKind::Unknown, by_convention(content_dir), None),
         };
 
         Self {
@@ -161,6 +168,7 @@ impl Found {
             base_source,
             patterns,
             schema_source: collection.schema_source,
+            loader_name,
         }
     }
 }
@@ -263,6 +271,7 @@ fn resolve_collection(
         pattern_error,
         folder_source,
         folder_status,
+        loader_name: found.loader_name,
         schema_status,
         schema_error,
         complete_schema: schema.and_then(|schema| serde_json::to_string(&schema).ok()),

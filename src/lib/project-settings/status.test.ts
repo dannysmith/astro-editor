@@ -3,6 +3,7 @@ import { makeCollection, makeScan } from '@/test/fixtures'
 import {
   collectionProblems,
   hasProblems,
+  isUnreadLoader,
   pathInProject,
   projectProblems,
   statusLevel,
@@ -37,18 +38,21 @@ describe('collectionProblems', () => {
     expect(levels(collectionProblems(outside, '/site'))).toEqual(['error'])
   })
 
-  it('only reports an unknown loader when its folder is missing', () => {
+  it("doesn't report a loader AE can't read, unless its chosen folder is missing", () => {
     const guessed = makeCollection({
-      name: 'blog',
+      name: 'books',
       kind: 'unknown',
       folderSource: 'convention',
     })
     expect(collectionProblems(guessed, '/site')).toEqual([])
-    expect(
-      levels(
-        collectionProblems({ ...guessed, folderStatus: 'missing' }, '/site')
-      )
-    ).toEqual(['error'])
+
+    const elsewhere = { ...guessed, folderStatus: 'missing' as const }
+    expect(isUnreadLoader(elsewhere)).toBe(true)
+    expect(collectionProblems(elsewhere, '/site')).toEqual([])
+
+    const chosen = { ...elsewhere, folderSource: 'set' as const }
+    expect(isUnreadLoader(chosen)).toBe(false)
+    expect(levels(collectionProblems(chosen, '/site'))).toEqual(['error'])
   })
 
   it('reports schema and pattern problems with the error AE got', () => {

@@ -194,6 +194,8 @@ export type Collection = {
 	/**  Its key in the content config's `collections` export, or its folder's name */
 	name: string,
 	kind: CollectionKind,
+	/**  For a loader AE can't read, its function's name, when it's called by name */
+	loaderName: string | null,
 	/**  The folder the sidebar browses: `base` plus the pattern's fixed prefix */
 	path: string,
 	/**  Where the pattern and entry ids are relative to */

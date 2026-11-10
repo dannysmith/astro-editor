@@ -28,6 +28,8 @@ pub struct Collection {
     /// Its key in the content config's `collections` export, or its folder's name
     pub name: String,
     pub kind: CollectionKind,
+    /// For a loader AE can't read, its function's name, when it's called by name
+    pub loader_name: Option<String>,
     /// The folder the sidebar browses: `base` plus the pattern's fixed prefix
     #[specta(type = String)]
     #[serde(serialize_with = "serialize_path")]

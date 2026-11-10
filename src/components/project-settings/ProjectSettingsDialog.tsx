@@ -1,4 +1,4 @@
-import { Database, FolderCog } from 'lucide-react'
+import { Database, FolderCog, Plug } from 'lucide-react'
 import type { Collection, ProjectScan } from '@/lib/bindings'
 import {
   Breadcrumb,
@@ -34,6 +34,7 @@ import { deserializeCompleteSchema } from '../../lib/schema'
 import { clearSavedSettings } from '../../lib/project-settings/actions'
 import {
   collectionProblems,
+  isUnreadLoader,
   projectProblems,
   statusLevel,
 } from '../../lib/project-settings/status'
@@ -97,7 +98,10 @@ function ProjectSettingsContent({
 
   const editable = scan.collections.filter(c => c.kind !== 'data')
   const shown = editable.filter(c => c.folderStatus === 'ok')
-  const notShown = editable.filter(c => c.folderStatus !== 'ok')
+  const notShown = editable.filter(
+    c => c.folderStatus !== 'ok' && !isUnreadLoader(c)
+  )
+  const unreadLoaders = editable.filter(isUnreadLoader)
   const data = scan.collections.filter(c => c.kind === 'data')
   // With the folder fallback, the config's collections aren't known, so
   // nothing saved for them is offered for clearing
@@ -183,6 +187,28 @@ function ProjectSettingsContent({
                     >
                       <Database className="size-4" />
                       <span className="truncate">{collection.name}</span>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+
+          {unreadLoaders.length > 0 && (
+            <SidebarGroup>
+              <SidebarGroupLabel>Other Loaders</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {unreadLoaders.map(collection => (
+                    <SidebarMenuItem key={collection.name}>
+                      <SidebarMenuButton
+                        isActive={current?.name === collection.name}
+                        onClick={() => setPage(collection.name)}
+                        className="text-muted-foreground"
+                      >
+                        <Plug />
+                        <span className="truncate">{collection.name}</span>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>

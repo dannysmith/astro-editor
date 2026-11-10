@@ -14,6 +14,7 @@ export function makeCollection(
   const path = `/site/src/content/${overrides.name}`
   return {
     kind: 'glob',
+    loaderName: null,
     path,
     base: path,
     patterns: ['**/[^_]*.{md,mdx}'],

@@ -7,7 +7,7 @@ Astro Editor reads your project rather than asking you about it: each collection
 
 Open it with `File > Project Settings…`, the *folder icon with a cog* at the top of the sidebar's collection list, the **Project Settings** command, the link in [Preferences](/preferences/), or by right-clicking the open project in the [project list](/file-management/overview/#opening-a-project). It shows the open project's settings only.
 
-The sidebar lists the project, then each collection with its status. Below them are any collections that can't be shown in the file list, the config's data collections (JSON and YAML, which Astro Editor doesn't edit), and settings saved for collections your config no longer has, with a **Clear** button.
+The sidebar lists the project, then each collection with its status. Below them are any collections that can't be shown in the file list, the config's data collections (JSON and YAML, which Astro Editor doesn't edit), collections under **Other Loaders** whose loader Astro Editor can't read, such as one that fetches its entries from an API, and settings saved for collections your config no longer has, with a **Clear** button.
 
 ## Where each value comes from
 
@@ -53,7 +53,7 @@ The collection's loader, file pattern and schema. Its folder, and where that cam
 | **Error** | The collection's folder doesn't exist, or is outside the project (Astro Editor only edits files inside the project), or its generated schema couldn't be read. |
 | **Warning** | The config has a schema but Astro hasn't generated it, usually because `astro sync` hasn't run. Or the collection's file pattern couldn't be read. |
 
-Collections with a warning or error show the same icon in the sidebar's collection list. If Astro Editor can't read a collection's loader but finds its folder in the content folder, that isn't a problem; the **Folder** setting explains it, in case the files are somewhere else.
+Collections with a warning or error show the same icon in the sidebar's collection list. If Astro Editor can't read a collection's loader, that isn't a problem either. When it finds a folder named after the collection in the content folder, it uses that. Otherwise the collection is listed under **Other Loaders**, since its entries may not be files at all, and you can choose its folder if they are.
 
 ### Files
 
