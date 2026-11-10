@@ -95,8 +95,9 @@ The homepage video is still accurate apart from scene F, which shows the old sea
 
 - [ ] Write up release notes for next release (which I think will be 1.1.0).
   - Say that project settings from 1.0.x are set aside (renamed to `*.v2.json`), so projects may need setting up again. Most won't, because folders and fields are now detected. List the settings that had to be set again in the upgrade check (task 5).
-- [ ] Update the README as needed.
-- [ ] Close and consolidate all the GH Issues.
+  - Drafted at the end of this doc. Fill in the `[DANNY: …]` marker after the prerelease check.
+- [x] Update the README as needed. The MDX components, file management, Project Settings and supported projects sections now describe 1.1.0.
+- [x] Close and consolidate all the GH Issues. Closed #82 and #87 (done in #368), noted on #371 what #368 fixed and what's left, labelled #370, #372, #374, #375 and #376, and ticked #368's items in #354. The rest are the follow-ups from this work, or in the icebox.
 - [x] Make a quick video showing off the new features since the last release, and update the homepage video's MDX scene. Done in task 9.
 - [ ] Write up a quick blog post for my website showing off the new features, with screenshots.
 - [ ] Write up a thread for bluesdy showing these off as well as a post for the Astro discord.
@@ -108,3 +109,74 @@ The homepage video is still accurate apart from scene F, which shows the old sea
   - [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
   - [ ] With a Retina and a 1x display, move the window between them, then quit and reopen: it keeps its size and display. Dock-reopen after Cmd+W, and unplug the external display with the window saved on it: it opens centred on the laptop (task 7).
 - [ ] Do the actual release.
+
+## Release notes for 1.1.0 (draft)
+
+For the GitHub release; the website's release page is generated from it. Covers everything since v1.0.20. Links are absolute so they work in both places. Fill in the `[DANNY: …]` marker after the prerelease check.
+
+---
+
+This is the biggest release since 1.0. Astro Editor now reads where your content lives from your content config, has a project list and a Project Settings window, can name new files from their titles, and the MDX component builder gives you a form for each component's props.
+
+**Before you upgrade:** project settings from 1.0.x aren't carried over. The first time you open each project, its old settings file is renamed to `<project-id>.v2.json` (kept, not deleted) and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. [DANNY: the settings you had to set again in the prerelease check, or "None of mine needed setting up again."] Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
+
+### Collections are read from your content config
+
+Astro Editor used to assume every collection lived in `src/content/<name>`. It now reads each collection's folder and file pattern from its loader, as Astro does: `glob()` with any `base` and `pattern`, Starlight's `docsLoader()`, and legacy collections. Content outside `src/content` now works, and files your pattern leaves out (like `_draft.md`) are hidden, or shown dimmed if you'd rather see them. (#361)
+
+### Project Settings
+
+Project and collection settings have moved out of Preferences into their own **Project Settings** window. It shows what Astro Editor found: where each collection lives, which frontmatter fields it uses as the title, date, description and draft, and each collection's schema as it reads it. Anything it couldn't work out is flagged, such as a missing folder or a schema that needs `astro sync`, so you only change what it got wrong. Open it from the bottom of the file list or the project's icon at the top. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#82)
+
+### A project list
+
+<kbd>⇧⌘O</kbd> opens a list of every project you've opened, with each site's favicon. Search it, switch projects, remove ones you're done with, and find ones you've moved. See [Opening a project](https://astroeditor.danny.is/file-management/overview/#opening-a-project).
+
+### New file names
+
+Each collection can name new files with a pattern, like `{YYYY-MM-DD}-{title}` or `{title}`. A new file is renamed once you've written its title. There's also a **Rename File from Pattern** command, and a link under the published date to rename a file to match when you change the date. See [File names](https://astroeditor.danny.is/project-settings/#file-names). (#87)
+
+### A form for MDX components
+
+Pick a component with <kbd>⌘/</kbd> and you now get a form for its props, built from their types: text boxes, number fields, switches, dropdowns, date pickers and lists. Image props get an image picker, and props that take a collection entry get an entry picker. It reads props from Astro, React, Vue and Svelte components, and in Starlight projects it offers Starlight's own components too. See [The MDX component builder](https://astroeditor.danny.is/editor/mdx-components/). (#350)
+
+### Adding imports (experimental)
+
+An MDX file has to import every component it uses. Turn on **Add imports** in Project Settings and the builder adds the import for you, copying how your site already imports things, along with any image or collection entry the component needs. It's off by default. Leave it off if your site uses Astro Auto Import. See [Adding imports](https://astroeditor.danny.is/editor/mdx-components/#adding-imports). (#357)
+
+### Saving when you quit
+
+Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the Dock, logging out or shutting down. If the save fails, it asks before quitting. (#364)
+
+### Other improvements
+
+- **Window size** – The window opens at the same size on every display. If it was last on a display that's no longer connected, it opens on one that is.
+- **Changes made outside the app** – The sidebar now updates when files are added, changed or removed outside Astro Editor, its file counts stay right, and Reload Collections works again.
+- **First `astro sync`** – Schemas generated after a project is open are picked up without reopening it.
+- **Zod 4 schemas** – Tuples, literals, unions and nullable objects no longer stop a collection's schema from loading.
+- **Lists of images** – Each item gets its own image picker.
+- **Multi-line text** – A text field whose value has line breaks keeps them.
+- **Command palette** – Search matches the whole of each command's name.
+- **<kbd>⌘W</kbd>** – Closes the window on macOS.
+- **Settings files that can't be read** – They're set aside as `<name>.broken-<date>.json` rather than written over, and you're told.
+
+### Bug fixes
+
+- **Windows startup crash** – The app crashed on launch on Windows. (#351)
+- **Reference fields and content links** – These wrote Astro Editor's own ids (`articles/first-article`) where Astro expects `first-article`, and ignored `slug` frontmatter. They now write the ids Astro uses.
+- **Sort order** – Sorting by title or filename started Z to A. It now starts A to Z, and dates newest first.
+- **A blank line before the closing `---`** was dropped when only the body was edited.
+- **The Content Finder** searched the `title` field even when a collection uses a different one.
+- **The JSON field** reverted text while you typed it, if it wasn't valid JSON yet.
+- **Full screen** – <kbd>⌃⌘F</kbd> entered full screen but couldn't leave it.
+- **The date picker** opened on the current month instead of the field's date.
+- **Empty defaults** like `.default('')` showed a bare "Default:" under the field.
+- **List limits** were shown as characters instead of items.
+- **Image previews** flashed the previous image.
+- **Copied image names** kept dots from the original name. They now become dashes, as spaces do.
+- **Copy as slug** dropped accented letters entirely, so "Café" became `caf`. It now drops just the accent: `cafe`.
+
+### Under the hood
+
+- A security update for `zip`, used by the updater on Windows and Linux.
+- Dependency updates.

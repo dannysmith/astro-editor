@@ -15,7 +15,7 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 - Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.
-- Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing. Crash recovery included.
+- Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing, and before the app quits. Crash recovery included.
 
 **Frontmatter & Schema Integration**
 
@@ -26,34 +26,36 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 
 **MDX Components**
 
-- `Cmd + /` opens component builder showing all components in your `src/components/mdx/` directory.
-- Supports Astro, React, Vue, and Svelte components.
-- Automatically detects available props and lets you tab through values after insertion.
+- `Cmd + /` opens the component builder, listing the components in your MDX components folders (`src/components/mdx/` by default), plus Starlight's own components in Starlight projects.
+- Pick one and fill in a form for its props, built from their types, with image and collection entry pickers. Supports Astro, React, Vue, and Svelte components.
+- Optionally adds the component's import to the file for you (experimental).
 
 **File Management**
 
-- Collections and files automatically discovered from your `content.config.ts`.
+- Collections read from your `content.config.ts`, with each collection's folder and file pattern taken from its loader, so content can live anywhere in the project.
 - Full support for subdirectories within collections.
 - Files sorted by publication date (configurable field name) with draft indicators.
+- New files named by a pattern per collection: the date, the title, or both.
 - Context menu for rename, duplicate, reveal in Finder, copy path.
 - Command palette (`Cmd + P`) for quick file switching and command access.
+- Project list (`Cmd + Shift + O`) for switching between projects and finding ones you've moved.
 
-**Project Configuration**
+**Project Settings**
 
-- Per-project and per-collection settings for custom directory structures.
-- Configurable field mappings (title, date, draft, description fields).
+- Shows what Astro Editor found in your project (each collection's folder, frontmatter fields and schema) and flags anything it couldn't work out.
+- Change only what it got wrong: collection folders, field mappings (title, date, draft, description), file names, image folders and more.
 - Light/dark theme with system integration.
 - IDE integration (open files/projects in VSCode, Cursor, etc.).
 
 ## Supported Astro Projects
 
-- **Astro Version**: 5.x (may work with 4.x but expect bugs)
-- **Content Collections**: Must use the `glob` loader and have a schema defined with `defineCollection`
-- **Configuration**: Requires `src/content/config.ts` or `src/content.config.ts`
+- **Astro Version**: 5, 6 or 7 (may work with 4.x but expect bugs)
+- **Content Collections**: Markdown or MDX collections defined with `defineCollection`, ideally with the `glob` loader and a schema
+- **Configuration**: Requires `src/content.config.ts` or the older `src/content/config.ts`. A custom `srcDir` isn't supported.
 
 Non-markdown/MDX files in collections are ignored.
 
-Default directory structure (all paths are configurable per project and per collection):
+Default directory structure. Collections can live wherever their loader says, and the other paths can be changed in Project Settings:
 
 ```
 my-astro-site
