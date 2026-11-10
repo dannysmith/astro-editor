@@ -15,6 +15,7 @@ const file: FileEntry = {
   collection: 'notes',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
 }
 
 describe('YamlField', () => {

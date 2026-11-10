@@ -64,7 +64,22 @@ pub async fn create_file(
 ) -> Result<String, String> {
     // Validate directory is within project
     let validated_dir = validate_project_path(&directory, &project_root)?;
+
+    // `filename` may include folders (`<name>/index.md` for folder-per-entry
+    // collections), which are created, but never `..`
+    if Path::new(&filename)
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(format!("Invalid file name: {filename}"));
+    }
     let path = validated_dir.join(&filename);
+    if let Some(parent) = path.parent() {
+        // Checked first, so a symlink to outside the project can't have a
+        // folder created through it
+        let parent = validate_project_path(parent, &project_root)?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create folder: {e}"))?;
+    }
 
     // Double-check the final path is still within project bounds
     let final_path_str = path.to_string_lossy().to_string();
@@ -95,9 +110,38 @@ pub async fn rename_file(
     project_root: String,
 ) -> Result<(), String> {
     let validated_old_path = validate_project_path(&old_path, &project_root)?;
-    let validated_new_path = validate_project_path(&new_path, &project_root)?;
-    std::fs::rename(&validated_old_path, &validated_new_path)
-        .map_err(|e| format!("Failed to rename file: {e}"))
+    // The folder is validated rather than the whole path, because resolving a
+    // path that exists gives its case on disk, which would undo a change of case
+    let new_path = Path::new(&new_path);
+    let (Some(folder), Some(name)) = (new_path.parent(), new_path.file_name()) else {
+        return Err("Invalid file path".to_string());
+    };
+    let validated_new_path = validate_project_path(folder, &project_root)?.join(name);
+    rename_without_replacing(&validated_old_path, &validated_new_path)
+}
+
+/// Renames a file or folder, refusing if something already has the new name,
+/// unless it's the same file under a name that differs only in case
+pub fn rename_without_replacing(from: &Path, to: &Path) -> Result<(), String> {
+    if to.symlink_metadata().is_ok() && !is_same_file(from, to) {
+        let name = to.file_name().unwrap_or_default().to_string_lossy();
+        return Err(format!("There's already a file named \"{name}\""));
+    }
+    std::fs::rename(from, to).map_err(|e| format!("Failed to rename file: {e}"))
+}
+
+#[cfg(unix)]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (a.symlink_metadata(), b.symlink_metadata()) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
 }
 
 /// Convert a string to kebab case
@@ -118,51 +162,28 @@ fn to_kebab_case(name_without_ext: &str) -> String {
         .join("-")
 }
 
+/// Copies a file into `<assets_directory>/<collection>/` (the folder relative to
+/// the project, as the collection's settings resolve it), named after the date
+/// and the file, and returns the path to write in the file
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_file_to_assets(
     source_path: String,
     project_path: String,
     collection: String,
-    current_file_path: String,
-    use_relative_paths: bool,
-) -> Result<String, String> {
-    copy_file_to_assets_with_override(
-        source_path,
-        project_path,
-        collection,
-        None,
-        current_file_path,
-        use_relative_paths,
-    )
-    .await
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn copy_file_to_assets_with_override(
-    source_path: String,
-    project_path: String,
-    collection: String,
-    assets_directory: Option<String>,
+    assets_directory: String,
     current_file_path: String,
     use_relative_paths: bool,
 ) -> Result<String, String> {
     use std::fs;
 
     // Validate project path
-    let validated_project_root = Path::new(&project_path)
-        .canonicalize()
-        .map_err(|_| "Invalid project root".to_string())?;
+    let validated_project_root =
+        dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
 
-    // Create the assets directory structure (use override if provided)
-    let assets_base = if let Some(assets_override) = assets_directory {
-        validated_project_root.join(assets_override)
-    } else {
-        validated_project_root.join("src").join("assets")
-    };
-
-    let assets_dir = assets_base.join(&collection);
+    let assets_dir = validated_project_root
+        .join(assets_directory)
+        .join(&collection);
 
     fs::create_dir_all(&assets_dir)
         .map_err(|e| format!("Failed to create assets directory: {e}"))?;
@@ -513,12 +534,12 @@ fn rebuild_markdown_with_raw_frontmatter(
 ) -> Result<String, String> {
     let mut result = String::new();
 
-    // Add frontmatter with raw content (preserves original formatting)
+    // Add frontmatter with raw content (preserves original formatting). It's
+    // the lines between the markers joined by `parse_frontmatter`, so one that
+    // ends in `\n` ends in a blank line, which needs a line of its own
     result.push_str("---\n");
     result.push_str(raw_frontmatter);
-    if !raw_frontmatter.ends_with('\n') {
-        result.push('\n');
-    }
+    result.push('\n');
     result.push_str("---\n");
 
     // Add imports if present
@@ -631,131 +652,6 @@ pub async fn save_crash_report(app: tauri::AppHandle, report: Value) -> Result<(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?;
-
-    Ok(app_data_dir.to_string_lossy().to_string())
-}
-
-/// Validates that a file path is within the app data directory
-///
-/// This function prevents path traversal attacks for app data operations
-/// by ensuring all file operations stay within the app's data directory.
-/// Creates the app data directory if it doesn't exist.
-fn validate_app_data_path(file_path: &str, app_data_dir: &str) -> Result<PathBuf, String> {
-    use log::info;
-
-    let app_data_dir = Path::new(app_data_dir);
-
-    // Create app data directory if it doesn't exist
-    if !app_data_dir.exists() {
-        info!(
-            "Astro Editor [PROJECT_REGISTRY] Creating app data directory: {}",
-            app_data_dir.display()
-        );
-        std::fs::create_dir_all(app_data_dir)
-            .map_err(|e| format!("Failed to create app data directory: {e}"))?;
-        info!("Astro Editor [PROJECT_REGISTRY] App data directory created successfully");
-    }
-
-    // If file_path is relative (just a filename), join it with app_data_dir
-    let file_path = if Path::new(file_path).is_absolute() {
-        Path::new(file_path).to_path_buf()
-    } else {
-        app_data_dir.join(file_path)
-    };
-
-    // Resolve canonical paths to handle symlinks and .. traversal
-    let canonical_file = file_path
-        .canonicalize()
-        .or_else(|_| {
-            // If file doesn't exist, try to canonicalize parent and append filename
-            if let (Some(parent), Some(filename)) = (file_path.parent(), file_path.file_name()) {
-                // Ensure parent directory exists
-                if !parent.as_os_str().is_empty() && !parent.exists() {
-                    info!(
-                        "Astro Editor [PROJECT_REGISTRY] Creating parent directory: {}",
-                        parent.display()
-                    );
-                    if let Err(e) = std::fs::create_dir_all(parent) {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to create parent directory: {e}"),
-                        ));
-                    }
-                }
-                parent.canonicalize().map(|p| p.join(filename))
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Invalid file path",
-                ))
-            }
-        })
-        .map_err(|e| format!("Invalid file path: {e}"))?;
-
-    let canonical_app_data = app_data_dir
-        .canonicalize()
-        .map_err(|e| format!("Invalid app data directory: {e}"))?;
-
-    // Ensure file is within app data bounds
-    canonical_file
-        .strip_prefix(&canonical_app_data)
-        .map_err(|_| "File outside app data directory".to_string())?;
-
-    Ok(canonical_file)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn write_app_data_file(
-    app: tauri::AppHandle,
-    file_path: String,
-    content: String,
-) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?
-        .to_string_lossy()
-        .to_string();
-
-    let validated_path = validate_app_data_path(&file_path, &app_data_dir)?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = validated_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create parent directory: {e}"))?;
-    }
-
-    std::fs::write(&validated_path, content)
-        .map_err(|e| format!("Failed to write app data file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn read_app_data_file(
-    app: tauri::AppHandle,
-    file_path: String,
-) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .resolve("", BaseDirectory::AppLocalData)
-        .map_err(|e| format!("Failed to resolve app data directory: {e}"))?
-        .to_string_lossy()
-        .to_string();
-
-    let validated_path = validate_app_data_path(&file_path, &app_data_dir)?;
-
-    std::fs::read_to_string(&validated_path)
-        .map_err(|e| format!("Failed to read app data file: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn read_file_content(file_path: String, project_root: String) -> Result<String, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
@@ -775,9 +671,9 @@ pub async fn is_path_in_project(file_path: String, project_path: String) -> bool
     let file = Path::new(&file_path);
     let project = Path::new(&project_path);
 
-    file.canonicalize()
+    dunce::canonicalize(file)
         .ok()
-        .and_then(|f| project.canonicalize().ok().map(|p| f.starts_with(p)))
+        .and_then(|f| dunce::canonicalize(project).ok().map(|p| f.starts_with(p)))
         .unwrap_or(false)
 }
 
@@ -797,12 +693,9 @@ pub async fn get_relative_path(
     current_file_path: String,
     use_relative_paths: bool,
 ) -> Result<String, String> {
-    let file = Path::new(&file_path)
-        .canonicalize()
-        .map_err(|e| format!("Invalid file path: {e}"))?;
-    let project = Path::new(&project_path)
-        .canonicalize()
-        .map_err(|e| format!("Invalid project path: {e}"))?;
+    let file = dunce::canonicalize(&file_path).map_err(|e| format!("Invalid file path: {e}"))?;
+    let project =
+        dunce::canonicalize(&project_path).map_err(|e| format!("Invalid project path: {e}"))?;
 
     let project_relative_path = file
         .strip_prefix(&project)
@@ -1059,6 +952,44 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_create_file_folder_per_entry_and_symlinks() {
+        let temp_dir = std::env::temp_dir();
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = temp_dir.join(format!("test_create_nested_{timestamp}"));
+        let project_root = root.join("project");
+        let content_dir = project_root.join("content");
+        let outside = root.join("outside");
+        fs::create_dir_all(&content_dir).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, content_dir.join("linked")).unwrap();
+
+        let create = |filename: &str| {
+            create_file(
+                content_dir.to_string_lossy().to_string(),
+                filename.to_string(),
+                String::new(),
+                project_root.to_string_lossy().to_string(),
+            )
+        };
+
+        // A new folder for the entry is created
+        assert!(create("post/index.md").await.is_ok());
+        assert!(content_dir.join("post/index.md").exists());
+
+        // No folder is created through a symlink to outside the project
+        let result = create("linked/post/index.md").await;
+        assert!(result.is_err());
+        assert!(!outside.join("post").exists());
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[tokio::test]
@@ -1443,64 +1374,6 @@ Regular markdown content here."#;
     }
 
     #[test]
-    fn test_validate_app_data_path_valid() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let app_data_dir = temp_dir.join(format!("app_data_{timestamp}"));
-        let test_file = app_data_dir.join("preferences").join("settings.json");
-
-        // Create test structure - ensure app_data_dir exists first
-        fs::create_dir_all(&app_data_dir).unwrap();
-        fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        fs::write(&test_file, "test content").unwrap();
-
-        let result = validate_app_data_path(
-            &test_file.to_string_lossy(),
-            &app_data_dir.to_string_lossy(),
-        );
-
-        assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&app_data_dir);
-    }
-
-    #[test]
-    fn test_validate_app_data_path_traversal_attack() {
-        let temp_dir = std::env::temp_dir();
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let app_data_dir = temp_dir.join(format!("app_data_{timestamp}"));
-        let malicious_path = app_data_dir.join("../../../etc/passwd");
-
-        // Create app data directory
-        fs::create_dir_all(&app_data_dir).unwrap();
-
-        let result = validate_app_data_path(
-            &malicious_path.to_string_lossy(),
-            &app_data_dir.to_string_lossy(),
-        );
-
-        // Should fail due to path traversal
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert!(
-            error.contains("File outside app data directory")
-                || error.contains("Invalid file path")
-        );
-
-        // Cleanup
-        let _ = fs::remove_dir_all(&app_data_dir);
-    }
-
-    #[test]
     fn test_to_kebab_case() {
         assert_eq!(to_kebab_case("My Image"), "my-image");
         assert_eq!(to_kebab_case("some_file_name"), "some-file-name");
@@ -1519,6 +1392,29 @@ Regular markdown content here."#;
     }
 
     #[tokio::test]
+    async fn rename_file_never_replaces_another_file() {
+        let project = tempfile::TempDir::new().unwrap();
+        let root = dunce::canonicalize(project.path()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(root.join("b.md"), "b").unwrap();
+        let path = |name: &str| root.join(name).to_string_lossy().to_string();
+        let project_root = root.to_string_lossy().to_string();
+
+        let result = rename_file(path("a.md"), path("b.md"), project_root.clone()).await;
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(root.join("b.md")).unwrap(), "b");
+
+        rename_file(path("a.md"), path("A.md"), project_root)
+            .await
+            .unwrap();
+        let names: Vec<String> = fs::read_dir(&root)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(names.contains(&"A.md".to_string()));
+    }
+
+    #[tokio::test]
     async fn test_copy_file_to_assets_kebab_cases_dotted_names() {
         use std::fs;
         use tempfile::TempDir;
@@ -1532,6 +1428,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "blog".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/blog/post.md")
@@ -1568,6 +1465,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "blog".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/blog/post.md")
@@ -1623,6 +1521,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "posts".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/posts/post.md")
@@ -1669,6 +1568,7 @@ Regular markdown content here."#;
             test_file_path.to_str().unwrap().to_string(),
             project_dir.path().to_str().unwrap().to_string(),
             "newsletters".to_string(),
+            "src/assets".to_string(),
             project_dir
                 .path()
                 .join("src/content/newsletters/post.md")
@@ -2423,6 +2323,16 @@ X"#;
     // --- Trailing newline round-trip tests ---
     // These verify that save -> reload preserves trailing whitespace exactly,
     // preventing the editor scroll jump bug (full doc replacement on content mismatch).
+
+    #[test]
+    fn test_roundtrip_keeps_a_blank_line_before_the_closing_marker() {
+        let file = "---\ntitle: Test\n\n---\n\nHello world.\n";
+        let parsed = parse_frontmatter(file).unwrap();
+        let saved =
+            rebuild_markdown_with_raw_frontmatter(&parsed.raw_frontmatter, "", &parsed.content)
+                .unwrap();
+        assert_eq!(saved, file);
+    }
 
     #[test]
     fn test_roundtrip_content_no_trailing_newline() {

@@ -62,6 +62,7 @@ export default defineConfig(async () => ({
         '**/src-tauri/**',
         '**/test/**',
         '**/temp-dummy-astro-project/**',
+        '**/temp-test-projects/**',
         '**/website/**',
       ],
     },

@@ -6,7 +6,7 @@ import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { deserializeCompleteSchema } from '../../lib/schema'
 import { camelCaseToTitleCase } from '../../lib/utils'
 import { FrontmatterField } from './fields'
-import { getEffectiveSettings } from '../../lib/project-registry/effective-settings'
+import { fieldMappings } from '../../lib/project-scan'
 import type { Collection } from '@/types'
 
 export const FrontmatterPanel: React.FC = () => {
@@ -14,15 +14,7 @@ export const FrontmatterPanel: React.FC = () => {
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
   const frontmatter = useEditorStore(useShallow(state => state.frontmatter))
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    useShallow(state => state.currentProjectSettings)
-  )
-
-  // Use TanStack Query to fetch collections
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
 
   // Get schema for current collection
   const currentCollection: Collection | null = currentFile
@@ -31,9 +23,9 @@ export const FrontmatterPanel: React.FC = () => {
 
   // Get schema from Rust backend
   const schema = React.useMemo(() => {
-    if (!currentCollection?.complete_schema) return null
+    if (!currentCollection?.completeSchema) return null
 
-    const parsed = deserializeCompleteSchema(currentCollection.complete_schema)
+    const parsed = deserializeCompleteSchema(currentCollection.completeSchema)
 
     return parsed
   }, [currentCollection])
@@ -41,11 +33,8 @@ export const FrontmatterPanel: React.FC = () => {
   // Get all fields to display
   const allFields = React.useMemo(() => {
     if (schema) {
-      // Get title field name from collection-specific settings
-      const effectiveSettings = currentFile
-        ? getEffectiveSettings(currentProjectSettings, currentFile.collection)
-        : getEffectiveSettings(currentProjectSettings)
-      const titleFieldName = effectiveSettings.frontmatterMappings.title
+      // The collection's title field goes first
+      const titleFieldName = fieldMappings(currentCollection ?? undefined).title
 
       // Start with all schema fields. Schema defaults are only shown as a hint
       // (FieldWrapper), never put into frontmatter: anything in frontmatter gets
@@ -100,7 +89,7 @@ export const FrontmatterPanel: React.FC = () => {
         value: frontmatter[fieldName],
       }))
     }
-  }, [frontmatter, schema, currentProjectSettings, currentFile])
+  }, [frontmatter, schema, currentCollection])
 
   // Group fields by parent path for nested object rendering
   const groupedFields = React.useMemo(() => {

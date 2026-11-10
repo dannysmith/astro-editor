@@ -22,6 +22,7 @@ const createMockFile = (overrides: Partial<FileEntry> = {}): FileEntry => ({
   collection: 'test-collection',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
   ...overrides,
 })
 

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useEditorStore } from './editorStore'
 import type { FileEntry } from '@/types'
+import { queryClient } from '../lib/query-client'
+import { queryKeys } from '../lib/query-keys'
+import { useProjectStore } from './projectStore'
 
 const fileEntry = (id: string): FileEntry => ({
   id,
@@ -10,6 +13,7 @@ const fileEntry = (id: string): FileEntry => ({
   collection: 'blog',
   last_modified: null,
   frontmatter: null,
+  is_entry: true,
 })
 
 describe('editorStore.openFile', () => {
@@ -58,5 +62,41 @@ describe('editorStore.openFile', () => {
     expect(save).not.toHaveBeenCalled()
     expect(useEditorStore.getState().editorContent).toBe('Unsaved edit')
     expect(useEditorStore.getState().isDirty).toBe(true)
+  })
+})
+
+describe('reading files from disk', () => {
+  const key = (id: string) => queryKeys.fileContent('/test', id)
+  const stale = { content: 'An earlier file at this path' }
+
+  beforeEach(() => {
+    queryClient.clear()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      isDirty: false,
+      autoSaveCallback: null,
+    })
+  })
+
+  it('never opens a file with content cached from its path', () => {
+    queryClient.setQueryData(key('second'), stale)
+
+    useEditorStore.getState().openFile(fileEntry('second'))
+    expect(queryClient.getQueryData(key('second'))).toBeUndefined()
+  })
+
+  it('never follows a rename onto content cached from the new path', () => {
+    queryClient.setQueryData(key('first'), { content: 'This file' })
+    queryClient.setQueryData(key('second'), stale)
+
+    // The path changes first, keeping the id, then the id follows
+    const { updateCurrentFileAfterRename } = useEditorStore.getState()
+    updateCurrentFileAfterRename({ ...fileEntry('first'), path: '/moved.md' })
+    expect(queryClient.getQueryData(key('first'))).toEqual({
+      content: 'This file',
+    })
+    updateCurrentFileAfterRename(fileEntry('second'))
+    expect(queryClient.getQueryData(key('second'))).toBeUndefined()
   })
 })

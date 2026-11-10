@@ -1,14 +1,18 @@
 #[cfg(debug_assertions)]
 mod agent_bridge;
 mod bindings;
+mod collections;
 mod commands;
+mod content_config;
 mod mdx_components;
 mod mdx_esm;
 mod models;
 mod parser;
+mod preferences;
 mod schema_merger;
 mod telemetry;
 mod utils;
+mod window_state;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -17,10 +21,6 @@ use tauri::{
     Emitter, Manager,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-use tauri_plugin_window_state::{AppHandleExt as _, StateFlags};
-
-#[cfg(target_os = "macos")]
-use tauri_plugin_window_state::WindowExt as _;
 
 // Import for PATH environment fix in production builds
 // use fix_path_env;
@@ -104,8 +104,8 @@ pub fn run() {
                 .build()
         })
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::watcher::init_watcher_state())
+        .manage(window_state::WindowStateCache::default())
         .setup(|app| {
             // Log app startup information
             let package_info = app.package_info();
@@ -134,6 +134,10 @@ pub fn run() {
                 let title = std::env::var("ASTRO_EDITOR_DEV_TITLE")
                     .unwrap_or_else(|_| "Astro Editor (Dev)".to_string());
                 let _ = window.set_title(&title);
+            }
+
+            if let Some(window) = app.get_webview_window("main") {
+                window_state::restore(&window);
             }
 
             #[cfg(debug_assertions)]
@@ -167,6 +171,14 @@ pub fn run() {
                         true,
                         Some("CmdOrCtrl+Shift+O"),
                     )?,
+                    &MenuItem::with_id(
+                        app,
+                        "project_settings",
+                        "Project Settings...",
+                        true,
+                        None::<&str>,
+                    )?,
+                    &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "new_file", "New File", true, Some("CmdOrCtrl+N"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
@@ -345,6 +357,9 @@ pub fn run() {
                 "open_project" => {
                     let _ = app.emit("menu-open-project", ());
                 }
+                "project_settings" => {
+                    let _ = app.emit("menu-project-settings", ());
+                }
                 "new_file" => {
                     let _ = app.emit("menu-new-file", ());
                 }
@@ -438,9 +453,18 @@ pub fn run() {
                 ..
             } if cfg!(target_os = "macos") && label == "main" => {
                 api.prevent_close();
-                let _ = app_handle.save_window_state(StateFlags::all());
+                window_state::save(app_handle);
                 if let Some(window) = app_handle.get_webview_window(&label) {
                     let _ = window.hide();
+                }
+            }
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_),
+                ..
+            } if label == "main" => {
+                if let Some(window) = app_handle.get_webview_window(&label) {
+                    window_state::track(&window);
                 }
             }
             // Windows and Linux: closing the main window quits, so save first
@@ -458,17 +482,17 @@ pub fn run() {
                 has_visible_windows,
                 ..
             } if !has_visible_windows => {
+                // Hiding doesn't change the window's size or position, so there's
+                // nothing to restore
                 if let Some(window) = app_handle.get_webview_window("main") {
                     let _ = window.show();
-                    // The window-state plugin only restores at startup, so restore
-                    // explicitly after a hide and show
-                    let _ = window.restore_state(StateFlags::all());
                     let _ = window.set_focus();
                 }
             }
             // Teardown goes here, not in ExitRequested, which doesn't fire for Cmd+Q on macOS
             tauri::RunEvent::Exit => {
                 log::info!("Application exiting");
+                window_state::save(app_handle);
                 #[cfg(debug_assertions)]
                 agent_bridge::stop(app_handle);
             }

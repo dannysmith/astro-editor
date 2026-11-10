@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Folder, Layers, Wrench } from 'lucide-react'
+import { ArrowUpRight, FolderCog, Settings, Wrench } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,87 +19,40 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar'
 import { GeneralPane } from './panes/GeneralPane'
-import { ProjectSettingsPane } from './panes/ProjectSettingsPane'
-import { CollectionSettingsPane } from './panes/CollectionSettingsPane'
 import { DebugPane } from './panes/DebugPane'
-import { usePreferences } from '../../hooks/usePreferences'
+import { useProjectStore } from '../../store/projectStore'
+import { showProjectSettings } from '../../lib/project-settings/actions'
 
 interface PreferencesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-type PreferencePane = 'general' | 'project' | 'collections' | 'debug'
+const NAVIGATION_ITEMS = [
+  { id: 'general', name: 'General', icon: Settings },
+  { id: 'debug', name: 'Advanced', icon: Wrench },
+] as const
 
-const getNavigationItems = (hasProject: boolean) =>
-  [
-    {
-      id: 'general' as const,
-      name: 'General',
-      icon: Settings,
-      available: true,
-    },
-    {
-      id: 'project' as const,
-      name: 'Project Settings',
-      icon: Folder,
-      available: hasProject,
-    },
-    {
-      id: 'collections' as const,
-      name: 'Collections',
-      icon: Layers,
-      available: hasProject,
-    },
-    {
-      id: 'debug' as const,
-      name: 'Advanced',
-      icon: Wrench,
-      available: true,
-    },
-  ].filter(item => item.available)
+type PreferencePane = (typeof NAVIGATION_ITEMS)[number]['id']
 
-const getPaneTitle = (pane: PreferencePane): string => {
-  switch (pane) {
-    case 'general':
-      return 'General'
-    case 'project':
-      return 'Project Settings'
-    case 'collections':
-      return 'Collections'
-    case 'debug':
-      return 'Advanced'
-    default:
-      return 'General'
-  }
-}
-
+/**
+ * App-wide preferences. A project's settings are in the project settings
+ * dialog, which the sidebar links to when a project is open.
+ */
 export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
   open,
   onOpenChange,
 }) => {
   const [activePane, setActivePane] = useState<PreferencePane>('general')
-  const { hasProject } = usePreferences()
-  const navigationItems = getNavigationItems(hasProject)
-
-  // Reset to general pane if current pane becomes unavailable.
-  // Depend on primitives (not the recreated-each-render navigationItems array)
-  // and recompute availability inside.
-  React.useEffect(() => {
-    const isAvailable = getNavigationItems(hasProject).some(
-      item => item.id === activePane
-    )
-    if (!isAvailable) {
-      // oxlint-disable-next-line react-hooks/set-state-in-effect
-      setActivePane('general')
-    }
-  }, [hasProject, activePane])
+  const projectPath = useProjectStore(state => state.projectPath)
+  const paneTitle = NAVIGATION_ITEMS.find(item => item.id === activePane)?.name
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,7 +68,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {navigationItems.map(item => (
+                    {NAVIGATION_ITEMS.map(item => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
                           isActive={activePane === item.id}
@@ -129,6 +82,27 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
+              {projectPath && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>This Project</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => {
+                            onOpenChange(false)
+                            showProjectSettings()
+                          }}
+                        >
+                          <FolderCog />
+                          <span>Project Settings</span>
+                          <ArrowUpRight className="ml-auto text-muted-foreground" />
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
             </SidebarContent>
           </Sidebar>
 
@@ -142,9 +116,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>
-                        {getPaneTitle(activePane)}
-                      </BreadcrumbPage>
+                      <BreadcrumbPage>{paneTitle}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -154,8 +126,6 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             <div className="flex-1 overflow-y-auto p-4 pt-0">
               <div className="space-y-6">
                 {activePane === 'general' && <GeneralPane />}
-                {activePane === 'project' && <ProjectSettingsPane />}
-                {activePane === 'collections' && <CollectionSettingsPane />}
                 {activePane === 'debug' && <DebugPane />}
               </div>
             </div>

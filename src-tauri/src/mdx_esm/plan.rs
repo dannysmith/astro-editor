@@ -256,7 +256,7 @@ pub fn importable_image(project_root: &Path, file: &Path, specifier: &str) -> bo
             None => return false,
         },
     };
-    path.canonicalize().is_ok_and(|path| {
+    dunce::canonicalize(path).is_ok_and(|path| {
         path.starts_with(project_root) && !path.starts_with(project_root.join("public"))
     })
 }
@@ -646,7 +646,7 @@ mod tests {
         props: PropImports,
     ) -> Option<ImportPlan> {
         let project = tempfile::TempDir::new().unwrap();
-        let root = project.path().canonicalize().unwrap();
+        let root = dunce::canonicalize(project.path()).unwrap();
         let collection = root.join("src/content/docs");
         fs::create_dir_all(&collection).unwrap();
         plan_component_import(
@@ -870,7 +870,7 @@ mod tests {
     #[test]
     fn images_outside_public_can_be_imported() {
         let project = tempfile::TempDir::new().unwrap();
-        let root = project.path().canonicalize().unwrap();
+        let root = dunce::canonicalize(project.path()).unwrap();
         for dir in ["src/content/docs", "src/assets", "content-images", "public"] {
             fs::create_dir_all(root.join(dir)).unwrap();
         }
@@ -948,7 +948,7 @@ mod tests {
         let sites = Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-imports/sites");
         let mut site_dirs: Vec<_> = fs::read_dir(&sites)
             .unwrap()
-            .map(|entry| entry.unwrap().path().canonicalize().unwrap())
+            .map(|entry| dunce::canonicalize(entry.unwrap().path()).unwrap())
             .filter(|dir| dir.join("cases.toml").exists())
             .collect();
         site_dirs.sort();

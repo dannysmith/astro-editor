@@ -1,127 +1,70 @@
-import { useCallback } from 'react'
 import { useProjectStore } from '../store/projectStore'
-import {
+import type {
+  CollectionSettings,
   GlobalSettings,
   ProjectSettings,
-  CollectionSpecificSettings,
-  DeepPartial,
-} from '../lib/project-registry'
+} from '@/lib/bindings'
+import type { DeepPartial } from '@/types/common'
 
 /**
- * Custom hook for managing preferences with easy read/write access
+ * Drops unset values, so stored settings only hold what the writer chose. An
+ * empty string, like a cleared text field, is unset too.
+ */
+function sparse<T extends object>(settings: T): T {
+  return Object.fromEntries(
+    Object.entries(settings).filter(
+      ([, value]) => value !== undefined && value !== null && value !== ''
+    )
+  ) as T
+}
+
+/**
+ * Reads and writes preferences: global settings, and the open project's stored
+ * project and collection settings. Resolved values (what a setting falls back
+ * to) come from the project scan; see `hooks/settings`.
  */
 export const usePreferences = () => {
   const globalSettings = useProjectStore(state => state.globalSettings)
-  const currentProjectSettings = useProjectStore(
-    state => state.currentProjectSettings
-  )
-  const updateGlobalSettings = useProjectStore(
-    state => state.updateGlobalSettings
-  )
-  const updateProjectSettings = useProjectStore(
-    state => state.updateProjectSettings
-  )
-  const currentProjectId = useProjectStore(state => state.currentProjectId)
-  const projectPath = useProjectStore(state => state.projectPath)
+  const projectSettings = useProjectStore(state => state.projectSettings)
 
-  const updateGlobal = useCallback(
-    (settings: DeepPartial<GlobalSettings>) => {
-      return updateGlobalSettings(settings)
-    },
-    [updateGlobalSettings]
-  )
+  const updateGlobal = (settings: DeepPartial<GlobalSettings>) =>
+    useProjectStore.getState().updateGlobalSettings(settings)
 
-  const updateProject = useCallback(
-    (settings: Partial<ProjectSettings>) => {
-      return updateProjectSettings(settings)
-    },
-    [updateProjectSettings]
-  )
+  /** Changes project settings; `undefined` unsets one */
+  const updateProject = (settings: Partial<ProjectSettings>) => {
+    const current = useProjectStore.getState().projectSettings
+    if (!current) return Promise.resolve()
+    return useProjectStore.getState().updateProjectSettings({
+      ...current,
+      project: sparse({ ...current.project, ...settings }),
+    })
+  }
 
-  /**
-   * Update settings for a specific collection
-   * Creates or updates the collection in the collections array
-   */
-  const updateCollectionSettings = useCallback(
-    (collectionName: string, settings: CollectionSpecificSettings) => {
-      if (!currentProjectSettings) return Promise.resolve()
+  /** Changes a collection's settings; `undefined` unsets one */
+  const updateCollectionSettings = (
+    collectionName: string,
+    settings: Partial<CollectionSettings>
+  ) => {
+    const current = useProjectStore.getState().projectSettings
+    if (!current) return Promise.resolve()
 
-      const existingCollections = currentProjectSettings.collections || []
-      const collectionIndex = existingCollections.findIndex(
-        c => c.name === collectionName
-      )
-
-      let updatedCollections
-      if (collectionIndex >= 0) {
-        // Update existing collection
-        updatedCollections = [...existingCollections]
-        updatedCollections[collectionIndex] = {
-          name: collectionName,
-          settings,
-        }
-      } else {
-        // Add new collection
-        updatedCollections = [
-          ...existingCollections,
-          {
-            name: collectionName,
-            settings,
-          },
-        ]
-      }
-
-      // Remove collections with no settings (cleanup)
-      updatedCollections = updatedCollections.filter(c => {
-        const hasPathOverrides =
-          c.settings.pathOverrides &&
-          Object.keys(c.settings.pathOverrides).some(
-            key =>
-              c.settings.pathOverrides?.[
-                key as keyof typeof c.settings.pathOverrides
-              ] !== undefined
-          )
-        const hasFrontmatterMappings =
-          c.settings.frontmatterMappings &&
-          Object.keys(c.settings.frontmatterMappings).some(
-            key =>
-              c.settings.frontmatterMappings?.[
-                key as keyof typeof c.settings.frontmatterMappings
-              ] !== undefined
-          )
-        const hasDefaultFileType = c.settings.defaultFileType !== undefined
-        const hasUrlPattern = c.settings.urlPattern !== undefined
-        const hasAbsoluteAssetPaths =
-          c.settings.useAbsoluteAssetPaths !== undefined
-        return (
-          hasPathOverrides ||
-          hasFrontmatterMappings ||
-          hasDefaultFileType ||
-          hasUrlPattern ||
-          hasAbsoluteAssetPaths
-        )
-      })
-
-      return updateProjectSettings({
-        collections: updatedCollections,
-      })
-    },
-    [currentProjectSettings, updateProjectSettings]
-  )
-
-  // Get project name from path
-  const projectName = projectPath
-    ? projectPath.split('/').pop() || 'Unknown Project'
-    : null
+    const collections = { ...current.collections }
+    const updated = sparse({ ...collections[collectionName], ...settings })
+    if (Object.keys(updated).length > 0) {
+      collections[collectionName] = updated
+    } else {
+      delete collections[collectionName]
+    }
+    return useProjectStore
+      .getState()
+      .updateProjectSettings({ ...current, collections })
+  }
 
   return {
     globalSettings,
-    currentProjectSettings,
+    projectSettings,
     updateGlobal,
     updateProject,
     updateCollectionSettings,
-    hasProject: !!currentProjectId,
-    currentProjectId,
-    projectPath,
-    projectName,
   }
 }

@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import { commands } from '@/lib/bindings'
+import {
+  commands,
+  type GlobalSettings,
+  type ProjectRegistry,
+  type ProjectScan,
+  type ProjectSettingsData,
+} from '@/lib/bindings'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import {
   error as logError,
@@ -8,18 +14,20 @@ import {
   warn as logWarn,
 } from '@tauri-apps/plugin-log'
 import { toast } from '../lib/toast'
-import { ASTRO_PATHS } from '../lib/constants'
 import { formatErrorForLogging } from '../lib/diagnostics'
-import {
-  projectRegistryManager,
-  GlobalSettings,
-  ProjectSettings,
-  DeepPartial,
-} from '../lib/project-registry'
 import { useEditorStore } from './editorStore'
+import { useUIStore } from './uiStore'
+import { projectName } from '../lib/projects/display'
+import { hasProblems } from '../lib/project-settings/status'
 import { queryClient } from '../lib/query-client'
-import { queryKeys } from '../lib/query-keys'
+import { isFileListing, queryKeys } from '../lib/query-keys'
 import { wasStartupClaimedByDeepLink } from '../lib/deep-link'
+import {
+  fetchProjectScan,
+  getProjectScan,
+  isBrowsable,
+} from '../lib/project-scan'
+import type { DeepPartial } from '../types/common'
 
 interface ProjectState {
   // Core identifiers
@@ -28,9 +36,13 @@ interface ProjectState {
   selectedCollection: string | null
   currentSubdirectory: string | null // Relative path from collection root, e.g., "2024/january"
 
-  // Settings
+  // Settings as stored. Resolved values come from the project scan (`lib/project-scan.ts`).
   globalSettings: GlobalSettings | null
-  currentProjectSettings: ProjectSettings | null
+  registry: ProjectRegistry | null
+  projectSettings: ProjectSettingsData | null
+
+  // The collection folders the watcher was started with
+  _watchedFolders: string[]
 
   // Event listener cleanup functions
   _unlistenFileChanged: UnlistenFn | null
@@ -46,11 +58,199 @@ interface ProjectState {
   navigateUp: () => void // Go up one level in directory hierarchy
   navigateToRoot: () => void // Go to collection root (clear subdirectory)
   loadPersistedProject: () => Promise<void>
-  initializeProjectRegistry: () => Promise<void>
+  loadPreferences: () => Promise<void>
   updateGlobalSettings: (settings: DeepPartial<GlobalSettings>) => Promise<void>
-  updateProjectSettings: (settings: Partial<ProjectSettings>) => Promise<void>
+  updateProjectSettings: (settings: ProjectSettingsData) => Promise<void>
+  refreshProjectScan: () => Promise<void>
   startFileWatcher: () => Promise<void>
   stopFileWatcher: () => Promise<void>
+}
+
+/**
+ * Reads the project's scan again, bypassing the cache. A scan already under
+ * way is cancelled rather than reused, since it may have read the settings
+ * from before a change.
+ */
+async function rescan(projectPath: string): Promise<ProjectScan> {
+  await queryClient.cancelQueries({
+    queryKey: queryKeys.collections(projectPath),
+    exact: true,
+  })
+  return queryClient.fetchQuery({
+    queryKey: queryKeys.collections(projectPath),
+    queryFn: () => fetchProjectScan(projectPath),
+    staleTime: 0,
+  })
+}
+
+/** The folders a scan's browsable collections live in, to watch */
+function collectionFolders(scan: ProjectScan | undefined): string[] {
+  return (scan?.collections ?? [])
+    .filter(isBrowsable)
+    .map(collection => collection.path)
+    .sort()
+}
+
+/** What decides which files are a collection's, to tell when that changed */
+function collectionLayout(scan: ProjectScan | undefined, name: string) {
+  const collection = scan?.collections.find(c => c.name === name)
+  return JSON.stringify(
+    collection && [collection.path, collection.base, collection.patterns]
+  )
+}
+
+/**
+ * Restarts the watcher if the scan's collection folders aren't the ones it
+ * watches, since settings or the content config can move them
+ */
+async function watchFolders(scan: ProjectScan | undefined): Promise<void> {
+  const { _watchedFolders, stopFileWatcher, startFileWatcher } =
+    useProjectStore.getState()
+  const folders = collectionFolders(scan)
+  if (JSON.stringify(folders) === JSON.stringify(_watchedFolders)) return
+
+  await info(
+    'Astro Editor [WATCHER] Collection folders changed - restarting file watcher'
+  )
+  await stopFileWatcher()
+  await startFileWatcher()
+}
+
+/**
+ * Brings the file list up to date with a new scan: leaves the selected
+ * collection if it can't be browsed any more, goes back to its root if its
+ * files moved, refreshes every listing and restarts the watcher if the folders
+ * changed.
+ */
+async function showRescan(
+  projectPath: string,
+  before: ProjectScan | undefined,
+  after: ProjectScan | undefined
+): Promise<void> {
+  const { selectedCollection } = useProjectStore.getState()
+  if (selectedCollection && after) {
+    const collection = after.collections.find(
+      c => c.name === selectedCollection
+    )
+    if (!collection || !isBrowsable(collection)) {
+      useProjectStore.setState({
+        selectedCollection: null,
+        currentSubdirectory: null,
+      })
+    } else if (
+      collectionLayout(before, selectedCollection) !==
+      collectionLayout(after, selectedCollection)
+    ) {
+      useProjectStore.setState({ currentSubdirectory: null })
+    }
+  }
+
+  await queryClient.invalidateQueries({
+    predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
+  })
+  await watchFolders(after)
+}
+
+/** Merges `patch` into `settings`, object by object */
+function deepMerge<T>(settings: T, patch: DeepPartial<T>): T {
+  const merged = { ...settings } as Record<string, unknown>
+  for (const [key, value] of Object.entries(patch)) {
+    const current = merged[key]
+    merged[key] =
+      value && typeof value === 'object' && !Array.isArray(value) && current
+        ? deepMerge(current, value as DeepPartial<typeof current>)
+        : value
+  }
+  return merged as T
+}
+
+/** Counts project opens, so an open that a later one overtook can stop */
+let openGeneration = 0
+
+/**
+ * Opens the project at `path`: registers it, loads its settings and scan, and
+ * starts watching it. Returns false if it couldn't be opened, after logging
+ * why and, unless `quiet`, telling the writer.
+ *
+ * Another open can start while this one waits (two deep links, or a quick
+ * switch during a slow scan). This one then stops at its next step and
+ * returns true, leaving the project to the later open, so two never start a
+ * watcher each.
+ */
+async function openProject(path: string, quiet = false): Promise<boolean> {
+  const { getState, setState } = useProjectStore
+  const generation = ++openGeneration
+  const overtaken = () => generation !== openGeneration
+  await info(`Astro Editor [PROJECT_SETUP] Opening project: ${path}`)
+
+  // Save unsaved edits first, or closing the file below loses them. If the
+  // save fails it has said so and kept recovery data; stay put
+  if (useEditorStore.getState().isDirty) {
+    await useEditorStore.getState().saveFile(false)
+    if (useEditorStore.getState().isDirty) {
+      await logWarn(
+        'Astro Editor [PROJECT_SETUP] Not switching projects: the open file has unsaved edits'
+      )
+      return false
+    }
+  }
+
+  const result = await commands.openProject(path)
+  if (overtaken()) return true
+  if (result.status === 'error') {
+    await logError(
+      formatErrorForLogging('PROJECT_SETUP', 'Failed to open project', {
+        projectPath: path,
+        error: result.error,
+      })
+    )
+    if (!quiet) {
+      toast.error('Failed to open project', { description: result.error })
+    }
+    return false
+  }
+  const { project, settings, newSettings } = result.data
+
+  // Close the open file, the previous project's settings, and its watcher and
+  // listeners first; starting another watcher doesn't stop them, so they'd
+  // keep running and every event would be handled once per project opened
+  useEditorStore.getState().closeCurrentFile()
+  useUIStore.getState().setProjectSettingsOpen(false)
+  await getState().stopFileWatcher()
+  if (overtaken()) return true
+
+  setState({
+    projectPath: project.path,
+    currentProjectId: project.id,
+    projectSettings: settings,
+    selectedCollection: null,
+    currentSubdirectory: null,
+  })
+  await debug(`Astro Editor [PROJECT_SETUP] Project ID: ${project.id}`)
+
+  // A cached scan could be from an earlier visit to this project
+  const scan = await rescan(project.path).catch(async (error: unknown) => {
+    await logWarn(`Astro Editor [PROJECT_SETUP] Scan failed: ${String(error)}`)
+  })
+  if (overtaken()) return true
+  // The first time a project is opened, or after its old settings were moved
+  // aside, say so if AE couldn't read all of it
+  if (newSettings && scan && hasProblems(scan, project.path)) {
+    toast.warning(
+      `Astro Editor couldn't read all of ${projectName(project.path)}`,
+      {
+        description: 'See what it found, and what to change.',
+        action: {
+          label: 'Review',
+          onClick: () => useUIStore.getState().setProjectSettingsOpen(true),
+        },
+        duration: 10_000,
+      }
+    )
+  }
+  await getState().startFileWatcher()
+  await info(`Astro Editor [PROJECT_SETUP] Opened project: ${project.id}`)
+  return true
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -60,7 +260,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   selectedCollection: null,
   currentSubdirectory: null,
   globalSettings: null,
-  currentProjectSettings: null,
+  registry: null,
+  projectSettings: null,
+  _watchedFolders: [],
   _unlistenFileChanged: null,
   _unlistenSchemaChanged: null,
   _unlistenWatcherRescan: null,
@@ -69,68 +271,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   // Actions
   setProject: (path: string) => {
-    void (async () => {
-      try {
-        await info(
-          `Astro Editor [PROJECT_SETUP] Starting project setup: ${path}`
-        )
-
-        // Close any currently open file when switching projects
-        useEditorStore.getState().closeCurrentFile()
-
-        // Register the project and get its ID
-        await info(`Astro Editor [PROJECT_SETUP] Registering project: ${path}`)
-        const projectId = await projectRegistryManager.registerProject(path)
-        await debug(
-          `Astro Editor [PROJECT_SETUP] Project ID generated: ${projectId}`
-        )
-
-        // Load project settings
-        await info(
-          `Astro Editor [PROJECT_SETUP] Loading project settings for: ${projectId}`
-        )
-        const projectSettings =
-          await projectRegistryManager.getEffectiveSettings(projectId)
-
-        // Stop the previous project's watcher and listeners first; starting
-        // another doesn't, so they'd keep running and every event would be
-        // handled once per project opened
-        await get().stopFileWatcher()
-
-        set({
-          projectPath: path,
-          currentProjectId: projectId,
-          currentProjectSettings: projectSettings,
-          selectedCollection: null, // Reset collection when switching projects
-          currentSubdirectory: null, // Reset subdirectory when switching projects
-        })
-
-        // Project persistence is now handled by the project registry system
-
-        await info(`Astro Editor [PROJECT_SETUP] Starting file watcher`)
-        await get().startFileWatcher()
-
-        await info(
-          `Astro Editor [PROJECT_SETUP] Project setup completed successfully: ${projectId}`
-        )
-      } catch (error) {
-        const errorMsg = formatErrorForLogging(
-          'PROJECT_SETUP',
-          'Failed during project setup',
-          {
-            projectPath: path,
-            step: 'Project Setup',
-            error: error instanceof Error ? error : String(error),
-          }
-        )
-
-        toast.error('Failed to set project', {
-          description:
-            error instanceof Error ? error.message : 'Unknown error occurred',
-        })
-        await logError(errorMsg)
-      }
-    })()
+    void openProject(path)
   },
 
   setSelectedCollection: (collection: string | null) => {
@@ -164,28 +305,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   startFileWatcher: async () => {
-    const { projectPath, currentProjectSettings } = get()
+    const { projectPath } = get()
     if (!projectPath) return
 
     try {
-      // Use path override if configured
-      const contentDirectory =
-        currentProjectSettings?.pathOverrides?.contentDirectory
-
-      if (contentDirectory && contentDirectory !== ASTRO_PATHS.CONTENT_DIR) {
-        const result = await commands.startWatchingProjectWithContentDir(
-          projectPath,
-          contentDirectory
-        )
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
-      } else {
-        const result = await commands.startWatchingProject(projectPath)
-        if (result.status === 'error') {
-          throw new Error(result.error)
-        }
+      const scan = queryClient.getQueryData<ProjectScan>(
+        queryKeys.collections(projectPath)
+      )
+      const folders = collectionFolders(scan)
+      const result = await commands.startWatchingProject(projectPath, folders)
+      if (result.status === 'error') {
+        throw new Error(result.error)
       }
+      set({ _watchedFolders: folders })
 
       // Listen for file change events
       const unlistenFileChanged = await listen(
@@ -200,31 +332,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
       )
 
-      // Listen for schema change events (config.ts or .schema.json files)
+      // The content config or a generated schema changed, which can change
+      // the collections and where they are
       const unlistenSchemaChanged = await listen('schema-changed', () => {
-        // Invalidate collections query to re-parse schemas
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.collections(projectPath),
-        })
+        void get().refreshProjectScan()
       })
 
       // Listen for watcher recovery events
+      // Refetches everything, then watches any collection folder that has
+      // appeared since (one missing when watching started isn't watched)
+      const refreshAll = async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.all })
+        await watchFolders(getProjectScan())
+      }
+
       const unlistenWatcherRescan = await listen('watcher-rescan', () => {
         void debug(
           'Astro Editor [WATCHER] Periodic rescan — refreshing queries'
         )
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.all,
-        })
+        void refreshAll()
       })
 
       const unlistenWatcherRebuilt = await listen('watcher-rebuilt', () => {
         void info(
           'Astro Editor [WATCHER] File watcher rebuilt after disconnection'
         )
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.all,
-        })
+        void refreshAll()
       })
 
       const unlistenWatcherError = await listen('watcher-error', () => {
@@ -280,6 +413,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         _unlistenWatcherRescan: null,
         _unlistenWatcherRebuilt: null,
         _unlistenWatcherError: null,
+        _watchedFolders: [],
       })
 
       const result = await commands.stopWatchingProject(projectPath)
@@ -300,199 +434,148 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
+  /**
+   * Reads the project's collections again, and restarts the watcher if their
+   * folders moved
+   */
+  refreshProjectScan: async () => {
+    const { projectPath } = get()
+    if (!projectPath) return
+
+    const before = getProjectScan()
+    const scan = await rescan(projectPath).catch(async (error: unknown) => {
+      await logWarn(
+        `Astro Editor [PROJECT_SCAN] Rescan failed: ${String(error)}`
+      )
+      return undefined
+    })
+    // A content config change can move a collection or change its pattern
+    await showRescan(projectPath, before, scan)
+  },
+
   loadPersistedProject: async () => {
-    try {
-      await get().initializeProjectRegistry()
+    await get().loadPreferences()
 
-      // If the app was launched by a deep link, let it choose which project to
-      // open instead of restoring the last one (avoids opening the wrong project
-      // then switching). Bounded wait so we never hang on normal startup.
-      if (await wasStartupClaimedByDeepLink()) {
-        await info(
-          'Astro Editor [PROJECT_SETUP] Deep link claimed startup - skipping persisted project load'
-        )
-        return
-      }
-
-      // Try to load the last opened project from registry
-      const lastProjectId = projectRegistryManager.getLastOpenedProjectId()
-      if (lastProjectId) {
-        // Get project metadata from registry (not from project data)
-        const registry = projectRegistryManager.getRegistry()
-        const projectMetadata = registry.projects[lastProjectId]
-
-        if (projectMetadata) {
-          try {
-            // Verify the project path still exists before setting it
-            const result = await commands.scanProject(projectMetadata.path)
-            if (result.status === 'error') {
-              throw new Error(result.error)
-            }
-            // If no error, the project path is valid, so restore it
-            get().setProject(projectMetadata.path)
-          } catch (error) {
-            toast.info('Previous project no longer available', {
-              description: 'The last opened project could not be found.',
-            })
-            void logWarn(
-              `Saved project path no longer valid: ${projectMetadata.path}: ${String(error)}`
-            )
-          }
-        }
-      }
-
-      // Project persistence is now fully handled by the file-based project registry
-      // Clean up any legacy localStorage entries to prevent conflicts
-      try {
-        localStorage.removeItem('astro-editor-last-project')
-      } catch {
-        // Ignore errors - localStorage cleanup is optional
-      }
-    } catch (error) {
-      void logWarn(`Failed to load persisted project: ${String(error)}`)
+    // If the app was launched by a deep link, let it choose which project to
+    // open instead of restoring the last one (avoids opening the wrong project
+    // then switching). Bounded wait so we never hang on normal startup.
+    if (await wasStartupClaimedByDeepLink()) {
+      await info(
+        'Astro Editor [PROJECT_SETUP] Deep link claimed startup - skipping persisted project load'
+      )
+      return
     }
-  },
 
-  initializeProjectRegistry: async () => {
-    try {
-      await info(
-        'Astro Editor [PROJECT_REGISTRY] Initializing project registry'
-      )
-      await projectRegistryManager.initialize()
-      const globalSettings = projectRegistryManager.getGlobalSettings()
-      set({ globalSettings })
-      await info(
-        'Astro Editor [PROJECT_REGISTRY] Project registry initialized successfully'
-      )
-    } catch (error) {
-      const errorMsg = formatErrorForLogging(
-        'PROJECT_REGISTRY',
-        'Failed to initialize project registry',
-        {
-          error: error instanceof Error ? error : String(error),
-          step: 'Registry Initialization',
-        }
-      )
-
-      toast.error('Failed to initialize project registry', {
-        description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+    const { registry } = get()
+    const lastProject =
+      registry?.lastOpenedProject &&
+      registry.projects[registry.lastOpenedProject]
+    if (lastProject && !(await openProject(lastProject.path, true))) {
+      toast.warning(`Couldn't open ${projectName(lastProject.path)}`, {
+        description: 'It may have been moved or deleted.',
+        action: {
+          label: 'Show Projects',
+          onClick: () => useUIStore.getState().setProjectListOpen(true),
+        },
+        duration: 10_000,
       })
-      await logError(errorMsg)
-
-      // Don't throw - allow app to continue without registry if needed
-      await info(
-        'Astro Editor [PROJECT_REGISTRY] Continuing without registry - some features may be limited'
-      )
     }
   },
 
-  updateGlobalSettings: async (settings: DeepPartial<GlobalSettings>) => {
-    try {
-      await projectRegistryManager.updateGlobalSettings(settings)
-      const updatedSettings = projectRegistryManager.getGlobalSettings()
-      set({ globalSettings: updatedSettings })
-    } catch (error) {
+  loadPreferences: async () => {
+    const result = await commands.loadPreferences()
+    if (result.status === 'error') {
+      toast.error('Failed to load preferences', { description: result.error })
+      await logError(`Failed to load preferences: ${result.error}`)
+      return
+    }
+    set({
+      globalSettings: result.data.globalSettings,
+      registry: result.data.registry,
+    })
+    for (const problem of result.data.problems) {
+      toast.warning('Settings were reset', { description: problem })
+    }
+  },
+
+  updateGlobalSettings: async (patch: DeepPartial<GlobalSettings>) => {
+    const { globalSettings } = get()
+    if (!globalSettings) return
+
+    const updated = deepMerge(globalSettings, patch)
+    const result = await commands.saveGlobalSettings(updated)
+    if (result.status === 'error') {
       toast.error('Failed to update global settings', {
-        description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+        description: result.error,
       })
-      await logError(`Failed to update global settings: ${String(error)}`)
+      await logError(`Failed to update global settings: ${result.error}`)
+      return
+    }
+    set({ globalSettings: updated })
+
+    // The new file type can fall back to the global preference
+    if (patch.general?.defaultFileType) {
+      await get().refreshProjectScan()
     }
   },
 
-  updateProjectSettings: async (settings: Partial<ProjectSettings>) => {
-    const { currentProjectId, projectPath, selectedCollection } = get()
-    if (!currentProjectId) {
+  updateProjectSettings: async (settings: ProjectSettingsData) => {
+    const { currentProjectId, projectPath } = get()
+    if (!currentProjectId || !projectPath) {
       toast.error('No project is currently open')
       return
     }
 
-    try {
-      // Check if path overrides are changing
-      const pathOverridesChanged = !!settings.pathOverrides
-
-      // If path overrides are changing and a file is open, handle gracefully
-      if (pathOverridesChanged) {
-        const { currentFile } = useEditorStore.getState()
-        if (currentFile) {
-          // Auto-save current file before settings change
-          await info(
-            'Astro Editor [PREFERENCES] Path settings changing while file is open - auto-saving'
-          )
-          try {
-            await useEditorStore.getState().saveFile()
-          } catch (saveError) {
-            await logError(
-              `Astro Editor [PREFERENCES] Failed to auto-save before settings change: ${String(saveError)}`
-            )
-          }
-
-          // Show warning toast
-          toast.warning('Path settings changed', {
-            description:
-              'The current file has been saved. Please reopen it to continue editing.',
-          })
-
-          // Close the current file to prevent save issues
-          useEditorStore.getState().closeCurrentFile()
-        }
-      }
-
-      await projectRegistryManager.updateProjectSettings(
-        currentProjectId,
-        settings
-      )
-      const updatedSettings =
-        await projectRegistryManager.getEffectiveSettings(currentProjectId)
-      set({ currentProjectSettings: updatedSettings })
-
-      // Invalidate queries when settings change
-      if (projectPath) {
-        // If path overrides changed, invalidate collection-related queries
-        if (settings.pathOverrides) {
-          await queryClient.invalidateQueries({
-            queryKey: queryKeys.collections(projectPath),
-          })
-
-          // Invalidate directory contents for current collection if any
-          // This invalidates all directory scans for this collection (root + all subdirectories)
-          if (selectedCollection) {
-            await queryClient.invalidateQueries({
-              queryKey: [
-                ...queryKeys.all,
-                projectPath,
-                selectedCollection,
-                'directory',
-              ],
-            })
-          }
-
-          // Restart file watcher with new paths
-          await info(
-            'Astro Editor [PREFERENCES] Path overrides changed - restarting file watcher'
-          )
-          await get().stopFileWatcher()
-          await get().startFileWatcher()
-        }
-
-        // If frontmatter mappings changed, invalidate current file to update rendering
-        if (settings.frontmatterMappings) {
-          const { currentFile } = useEditorStore.getState()
-          if (currentFile) {
-            await queryClient.invalidateQueries({
-              queryKey: queryKeys.fileContent(projectPath, currentFile.id),
-            })
-          }
-        }
-      }
-    } catch (error) {
+    const before = getProjectScan()
+    // Set before saving, so a change made while this one saves builds on it
+    const previous = get().projectSettings
+    set({ projectSettings: settings })
+    const result = await commands.saveProjectSettings(
+      currentProjectId,
+      settings
+    )
+    if (get().projectPath !== projectPath) return
+    if (result.status === 'error') {
+      // Unless a newer change has replaced these settings, which a rollback
+      // would undo
+      if (get().projectSettings === settings) set({ projectSettings: previous })
       toast.error('Failed to update project settings', {
-        description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+        description: result.error,
       })
-      await logError(`Failed to update project settings: ${String(error)}`)
+      await logError(`Failed to update project settings: ${result.error}`)
+      return
     }
+
+    const after = await rescan(projectPath).catch(() => undefined)
+    if (get().projectPath !== projectPath) return
+
+    // If the open file's collection now has different files, the file may
+    // not be in it any more, so save and close it. If the save fails, it
+    // stays open with its edits.
+    const { currentFile } = useEditorStore.getState()
+    if (
+      currentFile &&
+      collectionLayout(before, currentFile.collection) !==
+        collectionLayout(after, currentFile.collection)
+    ) {
+      await info(
+        'Astro Editor [PREFERENCES] Collection folder changed while its file is open - saving and closing it'
+      )
+      if (useEditorStore.getState().isDirty) {
+        await useEditorStore.getState().saveFile(false)
+      }
+      if (!useEditorStore.getState().isDirty) {
+        toast.warning('Collection settings changed', {
+          description:
+            'The open file has been saved. Please reopen it to continue editing.',
+        })
+        useEditorStore.getState().closeCurrentFile()
+      }
+    }
+
+    // The pattern, folder or skipped files setting may have changed which
+    // files the listings show
+    await showRescan(projectPath, before, after)
   },
 }))
 

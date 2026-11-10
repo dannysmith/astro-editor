@@ -1,2 +1,9 @@
 msrv = "1.70"
 cognitive-complexity-threshold = 30
+
+# On Windows, std's canonicalize prefixes paths with \\?\, which breaks comparing
+# them with paths from the frontend, the dialogs and the registry
+disallowed-methods = [
+  { path = "std::fs::canonicalize", reason = "use dunce::canonicalize, which leaves no \\\\?\\ prefix on Windows" },
+  { path = "std::path::Path::canonicalize", reason = "use dunce::canonicalize, which leaves no \\\\?\\ prefix on Windows" },
+]

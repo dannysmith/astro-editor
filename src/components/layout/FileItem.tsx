@@ -4,18 +4,12 @@ import { cn } from '@/lib/utils'
 import { getPublishedDate, getTitle } from '../../lib/files/sorting'
 import { formatDisplayDate } from '../../lib/dates'
 import type { FileEntry } from '@/types'
-
-type FrontmatterMappings = {
-  publishedDate: string | string[]
-  title: string
-  description: string
-  draft: string
-}
+import type { FieldMappings } from '../../lib/files/sorting'
 
 interface FileItemProps {
   file: FileEntry
   isSelected: boolean
-  frontmatterMappings: FrontmatterMappings
+  frontmatterMappings: FieldMappings
   onFileClick: (file: FileEntry) => void
   onContextMenu: (event: React.MouseEvent, file: FileEntry) => void
   onRenameSubmit: (file: FileEntry, newName: string) => void
@@ -38,7 +32,7 @@ export const FileItem: React.FC<FileItemProps> = ({
   const previousIsRenamingRef = useRef(isRenaming)
 
   // Derived state (NO store subscriptions)
-  // Draft detection uses only the user-configured field (or 'draft' default)
+  // Draft detection uses the collection's draft field
   const isFileDraft = file.frontmatter?.[frontmatterMappings.draft] === true
   const isMdx = file.extension === 'mdx'
   const title = getTitle(file, frontmatterMappings.title)
@@ -107,8 +101,14 @@ export const FileItem: React.FC<FileItemProps> = ({
       className={cn(
         'w-full text-left p-3 rounded-md transition-colors',
         isSelected && 'bg-primary/15 hover:bg-primary/20',
-        !isSelected && 'hover:bg-accent'
+        !isSelected && 'hover:bg-accent',
+        !file.is_entry && 'opacity-60'
       )}
+      title={
+        file.is_entry
+          ? undefined
+          : "Not in the collection: its loader's pattern leaves this file out"
+      }
     >
       <div className="flex w-full items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

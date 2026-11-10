@@ -106,6 +106,7 @@ export default defineConfig({
             { slug: 'frontmatter/special-fields' },
           ],
         },
+        { slug: 'project-settings' },
         { slug: 'preferences' },
         {
           label: 'Reference',

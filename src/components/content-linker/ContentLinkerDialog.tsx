@@ -13,7 +13,7 @@ import { useContentLinkerStore } from '../../store/contentLinkerStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
-import { getCollectionSettings } from '../../lib/project-registry/collection-settings'
+import { fieldMappings } from '../../lib/project-scan'
 import { resolveTitle } from '../../lib/content-linker'
 import { type FileEntry, type Collection } from '@/types'
 import { queryKeys } from '../../lib/query-keys'
@@ -32,14 +32,10 @@ export function ContentLinkerDialog() {
   const insertLink = useContentLinkerStore(state => state.insertLink)
 
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    state => state.currentProjectSettings
-  )
-
   const {
     data: collections = EMPTY_COLLECTIONS,
     isPending: isLoadingCollections,
-  } = useCollectionsQuery(projectPath, currentProjectSettings)
+  } = useCollectionsQuery(projectPath)
 
   const platform = usePlatform()
   const modKey = platform === 'macos' || platform === undefined ? '⌘' : 'Ctrl+'
@@ -50,7 +46,7 @@ export function ContentLinkerDialog() {
   const fileQueries = useQueries({
     queries: collections.map(collection => ({
       queryKey: queryKeys.collectionFiles(projectPath || '', collection.name),
-      queryFn: () => fetchCollectionFiles(collection.path, collection.name),
+      queryFn: () => fetchCollectionFiles(collection),
       enabled: isOpen && !!projectPath,
       retry: false,
     })),
@@ -63,6 +59,12 @@ export function ContentLinkerDialog() {
 
   // Item value -> file, for the filter and the handlers
   const fileMap = new Map(allFiles.map(file => [buildItemValue(file), file]))
+
+  const collectionOf = (file: FileEntry) =>
+    collections.find(c => c.name === file.collection)
+  // The file's title, by its collection's title field
+  const titleOf = (file: FileEntry) =>
+    resolveTitle(file, fieldMappings(collectionOf(file)).title)
 
   // Get the currently highlighted item's value from the DOM.
   // Uses cmdk's internal [cmdk-item][aria-selected] attributes —
@@ -78,7 +80,7 @@ export function ContentLinkerDialog() {
     // value is file.path — also search against title, collection, and file name
     const file = fileMap.get(value)
     if (file) {
-      const title = resolveTitle(file)
+      const title = titleOf(file)
       if (
         title.toLowerCase().includes(lower) ||
         file.collection.toLowerCase().includes(lower) ||
@@ -109,17 +111,13 @@ export function ContentLinkerDialog() {
     const currentFile = useEditorStore.getState().currentFile
     if (!currentFile) return
 
-    // Get effective settings for the target collection
-    const settings = getCollectionSettings(
-      currentProjectSettings,
-      file.collection
-    )
-
+    // The target collection's link pattern and title field
+    const collection = collectionOf(file)
     insertLink(
       file,
       currentFile,
-      settings.urlPattern,
-      settings.frontmatterMappings.title
+      collection?.settings.urlPattern.value ?? undefined,
+      fieldMappings(collection).title
     )
   }
 
@@ -154,7 +152,7 @@ export function ContentLinkerDialog() {
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
               {allFiles.map(file => {
-                const title = resolveTitle(file)
+                const title = titleOf(file)
                 const value = buildItemValue(file)
 
                 return (

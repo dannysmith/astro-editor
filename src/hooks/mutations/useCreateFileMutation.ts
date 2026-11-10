@@ -2,16 +2,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
-import { queryKeys } from '@/lib/query-keys'
+import { isFileListing } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
-import { useProjectStore } from '@/store/projectStore'
 
 export interface CreateFilePayload {
   directory: string
   filename: string
   content: string
   projectPath: string
-  collectionName: string
 }
 
 const createFile = async (payload: CreateFilePayload) => {
@@ -33,20 +31,10 @@ export const useCreateFileMutation = () => {
   return useMutation({
     mutationFn: createFile,
     onSuccess: (_, variables) => {
-      const { currentSubdirectory } = useProjectStore.getState()
-
-      // Invalidate current directory view to show the new file
+      // Show the new file, and count it
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.directoryContents(
-          variables.projectPath,
-          variables.collectionName,
-          currentSubdirectory || 'root'
-        ),
-      })
-
-      // Also invalidate collections to refresh file counts
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.collections(variables.projectPath),
+        predicate: ({ queryKey }) =>
+          isFileListing(queryKey, variables.projectPath),
       })
 
       toast.success('New file created successfully')

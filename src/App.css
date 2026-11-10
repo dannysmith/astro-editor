@@ -125,6 +125,17 @@
     oklch(0.577 0.245 27.325),
     oklch(0.704 0.191 22.216)
   );
+  /* A project's icon when it has no favicon: its initial on one of these,
+     picked from its path. The text on them is --project-foreground. */
+  --project-1: light-dark(oklch(0.6 0.15 25), oklch(0.52 0.13 25));
+  --project-2: light-dark(oklch(0.64 0.14 55), oklch(0.55 0.12 55));
+  --project-3: light-dark(oklch(0.62 0.12 95), oklch(0.53 0.1 95));
+  --project-4: light-dark(oklch(0.6 0.13 150), oklch(0.52 0.11 150));
+  --project-5: light-dark(oklch(0.6 0.1 195), oklch(0.52 0.09 195));
+  --project-6: light-dark(oklch(0.58 0.14 250), oklch(0.5 0.12 250));
+  --project-7: light-dark(oklch(0.56 0.15 290), oklch(0.5 0.13 290));
+  --project-8: light-dark(oklch(0.6 0.15 345), oklch(0.52 0.13 345));
+  --project-foreground: oklch(1 0 0);
 
   /* Window controls we draw ourselves: the caption buttons on Windows and the
      traffic lights on macOS */
@@ -170,6 +181,8 @@
     oklch(0.6356 0.2082 25.3782),
     oklch(0.7123 0.1656 22.1776)
   );
+  /* Something AE is guessing at or can't fully use, like a missing schema */
+  --warning: light-dark(oklch(0.56 0.14 60), oklch(0.8 0.14 70));
 
   /* Editor: the iA Writer palette, for the writing surface only. Keep all of
      it, used or not (see docs/developer/editor-styles.md) */
@@ -286,6 +299,7 @@
   --color-draft: var(--draft);
   --color-draft-bg: var(--draft-bg);
   --color-filter: var(--filter);
+  --color-warning: var(--warning);
   --color-filter-bg: var(--filter-bg);
   --color-required: var(--required);
   --color-icon: var(--icon);
@@ -295,6 +309,15 @@
   --color-framework-react: var(--framework-react);
   --color-framework-vue: var(--framework-vue);
   --color-framework-svelte: var(--framework-svelte);
+  --color-project-1: var(--project-1);
+  --color-project-2: var(--project-2);
+  --color-project-3: var(--project-3);
+  --color-project-4: var(--project-4);
+  --color-project-5: var(--project-5);
+  --color-project-6: var(--project-6);
+  --color-project-7: var(--project-7);
+  --color-project-8: var(--project-8);
+  --color-project-foreground: var(--project-foreground);
   --color-window-control-hover: var(--window-control-hover);
   --color-window-close: var(--window-close);
   --color-window-close-foreground: var(--window-close-foreground);

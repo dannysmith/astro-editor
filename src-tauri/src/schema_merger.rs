@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 
+use crate::models::collection::SchemaStatus;
+
 /// Complete schema definition sent to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,6 +103,22 @@ struct JsonSchemaDefinition {
     required: Option<Vec<String>>,
 }
 
+/// The schema Astro generates for a `file()` collection: its entries as an
+/// array or as an object keyed by id
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileJsonSchema {
+    any_of: Vec<FileJsonSchemaBranch>,
+}
+
+/// One way a `file()` collection's entries can be written. The array one has
+/// the entry schema in `items`.
+#[derive(Debug, Deserialize)]
+struct FileJsonSchemaBranch {
+    #[serde(default)]
+    items: Option<JsonSchemaDefinition>,
+}
+
 /// Additional properties at property level (for dynamic properties)
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -189,12 +207,23 @@ enum ItemsType {
     Bool(bool),
 }
 
-/// Parse and merge schemas from all sources
+/// A collection's schema, and how much of it AE could read
+pub struct MergedSchema {
+    pub schema: Option<SchemaDefinition>,
+    pub status: SchemaStatus,
+    /// Why the JSON schema couldn't be read
+    pub error: Option<String>,
+}
+
+/// Parse and merge schemas from all sources: the generated JSON schema, enhanced
+/// with the Zod helpers, or the helpers alone when there's no readable JSON.
+/// `has_schema` says whether the config gives the collection a schema at all.
 pub fn create_complete_schema(
     collection_name: &str,
     json_schema: Option<&str>,
     zod_schema: Option<&str>,
-) -> Result<SchemaDefinition, String> {
+    has_schema: bool,
+) -> MergedSchema {
     log::debug!(
         "[Schema] Creating complete schema for: {} (json: {}, zod: {})",
         collection_name,
@@ -202,43 +231,47 @@ pub fn create_complete_schema(
         zod_schema.is_some()
     );
 
-    // 1. Try JSON schema first (most accurate for structure)
-    if let Some(json) = json_schema {
-        match parse_json_schema(collection_name, json) {
-            Ok(mut schema) => {
-                log::debug!(
-                    "[Schema] Successfully parsed JSON schema with {} fields",
-                    schema.fields.len()
-                );
-                // 2. Enhance with Zod information (references and image types)
-                if let Some(zod) = zod_schema {
-                    if let Err(e) = enhance_schema_from_zod(&mut schema, zod) {
-                        log::warn!(
-                            "Failed to enhance schema with Zod data for {collection_name}: {e}"
-                        );
-                    }
+    let zod_only = || zod_schema.and_then(|zod| parse_zod_schema(collection_name, zod).ok());
+
+    let Some(json) = json_schema else {
+        let status = if has_schema {
+            SchemaStatus::NotGenerated
+        } else {
+            SchemaStatus::None
+        };
+        return MergedSchema {
+            schema: zod_only(),
+            status,
+            error: None,
+        };
+    };
+
+    match parse_json_schema(collection_name, json) {
+        Ok(mut schema) => {
+            if let Some(zod) = zod_schema {
+                if let Err(e) = enhance_schema_from_zod(&mut schema, zod) {
+                    log::warn!("Failed to enhance schema with Zod data for {collection_name}: {e}");
                 }
-                return Ok(schema);
             }
-            Err(e) => {
-                log::warn!("[Schema] Failed to parse JSON schema: {e}");
+            MergedSchema {
+                schema: Some(schema),
+                status: SchemaStatus::Complete,
+                error: None,
+            }
+        }
+        Err(e) => {
+            log::warn!("[Schema] Failed to parse JSON schema for {collection_name}: {e}");
+            MergedSchema {
+                schema: zod_only(),
+                status: SchemaStatus::Unreadable,
+                error: Some(e),
             }
         }
     }
-
-    // 3. Fallback to Zod-only parsing
-    if let Some(zod) = zod_schema {
-        log::debug!("[Schema] Falling back to Zod-only parsing");
-        return parse_zod_schema(collection_name, zod);
-    }
-
-    log::debug!("[Schema] No schema available for collection: {collection_name}");
-    Err("No schema available".to_string())
 }
 
-/// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats). Only
-/// folder collections get here: `file()` collections are read as reference
-/// targets from their data file instead (`load_file_based_collection`).
+/// Parse Astro JSON schema (supports both Astro 5 and Astro 6+ formats, and the
+/// array-or-object root of a `file()` collection, whose entry schema it takes)
 fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaDefinition, String> {
     log::debug!("[Schema] Parsing JSON schema for collection: {collection_name}");
 
@@ -261,6 +294,16 @@ fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaD
     if let Ok(schema) = serde_json::from_str::<JsonSchemaDefinition>(json_schema) {
         log::debug!("[Schema] Detected Astro 6 format (flat schema)");
         return parse_entry_schema(collection_name, &schema);
+    }
+
+    // A `file()` collection's file holds its entries as an array or as an object
+    // keyed by id, so Astro offers both: { "anyOf": [{ "type": "array",
+    // "items": <entry> }, { "type": "object", "additionalProperties": <entry> }] }
+    if let Ok(schema) = serde_json::from_str::<FileJsonSchema>(json_schema) {
+        if let Some(entry) = schema.any_of.into_iter().find_map(|branch| branch.items) {
+            log::debug!("[Schema] Detected file() format (array or object of entries)");
+            return parse_entry_schema(collection_name, &entry);
+        }
     }
 
     Err(format!(
@@ -1131,6 +1174,29 @@ mod tests {
         let (reference_map, _image_fields) = result.unwrap();
         assert_eq!(reference_map.get("author"), Some(&"authors".to_string()));
         assert_eq!(reference_map.get("tags"), Some(&"tags".to_string()));
+    }
+
+    #[test]
+    fn parses_a_file_loaders_array_or_object_of_entries() {
+        let entry = r#"{
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id"]
+        }"#;
+        let json_schema = format!(
+            r#"{{
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "anyOf": [
+                    {{ "type": "array", "items": {entry} }},
+                    {{ "type": "object", "properties": {{}}, "additionalProperties": {entry} }}
+                ]
+            }}"#
+        );
+
+        let schema = parse_json_schema("authors", &json_schema).unwrap();
+        let names: Vec<_> = schema.fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["id", "name"]);
+        assert!(schema.fields[0].required);
     }
 
     #[test]

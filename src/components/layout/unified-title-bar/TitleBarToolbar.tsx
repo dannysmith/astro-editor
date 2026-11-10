@@ -18,6 +18,8 @@ import {
   Pilcrow,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
+import { showProjectList } from '../../../lib/projects/actions'
+import { projectName } from '../../../lib/projects/display'
 
 interface TitleBarToolbarProps {
   /** Window controls for the left side (e.g., macOS traffic lights) */
@@ -115,9 +117,14 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         </Button>
 
         {projectPath ? (
-          <span className="overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
-            {projectPath.split('/').pop() || projectPath}
-          </span>
+          <button
+            type="button"
+            onClick={showProjectList}
+            className="overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground hover:text-foreground"
+            title="Show Projects"
+          >
+            {projectName(projectPath)}
+          </button>
         ) : (
           <span className="text-sm font-medium text-muted-foreground">
             Astro Editor

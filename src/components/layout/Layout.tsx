@@ -11,6 +11,8 @@ import { FrontmatterPanel } from '../frontmatter'
 import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
 import { ContentLinkerDialog } from '../content-linker'
+import { ProjectListDialog } from '../project-list'
+import { ProjectSettingsDialog } from '../project-settings'
 import { Toaster } from '../ui/sonner'
 import { PreferencesDialog } from '../preferences'
 import { AgentBridge } from '../agent-bridge'
@@ -108,7 +110,9 @@ export const Layout: React.FC = () => {
     setPreferencesOpen(open)
     if (!open) {
       setTimeout(() => {
-        focusEditor()
+        // Not when Preferences closed to open Project Settings, which would
+        // lose focus to the editor behind it
+        if (!useUIStore.getState().projectSettingsOpen) focusEditor()
       }, 100)
     }
   }, [])
@@ -256,6 +260,8 @@ export const Layout: React.FC = () => {
       <CommandPalette />
       <ComponentBuilderDialog />
       <ContentLinkerDialog />
+      <ProjectListDialog />
+      <ProjectSettingsDialog />
       <PreferencesDialog
         open={preferencesOpen}
         onOpenChange={handleSetPreferencesOpen}

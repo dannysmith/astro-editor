@@ -84,12 +84,12 @@ Given those two content collections, Astro Editor will expect your project to lo
 </FileTree>
 
 - The schema in `content.config.ts` provides information on the content collections and their frontmatter fields.
-- The `content/<collection>/` directories are where we look for the actual content files of each collection.
+- Each collection's files are where its `glob()` loader says, here `content/<collection>/`. Collections can live anywhere in the project; Astro Editor reads the folder and the pattern from the loader.
 - The `assets/<collection>/` directories are where we add images and files dragged into the editor, or uploaded to [*image* frontmatter fields](/frontmatter/field-types/#image-fields).
 - The `components/mdx/` directory contains components like `Callout.astro`, which can be easily inserted into content using the [MDX component builder](/editor/mdx-components/).
 
 <Aside type="tip">
-The paths for these directories are configurable per project and per collection in [Preferences](/preferences/).
+If Astro Editor can't read a collection's loader, or your assets or components live elsewhere, set the paths in [Project Settings](/project-settings/).
 </Aside>
 
 ## The Interface
@@ -114,8 +114,8 @@ With both sidebars hidden and [Focus Mode](/editor/focus-and-typewriter/#focus-m
 Astro Editor will only work properly with Astro projects which:
 
 - Are using Astro 5+ _(it might work with Astro 4+ but you should expect a few bugs)_
-- Use Astro [Content Collections](https://docs.astro.build/en/guides/content-collections/) and have a `src/content/config.ts` or `src/content.config.ts` file with at least one collection defined using `defineCollection`. It **must** use the `glob` loader and have a `schema`.
-- Have all collections within a single directory: `src/content/[collectionname]/`
+- Use Astro [Content Collections](https://docs.astro.build/en/guides/content-collections/), with a `src/content.config.ts` (or the older `src/content/config.ts`) defining at least one collection of Markdown or MDX files, ideally with the `glob` loader and a `schema`.
+- Keep the content config in `src/`. A custom `srcDir` isn't supported.
 
 <Aside>
 Content collections can contain non-markdown/MDX files, but they will not be shown in the editor.

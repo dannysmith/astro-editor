@@ -11,12 +11,19 @@ import { useProjectStore } from './projectStore'
 vi.mock('@/lib/bindings', () => ({
   commands: { planComponentImport: vi.fn() },
 }))
-vi.mock('../lib/query-client', () => ({
-  queryClient: {
-    getQueryData: () => [{ name: 'notes', path: '/site/src/content/notes' }],
-    invalidateQueries: vi.fn().mockResolvedValue(undefined),
-  },
-}))
+// Whether the project adds component imports
+const addsImports = vi.hoisted(() => ({ value: true }))
+vi.mock('../lib/project-scan', async () => {
+  const { makeCollection, makeScan } = await import('../test/fixtures')
+  return {
+    getProjectScan: () =>
+      makeScan([], {
+        addComponentImports: { value: addsImports.value, source: 'set' },
+      }),
+    getCollection: (name: string) =>
+      name === 'notes' ? makeCollection({ name }) : undefined,
+  }
+})
 vi.mock('../lib/editor/commands/insertSnippet', () => ({
   insertSnippet: vi.fn(),
   isOnEmptyLine: () => true,
@@ -108,14 +115,8 @@ describe('componentBuilderStore imports', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     planComponentImport.mockResolvedValue(answer(planWith()))
-    useProjectStore.setState({
-      projectPath: '/site',
-      currentProjectSettings: {
-        pathOverrides: {},
-        frontmatterMappings: {},
-        addComponentImports: true,
-      },
-    })
+    addsImports.value = true
+    useProjectStore.setState({ projectPath: '/site' })
     useEditorStore.setState({
       currentFile: {
         id: 'notes/a',
@@ -125,6 +126,7 @@ describe('componentBuilderStore imports', () => {
         collection: 'notes',
         last_modified: null,
         frontmatter: null,
+        is_entry: true,
       },
       imports: '',
       isDirty: false,
@@ -171,9 +173,7 @@ describe('componentBuilderStore imports', () => {
   })
 
   it("doesn't plan when the project setting is off", async () => {
-    useProjectStore.setState({
-      currentProjectSettings: { pathOverrides: {}, frontmatterMappings: {} },
-    })
+    addsImports.value = false
     await select()
     expect(planComponentImport).not.toHaveBeenCalled()
     expect(useComponentBuilderStore.getState().importPlan).toBeNull()

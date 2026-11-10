@@ -1,44 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { processFileToAssets } from './fileProcessing'
 import type { ProcessFileToAssetsOptions } from './types'
-import type { ProjectSettings } from '../project-registry/types'
 
 // Mock typed commands from bindings
 vi.mock('@/lib/bindings', () => ({
   commands: {
     isPathInProject: vi.fn(),
     copyFileToAssets: vi.fn(),
-    copyFileToAssetsWithOverride: vi.fn(),
     getRelativePath: vi.fn(),
   },
 }))
 
-// Mock path resolution utilities
-vi.mock('../project-registry', () => ({
-  getEffectiveAssetsDirectory: vi.fn(),
-}))
-
-// Mock constants
-vi.mock('../constants', () => ({
-  ASTRO_PATHS: {
-    ASSETS_DIR: 'src/assets',
-  },
-}))
-
 import { commands } from '@/lib/bindings'
-import { getEffectiveAssetsDirectory } from '../project-registry'
 
 describe('processFileToAssets', () => {
-  const mockProjectSettings: ProjectSettings = {
-    pathOverrides: {},
-    frontmatterMappings: {},
-  }
-
   const baseOptions: ProcessFileToAssetsOptions = {
     sourcePath: '/Users/test/Downloads/image.png',
     projectPath: '/Users/test/project',
     collection: 'blog',
-    projectSettings: mockProjectSettings,
+    assetsDirectory: 'src/assets',
     copyStrategy: 'always',
     currentFilePath: '/Users/test/project/src/content/blog/post.md',
     useRelativePaths: true,
@@ -46,7 +26,6 @@ describe('processFileToAssets', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
   })
 
   describe('always copy strategy', () => {
@@ -55,7 +34,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -66,6 +44,7 @@ describe('processFileToAssets', () => {
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -77,18 +56,18 @@ describe('processFileToAssets', () => {
     })
 
     it('should copy file to override assets directory', async () => {
-      vi.mocked(commands.copyFileToAssetsWithOverride).mockResolvedValue({
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
         data: 'custom/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('custom/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
+        assetsDirectory: 'custom/assets',
         copyStrategy: 'always',
       })
 
-      expect(commands.copyFileToAssetsWithOverride).toHaveBeenCalledWith(
+      expect(commands.copyFileToAssets).toHaveBeenCalledWith(
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
@@ -109,7 +88,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-existing.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -122,6 +100,7 @@ describe('processFileToAssets', () => {
         '/Users/test/project/images/existing.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -137,7 +116,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -152,6 +130,7 @@ describe('processFileToAssets', () => {
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
+        'src/assets',
         '/Users/test/project/src/content/blog/post.md',
         true
       )
@@ -168,7 +147,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'images/existing.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -196,18 +174,18 @@ describe('processFileToAssets', () => {
 
     it('should use override assets directory when copying from outside project', async () => {
       vi.mocked(commands.isPathInProject).mockResolvedValue(false)
-      vi.mocked(commands.copyFileToAssetsWithOverride).mockResolvedValue({
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
         data: 'custom/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('custom/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
+        assetsDirectory: 'custom/assets',
         copyStrategy: 'only-if-outside-project',
       })
 
-      expect(commands.copyFileToAssetsWithOverride).toHaveBeenCalledWith(
+      expect(commands.copyFileToAssets).toHaveBeenCalledWith(
         '/Users/test/Downloads/image.png',
         '/Users/test/project',
         'blog',
@@ -225,7 +203,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: '../../assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -241,7 +218,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: '/src/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -259,7 +235,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-image.png',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -275,7 +250,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-document.pdf',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -291,7 +265,6 @@ describe('processFileToAssets', () => {
         status: 'ok',
         data: 'src/assets/2024-01-15-file.txt',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       const result = await processFileToAssets({
         ...baseOptions,
@@ -322,7 +295,6 @@ describe('processFileToAssets', () => {
         status: 'error',
         error: 'Failed to copy file',
       })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
 
       await expect(
         processFileToAssets({
@@ -345,64 +317,6 @@ describe('processFileToAssets', () => {
           copyStrategy: 'only-if-outside-project',
         })
       ).rejects.toThrow('Failed to get relative path')
-    })
-  })
-
-  describe('project settings handling', () => {
-    it('should work with null project settings', async () => {
-      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
-        status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
-      })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
-
-      const result = await processFileToAssets({
-        ...baseOptions,
-        projectSettings: null,
-        copyStrategy: 'always',
-      })
-
-      expect(getEffectiveAssetsDirectory).toHaveBeenCalledWith(null, 'blog')
-      expect(result.wasCopied).toBe(true)
-    })
-
-    it('should work with undefined project settings', async () => {
-      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
-        status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
-      })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
-
-      const result = await processFileToAssets({
-        ...baseOptions,
-        projectSettings: undefined,
-        copyStrategy: 'always',
-      })
-
-      expect(getEffectiveAssetsDirectory).toHaveBeenCalledWith(
-        undefined,
-        'blog'
-      )
-      expect(result.wasCopied).toBe(true)
-    })
-
-    it('should pass collection to getEffectiveAssetsDirectory', async () => {
-      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
-        status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
-      })
-      vi.mocked(getEffectiveAssetsDirectory).mockReturnValue('src/assets')
-
-      await processFileToAssets({
-        ...baseOptions,
-        collection: 'posts',
-        copyStrategy: 'always',
-      })
-
-      expect(getEffectiveAssetsDirectory).toHaveBeenCalledWith(
-        mockProjectSettings,
-        'posts'
-      )
     })
   })
 })

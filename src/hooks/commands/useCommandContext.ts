@@ -17,9 +17,6 @@ export function useCommandContext(): CommandContext {
   const globalSettings = useProjectStore(
     useShallow(state => state.globalSettings)
   )
-  const currentProjectSettings = useProjectStore(
-    useShallow(state => state.currentProjectSettings)
-  )
 
   // Primitive subscriptions
   const closeCurrentFile = useEditorStore(state => state.closeCurrentFile)
@@ -37,10 +34,7 @@ export function useCommandContext(): CommandContext {
   )
 
   // Get collections data from TanStack Query
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
 
   return {
     currentFile,

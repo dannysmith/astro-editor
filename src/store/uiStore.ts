@@ -14,6 +14,10 @@ interface UIState {
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
+  projectListOpen: boolean
+  projectSettingsOpen: boolean
+  /** The project settings page shown: a collection's name, or null for the project */
+  projectSettingsPage: string | null
 
   // View filters (per-collection state, ephemeral)
   draftFilterByCollection: Record<string, boolean>
@@ -27,6 +31,10 @@ interface UIState {
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
+  setProjectListOpen: (open: boolean) => void
+  /** Opens the project settings at a page (see `projectSettingsPage`), or closes them */
+  setProjectSettingsOpen: (open: boolean, page?: string | null) => void
+  setProjectSettingsPage: (page: string | null) => void
   handleTypingInEditor: () => void
   showBars: () => void
   toggleDraftFilter: (collectionName: string) => void
@@ -34,7 +42,11 @@ interface UIState {
 
   // Collection view state actions
   getCollectionViewState: (collectionName: string) => CollectionViewState
-  setSortMode: (collectionName: string, mode: string) => void
+  setSortMode: (
+    collectionName: string,
+    mode: string,
+    direction: 'asc' | 'desc'
+  ) => void
   setSortDirection: (collectionName: string, direction: 'asc' | 'desc') => void
   toggleSortDirection: (collectionName: string) => void
   setSearchQuery: (collectionName: string, query: string) => void
@@ -57,6 +69,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
+  projectListOpen: false,
+  projectSettingsOpen: false,
+  projectSettingsPage: null,
   draftFilterByCollection: {},
   collectionViewState: {},
 
@@ -101,6 +116,31 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ distractionFreeBarsHidden: false })
   },
 
+  setProjectListOpen: (open: boolean) => {
+    // Opening shows the bars distraction-free mode hid
+    set(
+      open
+        ? { projectListOpen: true, distractionFreeBarsHidden: false }
+        : { projectListOpen: false }
+    )
+  },
+
+  setProjectSettingsOpen: (open: boolean, page: string | null = null) => {
+    set(
+      open
+        ? {
+            projectSettingsOpen: true,
+            projectSettingsPage: page,
+            distractionFreeBarsHidden: false,
+          }
+        : { projectSettingsOpen: false }
+    )
+  },
+
+  setProjectSettingsPage: (page: string | null) => {
+    set({ projectSettingsPage: page })
+  },
+
   handleTypingInEditor: () => {
     const { sidebarVisible, frontmatterPanelVisible } = get()
     // Immediately hide bars if both panels are hidden
@@ -127,7 +167,11 @@ export const useUIStore = create<UIState>((set, get) => ({
     return get().collectionViewState[collectionName] || DEFAULT_VIEW_STATE
   },
 
-  setSortMode: (collectionName: string, mode: string) => {
+  setSortMode: (
+    collectionName: string,
+    mode: string,
+    direction: 'asc' | 'desc'
+  ) => {
     set(state => ({
       collectionViewState: {
         ...state.collectionViewState,
@@ -135,6 +179,7 @@ export const useUIStore = create<UIState>((set, get) => ({
           ...DEFAULT_VIEW_STATE,
           ...state.collectionViewState[collectionName],
           sortMode: mode,
+          sortDirection: direction,
         },
       },
     }))

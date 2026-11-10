@@ -15,6 +15,7 @@ function makeFile(overrides: Partial<FileEntry>): FileEntry {
     collection: 'articles',
     last_modified: null,
     frontmatter: null,
+    is_entry: true,
     ...overrides,
   }
 }

@@ -37,9 +37,13 @@ There's no in-app "restore" step — the files simply sit in that folder for you
 
 ## How projects are identified
 
-Each project's id is derived from the `name` in its `package.json` (with a short hash appended if two projects would otherwise collide). If a project can't be properly read, the folder name is used instead.
+Projects are identified by their folder. If you move or rename a project's folder, it shows as **Missing** in the project list: choose it and pick its new location to keep its settings. See [Moved projects](/file-management/overview/#moved-projects).
 
-Because the id is tied to the package name rather than the folder path, **moving or renaming a project folder keeps its settings**. The next time you open it, Astro Editor matches it by name and quietly updates the stored path.
+## Files that can't be read
+
+If a settings file can't be read, Astro Editor never writes over it. It renames it to `<name>.broken-<date>.json` beside the original, carries on with the defaults, and tells you. Your old settings are still in that file if you want to copy them back.
+
+Project settings from Astro Editor 1.0 can't be read by later versions. The first time each project opens, its old file is renamed to `<project-id>.v2.json` and the project starts with no settings. Most projects don't need any, since folders and fields are now read from the project itself.
 
 ## The Advanced preferences tab
 

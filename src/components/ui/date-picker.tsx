@@ -50,6 +50,7 @@ function DatePicker({
         <Calendar
           mode="single"
           selected={value}
+          defaultMonth={value}
           captionLayout="dropdown"
           onSelect={date => {
             onChange?.(date)

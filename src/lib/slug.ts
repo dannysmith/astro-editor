@@ -84,8 +84,11 @@ const TARGET_LENGTH = 50
  * Single very long words are truncated to TARGET_LENGTH.
  */
 export function slugFromTitle(title: string): string {
-  // Strip emoji and non-alphanumeric (keep ASCII letters, digits, whitespace, hyphens)
+  // Take accents off letters, then strip emoji and anything else that isn't an
+  // ASCII letter, digit, space or hyphen
   const cleaned = title
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
     .replace(/[^a-zA-Z0-9\s-]/g, '')
     .toLowerCase()

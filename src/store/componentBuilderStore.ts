@@ -3,7 +3,6 @@ import { create } from 'zustand'
 import { warn as logWarn } from '@tauri-apps/plugin-log'
 import {
   commands,
-  type Collection,
   type EntryImport,
   type ImageImport,
   type ImportPlan,
@@ -20,8 +19,7 @@ import {
   insertSnippet,
   isOnEmptyLine,
 } from '../lib/editor/commands/insertSnippet'
-import { queryClient } from '../lib/query-client'
-import { queryKeys } from '../lib/query-keys'
+import { getCollection, getProjectScan } from '../lib/project-scan'
 import { toast } from '../lib/toast'
 import { useEditorStore } from './editorStore'
 import { useProjectStore } from './projectStore'
@@ -97,14 +95,14 @@ async function planImports(
   view: EditorView,
   picks: Picks
 ): Promise<{ plan: ImportPlan | null } | { error: string }> {
-  const { projectPath, currentProjectSettings } = useProjectStore.getState()
+  const { projectPath } = useProjectStore.getState()
   const { currentFile, imports } = useEditorStore.getState()
-  if (!currentProjectSettings?.addComponentImports) return { plan: null }
+  if (!getProjectScan()?.projectSettings.addComponentImports.value) {
+    return { plan: null }
+  }
   if (!projectPath || !currentFile) return { plan: null }
 
-  const collection = queryClient
-    .getQueryData<Collection[]>(queryKeys.collections(projectPath))
-    ?.find(c => c.name === currentFile.collection)
+  const collection = getCollection(currentFile.collection)
   if (!collection) return { plan: null }
 
   try {

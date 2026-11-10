@@ -44,14 +44,16 @@ swc_ecma_parser = "45"
 swc_ecma_visit = "29"
 indexmap = { version = "2", features = ["serde"] }
 pathdiff = "0.2"
+# canonicalize without the \\?\ prefix std adds on Windows
+dunce = "1.0.5"
 reqwest = { version = "0.13", features = ["json"] }
 uuid = { version = "1.23", features = ["v4"] }
 tauri-plugin-os = "2.3.2"
-tauri-plugin-window-state = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 # HTTP server for the debug-only agent bridge (src/agent_bridge)
 tiny_http = "0.12"
+globset = "0.4"
 
 # Native WKWebView snapshots for the agent bridge, and the app delegate hook
 # that saves before quitting (commands/quit.rs)

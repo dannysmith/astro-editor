@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { useShallow } from 'zustand/react/shallow'
-import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
-import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
+import {
+  useCollectionsQuery,
+  useProjectScanQuery,
+} from '../../hooks/queries/useCollectionsQuery'
 import { useDirectoryScanQuery } from '../../hooks/queries/useDirectoryScanQuery'
+import { useCollectionCountsQuery } from '../../hooks/queries/useCollectionCountsQuery'
 import type { FileEntry, Collection } from '@/types'
 import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutation'
 import { Button } from '../ui/button'
@@ -18,18 +21,27 @@ import {
   Filter,
   Folder,
   ChevronRight,
-  AlertTriangle,
+  Settings,
   SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FileContextMenu } from '../ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
-import { useEffectiveSettings } from '../../hooks/settings/useEffectiveSettings'
+import { useFieldMappings } from '../../hooks/settings'
 import { FileItem } from './FileItem'
 import { FilterBar } from './FilterBar'
-import { openProjectViaDialog } from '../../lib/projects/actions'
+import { ProjectIcon } from '../project-list'
+import { showProjectList } from '../../lib/projects/actions'
+import { showProjectSettings } from '../../lib/project-settings/actions'
+import {
+  collectionProblems,
+  isUnreadLoader,
+  statusLevel,
+} from '../../lib/project-settings/status'
+import { StatusIcon, WithCode } from '../project-settings/Problems'
 import { filterFilesByDraft } from '../../lib/files/filtering'
 import { sortFiles, getSortOptionsForCollection } from '../../lib/files/sorting'
+import { followRenamedFile } from '../../lib/files/rename'
 import { filterFilesBySearch } from '../../lib/files/search'
 import { deserializeCompleteSchema } from '../../lib/schema'
 
@@ -43,9 +55,6 @@ export const LeftSidebar: React.FC = () => {
     state => state.currentSubdirectory
   )
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    useShallow(state => state.currentProjectSettings)
-  )
 
   // Get draft filter state from UI store (ephemeral, per-collection)
   const showDraftsOnly =
@@ -96,13 +105,6 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [])
 
-  const handleSortModeChange = useCallback((mode: string) => {
-    const { selectedCollection } = useProjectStore.getState()
-    if (selectedCollection) {
-      useUIStore.getState().setSortMode(selectedCollection, mode)
-    }
-  }, [])
-
   const handleSortDirectionToggle = useCallback(() => {
     const { selectedCollection } = useProjectStore.getState()
     if (selectedCollection) {
@@ -110,11 +112,17 @@ export const LeftSidebar: React.FC = () => {
     }
   }, [])
 
-  const [fileCounts, setFileCounts] = useState<Record<string, number>>({})
-
-  const { data: collections = [] } = useCollectionsQuery(
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
+  const { data: fileCounts = {} } = useCollectionCountsQuery(
     projectPath,
-    currentProjectSettings
+    collections
+  )
+  // Collections whose folder is missing or outside the project. They're
+  // listed dimmed with their problem, rather than vanishing, and open Project
+  // Settings, where the problem can be fixed
+  const { data: scan } = useProjectScanQuery(projectPath)
+  const unavailable = (scan?.collections ?? []).filter(
+    c => c.kind !== 'data' && !isUnreadLoader(c) && c.folderStatus !== 'ok'
   )
 
   const currentCollection = collections.find(c => c.name === selectedCollection)
@@ -125,12 +133,7 @@ export const LeftSidebar: React.FC = () => {
     isLoading: isLoadingDirectory,
     isError: hasDirectoryError,
     error: directoryError,
-  } = useDirectoryScanQuery(
-    projectPath,
-    selectedCollection,
-    currentCollection?.path || null,
-    currentSubdirectory
-  )
+  } = useDirectoryScanQuery(projectPath, currentCollection, currentSubdirectory)
   // Extract files and subdirectories in useMemo to avoid lint warnings
   const files = React.useMemo(() => dirContents?.files || [], [dirContents])
   const subdirectories = React.useMemo(
@@ -140,46 +143,8 @@ export const LeftSidebar: React.FC = () => {
 
   const renameMutation = useRenameFileMutation()
 
-  // Load file counts for all collections (recursive)
-  useEffect(() => {
-    let cancelled = false
-
-    const loadFileCounts = async () => {
-      const counts: Record<string, number> = {}
-
-      for (const collection of collections) {
-        try {
-          const result = await commands.countCollectionFilesRecursive(
-            collection.path
-          )
-          if (result.status === 'error') {
-            counts[collection.name] = 0
-          } else {
-            counts[collection.name] = result.data
-          }
-        } catch {
-          counts[collection.name] = 0
-        }
-      }
-
-      if (!cancelled) {
-        setFileCounts(counts)
-      }
-    }
-
-    if (collections.length > 0) {
-      void loadFileCounts()
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [collections])
-
-  // Get effective settings for frontmatter field mappings (collection-aware)
-  const { frontmatterMappings } = useEffectiveSettings(
-    selectedCollection || undefined
-  )
+  // The collection's title, date and draft fields
+  const frontmatterMappings = useFieldMappings(selectedCollection || undefined)
 
   // State for rename functionality
   const [renamingFileId, setRenamingFileId] = React.useState<string | null>(
@@ -256,12 +221,7 @@ export const LeftSidebar: React.FC = () => {
         collectionName: selectedCollection,
       })
       .then(() => {
-        // Update current file path if this is the current file
-        const { currentFile, updateCurrentFileAfterRename } =
-          useEditorStore.getState()
-        if (currentFile?.path === file.path) {
-          updateCurrentFileAfterRename(newPath)
-        }
+        void followRenamedFile(file.path, newPath, projectPath)
         // Another file may be being renamed by now
         setRenamingFileId(current => (current === file.id ? null : current))
       })
@@ -274,17 +234,27 @@ export const LeftSidebar: React.FC = () => {
     setRenamingFileId(null)
   }
 
+  const defaultSort = currentCollection?.settings.defaultSort.value ?? null
+
   // Parse the schema for the current collection
-  const completeSchemaJson = currentCollection?.complete_schema ?? null
+  const completeSchemaJson = currentCollection?.completeSchema ?? null
   const currentSchema = useMemo(() => {
     if (!completeSchemaJson) return null
     return deserializeCompleteSchema(completeSchemaJson)
   }, [completeSchemaJson])
 
   // Get sort options based on schema
-  const sortOptions = useMemo(() => {
-    return getSortOptionsForCollection(currentSchema)
-  }, [currentSchema])
+  const sortOptions = getSortOptionsForCollection(currentSchema)
+
+  // Each mode starts the natural way round: dates newest first, everything
+  // else A to Z or lowest first
+  const handleSortModeChange = (mode: string) => {
+    const { selectedCollection } = useProjectStore.getState()
+    if (!selectedCollection) return
+    const type = sortOptions.find(option => option.id === mode)?.type
+    const direction = type === 'date' || type === 'default' ? 'desc' : 'asc'
+    useUIStore.getState().setSortMode(selectedCollection, mode, direction)
+  }
 
   // Derived filter states for UI indicators
   const searchActive = collectionViewState.searchQuery.trim() !== ''
@@ -319,11 +289,13 @@ export const LeftSidebar: React.FC = () => {
         mode: collectionViewState.sortMode,
         direction: collectionViewState.sortDirection,
       },
-      frontmatterMappings
+      frontmatterMappings,
+      defaultSort
     )
   }, [
     files,
     frontmatterMappings,
+    defaultSort,
     showDraftsOnly,
     collectionViewState.searchQuery,
     collectionViewState.sortMode,
@@ -366,7 +338,7 @@ export const LeftSidebar: React.FC = () => {
           )}
           {!selectedCollection && (
             <Button
-              onClick={() => void openProjectViaDialog()}
+              onClick={() => showProjectList()}
               variant="ghost"
               size="sm"
               className="size-7 p-0 text-muted-foreground"
@@ -494,6 +466,9 @@ export const LeftSidebar: React.FC = () => {
               </Button>
             </>
           )}
+          {!selectedCollection && projectPath && (
+            <ProjectSettingsButton projectPath={projectPath} />
+          )}
         </div>
       </div>
 
@@ -516,47 +491,71 @@ export const LeftSidebar: React.FC = () => {
         {!selectedCollection ? (
           // Collections List
           <div className="p-2">
-            {collections.map(collection => {
+            {[...collections, ...unavailable].map(collection => {
+              const available = collection.folderStatus === 'ok'
+              const folder = collection.path.split('/').pop()
               const fileCount = fileCounts[collection.name] ?? 0
-              const hasSchema = Boolean(collection.complete_schema)
+              const problems = projectPath
+                ? collectionProblems(collection, projectPath)
+                : []
 
               return (
                 <button
                   key={collection.name}
-                  onClick={() => handleCollectionClick(collection)}
-                  className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent"
+                  onClick={() =>
+                    available
+                      ? handleCollectionClick(collection)
+                      : showProjectSettings(collection.name)
+                  }
+                  className={cn(
+                    'w-full rounded-md p-3 text-left transition-colors hover:bg-accent',
+                    !available && 'opacity-60'
+                  )}
                 >
                   <div className="flex w-full items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-foreground">
                         {collection.name}
                       </span>
-                      {!hasSchema && (
+                      {problems[0] && (
                         <Tooltip>
                           <TooltipTrigger
                             render={
-                              <AlertTriangle className="size-3.5 text-muted-foreground" />
+                              <span className="inline-flex">
+                                <StatusIcon
+                                  level={statusLevel(problems)}
+                                  className="size-3.5"
+                                />
+                              </span>
                             }
                           />
-                          <TooltipContent side="right">
-                            No schema found - using defaults
+                          <TooltipContent side="right" className="max-w-64">
+                            <WithCode text={problems[0].message} /> See Project
+                            Settings.
                           </TooltipContent>
                         </Tooltip>
                       )}
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {fileCount} item{fileCount !== 1 ? 's' : ''}
-                    </Badge>
+                    {available && (
+                      <Badge variant="secondary" className="text-xs">
+                        {fileCount} item{fileCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {collection.path.split('/').pop()}
-                  </div>
+                  {/* The folder, where it isn't just the collection's name */}
+                  {folder !== collection.name && (
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      {folder}
+                    </div>
+                  )}
                 </button>
               )
             })}
-            {collections.length === 0 && (
+            {collections.length === 0 && unavailable.length === 0 && (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                No collections found. Open an Astro project to get started.
+                {projectPath
+                  ? 'No collections found.'
+                  : 'Open an Astro project to get started.'}
               </div>
             )}
           </div>
@@ -643,6 +642,41 @@ export const LeftSidebar: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Footer: a plainer way into Project Settings than the header icon */}
+      {!selectedCollection && projectPath && (
+        <div className="border-t p-2">
+          <Button
+            onClick={() => showProjectSettings()}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground"
+          >
+            <Settings className="size-4" />
+            Project Settings
+          </Button>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Opens Project Settings, shown as the project's icon */
+function ProjectSettingsButton({ projectPath }: { projectPath: string }) {
+  const { data: scan } = useProjectScanQuery(projectPath)
+  return (
+    <Button
+      onClick={() => showProjectSettings()}
+      variant="ghost"
+      size="sm"
+      className="size-7 flex-shrink-0 p-0 [&_svg]:scale-100 [&_svg]:transform-gpu"
+      title="Project Settings"
+    >
+      <ProjectIcon
+        path={projectPath}
+        favicon={scan?.favicon ?? null}
+        className="size-5"
+      />
+    </Button>
   )
 }

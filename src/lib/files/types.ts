@@ -1,5 +1,3 @@
-import type { ProjectSettings } from '../project-registry/types'
-
 /**
  * Options for processing files to assets directory
  */
@@ -10,8 +8,8 @@ export interface ProcessFileToAssetsOptions {
   projectPath: string
   /** Name of the collection (for collection-specific asset directory resolution) */
   collection: string
-  /** Current project settings (for path overrides) */
-  projectSettings?: ProjectSettings | null
+  /** The collection's assets folder, relative to the project root */
+  assetsDirectory: string
   /**
    * Strategy for copying files:
    * - 'always': Always copy and rename (editor drag-and-drop)

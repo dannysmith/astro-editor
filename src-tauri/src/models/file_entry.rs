@@ -17,6 +17,9 @@ pub struct FileEntry {
     #[specta(type = Option<f64>)]
     pub last_modified: Option<u64>,
     pub frontmatter: Option<IndexMap<String, Value>>, // Basic frontmatter for display → Record<string, unknown>
+    /// Whether the collection's pattern includes it. Files it leaves out are
+    /// only listed when the collection shows them dimmed.
+    pub is_entry: bool,
 }
 
 impl FileEntry {
@@ -68,6 +71,7 @@ impl FileEntry {
             collection,
             last_modified,
             frontmatter: None, // Will be populated by enhanced scanning
+            is_entry: true,
         }
     }
 

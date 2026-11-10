@@ -19,21 +19,11 @@ export interface EntryOption {
  */
 export function useCollectionEntriesQuery(collectionName: string | undefined) {
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentProjectSettings = useProjectStore(
-    state => state.currentProjectSettings
-  )
-  const { data: collections = [] } = useCollectionsQuery(
-    projectPath,
-    currentProjectSettings
-  )
+  const { data: collections = [] } = useCollectionsQuery(projectPath)
   const collection = collections.find(c => c.name === collectionName)
 
   const { data: regularFiles, isLoading: isLoadingRegular } =
-    useCollectionFilesQuery(
-      projectPath,
-      collectionName ?? '',
-      collection?.path ?? null
-    )
+    useCollectionFilesQuery(projectPath, collection)
   // A collection the app doesn't list may be a file-based one
   const { data: fileBasedFiles, isLoading: isLoadingFileBased } =
     useFileBasedCollectionQuery(

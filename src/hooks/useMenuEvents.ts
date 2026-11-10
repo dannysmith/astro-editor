@@ -5,7 +5,8 @@ import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { globalCommandRegistry } from '../lib/editor/commands'
-import { openProjectViaDialog } from '../lib/projects/actions'
+import { showProjectList } from '../lib/projects/actions'
+import { showProjectSettings } from '../lib/project-settings/actions'
 import { DOCS_URLS } from '../lib/docs-urls'
 import type { HeadingLevel } from '../lib/editor/markdown/types'
 
@@ -59,7 +60,10 @@ export function useMenuEvents(
       // File operations
       const fileUnlisteners = await Promise.all([
         listen('menu-open-project', () => {
-          void openProjectViaDialog()
+          showProjectList()
+        }),
+        listen('menu-project-settings', () => {
+          showProjectSettings()
         }),
         listen('menu-save', () => {
           const { currentFile, isDirty, saveFile } = useEditorStore.getState()

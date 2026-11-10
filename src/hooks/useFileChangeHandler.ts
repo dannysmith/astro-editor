@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { queryClient } from '../lib/query-client'
-import { queryKeys } from '../lib/query-keys'
+import { isFileListing, queryKeys } from '../lib/query-keys'
 import { debug, info } from '@tauri-apps/plugin-log'
 
 interface FileChangeEvent {
@@ -43,11 +43,7 @@ export function useFileChangeHandler() {
       // queries on screen refetch, and scans don't write, so this can't loop
       if (!isOwnSave) {
         void queryClient.invalidateQueries({
-          predicate: ({ queryKey }) =>
-            queryKey[0] === queryKeys.all[0] &&
-            queryKey[1] === projectPath &&
-            // directoryContents and collectionFiles
-            (queryKey[3] === 'directory' || queryKey[4] === 'files'),
+          predicate: ({ queryKey }) => isFileListing(queryKey, projectPath),
         })
       }
 

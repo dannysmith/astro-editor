@@ -6,7 +6,7 @@ TypeScript tests use Vitest with React Testing Library in jsdom. Rust tests are 
 
 - **Unit tests sit next to their source:** `formatting.ts` and `formatting.test.ts` in the same folder. This covers single modules, hooks and components.
 - **`__tests__/` is only for integration tests** that span modules, like store + query + Tauri flows. For example `src/store/__tests__/`.
-- **`src/test/` is infrastructure only:** the global setup, `test-utils.tsx`, shared helpers (`utils/integration-helpers.tsx`) and shared mocks (`mocks/toast.ts`). No tests.
+- **`src/test/` is infrastructure only:** the global setup, `test-utils.tsx`, shared fixtures (`fixtures.ts`), helpers (`utils/integration-helpers.tsx`) and mocks (`mocks/toast.ts`). No tests.
 - **`scripts/*.test.ts` run in the same suite.** `vitest.config.ts` has no `include`, so Vitest's default pattern picks them up alongside `src/`.
 
 ## Running them
@@ -21,9 +21,10 @@ TypeScript tests use Vitest with React Testing Library in jsdom. Rust tests are 
 
 - `invoke` (`@tauri-apps/api/core`) and `listen` (`@tauri-apps/api/event`). The mocks are on `globalThis.mockTauri`, with a `reset()`.
 - `@tauri-apps/plugin-log`. Vitest loads plugin-log outside its module graph, so the `invoke` mock never reaches it and its real `invoke` throws. Mocking it once here lets app code import it directly.
-- The whole `lib/project-registry`. Most tests want settings without touching disk. A test of the real module must `vi.unmock` it and its submodules first; see `src/lib/project-registry/index.test.ts`.
 
 Because these are global, a test can pass against a mock without anyone noticing. If you're testing code that reads settings or calls Tauri, check which version you're getting.
+
+Settings are resolved in Rust and reach the frontend in the project scan, so tests that need a collection or its settings build one with `makeCollection` and `makeScan` from `src/test/fixtures.ts`.
 
 ## Mocking Tauri commands
 
@@ -37,11 +38,14 @@ Mock `commands` from `@/lib/bindings` when testing code that calls them. Command
 
 ## The `test/` projects
 
-`test/dummy-astro-project`, `test/demo-project` and `test/starlight-minimal` are Astro sites for trying the app by hand, and for agents driving the dev app. They aren't fixtures for automated tests; nothing in the Vitest or Rust suites reads them.
+`test/dummy-astro-project`, `test/demo-project`, `test/starlight-minimal`, `test/unusual-structure` and `test/personal-site` are Astro sites for trying the app by hand, and for agents driving the dev app. They aren't fixtures for automated tests; nothing in the Vitest or Rust suites reads them.
 
 - **`dummy-astro-project`** is the main test project: collections with most field types, references, images and MDX components. `bun run reset:testdata` (or `bun run app reset`) copies it to `temp-dummy-astro-project`, which is gitignored, so you can edit freely and reset.
 - **`demo-project`** has the same shape with realistic articles, books and notes, for demos.
 - **`starlight-minimal`** is the Starlight starter, for checking a Starlight `docs` collection.
+- **`unusual-structure`** lays its collections out in ways that have to be read from the loaders: content outside `src/content`, a URL base, patterns with exclusions, a folder per entry, and a custom loader. Its README lists what each collection checks.
+- **`personal-site`** is a realistic site for trying project and collection settings: fields AE can't detect, content AE can't find, two MDX components folders and a folder per page. Its README lists what each collection checks.
+- **`bun run reset:testprojects`** copies `personal-site`, `unusual-structure` and `starlight-minimal` to `temp-test-projects/` (gitignored, without `node_modules`), for trying settings that rename or add files.
 - **Their generated `.astro/collections/*.schema.json` files are committed,** so the app can read the schemas without anyone installing the projects. After changing a project's content config, run `bun install` and `bun run astro sync` in it and commit the regenerated files.
 
 ## Rust tests

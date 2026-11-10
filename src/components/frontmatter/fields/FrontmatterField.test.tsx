@@ -5,16 +5,6 @@ import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
 import { FieldType, type SchemaField } from '../../../lib/schema'
 
-// Mock the project registry utils
-vi.mock('../../../../lib/project-registry/effective-settings', () => ({
-  useEffectiveSettings: () => ({
-    frontmatterMappings: {
-      title: 'title',
-      description: 'description',
-    },
-  }),
-}))
-
 describe('FrontmatterField Orchestrator', () => {
   beforeEach(() => {
     useEditorStore.setState({

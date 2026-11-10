@@ -100,11 +100,10 @@ export function createAgentApi(deps: AgentApiDeps) {
         useProjectStore.getState().setProject(path)
       }
       const loaded = await waitFor(() => {
-        const { projectPath, currentProjectSettings } =
-          useProjectStore.getState()
+        const { projectPath, projectSettings } = useProjectStore.getState()
         return (
           projectPath === path &&
-          Boolean(currentProjectSettings) &&
+          Boolean(projectSettings) &&
           deps.queryClient.getQueryData(queryKeys.collections(path)) !==
             undefined
         )

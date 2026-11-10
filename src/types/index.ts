@@ -8,4 +8,4 @@ export * from './domain'
 
 // Note: Don't re-export from other modules - import from their actual location:
 // - For schema types → import from '@/lib/schema'
-// - For settings types → import from '@/lib/project-registry/types'
+// - For settings types → import from '@/lib/bindings'

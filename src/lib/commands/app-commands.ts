@@ -1,5 +1,6 @@
 import {
   FileText,
+  FolderCog,
   FolderOpen,
   X,
   Sidebar,
@@ -16,13 +17,16 @@ import {
   Link,
   BookOpen,
   Keyboard,
+  PenLine,
 } from 'lucide-react'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { AppCommand, CommandContext } from './types'
 import type { Collection } from '@/types'
 import { toast } from '../toast'
 import { openInIde } from '../ide'
-import { openProjectViaDialog } from '../projects/actions'
+import { showProjectList } from '../projects/actions'
+import { showProjectSettings } from '../project-settings/actions'
+import { renameOpenFileFromPattern } from '../files/rename'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 
@@ -51,6 +55,20 @@ export const fileCommands: AppCommand[] = [
     group: 'file',
     execute: (context: CommandContext) => {
       context.closeCurrentFile()
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.currentFile)
+    },
+  },
+  {
+    id: 'rename-file-from-pattern',
+    label: 'Rename File from Pattern',
+    description:
+      "Name the open file by its collection's file name pattern, from its title and date",
+    icon: PenLine,
+    group: 'file',
+    execute: () => {
+      void renameOpenFileFromPattern()
     },
     isAvailable: (context: CommandContext) => {
       return Boolean(context.currentFile)
@@ -106,13 +124,26 @@ export const projectCommands: AppCommand[] = [
   {
     id: 'open-project',
     label: 'Open Project',
-    description: 'Select a new project folder',
+    description: 'Switch to another project or open a folder',
     icon: FolderOpen,
     group: 'project',
-    execute: async () => {
-      await openProjectViaDialog()
+    execute: () => {
+      showProjectList()
     },
     isAvailable: () => true,
+  },
+  {
+    id: 'project-settings',
+    label: 'Project Settings',
+    description: 'See how the project was read, and change its settings',
+    icon: FolderCog,
+    group: 'project',
+    execute: () => {
+      showProjectSettings()
+    },
+    isAvailable: (context: CommandContext) => {
+      return Boolean(context.projectPath)
+    },
   },
   {
     id: 'reload-collections',

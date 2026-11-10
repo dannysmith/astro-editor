@@ -20,9 +20,8 @@ import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
 import { DocsLink } from '../DocsLink'
 import { DOCS_URLS } from '../../../lib/docs-urls'
-import { DEFAULT_GLOBAL_SETTINGS } from '../../../lib/project-registry/defaults'
-
-const DEFAULT_HEADING_COLOR = DEFAULT_GLOBAL_SETTINGS.appearance.headingColor
+// Matches `HeadingColor::default` in src-tauri/src/models/preferences.rs
+const DEFAULT_HEADING_COLOR = { light: '#191919', dark: '#cccccc' }
 
 const THEME_ITEMS = [
   { value: 'light', label: 'Light' },
