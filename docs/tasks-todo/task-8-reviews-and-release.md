@@ -113,28 +113,28 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 
 ## Phase 5: Prerelease
 
-- [ ] Build a prerelease and use it as my real copy of AE.
-  - [ ] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe.
-  - [ ] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
-  - [ ] Note every setting you had to set again, for the release notes.
-  - [ ] Every project you'd opened before is in the project list; ones that have moved show as Missing.
+- [x] Build a prerelease and use it as my real copy of AE. [v1.0.21-test.1](https://github.com/dannysmith/astro-editor/releases/tag/v1.0.21-test.1), built from `bc19af17`, with the release notes as its body.
+  - [x] Before installing, copy `~/Library/Application Support/is.danny.astroeditor` somewhere safe. Copied to `~/Library/Application Support/is.danny.astroeditor.backup` (2026-11-10). To restore: quit the app, rename `is.danny.astroeditor` aside, and rename the backup to `is.danny.astroeditor`. Delete the backup once 1.1.0 has settled in.
+  - [x] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
+  - [x] Note every setting you had to set again, for the release notes. None: the real projects' 1.0 files held only the default field names, which are detected now. The settings in dannyis' new file (file name and link URL patterns, `projects`' `byline` and `startDate`) are new choices.
+  - [x] Every project you'd opened before is in the project list; ones that have moved show as Missing. `danny-is-astro`, whose folder is gone, showed as Missing and was removed.
   - [ ] Try it on my real sites.
 
 ## Phase 6: Release
 
-- [ ] Fill in the `[DANNY: …]` marker and finish the release notes.
+- [ ] Finish the release notes (the `[DANNY: …]` marker is filled in), and copy them to the release.
 - [ ] Release (see `docs/developer/releases.md`).
 - [ ] Post the note.
 
 ## Release notes for 1.1.0 (draft)
 
-For the GitHub release; the website's release page is generated from it. Covers everything since v1.0.20. Links are absolute so they work in both places. Fill in the `[DANNY: …]` marker after the prerelease check.
+For the GitHub release; the website's release page is generated from it. Covers everything since v1.0.20. Links are absolute so they work in both places.
 
 ---
 
 This is the biggest release since 1.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
 
-**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` (kept, not deleted; `v2` is the old settings format), and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. [DANNY: the settings you had to set again in the prerelease check, or "None of mine needed setting up again."]
+**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` (kept, not deleted; `v2` is the old settings format), and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. None of mine needed setting up again. The window also opens at its default size the first time, since 1.1 keeps its size in a new file.
 
 Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
 
