@@ -51,5 +51,5 @@ Done: `file_collection_entries` reads both shapes as Astro's loader does (array 
 
 ## Finishing
 
-- [ ] Update `docs/developer/editor.md` (saving) and the issues: close #371, #372 and #376; comment on #370 with what's done and leave it open for the in-place editing.
-- [ ] `bun run check:all`, then a PR. Merge it before task 2.
+- [x] Update `docs/developer/editor.md` (saving) and the issues: close #371, #372 and #376; comment on #370 with what's done and leave it open for the in-place editing.
+- [x] `bun run check:all`, then a PR. Merge it before task 2.
