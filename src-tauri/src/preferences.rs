@@ -529,15 +529,23 @@ pub fn canonical_path(path: &Path) -> Result<String, String> {
 
 /// The id of the project registered at `canonical`. Older entries may have
 /// stored a path with `\` on Windows, or one that isn't canonical, so those
-/// are normalised, then canonicalised, to compare.
+/// are normalised, then canonicalised, to compare. Only paths whose folder
+/// name matches, ignoring case, are canonicalised: it touches the disk, and
+/// one project on a stale network drive could otherwise stall every lookup.
 fn find_project(registry: &ProjectRegistry, canonical: &str) -> Option<String> {
+    let folder = |path: &Path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().to_lowercase())
+    };
+    let wanted = folder(Path::new(canonical));
     registry
         .projects
         .values()
         .find(|project| {
             let stored = Path::new(&project.path);
             normalize_path_for_serialization(stored) == canonical
-                || canonical_path(stored).is_ok_and(|p| p == canonical)
+                || (folder(stored) == wanted
+                    && canonical_path(stored).is_ok_and(|p| p == canonical))
         })
         .map(|project| project.id.clone())
 }

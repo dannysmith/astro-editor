@@ -179,7 +179,9 @@ async fn run_event_loop(
     let mut last_rescan = Instant::now();
 
     loop {
-        match rx.recv_timeout(DEBOUNCE_DURATION) {
+        // A blocking wait, for as long as the project is open: `block_in_place`
+        // tells the runtime, which moves other tasks off this worker thread
+        match tokio::task::block_in_place(|| rx.recv_timeout(DEBOUNCE_DURATION)) {
             Ok(event) => {
                 event_buffer.push(event);
             }

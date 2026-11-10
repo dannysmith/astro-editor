@@ -14,6 +14,7 @@
 //! See `docs/developer/schema-system.md`.
 
 use regex::Regex;
+use std::sync::OnceLock;
 
 /// Finds the position of the matching closing brace for an opening brace
 ///
@@ -154,9 +155,10 @@ fn remove_comments(content: &str) -> String {
 
 fn extract_schema_from_collection_block(collection_block: &str) -> Option<String> {
     // Look for z.object({ ... }) within the collection block
-    let schema_start_re = Regex::new(r"z\.object\s*\(\s*\{").unwrap();
+    static SCHEMA_START: OnceLock<Regex> = OnceLock::new();
+    let schema_start = SCHEMA_START.get_or_init(|| Regex::new(r"z\.object\s*\(\s*\{").unwrap());
 
-    if let Some(start_match) = schema_start_re.find(collection_block) {
+    if let Some(start_match) = schema_start.find(collection_block) {
         // Find the matching closing brace for the object
         let start = start_match.end() - 1; // Position of the opening brace
 
@@ -179,8 +181,9 @@ fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
     let mut matches = Vec::new();
 
     // Find image() calls
-    let image_re = Regex::new(r"image\s*\(\s*\)").unwrap();
-    for image_match in image_re.find_iter(schema_text) {
+    static IMAGE: OnceLock<Regex> = OnceLock::new();
+    let image = IMAGE.get_or_init(|| Regex::new(r"image\s*\(\s*\)").unwrap());
+    for image_match in image.find_iter(schema_text) {
         matches.push(HelperMatch {
             helper_type: HelperType::Image,
             position: image_match.start(),
@@ -189,8 +192,10 @@ fn find_helper_calls(schema_text: &str) -> Vec<HelperMatch> {
     }
 
     // Find reference() calls
-    let reference_re = Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
-    for reference_match in reference_re.captures_iter(schema_text) {
+    static REFERENCE: OnceLock<Regex> = OnceLock::new();
+    let reference =
+        REFERENCE.get_or_init(|| Regex::new(r#"reference\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap());
+    for reference_match in reference.captures_iter(schema_text) {
         let position = reference_match.get(0).unwrap().start();
         let collection_name = reference_match.get(1).unwrap().as_str().to_string();
 

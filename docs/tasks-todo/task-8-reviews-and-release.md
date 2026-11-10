@@ -102,7 +102,7 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 
 - [x] Data safety: 1, 2, 3, 4, 7, 8, 9
 - [x] Bugs: 10–17, 19, 20, 22, 23
-- [ ] Performance: 24, 25, 26
+- [x] Performance: 24, 25, 26
 - [ ] UX: 27, 28, 29
 - [ ] Docs: 30–37
 - [ ] Release notes: 38, 39
