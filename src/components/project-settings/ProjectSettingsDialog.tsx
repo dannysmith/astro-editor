@@ -1,13 +1,5 @@
-import { Database, FolderCog, Plug } from 'lucide-react'
+import { Database, Files, Plug, SlidersHorizontal } from 'lucide-react'
 import type { Collection, ProjectScan } from '@/lib/bindings'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -20,6 +12,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -31,16 +24,17 @@ import { useProjectScanQuery } from '../../hooks/queries/useCollectionsQuery'
 import { focusEditorDelayed } from '../../lib/focus-utils'
 import { projectName } from '../../lib/projects/display'
 import { deserializeCompleteSchema } from '../../lib/schema'
-import { clearSavedSettings } from '../../lib/project-settings/actions'
 import {
   collectionProblems,
   isUnreadLoader,
   projectProblems,
   statusLevel,
 } from '../../lib/project-settings/status'
+import { ProjectIcon } from '../project-list'
 import { StatusIcon } from './Problems'
 import { ProjectPage } from './ProjectPage'
 import { CollectionPage } from './CollectionPage'
+import { OtherCollectionPage } from './OtherCollectionPage'
 
 /**
  * How AE has read the open project, and its project and collection settings.
@@ -85,6 +79,11 @@ function ProjectSettings() {
   return <ProjectSettingsContent scan={scan} projectPath={projectPath} />
 }
 
+/** Collections AE doesn't edit: data, and loaders that probably aren't files */
+function isOther(collection: Collection): boolean {
+  return collection.kind === 'data' || isUnreadLoader(collection)
+}
+
 function ProjectSettingsContent({
   scan,
   projectPath,
@@ -94,47 +93,30 @@ function ProjectSettingsContent({
 }) {
   const page = useUIStore(state => state.projectSettingsPage)
   const setPage = useUIStore(state => state.setProjectSettingsPage)
-  const stored = useProjectStore(state => state.projectSettings)
 
-  const editable = scan.collections.filter(c => c.kind !== 'data')
-  const shown = editable.filter(c => c.folderStatus === 'ok')
-  const notShown = editable.filter(
-    c => c.folderStatus !== 'ok' && !isUnreadLoader(c)
-  )
-  const unreadLoaders = editable.filter(isUnreadLoader)
-  const data = scan.collections.filter(c => c.kind === 'data')
-  // With the folder fallback, the config's collections aren't known, so
-  // nothing saved for them is offered for clearing
-  const saved = scan.fallback
-    ? []
-    : Object.keys(stored?.collections ?? {}).filter(
-        name => !scan.collections.some(c => c.name === name)
-      )
-
-  const current = editable.find(c => c.name === page)
+  const collections = scan.collections.filter(c => !isOther(c))
+  const others = scan.collections.filter(isOther)
+  const current = scan.collections.find(c => c.name === page)
   const schema = current?.completeSchema
     ? deserializeCompleteSchema(current.completeSchema)
     : null
-  const name = projectName(projectPath)
-
-  const collectionItem = (collection: Collection) => (
-    <SidebarMenuItem key={collection.name}>
-      <SidebarMenuButton
-        isActive={current?.name === collection.name}
-        onClick={() => setPage(collection.name)}
-      >
-        <span className="truncate">{collection.name}</span>
-        <StatusIcon
-          level={statusLevel(collectionProblems(collection, projectPath))}
-          className="ml-auto"
-        />
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  )
 
   return (
     <SidebarProvider className="h-full min-h-0 items-stretch">
       <Sidebar collapsible="none" className="hidden md:flex">
+        <SidebarHeader className="px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2.5">
+            <ProjectIcon path={projectPath} favicon={scan.favicon} />
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">
+                Project Settings
+              </div>
+              <div className="truncate font-mono text-xs font-medium">
+                {projectName(projectPath)}
+              </div>
+            </div>
+          </div>
+        </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>
@@ -144,8 +126,8 @@ function ProjectSettingsContent({
                     isActive={!current}
                     onClick={() => setPage(null)}
                   >
-                    <FolderCog />
-                    <span className="truncate">{name}</span>
+                    <SlidersHorizontal />
+                    <span>Project</span>
                     <StatusIcon
                       level={statusLevel(projectProblems(scan))}
                       className="ml-auto"
@@ -156,58 +138,25 @@ function ProjectSettingsContent({
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {shown.length > 0 && (
+          {collections.length > 0 && (
             <SidebarGroup>
               <SidebarGroupLabel>Collections</SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>{shown.map(collectionItem)}</SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-
-          {notShown.length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel>Not in the File List</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>{notShown.map(collectionItem)}</SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-
-          {data.length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel>Data</SidebarGroupLabel>
-              <SidebarGroupContent>
                 <SidebarMenu>
-                  {data.map(collection => (
-                    <SidebarMenuItem
-                      key={collection.name}
-                      className="flex h-8 items-center gap-2 px-2 text-sm text-muted-foreground"
-                      title="Data collections hold JSON or YAML, which Astro Editor doesn't edit"
-                    >
-                      <Database className="size-4" />
-                      <span className="truncate">{collection.name}</span>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-
-          {unreadLoaders.length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel>Other Loaders</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {unreadLoaders.map(collection => (
+                  {collections.map(collection => (
                     <SidebarMenuItem key={collection.name}>
                       <SidebarMenuButton
                         isActive={current?.name === collection.name}
                         onClick={() => setPage(collection.name)}
-                        className="text-muted-foreground"
                       >
-                        <Plug />
+                        <Files />
                         <span className="truncate">{collection.name}</span>
+                        <StatusIcon
+                          level={statusLevel(
+                            collectionProblems(collection, projectPath)
+                          )}
+                          className="ml-auto"
+                        />
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -216,70 +165,53 @@ function ProjectSettingsContent({
             </SidebarGroup>
           )}
 
-          {saved.length > 0 && (
+          {others.length > 0 && (
             <SidebarGroup>
-              <SidebarGroupLabel>
-                Settings for Removed Collections
-              </SidebarGroupLabel>
+              <SidebarGroupLabel>Other Collections</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {saved.map(collectionName => (
-                    <SidebarMenuItem
-                      key={collectionName}
-                      className="flex h-8 items-center px-2 text-sm text-muted-foreground"
-                    >
-                      <span className="truncate">{collectionName}</span>
+                  {others.map(collection => (
+                    <SidebarMenuItem key={collection.name}>
+                      <SidebarMenuButton
+                        isActive={current?.name === collection.name}
+                        onClick={() => setPage(collection.name)}
+                        className="text-muted-foreground"
+                      >
+                        {collection.kind === 'data' ? <Database /> : <Plug />}
+                        <span className="truncate">{collection.name}</span>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mx-2 mt-1"
-                  onClick={() => void clearSavedSettings(saved)}
-                >
-                  Clear
-                </Button>
               </SidebarGroupContent>
             </SidebarGroup>
           )}
         </SidebarContent>
       </Sidebar>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center px-4">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>{name}</BreadcrumbPage>
-              </BreadcrumbItem>
-              {current && (
-                <>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{current.name}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
-
-        {/* Keyed by page, so each page starts at the top */}
-        <div
-          key={current?.name ?? ''}
-          className="flex-1 overflow-y-auto px-4 pb-6"
-        >
-          {current ? (
-            <CollectionPage
-              collection={current}
-              schema={schema}
-              projectPath={projectPath}
-            />
-          ) : (
-            <ProjectPage scan={scan} projectPath={projectPath} />
-          )}
-        </div>
+      {/* Starts below the dialog's close button, so nothing scrolls under it.
+          Keyed by page, so each page starts at the top. */}
+      <main
+        key={current?.name ?? ''}
+        className="mt-10 min-h-0 flex-1 overflow-y-auto px-6 pb-6"
+      >
+        {!current ? (
+          <ProjectPage scan={scan} projectPath={projectPath} />
+        ) : isOther(current) ? (
+          <OtherCollectionPage
+            collection={current}
+            schema={schema}
+            scan={scan}
+            projectPath={projectPath}
+          />
+        ) : (
+          <CollectionPage
+            collection={current}
+            schema={schema}
+            scan={scan}
+            projectPath={projectPath}
+          />
+        )}
       </main>
     </SidebarProvider>
   )

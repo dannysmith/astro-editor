@@ -3,7 +3,7 @@ title: 'Special Fields'
 description: 'The frontmatter fields Astro Editor treats specially, and what they drive'
 ---
 
-Astro Editor treats a few frontmatter fields specially – both in the frontmatter sidebar and elsewhere. The **title**, **date**, **description**, and **draft** fields can each be remapped per collection in [Project Settings](/project-settings/#frontmatter-fields) – the precise override rules are covered in [Overrides](/reference/overrides/).
+Astro Editor treats a few frontmatter fields specially – both in the frontmatter sidebar and elsewhere. The **title**, **date**, **description**, and **draft** fields can each be remapped per collection in [Project Settings](/project-settings/#frontmatter) – the precise override rules are covered in [Overrides](/reference/overrides/).
 
 ## Title
 
@@ -14,7 +14,7 @@ Represents the item's **title**. Uses `title` by default but can be overridden i
 - **Sorting** — used as the **Title** [sort option](/file-management/drafts-filtering-and-sorting/), and the alphabetical tiebreaker which the **Default** sort uses for files that share a date or have none.
 - **Filtering** — the filter box matches against the title as well as the filename.
 - **Content Finder** — entries are listed and searched by their title.
-- **New files** — a `title` field is pre-filled with a placeholder like "New Article". If the collection's [file name pattern](/project-settings/#files) uses `{title}`, the file is renamed from the title when you first write one.
+- **New files** — a `title` field is pre-filled with a placeholder like "New Article". If the collection's [file name pattern](/project-settings/#file-names) uses `{title}`, the file is renamed from the title when you first write one.
 
 ## Date
 
@@ -22,10 +22,10 @@ Represents the item's primary **date** – usually its published date. By defaul
 
 - **File list** — shown next to each file if set, and used by the **Default** sort (newest first).
 - **New files** — set to today's date when new files are created.
-- **File names** — if a file's name has a date in it, by its collection's [file name pattern](/project-settings/#files), a **Rename file to match** link appears below the date when the two differ. It changes only the date in the name.
+- **File names** — if a file's name has a date in it, by its collection's [file name pattern](/project-settings/#file-names), a **Rename file to match** link appears below the date when the two differ. It changes only the date in the name.
 
 <Aside type="tip">
-If your posts use a date field with another name (such as `postedOn`), set it in the [Project Settings](/project-settings/#frontmatter-fields) so sorting works as you'd expect.
+If your posts use a date field with another name (such as `postedOn`), set it in the [Project Settings](/project-settings/#frontmatter) so sorting works as you'd expect.
 </Aside>
 
 ## Description

@@ -13,6 +13,8 @@ export const DOCS_URLS = {
   keyboardShortcuts: `${DOCS_BASE}/reference/keyboard-shortcuts/`,
   overrides: `${DOCS_BASE}/reference/overrides/`,
   mdxComponents: `${DOCS_BASE}/editor/mdx-components/`,
+  specialFields: `${DOCS_BASE}/frontmatter/special-fields/`,
+  fileNamePatterns: `${DOCS_BASE}/project-settings/#file-names`,
   ideIntegration: `${DOCS_BASE}/file-management/ide-integration/`,
   advancedPreferences: `${DOCS_BASE}/reference/advanced-preferences/`,
 } as const

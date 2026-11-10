@@ -73,7 +73,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 | Link URL pattern | Collection | A relative file path |
 | Assets folder | Project → collection | `src/assets`; images go in `<assets>/<collection>/` |
 | Absolute or relative image paths | Project → collection | Relative |
-| MDX components folder | Project | `src/components/mdx` |
+| MDX components folders | Project | `src/components/mdx`. A list: the component builder reads each, and a component in two of them (one inside another) once |
 | Add component imports | Project | Off |
 | Content folder | Project | `src/content` |
 
@@ -87,14 +87,17 @@ Every resolved value carries its source (`SettingSource`): set, project, global,
 
 ### The project settings dialog
 
-`components/project-settings/` shows how AE has read the open project, and edits its settings. It only ever shows the open project, so it reads the scan and `projectStore.projectSettings` like the rest of the app. Every setting shows its source, with Reset when it's set.
+`components/project-settings/` shows how AE has read the open project, and edits its settings. It only ever shows the open project, so it reads the scan and `projectStore.projectSettings` like the rest of the app.
 
-- **Statuses** come from `lib/project-settings/status.ts`, which the dialog's sidebar, the file list's collection rows and the review toast all use. Errors mean a collection can't be used properly: its folder is missing or outside the project, or its schema can't be read. Warnings mean AE has less to go on: no generated schema, an unreadable pattern, or the folder fallback. The file list shows statuses all the time, so things that work are never one: an unknown loader is never one (its folder is explained by the Folder setting, and when there isn't one it's listed under Other Loaders, `isUnreadLoader`, since a custom loader often reads an API rather than files), and a field mapping with nothing to go on (no `draft` field) is a note on that setting, because plenty of sites don't have one.
+- **Sources are shown once, where they're useful,** not as a label on every row, which on an untouched project said "Default" everywhere. A value the user set gets a "Set by you" pill with its reset. A dropdown's first choice names an inherited or found value ("Detected: `title`", "Project setting: …", "Global preference: …"), and choosing it resets. A default shows just its value. A missing field mapping shows "None" over the line saying what the field is for.
+- **The sidebar** has the project, then Collections (with their status icons, including those not in the file list), then Other Collections: data collections and unread loaders (`isUnreadLoader`), which AE doesn't edit.
+- **Statuses** come from `lib/project-settings/status.ts`, which the dialog's sidebar, the file list's collection rows and the review toast all use. Errors mean a collection can't be used properly: its folder is missing or outside the project, or its schema can't be read. Warnings mean AE has less to go on: no generated schema, an unreadable pattern, or the folder fallback. The file list shows statuses all the time, so things that work are never one: an unknown loader is never one (its folder is explained by the page's opening sentence, and when there isn't one it's listed under Other Collections, since a custom loader often reads an API rather than files), and a field mapping with nothing to go on (no `draft` field) shows "None", because plenty of sites don't have one. A problem a button can fix carries an `action`, like Choose Folder… for a missing folder.
+- **The project's icon** is its favicon (`public/favicon.{svg,png,ico}`, found by `find_favicon` in Rust for the scan and the project list) or its folder name's initial on one of the `--project-*` colours, picked from its path. It tells Project Settings from Preferences, and projects apart in the list. There's nothing to store or set.
 - **Field mappings without a generated schema** offer the frontmatter keys the collection's files have, by the type of their values (`frontmatterKeysOfType`), since there are no schema fields to offer. Rust only detects fields in a complete schema; the config's helpers alone don't say which field is the title.
 - **How a field is shown** comes from `fieldControl` in `lib/field-control.ts`, which `FrontmatterField` renders from, so the schema view always matches the form.
-- **Settings for collections no longer in the config** are listed with a Clear button, except with the folder fallback, when the config's collections aren't known and clearing would lose settings for a config that's only broken for now.
+- **Settings for collections no longer in the config** are listed at the bottom of the Project page with a Clear button, except with the folder fallback, when the config's collections aren't known and clearing would lose settings for a config that's only broken for now.
 - **The review toast:** `open_project` reports `newSettings` when the project had no version 3 settings file (it's new, or its old one was moved aside). Then, if anything has a status, a toast offers to open the dialog. Otherwise nothing appears.
-- **Ways in:** File > Project Settings…, the icon in the file list's header, the palette, the project list's context menu on the open project, and a link in Preferences' sidebar. Switching projects closes the dialog.
+- **Ways in:** File > Project Settings…, the project's icon in the file list's header, the palette, the project list's context menu on the open project, and a link in Preferences' sidebar. Switching projects closes the dialog.
 
 ## Settings files
 

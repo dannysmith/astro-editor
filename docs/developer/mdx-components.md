@@ -2,6 +2,8 @@
 
 The component builder (Cmd+/ in an MDX file) lists a project's MDX components and shows a form with a field for each prop, then inserts the tag with every value written in MDX syntax. This doc covers how props are read and why.
 
+The components come from the project's MDX components folders (`mdxComponentsDirectories`, a list, since sites often keep components in more than one folder, like `src/components/mdx` and `src/components/docs`), plus Starlight's built-in ones in Starlight projects. A component found through two folders, one inside the other, is listed once.
+
 ## Reading props without running the project
 
 Props are read statically in Rust (`src-tauri/src/mdx_components/`) with swc. There's no type checker: none is embeddable in Rust, and bundling one (or running the project's own toolchain) would tie the app to each project's setup. Instead, `prop_types.rs` resolves what a form needs:

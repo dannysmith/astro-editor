@@ -10,4 +10,6 @@ An Astro site whose collections are laid out in ways Astro Editor has to work ou
 | `projects` | `content/projects` | A folder per entry (`**/index.md`); new files are `<date>/index.md` |
 | `feed` | `src/content/feed` | A loader Astro Editor can't read, so it looks in the content folder by name |
 
+The site icon is `public/favicon.ico`, to check the project icon reads ICO files. (`personal-site` has an SVG, `dummy-astro-project` a PNG, and `starlight-minimal` none.)
+
 After changing `src/content.config.ts`, run `bun install` and `bun run astro sync` here and commit the regenerated `.astro/collections/`.

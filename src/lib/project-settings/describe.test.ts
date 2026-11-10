@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { FileEntry } from '@/lib/bindings'
 import { FieldType, type SchemaField } from '../schema'
 import { getSortOptionsForCollection } from '../files/sorting'
+import { makeCollection, makeScan } from '../../test/fixtures'
 import {
   defaultSortChoices,
   describeConstraints,
+  describeOrigin,
+  exampleImagePath,
   describeFieldType,
   frontmatterKeysOfType,
 } from './describe'
@@ -100,5 +103,64 @@ describe('frontmatterKeysOfType', () => {
     ])
     expect(frontmatterKeysOfType(files, FieldType.Date)).toEqual(['posted'])
     expect(frontmatterKeysOfType(files, FieldType.Boolean)).toEqual(['hidden'])
+  })
+})
+
+describe('describeOrigin', () => {
+  const scan = makeScan([])
+
+  it('names the loader and the config', () => {
+    expect(describeOrigin(makeCollection({ name: 'blog' }), scan)).toBe(
+      'From `glob()` in `src/content.config.ts`.'
+    )
+    expect(
+      describeOrigin(
+        makeCollection({
+          name: 'notes',
+          kind: 'unknown',
+          loaderName: 'notionLoader',
+        }),
+        scan
+      )
+    ).toBe(
+      'Loaded by `notionLoader()` in `src/content.config.ts`, so its files are taken to be in the folder named after it.'
+    )
+  })
+
+  it('says when a loader’s entries probably aren’t files', () => {
+    const books = makeCollection({
+      name: 'books',
+      kind: 'unknown',
+      loaderName: null,
+      folderStatus: 'missing',
+      folderSource: 'convention',
+    })
+    expect(describeOrigin(books, scan)).toBe(
+      "Loaded by a custom loader in `src/content.config.ts`, so its entries probably don't come from files."
+    )
+  })
+
+  it('names the content folder for folders found without a config', () => {
+    expect(
+      describeOrigin(makeCollection({ name: 'posts', kind: 'folder' }), {
+        ...scan,
+        configPath: null,
+        fallback: true,
+      })
+    ).toBe('A folder in `src/content`.')
+  })
+})
+
+describe('exampleImagePath', () => {
+  it('writes the path from the project root, or relative to the folder', () => {
+    expect(
+      exampleImagePath('src/content/blog', 'src/assets', 'blog', true)
+    ).toBe('/src/assets/blog/photo.jpg')
+    expect(
+      exampleImagePath('src/content/blog', 'src/assets', 'blog', false)
+    ).toBe('../../assets/blog/photo.jpg')
+    expect(exampleImagePath('posts', 'posts/images', 'posts', false)).toBe(
+      'images/posts/photo.jpg'
+    )
   })
 })

@@ -55,7 +55,7 @@ describe('collectionProblems', () => {
     expect(levels(collectionProblems(chosen, '/site'))).toEqual(['error'])
   })
 
-  it('reports schema and pattern problems with the error AE got', () => {
+  it('reports schema and pattern problems with the error AE got, errors first', () => {
     const problems = collectionProblems(
       makeCollection({
         name: 'blog',
@@ -65,10 +65,10 @@ describe('collectionProblems', () => {
       }),
       '/site'
     )
-    expect(levels(problems)).toEqual(['warning', 'error'])
+    expect(levels(problems)).toEqual(['error', 'warning'])
     expect(problems.map(p => p.detail)).toEqual([
-      'unclosed group',
       'expected a string',
+      'unclosed group',
     ])
     expect(statusLevel(problems)).toBe('error')
   })

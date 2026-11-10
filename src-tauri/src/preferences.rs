@@ -172,6 +172,7 @@ impl Preferences {
             .into_values()
             .map(|project| ListedProject {
                 missing: !Path::new(&project.path).is_dir(),
+                favicon: crate::collections::find_favicon(Path::new(&project.path)),
                 project,
             })
             .collect();

@@ -151,8 +151,12 @@ export const commands = {
 	getAppVersion: () => typedError<string, string>(__TAURI_INVOKE("get_app_version")),
 	getPlatformInfo: () => typedError<string, string>(__TAURI_INVOKE("get_platform_info")),
 	openPathInIde: (ideCommand: string, filePath: string) => typedError<string, string>(__TAURI_INVOKE("open_path_in_ide", { ideCommand, filePath })),
-	/**  The project's MDX components, plus Starlight's built-in ones in Starlight projects */
-	scanMdxComponents: (projectPath: string, mdxDirectory: string | null) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectory })),
+	/**
+	 *  The project's MDX components from each of `mdx_directories` (relative to the
+	 *  project root), plus Starlight's built-in ones in Starlight projects. A
+	 *  component in two of the folders (one inside another) is listed once.
+	 */
+	scanMdxComponents: (projectPath: string, mdxDirectories: string[]) => typedError<MdxComponent[], string>(__TAURI_INVOKE("scan_mdx_components", { projectPath, mdxDirectories })),
 	/**
 	 *  The imports the component builder would add with `component`, and with the
 	 *  images and entries picked for its props (`props`), to the file at
@@ -361,6 +365,8 @@ export type ListedProject = {
 	project: ProjectMetadata,
 	/**  Its folder isn't there, usually because it was moved or renamed */
 	missing: boolean,
+	/**  The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path */
+	favicon: string | null,
 };
 
 export type MarkdownContent = {
@@ -429,6 +435,8 @@ export type ProjectScan = {
 	configError: string | null,
 	/**  There's no readable config, so the collections are the content folder's subfolders */
 	fallback: boolean,
+	/**  The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path */
+	favicon: string | null,
 	projectSettings: ResolvedProjectSettings,
 	collections: Collection[],
 };
@@ -447,7 +455,8 @@ export type ProjectSettings = {
 	 *  Collections can override it.
 	 */
 	useAbsoluteAssetPaths?: boolean | null,
-	mdxComponentsDirectory?: string | null,
+	/**  The folders the component builder offers components from */
+	mdxComponentsDirectories?: string[] | null,
 	/**  Experimental: the component builder adds the import a component needs */
 	addComponentImports?: boolean | null,
 };
@@ -522,7 +531,8 @@ export type ResolvedCollectionSettings = {
 export type ResolvedProjectSettings = {
 	/**  Relative to the project root */
 	contentDirectory: Resolved<string>,
-	mdxComponentsDirectory: Resolved<string>,
+	/**  Relative to the project root */
+	mdxComponentsDirectories: Resolved<string[]>,
 	addComponentImports: Resolved<boolean>,
 	/**  The project's default for collections. Relative to the project root. */
 	assetsDirectory: Resolved<string>,

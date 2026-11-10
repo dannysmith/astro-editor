@@ -5,65 +5,83 @@ description: 'See how Astro Editor has read your project, and correct it where i
 
 Astro Editor reads your project rather than asking you about it: each collection's folder and file pattern come from its loader in the content config, and its title, date, description and draft fields are detected in its schema. Project Settings shows what it found, and is where you correct it when it isn't right.
 
-Open it with `File > Project Settings…`, the *folder icon with a cog* at the top of the sidebar's collection list, the **Project Settings** command, the link in [Preferences](/preferences/), or by right-clicking the open project in the [project list](/file-management/overview/#opening-a-project). It shows the open project's settings only.
+Open it by clicking the project's icon at the top of the file list, with `File > Project Settings…` or the **Project Settings** command, from the link in [Preferences](/preferences/), or by right-clicking the open project in the [project list](/file-management/overview/#opening-a-project). It shows the open project's settings only.
 
-The sidebar lists the project, then each collection with its status. Below them are any collections that can't be shown in the file list, the config's data collections (JSON and YAML, which Astro Editor doesn't edit), collections under **Other Loaders** whose loader Astro Editor can't read, such as one that fetches its entries from an API, and settings saved for collections your config no longer has, with a **Clear** button.
+Each project has an icon, so you can tell its settings from Preferences, and projects apart in the project list. It's the site's favicon, if it has `public/favicon.svg`, `favicon.png` or `favicon.ico`. Otherwise it's the first letter of the project's folder name on a colour.
+
+The sidebar lists the project, then its collections. Any with a problem have a warning or error icon, which the file list shows too. Under **Other Collections** are the ones Astro Editor doesn't edit: data collections (JSON and YAML), and collections whose loader probably doesn't read files, such as one that fetches its entries from an API.
 
 ## Where each value comes from
 
-Every setting says where its value came from, so you can tell what Astro Editor worked out from what you chose:
+Most settings start out with a value Astro Editor found or a default, and you only change the ones that are wrong. A setting you've changed is marked **Set by you**, with a button that resets it.
 
-| Source | Meaning |
+Where a value came from somewhere else, the first choice in its menu says so:
+
+| First choice | Meaning |
 | --- | --- |
-| **Set by you** | You changed it. **Reset** goes back to what Astro Editor would use otherwise. |
-| **From the content config** | Read from the collection's loader. |
-| **Detected in the schema** | A field of the right name and type in the collection's schema. |
-| **Project setting** | A collection setting that uses the project's value. |
-| **Global preference** | Uses your [Preferences](/preferences/). |
-| **Default** | Astro's convention, or Astro Editor's. |
+| **Detected: `title`** | A field of the right name and type in the collection's schema. |
+| **Found in files: `title`** | Without a generated schema, the usual field name that the collection's files use. |
+| **None** | Nothing was found. The line under the setting says what it's for, so you can see what you won't get. |
+| **Project setting** | The value set on the project page. |
+| **Global preference** | Your [Preferences](/preferences/). |
+| **Default** | Astro Editor's default, such as sorting newest first. |
 
-When there's nothing to go on, the setting says what won't work. For example, without a boolean `draft` field there's no draft badge or filter for that collection. That's often fine: plenty of sites don't use drafts.
-
-The defaults for every setting are listed in [Overrides](/reference/overrides/).
+Picking the first choice is the same as resetting. A setting with no source shown, like a folder, is using the default. The defaults for every setting are listed in [Overrides](/reference/overrides/).
 
 ## The project
 
-The project page says which content config was read. If there's no content config, or Astro Editor couldn't read any collections in it, it says so and why. In that case each folder in the content folder is shown as a collection, without a schema, which keeps Astro Editor useful for plain Markdown folders.
+The project page says which content config was read and how many collections it has. If there's no content config, or Astro Editor couldn't read any collections in it, it says so and why. In that case each folder in the content folder is listed as a collection, without a schema, which keeps Astro Editor useful for plain Markdown folders.
 
-**Content Folder** — where collections are looked for when Astro Editor can't read their loader, and whose folders become collections when there's no readable content config (default `src/content`).
+### MDX components
 
-**MDX Components Folder** — where the [component builder](/editor/mdx-components/) looks for components (default `src/components/mdx`).
+**Folders**: the folders the [component builder](/editor/mdx-components/) offers components from, including their subfolders. The default is `src/components/mdx`. Add as many as your site uses, such as `src/components/mdx` and `src/components/docs`.
 
-**Assets Folder** — where dragged or inserted images are copied, in a folder named after the collection (default `src/assets`). Collections can override it.
+**Add imports** (experimental): off by default. When it's on, the component builder also [adds the import](/editor/mdx-components/#adding-imports) a component needs. Leave it off if your site imports components for you. If `package.json` lists `astro-auto-import`, the setting reminds you.
 
-**Use Absolute Paths for Images** — off by default, so image paths are relative to the current file. Collections can override it. See [Images & Files](/editor/images-and-files/).
+### Images
 
-**Add Imports for MDX Components** (experimental) — off by default. When it's on, the [component builder](/editor/mdx-components/#adding-imports) also adds the import a component needs. Leave it off if your site imports components automatically. If `package.json` lists `astro-auto-import`, the setting reminds you.
+These are the defaults for every collection, and each collection can change them.
+
+**Folder**: where dragged or inserted images are copied, in a folder named after the collection. The default is `src/assets`, so a blog post's images go in `src/assets/blog`.
+
+**Image paths**: **Relative to the file** (the default, as Astro writes them) or **From the project root**, such as `/src/assets/blog/photo.jpg`. See [Images & Files](/editor/images-and-files/).
+
+### Content
+
+**Content folder**: where collections are looked for when the content config doesn't say where they are, and whose folders become collections when there's no content config. The default is `src/content`.
+
+### Removed collections
+
+If you have settings saved for collections your content config no longer has, they're listed at the bottom of the page with a **Clear** button.
 
 ## Collections
 
-Each collection's page has three parts: its status, its settings, and its schema.
-
-### Status
-
-The collection's loader, file pattern and schema. Its folder, and where that came from, is the first setting below. Anything wrong is listed with what to do about it:
+The top of a collection's page says where it comes from, such as `glob()` in `src/content.config.ts`. Anything wrong is shown under it, with what to do about it:
 
 | Status | When |
 | --- | --- |
-| **Error** | The collection's folder doesn't exist, or is outside the project (Astro Editor only edits files inside the project), or its generated schema couldn't be read. |
-| **Warning** | The config has a schema but Astro hasn't generated it, usually because `astro sync` hasn't run. Or the collection's file pattern couldn't be read. |
+| **Error** | The collection's folder doesn't exist, or is outside the project (Astro Editor only edits files inside the project), or its generated schema couldn't be read. A missing folder has a **Choose Folder…** button. |
+| **Warning** | The config has a schema, but Astro hasn't generated it, usually because `astro sync` hasn't run. Or the collection's file pattern couldn't be read. |
 
-Collections with a warning or error show the same icon in the sidebar's collection list. If Astro Editor can't read a collection's loader, that isn't a problem either. When it finds a folder named after the collection in the content folder, it uses that. Otherwise the collection is listed under **Other Loaders**, since its entries may not be files at all, and you can choose its folder if they are.
+A collection without a schema isn't a problem, but its page says so at the top, since the form can only show its fields as text.
+
+If Astro Editor can't read a collection's loader, it looks for a folder named after the collection in the content folder. When there is one, it uses that, and the page says so. When there isn't, the collection is listed under Other Collections.
 
 ### Files
 
-**Folder** — the folder you browse in the sidebar. Type a path relative to the project root, or choose one with **Choose…**. Set it only if the collection's files aren't where the loader says.
+**Folder**: the folder you browse in the file list, read from the loader. Type a path relative to the project root, or choose one with the folder button. Set it only if the collection's files aren't where the loader says.
 
-**Files the Pattern Leaves Out** — hide the Markdown files in the folder that the loader's pattern excludes (the default), or show them dimmed. Showing them suits drafts kept out of the site as `_draft.md`.
+**Show files Astro skips**: off by default, so Markdown files in the folder that the loader's pattern leaves out aren't shown. Turn it on to see them dimmed, which suits drafts kept out of the site as `_draft.md`.
 
-**New Files** — Markdown or MDX, or the [global preference](/preferences/#general). When the pattern only includes one type, new files always use it.
+**Sort**: how the file list is sorted until you [change it there](/file-management/drafts-filtering-and-sorting/#sorting). By default, files are sorted by published date, newest first.
 
-**File Names** — how new files are named, as a pattern. **Date**, **Title** and **Date and title** fill in the common ones, and examples below show what the pattern gives as you type.
+### New files
+
+**Type**: Markdown or MDX, or the [global preference](/preferences/#general). When the pattern only includes one type, new files always use it, and that's shown instead.
+
+### File names
+
+**Name**: how new files are named, as a pattern. **Date**, **Title** and **Date and title** fill in the common ones, and the example beside them shows what the pattern gives as you type.
 
 - `{title}` is the title as a slug, as **Copy as slug** makes it: lowercase, without accents, punctuation or small words like "the", so "My Trip to the Lake" becomes `trip-lake`. A new file has no title yet, so it's named without one, then renamed once when you first write its title and leave the field.
 - Any other placeholder is a date, written with `YYYY`, `YY`, `MM`, `M`, `DD` and `D`, such as `{YYYY-MM-DD}` or `{YYYY}`. It's the file's published date, or today.
@@ -73,31 +91,35 @@ The default, `{YYYY-MM-DD}`, names files with today's date. If a name is taken, 
 
 To rename any file by the pattern, use the **Rename File from Pattern** command. When the published date changes, a **Rename file to match** link below it changes just the date in the file's name.
 
-**Default Sort** — how the file list is sorted until you [change it in the sidebar](/file-management/drafts-filtering-and-sorting/#sorting). By default, files are sorted by published date, newest first.
-
-### Frontmatter fields
+### Frontmatter
 
 Which frontmatter field to treat as each [special field](/frontmatter/special-fields/), when the one Astro Editor detects isn't right. Each one lists the schema's fields of the right type, or without a generated schema, the fields the collection's files have.
 
-**Title** — the field shown as the title in the file list and the frontmatter panel (a string).
+**Title**: a string field, shown as each file's name in the file list and as the large title at the top of the form.
 
-**Description** — the field given a tall, multi-line text area (a string).
+**Description**: a string field, given a larger text box in the form.
 
-**Published Date** — the date field used to date and sort files.
+**Published date**: the date field that dates and sorts the file list.
 
-**Draft** — the boolean field that drives the draft badge and filter.
+**Draft**: the true/false field that shows a **Draft** badge and lets you filter drafts.
 
 ### Images and links
 
-**Assets Folder** and **Use Absolute Paths for Images** — override the project's image settings for this collection.
+**Image folder** and **Image paths**: change the project's image settings for this collection.
 
-**Link URL Pattern** — a template for links the [Content Finder](/editor/links/#internal-links) inserts, using `{slug}` (for example `/blog/{slug}`). When it's empty, links use a relative file path.
+**Link URLs**: a template for links the [Content Finder](/editor/links/#internal-links) inserts, using `{slug}`, such as `/blog/{slug}`. When it's empty, links use a relative file path.
 
 ### Schema
 
-Each field as Astro Editor read it: its name, type, whether it's required, its constraints, default and description, and how the frontmatter panel shows it, such as a date picker or an image picker. Fields the panel can't show with a proper control, like objects with no fixed fields, are edited as YAML and say so.
+Each field as Astro Editor read it: its name, type, whether it's required, its constraints, default and description, and how the form shows it, such as a date picker or an image picker. Fields the form can't show with a proper control, like objects with no fixed fields, are edited as YAML and say so.
 
-Without a generated schema, Astro Editor only knows the fields that use `image()` or `reference()` in your config, if any. The panel still shows each file's other fields, as text, without types, defaults or required markers. Run `astro sync` (or `astro dev`) in your project to generate the schema.
+Without a generated schema, Astro Editor only knows the fields that use `image()` or `reference()` in your config, if any. The form still shows each file's other fields, as text, without types, defaults or required markers. Run `astro sync` (or `astro dev`) in your project to generate the schema.
+
+## Other collections
+
+A data collection's page says where it's defined and shows its schema. If you've set an IDE in [Preferences](/preferences/), **Open in IDE** opens its files there.
+
+A collection whose loader probably doesn't read files, like one that fetches from an API, shows its schema and a **Folder** setting. If its entries are Markdown files in your project after all, choose their folder and it moves into the file list.
 
 ## Opening a project for the first time
 

@@ -1,15 +1,50 @@
 import type { ProjectScan, ProjectSettings } from '@/lib/bindings'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { usePreferences } from '../../hooks/usePreferences'
 import { useProjectDependenciesQuery } from '../../hooks/queries/useProjectDependenciesQuery'
 import { DOCS_URLS } from '../../lib/docs-urls'
-import { projectProblems } from '../../lib/project-settings/status'
-import { SettingsSection } from '../preferences/SettingsSection'
+import { projectName } from '../../lib/projects/display'
+import { clearSavedSettings } from '../../lib/project-settings/actions'
+import {
+  isUnreadLoader,
+  projectProblems,
+} from '../../lib/project-settings/status'
 import { DocsLink } from '../preferences/DocsLink'
-import { ProblemList, WithCode } from './Problems'
-import { FolderInput, Setting } from './Setting'
+import { ProjectIcon } from '../project-list'
+import { ProblemCallout, WithCode } from './Problems'
+import {
+  FolderInput,
+  FolderList,
+  PageHeader,
+  Setting,
+  SettingSelect,
+  SettingsGroup,
+} from './Setting'
 
-/** How AE has read the project, and the settings for the whole project */
+/**
+ * What was read from the content config, as a sentence. When there's nothing
+ * to edit, the problem below says so, so this doesn't.
+ */
+function describeConfig(scan: ProjectScan): string | null {
+  if (!scan.configPath || scan.fallback) return null
+  const read = `Read from \`${scan.configPath}\``
+  if (scan.collections.every(c => c.kind === 'data')) return `${read}.`
+  const others = scan.collections.filter(
+    c => c.kind === 'data' || isUnreadLoader(c)
+  ).length
+  const editable = scan.collections.length - others
+  const count = (n: number, one: string, many: string) =>
+    `${n === 0 ? 'no' : n} ${n === 1 ? one : many}`
+  return `${read}: ${count(editable, 'collection', 'collections')} to edit${others > 0 ? `, and ${count(others, 'other', 'others')}` : ''}.`
+}
+
+/**
+ * The project: what was read from its content config and anything wrong, the
+ * settings for the whole project, and settings saved for collections it no
+ * longer has
+ */
 export function ProjectPage({
   scan,
   projectPath,
@@ -22,71 +57,105 @@ export function ProjectPage({
   const resolved = scan.projectSettings
   const { data: dependencies = [] } = useProjectDependenciesQuery(projectPath)
   const usesAutoImport = dependencies.includes('astro-auto-import')
+  const config = describeConfig(scan)
+
+  // With the folder fallback, the config's collections aren't known, so
+  // nothing saved for them is offered for clearing
+  const removed = scan.fallback
+    ? []
+    : Object.keys(projectSettings?.collections ?? {}).filter(
+        name => !scan.collections.some(c => c.name === name)
+      )
 
   const reset = (key: keyof ProjectSettings) => () =>
     void updateProject({ [key]: undefined })
 
   return (
     <div className="space-y-6">
-      <SettingsSection title="Content Config">
-        <p className="text-sm">
-          {scan.configPath ? (
-            <WithCode text={`Read from \`${scan.configPath}\`.`} />
-          ) : (
-            'No content config found.'
-          )}
-        </p>
-        <ProblemList problems={projectProblems(scan)} />
-      </SettingsSection>
+      <PageHeader
+        icon={
+          <ProjectIcon
+            path={projectPath}
+            favicon={scan.favicon}
+            className="size-10"
+          />
+        }
+        title={<span className="font-mono">{projectName(projectPath)}</span>}
+      >
+        {config && <WithCode text={config} />}
+      </PageHeader>
 
-      <SettingsSection title="Folders">
-        <Setting
-          label="Content Folder"
-          source={resolved.contentDirectory.source}
-          onReset={reset('contentDirectory')}
-          description="Where collections are looked for when their loader doesn't say, and whose folders become collections when there's no readable content config."
-        >
-          {({ id }) => (
-            <FolderInput
-              id={id}
-              value={stored.contentDirectory ?? ''}
-              placeholder={resolved.contentDirectory.value}
-              start={`${projectPath}/${resolved.contentDirectory.value}`}
-              onChange={folder =>
-                void updateProject({ contentDirectory: folder })
-              }
-            />
-          )}
-        </Setting>
+      {projectProblems(scan).map(problem => (
+        <ProblemCallout key={problem.message} problem={problem} />
+      ))}
 
+      <SettingsGroup title="MDX Components">
         <Setting
-          label="MDX Components Folder"
-          source={resolved.mdxComponentsDirectory.source}
-          onReset={reset('mdxComponentsDirectory')}
-          description="The components the component builder offers in MDX files."
+          label="Folders"
+          help="Components in these folders can be inserted with ⌘/."
+          source={resolved.mdxComponentsDirectories.source}
+          onReset={reset('mdxComponentsDirectories')}
+          resetTo="src/components/mdx"
+          wide
         >
-          {({ id }) => (
-            <FolderInput
-              id={id}
-              value={stored.mdxComponentsDirectory ?? ''}
-              placeholder={resolved.mdxComponentsDirectory.value}
+          {() => (
+            <FolderList
+              folders={resolved.mdxComponentsDirectories.value}
               start={projectPath}
-              onChange={folder =>
-                void updateProject({ mdxComponentsDirectory: folder })
+              onChange={folders =>
+                void updateProject({ mdxComponentsDirectories: folders })
               }
             />
           )}
         </Setting>
-      </SettingsSection>
 
-      <SettingsSection title="Images">
         <Setting
-          label="Assets Folder"
+          label={
+            <>
+              Add imports{' '}
+              <Badge variant="outline" className="ml-1 h-4 px-1.5 text-[10px]">
+                Experimental
+              </Badge>
+            </>
+          }
+          help={
+            usesAutoImport ? (
+              <span className="text-warning">
+                This project uses astro-auto-import. If it imports your
+                components, leave this off, or they'll be imported twice and the
+                build will fail.
+              </span>
+            ) : (
+              <>
+                Add a component's import when you insert it. Leave this off if
+                your site imports them for you.{' '}
+                <DocsLink href={DOCS_URLS.mdxComponents}>Learn more</DocsLink>
+              </>
+            )
+          }
+          source={resolved.addComponentImports.source}
+          onReset={reset('addComponentImports')}
+          resetTo="off"
+        >
+          {({ id }) => (
+            <Switch
+              id={id}
+              checked={resolved.addComponentImports.value}
+              onCheckedChange={checked =>
+                void updateProject({ addComponentImports: checked })
+              }
+            />
+          )}
+        </Setting>
+      </SettingsGroup>
+
+      <SettingsGroup title="Images" note="Each collection can change these.">
+        <Setting
+          label="Folder"
+          help="Each collection's images go in a folder named after it."
           source={resolved.assetsDirectory.source}
           onReset={reset('assetsDirectory')}
-          description={
-            <WithCode text="Images you add are copied to `<folder>/<collection>/`. Collections can override this." />
-          }
+          resetTo="src/assets"
         >
           {({ id }) => (
             <FolderInput
@@ -102,59 +171,76 @@ export function ProjectPage({
         </Setting>
 
         <Setting
-          label="Use Absolute Paths for Images"
+          label="Image paths"
           source={resolved.useAbsoluteAssetPaths.source}
           onReset={reset('useAbsoluteAssetPaths')}
-          inline
-          description={
-            <WithCode text="Write image paths from the project root (`/src/assets/image.png`) rather than relative to the file (`../../assets/image.png`), which is Astro's convention. Collections can override this." />
-          }
+          resetTo="relative to the file"
         >
-          {({ id }) => (
-            <Switch
-              id={id}
-              checked={resolved.useAbsoluteAssetPaths.value}
-              onCheckedChange={checked =>
-                void updateProject({ useAbsoluteAssetPaths: checked })
+          {({ labelId }) => (
+            <SettingSelect
+              labelId={labelId}
+              value={
+                resolved.useAbsoluteAssetPaths.value ? 'absolute' : 'relative'
               }
+              onChange={value =>
+                void updateProject({
+                  useAbsoluteAssetPaths: value === 'absolute',
+                })
+              }
+              choices={[
+                { value: 'relative', label: 'Relative to the file' },
+                { value: 'absolute', label: 'From the project root' },
+              ]}
             />
           )}
         </Setting>
-      </SettingsSection>
+      </SettingsGroup>
 
-      <SettingsSection title="Experimental">
+      <SettingsGroup title="Content">
         <Setting
-          label="Add Imports for MDX Components"
-          source={resolved.addComponentImports.source}
-          onReset={reset('addComponentImports')}
-          inline
-          description={
-            <>
-              When you insert a component, also add its{' '}
-              <code className="text-xs">import</code> to the file. Leave this
-              off if your site imports components automatically.{' '}
-              <DocsLink href={DOCS_URLS.mdxComponents}>Learn more</DocsLink>
-              {usesAutoImport && (
-                <span className="mt-1 block text-foreground">
-                  This project uses astro-auto-import. If it imports your MDX
-                  components, leave this off, or they'll be imported twice and
-                  the build will fail.
-                </span>
-              )}
-            </>
-          }
+          label="Content folder"
+          help="Collections are looked for here when the content config doesn't say where they are."
+          source={resolved.contentDirectory.source}
+          onReset={reset('contentDirectory')}
+          resetTo="src/content"
         >
           {({ id }) => (
-            <Switch
+            <FolderInput
               id={id}
-              checked={resolved.addComponentImports.value}
-              onCheckedChange={checked =>
-                void updateProject({ addComponentImports: checked })
+              value={stored.contentDirectory ?? ''}
+              placeholder={resolved.contentDirectory.value}
+              start={`${projectPath}/${resolved.contentDirectory.value}`}
+              onChange={folder =>
+                void updateProject({ contentDirectory: folder })
               }
             />
           )}
         </Setting>
-      </SettingsSection>
+      </SettingsGroup>
+
+      {removed.length > 0 && (
+        <SettingsGroup title="Removed Collections">
+          <Setting
+            label={
+              <WithCode
+                text={`Settings for ${removed.map(name => `\`${name}\``).join(', ')}`}
+              />
+            }
+            help="These collections are no longer in the content config."
+            source="convention"
+          >
+            {() => (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void clearSavedSettings(removed)}
+              >
+                Clear
+              </Button>
+            )}
+          </Setting>
+        </SettingsGroup>
+      )}
     </div>
   )
 }

@@ -53,10 +53,11 @@ export function makeScan(
     configPath: 'src/content.config.ts',
     configError: null,
     fallback: false,
+    favicon: null,
     projectSettings: {
       contentDirectory: { value: 'src/content', source: 'convention' },
-      mdxComponentsDirectory: {
-        value: 'src/components/mdx',
+      mdxComponentsDirectories: {
+        value: ['src/components/mdx'],
         source: 'convention',
       },
       addComponentImports: { value: false, source: 'convention' },

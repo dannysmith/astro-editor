@@ -8,13 +8,13 @@ import {
   parseFileNamePattern,
   patternHasTitle,
 } from '../../lib/files/file-name-pattern'
-import { ProblemNote, WithCode } from './Problems'
+import { WithCode } from './Problems'
 
 const EXAMPLE_TITLE = 'My Trip to the Lake'
 
 /**
- * A collection's file name pattern: typed, or one of the presets, with
- * examples of the names it gives as you type. It's saved on blur, Enter or a
+ * A collection's file name pattern: typed, or one of the presets, with an
+ * example of the name it gives as you type. It's saved on blur, Enter or a
  * preset, and only when it's valid; emptied, it's unset.
  */
 export function FileNamePatternInput({
@@ -54,6 +54,7 @@ export function FileNamePatternInput({
         id={id}
         value={pattern}
         spellCheck={false}
+        className="font-mono text-xs"
         aria-invalid={pattern.trim() !== '' && 'error' in parsed}
         onChange={e => setPattern(e.target.value)}
         onBlur={() => commit(pattern)}
@@ -64,43 +65,37 @@ export function FileNamePatternInput({
           }
         }}
       />
-      <div className="flex flex-wrap gap-2">
-        {FILE_NAME_PATTERN_PRESETS.map(preset => (
-          <Button
-            key={preset.pattern}
-            variant={preset.pattern === pattern ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setPattern(preset.pattern)
-              commit(preset.pattern)
-            }}
-          >
-            {preset.label}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex gap-2">
+          {FILE_NAME_PATTERN_PRESETS.map(preset => (
+            <Button
+              key={preset.pattern}
+              variant={preset.pattern === pattern ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setPattern(preset.pattern)
+                commit(preset.pattern)
+              }}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+        {'error' in parsed ? (
+          pattern.trim() !== '' && (
+            <span className="text-xs text-destructive">
+              <WithCode text={parsed.error} />
+            </span>
+          )
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {patternHasTitle(pattern) ? `“${EXAMPLE_TITLE}”` : 'A new file'} →{' '}
+            <span className="font-mono text-foreground">
+              {fileName(patternHasTitle(pattern) ? titled : untitled)}
+            </span>
+          </span>
+        )}
       </div>
-      {'error' in parsed ? (
-        pattern.trim() !== '' && (
-          <ProblemNote problem={{ level: 'error', message: parsed.error }} />
-        )
-      ) : (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="text-muted-foreground">A new file</dt>
-          <dd>
-            <WithCode text={`\`${fileName(untitled)}\``} />
-          </dd>
-          {patternHasTitle(pattern) && (
-            <>
-              <dt className="text-muted-foreground">
-                Titled “{EXAMPLE_TITLE}”
-              </dt>
-              <dd>
-                <WithCode text={`\`${fileName(titled)}\``} />
-              </dd>
-            </>
-          )}
-        </dl>
-      )}
     </div>
   )
 }

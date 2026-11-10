@@ -18,6 +18,8 @@ pub struct ProjectScan {
     pub config_error: Option<String>,
     /// There's no readable config, so the collections are the content folder's subfolders
     pub fallback: bool,
+    /// The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path
+    pub favicon: Option<String>,
     pub project_settings: ResolvedProjectSettings,
     pub collections: Vec<Collection>,
 }
@@ -158,7 +160,8 @@ pub struct ResolvedCollectionSettings {
 pub struct ResolvedProjectSettings {
     /// Relative to the project root
     pub content_directory: Resolved<String>,
-    pub mdx_components_directory: Resolved<String>,
+    /// Relative to the project root
+    pub mdx_components_directories: Resolved<Vec<String>>,
     pub add_component_imports: Resolved<bool>,
     /// The project's default for collections. Relative to the project root.
     pub assets_directory: Resolved<String>,

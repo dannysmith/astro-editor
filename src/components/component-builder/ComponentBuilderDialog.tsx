@@ -50,8 +50,8 @@ function groupBySource(components: MdxComponent[]) {
  */
 export function ComponentBuilderDialog() {
   const projectPath = useProjectStore(state => state.projectPath)
-  const mdxComponentsDirectory =
-    useResolvedProjectSettings()?.mdxComponentsDirectory.value
+  const mdxComponentsDirectories =
+    useResolvedProjectSettings()?.mdxComponentsDirectories.value
   const isOpen = useComponentBuilderStore(state => state.isOpen)
   const step = useComponentBuilderStore(state => state.step)
   const selectedComponent = useComponentBuilderStore(
@@ -65,7 +65,7 @@ export function ComponentBuilderDialog() {
 
   const { data: components = [], isLoading } = useMdxComponentsQuery(
     projectPath,
-    mdxComponentsDirectory
+    mdxComponentsDirectories
   )
 
   return (

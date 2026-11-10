@@ -1,6 +1,7 @@
 /**
  * What's wrong with how AE has read a project, for the project settings
- * dialog and the review toast. Text in backticks is shown as code.
+ * dialog, the file list and the review toast. Text in backticks is shown as
+ * code.
  *
  * Errors mean a collection can't be used properly: its folder is missing or
  * outside the project, or its schema can't be read. Warnings mean AE is
@@ -19,8 +20,10 @@ export type StatusLevel = 'ok' | 'warning' | 'error'
 export interface Problem {
   level: 'warning' | 'error'
   message: string
-  /** What to do about it */
+  /** What to do about it, when there's no button that does it */
   fix?: string
+  /** A button that fixes it: choosing the collection's folder */
+  action?: 'chooseFolder'
   /** The error AE got, verbatim */
   detail?: string
 }
@@ -71,12 +74,13 @@ export function collectionProblems(
     problems.push({
       level: 'error',
       message: `Its folder, \`${folder}\`, doesn't exist.`,
-      fix: 'Choose its folder in the settings below, or create it.',
+      action: 'chooseFolder',
     })
   } else if (collection.folderStatus === 'outsideProject') {
     problems.push({
       level: 'error',
-      message: `Its folder, \`${folder}\`, is outside the project. Astro Editor only edits files inside the project.`,
+      message: `Its folder, \`${folder}\`, is outside the project, and only files inside it can be edited.`,
+      action: 'chooseFolder',
     })
   }
 
@@ -84,7 +88,7 @@ export function collectionProblems(
     problems.push({
       level: 'warning',
       message:
-        "Its pattern couldn't be read, so every Markdown file that doesn't start with `_` is treated as an entry.",
+        "Its file pattern couldn't be read, so every Markdown file not starting with `_` is listed.",
       detail: collection.patternError,
     })
   }
@@ -94,19 +98,23 @@ export function collectionProblems(
       level: 'error',
       message:
         "Its generated schema couldn't be read, so the form only knows its image and reference fields.",
-      fix: 'Run `astro sync` to generate it again.',
+      fix: 'Run `astro sync` in the project to generate it again.',
       detail: collection.schemaError ?? undefined,
     })
   } else if (collection.schemaStatus === 'notGenerated') {
     problems.push({
       level: 'warning',
       message:
-        "There's no generated schema, so the form doesn't know its fields' types, defaults or which are required.",
+        "Astro hasn't generated its schema yet, so the form doesn't know its fields' types, defaults or which are required.",
       fix: 'Run `astro sync` in the project to generate it.',
     })
   }
 
-  return problems
+  // Errors first: the file list's tooltip shows the first, beside the icon
+  // for the worst
+  return problems.sort(
+    (a, b) => Number(b.level === 'error') - Number(a.level === 'error')
+  )
 }
 
 export function projectProblems(scan: ProjectScan): Problem[] {
@@ -121,8 +129,8 @@ export function projectProblems(scan: ProjectScan): Problem[] {
         : `None of the collections in \`${scan.configPath}\` could be read`
     problems.push({
       level: 'warning',
-      message: `${reason}, so each folder in \`${content}\` is shown as a collection, without a schema.`,
-      fix: 'If your content is somewhere else, set the content folder below.',
+      message: `${reason}, so each folder in \`${content}\` is listed as a collection, without a schema.`,
+      fix: 'If your content is somewhere else, change the content folder below.',
       detail: scan.configError ?? undefined,
     })
   } else if (scan.configError) {
@@ -136,7 +144,7 @@ export function projectProblems(scan: ProjectScan): Problem[] {
   if (scan.collections.every(c => c.kind === 'data')) {
     problems.push({
       level: 'warning',
-      message: "Astro Editor didn't find any collections to edit.",
+      message: 'There are no collections to edit.',
     })
   }
 

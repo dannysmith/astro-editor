@@ -141,6 +141,8 @@ pub struct ListedProject {
     pub project: ProjectMetadata,
     /// Its folder isn't there, usually because it was moved or renamed
     pub missing: bool,
+    /// The site's icon, `public/favicon.{svg,png,ico}`, as an absolute path
+    pub favicon: Option<String>,
 }
 
 /// What relocating a project did
@@ -187,8 +189,9 @@ pub struct ProjectSettings {
     /// Collections can override it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_absolute_asset_paths: Option<bool>,
+    /// The folders the component builder offers components from
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mdx_components_directory: Option<String>,
+    pub mdx_components_directories: Option<Vec<String>>,
     /// Experimental: the component builder adds the import a component needs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub add_component_imports: Option<bool>,

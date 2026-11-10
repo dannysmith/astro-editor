@@ -15,6 +15,7 @@ use crate::models::preferences::{
     SkippedFiles,
 };
 use crate::schema_merger::{self, SchemaDefinition};
+use crate::utils::normalize_path_for_serialization;
 use log::{debug, warn};
 use std::path::{Path, PathBuf};
 
@@ -108,9 +109,19 @@ pub fn scan_project(
         config_path: config_path.map(|path| relative_to(&path, project)),
         config_error,
         fallback,
+        favicon: find_favicon(project),
         project_settings,
         collections,
     }
+}
+
+/// The site's icon, if it's where Astro's starter templates put it
+pub fn find_favicon(project: &Path) -> Option<String> {
+    ["svg", "png", "ico"]
+        .into_iter()
+        .map(|extension| project.join("public").join(format!("favicon.{extension}")))
+        .find(|path| path.is_file())
+        .map(|path| normalize_path_for_serialization(&path))
 }
 
 /// A collection as found in the config or on disk, before settings apply
@@ -227,20 +238,14 @@ fn resolve_collection(
         .schema_source
         .as_deref()
         .and_then(crate::parser::extract_helpers);
-    let merged = if kind == CollectionKind::Data {
-        None
-    } else {
-        Some(schema_merger::create_complete_schema(
-            &found.name,
-            json_schema.as_deref(),
-            helpers.as_deref(),
-            found.schema_source.is_some(),
-        ))
-    };
-    let (schema, schema_status, schema_error) = match merged {
-        Some(merged) => (merged.schema, merged.status, merged.error),
-        None => (None, SchemaStatus::None, None),
-    };
+    // Data collections too, so Project Settings can show their fields
+    let merged = schema_merger::create_complete_schema(
+        &found.name,
+        json_schema.as_deref(),
+        helpers.as_deref(),
+        found.schema_source.is_some(),
+    );
+    let (schema, schema_status, schema_error) = (merged.schema, merged.status, merged.error);
 
     // Fields are detected in a complete schema only. Without the generated
     // JSON, the schema is just the config's image() and reference() fields, so
@@ -305,9 +310,9 @@ fn folder_status(path: &Path, project: &Path) -> FolderStatus {
 fn resolve_project_settings(set: &ProjectSettings) -> ResolvedProjectSettings {
     ResolvedProjectSettings {
         content_directory: set_or(set.content_directory.clone(), CONTENT_DIR.to_string()),
-        mdx_components_directory: set_or(
-            set.mdx_components_directory.clone(),
-            MDX_COMPONENTS_DIR.to_string(),
+        mdx_components_directories: set_or(
+            set.mdx_components_directories.clone(),
+            vec![MDX_COMPONENTS_DIR.to_string()],
         ),
         add_component_imports: set_or(set.add_component_imports, false),
         assets_directory: set_or(set.assets_directory.clone(), ASSETS_DIR.to_string()),
@@ -489,6 +494,17 @@ mod tests {
     }"#;
 
     #[test]
+    fn finds_the_favicon_preferring_svg() {
+        assert_eq!(Site::new("").scan().favicon, None);
+
+        let site = Site::new("")
+            .file("public/favicon.ico", "")
+            .file("public/favicon.svg", "");
+        let svg = normalize_path_for_serialization(&site.root().join("public/favicon.svg"));
+        assert_eq!(site.scan().favicon, Some(svg));
+    }
+
+    #[test]
     fn finds_folders_from_the_loader() {
         let site = Site::new(
             r#"export const collections = {
@@ -626,6 +642,26 @@ mod tests {
             .iter()
             .all(|c| c.kind == CollectionKind::Data));
         assert!(scan.collections.iter().all(|c| !c.is_browsable()));
+    }
+
+    #[test]
+    fn reads_data_collections_schemas() {
+        let site = Site::new(
+            r#"export const collections = {
+                authors: defineCollection({
+                    loader: file('src/data/authors.json'),
+                    schema: z.object({ name: z.string() }),
+                }),
+            };"#,
+        )
+        .file(
+            ".astro/collections/authors.schema.json",
+            r#"{ "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }"#,
+        );
+        let authors = named(&site.scan(), "authors").clone();
+        assert_eq!(authors.kind, CollectionKind::Data);
+        assert_eq!(authors.schema_status, SchemaStatus::Complete);
+        assert!(authors.complete_schema.is_some());
     }
 
     #[test]

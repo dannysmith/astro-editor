@@ -1,4 +1,5 @@
-import { AlertTriangle, CircleX } from 'lucide-react'
+import React from 'react'
+import { AlertTriangle, CircleX, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Problem, StatusLevel } from '../../lib/project-settings/status'
 
@@ -44,12 +45,28 @@ export function StatusIcon({
   }
 }
 
-/** A warning or error, with what to do about it */
-export function ProblemNote({ problem }: { problem: Problem }) {
+/**
+ * A problem at the top of a page: what's wrong, what to do about it, and the
+ * error AE got. `action` is a button that fixes it, when there is one.
+ */
+export function ProblemCallout({
+  problem,
+  action,
+}: {
+  problem: Problem
+  action?: React.ReactNode
+}) {
   return (
-    <div className="flex gap-2 text-sm">
+    <div
+      className={cn(
+        'flex items-start gap-3 rounded-lg border px-4 py-3 text-sm',
+        problem.level === 'error'
+          ? 'border-destructive/40 bg-destructive/5'
+          : 'border-warning/40 bg-warning/5'
+      )}
+    >
       <StatusIcon level={problem.level} className="mt-0.5" />
-      <div className="space-y-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <p>
           <WithCode text={problem.message} />
         </p>
@@ -59,22 +76,41 @@ export function ProblemNote({ problem }: { problem: Problem }) {
           </p>
         )}
         {problem.detail && (
-          <pre className="rounded bg-muted px-2 py-1 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+          <p className="font-mono text-xs break-words text-muted-foreground">
             {problem.detail}
-          </pre>
+          </p>
         )}
       </div>
+      {action}
     </div>
   )
 }
 
-export function ProblemList({ problems }: { problems: Problem[] }) {
-  if (problems.length === 0) return null
+/**
+ * Something worth knowing at the top of a page that isn't a problem, like a
+ * collection without a schema. It has no status, so nothing flags it in the
+ * sidebar or the file list.
+ */
+export function NoteCallout({
+  message,
+  fix,
+}: {
+  message: string
+  fix?: string
+}) {
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      {problems.map(problem => (
-        <ProblemNote key={problem.message} problem={problem} />
-      ))}
+    <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p>
+          <WithCode text={message} />
+        </p>
+        {fix && (
+          <p className="text-muted-foreground">
+            <WithCode text={fix} />
+          </p>
+        )}
+      </div>
     </div>
   )
 }

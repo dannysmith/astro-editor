@@ -46,6 +46,7 @@ Both are supported, and `parse_json_schema` tries them in this order:
 
 - **Astro 5 (Zod 3):** JSON Schema draft-07, with the collection wrapped as `{ "$ref": "#/definitions/<name>", "definitions": { … } }`. Dates are a three-way `anyOf` of `date-time`, `date` and `unix-time` formats.
 - **Astro 6 and 7 (Zod 4):** draft 2020-12 with a flat root: `type`, `properties` and `required` at the top level. Dates are `{ "type": "string", "format": "date-time" }`.
+- **A `file()` collection** (a data collection, read from one JSON or YAML file): its file can hold the entries as an array or as an object keyed by id, so the root is `{ "anyOf": [{ "type": "array", "items": <entry> }, { "type": "object", "additionalProperties": <entry> }] }`. The entry schema is taken from `items`. Data collections' schemas are only shown in Project Settings; nothing edits them.
 
 Don't drop the Astro 5 path while the website lists Astro 5 as supported. `test_astro5_format_still_works` covers it.
 

@@ -5,20 +5,23 @@ import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
-import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
+import {
+  useCollectionsQuery,
+  useProjectScanQuery,
+} from '../../hooks/queries/useCollectionsQuery'
 import { useDirectoryScanQuery } from '../../hooks/queries/useDirectoryScanQuery'
 import type { FileEntry, Collection } from '@/types'
 import { useRenameFileMutation } from '../../hooks/mutations/useRenameFileMutation'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import {
-  FolderCog,
   FolderOpen,
   ArrowLeft,
   FileText,
   Filter,
   Folder,
   ChevronRight,
+  Settings,
   SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -27,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { useFieldMappings } from '../../hooks/settings'
 import { FileItem } from './FileItem'
 import { FilterBar } from './FilterBar'
+import { ProjectIcon } from '../project-list'
 import { showProjectList } from '../../lib/projects/actions'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import {
@@ -486,16 +490,8 @@ export const LeftSidebar: React.FC = () => {
               </Button>
             </>
           )}
-          {!selectedCollection && (
-            <Button
-              onClick={() => showProjectSettings()}
-              variant="ghost"
-              size="sm"
-              className="size-7 flex-shrink-0 p-0 text-muted-foreground"
-              title="Project Settings"
-            >
-              <FolderCog className="size-4" />
-            </Button>
+          {!selectedCollection && projectPath && (
+            <ProjectSettingsButton projectPath={projectPath} />
           )}
         </div>
       </div>
@@ -654,6 +650,41 @@ export const LeftSidebar: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Footer: a plainer way into Project Settings than the header icon */}
+      {!selectedCollection && projectPath && (
+        <div className="border-t p-2">
+          <Button
+            onClick={() => showProjectSettings()}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground"
+          >
+            <Settings className="size-4" />
+            Project Settings
+          </Button>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Opens Project Settings, shown as the project's icon */
+function ProjectSettingsButton({ projectPath }: { projectPath: string }) {
+  const { data: scan } = useProjectScanQuery(projectPath)
+  return (
+    <Button
+      onClick={() => showProjectSettings()}
+      variant="ghost"
+      size="sm"
+      className="size-7 flex-shrink-0 p-0 [&_svg]:scale-100 [&_svg]:transform-gpu"
+      title="Project Settings"
+    >
+      <ProjectIcon
+        path={projectPath}
+        favicon={scan?.favicon ?? null}
+        className="size-5"
+      />
+    </Button>
   )
 }

@@ -42,35 +42,50 @@ How to fix it:
 - **Name things by what they are:** a custom loader is "Custom", and "Every Markdown file, except ones starting with `_`" says it's assumed: "Not known, so every `.md` and `.mdx` file except those starting with `_`."
 - **Mechanism goes in the user guide,** with one Learn more per section.
 
-## Open questions
+## Decisions
 
-From task 3:
+Agreed with Danny, and approved from the mockup (`src/styleguide/ProjectSettingsMockup.tsx`, the styleguide's "Project settings (mockup)" section, to be removed once the real dialog matches it):
 
-- **One Settings window?** Preferences and Project Settings could be one window, with "App" (General, Advanced) and "This Project" (the project, then each collection) in its sidebar. ⌘, and every project entry point would open it at the right page, the two near-identical dialog shells would become one, and Preferences' link to Project Settings would go away. Against it: project settings are mostly an explanation of the project, opened from project places. A strong project identity in the dialog argues for keeping two windows.
-- **Drop the "Default" source label?** On an untouched project nearly every row says "Default". Showing a source only when it says something (set by you, from the config, detected, project, global, missing) would be calmer, and fits a pill for overrides.
+- **Two dialogs, as now.** Project Settings stays separate from Preferences. They can look different: they're different parts of the app, and the project identity is what tells them apart.
+- **A readout, not a form.** Rows grouped in rounded boxes like macOS System Settings: the label (and any help) on the left, the value in use and its control on the right. Wide controls (the file name pattern with its presets and examples) take the full width below their label. Preferences keeps its stacked layout.
+- **The project's name is its folder name.** `package.json`'s name is usually a slug too, and `astro.config`'s `site` is a URL.
+- **Several MDX components folders, in this branch.** `mdxComponentsDirectory` becomes a list. The version 3 settings file hasn't shipped, so changing its shape now costs no migration. The change is small: the setting's type in Rust, the scan looping over the folders, the component builder's query, a list control on the Project page, and the docs. If it turns out bigger than that, raise an issue and defer it.
+- **The sidebar:** the project's identity and "Project Settings" as its header; Project; Collections (including those not in the file list, which already carry an error icon); Other Collections (data with `Database`, other loaders with `Plug`, all clickable). Collections get Lucide's `Files`. Settings saved for removed collections move to the bottom of the Project page, with Clear. The breadcrumb goes; each page has a real heading.
+- **Project identity:** `public/favicon.{svg,png,ico}`, returned by the scan as a path and shown through the asset protocol. Without one, the folder name's first letter on one of about eight colour tokens picked from the path. No accent colour taken from the favicon. Shown in the project list, in place of the `FolderCog` button in the file list header, and in the dialog's header.
 
-New:
+### Sources
 
-- **More than one MDX components folder?** The folder is project-wide. The realistic need seems to be several folders rather than one per collection: maggieappleton.com uses `src/components/mdx` and `src/components/unique` side by side, and none of Danny's sites has a components folder per collection.
-- **Where does the project's name come from?** The title bar and project list use the folder name. Alternatives are `package.json`'s name or the site's title in `astro.config`, but those mean reading more of the project.
+The goal is that people can tell where each value comes from, without every row saying "Default". Each source is shown once, where it's useful:
 
-## First thoughts
+| Source | Shown as |
+| --- | --- |
+| Set by you | A pill in the row, with a reset in it. Its tooltip says what it goes back to. |
+| Project setting, global preference | The control's first choice names it: "Project setting: relative to the file", "Global preference: Markdown". |
+| Content config, schema | The status line at the top says what came from the config and schema; the first choice says "Detected: `title`". |
+| Default (convention) | Just the value. The user guide lists the defaults. |
+| Missing | "None", and one grey line saying what you won't get. |
 
-To discuss before building anything.
+Choosing the first choice is the same as resetting.
 
-- **Group the collection page by what the writer is doing,** not by AE's model: "Where its files are" (folder, the files the pattern leaves out), "New files" (type and name pattern), "Frontmatter" (the four fields), "Images and links", then "Schema" as reference. Status becomes a sentence at the top ("A glob of `**/*.md` in `src/content/blog`, with a generated schema"), with problems as callouts.
-- **One setting row pattern:** label, the control, one line of help, and a source shown only when it's not the default. An override gets a pill with a reset in it. A missing value gets a warning line.
+## Thoughts on the details
+
+- **Group the collection page by what the writer is doing,** not by AE's model: Files (folder, files Astro skips, sort), New files (type and name pattern), Frontmatter (the four fields), Images and links, then Schema as reference. Status becomes a sentence at the top ("`glob()` in `src/content.config.ts`, with a generated schema of 14 fields"), with problems as callouts carrying their fix.
+- **Project page:** the config sentence and problems; MDX Components (folders, Add Imports as experimental); Images ("Collections can change these" once, on the heading); Content folder last; removed collections' settings at the bottom.
+- **Data and other-loader pages:** where it comes from, one line on why AE doesn't edit it, Open in IDE when an IDE is set, and the schema.
 - **File names:** keep the presets and the live examples, and move the token reference to a "Pattern syntax" link to the user guide.
-- **Project identity:** read `public/favicon.{svg,png,ico}` in Rust and return it with the scan. Without one (maggieappleton.com keeps its favicon in `public/images/favicon/`), show the folder name's first letter on a colour derived from the path. Nothing to store, so nothing to set.
-- **The sidebar button:** the project's identity, which opens Project Settings, rather than a generic icon.
-- **Collection icon:** something like Lucide's `Files` or `Library`, to sit beside `Database` for data.
-- **Copy:** rewrite every label and description against Danny's writing guide, then have it reviewed cold.
+- **Copy:** rewrite every label and description against Danny's writing guide once the layout is settled, then have it reviewed cold.
 
 ## Work
 
-- [ ] Settle the open questions and the layout, with mockups in the styleguide.
-- [ ] Project identity: favicon or colour, in the list, the sidebar and the dialog.
-- [ ] The dialog's header, icons, and data collection pages.
-- [ ] The setting row pattern, override pill and toggles.
-- [ ] Rewrite the copy.
-- [ ] Update `project-settings.mdx` and `ui-patterns.md`, then take task 3's screenshots.
+- [x] Mockups in the styleguide: the setting row in each state, a collection page, the dialog sidebar with the identity. Approved.
+- [x] Test favicons: `personal-site` (SVG), `dummy-astro-project` (PNG), `unusual-structure` (ICO); `starlight-minimal` has none, for the letter.
+- [x] Project identity: favicon or colour, in the list, the sidebar and the dialog.
+- [x] The dialog's sidebar, header, icons, and data and other-loader pages.
+- [x] The setting rows, sources, override pill and toggles.
+- [x] Several MDX components folders.
+- [x] Rewrite the copy. Each frontmatter field has one line saying what it drives (agreed with Danny), which also covers the missing case.
+- [ ] Have the copy reviewed cold, and apply what Danny agrees with.
+- [x] Update `project-settings.mdx`, `overrides.mdx`, `app-data.md`, `mdx-components.md`, `ui-patterns.md` and `test/personal-site/README.md`.
+- [ ] Take task 3's screenshots for the user guide.
+- [x] Remove the mockup. `ProjectSettingsSection` shows the real collection page.
+- [ ] Danny tries it in the app, including the folder pickers and Add Folder…, which agents can't drive.

@@ -25,13 +25,8 @@ export const queryKeys = {
     ] as const,
   fileContent: (projectPath: string, fileId: string) =>
     [...queryKeys.all, projectPath, 'files', fileId] as const,
-  mdxComponents: (projectPath: string, mdxDirectory?: string) =>
-    [
-      ...queryKeys.all,
-      projectPath,
-      'mdxComponents',
-      mdxDirectory || 'default',
-    ] as const,
+  mdxComponents: (projectPath: string, mdxDirectories: string[]) =>
+    [...queryKeys.all, projectPath, 'mdxComponents', mdxDirectories] as const,
   fileBasedCollection: (projectPath: string, collectionName: string) =>
     [
       ...queryKeys.all,

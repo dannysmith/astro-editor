@@ -46,7 +46,14 @@ Icon-only buttons, like those in the title bar, look like this:
 
 ## Forms
 
-The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`. Project settings rows use `Setting` (`components/project-settings/Setting.tsx`), which adds the value's source and a Reset.
+The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+
+Project settings are laid out differently, as a readout of what AE found rather than a form to fill in, like macOS System Settings. `components/project-settings/Setting.tsx` has the pieces, shown in the styleguide's "Project settings" section:
+
+- **`SettingsGroup`** is a titled box of rows. A note at the heading's other end says something true of every row in it, once.
+- **`Setting`** is one row: the label and at most one line of help on the left, the control on the right (or full width below with `wide`). Most settings need no help; where there is some, it says what the setting is for or what you'll notice, not how AE works.
+- **Sources:** a value the user set gets a "Set by you" pill whose button resets it. Other sources go in a dropdown's first choice with `FoundValue` ("Detected: `title`"), and defaults aren't labelled. See "The project settings dialog" in `app-data.md`.
+- **Problems** go at the top of a page as a `ProblemCallout`, with a button when one can fix it, rather than under the setting.
 
 - **Label wiring:** give a text control's label `htmlFor`, so clicking the label focuses it. Button-style controls (date, enum, reference and image pickers) instead get a `labelId` on the label and `aria-labelledby` on the button, because `htmlFor` would turn a label click into a button click and open the picker. `FieldWrapper` takes either.
 - **Preference text inputs use `PreferencesTextInput`,** which keeps the value in local state while typing and commits on blur or Enter. Settings are written to disk asynchronously, and committing on every keystroke made the cursor jump.

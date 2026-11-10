@@ -1,4 +1,4 @@
-import type { Collection } from '@/lib/bindings'
+import type { Collection, ProjectScan } from '@/lib/bindings'
 import { FieldType, type CompleteSchema } from '../lib/schema'
 import { CollectionPage } from '../components/project-settings/CollectionPage'
 
@@ -92,13 +92,32 @@ const COLLECTION: Collection = {
   },
 }
 
+const SCAN: ProjectScan = {
+  configPath: 'src/content.config.ts',
+  configError: null,
+  fallback: false,
+  favicon: null,
+  projectSettings: {
+    contentDirectory: { value: 'src/content', source: 'convention' },
+    mdxComponentsDirectories: {
+      value: ['src/components/mdx'],
+      source: 'convention',
+    },
+    addComponentImports: { value: false, source: 'convention' },
+    assetsDirectory: { value: 'src/assets', source: 'convention' },
+    useAbsoluteAssetPaths: { value: false, source: 'convention' },
+  },
+  collections: [COLLECTION],
+}
+
 /** A collection's page in the project settings dialog */
 export function ProjectSettingsSection() {
   return (
-    <div className="max-w-2xl rounded-lg border p-4">
+    <div className="max-w-3xl rounded-lg border p-6">
       <CollectionPage
         collection={COLLECTION}
         schema={SCHEMA}
+        scan={SCAN}
         projectPath={PROJECT}
       />
     </div>

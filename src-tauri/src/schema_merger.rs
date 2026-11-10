@@ -103,6 +103,22 @@ struct JsonSchemaDefinition {
     required: Option<Vec<String>>,
 }
 
+/// The schema Astro generates for a `file()` collection: its entries as an
+/// array or as an object keyed by id
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileJsonSchema {
+    any_of: Vec<FileJsonSchemaBranch>,
+}
+
+/// One way a `file()` collection's entries can be written. The array one has
+/// the entry schema in `items`.
+#[derive(Debug, Deserialize)]
+struct FileJsonSchemaBranch {
+    #[serde(default)]
+    items: Option<JsonSchemaDefinition>,
+}
+
 /// Additional properties at property level (for dynamic properties)
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -279,6 +295,16 @@ fn parse_json_schema(collection_name: &str, json_schema: &str) -> Result<SchemaD
     if let Ok(schema) = serde_json::from_str::<JsonSchemaDefinition>(json_schema) {
         log::debug!("[Schema] Detected Astro 6 format (flat schema)");
         return parse_entry_schema(collection_name, &schema);
+    }
+
+    // A `file()` collection's file holds its entries as an array or as an object
+    // keyed by id, so Astro offers both: { "anyOf": [{ "type": "array",
+    // "items": <entry> }, { "type": "object", "additionalProperties": <entry> }] }
+    if let Ok(schema) = serde_json::from_str::<FileJsonSchema>(json_schema) {
+        if let Some(entry) = schema.any_of.into_iter().find_map(|branch| branch.items) {
+            log::debug!("[Schema] Detected file() format (array or object of entries)");
+            return parse_entry_schema(collection_name, &entry);
+        }
     }
 
     Err(format!(
@@ -1149,6 +1175,29 @@ mod tests {
         let (reference_map, _image_fields) = result.unwrap();
         assert_eq!(reference_map.get("author"), Some(&"authors".to_string()));
         assert_eq!(reference_map.get("tags"), Some(&"tags".to_string()));
+    }
+
+    #[test]
+    fn parses_a_file_loaders_array_or_object_of_entries() {
+        let entry = r#"{
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id"]
+        }"#;
+        let json_schema = format!(
+            r#"{{
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "anyOf": [
+                    {{ "type": "array", "items": {entry} }},
+                    {{ "type": "object", "properties": {{}}, "additionalProperties": {entry} }}
+                ]
+            }}"#
+        );
+
+        let schema = parse_json_schema("authors", &json_schema).unwrap();
+        let names: Vec<_> = schema.fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["id", "name"]);
+        assert!(schema.fields[0].required);
     }
 
     #[test]

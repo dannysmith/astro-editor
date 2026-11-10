@@ -1,9 +1,12 @@
+import { Files } from 'lucide-react'
 import type {
   Collection,
   CollectionSettings,
   FileType,
+  ProjectScan,
   Resolved,
 } from '@/lib/bindings'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { usePreferences } from '../../hooks/usePreferences'
 import { DOCS_URLS } from '../../lib/docs-urls'
@@ -12,20 +15,27 @@ import { FieldType, type CompleteSchema } from '../../lib/schema'
 import { useCollectionFilesQuery } from '../../hooks/queries/useCollectionFilesQuery'
 import {
   defaultSortChoices,
+  describeOrigin,
+  exampleImagePath,
   frontmatterKeysOfType,
-  LOADER_LABELS,
-  SCHEMA_STATUS_LABELS,
 } from '../../lib/project-settings/describe'
+import { chooseProjectFolder } from '../../lib/project-settings/actions'
 import {
   collectionProblems,
-  isUnreadLoader,
   relativePath,
 } from '../../lib/project-settings/status'
-import { SettingsSection } from '../preferences/SettingsSection'
 import { PreferencesTextInput } from '../preferences/PreferencesTextInput'
 import { DocsLink } from '../preferences/DocsLink'
-import { ProblemList, WithCode } from './Problems'
-import { FolderInput, Setting, SettingSelect } from './Setting'
+import { NoteCallout, ProblemCallout, WithCode } from './Problems'
+import {
+  FolderInput,
+  FoundValue,
+  PageHeader,
+  PageIcon,
+  Setting,
+  SettingSelect,
+  SettingsGroup,
+} from './Setting'
 import { SchemaFields } from './SchemaFields'
 import { FileNamePatternInput } from './FileNamePatternInput'
 
@@ -35,16 +45,29 @@ type FieldSetting =
   | 'publishedDateField'
   | 'draftField'
 
+/** The first choice of a dropdown: unset, so AE decides */
 const AUTOMATIC = 'automatic'
 
-/** How AE has read a collection, its settings, and its schema's fields */
+const FILE_TYPES: Record<FileType, string> = { md: 'Markdown', mdx: 'MDX' }
+
+const IMAGE_PATHS = {
+  relative: 'Relative to the file',
+  absolute: 'From the project root',
+}
+
+/**
+ * A collection of Markdown files: where it comes from and anything wrong,
+ * its settings, and its schema's fields
+ */
 export function CollectionPage({
   collection,
   schema,
+  scan,
   projectPath,
 }: {
   collection: Collection
   schema: CompleteSchema | null
+  scan: ProjectScan
   projectPath: string
 }) {
   const { projectSettings, updateCollectionSettings, globalSettings } =
@@ -57,17 +80,22 @@ export function CollectionPage({
     void updateCollectionSettings(collection.name, settings)
   const reset = (key: keyof CollectionSettings) => () =>
     update({ [key]: undefined })
+  const chooseFolder = () =>
+    void chooseProjectFolder(projectPath).then(chosen => {
+      if (chosen) update({ folder: chosen })
+    })
 
   // Without a generated schema, field mappings offer the keys the files have
   const schemaComplete = collection.schemaStatus === 'complete'
-  const { data: files = [] } = useCollectionFilesQuery(
+  const filesQuery = useCollectionFilesQuery(
     projectPath,
     schemaComplete ? undefined : collection
   )
+  const files = filesQuery.data ?? []
 
   /**
    * A dropdown of the fields of a type, for a field mapping: the schema's, or
-   * without a generated one, the keys the files have
+   * without a generated schema, the keys the files have
    */
   const fieldSelect = (
     key: FieldSetting,
@@ -75,17 +103,35 @@ export function CollectionPage({
     labelId: string
   ) => {
     const value: Resolved<string | string[] | null> = resolved[key]
-    const detected = [value.value].flat().filter(Boolean).join(', ')
     const schemaFields = (schema?.fields ?? []).filter(f => f.type === type)
     const optional = new Set(
       schemaFields.filter(f => !f.required).map(f => f.name)
     )
+    const fileKeys = schemaComplete ? [] : frontmatterKeysOfType(files, type)
     // The stored field too, in case it's no longer offered
     const names = new Set([
       ...schemaFields.map(f => f.name),
-      ...(schemaComplete ? [] : frontmatterKeysOfType(files, type)),
+      ...fileKeys,
       ...(stored[key] ? [stored[key]] : []),
     ])
+    const none = <span className="text-muted-foreground">None</span>
+    // Without a generated schema, the usual names (`title`; `pubDate`, `date`
+    // or `publishedDate`) are read from the files, so say which they use
+    const inFiles = [value.value].flat().find(name => fileKeys.includes(name!))
+    const automatic =
+      value.source === 'schema' ? (
+        <FoundValue source="Detected" value={[value.value].flat().join(', ')} />
+      ) : value.source === 'convention' && filesQuery.isSuccess ? (
+        inFiles ? (
+          <FoundValue source="Found in files" value={inFiles} />
+        ) : (
+          none
+        )
+      ) : value.source === 'missing' ? (
+        none
+      ) : (
+        <span className="text-muted-foreground">Automatic</span>
+      )
     return (
       <SettingSelect
         labelId={labelId}
@@ -94,15 +140,7 @@ export function CollectionPage({
           update({ [key]: next === AUTOMATIC ? undefined : next })
         }
         choices={[
-          {
-            value: AUTOMATIC,
-            label: (
-              <span className="text-muted-foreground">
-                Automatic
-                {value.source !== 'set' && `: ${detected || 'none'}`}
-              </span>
-            ),
-          },
+          { value: AUTOMATIC, label: automatic },
           ...[...names].map(name => ({
             value: name,
             label: (
@@ -125,75 +163,62 @@ export function CollectionPage({
     collection.patterns.every(p => /(^|\/)index\.[^/]+$/.test(p))
   )
 
-  const unread = isUnreadLoader(collection)
   const sortChoices = defaultSortChoices(getSortOptionsForCollection(schema))
   const defaultSort = resolved.defaultSort.value
   const sortValue = defaultSort
     ? `${defaultSort.mode}:${defaultSort.direction}`
     : AUTOMATIC
 
+  const globalFileType = globalSettings?.general.defaultFileType ?? 'md'
+  const projectAbsolute = scan.projectSettings.useAbsoluteAssetPaths.value
+  const imagePaths =
+    stored.useAbsoluteAssetPaths === undefined
+      ? AUTOMATIC
+      : stored.useAbsoluteAssetPaths
+        ? 'absolute'
+        : 'relative'
+  const assets = resolved.assetsDirectory
+
   return (
     <div className="space-y-6">
-      <SettingsSection title="Status">
-        <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Loader</dt>
-          <dd>
-            <WithCode
-              text={
-                collection.loaderName
-                  ? `\`${collection.loaderName}()\``
-                  : LOADER_LABELS[collection.kind]
-              }
-            />
-          </dd>
-          {!unread && (
-            <>
-              <dt className="text-muted-foreground">Pattern</dt>
-              <dd>
-                {collection.patterns ? (
-                  <WithCode
-                    text={collection.patterns.map(p => `\`${p}\``).join(', ')}
-                  />
-                ) : (
-                  <WithCode text="Every Markdown file, except ones starting with `_`" />
-                )}
-              </dd>
-            </>
-          )}
-          <dt className="text-muted-foreground">Schema</dt>
-          <dd>
-            <WithCode text={SCHEMA_STATUS_LABELS[collection.schemaStatus]} />
-            {schemaComplete && schema && (
-              <span className="text-muted-foreground">
-                {' '}
-                · {schema.fields.length} fields, listed below
-              </span>
-            )}
-          </dd>
-        </dl>
-        {unread ? (
-          <p className="text-sm text-muted-foreground">
-            <WithCode
-              text={`Astro Editor only edits Markdown files in the project, and can't tell where ${collection.loaderName ? `\`${collection.loaderName}()\`` : 'this loader'} gets its entries, so it isn't in the file list. If they are Markdown files here, choose their folder below.`}
-            />
-          </p>
-        ) : (
-          <ProblemList problems={collectionProblems(collection, projectPath)} />
-        )}
-      </SettingsSection>
+      <PageHeader icon={<PageIcon icon={Files} />} title={collection.name}>
+        <WithCode text={describeOrigin(collection, scan)} />
+      </PageHeader>
 
-      <SettingsSection title="Files">
+      {collectionProblems(collection, projectPath).map(problem => (
+        <ProblemCallout
+          key={problem.message}
+          problem={problem}
+          action={
+            problem.action === 'chooseFolder' && (
+              <Button size="sm" onClick={chooseFolder}>
+                Choose Folder…
+              </Button>
+            )
+          }
+        />
+      ))}
+
+      {collection.schemaStatus === 'none' && (
+        <NoteCallout
+          message="It has no schema, so the form shows each file's own fields as text, without types, defaults or required markers."
+          fix={
+            scan.configPath && collection.kind !== 'folder'
+              ? `To get them, give it a \`schema\` in \`${scan.configPath}\`.`
+              : undefined
+          }
+        />
+      )}
+
+      <SettingsGroup title="Files">
         <Setting
           label="Folder"
           source={collection.folderSource}
           onReset={reset('folder')}
-          description={
-            unread
-              ? "The folder its Markdown files are in, if they're in this project."
-              : collection.kind === 'unknown' &&
-                  collection.folderSource !== 'set'
-                ? "Astro Editor can't read this collection's loader, so it looks in the content folder for a folder named after it. If the files are somewhere else, choose their folder."
-                : "The folder you browse in the file list. Set it only if the collection's files are somewhere else."
+          resetTo={
+            collection.kind === 'glob'
+              ? "the content config's folder"
+              : `${collection.kind === 'legacy' ? 'src/content' : scan.projectSettings.contentDirectory.value}/${collection.name}`
           }
         >
           {({ id }) => (
@@ -209,248 +234,262 @@ export function CollectionPage({
           )}
         </Setting>
 
-        {!unread && (
-          <>
-            <Setting
-              label="Files the Pattern Leaves Out"
-              source={resolved.skippedFiles.source}
-              onReset={reset('skippedFiles')}
-              description={
-                <WithCode text="Markdown files in the folder that aren't entries, like drafts named `_draft.md`. Shown dimmed, they open and edit as usual." />
+        <Setting
+          label="Show files Astro skips"
+          help={
+            <WithCode text="Such as drafts named `_draft.md`. They're shown dimmed." />
+          }
+          source={resolved.skippedFiles.source}
+          onReset={reset('skippedFiles')}
+          resetTo="off"
+        >
+          {({ id }) => (
+            <Switch
+              id={id}
+              checked={resolved.skippedFiles.value === 'dim'}
+              onCheckedChange={checked =>
+                update({ skippedFiles: checked ? 'dim' : 'hide' })
               }
-            >
-              {({ labelId }) => (
-                <SettingSelect
-                  labelId={labelId}
-                  value={resolved.skippedFiles.value}
-                  onChange={value =>
-                    update({ skippedFiles: value === 'dim' ? 'dim' : 'hide' })
-                  }
-                  choices={[
-                    { value: 'hide', label: 'Hide them' },
-                    { value: 'dim', label: 'Show them dimmed' },
-                  ]}
-                />
-              )}
-            </Setting>
+            />
+          )}
+        </Setting>
 
-            <Setting
-              label="New Files"
-              source={resolved.newFileType.source}
-              onReset={reset('defaultFileType')}
-            >
-              {({ labelId }) =>
-                resolved.newFileType.source === 'config' ? (
-                  <p className="text-sm">
-                    <WithCode
-                      text={`\`.${resolved.newFileType.value}\`, the only type the pattern includes.`}
+        <Setting
+          label="Sort"
+          help="Until you change it in the file list."
+          source={resolved.defaultSort.source}
+          onReset={reset('defaultSort')}
+          resetTo="newest first"
+        >
+          {({ labelId }) => (
+            <SettingSelect
+              labelId={labelId}
+              value={sortValue}
+              onChange={value =>
+                update({
+                  defaultSort: sortChoices.find(c => c.value === value)?.sort,
+                })
+              }
+              choices={[
+                {
+                  value: AUTOMATIC,
+                  label: <FoundValue source="Default" value="newest first" />,
+                },
+                ...sortChoices,
+              ]}
+            />
+          )}
+        </Setting>
+      </SettingsGroup>
+
+      <SettingsGroup title="New Files">
+        <Setting
+          label="Type"
+          help={
+            resolved.newFileType.source === 'config' &&
+            'The only type its pattern includes.'
+          }
+          source={resolved.newFileType.source}
+          onReset={reset('defaultFileType')}
+          resetTo="the global preference"
+        >
+          {({ labelId }) =>
+            resolved.newFileType.source === 'config' ? (
+              <span className="text-sm">
+                {FILE_TYPES[resolved.newFileType.value]}
+              </span>
+            ) : (
+              <SettingSelect
+                labelId={labelId}
+                value={stored.defaultFileType ?? AUTOMATIC}
+                onChange={value =>
+                  update({
+                    defaultFileType:
+                      value === AUTOMATIC ? undefined : (value as FileType),
+                  })
+                }
+                choices={[
+                  {
+                    value: AUTOMATIC,
+                    label: (
+                      <FoundValue
+                        source="Global preference"
+                        value={FILE_TYPES[globalFileType]}
+                      />
+                    ),
+                  },
+                  { value: 'md', label: FILE_TYPES.md },
+                  { value: 'mdx', label: FILE_TYPES.mdx },
+                ]}
+              />
+            )
+          }
+        </Setting>
+
+        <Setting
+          label="Name"
+          help={
+            <DocsLink href={DOCS_URLS.fileNamePatterns}>
+              Pattern syntax
+            </DocsLink>
+          }
+          source={resolved.fileNamePattern.source}
+          onReset={reset('fileNamePattern')}
+          resetTo="{YYYY-MM-DD}"
+          wide
+        >
+          {({ id }) => (
+            <FileNamePatternInput
+              id={id}
+              value={resolved.fileNamePattern.value}
+              fileName={stem =>
+                folderPerEntry
+                  ? `${stem}/index.${resolved.newFileType.value}`
+                  : `${stem}.${resolved.newFileType.value}`
+              }
+              onChange={pattern => update({ fileNamePattern: pattern })}
+            />
+          )}
+        </Setting>
+      </SettingsGroup>
+
+      <SettingsGroup
+        title="Frontmatter"
+        note={<DocsLink href={DOCS_URLS.specialFields}>Learn more</DocsLink>}
+      >
+        <Setting
+          label="Title"
+          help="Names files in the file list, and heads the form."
+          source={resolved.titleField.source}
+          onReset={reset('titleField')}
+          resetTo="automatic"
+        >
+          {({ labelId }) =>
+            fieldSelect('titleField', FieldType.String, labelId)
+          }
+        </Setting>
+        <Setting
+          label="Description"
+          help="Gets a larger text box in the form."
+          source={resolved.descriptionField.source}
+          onReset={reset('descriptionField')}
+          resetTo="automatic"
+        >
+          {({ labelId }) =>
+            fieldSelect('descriptionField', FieldType.String, labelId)
+          }
+        </Setting>
+        <Setting
+          label="Published date"
+          help="Dates and sorts the file list."
+          source={resolved.publishedDateField.source}
+          onReset={reset('publishedDateField')}
+          resetTo="automatic"
+        >
+          {({ labelId }) =>
+            fieldSelect('publishedDateField', FieldType.Date, labelId)
+          }
+        </Setting>
+        <Setting
+          label="Draft"
+          help="Shows a Draft badge, and lets you filter drafts."
+          source={resolved.draftField.source}
+          onReset={reset('draftField')}
+          resetTo="automatic"
+        >
+          {({ labelId }) =>
+            fieldSelect('draftField', FieldType.Boolean, labelId)
+          }
+        </Setting>
+      </SettingsGroup>
+
+      <SettingsGroup title="Images and Links">
+        <Setting
+          label="Image folder"
+          help={
+            <WithCode
+              text={`${assets.source === 'project' ? "The project's folder. " : ''}Images go in \`${assets.value}/${collection.name}\`.`}
+            />
+          }
+          source={assets.source}
+          onReset={reset('assetsDirectory')}
+          resetTo={scan.projectSettings.assetsDirectory.value}
+        >
+          {({ id }) => (
+            <FolderInput
+              id={id}
+              value={stored.assetsDirectory ?? ''}
+              placeholder={assets.value}
+              start={`${projectPath}/${assets.value}`}
+              onChange={value => update({ assetsDirectory: value })}
+            />
+          )}
+        </Setting>
+
+        <Setting
+          label="Image paths"
+          help={
+            <WithCode
+              text={`Like \`${exampleImagePath(folder, assets.value, collection.name, resolved.useAbsoluteAssetPaths.value)}\``}
+            />
+          }
+          source={resolved.useAbsoluteAssetPaths.source}
+          onReset={reset('useAbsoluteAssetPaths')}
+          resetTo="the project's setting"
+        >
+          {({ labelId }) => (
+            <SettingSelect
+              labelId={labelId}
+              value={imagePaths}
+              onChange={value =>
+                update({
+                  useAbsoluteAssetPaths:
+                    value === AUTOMATIC ? undefined : value === 'absolute',
+                })
+              }
+              choices={[
+                {
+                  value: AUTOMATIC,
+                  label: (
+                    <FoundValue
+                      source="Project setting"
+                      value={
+                        projectAbsolute
+                          ? IMAGE_PATHS.absolute
+                          : IMAGE_PATHS.relative
+                      }
                     />
-                  </p>
-                ) : (
-                  <SettingSelect
-                    labelId={labelId}
-                    value={stored.defaultFileType ?? AUTOMATIC}
-                    onChange={value =>
-                      update({
-                        defaultFileType:
-                          value === AUTOMATIC ? undefined : (value as FileType),
-                      })
-                    }
-                    choices={[
-                      {
-                        value: AUTOMATIC,
-                        label: (
-                          <span className="text-muted-foreground">
-                            Global preference:{' '}
-                            {globalSettings?.general.defaultFileType === 'mdx'
-                              ? 'MDX'
-                              : 'Markdown'}
-                          </span>
-                        ),
-                      },
-                      { value: 'md', label: 'Markdown (.md)' },
-                      { value: 'mdx', label: 'MDX (.mdx)' },
-                    ]}
-                  />
-                )
-              }
-            </Setting>
+                  ),
+                },
+                { value: 'relative', label: IMAGE_PATHS.relative },
+                { value: 'absolute', label: IMAGE_PATHS.absolute },
+              ]}
+            />
+          )}
+        </Setting>
 
-            <Setting
-              label="File Names"
-              source={resolved.fileNamePattern.source}
-              onReset={reset('fileNamePattern')}
-              description={
-                <WithCode text="How new files are named. `{title}` is the title as a slug, added when you first give a new file a title. Other placeholders are dates, from the published date or today, written with `YYYY`, `YY`, `MM`, `M`, `DD` and `D`. The Rename File from Pattern command renames any file to match." />
-              }
-            >
-              {({ id }) => (
-                <FileNamePatternInput
-                  id={id}
-                  value={resolved.fileNamePattern.value}
-                  fileName={stem =>
-                    folderPerEntry
-                      ? `${stem}/index.${resolved.newFileType.value}`
-                      : `${stem}.${resolved.newFileType.value}`
-                  }
-                  onChange={pattern => update({ fileNamePattern: pattern })}
-                />
-              )}
-            </Setting>
+        <Setting
+          label="Link URLs"
+          help={
+            <WithCode text="For links you insert with the Content Finder. `{slug}` is the entry's slug." />
+          }
+          source={resolved.urlPattern.source}
+          onReset={reset('urlPattern')}
+          resetTo="none"
+        >
+          {({ id }) => (
+            <PreferencesTextInput
+              id={id}
+              value={stored.urlPattern ?? ''}
+              placeholder="None"
+              onCommit={value => update({ urlPattern: value })}
+              className="font-mono text-xs"
+            />
+          )}
+        </Setting>
+      </SettingsGroup>
 
-            <Setting
-              label="Default Sort"
-              source={resolved.defaultSort.source}
-              onReset={reset('defaultSort')}
-              description="How the file list is sorted until you change it there."
-            >
-              {({ labelId }) => (
-                <SettingSelect
-                  labelId={labelId}
-                  value={sortValue}
-                  onChange={value =>
-                    update({
-                      defaultSort: sortChoices.find(c => c.value === value)
-                        ?.sort,
-                    })
-                  }
-                  choices={[
-                    {
-                      value: AUTOMATIC,
-                      label: (
-                        <span className="text-muted-foreground">
-                          Automatic: published date, newest first
-                        </span>
-                      ),
-                    },
-                    ...sortChoices,
-                  ]}
-                />
-              )}
-            </Setting>
-          </>
-        )}
-      </SettingsSection>
-
-      {!unread && (
-        <>
-          <SettingsSection title="Frontmatter Fields">
-            <Setting
-              label="Title"
-              source={resolved.titleField.source}
-              onReset={reset('titleField')}
-              missing="No string `title` field, so files are listed by their file name."
-            >
-              {({ labelId }) =>
-                fieldSelect('titleField', FieldType.String, labelId)
-              }
-            </Setting>
-
-            <Setting
-              label="Description"
-              source={resolved.descriptionField.source}
-              onReset={reset('descriptionField')}
-              missing="No string `description` field, so no field gets the larger text box."
-            >
-              {({ labelId }) =>
-                fieldSelect('descriptionField', FieldType.String, labelId)
-              }
-            </Setting>
-
-            <Setting
-              label="Published Date"
-              source={resolved.publishedDateField.source}
-              onReset={reset('publishedDateField')}
-              missing="No date field named `pubDate`, `date` or `publishedDate`, so files aren't dated or sorted by date."
-            >
-              {({ labelId }) =>
-                fieldSelect('publishedDateField', FieldType.Date, labelId)
-              }
-            </Setting>
-
-            <Setting
-              label="Draft"
-              source={resolved.draftField.source}
-              onReset={reset('draftField')}
-              missing="No boolean `draft` field, so there's no draft badge or filter for this collection."
-            >
-              {({ labelId }) =>
-                fieldSelect('draftField', FieldType.Boolean, labelId)
-              }
-            </Setting>
-          </SettingsSection>
-
-          <SettingsSection title="Images">
-            <Setting
-              label="Assets Folder"
-              source={resolved.assetsDirectory.source}
-              onReset={reset('assetsDirectory')}
-              description={
-                <WithCode
-                  text={`Images you add are copied to \`${resolved.assetsDirectory.value}/${collection.name}/\`.`}
-                />
-              }
-            >
-              {({ id }) => (
-                <FolderInput
-                  id={id}
-                  value={stored.assetsDirectory ?? ''}
-                  placeholder={resolved.assetsDirectory.value}
-                  start={`${projectPath}/${resolved.assetsDirectory.value}`}
-                  onChange={value => update({ assetsDirectory: value })}
-                />
-              )}
-            </Setting>
-
-            <Setting
-              label="Use Absolute Paths for Images"
-              source={resolved.useAbsoluteAssetPaths.source}
-              onReset={reset('useAbsoluteAssetPaths')}
-              inline
-              description={
-                <WithCode text="Write image paths from the project root (`/src/assets/image.png`) rather than relative to the file (`../../assets/image.png`)." />
-              }
-            >
-              {({ id }) => (
-                <Switch
-                  id={id}
-                  checked={resolved.useAbsoluteAssetPaths.value}
-                  onCheckedChange={checked =>
-                    update({ useAbsoluteAssetPaths: checked })
-                  }
-                />
-              )}
-            </Setting>
-          </SettingsSection>
-
-          <SettingsSection title="Content Links">
-            <Setting
-              label="Link URL Pattern"
-              source={resolved.urlPattern.source}
-              onReset={reset('urlPattern')}
-              description={
-                <>
-                  <WithCode text="A template for links to this collection's entries, with `{slug}` for the entry, like `/blog/{slug}`." />{' '}
-                  <DocsLink href={DOCS_URLS.overrides}>Learn more</DocsLink>
-                </>
-              }
-            >
-              {({ id }) => (
-                <PreferencesTextInput
-                  id={id}
-                  value={stored.urlPattern ?? ''}
-                  placeholder="None: links use the file's relative path"
-                  onCommit={value => update({ urlPattern: value })}
-                />
-              )}
-            </Setting>
-          </SettingsSection>
-        </>
-      )}
-
-      <SettingsSection title="Schema">
-        <SchemaFields collection={collection} schema={schema} />
-      </SettingsSection>
+      <SchemaFields collection={collection} schema={schema} />
     </div>
   )
 }

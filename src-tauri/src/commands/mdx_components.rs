@@ -4,16 +4,27 @@ use crate::models::MdxComponent;
 use crate::utils::validate_project_path;
 use std::path::Path;
 
-/// The project's MDX components, plus Starlight's built-in ones in Starlight projects
+/// The project's MDX components from each of `mdx_directories` (relative to the
+/// project root), plus Starlight's built-in ones in Starlight projects. A
+/// component in two of the folders (one inside another) is listed once.
 #[tauri::command]
 #[specta::specta]
 pub async fn scan_mdx_components(
     project_path: String,
-    mdx_directory: Option<String>,
+    mdx_directories: Vec<String>,
 ) -> Result<Vec<MdxComponent>, String> {
     let project_root = Path::new(&project_path);
-    let mdx_directory = mdx_directory.unwrap_or_else(|| "src/components/mdx".to_string());
-    let mut components = mdx_components::scan(project_root, &mdx_directory);
+    let mut components: Vec<MdxComponent> = Vec::new();
+    for directory in &mdx_directories {
+        for component in mdx_components::scan(project_root, directory) {
+            if !components
+                .iter()
+                .any(|c| c.file_path == component.file_path)
+            {
+                components.push(component);
+            }
+        }
+    }
     if starlight::uses_starlight(project_root) {
         components.extend(starlight::components());
     }
@@ -71,4 +82,39 @@ pub async fn project_dependencies(project_path: String) -> Result<Vec<String>, S
         .collect();
     packages.sort();
     Ok(packages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn scans_each_folder_listing_a_component_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let component = "---\ninterface Props { label: string }\n---\n<slot />\n";
+        for path in [
+            "src/components/mdx/Callout.astro",
+            "src/components/unique/Map.astro",
+        ] {
+            let path = dir.path().join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, component).unwrap();
+        }
+
+        let folders = [
+            "src/components/mdx",
+            "src/components/unique",
+            "src/components",
+        ];
+        let components = scan_mdx_components(
+            dir.path().to_string_lossy().to_string(),
+            folders.map(String::from).to_vec(),
+        )
+        .await
+        .unwrap();
+
+        let mut names: Vec<_> = components.iter().map(|c| c.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, ["Callout", "Map"]);
+    }
 }

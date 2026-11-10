@@ -20,6 +20,7 @@ function listed(
   return {
     project: { id: path, name: path, path, lastOpened, created: lastOpened },
     missing,
+    favicon: null,
   }
 }
 
