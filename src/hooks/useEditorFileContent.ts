@@ -30,16 +30,23 @@ export function useEditorFileContent() {
     if (!data || !currentFile) return
 
     // CRITICAL: Don't overwrite user's unsaved edits
-    const { isDirty: currentIsDirty } = useEditorStore.getState()
+    const { isDirty: currentIsDirty, frontmatterBaseline } =
+      useEditorStore.getState()
     if (currentIsDirty) {
       return // User is editing - their version is authoritative
     }
 
-    // Safe to update - file is saved and matches disk
+    // Safe to update - file is saved and matches disk. The first load after
+    // opening becomes the baseline, which later loads (our own saves
+    // included) leave alone
     useEditorStore.setState({
       editorContent: data.content,
       frontmatter: data.frontmatter,
       rawFrontmatter: data.raw_frontmatter,
+      frontmatterBaseline: frontmatterBaseline ?? {
+        values: data.frontmatter,
+        raw: data.raw_frontmatter,
+      },
       imports: data.imports,
       isFrontmatterDirty: false, // Reset when loading from disk
     })

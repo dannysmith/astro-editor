@@ -161,6 +161,8 @@ Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the
 - **Command palette** – Search matches the whole of each command's name.
 - **<kbd>⌘W</kbd>** – Closes the window on macOS.
 - **Settings files that can't be read** – They're set aside as `<name>.broken-<date>.json` rather than written over, and you're told.
+- **New files' frontmatter** – Required fields with no sensible empty value (text, numbers, choices, images, references) are now left for you to fill in, rather than given `""` or `0`, which looked filled in but could fail your site's build. The panel marks them required, and Astro's build names any you miss. Dates are no longer quoted, so `z.date()` accepts them, and fields inside objects no longer get stray `sponsor.name:` keys. (#372)
+- **Undoing a frontmatter edit** – Changing a field and changing it back, or turning a switch on and off again, now leaves the file exactly as it was, formatting and all. (#370)
 
 ### Bug fixes
 
@@ -168,6 +170,8 @@ Quitting now waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the
 - **Reference fields and content links** – These wrote Astro Editor's own ids (`articles/first-article`) where Astro expects `first-article`, and ignored `slug` frontmatter. They now write the ids Astro uses.
 - **Sort order** – Sorting by title or filename started Z to A. It now starts A to Z, and dates newest first.
 - **A blank line before the closing `---`** was dropped when only the body was edited.
+- **Dates with times** – Editing any frontmatter field cut every date with a time, like `2024-06-15T14:30:00Z`, down to the date. Times are now kept.
+- **References to `file()` collections** – The entry picker was empty when the collection's file held its entries as an object keyed by id, or any entry had a numeric id or none. It now reads these as Astro does, and reads YAML files too. (#376)
 - **The Content Finder** searched the `title` field even when a collection uses a different one.
 - **The JSON field** reverted text while you typed it, if it wasn't valid JSON yet.
 - **Full screen** – <kbd>⌃⌘F</kbd> entered full screen but couldn't leave it.

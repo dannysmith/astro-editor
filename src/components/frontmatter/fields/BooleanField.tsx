@@ -4,7 +4,7 @@ import { getNestedValue } from '../../../lib/object-utils'
 import { Switch } from '../../ui/switch'
 import { FieldLabel, FieldDescription } from '../../ui/field'
 import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import { booleanDefault, type SchemaField } from '../../../lib/schema'
 
 interface BooleanFieldProps extends FieldProps {
   field?: SchemaField
@@ -20,27 +20,12 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
     state => state.updateFrontmatterField
   )
 
-  // Helper function to get boolean value considering schema defaults
+  // The file's value (boolean or text), otherwise the schema's default
   const getBooleanValue = (value: unknown) => {
-    // If field has a value, use it (handling both boolean and string values)
     if (value !== undefined && value !== null && value !== '') {
       return value === true || value === 'true'
     }
-
-    // If no value, check schema default
-    if (field?.default !== undefined) {
-      if (field.default === 'true') {
-        return true
-      }
-      if (field.default === 'false') {
-        return false
-      }
-      // For other values, convert to boolean
-      return Boolean(field.default)
-    }
-
-    // Fallback to false for boolean fields
-    return false
+    return booleanDefault(field)
   }
 
   const id = React.useId()

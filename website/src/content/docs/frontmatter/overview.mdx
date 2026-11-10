@@ -58,7 +58,9 @@ If neither source is available, no schema-driven form is generated and you'll si
 
 ## Field Order and Defaults
 
-Fields appear in the sidebar in the order they're defined in your schema, except the title field, which is always shown first. When you create a new file, any default values from your schema are pre-filled in the panel.
+Fields appear in the sidebar in the order they're defined in your schema, except the title field, which is always shown first.
+
+A new file gets a placeholder title and today's date for its published date. A required switch, date or list gets off, today or an empty list. Other required fields, like text, numbers, choices and images, are left for you to fill in: they're marked required in the panel, and Astro's build names any that are still missing.
 
 The frontmatter is written to your file in the same order it's defined in the schema, with any fields that aren't in the schema written after them, in alphabetical order by field name.
 

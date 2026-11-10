@@ -165,3 +165,14 @@ function fieldTypeFromString(typeStr: string): FieldType {
   }
   return typeMap[typeStr] || FieldType.Unknown
 }
+
+/**
+ * What a boolean field's switch shows when the file doesn't set it: the
+ * schema's default (older schemas give it as text, "true"), otherwise off.
+ */
+export function booleanDefault(field: SchemaField | undefined): boolean {
+  if (field?.default === undefined) return false
+  if (field.default === 'true') return true
+  if (field.default === 'false') return false
+  return Boolean(field.default)
+}

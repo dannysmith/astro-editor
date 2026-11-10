@@ -10,7 +10,13 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	updateFormatMenuState: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("update_format_menu_state", { enabled })),
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
-	createFile: (directory: string, filename: string, content: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, projectRoot })),
+	/**
+	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
+	 *  is serialised as saving does (so dates come out unquoted and strings
+	 *  escaped), in schema field order. Key order doesn't survive the IPC, so it's
+	 *  passed separately. Returns the new file's path, with `/` on Windows too
+	 */
+	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	/**
@@ -62,6 +68,10 @@ export const commands = {
 	 *  The validated absolute filesystem path that can be used with convertFileSrc
 	 */
 	resolveImagePath: (imagePath: string, projectRoot: string, currentFilePath: string | null) => typedError<string, string>(__TAURI_INVOKE("resolve_image_path", { imagePath, projectRoot, currentFilePath })),
+	/**
+	 *  The folder picked in the native dialog, with `/` on Windows too, or none if
+	 *  it was cancelled. Blocked folders are refused with a toast.
+	 */
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
 	/**  The project's collections, resolved with its stored settings */
 	scanProject: (projectPath: string) => typedError<ProjectScan, string>(__TAURI_INVOKE("scan_project", { projectPath })),
@@ -78,7 +88,10 @@ export const commands = {
 	 *  "couldn't find that file" toast).
 	 */
 	resolveFileEntry: (filePath: string, projectPath: string) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath })),
-	/**  A `file()` collection's entries, read from its JSON file as reference targets */
+	/**
+	 *  A `file()` collection's entries, read from its JSON or YAML file as
+	 *  reference targets
+	 */
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
 	/**
 	 *  A collection folder's subfolders and Markdown files (not recursive). Files

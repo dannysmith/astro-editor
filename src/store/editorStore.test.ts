@@ -63,6 +63,17 @@ describe('editorStore.openFile', () => {
     expect(useEditorStore.getState().editorContent).toBe('Unsaved edit')
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
+
+  it("drops the outgoing file's frontmatter baseline", () => {
+    useEditorStore.setState({
+      isDirty: false,
+      frontmatterBaseline: { values: { title: 'First' }, raw: 'title: First' },
+    })
+
+    useEditorStore.getState().openFile(fileEntry('second'))
+
+    expect(useEditorStore.getState().frontmatterBaseline).toBeNull()
+  })
 })
 
 describe('reading files from disk', () => {

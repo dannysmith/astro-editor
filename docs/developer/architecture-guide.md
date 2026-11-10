@@ -4,7 +4,7 @@ How the app fits together, and why it's built the way it is. AGENTS.md states th
 
 ## Shape
 
-- **Rust (`src-tauri/`)** does everything that touches the filesystem: scanning projects, reading and writing files, parsing schemas, watching for changes, building native menus, and writing preferences. Commands are typed end to end with tauri-specta; `src/lib/bindings.ts` is generated, and every command returns a `Result` (`{ status: 'ok', data }` or `{ status: 'error', error }`) rather than throwing.
+- **Rust (`src-tauri/`)** does everything that touches the filesystem: scanning projects, reading and writing files, parsing schemas, watching for changes, building native menus, and writing preferences. Commands are typed end to end with tauri-specta; `src/lib/bindings.ts` is generated, and every command returns a `Result` (`{ status: 'ok', data }` or `{ status: 'error', error }`) rather than throwing. Command arguments pass through `serde_json::Value`, which sorts object keys, so an `IndexMap` argument arrives in alphabetical order. Commands that write frontmatter take the schema's field order as a separate argument for this reason.
 - **React (`src/`)** renders the UI and holds editing state. `components/layout/Layout.tsx` wires things together: it renders the panels, registers the auto-save callback and sets up the app-wide listeners.
 
 ## State

@@ -28,7 +28,7 @@ A few fields get richer controls and have their own sections below: [objects](#n
 Astro Editor surfaces the extra information in your schema as guidance beneath each field:
 
 - `.describe('…')` — shown as help text under the field
-- `.default(…)` — shown as a hint, and pre-filled into new files
+- `.default(…)` — shown as a hint. It isn't written into new files, since Astro uses it whenever the field is left out
 - `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters", "Up to 3 items" for a list, or "Pattern: …"
 
 ```ts
@@ -111,7 +111,7 @@ In the dropdown, each entry is labelled by the first of its `title`, `name`, or 
 
 ### Referencing data collections
 
-References also work with **data collections** — those defined with a `file()` loader pointing at a JSON file (a classic `authors.json`, say) rather than a folder of Markdown.
+References also work with **data collections** — those defined with a `file()` loader pointing at a JSON or YAML file (a classic `authors.json`, say) rather than a folder of Markdown.
 
 ```ts title="content.config.ts"
 const authors = defineCollection({
@@ -123,5 +123,5 @@ const authors = defineCollection({
 Astro Editor reads these so they can be referenced, with a few limits worth knowing:
 
 - Data collections **don't appear in the sidebar** and can't be edited in Astro Editor — they're read-only to populate reference dropdowns.
-- Only the `file()` loader is recognised, and the file must be a **JSON array**.
-- Every item needs an `id` (or `slug`) to identify it.
+- Only the `file()` loader is recognised, reading **JSON or YAML** (not TOML, or a custom `parser`).
+- As in Astro, the file can hold an array of entries, each identified by its `id` (or `slug`), or an object whose keys are the entries' ids.

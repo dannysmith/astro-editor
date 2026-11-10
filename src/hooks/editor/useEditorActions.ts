@@ -12,7 +12,8 @@ import { useProjectStore } from '../../store/projectStore'
 import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'
 import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
-import { deserializeCompleteSchema } from '../../lib/schema'
+import { deserializeCompleteSchema, type SchemaField } from '../../lib/schema'
+import { isBackToBaseline } from '../../lib/files/frontmatter-baseline'
 import { findOwningProjectPath } from '../../lib/deep-link'
 import { showProjectList } from '../../lib/projects/actions'
 import { renameUnderWay } from '../../lib/files/rename'
@@ -56,7 +57,8 @@ function waitForProjectReady(
 
 /**
  * Saves the open file: writes its body, imports and frontmatter (in the
- * schema's field order), marks it clean if nothing changed meanwhile, and
+ * schema's field order, or the original text if its values are unchanged
+ * from it), marks it clean if nothing changed meanwhile, and
  * refreshes the queries that show it. On failure, writes recovery data and a
  * crash report and keeps the file dirty. Plain function rather than inline in
  * the hook so the React Compiler can compile the hook (it can't handle `throw`
@@ -71,6 +73,7 @@ async function saveCurrentFile(
     editorContent,
     frontmatter,
     rawFrontmatter,
+    frontmatterBaseline,
     isFrontmatterDirty,
     imports,
   } = useEditorStore.getState()
@@ -84,35 +87,44 @@ async function saveCurrentFile(
   }
 
   try {
-    // Get schema field order from collections data - NO EVENTS!
-    // Direct synchronous access to query cache
-    let schemaFieldOrder: string[] | null = null
-    if (currentFile) {
-      try {
-        const collection = queryClient
-          .getQueryData<ProjectScan>(queryKeys.collections(projectPath))
-          ?.collections.find(c => c.name === currentFile.collection)
-        const schema = collection?.completeSchema
-          ? deserializeCompleteSchema(collection.completeSchema)
-          : null
-        schemaFieldOrder = schema ? schema.fields.map(f => f.name) : null
-      } catch (error) {
-        void logWarn(`Could not get schema field order: ${String(error)}`)
-      }
+    // The collection's schema fields, from the query cache, for the field
+    // order and to compare with the baseline
+    let fields: SchemaField[] | null = null
+    try {
+      const collection = queryClient
+        .getQueryData<ProjectScan>(queryKeys.collections(projectPath))
+        ?.collections.find(c => c.name === currentFile.collection)
+      const schema = collection?.completeSchema
+        ? deserializeCompleteSchema(collection.completeSchema)
+        : null
+      fields = schema?.fields ?? null
+    } catch (error) {
+      void logWarn(`Could not get schema fields: ${String(error)}`)
     }
 
     // If the file is being renamed, save to its new path, not the old one
     const rename = renameUnderWay(currentFile.path)
     const path = rename ? await rename : currentFile.path
 
-    // Only pass frontmatter object if it was edited, otherwise pass raw to preserve formatting
+    // Edited frontmatter is re-serialised from its values. Unedited, or edited
+    // back to what was loaded, the original text is written instead, keeping
+    // its formatting
+    const backToBaseline =
+      isFrontmatterDirty &&
+      frontmatterBaseline !== null &&
+      isBackToBaseline(frontmatter, frontmatterBaseline, fields ?? [])
+    const writeValues = isFrontmatterDirty && !backToBaseline
+    const originalText = backToBaseline
+      ? frontmatterBaseline.raw
+      : rawFrontmatter
+
     const result = await commands.saveMarkdownContent(
       path,
-      isFrontmatterDirty ? (frontmatter as Record<string, JsonValue>) : null,
-      isFrontmatterDirty ? null : rawFrontmatter,
+      writeValues ? (frontmatter as Record<string, JsonValue>) : null,
+      writeValues ? null : originalText,
       editorContent,
       imports,
-      schemaFieldOrder,
+      fields ? fields.map(f => f.name) : null,
       projectPath
     )
     if (result.status === 'error') {
