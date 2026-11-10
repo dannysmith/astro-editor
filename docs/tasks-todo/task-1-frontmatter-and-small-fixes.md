@@ -35,10 +35,12 @@ Done: leave them out (option 1). A required switch, date or list gets off, today
 
 `rename_entry` and the `\\?\` prefix were fixed in #368. These still return paths with `\` on Windows, which the frontend doesn't expect:
 
-- [ ] `canonical_path` (`preferences.rs`), and so the registry, `open_project` and `list_projects`
-- [ ] `select_project_folder`, `create_file` and `rename_file`
+- [x] `canonical_path` (`preferences.rs`), and so the registry, `open_project` and `list_projects`
+- [x] `select_project_folder`, `create_file` and `rename_file`
 
 Normalise them with `normalize_path_for_serialization` (`utils/path.rs`), as the serialised types are. Windows isn't officially supported and can't be tried here, so lean on unit tests and the cross-platform notes in `docs/developer/cross-platform.md`.
+
+Done: `canonical_path`, `select_project_folder` and `create_file` return `/` paths. `rename_file` returns nothing, so there was nothing to change. Registry entries stored with `\` still match (`find_project` normalises them before comparing), are listed with `/`, and are rewritten on the next open. Tested on every platform by storing a path with `\`; no Windows CI tests, to keep CI fast.
 
 ## Phase 4: `file()` data stored as an object (#376)
 

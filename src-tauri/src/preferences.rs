@@ -15,6 +15,7 @@ use crate::models::preferences::{
     GlobalSettings, ListedProject, ProjectMetadata, ProjectRegistry, ProjectSettingsData,
     ProjectSettingsFile, Relocation, PROJECT_SETTINGS_VERSION,
 };
+use crate::utils::normalize_path_for_serialization;
 use log::{error, info, warn};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -171,17 +172,21 @@ impl Preferences {
     }
 
     /// Every registered project, most recently opened first, with whether its
-    /// folder is still there
+    /// folder is still there. Paths have `/`, including ones stored with `\`
+    /// on Windows before the project was last opened.
     pub fn list_projects(&self) -> Loaded<Vec<ListedProject>> {
         let Loaded { value, problem } = self.load_registry();
         let mut projects: Vec<ListedProject> = value
             .projects
             .into_values()
-            .map(|project| ListedProject {
-                missing: !Path::new(&project.path).is_dir(),
-                disconnected: on_unmounted_drive(Path::new(&project.path)),
-                favicon: crate::collections::find_favicon(Path::new(&project.path)),
-                project,
+            .map(|mut project| {
+                project.path = normalize_path_for_serialization(Path::new(&project.path));
+                ListedProject {
+                    missing: !Path::new(&project.path).is_dir(),
+                    disconnected: on_unmounted_drive(Path::new(&project.path)),
+                    favicon: crate::collections::find_favicon(Path::new(&project.path)),
+                    project,
+                }
             })
             .collect();
         // ISO timestamps in one format, so they sort as strings
@@ -487,22 +492,24 @@ fn on_unmounted_drive(path: &Path) -> bool {
 }
 
 /// A project folder's path with symlinks resolved, so one folder is always
-/// registered once
+/// registered once, and with `/` on Windows too, as the frontend expects
 pub fn canonical_path(path: &Path) -> Result<String, String> {
     let canonical =
         dunce::canonicalize(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
-    Ok(canonical.to_string_lossy().to_string())
+    Ok(normalize_path_for_serialization(&canonical))
 }
 
-/// The id of the project registered at `canonical`. Older entries may not have
-/// stored a canonical path, so those are canonicalised to compare.
+/// The id of the project registered at `canonical`. Older entries may have
+/// stored a path with `\` on Windows, or one that isn't canonical, so those
+/// are normalised, then canonicalised, to compare.
 fn find_project(registry: &ProjectRegistry, canonical: &str) -> Option<String> {
     registry
         .projects
         .values()
         .find(|project| {
-            project.path == canonical
-                || canonical_path(Path::new(&project.path)).is_ok_and(|p| p == canonical)
+            let stored = Path::new(&project.path);
+            normalize_path_for_serialization(stored) == canonical
+                || canonical_path(stored).is_ok_and(|p| p == canonical)
         })
         .map(|project| project.id.clone())
 }
@@ -789,6 +796,28 @@ mod tests {
         assert_eq!(ids, [second.id.as_str(), first.id.as_str()]);
         assert!(listed[0].missing);
         assert!(!listed[1].missing);
+    }
+
+    #[test]
+    fn reads_project_paths_stored_with_backslashes() {
+        // Earlier Windows builds stored `C:\…` paths, which every platform can
+        // simulate by storing this one's path with `\`
+        let (_dir, prefs, project) = setup();
+        let opened = prefs.open_project(&project).unwrap().metadata;
+        let mut registry = prefs.load_registry().value;
+        let entry = registry.projects.get_mut(&opened.id).unwrap();
+        entry.path = opened.path.replace('/', "\\");
+        prefs.write(REGISTRY_FILE, &registry).unwrap();
+
+        let listed = prefs.list_projects().value;
+        assert_eq!(listed[0].project.path, opened.path);
+        assert!(!listed[0].missing);
+
+        let reopened = prefs.open_project(&project).unwrap().metadata;
+        assert_eq!(reopened.id, opened.id);
+        let registry = prefs.load_registry().value;
+        assert_eq!(registry.projects.len(), 1);
+        assert_eq!(registry.projects[&opened.id].path, opened.path);
     }
 
     #[test]

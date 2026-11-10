@@ -140,6 +140,8 @@ fn is_blocked_directory(path: &Path) -> bool {
     false
 }
 
+/// The folder picked in the native dialog, with `/` on Windows too, or none if
+/// it was cancelled. Blocked folders are refused with a toast.
 #[tauri::command]
 #[specta::specta]
 pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
@@ -181,7 +183,7 @@ pub async fn select_project_folder(app: tauri::AppHandle) -> Result<Option<Strin
                 ));
             }
 
-            Ok(Some(folder_path.to_string_lossy().to_string()))
+            Ok(Some(normalize_path_for_serialization(folder_path)))
         }
         None => Ok(None),
     }

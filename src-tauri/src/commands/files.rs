@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
 use crate::mdx_esm::split_esm_block;
-use crate::utils::validate_project_path;
+use crate::utils::{normalize_path_for_serialization, validate_project_path};
 
 /// Calculates the relative path from the current file to an asset
 ///
@@ -57,7 +57,7 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 /// Creates a file holding `content`, under `frontmatter` if it's given, which
 /// is serialised as saving does (so dates come out unquoted and strings
 /// escaped), in schema field order. Key order doesn't survive the IPC, so it's
-/// passed separately
+/// passed separately. Returns the new file's path, with `/` on Windows too
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
@@ -107,7 +107,7 @@ pub async fn create_file(
     std::fs::write(&validated_final_path, content)
         .map_err(|e| format!("Failed to create file: {e}"))?;
 
-    Ok(validated_final_path.to_string_lossy().to_string())
+    Ok(normalize_path_for_serialization(&validated_final_path))
 }
 
 #[tauri::command]
@@ -971,6 +971,8 @@ mod tests {
         let parsed = parse_frontmatter(&written).unwrap();
         assert_eq!(parsed.frontmatter, frontmatter);
         assert_eq!(parsed.content, "");
+        let expected = dunce::canonicalize(dir.path()).unwrap().join("new.md");
+        assert_eq!(path, normalize_path_for_serialization(&expected));
     }
 
     #[cfg(unix)]

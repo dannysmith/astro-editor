@@ -14,7 +14,7 @@ export const commands = {
 	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
 	 *  is serialised as saving does (so dates come out unquoted and strings
 	 *  escaped), in schema field order. Key order doesn't survive the IPC, so it's
-	 *  passed separately
+	 *  passed separately. Returns the new file's path, with `/` on Windows too
 	 */
 	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
@@ -68,6 +68,10 @@ export const commands = {
 	 *  The validated absolute filesystem path that can be used with convertFileSrc
 	 */
 	resolveImagePath: (imagePath: string, projectRoot: string, currentFilePath: string | null) => typedError<string, string>(__TAURI_INVOKE("resolve_image_path", { imagePath, projectRoot, currentFilePath })),
+	/**
+	 *  The folder picked in the native dialog, with `/` on Windows too, or none if
+	 *  it was cancelled. Blocked folders are refused with a toast.
+	 */
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
 	/**  The project's collections, resolved with its stored settings */
 	scanProject: (projectPath: string) => typedError<ProjectScan, string>(__TAURI_INVOKE("scan_project", { projectPath })),
