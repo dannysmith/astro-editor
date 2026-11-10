@@ -13,21 +13,21 @@ Settings live in the dev app's data (`~/Library/Application Support/is.danny.ast
 
 ## Data safety
 
-- [ ] **Saving before a folder change:** set journal's Folder to `writing/journal`, open `2025-05-02.md` and type something, then straight away press Reset on journal's Folder. The edit is on disk before the file closes, and journal goes back to Not in the File List.
-- [ ] **Settings survive a restart:** map notes' fields (Title `name`, Published Date `created`), quit the dev app and start it again. They're still set.
-- [ ] **New file, then click away:** set blog's File Names to Date and title. ⌘N, type a title, then click straight onto another file in the sidebar. Nothing is lost, and there's one copy of the new file, under one name or the other.
-- [ ] **New file, then type straight on:** ⌘N, type a title, click into the body and type at once. Everything typed is in the renamed file, and the date-named file doesn't come back. Restart the dev app to check.
-- [ ] **Undo:** after a rename, ⌘Z in the title or body doesn't do anything odd.
+- [x] **Saving before a folder change:** set journal's Folder to `writing/journal`, open `2025-05-02.md` and type something, then straight away press Reset on journal's Folder. The edit is on disk before the file closes, and journal goes back to Not in the File List. [NOTE: actually do this fast enough to test this out so I think we're probably fine here ]
+- [x] **Settings survive a restart:** map notes' fields (Title `name`, Published Date `created`), quit the dev app and start it again. They're still set.
+- [x] **New file, then click away:** set blog's File Names to Date and title. ⌘N, type a title, then click straight onto another file in the sidebar. Nothing is lost, and there's one copy of the new file, under one name or the other.
+- [x] **New file, then type straight on:** ⌘N, type a title, click into the body and type at once. Everything typed is in the renamed file, and the date-named file doesn't come back. Restart the dev app to check.
+- [x] **Undo:** after a rename, ⌘Z in the title or body doesn't do anything odd.
 
 ## Images
 
 Use a test image from your Desktop, and check where it was copied in Finder and the path written in the file.
 
-- [ ] **Default:** drag it into `2025-01-12-hello-again.md`. It's copied to `src/assets/blog/<today>-<name>.png` and written as `../../assets/blog/…`. In `2024/2024-11-02-moving-house.md`, the path is `../../../assets/blog/…`.
-- [ ] **A collection's own folder:** set notes' Assets Folder to `src/notes-media` and turn on absolute paths for notes only. A note's image goes to `src/notes-media/notes/` as `/src/notes-media/notes/…`, while blog's are unchanged.
-- [ ] **public/:** set blog's Assets Folder to `public/uploads`, with absolute paths. Astro serves that file at `/uploads/blog/…`. I expect AE to write `/public/uploads/blog/…`, which won't work on the site. Note what it writes.
-- [ ] **The frontmatter image picker:** on a blog post's `cover`, pick a file from the Desktop: it's copied like a dragged image. Pick `src/assets/blog/2025-03-04-lake.png`: it isn't copied, and the path points at it.
-- [ ] Reset the image settings.
+- [x] **Default:** drag it into `2025-01-12-hello-again.md`. It's copied to `src/assets/blog/<today>-<name>.png` and written as `../../assets/blog/…`. In `2024/2024-11-02-moving-house.md`, the path is `../../../assets/blog/…`.
+- [x] **A collection's own folder:** set notes' Assets Folder to `src/notes-media` and turn on absolute paths for notes only. A note's image goes to `src/notes-media/notes/` as `/src/notes-media/notes/…`, while blog's are unchanged.
+- [x] **public/:** set blog's Assets Folder to `public/uploads`, with absolute paths. Astro serves that file at `/uploads/blog/…`. I expect AE to write `/public/uploads/blog/…`, which won't work on the site. Note what it writes.
+- [x] **The frontmatter image picker:** on a blog post's `cover`, pick a file from the Desktop: it's copied like a dragged image. Pick `src/assets/blog/2025-03-04-lake.png`: it isn't copied, and the path points at it.
+- [x] Reset the image settings.
 
 ## Native dialogs
 
