@@ -19,7 +19,7 @@ Inside it:
 - `preferences/projects/{id}.json`: one project's settings, and its path.
 - `recovery/` and `crash-reports/`: see [Recovery Files](#recovery-files).
 - `telemetry.json`: the anonymous install ID. Release builds only.
-- `.window-state.json`: window size and position, from the window-state plugin.
+- `window-state.json`: the main window's size and position, and whether it's maximised or full screen (`window_state.rs`). Size is in points, so the window opens the same size on any display; position is in points on macOS and pixels elsewhere, matching each platform's coordinates across displays.
 
 The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, and a skipped update version. Logs live elsewhere; see `agent-tooling.md`.
 
