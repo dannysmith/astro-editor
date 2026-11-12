@@ -19,9 +19,11 @@ async function fetchAndSetReleaseNotes(
     if (result.status === 'ok') {
       store.setReleaseNotes(result.data)
     } else {
+      await error(`Couldn't load release notes: ${result.error}`)
       store.setReleaseNotesError()
     }
-  } catch {
+  } catch (e) {
+    await error(`Couldn't load release notes: ${String(e)}`)
     store.setReleaseNotesError()
   }
 }
