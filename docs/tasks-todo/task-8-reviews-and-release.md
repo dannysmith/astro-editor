@@ -118,13 +118,26 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
   - [x] Each project's old settings file is renamed to `*.v2.json` the first time it opens. The Review toast only appears where something can't be read.
   - [x] Note every setting you had to set again, for the release notes. None: the real projects' 1.0 files held only the default field names, which are detected now. The settings in dannyis' new file (file name and link URL patterns, `projects`' `byline` and `startDate`) are new choices.
   - [x] Every project you'd opened before is in the project list; ones that have moved show as Missing. `danny-is-astro`, whose folder is gone, showed as Missing and was removed.
-  - [ ] Try it on my real sites.
+- [x] Comment on the closed issues and PRs that 1.1.0 addresses: #149, #81 (cc bdukes) and PR #158, linking the prerelease.
 
 ## Phase 6: Release
 
-- [ ] Finish the release notes (the `[DANNY: …]` marker is filled in), and copy them to the release.
-- [ ] Release (see `docs/developer/releases.md`).
-- [ ] Post the note.
+In order.
+
+1. [x] **Use the prerelease on my real sites for a few days.** Fix anything that comes up on `main`, and make another test build with `bun run test-build "<note>"` if it's worth checking.
+2. [ ] **Edit the release notes** (the draft below).
+3. [ ] **Commit this doc to `main`.** `prepare-release` refuses a dirty working tree.
+4. [ ] **Release.**
+   - On an up-to-date `main`, run `bun run prepare-release v1.1.0`. Without the version it proposes 1.0.21.
+   - When `release.yml` finishes, paste everything below the `---` in the draft notes into the draft release, and publish it.
+   - Check that the website's page appears (`publish-release-notes.yml`), and that the installed prerelease offers the update.
+5. [ ] **Close the roadmap epic, #354.** It's already updated, with v1.1.0 under "Shipped" and a "Still open" list. Remove the line saying it's being tested as a prerelease, then close it.
+6. [ ] **Publish the note on danny.is:** set `draft: false`, then commit and push there.
+7. [ ] **Post about it** on the Astro Discord and on Bluesky, linking the note.
+8. [ ] **Tidy up.**
+   - Delete the test build: `gh release delete v1.0.21-test.1 --cleanup-tag`.
+   - Once 1.1.0 has settled in, delete `~/Library/Application Support/is.danny.astroeditor.backup`.
+9.  [ ] **Close this task:** move it to `docs/tasks-done/task-YYYY-MM-DD-8-reviews-and-release.md`, and commit to `main`.
 
 ## Release notes for 1.1.0 (draft)
 
@@ -132,9 +145,9 @@ For the GitHub release; the website's release page is generated from it. Covers 
 
 ---
 
-This is the biggest release since 1.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
+This is the biggest release since 1.0.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
 
-**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` (kept, not deleted; `v2` is the old settings format), and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. None of mine needed setting up again. The window also opens at its default size the first time, since 1.1 keeps its size in a new file.
+**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. None of mine needed setting up again.
 
 Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
 
