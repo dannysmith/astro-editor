@@ -5,6 +5,11 @@ date: 2026-11-12
 slug: 'releases/v1.1.0'
 ---
 
+import releaseVideo from '@assets/release-1.1.0.mp4'
+import releasePoster from '@assets/release-1.1.0-poster.jpg'
+
+<video src={releaseVideo} poster={releasePoster.src} controls playsinline preload="metadata" width="1920" height="1080" style="width: 100%; height: auto;"></video>
+
 This is the biggest release since 1.0.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
 
 **If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. None of mine needed setting up again.
@@ -19,9 +24,13 @@ Astro Editor used to assume every collection lived in `src/content/<name>`. It n
 
 Project and collection settings have moved out of Preferences into their own **Project Settings** window. It shows what Astro Editor found for each collection: where it lives, which frontmatter fields it uses for the title, date, description and draft, and its schema. Anything it couldn't work out is flagged, such as a missing folder or a schema that needs `astro sync`, so you only change what it got wrong. Open it with the project's icon at the top of the file list, or **Project Settings** at the bottom. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#82)
 
+![The page for the articles collection in Project Settings: where it comes from, its folder, the toggle to show files Astro skips, its sort order, and the new file type and name pattern, marked Set by you](../../../assets/project-settings-collection.png)
+
 ### Project list
 
 <kbd>⇧⌘O</kbd> opens a list of every project you've used, with each site's favicon. Search it, switch projects, remove ones you're done with, and point moved ones at their new folder. See [Opening a project](https://astroeditor.danny.is/file-management/overview/#opening-a-project).
+
+![The project list over an open project: a search box, Open Folder…, then six projects, each with its favicon or a coloured letter, its path and when it was last opened. The open one is marked Current, and one whose folder has gone is dimmed and marked Missing](../../../assets/project-list.png)
 
 ### File names from a pattern
 
@@ -31,9 +40,13 @@ Each collection can name new files with a pattern, like `{YYYY-MM-DD}-{title}` o
 
 Pick a component with <kbd>⌘/</kbd> and you get a form for its props, built from their types: text boxes, number fields, switches, dropdowns, date pickers and lists. Image props get an image picker, and props that take a collection entry get an entry picker. It reads props from Astro, React, Vue and Svelte components, and in Starlight projects it offers Starlight's own components too. See [The MDX component builder](https://astroeditor.danny.is/editor/mdx-components/). (#350)
 
+![The component builder's form for a BookCard component, with text boxes for the title and author, an image picker for the cover, a dropdown for the format showing its default of paperback, a number field for the rating, a date picker, a switch for favourite, Default, True and False buttons for spoilers, a list field for tags, a searchable list of books for the review, and a preview of the tag at the bottom](../../../assets/mdx-builder-fields.png)
+
 ### Adding imports (experimental)
 
 An MDX file has to import every component it uses. Turn on **Add imports** in Project Settings and the builder adds the imports for you (the component's, and any image or collection entry it uses), written the same way your site already writes them. It's off by default. Leave it off if your site uses Astro Auto Import. See [Adding imports](https://astroeditor.danny.is/editor/mdx-components/#adding-imports). (#357)
+
+![The BookCard form filled in for Atomic Habits, with the import row open showing four lines: the BookCard import, the cover image's import, the getEntry import and the line that loads the review](../../../assets/mdx-builder-imports.png)
 
 ### Saving when you quit
 
