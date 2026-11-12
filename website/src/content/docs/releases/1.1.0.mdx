@@ -1,0 +1,87 @@
+---
+title: 'v1.1.0'
+description: 'Astro Editor v1.1.0'
+date: 2026-11-12
+slug: 'releases/v1.1.0'
+---
+
+This is the biggest release since 1.0.0. Astro Editor now finds your collections from your content config, has a Project Settings window and a project list, can name new files from their titles, and gives you a form for each MDX component's props.
+
+**If you're upgrading from 1.0:** project settings from 1.0 aren't carried over. The first time you open each project, its old settings file is set aside as `<project-id>.v2.json` in `~/Library/Application Support/is.danny.astroeditor/preferences/projects/` and the project starts with no settings. Most projects won't need any, because collection folders and frontmatter fields are now read from the project itself. None of mine needed setting up again.
+
+Projects are now remembered by their folder, so one you've moved shows as **Missing** in the project list until you point it at the new folder. See [Moved projects](https://astroeditor.danny.is/file-management/overview/#moved-projects).
+
+### Collections from your content config
+
+Astro Editor used to assume every collection lived in `src/content/<name>`. It now reads each collection's folder and file pattern from its loader, as Astro does. That covers `glob()` with any `base` and `pattern`, Starlight's `docsLoader()`, and legacy collections. Content outside `src/content` works, and files your pattern leaves out (like `_draft.md`) are hidden, or shown dimmed if you turn on **Show files Astro skips**. (#361)
+
+### Project Settings
+
+Project and collection settings have moved out of Preferences into their own **Project Settings** window. It shows what Astro Editor found for each collection: where it lives, which frontmatter fields it uses for the title, date, description and draft, and its schema. Anything it couldn't work out is flagged, such as a missing folder or a schema that needs `astro sync`, so you only change what it got wrong. Open it with the project's icon at the top of the file list, or **Project Settings** at the bottom. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#82)
+
+### Project list
+
+<kbd>⇧⌘O</kbd> opens a list of every project you've used, with each site's favicon. Search it, switch projects, remove ones you're done with, and point moved ones at their new folder. See [Opening a project](https://astroeditor.danny.is/file-management/overview/#opening-a-project).
+
+### File names from a pattern
+
+Each collection can name new files with a pattern, like `{YYYY-MM-DD}-{title}` or `{title}`. A new file is named once you've written its title. There's also a **Rename File from Pattern** command, and when you change a file's date, a link under the date field renames the file to match. See [File names](https://astroeditor.danny.is/project-settings/#file-names). (#87)
+
+### Forms for MDX components
+
+Pick a component with <kbd>⌘/</kbd> and you get a form for its props, built from their types: text boxes, number fields, switches, dropdowns, date pickers and lists. Image props get an image picker, and props that take a collection entry get an entry picker. It reads props from Astro, React, Vue and Svelte components, and in Starlight projects it offers Starlight's own components too. See [The MDX component builder](https://astroeditor.danny.is/editor/mdx-components/). (#350)
+
+### Adding imports (experimental)
+
+An MDX file has to import every component it uses. Turn on **Add imports** in Project Settings and the builder adds the imports for you (the component's, and any image or collection entry it uses), written the same way your site already writes them. It's off by default. Leave it off if your site uses Astro Auto Import. See [Adding imports](https://astroeditor.danny.is/editor/mdx-components/#adding-imports). (#357)
+
+### Saving when you quit
+
+Quitting waits for your work to save, however you quit: <kbd>⌘Q</kbd>, the Dock, logging out or shutting down. If the save fails, it asks before quitting. Closing a file and switching projects save first too. (#364)
+
+### Other improvements
+
+- **Back where you left off** – Opening a project reopens the file you last had open in it, if it still exists. (#373)
+- **New files' frontmatter** – Required fields with no sensible empty value (text, numbers, choices, images, references) are left for you to fill in, rather than given `""` or `0`, which looked filled in but could fail your site's build. The frontmatter panel marks them required, and Astro's build names any you miss. (#372)
+- **Undoing a frontmatter edit** – Changing a field and changing it back, or turning a switch on and off again, leaves the file exactly as it was, formatting and all. (#370)
+- **<kbd>⌘W</kbd>** – Closes the window, as the red button does. It used to close the open file.
+- **Running `astro sync` with a project open** – Astro Editor picks up the new schemas without you reopening the project.
+- **Lists of images** – Each item gets its own image picker.
+- **Settings files that can't be read** – They're set aside as `<name>.broken-<date>.json` rather than written over, and Astro Editor tells you it's done this.
+
+### Bug fixes
+
+- **Windows** – The app crashed on launch. (#351)
+- **Reference fields and content links** – These wrote Astro Editor's own IDs (`articles/first-article`) where Astro expects `first-article`, and ignored `slug` frontmatter. They now write the IDs Astro uses.
+- **Undo after switching files** – Undoing straight after opening another file could bring back the previous file's text, which was then saved over the new one.
+- **Close File** – It threw away anything typed in the last couple of seconds. It now saves first.
+- **Deleting the open file** – The file stayed open, and the next save brought it back.
+- **Changes made outside the app** – The file list didn't update when files were added, changed or removed outside Astro Editor, its file counts went wrong, and **Reload Collections** didn't work.
+- **Zod 4 schemas** – Tuples, literals, unions and nullable objects stopped a collection's schema from loading.
+- **Window size** – With displays of different resolutions, the window could reopen at twice its size. It now opens at the same size on every display, and on one that's connected if its last display is gone.
+- **Multi-line text** – Editing a text field whose value had line breaks joined its lines.
+- **Command palette** – Search only matched part of some commands' names, so "blog" didn't find **Open Collection: blog**.
+- **Sort order** – Sorting by title or file name started Z to A. It now starts A to Z, and sorting by date starts with the newest.
+- **Dates with times** – Editing any frontmatter field cut every date with a time, like `2024-06-15T14:30:00Z`, down to the date.
+- **Dates in new files** – These were quoted, so `z.date()` rejected them, and fields inside objects got stray dotted keys like `sponsor.name:`. (#372)
+- **References to `file()` collections** – The entry picker was empty when the collection's file held its entries as an object keyed by ID, or an entry had a numeric ID or no ID. It now reads these as Astro does, and reads YAML files too. (#376)
+- **Blank line before the frontmatter's closing `---`** – This was dropped when only the body was edited.
+- **Content Finder** – It searched the `title` field even when a collection uses a different one.
+- **JSON field** – It reverted text while you typed it, if it wasn't valid JSON yet.
+- **Full screen** – <kbd>⌃⌘F</kbd> entered full screen but couldn't leave it.
+- **Date picker** – It opened on the current month instead of the field's date.
+- **Empty defaults** – Defaults like `.default('')` showed a bare "Default:" under the field.
+- **List limits** – These were shown as characters instead of items.
+- **Image previews** – They flashed the previous image.
+- **Images copied into your project** – Dots in the file name were kept. They now become dashes, as spaces do.
+- **Copy as slug** – It dropped accented letters entirely, so "Café" became `caf`. It now drops just the accent: `cafe`.
+
+### Under the hood
+
+- The unused file-system plugin, and the broad file access it was granted, are gone.
+- A security update for `zip`, used by the updater on Windows and Linux.
+- Dependency updates.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.1.0)
