@@ -110,9 +110,9 @@ pub fn run() {
             log::info!("Platform: {}", std::env::consts::OS);
             log::info!("Architecture: {}", std::env::consts::ARCH);
 
-            // Send telemetry on startup (non-blocking, fails silently). Dev builds and
-            // CI (ci.yml launches the app) skip it so they don't count as installs.
-            if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
+            // Send telemetry on startup (non-blocking, fails silently). Only official
+            // release builds send it; see telemetry::enabled.
+            if telemetry::enabled() {
                 let app_handle = app.handle().clone();
                 let version = package_info.version.to_string();
                 tauri::async_runtime::spawn(async move {

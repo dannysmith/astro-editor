@@ -46,8 +46,7 @@
     "prepare-release": "node scripts/prepare-release.js",
     "test-build": "node scripts/test-build.js",
     "knip": "knip",
-    "jscpd": "jscpd src src-tauri/src",
-    "stats": "cd telemetry-worker && bun run stats && cd .."
+    "jscpd": "jscpd src src-tauri/src"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

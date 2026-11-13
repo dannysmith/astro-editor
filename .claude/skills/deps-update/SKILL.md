@@ -1,11 +1,11 @@
 ---
 name: deps-update
-description: Run an interactive dependency update session across the whole repo (main app JS + Rust, test fixtures, telemetry worker, CI), tracked in a task doc so it can resume across sessions. Use when the user asks to update dependencies, review Dependabot PRs, or revisit held/pinned packages.
+description: Run an interactive dependency update session across the whole repo (main app JS + Rust, test fixtures, CI), tracked in a task doc so it can resume across sessions. Use when the user asks to update dependencies, review Dependabot PRs, or revisit held/pinned packages.
 ---
 
 # Dependency Update Session
 
-Covers everything in the repo that has dependencies: the main app (JS and Cargo), the Astro fixtures in `test/`, `telemetry-worker/`, and GitHub Actions. `website/` is a separate project with its own AGENTS.md; include it only if the user asks.
+Covers everything in the repo that has dependencies: the main app (JS and Cargo), the Astro fixtures in `test/`, and GitHub Actions. `website/` is a separate project with its own AGENTS.md; include it only if the user asks.
 
 Use the package manager named in the root `package.json` `packageManager` field.
 
@@ -23,7 +23,7 @@ Work on a `deps-YYYY-MM-DD` branch; confirm the name with the user before creati
 
 - **Last time:** read the most recent `docs/tasks-done/*dependency-updates*` doc. Its holds table and follow-ups are the starting point: re-check each hold and say whether it still applies.
 - **Dependabot:** list the open Dependabot PRs. They are closed as superseded after merge. Note any GitHub Actions bumps; those get applied to the workflows.
-- **Outdated packages:** check JS and Cargo (`cargo update --dry-run` if `cargo-outdated` isn't installed), the fixtures and the worker.
+- **Outdated packages:** check JS and Cargo (`cargo update --dry-run` if `cargo-outdated` isn't installed) and the fixtures.
 - **Major bumps:** read the changelog for each, check whether it affects our usage by reading our code, and use Context7 before web search.
 - **Constraints:** read the documented ones in AGENTS.md and the dev docs. Know why each override and exact pin exists before touching it.
 
@@ -37,8 +37,7 @@ One commit (or a small group) per phase. Run `check:all` after each.
 2. **Main app JS**: minor/patch within ranges, then majors one at a time
 3. **Rust**: `cargo update`, then major bumps. Keep every `@tauri-apps/*` JS package on the same major.minor as its Rust crate
 4. **Fixtures**: upgrade Astro (`@astrojs/upgrade`), run `astro sync`, commit the regenerated `.astro/collections/*.schema.json` (Rust tests depend on them), then `reset:testdata`
-5. **Telemetry worker**: update deps, `wrangler deploy --dry-run`. The user deploys to staging and runs `./stats.sh` (needs Cloudflare auth)
-6. **CI and scripts**: apply the Actions bumps from Dependabot and check that `scripts/` and the workflows still work with the new tools
+5. **CI and scripts**: apply the Actions bumps from Dependabot and check that `scripts/` and the workflows still work with the new tools
 
 ## Known hazards
 

@@ -13,7 +13,6 @@
     "test/**",
     "temp-dummy-astro-project/**",
     "website/**",
-    "telemetry-worker/**",
     "node_modules/**",
     ".git/**",
     "src-tauri/target/**",

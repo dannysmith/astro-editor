@@ -155,6 +155,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
+          # Compiles telemetry in (see src-tauri/src/telemetry.rs). False in forks,
+          # so their builds never send to our endpoint
+          ASTRO_EDITOR_TELEMETRY: ${{ github.repository == 'dannysmith/astro-editor' }}
           # Tauri updater signing (works for all platforms)
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

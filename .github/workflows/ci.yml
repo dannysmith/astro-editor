@@ -140,7 +140,7 @@ jobs:
           args: ${{ matrix.args }}
 
       # A build that compiles can still crash at startup, so launch it and fail if it
-      # exits within 20s. GitHub sets CI=true, which skips startup telemetry.
+      # exits within 20s. CI builds have no telemetry compiled in, so these runs never send any.
       - name: Smoke test (app starts)
         if: matrix.platform == 'windows-latest'
         timeout-minutes: 3
