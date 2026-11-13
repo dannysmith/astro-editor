@@ -12,7 +12,7 @@ Dev builds include tooling that lets coding agents (and you) see and drive the r
 
 The installed app and the dev build can run side by side without touching each other's state. Keep window settings out of the overlay (see Tauri config in `cross-platform.md`).
 
-The identity comes from the overlay; the agent bridge, telemetry skip and window title depend on it being a debug build. `tauri:dev` gives you both. Debug builds skip telemetry and the automatic update check, and title the window with the slot and branch, e.g. "Astro Editor (Dev · main)". The branch is the one checked out when `tauri:dev` started.
+The identity comes from the overlay; the agent bridge and window title depend on it being a debug build. `tauri:dev` gives you both. Debug builds skip the automatic update check, and title the window with the slot and branch, e.g. "Astro Editor (Dev · main)". They never send telemetry, which only official release builds have compiled in (see `releases.md`). The branch is the one checked out when `tauri:dev` started.
 
 ### Worktrees and dev slots
 

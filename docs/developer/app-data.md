@@ -18,7 +18,7 @@ Inside it:
 - `preferences/project-registry.json`: every project ever opened (id, name, path, dates, the entry open when it was last left) and which was open last.
 - `preferences/projects/{id}.json`: one project's settings, and its path.
 - `recovery/` and `crash-reports/`: see [Recovery Files](#recovery-files).
-- `telemetry.json`: the anonymous install ID. Release builds only.
+- `telemetry.json`: the anonymous install ID. Official release builds only.
 - `window-state.json`: the main window's size and position, and whether it's maximised or full screen (`window_state.rs`). Size is in points, so the window opens the same size on any display; position is in points on macOS and pixels elsewhere, matching each platform's coordinates across displays.
 
 **Reset All Preferences** (Preferences → Advanced) saves the open file, then deletes `preferences/` and `window-state.json` and restarts the app. It keeps recovery files, which may hold the only copy of unsaved text, crash reports and the telemetry ID.

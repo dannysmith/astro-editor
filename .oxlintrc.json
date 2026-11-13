@@ -16,7 +16,6 @@
     "src-tauri/src/test_fixtures/**",
     "*.config.{js,ts}",
     "scripts/**",
-    "telemetry-worker/**",
     "website/**",
     "src/lib/bindings.ts"
   ],

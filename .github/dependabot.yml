@@ -62,27 +62,6 @@ updates:
     commit-message:
       prefix: 'chore(deps)'
 
-  # Telemetry worker (separate Cloudflare Worker)
-  - package-ecosystem: 'bun'
-    directory: '/telemetry-worker'
-    schedule:
-      interval: 'weekly'
-      day: 'saturday'
-      time: '09:00'
-      timezone: 'Europe/London'
-    groups:
-      all-dependencies:
-        update-types:
-          - minor
-          - patch
-    labels:
-      - 'dependencies'
-      - 'npm'
-      - 'telemetry'
-    commit-message:
-      prefix: 'chore(deps)'
-    open-pull-requests-limit: 3
-
   # Documentation website (Astro + Starlight, uses bun)
   - package-ecosystem: 'bun'
     directory: '/website'

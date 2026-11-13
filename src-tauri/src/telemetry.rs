@@ -20,6 +20,13 @@ struct TelemetryPayload {
     timestamp: String,
 }
 
+/// Whether this build sends telemetry. The release workflow sets
+/// ASTRO_EDITOR_TELEMETRY=true at build time, but only in the main repo, so
+/// forks, local builds, CI builds and dev builds never send anything.
+pub fn enabled() -> bool {
+    option_env!("ASTRO_EDITOR_TELEMETRY") == Some("true")
+}
+
 /// Sends anonymous telemetry event to the update server.
 /// Fails silently if the request fails - this should never block the user.
 ///
