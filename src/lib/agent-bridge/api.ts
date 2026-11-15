@@ -46,8 +46,11 @@ export function createAgentApi(deps: AgentApiDeps) {
         path: currentFile.path,
       },
       dirty: isDirty,
-      sidebar: ui.sidebarVisible,
-      frontmatterPanel: ui.frontmatterPanelVisible,
+      leftSidebar: ui.leftSidebarVisible,
+      rightSidebar: {
+        visible: ui.rightSidebarVisible,
+        tab: ui.rightSidebarTab,
+      },
       focusMode: ui.focusModeEnabled,
       typewriterMode: ui.typewriterModeEnabled,
       theme: {

@@ -43,14 +43,10 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
   const projectPath = useProjectStore(state => state.projectPath)
   const selectedCollection = useProjectStore(state => state.selectedCollection)
 
-  const toggleFrontmatterPanel = useUIStore(
-    state => state.toggleFrontmatterPanel
-  )
-  const frontmatterPanelVisible = useUIStore(
-    state => state.frontmatterPanelVisible
-  )
-  const toggleSidebar = useUIStore(state => state.toggleSidebar)
-  const sidebarVisible = useUIStore(state => state.sidebarVisible)
+  const toggleRightSidebar = useUIStore(state => state.toggleRightSidebar)
+  const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
+  const toggleLeftSidebar = useUIStore(state => state.toggleLeftSidebar)
+  const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const toggleFocusMode = useUIStore(state => state.toggleFocusMode)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
@@ -72,7 +68,7 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
     }
   }
 
-  const bothPanelsHidden = !sidebarVisible && !frontmatterPanelVisible
+  const bothSidebarsHidden = !leftSidebarVisible && !rightSidebarVisible
 
   return (
     <div
@@ -81,10 +77,10 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         // WebKit doesn't fade the children with the opacity transition: they stay
         // visible, then vanish at once
         'w-full flex items-center justify-between px-3 py-1.5 select-none border-b transition-opacity duration-300 transform-gpu',
-        bothPanelsHidden
+        bothSidebarsHidden
           ? 'bg-editor-background border-transparent'
           : 'bg-background border-border',
-        distractionFreeBarsHidden && bothPanelsHidden && 'opacity-0'
+        distractionFreeBarsHidden && bothSidebarsHidden && 'opacity-0'
       )}
       data-tauri-drag-region
       onMouseEnter={showBars}
@@ -103,13 +99,15 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         )}
 
         <Button
-          onClick={toggleSidebar}
+          onClick={toggleLeftSidebar}
           variant="ghost"
           size="sm"
           className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
-          title={sidebarVisible ? 'Close Sidebar' : 'Open Sidebar'}
+          title={
+            leftSidebarVisible ? 'Close Left Sidebar' : 'Open Left Sidebar'
+          }
         >
-          {sidebarVisible ? (
+          {leftSidebarVisible ? (
             <PanelLeftClose className="size-4" />
           ) : (
             <PanelLeft className="size-4" />
@@ -191,17 +189,15 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
         </Button>
 
         <Button
-          onClick={toggleFrontmatterPanel}
+          onClick={toggleRightSidebar}
           variant="ghost"
           size="sm"
           className="size-7 p-0 text-icon [&_svg]:scale-100 [&_svg]:transform-gpu"
           title={
-            frontmatterPanelVisible
-              ? 'Close Frontmatter Panel'
-              : 'Open Frontmatter Panel'
+            rightSidebarVisible ? 'Close Right Sidebar' : 'Open Right Sidebar'
           }
         >
-          {frontmatterPanelVisible ? (
+          {rightSidebarVisible ? (
             <PanelRightClose className="size-4" />
           ) : (
             <PanelRight className="size-4" />

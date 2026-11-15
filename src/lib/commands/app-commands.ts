@@ -3,7 +3,7 @@ import {
   FolderCog,
   FolderOpen,
   X,
-  Sidebar,
+  PanelLeft,
   PanelRight,
   RefreshCw,
   Plus,
@@ -29,6 +29,8 @@ import { showProjectSettings } from '../project-settings/actions'
 import { renameOpenFileFromPattern } from '../files/rename'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
+import { useUIStore } from '@/store/uiStore'
+import { RIGHT_SIDEBAR_TABS } from '../right-sidebar'
 
 /**
  * File-related commands
@@ -81,27 +83,38 @@ export const fileCommands: AppCommand[] = [
  */
 export const navigationCommands: AppCommand[] = [
   {
-    id: 'toggle-sidebar',
-    label: 'Toggle Sidebar',
-    description: 'Show or hide the sidebar',
-    icon: Sidebar,
+    id: 'toggle-left-sidebar',
+    label: 'Toggle Left Sidebar',
+    description: 'Show or hide the file list',
+    icon: PanelLeft,
     group: 'navigation',
-    execute: (context: CommandContext) => {
-      context.toggleSidebar()
+    execute: () => {
+      useUIStore.getState().toggleLeftSidebar()
     },
     isAvailable: () => true,
   },
   {
-    id: 'toggle-frontmatter-panel',
-    label: 'Toggle Frontmatter Panel',
-    description: 'Show or hide the frontmatter panel',
+    id: 'toggle-right-sidebar',
+    label: 'Toggle Right Sidebar',
+    description: 'Show or hide the right sidebar, keeping its tab',
     icon: PanelRight,
     group: 'navigation',
-    execute: (context: CommandContext) => {
-      context.toggleFrontmatterPanel()
+    execute: () => {
+      useUIStore.getState().toggleRightSidebar()
     },
     isAvailable: () => true,
   },
+  ...RIGHT_SIDEBAR_TABS.map((tab): AppCommand => ({
+    id: `toggle-${tab.id}-panel`,
+    label: `Toggle ${tab.label} Panel`,
+    description: `Show the ${tab.label} panel in the right sidebar, or hide the sidebar if it's showing`,
+    icon: tab.icon,
+    group: 'navigation',
+    execute: () => {
+      useUIStore.getState().toggleRightSidebarTab(tab.id)
+    },
+    isAvailable: () => true,
+  })),
   {
     id: 'content-linker',
     label: 'Find Content',

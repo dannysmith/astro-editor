@@ -6,6 +6,7 @@ import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { focusEditor } from '../lib/focus-utils'
+import { RIGHT_SIDEBAR_TABS } from '../lib/right-sidebar'
 import { showProjectList } from '../lib/projects/actions'
 import { toast } from '../lib/toast'
 import { useEditorActions } from './editor/useEditorActions'
@@ -53,20 +54,23 @@ export function useKeyboardShortcuts(
     DEFAULT_HOTKEY_OPTS
   )
 
-  // Cmd+1: Toggle Sidebar
+  // Cmd+1: Toggle Left Sidebar
   useHotkeys(
     'mod+1',
     () => {
-      useUIStore.getState().toggleSidebar()
+      useUIStore.getState().toggleLeftSidebar()
     },
     DEFAULT_HOTKEY_OPTS
   )
 
-  // Cmd+2: Toggle Frontmatter Panel
+  // Cmd+2, Cmd+3…: toggle the right sidebar's tabs
   useHotkeys(
-    'mod+2',
-    () => {
-      useUIStore.getState().toggleFrontmatterPanel()
+    RIGHT_SIDEBAR_TABS.map(tab => `mod+${tab.shortcutDigit}`),
+    (_event, { keys }) => {
+      const tab = RIGHT_SIDEBAR_TABS.find(({ shortcutDigit }) =>
+        keys?.includes(String(shortcutDigit))
+      )
+      if (tab) useUIStore.getState().toggleRightSidebarTab(tab.id)
     },
     DEFAULT_HOTKEY_OPTS
   )

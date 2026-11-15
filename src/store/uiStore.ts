@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { RightSidebarTab } from '../lib/right-sidebar'
 
 export interface CollectionViewState {
   sortMode: string // 'default' | 'title' | 'filename' | 'date-{field}' | 'order' | 'modified'
@@ -9,8 +10,10 @@ export interface CollectionViewState {
 
 interface UIState {
   // Layout state
-  sidebarVisible: boolean
-  frontmatterPanelVisible: boolean
+  leftSidebarVisible: boolean
+  rightSidebarVisible: boolean
+  /** The tab the right sidebar shows, kept while the sidebar is closed */
+  rightSidebarTab: RightSidebarTab
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
   distractionFreeBarsHidden: boolean
@@ -24,10 +27,18 @@ interface UIState {
   collectionViewState: Record<string, CollectionViewState>
 
   // Actions
-  setSidebarVisible: (visible: boolean) => void
-  setFrontmatterPanelVisible: (visible: boolean) => void
-  toggleSidebar: () => void
-  toggleFrontmatterPanel: () => void
+  setLeftSidebarVisible: (visible: boolean) => void
+  setRightSidebarVisible: (visible: boolean) => void
+  toggleLeftSidebar: () => void
+  /** Opens or closes the right sidebar, keeping its tab (the title bar button) */
+  toggleRightSidebar: () => void
+  /** Opens the right sidebar on a tab; never closes it (for code that reveals a panel) */
+  showRightSidebarTab: (tab: RightSidebarTab) => void
+  /**
+   * Closes the right sidebar if it's open on `tab`, otherwise opens it on
+   * `tab` (the Cmd+<digit> shortcuts and their menu items)
+   */
+  toggleRightSidebarTab: (tab: RightSidebarTab) => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
@@ -64,8 +75,9 @@ const DEFAULT_VIEW_STATE: CollectionViewState = {
 
 export const useUIStore = create<UIState>((set, get) => ({
   // Initial state
-  sidebarVisible: true,
-  frontmatterPanelVisible: true,
+  leftSidebarVisible: true,
+  rightSidebarVisible: true,
+  rightSidebarTab: 'frontmatter',
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   distractionFreeBarsHidden: false,
@@ -76,28 +88,45 @@ export const useUIStore = create<UIState>((set, get) => ({
   collectionViewState: {},
 
   // Actions
-  setSidebarVisible: (visible: boolean) => {
-    set({ sidebarVisible: visible })
+  setLeftSidebarVisible: (visible: boolean) => {
+    set({ leftSidebarVisible: visible })
   },
 
-  setFrontmatterPanelVisible: (visible: boolean) => {
-    set({ frontmatterPanelVisible: visible })
+  setRightSidebarVisible: (visible: boolean) => {
+    set({ rightSidebarVisible: visible })
   },
 
-  toggleSidebar: () => {
+  // Toggling either sidebar shows the bars distraction-free mode hid
+
+  toggleLeftSidebar: () => {
     set(state => ({
-      sidebarVisible: !state.sidebarVisible,
-      // Show bars when opening sidebar
+      leftSidebarVisible: !state.leftSidebarVisible,
       distractionFreeBarsHidden: false,
     }))
   },
 
-  toggleFrontmatterPanel: () => {
+  toggleRightSidebar: () => {
     set(state => ({
-      frontmatterPanelVisible: !state.frontmatterPanelVisible,
-      // Show bars when opening frontmatter panel
+      rightSidebarVisible: !state.rightSidebarVisible,
       distractionFreeBarsHidden: false,
     }))
+  },
+
+  showRightSidebarTab: (tab: RightSidebarTab) => {
+    set({
+      rightSidebarVisible: true,
+      rightSidebarTab: tab,
+      distractionFreeBarsHidden: false,
+    })
+  },
+
+  toggleRightSidebarTab: (tab: RightSidebarTab) => {
+    const { rightSidebarVisible, rightSidebarTab } = get()
+    if (rightSidebarVisible && rightSidebarTab === tab) {
+      get().toggleRightSidebar()
+    } else {
+      get().showRightSidebarTab(tab)
+    }
   },
 
   toggleFocusMode: () => {
@@ -142,9 +171,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   handleTypingInEditor: () => {
-    const { sidebarVisible, frontmatterPanelVisible } = get()
-    // Immediately hide bars if both panels are hidden
-    if (!sidebarVisible && !frontmatterPanelVisible) {
+    const { leftSidebarVisible, rightSidebarVisible } = get()
+    // Immediately hide bars if both sidebars are hidden
+    if (!leftSidebarVisible && !rightSidebarVisible) {
       set({ distractionFreeBarsHidden: true })
     }
   },
@@ -250,4 +279,4 @@ export const useUIStore = create<UIState>((set, get) => ({
 }))
 
 // Components can use direct selectors like:
-// const sidebarVisible = useUIStore(state => state.sidebarVisible)
+// const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)

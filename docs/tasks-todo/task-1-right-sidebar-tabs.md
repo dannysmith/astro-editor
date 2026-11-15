@@ -57,13 +57,18 @@ Not built in this task; written into the architecture guide so Harper and git pa
 
 ### Phase 1: The container
 
-- [ ] Rename the left sidebar state, actions, commands and menu ids.
-- [ ] Replace `frontmatterPanelVisible` with `rightSidebarVisible` and `rightSidebarTab`, with the three actions above, and update every caller: Layout, `TitleBarToolbar`, `useMenuEvents`, `WindowsMenu`, `useKeyboardShortcuts`, `useCreateFile`, `useCommandContext`, `app-commands.ts`, the agent bridge (`rightSidebar: { visible, tab }`) and the tests.
-- [ ] `RIGHT_SIDEBAR_TABS`, `RightSidebar` with `<Activity>` panels, and the responsive tab bar component (with a styleguide entry).
-- [ ] ⌘2 / ⌘3 hotkeys, View menu items in `lib.rs` (per-tab items with accelerators, plus Toggle Right Sidebar), palette commands.
-- [ ] An empty Copyedit panel, to check switching, hiding and scroll positions in the app.
-- [ ] `bun run check:all`.
-- [ ] **Mini architecture review** of the Phase 1 code, while it's only the container, shortcuts and commands: naming, the three actions and who calls which, the tab list and how a panel is added, `<Activity>` and re-renders, against the architecture guide. Quick, by Claude or one or two cold-read agents given the code rather than this doc. Fix what it finds.
+- [x] Rename the left sidebar state, actions, commands and menu ids.
+- [x] Replace `frontmatterPanelVisible` with `rightSidebarVisible` and `rightSidebarTab`, with the three actions above, and update every caller: Layout, `TitleBarToolbar`, `useMenuEvents`, `WindowsMenu`, `useKeyboardShortcuts`, `useCreateFile`, `useCommandContext`, `app-commands.ts`, the agent bridge (`rightSidebar: { visible, tab }`) and the tests. The sidebar palette commands call `useUIStore.getState()` directly, so `CommandContext` lost its two sidebar members.
+- [x] `RIGHT_SIDEBAR_TABS`, `RightSidebar` with `<Activity>` panels, and the responsive tab bar component (with a styleguide entry).
+- [x] ⌘2 / ⌘3 hotkeys, View menu items in `lib.rs` (per-tab items with accelerators, plus Toggle Right Sidebar), palette commands. The per-tab menu items emit one event, `menu-toggle-right-sidebar-tab`, with the tab id as its payload.
+- [x] An empty Copyedit panel, to check switching, hiding and scroll positions in the app. WebKit keeps each panel's scroll position. Panels are shown from the resizable panel's real size (`onResize`), not `rightSidebarVisible`: the store flag changes a render before the panel expands, so a panel revealed then measured itself at zero width (frontmatter textareas grew several lines taller).
+- [x] `bun run check:all`.
+- [x] **Mini architecture review** of the Phase 1 code, while it's only the container, shortcuts and commands: naming, the three actions and who calls which, the tab list and how a panel is added, `<Activity>` and re-renders, against the architecture guide. Quick, by Claude or one or two cold-read agents given the code rather than this doc. Fix what it finds. One cold-read agent; it found no structural problems. Fixed:
+  - **A hidden panel doesn't follow the stores** (its subscriptions are effects), so reopening the collapsed sidebar showed the previous file's frontmatter until the next render. Layout now sets the expanded flag with `flushSync` in the panel's resize callback, so the panel catches up before it's painted. Tab switches were already fine: they're store updates, which React renders synchronously.
+  - Focus in a panel being hidden (⌘3 or ⌘2 while typing in a field) moves to the editor instead of nowhere.
+  - The tab bar flashed icons on every reopen (it measured the collapsed sidebar) and ignored gaps between tabs.
+  - Menu ids are `toggle_right_sidebar_tab_<id>`, and the listener ignores (and logs) a tab id it doesn't know, since the Rust menu items are written by hand.
+  - `open` became `expanded`, beside `rightSidebarVisible`.
 - [ ] **Open a PR for Phase 1** so CodeRabbit reviews the pattern on its own. Work through its comments before Phase 2.
 
 ### Phase 2: The Copyedit panel
@@ -77,7 +82,8 @@ Not built in this task; written into the architecture guide so Harper and git pa
 
 ### Phase 3: Docs and wrap-up
 
-- [ ] `architecture-guide.md`: `<Activity>` for hidden panels (next to "Keep stateful panels mounted"), a short "Right sidebar" section (tabs, actions, adding a panel), and the panel ↔ editor pattern.
+- [ ] `architecture-guide.md`: `<Activity>` for hidden panels (next to "Keep stateful panels mounted"), including why panels are shown from the panel's size rather than the store flag, a short "Right sidebar" section (tabs, actions, adding a panel), and the panel ↔ editor pattern.
+- [ ] `ui-patterns.md`: `ResponsiveTabsList`, and that `shadcn add` imported `cn` from an npm package called `cn` (and installed it) instead of `@/lib/utils`; check the imports after adding a component.
 - [ ] `commands-and-shortcuts.md`: the right sidebar actions and shortcuts; the highlight toggles no longer go through events.
 - [ ] `editor.md`: spelling and the content attributes CodeMirror sets.
 - [ ] AGENTS.md "Where things live" if a new directory is added.

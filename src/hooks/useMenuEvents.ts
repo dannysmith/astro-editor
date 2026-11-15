@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { warn as logWarn } from '@tauri-apps/plugin-log'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
@@ -8,6 +9,7 @@ import { globalCommandRegistry } from '../lib/editor/commands'
 import { showProjectList } from '../lib/projects/actions'
 import { showProjectSettings } from '../lib/project-settings/actions'
 import { DOCS_URLS } from '../lib/docs-urls'
+import { RIGHT_SIDEBAR_TABS } from '../lib/right-sidebar'
 import type { HeadingLevel } from '../lib/editor/markdown/types'
 
 /**
@@ -81,11 +83,23 @@ export function useMenuEvents(
 
       // View operations
       const viewUnlisteners = await Promise.all([
-        listen('menu-toggle-sidebar', () => {
-          useUIStore.getState().toggleSidebar()
+        listen('menu-toggle-left-sidebar', () => {
+          useUIStore.getState().toggleLeftSidebar()
         }),
-        listen('menu-toggle-frontmatter', () => {
-          useUIStore.getState().toggleFrontmatterPanel()
+        listen('menu-toggle-right-sidebar', () => {
+          useUIStore.getState().toggleRightSidebar()
+        }),
+        // The payload is a tab id, from the menu item ids in lib.rs
+        // (toggle_right_sidebar_tab_<tab id>), which are written by hand
+        listen<string>('menu-toggle-right-sidebar-tab', event => {
+          const tab = RIGHT_SIDEBAR_TABS.find(({ id }) => id === event.payload)
+          if (tab) {
+            useUIStore.getState().toggleRightSidebarTab(tab.id)
+          } else {
+            void logWarn(
+              `Astro Editor [MENU] No right sidebar tab "${event.payload}"`
+            )
+          }
         }),
       ])
 

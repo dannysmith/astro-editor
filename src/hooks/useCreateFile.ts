@@ -126,15 +126,12 @@ async function createFileInCurrentFolder(
   if (newFile) {
     // Get current functions from store state
     const { openFile } = useEditorStore.getState()
-    const { frontmatterPanelVisible, toggleFrontmatterPanel } =
-      useUIStore.getState()
-
     openFile(newFile)
     if (hasTitleField) rememberNewFile(newFile.path, defaultTitle)
 
-    // Open frontmatter panel if we have a title field
-    if (hasTitleField && !frontmatterPanelVisible) {
-      toggleFrontmatterPanel()
+    // Show the frontmatter panel so its title field can be focused
+    if (hasTitleField) {
+      useUIStore.getState().showRightSidebarTab('frontmatter')
     }
 
     // Focus the appropriate element after a delay to allow UI to update

@@ -23,9 +23,9 @@ vi.mock('../../hooks/useCommandPalette', () => ({
         heading: 'Navigation',
         commands: [
           {
-            id: 'toggle-sidebar',
-            label: 'Toggle Sidebar',
-            description: 'Show or hide the sidebar',
+            id: 'toggle-left-sidebar',
+            label: 'Toggle Left Sidebar',
+            description: 'Show or hide the file list',
             execute: vi.fn(),
           },
         ],

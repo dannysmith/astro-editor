@@ -41,6 +41,8 @@ import {
 } from '../components/ui/field'
 import { Checkbox } from '../components/ui/checkbox'
 import { Switch } from '../components/ui/switch'
+import { Tabs } from '../components/ui/tabs'
+import { ResponsiveTabsList } from '../components/ui/responsive-tabs-list'
 import {
   Collapsible,
   CollapsibleContent,
@@ -361,6 +363,19 @@ export function TogglesSection() {
           </FieldContent>
           <Switch defaultChecked />
         </Field>
+      </Row>
+      <Row label="Responsive tabs (wide, then too narrow for labels)">
+        {['w-72', 'w-28'].map(width => (
+          <Tabs key={width} defaultValue="file" className={width}>
+            <ResponsiveTabsList
+              tabs={[
+                { value: 'file', label: 'File', icon: FileText },
+                { value: 'search', label: 'Search', icon: Search },
+                { value: 'settings', label: 'Settings', icon: Settings },
+              ]}
+            />
+          </Tabs>
+        ))}
       </Row>
       <Row label="Collapsible">
         <div className="grid w-full max-w-3xl grid-cols-2 items-start gap-6">

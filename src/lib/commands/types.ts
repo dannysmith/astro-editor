@@ -17,8 +17,6 @@ export interface CommandContext {
   createNewFile: () => void
   setSelectedCollection: (collection: string | null) => void
   setProject: (path: string) => void
-  toggleSidebar: () => void
-  toggleFrontmatterPanel: () => void
   /** Saves the open file, then closes it */
   closeFile: () => Promise<void>
   /** Refetches everything read from the project; resolves once it's done */
