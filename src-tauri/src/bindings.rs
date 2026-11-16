@@ -64,6 +64,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::preferences::reset_all_preferences,
             crate::commands::preferences::load_preferences,
             crate::commands::preferences::save_global_settings,
+            crate::commands::preferences::list_colour_themes,
             crate::commands::preferences::open_project,
             crate::commands::preferences::save_project_settings,
             crate::commands::preferences::list_projects,

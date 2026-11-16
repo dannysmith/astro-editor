@@ -18,7 +18,7 @@ All colour tokens live in one `:root` block near the top of `src/App.css`:
 - **`light-dark()`** picks a value by the element's `color-scheme`, so a token never needs a second definition in `.dark`. Webview support is in `cross-platform.md`.
 - **Values are oklch.** Write new ones in oklch too, so the file stays consistent (see Adding a token for exact conversion).
 - **`@theme inline`** maps each token to a Tailwind colour (`--color-draft: var(--draft)`), so it works as a normal utility with variants and opacity modifiers: `text-draft`, `hover:bg-draft-bg/80`.
-- **The styleguide's "Colour tokens" section** (`localhost:1420/styleguide.html?section=colours`) shows every token as a swatch. Shoot it with `bun run app styleguide colours` to compare both themes. It flags any `:root` colour token missing from its list.
+- **The styleguide's "Colour tokens" section** (`localhost:1420/styleguide.html?section=colours`) shows every token as a swatch. Shoot it with `bun run app styleguide colours` to compare both themes. It flags any `:root` colour token missing from its list, `COLOUR_TOKEN_GROUPS` in `lib/colour-tokens.ts`.
 
 ### Groups
 
@@ -42,7 +42,19 @@ All colour tokens live in one `:root` block near the top of `src/App.css`:
 
 `.light` and `.dark` set `color-scheme`, which `light-dark()` follows. Until React adds a class, `:root { color-scheme: light dark }` follows the OS, so the first paint is already in the system theme. Tailwind's `dark:` variant is keyed to the `.dark` class (`@custom-variant dark`).
 
-The user's heading colours from Appearance settings are set once by Layout as `--heading-color-light` and `--heading-color-dark`. `--editor-color-heading` picks between them with `light-dark()`, falling back to the editor text colour.
+The user's heading colours from Appearance settings are set by Layout as `--heading-color-light` and `--heading-color-dark`, only when the user picked one. `--editor-color-heading` picks between them with `light-dark()`, falling back to the editor text colour, which is how a colour theme colours headings.
+
+## User themes
+
+A colour theme is a CSS file in the `themes/` folder of the app data folder (`app-data.md`), chosen with `appearance.colorTheme` in global settings. It's an advanced feature with no built-in themes: the picker in General preferences only appears once the folder has one. The user docs are in the website's `reference/advanced-preferences.mdx`.
+
+- **Rust only lists the files** (`list_colour_themes`, returning each file's name and CSS). `lib/colour-themes.ts` does the rest; `useColourTheme`, called once by Layout, wires it to the setting.
+- **Only colour tokens are read.** `parseColourTheme` parses the file with a constructed `CSSStyleSheet` (which drops `@import`), and keeps declarations in top-level style rules whose name is in `COLOUR_TOKEN_GROUPS` (`lib/colour-tokens.ts`), except `--editor-color-heading`, which is the user's. Values with `url(` or a quote are dropped, since tokens feed `background` shorthands, where they could load an image. What's left out is logged as a warning.
+- **Tokens are set as inline styles on `<html>`**, which beat `App.css`. Tokens a theme leaves out keep their `App.css` value through the cascade. The file is never added as a stylesheet, so a theme can't add rules.
+- **The token list is `COLOUR_TOKEN_GROUPS`, not read from the CSSOM.** Production builds rewrite `light-dark()`: Vite minifies CSS with Lightning CSS for its default targets, which include Safari 16.4, so every token becomes `var(--lightningcss-light, …) var(--lightningcss-dark, …)`. The dev server serves `App.css` as written, so matching values would differ between dev and release. Themes are unaffected: they're applied at runtime with native `light-dark()`, which resolves against the `color-scheme` the built CSS still sets.
+- **No flash at launch.** The chosen theme's tokens are cached in localStorage (`astro-editor-colour-theme`) and applied in `main.tsx` before React renders. Nothing is stored unless a theme is in use; Reset All Preferences clears it.
+- **Editing a theme shows on focus.** The window's `focus` event re-reads the folder, so a theme author sees changes on switching back. A chosen theme whose file is gone falls back to the defaults and shows as "(missing)" in the picker; the setting is kept.
+- **Token names are public.** Renaming a token silently breaks user themes that set it (they get the default). Mention renames in the release notes.
 
 ## Rules
 
@@ -65,6 +77,6 @@ The user's heading colours from Appearance settings are set once by Layout as `-
 
 1. Add it to the right group in the `:root` block in `App.css` as a `light-dark()` pair, or a single value if it's the same in both themes. Add a short comment if its use isn't obvious from the name.
 2. If components use it as a class, register it in `@theme inline`: `--color-name: var(--name)`.
-3. Add it to `GROUPS` in `src/styleguide/ColoursSection.tsx`.
+3. Add it to `COLOUR_TOKEN_GROUPS` in `src/lib/colour-tokens.ts`. That's the styleguide's list and the tokens a user theme may set.
 
 To convert existing colours to oklch exactly, `@csstools/css-color-parser` is in `node_modules` (a dependency of jsdom). It parses any CSS colour and serialises to oklch. Four decimal places stay within a fraction of one 8-bit level.
