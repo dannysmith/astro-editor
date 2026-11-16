@@ -23,6 +23,7 @@ import {
   addIssue,
   applyFix,
   currentIssues,
+  ignore,
   issueById,
   recheck,
   recheckEffect,
@@ -31,7 +32,7 @@ import {
 } from './issues'
 import { clearIgnoredLints, ignoreLint, lintProse } from './linter'
 import { proseText } from './prose'
-import { readCopyedit } from './settings'
+import { currentCopyedit } from './settings'
 import { issueTooltip, showIssueTooltip, tooltipTheme } from './tooltip'
 
 /** harper.js's `SuggestionKind`, which the worker sends as a number */
@@ -60,7 +61,7 @@ function lintDocument(view: EditorView): Promise<Diagnostic[]> {
 }
 
 async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
-  const { checks } = readCopyedit(useProjectStore.getState().globalSettings)
+  const { checks } = currentCopyedit()
   if (!Object.values(checks).some(Boolean)) return []
 
   // The whole document's tree, giving up after a second on a huge document
@@ -277,11 +278,7 @@ export function applyIssueFix(id: string, fixIndex: number) {
 export function ignoreIssue(id: string) {
   const view = getCurrentEditorView()
   const issue = view && issueById(view.state, id)
-  if (!view || !issue) return
-  void issue.details.ignore().then(
-    () => recheck(view),
-    () => undefined
-  )
+  if (view && issue) ignore(view, issue.details)
 }
 
 /** An issue's underline in its check's colour, softened so it doesn't shout */

@@ -11,7 +11,10 @@
  * block, as its Markdown parser would.
  */
 
-import type { Tree } from '@lezer/common'
+import type { syntaxTree } from '@codemirror/language'
+
+/** A Lezer syntax tree, typed through CodeMirror, which the app depends on */
+type Tree = ReturnType<typeof syntaxTree>
 
 /** Stands in for each character that isn't prose. A private-use character, so it won't be in prose */
 export const MASK = ''

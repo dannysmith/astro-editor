@@ -4,6 +4,7 @@
  */
 
 import type { CopyeditChecks, Dialect } from '@/lib/bindings'
+import type { DialectName } from './harper.worker'
 
 export const HARPER_CHECKS = [
   {
@@ -66,10 +67,7 @@ export function checkForKind(kind: string): HarperCheck {
 }
 
 /** Each dialect setting, with its name in harper.js's `Dialect` enum */
-export const HARPER_DIALECTS: Record<
-  Dialect,
-  'American' | 'British' | 'Canadian' | 'Australian' | 'Indian'
-> = {
+export const HARPER_DIALECTS: Record<Dialect, DialectName> = {
   american: 'American',
   british: 'British',
   canadian: 'Canadian',

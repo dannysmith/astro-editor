@@ -1,11 +1,11 @@
 import { create } from 'zustand'
-import type { HarperCheck } from '../lib/editor/extensions/harper/checks'
+import type { CopyeditChecks } from '@/lib/bindings'
 
 /** An issue Harper found in the open document, as the Copyedit panel lists it */
 export interface HarperIssue {
   /** What the panel's actions refer to the issue by. See `IssueDetails.id` */
   id: string
-  check: HarperCheck
+  check: keyof CopyeditChecks
   /** Harper's name for the kind of issue, like "Word Choice" */
   kind: string
   /** The text the issue is about */

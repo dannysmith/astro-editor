@@ -98,6 +98,14 @@ export function recheck(view: EditorView) {
   forceLinting(view)
 }
 
+/** Ignores an issue, then re-checks so it goes */
+export function ignore(view: EditorView, details: IssueDetails) {
+  void details.ignore().then(
+    () => recheck(view),
+    () => undefined
+  )
+}
+
 /**
  * Applies a fix if the issue still covers the text it was raised on, then
  * closes the tooltip and re-checks

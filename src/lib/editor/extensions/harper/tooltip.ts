@@ -11,8 +11,8 @@
 
 import { EditorView, activateHover, hoverTooltip } from '@codemirror/view'
 import { CHECK_COLOURS } from './checks'
-import { addWords } from './settings'
-import { applyFix, issuesAt, recheck, type Issue } from './issues'
+import { addWord } from './settings'
+import { applyFix, ignore, issuesAt, type Issue } from './issues'
 
 /** How long the pointer rests on an issue before its tooltip shows, in ms */
 const HOVER_TIME = 100
@@ -77,18 +77,9 @@ function renderIssue(view: EditorView, { diagnostic, details }: Issue) {
       'div',
       'cm-harper-issue-actions',
       ...(word
-        ? [
-            action('cm-harper-action', 'Add to Dictionary', () =>
-              addWords([word])
-            ),
-          ]
+        ? [action('cm-harper-action', 'Add to Dictionary', () => addWord(word))]
         : []),
-      action('cm-harper-action', 'Ignore', () => {
-        void details.ignore().then(
-          () => recheck(view),
-          () => undefined
-        )
-      })
+      action('cm-harper-action', 'Ignore', () => ignore(view, details))
     )
   )
   return issue

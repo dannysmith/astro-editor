@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { CopyeditSettings, GlobalSettings } from '@/lib/bindings'
 import { useProjectStore } from '@/store/projectStore'
-import { addWords, readCopyedit, setCheck } from './settings'
+import { addWord, readCopyedit, setCheck } from './settings'
 
 vi.mock('@/lib/bindings', () => ({
   commands: {
@@ -50,7 +50,8 @@ describe('Harper settings', () => {
 
   it('adds words to the dictionary once', () => {
     withCopyedit({ dictionary: ['MDX'] })
-    addWords(['MDX', 'frontmatter'])
+    addWord('MDX')
+    addWord('frontmatter')
     expect(current().dictionary).toEqual(['MDX', 'frontmatter'])
   })
 })
