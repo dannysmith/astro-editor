@@ -3,8 +3,8 @@ import type { HarperCheck } from '../lib/editor/extensions/harper/checks'
 
 /** An issue Harper found in the open document, as the Copyedit panel lists it */
 export interface HarperIssue {
-  /** Stable for the life of the issue, which the panel's actions refer to it by */
-  id: number
+  /** What the panel's actions refer to the issue by. See `IssueDetails.id` */
+  id: string
   check: HarperCheck
   /** Harper's name for the kind of issue, like "Word Choice" */
   kind: string
@@ -28,13 +28,13 @@ interface HarperState {
   /** The open document's issues, in document order */
   issues: HarperIssue[]
   /** The id of the issue at the cursor */
-  activeIssue: number | null
+  activeIssue: string | null
 }
 
 interface HarperActions {
   setStatus: (status: HarperStatus) => void
   setIssues: (issues: HarperIssue[]) => void
-  setActiveIssue: (id: number | null) => void
+  setActiveIssue: (id: string | null) => void
 }
 
 /**

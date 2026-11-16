@@ -6,10 +6,11 @@
  *
  * Each call sends the current settings first, which the worker applies only
  * when they've changed. A call that fails, or gets no answer in time, stops
- * the worker, so the next call starts a new one.
+ * the worker, so the next call starts a new one (see `run`).
  */
 
 import { error as logError, warn as logWarn } from '@tauri-apps/plugin-log'
+import type { GlobalSettings } from '@/lib/bindings'
 import { useHarperStore } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
 import { HARPER_DIALECTS } from './checks'
@@ -111,20 +112,36 @@ function storedIgnores(): string | null {
   return null
 }
 
+/** Failed calls in a row, after which the worker isn't started again */
+const MAX_FAILURES = 3
+
+let failures = 0
+
+/** The settings when the worker was given up on. Any change tries again */
+let gaveUpOn: GlobalSettings['copyedit'] | undefined
+
 /**
  * Calls the worker, starting it and sending the settings first. If anything
- * fails or runs out of time, the worker is stopped and the call throws.
+ * fails or runs out of time, the worker is stopped and the call throws. A
+ * document that keeps crashing Harper would otherwise restart it on every
+ * pause in typing, so after a few failures in a row it stays stopped until
+ * the settings change.
  */
 async function run<K extends keyof HarperApi>(
   method: K,
   ...args: Parameters<HarperApi[K]>
 ): Promise<Awaited<ReturnType<HarperApi[K]>>> {
   const status = useHarperStore.getState()
+  const { globalSettings } = useProjectStore.getState()
+  if (failures >= MAX_FAILURES) {
+    if (globalSettings?.copyedit === gaveUpOn) {
+      throw new Error('Harper is stopped after repeated failures')
+    }
+    failures = 0
+  }
   try {
     if (!worker) status.setStatus('loading')
-    const { dialect, dictionary } = readCopyedit(
-      useProjectStore.getState().globalSettings
-    )
+    const { dialect, dictionary } = readCopyedit(globalSettings)
     await send(
       'configure',
       [
@@ -138,10 +155,12 @@ async function run<K extends keyof HarperApi>(
     )
     started = true
     const result = await send(method, args, CALL_TIMEOUT)
+    failures = 0
     if (useHarperStore.getState().status !== 'ready') status.setStatus('ready')
     return result
   } catch (error) {
     stopWorker(error instanceof Error ? error : new Error(String(error)))
+    if (++failures >= MAX_FAILURES) gaveUpOn = globalSettings?.copyedit
     status.setStatus('error')
     void logError(`Astro Editor [HARPER] ${String(error)}`)
     throw error

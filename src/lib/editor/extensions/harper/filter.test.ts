@@ -50,6 +50,10 @@ describe('shouldShow', () => {
     expect(spelling('First.\n\nKeystatic is good.', 'Keystatic')).toBe(true)
     expect(spelling('# Keystatic', 'Keystatic')).toBe(true)
     expect(spelling('- Keystatic', 'Keystatic')).toBe(true)
+    expect(spelling('Wait… Keystatic is good.', 'Keystatic')).toBe(true)
+    expect(
+      spelling('| a | b |\n| - | - |\n| c | Keystatic |', 'Keystatic')
+    ).toBe(true)
   })
 
   it('ignores grammar beside masked code', () => {

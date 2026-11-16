@@ -24,8 +24,11 @@ export interface Fix {
 }
 
 export interface IssueDetails {
-  /** Stable for the life of the issue, so the panel can refer to it */
-  id: number
+  /**
+   * Identifies the issue in the panel. The same issue in unchanged text keeps
+   * its id from one check to the next (see `checkDocument`)
+   */
+  id: string
   check: HarperCheck
   /** Harper's name for the kind of issue, like "Word Choice" */
   kind: string
@@ -49,14 +52,9 @@ const details = new WeakMap<Diagnostic, IssueDetails>()
 /** Fixed issues, left out until the re-check that follows a fix replaces them */
 const fixed = new WeakSet<Diagnostic>()
 
-let nextId = 0
-
 /** Records an issue's details with its diagnostic */
-export function addIssue(
-  diagnostic: Diagnostic,
-  issue: Omit<IssueDetails, 'id'>
-) {
-  details.set(diagnostic, { ...issue, id: nextId++ })
+export function addIssue(diagnostic: Diagnostic, issue: IssueDetails) {
+  details.set(diagnostic, issue)
 }
 
 /** The document's issues with their current positions, in document order */
@@ -71,7 +69,7 @@ export function currentIssues(state: EditorState): Issue[] {
   return issues
 }
 
-export function issueById(state: EditorState, id: number): Issue | undefined {
+export function issueById(state: EditorState, id: string): Issue | undefined {
   return currentIssues(state).find(({ details }) => details.id === id)
 }
 

@@ -34,7 +34,8 @@ export function shouldShow(found: Found, text: string, doc: string): boolean {
   if (WORD_KINDS.has(kind)) {
     // Names: an acronym, or a capitalised word inside a sentence
     if (ACRONYM.test(problem)) return false
-    if (/^[A-Z]/.test(problem) && !startsSentence(text, start)) return false
+    if (/^[A-Z]/.test(problem) && !startsSentence(text, doc, start))
+      return false
     // Code written as prose: pubDate, v1, max_width
     if (/[a-z][A-Z]|\d|_/.test(problem)) return false
     // A suffix on code, like the "s" in "`import`s"
@@ -60,16 +61,17 @@ const SKIPPED_BEFORE = new Set([' ', '\t', MASK, '"', "'", '“', '‘', '(', '[
 
 /**
  * Whether the word at `start` begins a sentence: it follows the start of the
- * text, a paragraph break or the end of a sentence
+ * text, a paragraph break, a table cell's start or the end of a sentence
  */
-function startsSentence(text: string, start: number): boolean {
+function startsSentence(text: string, doc: string, start: number): boolean {
   let newlines = 0
   for (let i = start - 1; i >= 0; i--) {
     const char = text.charAt(i)
     if (char === '\n') {
-      if (++newlines === 2) return true
+      // `proseText` turns each table cell's `|` into a newline
+      if (++newlines === 2 || doc.charAt(i) === '|') return true
     } else if (!SKIPPED_BEFORE.has(char)) {
-      return '.!?'.includes(char)
+      return '.!?…'.includes(char)
     }
   }
   return true

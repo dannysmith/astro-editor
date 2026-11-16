@@ -11,6 +11,9 @@ import {
 } from '../../lib/editor/extensions/harper'
 import { cn } from '../../lib/utils'
 
+/** How many issues are listed. A long, rough draft can have thousands */
+const MAX_ROWS = 200
+
 /** Kinds that say no more than the issue's colour, so they're left out */
 const PLAIN_KINDS = new Set([
   'Spelling',
@@ -46,10 +49,16 @@ export const HarperIssues: React.FC = () => {
         <p className="text-sm text-muted-foreground">No issues found.</p>
       ) : (
         <ul className="-mx-2 space-y-0.5">
-          {issues.map(issue => (
+          {issues.slice(0, MAX_ROWS).map(issue => (
             <IssueRow key={issue.id} issue={issue} />
           ))}
         </ul>
+      )}
+      {issues.length > MAX_ROWS && (
+        <p className="text-xs text-muted-foreground">
+          And {issues.length - MAX_ROWS} more, which show here as these are
+          fixed.
+        </p>
       )}
     </section>
   )

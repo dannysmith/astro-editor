@@ -14,6 +14,7 @@ function withIssue(doc: string, text: string, fix: Fix) {
     message: '',
   }
   addIssue(diagnostic, {
+    id: 'SpellCheck:1:0',
     check: 'spelling',
     kind: 'Spelling',
     text,

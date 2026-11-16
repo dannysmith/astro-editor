@@ -105,6 +105,20 @@ describe('proseText', () => {
     expect(prose(`A key: ${'a1'.repeat(150)} here.`)).toBe('A key: here.')
   })
 
+  it("doesn't let a stray brace hide later paragraphs", () => {
+    expect(prose('Text {with a brace.\n\nLater }, prose.')).toBe(
+      'Text {with a brace. Later }, prose.'
+    )
+  })
+
+  it('keeps a missing space after a full stop', () => {
+    expect(prose('The end.Next sentence.')).toBe('The end.Next sentence.')
+  })
+
+  it('removes the backslash of a hard line break', () => {
+    expect(prose('Line one\\\nline two.')).toBe('Line one line two.')
+  })
+
   it('removes display maths', () => {
     expect(prose('Where $$\\frac{1}{n}$$ is small.')).toBe('Where is small.')
   })

@@ -42,6 +42,8 @@ const SKIPPED = new Set([
   'QuoteMark',
   'LinkMark',
   'TaskMarker',
+  // A backslash at the end of a line, or two spaces
+  'HardBreak',
 ])
 
 /**
@@ -78,10 +80,13 @@ const TEXT_PATTERNS = [
   /\bhttps?:\/\/[^\s)>\]]+/g,
   // Paths, file names and domains: src/assets, first-post.md, astro.build
   /(?:\/?[\w.-]+\/)+[\w.-]*/g,
-  /\b[\w-]+(?:\.[A-Za-z0-9-]{2,})+\b/g,
-  // MDX expressions, innermost first so nesting is handled by repeat passes
-  /\{[^{}]*\}/g,
-  /\{[^{}]*\}/g,
+  // (lowercase after the dot, so "end.Next" is left as a missing space)
+  /\b[\w-]+(?:\.[a-z0-9-]{2,})+\b/g,
+  // MDX expressions, innermost first, so a second pass masks one level of
+  // nesting. They can't span a blank line, so a stray `{` in prose doesn't
+  // hide the paragraphs after it
+  /\{(?:[^{}\n]|\n(?![ \t]*\n))*\}/g,
+  /\{(?:[^{}\n]|\n(?![ \t]*\n))*\}/g,
   // HTML and JSX tags, including multi-line ones. A letter must follow `<`, so
   // prose like `a < b` is left alone
   /<\/?[A-Za-z][^<>]*>/g,

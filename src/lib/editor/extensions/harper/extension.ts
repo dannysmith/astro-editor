@@ -74,11 +74,20 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
   if (!lints) return []
 
   const diagnostics: Diagnostic[] = []
-  for (const lint of lints) {
+  // An issue's id is its rule and Harper's hash of it and the text around it,
+  // which stay the same while that text does. The same issue in the same
+  // words twice is told apart by its order
+  const seen = new Map<string, number>()
+  // Grouped by rule, so put them in document order
+  for (const lint of lints.sort((a, b) => a.start - b.start)) {
     const { rule, kind, start, end } = lint
     const check = checkForKind(kind)
     if (!checks[check] || !shouldShow({ rule, kind, start, end }, text, doc))
       continue
+
+    const key = `${rule}:${lint.hash}`
+    const repeat = seen.get(key) ?? 0
+    seen.set(key, repeat + 1)
 
     const diagnostic: Diagnostic = {
       from: start,
@@ -89,6 +98,7 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
       renderMessage: () => renderMessage(lint.messageHtml),
     }
     addIssue(diagnostic, {
+      id: `${key}:${repeat}`,
       check,
       kind: lint.kindLabel,
       text: doc.slice(start, end),
@@ -99,8 +109,7 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
     })
     diagnostics.push(diagnostic)
   }
-  // Grouped by rule, so put them back in document order
-  return diagnostics.sort((a, b) => a.from - b.from)
+  return diagnostics
 }
 
 /** Harper's message as HTML, which marks the words it quotes as code */
@@ -140,16 +149,39 @@ function edit(view: EditorView, from: number, to: number, insert: string) {
   })
 }
 
+/**
+ * Publishes the issues, reusing the published object for each issue that
+ * hasn't changed, so the panel only redraws rows that have. A check that
+ * finds the same issues publishes nothing.
+ */
 function publishIssues(state: EditorState, issues: Issue[]) {
-  useHarperStore.getState().setIssues(
-    issues.map(({ diagnostic, details, from, to }): HarperIssue => ({
+  const store = useHarperStore.getState()
+  const published = new Map(store.issues.map(issue => [issue.id, issue]))
+  const next = issues.map(({ diagnostic, details, from, to }) => {
+    const issue: HarperIssue = {
       id: details.id,
       check: details.check,
       kind: details.kind,
       text: state.sliceDoc(from, to),
       message: diagnostic.message,
       fixes: details.fixes.map(fix => fix.label),
-    }))
+    }
+    const previous = published.get(issue.id)
+    return previous && sameIssue(previous, issue) ? previous : issue
+  })
+  const unchanged =
+    next.length === store.issues.length &&
+    next.every((issue, index) => issue === store.issues[index])
+  if (!unchanged) store.setIssues(next)
+}
+
+function sameIssue(a: HarperIssue, b: HarperIssue): boolean {
+  return (
+    a.check === b.check &&
+    a.kind === b.kind &&
+    a.text === b.text &&
+    a.message === b.message &&
+    a.fixes.join('\n') === b.fixes.join('\n')
   )
 }
 
@@ -218,7 +250,7 @@ export function clearIgnoredIssues() {
  * Selects an issue from the panel, scrolls it into view and shows its
  * tooltip, which stays until the selection moves
  */
-export function selectIssue(id: number) {
+export function selectIssue(id: string) {
   const view = getCurrentEditorView()
   const issue = view && issueById(view.state, id)
   if (!view || !issue) return
@@ -231,7 +263,7 @@ export function selectIssue(id: number) {
 }
 
 /** Applies one of an issue's fixes from the panel */
-export function applyIssueFix(id: number, fixIndex: number) {
+export function applyIssueFix(id: string, fixIndex: number) {
   const view = getCurrentEditorView()
   const issue = view && issueById(view.state, id)
   const fix = issue?.details.fixes[fixIndex]
@@ -241,7 +273,7 @@ export function applyIssueFix(id: number, fixIndex: number) {
 }
 
 /** Ignores an issue from the panel */
-export function ignoreIssue(id: number) {
+export function ignoreIssue(id: string) {
   const view = getCurrentEditorView()
   const issue = view && issueById(view.state, id)
   if (!view || !issue) return

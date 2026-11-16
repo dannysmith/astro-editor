@@ -33,7 +33,7 @@ export const HarperChecks: React.FC = () => {
       )}
       {status === 'error' && (
         <p className="text-xs text-destructive">
-          Checks couldn’t run. They’ll try again when you next edit.
+          Checks couldn’t run. Switch a check off and on to try again.
         </p>
       )}
       {HARPER_CHECKS.map(({ id: check, label }) => (
