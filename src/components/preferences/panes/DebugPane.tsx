@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { commands } from '@/lib/bindings'
 import { saveUnsavedEdits } from '@/lib/quit'
 import { clearIgnoredIssues } from '@/lib/editor/extensions/harper'
+import { cacheColourTheme } from '@/lib/colour-themes'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -69,6 +70,7 @@ export const DebugPane: React.FC = () => {
         return
       }
       clearIgnoredIssues()
+      cacheColourTheme(null)
       // On success the app restarts; on failure, say why and let them retry
       const result = await commands.resetAllPreferences()
       if (result.status === 'error') {

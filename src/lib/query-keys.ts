@@ -45,6 +45,8 @@ export const queryKeys = {
     [...queryKeys.all, projectPath, 'imageSrc', filePath, imagePath] as const,
   // Not tied to a project
   appVersion: ['appVersion'] as const,
+  // The colour themes in the app data folder's themes/ folder
+  colourThemes: ['colourThemes'] as const,
   // Add more keys here as needed
 }
 

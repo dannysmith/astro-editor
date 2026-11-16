@@ -27,7 +27,7 @@ Settings sit in a `preferences/` subfolder:
 | `preferences/project-registry.json` | The list of projects you've opened, with which was last open and the file open in each |
 | `preferences/projects/<project-id>.json` | One file per project, holding what you've set in [Project Settings](/project-settings/) (see the [Settings Reference](/reference/settings/)) |
 
-Beside it, `window-state.json` remembers the window's size and position. Two more folders hold data rather than settings: `recovery/` and `crash-reports/`.
+Beside it, `window-state.json` remembers the window's size and position. Two more folders hold data rather than settings: `recovery/` and `crash-reports/`. If you add [colour themes](#colour-themes), they go in a `themes/` folder.
 
 ## Recovery
 
@@ -44,6 +44,50 @@ Projects are identified by their folder. If you move or rename a project's folde
 If a settings file can't be read, Astro Editor never writes over it. It renames it to `<name>.broken-<date>.json` beside the original, carries on with the defaults, and tells you. Your old settings are still in that file if you want to copy them back.
 
 Project settings from Astro Editor 1.0 can't be read by later versions. The first time each project opens, its old file is renamed to `<project-id>.v2.json` and the project starts with no settings, so anything you changed in 1.0 needs setting again in [Project Settings](/project-settings/). Most projects don't need any, since folders and fields are read from the project itself.
+
+## Colour themes
+
+A colour theme changes Astro Editor's colours: it's a CSS file that gives new values to the colours the app uses. There are no built-in themes and no theme editor, so it's for people happy to write a little CSS.
+
+<Steps>
+
+1. Open the app's data directory (**Open Preferences Folder** in the [Advanced tab](#the-advanced-tab)) and create a folder called `themes` in it.
+2. Add a `.css` file to it. The file's name is the theme's name, so `nord.css` is "nord".
+3. Choose it under **Custom colour theme** in [Preferences](/preferences/#general). The setting only appears once there's a theme in the folder.
+
+</Steps>
+
+A theme sets colour tokens in `:root`. `light-dark()` gives one colour for light mode and one for dark mode, so one file covers both:
+
+```css
+:root {
+  --background: light-dark(#e5e9f0, #292e39);
+  --foreground: light-dark(#2e3440, #d8dee9);
+  --editor-color-background: light-dark(#eceff4, #2e3440);
+  --editor-color-text: light-dark(#2e3440, #d8dee9);
+}
+```
+
+A token you leave out keeps its default, so a theme can be as small as you like. Any CSS colour works, and so does `var()` pointing at another token.
+
+Every token, with its default value, is in the `:root` block at the top of [`App.css`](https://github.com/dannysmith/astro-editor/blob/main/src/App.css). The main ones:
+
+| Tokens | What they colour |
+| --- | --- |
+| `--background`, `--foreground` | The sidebars and title bar, and their text |
+| `--card`, `--popover` | Dialogs, menus and popovers |
+| `--muted`, `--secondary`, `--accent` | Subtle fills, and hovered and selected rows |
+| `--editor-color-background`, `--editor-color-text` | The writing area and its text |
+| `--editor-color-mdtag` | Markdown syntax, like `#` and `**` |
+| `--editor-color-red`, `-blue`, `-green` and the rest | Copyedit highlights, and the spelling, grammar and style underlines |
+
+Headings are the text colour unless you pick a heading colour in Preferences. A theme can't set it.
+
+A theme that doesn't use `light-dark()` looks the same in both modes. Use a dark theme with **Theme** set to Dark, and a light one with Light, since scrollbars, switches and the window itself still follow the mode.
+
+Only colour tokens are read. Anything else in the file, and values with `url()` or quoted text, are ignored and listed in the app's log. Changes to the file show when you switch back to Astro Editor, so you can edit a theme in your code editor and watch it change.
+
+Token names may change between releases. When one does, the release notes say so, and a theme that set it gets the default colour until you rename it.
 
 ## The Advanced tab
 

@@ -1,125 +1,9 @@
 import { useState } from 'react'
+import { COLOUR_TOKEN_GROUPS } from '@/lib/colour-tokens'
 
-/** Every colour token in App.css, grouped. Add new tokens here too. */
-const GROUPS: { title: string; tokens: string[] }[] = [
-  {
-    title: 'Chrome',
-    tokens: [
-      'background',
-      'foreground',
-      'heading',
-      'card',
-      'card-foreground',
-      'popover',
-      'popover-foreground',
-      'primary',
-      'primary-foreground',
-      'secondary',
-      'secondary-foreground',
-      'muted',
-      'muted-foreground',
-      'accent',
-      'accent-foreground',
-      'destructive',
-      'destructive-foreground',
-      'border',
-      'input',
-      'ring',
-      'icon',
-      'active',
-      'overlay',
-      'image-preview',
-      'image-preview-border',
-      'image-preview-shadow',
-      'image-preview-spinner',
-      'framework-astro',
-      'framework-react',
-      'framework-vue',
-      'framework-svelte',
-    ],
-  },
-  {
-    title: 'Project icons',
-    tokens: [
-      'project-1',
-      'project-2',
-      'project-3',
-      'project-4',
-      'project-5',
-      'project-6',
-      'project-7',
-      'project-8',
-      'project-foreground',
-    ],
-  },
-  {
-    title: 'Preferences sidebar',
-    tokens: [
-      'sidebar',
-      'sidebar-foreground',
-      'sidebar-primary',
-      'sidebar-primary-foreground',
-      'sidebar-accent',
-      'sidebar-accent-foreground',
-      'sidebar-border',
-      'sidebar-ring',
-    ],
-  },
-  {
-    title: 'Status',
-    tokens: ['draft', 'draft-bg', 'filter', 'filter-bg', 'required', 'warning'],
-  },
-  {
-    title: 'Window controls',
-    tokens: [
-      'window-control-hover',
-      'window-close',
-      'window-close-foreground',
-      'traffic-light-close',
-      'traffic-light-close-border',
-      'traffic-light-close-hover',
-      'traffic-light-minimize',
-      'traffic-light-minimize-border',
-      'traffic-light-minimize-hover',
-      'traffic-light-maximize',
-      'traffic-light-maximize-border',
-      'traffic-light-maximize-hover',
-      'traffic-light-unfocused',
-      'traffic-light-unfocused-border',
-      'traffic-light-unfocused-hover',
-      'traffic-light-shadow',
-      'traffic-light-symbol',
-    ],
-  },
-  {
-    title: 'Editor',
-    tokens: [
-      'editor-color-background',
-      'editor-color-text',
-      'editor-color-heading',
-      'editor-color-mdtag',
-      'editor-color-underline',
-      'editor-color-carat',
-      'editor-color-selectedtext-background',
-      'editor-color-codeblock-background',
-      'editor-color-snippet-border',
-      'editor-color-snippet-border-active',
-      'editor-color-tooltip-shadow',
-      'editor-color-brown',
-      'editor-color-red',
-      'editor-color-pink',
-      'editor-color-blue',
-      'editor-color-green',
-      'editor-color-highlight-background',
-      'editor-color-highlight-underline',
-      'editor-color-highlight-text',
-    ],
-  },
-]
-
-/** Colour tokens declared on :root that aren't in GROUPS. */
+/** Colour tokens declared on :root that aren't in COLOUR_TOKEN_GROUPS. */
 function findUnlisted(): string[] {
-  const listed = new Set(GROUPS.flatMap(group => group.tokens))
+  const listed = new Set(COLOUR_TOKEN_GROUPS.flatMap(group => group.tokens))
   const found = new Set<string>()
   for (const sheet of document.styleSheets) {
     for (const rule of sheet.cssRules) {
@@ -164,7 +48,7 @@ export function ColoursSection() {
           Missing from this page: {unlisted.join(', ')}
         </p>
       )}
-      {GROUPS.map(group => (
+      {COLOUR_TOKEN_GROUPS.map(group => (
         <div key={group.title} className="space-y-2">
           <h2 className="text-xs font-medium text-foreground">{group.title}</h2>
           <div className="grid grid-cols-5 gap-x-4 gap-y-1.5">

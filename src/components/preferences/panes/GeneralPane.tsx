@@ -15,13 +15,19 @@ import {
   FieldContent,
 } from '@/components/ui/field'
 import { usePreferences } from '../../../hooks/usePreferences'
+import { useColourThemesQuery } from '../../../hooks/queries/useColourThemesQuery'
 import { useTheme } from '../../../lib/theme-provider'
 import { SettingsSection } from '../SettingsSection'
 import { PreferencesTextInput } from '../PreferencesTextInput'
 import { DocsLink } from '../DocsLink'
 import { DOCS_URLS } from '../../../lib/docs-urls'
-// Matches `HeadingColor::default` in src-tauri/src/models/preferences.rs
-const DEFAULT_HEADING_COLOR = { light: '#191919', dark: '#cccccc' }
+
+// Where the heading colour pickers start when no colour is set. Unset,
+// headings take the editor text colour, which may be a theme's
+const HEADING_COLOR_START = { light: '#191919', dark: '#cccccc' }
+
+// The colour theme picker's value for Default (no theme)
+const NO_THEME = '__default__'
 
 const THEME_ITEMS = [
   { value: 'light', label: 'Light' },
@@ -65,18 +71,31 @@ export const GeneralPane: React.FC = () => {
     [updateGlobal]
   )
 
+  // The colour theme picker only shows once there's a theme, or a chosen one has gone
+  const { data: colourThemes } = useColourThemesQuery()
+  const themeNames = colourThemes?.map(theme => theme.name) ?? []
+  const chosenTheme = globalSettings?.appearance?.colorTheme ?? null
+  const colourThemeItems = [
+    { value: NO_THEME, label: 'Default' },
+    ...themeNames.map(name => ({ value: name, label: name })),
+    ...(chosenTheme && !themeNames.includes(chosenTheme)
+      ? [{ value: chosenTheme, label: `${chosenTheme} (missing)` }]
+      : []),
+  ]
+
+  const handleColourThemeChange = (value: string | null) => {
+    if (!value) return
+    void updateGlobal({
+      appearance: { colorTheme: value === NO_THEME ? null : value },
+    })
+  }
+
+  // null unsets the colour
   const handleHeadingColorChange = useCallback(
-    (mode: 'light' | 'dark', color: string) => {
+    (mode: 'light' | 'dark', color: string | null) => {
       void updateGlobal({ appearance: { headingColor: { [mode]: color } } })
     },
     [updateGlobal]
-  )
-
-  const handleResetHeadingColor = useCallback(
-    (mode: 'light' | 'dark') => {
-      handleHeadingColorChange(mode, DEFAULT_HEADING_COLOR[mode])
-    },
-    [handleHeadingColorChange]
   )
 
   const handleAutoSaveDelayChange = useCallback(
@@ -162,6 +181,36 @@ export const GeneralPane: React.FC = () => {
           </FieldContent>
         </Field>
 
+        {colourThemeItems.length > 1 && (
+          <Field>
+            <FieldLabel id={`${id}-colour-theme`}>
+              Custom colour theme
+            </FieldLabel>
+            <FieldContent>
+              <Select
+                items={colourThemeItems}
+                value={chosenTheme ?? NO_THEME}
+                onValueChange={handleColourThemeChange}
+              >
+                <SelectTrigger aria-labelledby={`${id}-colour-theme`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {colourThemeItems.map(item => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                A colour theme from the themes folder.{' '}
+                <DocsLink href={DOCS_URLS.colourThemes}>Learn more</DocsLink>
+              </FieldDescription>
+            </FieldContent>
+          </Field>
+        )}
+
         <Field>
           <FieldLabel id={`${id}-file-type`}>New file type</FieldLabel>
           <FieldContent>
@@ -190,61 +239,42 @@ export const GeneralPane: React.FC = () => {
       </SettingsSection>
 
       <SettingsSection title="Appearance">
-        <Field>
-          <FieldLabel htmlFor={`${id}-heading-light`}>
-            Heading colour in light mode
-          </FieldLabel>
-          <FieldContent>
-            <div className="flex w-fit items-center gap-2">
-              <input
-                id={`${id}-heading-light`}
-                type="color"
-                value={
-                  globalSettings?.appearance?.headingColor?.light ||
-                  DEFAULT_HEADING_COLOR.light
-                }
-                onChange={e =>
-                  handleHeadingColorChange('light', e.target.value)
-                }
-                className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleResetHeadingColor('light')}
-              >
-                Reset
-              </Button>
-            </div>{' '}
-          </FieldContent>
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor={`${id}-heading-dark`}>
-            Heading colour in dark mode
-          </FieldLabel>
-          <FieldContent>
-            <div className="flex w-fit items-center gap-2">
-              <input
-                id={`${id}-heading-dark`}
-                type="color"
-                value={
-                  globalSettings?.appearance?.headingColor?.dark ||
-                  DEFAULT_HEADING_COLOR.dark
-                }
-                onChange={e => handleHeadingColorChange('dark', e.target.value)}
-                className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleResetHeadingColor('dark')}
-              >
-                Reset
-              </Button>
-            </div>{' '}
-          </FieldContent>
-        </Field>
+        {(['light', 'dark'] as const).map(mode => {
+          const color = globalSettings?.appearance?.headingColor?.[mode]
+          return (
+            <Field key={mode}>
+              <FieldLabel htmlFor={`${id}-heading-${mode}`}>
+                Heading colour in {mode} mode
+              </FieldLabel>
+              <FieldContent>
+                <div className="flex w-fit items-center gap-2">
+                  <input
+                    id={`${id}-heading-${mode}`}
+                    type="color"
+                    value={color || HEADING_COLOR_START[mode]}
+                    onChange={e =>
+                      handleHeadingColorChange(mode, e.target.value)
+                    }
+                    className="h-9 w-20 cursor-pointer rounded-md border border-input bg-transparent"
+                  />
+                  {color ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleHeadingColorChange(mode, null)}
+                    >
+                      Reset
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Default
+                    </span>
+                  )}
+                </div>
+              </FieldContent>
+            </Field>
+          )
+        })}
 
         <Field>
           <FieldLabel htmlFor={`${id}-font-size`}>Editor font size</FieldLabel>

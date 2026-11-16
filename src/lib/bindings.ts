@@ -146,6 +146,11 @@ export const commands = {
 	loadPreferences: () => typedError<StoredPreferences, string>(__TAURI_INVOKE("load_preferences")),
 	saveGlobalSettings: (settings: GlobalSettings) => typedError<null, string>(__TAURI_INVOKE("save_global_settings", { settings })),
 	/**
+	 *  The colour themes in the `themes/` folder of the app data folder, which the
+	 *  user creates. The frontend picks out the colour tokens (`lib/colour-themes.ts`)
+	 */
+	listColourThemes: () => typedError<ColourTheme[], string>(__TAURI_INVOKE("list_colour_themes")),
+	/**
 	 *  Registers the project at `project_path` if it's new, marks it as last opened,
 	 *  and returns it with its stored settings
 	 */
@@ -216,6 +221,8 @@ export type AppearanceSettings = {
 	headingColor: HeadingColor,
 	/**  1-30; the editor uses 18 when unset */
 	editorBaseFontSize?: number | null,
+	/**  The name of a colour theme in the `themes/` folder. Default when unset */
+	colorTheme?: string | null,
 };
 
 export type Collection = {
@@ -279,6 +286,12 @@ export type CollectionSettings = {
 	urlPattern?: string | null,
 	assetsDirectory?: string | null,
 	useAbsoluteAssetPaths?: boolean | null,
+};
+
+/**  A colour theme: a CSS file in the `themes/` folder, named after the file */
+export type ColourTheme = {
+	name: string,
+	css: string,
 };
 
 export type ComponentFramework = "astro" | "react" | "vue" | "svelte";
@@ -368,9 +381,10 @@ export type GlobalSettings = {
 	version: number,
 };
 
+/**  The user's heading colours. Unset, headings take the editor text colour */
 export type HeadingColor = {
-	light: string,
-	dark: string,
+	light?: string | null,
+	dark?: string | null,
 };
 
 export type Highlights = {

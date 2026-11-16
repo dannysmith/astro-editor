@@ -29,6 +29,7 @@ import { useEditorActions } from '../../hooks/editor/useEditorActions'
 import { useCreateFile } from '../../hooks/useCreateFile'
 import { useDeepLink } from '../../hooks/useDeepLink'
 import { useSquareCornersEffect } from '../../hooks/useSquareCornersEffect'
+import { useColourTheme } from '../../hooks/useColourTheme'
 import { useExternalLinkHandler } from '../../hooks/useExternalLinkHandler'
 import { useEditorStore } from '../../store/editorStore'
 import { focusEditor } from '../../lib/focus-utils'
@@ -167,13 +168,18 @@ export const Layout: React.FC = () => {
     }
   }, [theme, setTheme])
 
+  useColourTheme()
+
   // Heading colours from appearance settings. --editor-color-heading picks
-  // between them with light-dark(), so theme changes need nothing here
+  // between them with light-dark(), so switching light and dark needs nothing
+  // here. Unset, headings take the editor text colour
   useEffect(() => {
-    if (!headingColor) return
-    const root = window.document.documentElement
-    root.style.setProperty('--heading-color-light', headingColor.light)
-    root.style.setProperty('--heading-color-dark', headingColor.dark)
+    const { style } = window.document.documentElement
+    for (const mode of ['light', 'dark'] as const) {
+      const color = headingColor?.[mode]
+      if (color) style.setProperty(`--heading-color-${mode}`, color)
+      else style.removeProperty(`--heading-color-${mode}`)
+    }
   }, [headingColor])
 
   // Apply editor base font size CSS variable

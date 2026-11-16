@@ -1004,7 +1004,10 @@ mod tests {
         assert_eq!(global.value.general.ide_command, "code");
         assert!(global.value.general.highlights.nouns);
         assert_eq!(global.value.general.auto_save_delay, 5);
-        assert_eq!(global.value.appearance.heading_color.light, "#111111");
+        assert_eq!(
+            global.value.appearance.heading_color.light.as_deref(),
+            Some("#111111")
+        );
 
         let registry = prefs.load_registry();
         assert!(registry.problem.is_none());

@@ -16,4 +16,5 @@ export const DOCS_URLS = {
   fileNamePatterns: `${DOCS_BASE}/project-settings/#file-names`,
   ideIntegration: `${DOCS_BASE}/file-management/ide-integration/`,
   advancedPreferences: `${DOCS_BASE}/reference/advanced-preferences/`,
+  colourThemes: `${DOCS_BASE}/reference/advanced-preferences/#colour-themes`,
 } as const

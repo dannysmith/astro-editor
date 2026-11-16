@@ -17,13 +17,14 @@ Inside it:
 - `preferences/global-settings.json`: app-wide settings (theme, IDE command, auto-save delay, appearance, the Copyedit panel's highlights and checks, the dialect and dictionary for those checks, and so on).
 - `preferences/project-registry.json`: every project ever opened (id, name, path, dates, the entry open when it was last left) and which was open last.
 - `preferences/projects/{id}.json`: one project's settings, and its path.
+- `themes/`: colour themes the user adds, as CSS files. Never created by AE. See `color-system.md`.
 - `recovery/` and `crash-reports/`: see [Recovery Files](#recovery-files).
 - `telemetry.json`: the anonymous install ID. Official release builds only.
 - `window-state.json`: the main window's size and position, and whether it's maximised or full screen (`window_state.rs`). Size is in points, so the window opens the same size on any display; position is in points on macOS and pixels elsewhere, matching each platform's coordinates across displays.
 
 **Reset All Preferences** (Preferences → Advanced) saves the open file, then deletes `preferences/` and `window-state.json` and restarts the app. It keeps recovery files, which may hold the only copy of unsaved text, crash reports and the telemetry ID.
 
-The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, a skipped update version, and the spelling, grammar and style issues the user ignored (`harper-ignored-issues`, which Reset All Preferences also clears). Logs live elsewhere; see `agent-tooling.md`.
+The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, the chosen colour theme's tokens (`astro-editor-colour-theme`, only while one is in use, which Reset All Preferences also clears) so they apply before settings load, a skipped update version, and the spelling, grammar and style issues the user ignored (`harper-ignored-issues`, which Reset All Preferences also clears). Logs live elsewhere; see `agent-tooling.md`.
 
 ## The model
 

@@ -140,6 +140,58 @@ pub async fn save_global_settings(
     Preferences::from_app(&app)?.save_global_settings(&settings)
 }
 
+/// A colour theme: a CSS file in the `themes/` folder, named after the file
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct ColourTheme {
+    pub name: String,
+    pub css: String,
+}
+
+/// The colour themes in the `themes/` folder of the app data folder, which the
+/// user creates. The frontend picks out the colour tokens (`lib/colour-themes.ts`)
+#[tauri::command]
+#[specta::specta]
+pub async fn list_colour_themes(app: tauri::AppHandle) -> Result<Vec<ColourTheme>, String> {
+    let dir = app
+        .path()
+        .resolve("themes", BaseDirectory::AppLocalData)
+        .map_err(|e| format!("Failed to resolve the themes folder: {e}"))?;
+    Ok(read_colour_themes(&dir))
+}
+
+/// Every `.css` file in `dir`, sorted by name. No folder means no themes; a
+/// file that can't be read is skipped and logged.
+fn read_colour_themes(dir: &Path) -> Vec<ColourTheme> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut themes: Vec<ColourTheme> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("css"))
+        })
+        .filter_map(|path| {
+            let name = path.file_stem()?.to_string_lossy().into_owned();
+            match std::fs::read_to_string(&path) {
+                Ok(css) => Some(ColourTheme { name, css }),
+                Err(e) => {
+                    log::warn!(
+                        "Astro Editor [THEMES] Couldn't read {}: {e}",
+                        path.display()
+                    );
+                    None
+                }
+            }
+        })
+        .collect();
+    themes.sort_by(|a, b| a.name.cmp(&b.name));
+    themes
+}
+
 /// A project as opened: its registry entry and its stored settings
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -226,4 +278,34 @@ pub async fn set_last_entry(
 
 fn show_problem(app: &tauri::AppHandle, problem: &str) {
     let _ = send_toast_notification(app, "warning", "Settings were reset", Some(problem));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_css_files_sorted_by_name() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("nord.css"),
+            ":root { --background: #2e3440; }",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("Dracula.CSS"), ":root {}").unwrap();
+        std::fs::write(dir.path().join("notes.txt"), "not a theme").unwrap();
+        std::fs::write(dir.path().join("broken.css"), [0xff, 0xfe, 0x00]).unwrap();
+        std::fs::create_dir(dir.path().join("folder.css")).unwrap();
+
+        let themes = read_colour_themes(dir.path());
+        let names: Vec<_> = themes.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, ["Dracula", "nord"]);
+        assert_eq!(themes[1].css, ":root { --background: #2e3440; }");
+    }
+
+    #[test]
+    fn no_folder_means_no_themes() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(read_colour_themes(&dir.path().join("themes")).is_empty());
+    }
 }

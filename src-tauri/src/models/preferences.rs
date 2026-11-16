@@ -116,21 +116,18 @@ pub struct AppearanceSettings {
     /// 1-30; the editor uses 18 when unset
     #[serde(skip_serializing_if = "Option::is_none")]
     pub editor_base_font_size: Option<f64>,
+    /// The name of a colour theme in the `themes/` folder. Default when unset
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_theme: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+/// The user's heading colours. Unset, headings take the editor text colour
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
 pub struct HeadingColor {
-    pub light: String,
-    pub dark: String,
-}
-
-impl Default for HeadingColor {
-    fn default() -> Self {
-        Self {
-            light: "#191919".to_string(),
-            dark: "#cccccc".to_string(),
-        }
-    }
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub light: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dark: Option<String>,
 }
 
 /// Every project AE has opened
