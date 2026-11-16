@@ -2561,3 +2561,129 @@ mod mdx_corpus_tests {
         );
     }
 }
+
+/// Tests over the frontmatter corpus in `test/frontmatter/` (see its README)
+#[cfg(test)]
+mod frontmatter_corpus_tests {
+    use super::*;
+
+    fn test_dir() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../test")
+    }
+
+    /// Every Markdown and MDX file under `dir`, sorted
+    fn content_files(dir: &Path) -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|entry| entry.into_path())
+            .filter(|path| {
+                path.extension()
+                    .is_some_and(|ext| ext == "md" || ext == "mdx")
+            })
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    fn name(path: &Path) -> String {
+        path.strip_prefix(test_dir())
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// What `save_markdown_content` writes when the frontmatter hasn't been edited
+    fn save_unchanged(parsed: &MarkdownContent) -> String {
+        if parsed.raw_frontmatter.trim().is_empty() {
+            rebuild_markdown_content_only(&parsed.imports, &parsed.content)
+        } else {
+            rebuild_markdown_with_raw_frontmatter(
+                &parsed.raw_frontmatter,
+                &parsed.imports,
+                &parsed.content,
+            )
+        }
+        .unwrap()
+    }
+
+    /// Files the editor doesn't write back as they were: it drops an empty
+    /// frontmatter block, and doesn't see frontmatter after blank lines
+    const NOT_KEPT: &[&str] = &[
+        "frontmatter/files/handwritten/empty-frontmatter.md",
+        "frontmatter/files/handwritten/leading-blank-lines.md",
+    ];
+
+    /// Files whose frontmatter can't be read are left to the snapshot, and
+    /// files with an MDX import block to `mdx_corpus_tests`, since the blank
+    /// lines around the block may change
+    #[test]
+    fn saving_unchanged_writes_the_file_back_as_it_was() {
+        let mut files = content_files(&test_dir().join("frontmatter/files"));
+        files.extend(content_files(&test_dir().join("mdx-imports/files")));
+        let mut failures = vec![];
+        for path in files {
+            let name = name(&path);
+            // Files are read with LF line endings, and saved with them
+            let original = std::fs::read_to_string(&path)
+                .unwrap()
+                .replace("\r\n", "\n");
+            let Ok(parsed) = parse_frontmatter(&original) else {
+                continue;
+            };
+            if !parsed.imports.is_empty() {
+                continue;
+            }
+            let kept = save_unchanged(&parsed) == original;
+            if kept == NOT_KEPT.contains(&name.as_str()) {
+                failures.push(format!(
+                    "{name}: {}",
+                    if kept {
+                        "written back as it was, so take it out of NOT_KEPT"
+                    } else {
+                        "changed by saving"
+                    }
+                ));
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    /// What each file in `frontmatter/files/` reads as is kept in
+    /// `frontmatter/values.txt`. After a deliberate change, regenerate it with
+    /// `UPDATE_SNAPSHOTS=1` and review the diff.
+    #[test]
+    fn values_match_the_snapshot() {
+        let mut actual = String::from(
+            "# What the frontmatter of each file in files/ reads as. Checked by\n\
+             # `frontmatter_corpus_tests` in `src-tauri/src/commands/files.rs`.\n",
+        );
+        for path in content_files(&test_dir().join("frontmatter/files")) {
+            let content = std::fs::read_to_string(&path).unwrap();
+            let values = match parse_frontmatter(&content) {
+                Ok(parsed) if parsed.raw_frontmatter.is_empty() => "(no frontmatter)".to_string(),
+                Ok(parsed) => serde_json::to_string_pretty(&parsed.frontmatter).unwrap(),
+                Err(e) => format!("(error) {e}"),
+            };
+            let name = name(&path);
+            let name = name.strip_prefix("frontmatter/files/").unwrap();
+            actual.push_str(&format!("\n=== {name}\n{values}\n"));
+        }
+
+        let snapshot = test_dir().join("frontmatter/values.txt");
+        if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, actual).unwrap();
+            return;
+        }
+        let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
+        let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
+        let first_difference = sections(&actual)
+            .into_iter()
+            .zip(sections(&expected))
+            .find(|(a, e)| a != e);
+        assert!(
+            actual == expected,
+            "Values differ from frontmatter/values.txt, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
+        );
+    }
+}

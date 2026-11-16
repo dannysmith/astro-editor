@@ -1,0 +1,550 @@
+# What the frontmatter of each file in files/ reads as. Checked by
+# `frontmatter_corpus_tests` in `src-tauri/src/commands/files.rs`.
+
+=== astro-editor-docs/privacy.mdx
+{
+  "title": "Privacy Policy",
+  "description": "How Astro Editor handles your data",
+  "sidebar": {
+    "hidden": true
+  }
+}
+
+=== astro-editor-docs/releases-0.1.28.mdx
+{
+  "title": "v0.1.28",
+  "description": "Astro Editor v0.1.28",
+  "date": "2025-10-20",
+  "slug": "releases/v0.1.28"
+}
+
+=== dannyis/articles-2013-10-02-new-job-new-website.md
+{
+  "title": "New Job, New Website",
+  "slug": "new-job-new-website",
+  "draft": false,
+  "description": "Transitioning from designer to Ruby developer and building a custom Sinatra-based website",
+  "pubDate": "2013-10-02",
+  "tags": [
+    "ruby",
+    "sinatra",
+    "web development",
+    "career",
+    "personal"
+  ]
+}
+
+=== dannyis/articles-2018-04-02-little-things.md
+{
+  "title": "Little Things",
+  "pubDate": "2018-04-02",
+  "platform": "medium",
+  "redirectURL": "https://medium.com/@dannysmith/little-things-c4b8fdcdc68c"
+}
+
+=== dannyis/articles-2024-02-05-personal-crms-clay-earth-is-not-what-i-need.md
+{
+  "title": "Personal CRMs Aren't What I Need",
+  "slug": "personal-crms-clay-earth-is-not-what-i-need",
+  "draft": false,
+  "description": "My honest take on why personal CRMs fail for relationship-building. Alternative approaches to managing professional networks by remote work expert Danny Smith.",
+  "pubDate": "2024-02-05",
+  "updatedDate": "2024-02-05"
+}
+
+=== dannyis/articles-2026-01-08-astro-editor.mdx
+{
+  "title": "Introducing Astro Editor",
+  "slug": "introducing-astro-editor",
+  "draft": false,
+  "toc": true,
+  "pubDate": "2026-01-08",
+  "cover": "../../assets/articles/2025-11-26-blog-header.png",
+  "coverAlt": "Banner image with text: Astro Editor 1.0.0"
+}
+
+=== dannyis/articles-2026-07-07-lc1a.mdx
+{
+  "title": "Introducing my very own Loom",
+  "slug": "loomclone-part-1",
+  "pubDate": "2026-07-07",
+  "series": "loomclone"
+}
+
+=== dannyis/notes-2007-05-08-print-kgtd-to-index-cards.mdx
+{
+  "title": "Print kGTD to 3x5 Index Cards",
+  "pubDate": "2007-05-08",
+  "tags": [
+    "ramblings"
+  ]
+}
+
+=== dannyis/notes-2025-08-19-how-i-built-a-github-profile-readme-that-shouldnt-exist-but-it-does-deep-thoughts.md
+{
+  "title": "The GitHub Profile README That Shouldn't Exist",
+  "sourceURL": "https://blog.trueberryless.org/blog/technically-impressive-github-profile-readme/",
+  "draft": false,
+  "pubDate": "2025-08-19"
+}
+
+=== dannyis/notes-2025-08-21-daily-brief.mdx
+{
+  "title": "Building a Daily Brief for AI with GitHub Actions",
+  "sourceURL": "https://github.com/dannysmith/morning-briefing-generator",
+  "slug": "daily-brief-for-ai",
+  "description": "Building a Daily Briefing markdown document for AI with GitHub Actions",
+  "pubDate": "2025-08-05",
+  "tags": [
+    "ai"
+  ]
+}
+
+=== dannyis/notes-2026-10-28-letting-agents-drive-my-tauri-app.mdx
+{
+  "title": "Letting coding agents see and drive my Tauri app",
+  "slug": "agents-drive-tauri-app",
+  "draft": true,
+  "description": "How I gave Claude Code a way to screenshot, click around and read the logs of the running Astro Editor dev app on macOS, without giving it control of my Mac.",
+  "pubDate": "2026-10-28",
+  "tags": [
+    "astro-editor",
+    "tauri",
+    "ai",
+    "claude-code"
+  ]
+}
+
+=== dannyis/projects-astro-editor.md
+{
+  "title": "Astro Editor",
+  "byline": "A desktop app for writing astro content",
+  "stage": "active-development",
+  "audience": "public",
+  "kind": "proper",
+  "icon": "../../assets/projects/astroeditor-icon.png",
+  "image": "../../assets/projects/astroeditor-image.png",
+  "website": "https://astroeditor.danny.is",
+  "github": "https://github.com/dannysmith/astro-editor",
+  "featured": true,
+  "startDate": "2025-06-01"
+}
+
+=== handwritten/anchors-and-merge-keys.md
+{
+  "title": "Anchors, aliases and merge keys",
+  "defaults": {
+    "layout": "post",
+    "comments": true
+  },
+  "author": "Danny",
+  "editor": "Danny",
+  "page": {
+    "<<": {
+      "layout": "post",
+      "comments": true
+    },
+    "comments": false
+  },
+  "tags": [
+    "one",
+    "two"
+  ],
+  "moreTags": [
+    "one",
+    "two"
+  ]
+}
+
+=== handwritten/block-lists.md
+{
+  "title": "Block lists",
+  "atColumnZero": [
+    "matthew",
+    "erika"
+  ],
+  "indented": [
+    "yan",
+    "sarah"
+  ],
+  "indentedFour": [
+    "deep",
+    "deeper"
+  ],
+  "objects": [
+    {
+      "text": "Get started",
+      "link": "/start/",
+      "icon": "right-arrow"
+    },
+    {
+      "text": "Read the docs",
+      "link": "/docs/",
+      "variant": "minimal"
+    }
+  ],
+  "nested": [
+    [
+      "a",
+      "b"
+    ],
+    [
+      "c"
+    ]
+  ],
+  "singleItem": [
+    "only"
+  ]
+}
+
+=== handwritten/block-scalar-last-key.md
+{
+  "title": "A block scalar as the last key",
+  "banner": {
+    "content": "Version 2 is here! <a href=\"/upgrade/\">Upgrade your site</a>"
+  }
+}
+
+=== handwritten/block-scalars.md
+{
+  "title": "Block scalars",
+  "literal": "First line\nSecond line\n",
+  "folded": "Folded lines are joined with spaces.\n",
+  "literalStrip": "No trailing newline",
+  "foldedKeep": "Keeps trailing newlines\n\n",
+  "withBlankLine": "Before the blank line\n\nAfter the blank line\n",
+  "indentIndicator": "  Starts with spaces\n",
+  "draft": true
+}
+
+=== handwritten/body-thematic-breaks.md
+{
+  "title": "Thematic breaks in the body"
+}
+
+=== handwritten/bom.md
+(no frontmatter)
+
+=== handwritten/comment-only-frontmatter.md
+{}
+
+=== handwritten/comments.md
+{
+  "title": "Comments everywhere",
+  "pubDate": "2024-03-01",
+  "tags": [
+    "one",
+    "two"
+  ],
+  "description": "A value with a comment after it",
+  "coverColour": null,
+  "draft": false
+}
+
+=== handwritten/crlf.md
+{
+  "title": "Windows line endings",
+  "tags": [
+    "one",
+    "two"
+  ]
+}
+
+=== handwritten/dates.md
+{
+  "title": "Dates and times",
+  "pubDate": "2024-06-15",
+  "quotedDate": "2024-06-15",
+  "version": "2024-01-01",
+  "utc": "2025-03-13T16:30:58.501Z",
+  "offset": "2024-12-03T00:00:00+01:00",
+  "quotedOffset": "2024-12-03T00:00:00+00:00",
+  "spaceSeparated": "2024-06-15 14:30:00",
+  "noSeconds": "2024-06-15T14:30",
+  "written": "December 5, 2023",
+  "quotedWritten": "September 19, 2024 13:00:00",
+  "updatedDate": null
+}
+
+=== handwritten/duplicate-keys.md
+{
+  "title": "The second title",
+  "draft": false
+}
+
+=== handwritten/empty-frontmatter.md
+(no frontmatter)
+
+=== handwritten/fence-trailing-spaces.md
+(no frontmatter)
+
+=== handwritten/inline-lists.md
+{
+  "title": "Inline lists and maps",
+  "plain": [
+    "astro",
+    "markdown",
+    "writing"
+  ],
+  "single": [
+    "astro",
+    "web design",
+    "tools"
+  ],
+  "double": [
+    "Artificial Intelligence",
+    "Language Models"
+  ],
+  "mixed": [
+    1,
+    "two",
+    "three",
+    true
+  ],
+  "empty": [],
+  "withComma": [
+    "one, two",
+    "three"
+  ],
+  "inlineMap": {
+    "label": "Docs",
+    "order": 3
+  },
+  "emptyMap": {},
+  "overLines": [
+    "first",
+    "second"
+  ]
+}
+
+=== handwritten/keys.md
+{
+  "title": "A double-quoted key",
+  "description": "A single-quoted key",
+  "key with spaces": "Spaces in the key",
+  "kebab-case-key": "Kebab case",
+  "snake_case_key": "Snake case",
+  "UPPER": "Upper case",
+  "quoted: colon": "A colon inside a quoted key"
+}
+
+=== handwritten/leading-blank-lines.md
+(no frontmatter)
+
+=== handwritten/nested-objects.md
+{
+  "title": "Nested objects",
+  "seo": {
+    "title": "A title for search engines",
+    "description": "And a description",
+    "noindex": false
+  },
+  "homepageLink": {
+    "title": "Indented by four",
+    "subtitle": "Available now!"
+  },
+  "external": {
+    "url": "https://example.com/article",
+    "author": {
+      "name": "Someone",
+      "links": [
+        "https://example.com/someone"
+      ]
+    }
+  },
+  "emptySeo": null,
+  "og.title": "A key with a dot in it"
+}
+
+=== handwritten/no-frontmatter.md
+(no frontmatter)
+
+=== handwritten/numeric-key.md
+{
+  "title": "A number as a key",
+  "2024": "The year as a key"
+}
+
+=== handwritten/quote-styles.md
+{
+  "plain": "A plain string",
+  "single": "A single-quoted string",
+  "double": "A double-quoted string",
+  "singleWithApostrophe": "It's quoted by doubling",
+  "doubleWithEscapes": "A tab\there, a quote \" and a backslash \\",
+  "colonNeedsQuotes": "Hello: world",
+  "hashNeedsQuotes": "Issue #12",
+  "leadingSpecial": "@scope/package",
+  "unicode": "Café — naïve ✨",
+  "emptySingle": "",
+  "emptyDouble": "",
+  "numberAsString": "42",
+  "boolAsString": "true"
+}
+
+=== handwritten/scalars.md
+{
+  "title": "Scalars that read as something else",
+  "tilde": null,
+  "nullWord": null,
+  "nothing": null,
+  "trailingSpace": null,
+  "yes": "yes",
+  "no": "no",
+  "on": "on",
+  "off": "off",
+  "capitalTrue": true,
+  "hex": 16,
+  "octal": 15,
+  "leadingZero": "017",
+  "version": 1.1,
+  "oneDotZero": 1.0,
+  "exponent": 1000.0,
+  "infinity": null,
+  "negativeInfinity": null,
+  "notANumber": null,
+  "plusOne": 1,
+  "bigInteger": 12345678901234567890,
+  "semver": "1.2.3"
+}
+
+=== handwritten/starlight.mdx
+{
+  "title": "Every Starlight frontmatter option",
+  "description": "A page using each field Starlight's docs schema adds",
+  "slug": "guides/every-option",
+  "editUrl": false,
+  "head": [
+    {
+      "tag": "meta",
+      "attrs": {
+        "property": "og:image",
+        "content": "https://example.com/og.png"
+      }
+    },
+    {
+      "tag": "title",
+      "content": "A custom page title"
+    }
+  ],
+  "tableOfContents": {
+    "minHeadingLevel": 2,
+    "maxHeadingLevel": 4
+  },
+  "template": "splash",
+  "hero": {
+    "title": "A hero title",
+    "tagline": "Underneath the title",
+    "image": {
+      "alt": "A logo",
+      "dark": "../../assets/logo-dark.png",
+      "light": "../../assets/logo-light.png"
+    },
+    "actions": [
+      {
+        "text": "Get started",
+        "link": "/guides/start/",
+        "icon": "right-arrow",
+        "variant": "primary"
+      },
+      {
+        "text": "View on GitHub",
+        "link": "https://github.com/example/example",
+        "icon": "external",
+        "attrs": {
+          "rel": "me"
+        }
+      }
+    ]
+  },
+  "banner": {
+    "content": "Something new is here! <a href=\"/new/\">Read about it</a>\n"
+  },
+  "lastUpdated": "2024-01-15",
+  "prev": false,
+  "next": {
+    "link": "/guides/next/",
+    "label": "The next page"
+  },
+  "pagefind": false,
+  "draft": true,
+  "sidebar": {
+    "label": "Every option",
+    "order": 3,
+    "hidden": false,
+    "badge": {
+      "text": "New",
+      "variant": "tip",
+      "class": "my-badge"
+    },
+    "attrs": {
+      "style": "font-style:italic"
+    }
+  }
+}
+
+=== handwritten/tab-on-blank-line.md
+(error) Failed to parse YAML: found a tab character that violates indentation at line 2 column 1, while scanning a plain scalar at line 1 column 8
+
+=== handwritten/toml-frontmatter.md
+(no frontmatter)
+
+=== handwritten/unclosed-frontmatter.md
+(error) Frontmatter not properly closed with '---'
+
+=== handwritten/whitespace.md
+{
+  "title": "Whitespace",
+  "description": "Trailing spaces on the title, and blank lines between keys",
+  "tags": [
+    "one",
+    "two"
+  ],
+  "spacedColon": "Several spaces after the colon",
+  "tabInValue": "a\ttab"
+}
+
+=== handwritten/wrapped-strings.md
+{
+  "title": "Strings wrapped over lines",
+  "description": "A plain string long enough that the tool which wrote it wrapped it onto a second line, and then onto a third.",
+  "quotedWrapped": "A double-quoted string that also goes over two lines",
+  "singleWrapped": "A single-quoted string over two lines",
+  "htmlish": "<h3 align=\"center\">A heading <img src=\"https://example.com/logo.png\" width=\"100\" alt=\"Logo\"/></h3>",
+  "categories": [
+    "uncategorized"
+  ]
+}
+
+=== taskdn/developer-contributing.mdx
+{
+  "title": "Contributing",
+  "description": "How to contribute to Taskdn",
+  "sidebar": {
+    "order": 1
+  }
+}
+
+=== taskdn/developer-roadmap.mdx
+{
+  "title": "Roadmap",
+  "description": "What's planned for Taskdn",
+  "sidebar": {
+    "order": 2
+  }
+}
+
+=== taskdn/releases-claude-plugin-0.1.0.mdx
+{
+  "title": "Claude Plugin v0.1.0",
+  "description": "Initial release of the Taskdn Claude Code plugin",
+  "date": "2025-12-30",
+  "product": "claude-plugin"
+}
+
+=== taskdn/specification-overview.mdx
+{
+  "title": "The Specification",
+  "description": "Formal Taskdn specifications",
+  "tableOfContents": false
+}
