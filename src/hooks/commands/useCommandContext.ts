@@ -1,7 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
-import { useUIStore } from '../../store/uiStore'
 import { useCollectionsQuery } from '../queries/useCollectionsQuery'
 import { CommandContext } from '../../lib/commands/types'
 import { queryClient } from '../../lib/query-client'
@@ -28,11 +27,6 @@ export function useCommandContext(): CommandContext {
   )
   const setProject = useProjectStore(state => state.setProject)
 
-  const toggleSidebar = useUIStore(state => state.toggleSidebar)
-  const toggleFrontmatterPanel = useUIStore(
-    state => state.toggleFrontmatterPanel
-  )
-
   // Get collections data from TanStack Query
   const { data: collections = [] } = useCollectionsQuery(projectPath)
 
@@ -48,8 +42,6 @@ export function useCommandContext(): CommandContext {
     },
     setSelectedCollection,
     setProject,
-    toggleSidebar,
-    toggleFrontmatterPanel,
     closeFile,
     reloadCollections: async () => {
       const { projectPath } = useProjectStore.getState()

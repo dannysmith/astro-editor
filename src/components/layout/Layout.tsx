@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
@@ -7,7 +8,6 @@ import { UnifiedTitleBar } from './unified-title-bar'
 import { LeftSidebar } from './LeftSidebar'
 import { MainEditor } from './MainEditor'
 import { RightSidebar } from './RightSidebar'
-import { FrontmatterPanel } from '../frontmatter'
 import { CommandPalette } from '../command-palette'
 import { ComponentBuilderDialog } from '../component-builder'
 import { ContentLinkerDialog } from '../content-linker'
@@ -44,10 +44,8 @@ import {
 
 export const Layout: React.FC = () => {
   // UI state - use selector syntax for consistency
-  const sidebarVisible = useUIStore(state => state.sidebarVisible)
-  const frontmatterPanelVisible = useUIStore(
-    state => state.frontmatterPanelVisible
-  )
+  const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
+  const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
 
   const { setTheme } = useTheme()
 
@@ -68,40 +66,55 @@ export const Layout: React.FC = () => {
 
   // Sync sidebar visibility with panel collapse state
   useEffect(() => {
-    if (sidebarVisible) {
+    if (leftSidebarVisible) {
       leftPanelRef.current?.expand()
     } else {
       leftPanelRef.current?.collapse()
     }
-  }, [sidebarVisible])
+  }, [leftSidebarVisible])
 
   useEffect(() => {
-    if (frontmatterPanelVisible) {
+    if (rightSidebarVisible) {
       rightPanelRef.current?.expand()
     } else {
       rightPanelRef.current?.collapse()
     }
-  }, [frontmatterPanelVisible])
+  }, [rightSidebarVisible])
 
   // Sync drag-to-collapse back to the store
   const handleLeftPanelResize = useCallback(
     (size: { asPercentage: number }) => {
       const isCollapsed = size.asPercentage === 0
-      const { sidebarVisible: current, setSidebarVisible } =
+      const { leftSidebarVisible: current, setLeftSidebarVisible } =
         useUIStore.getState()
-      if (isCollapsed && current) setSidebarVisible(false)
-      if (!isCollapsed && !current) setSidebarVisible(true)
+      if (isCollapsed && current) setLeftSidebarVisible(false)
+      if (!isCollapsed && !current) setLeftSidebarVisible(true)
     },
     []
+  )
+
+  // Whether the right sidebar has width. Its panels are shown from this rather
+  // than rightSidebarVisible, which changes a render before the panel expands:
+  // a panel shown then would measure itself (textarea heights, scrolling to an
+  // item) at zero width
+  const [rightSidebarExpanded, setRightSidebarExpanded] = useState(
+    () => useUIStore.getState().rightSidebarVisible
   )
 
   const handleRightPanelResize = useCallback(
     (size: { asPercentage: number }) => {
       const isCollapsed = size.asPercentage === 0
-      const { frontmatterPanelVisible: current, setFrontmatterPanelVisible } =
+      // Synchronously, before the browser paints (this runs in a
+      // ResizeObserver callback). A panel hidden with <Activity> doesn't follow
+      // the stores, and a sync render brings it up to date as it's shown;
+      // otherwise it shows the previous file's values for a moment
+      flushSync(() => {
+        setRightSidebarExpanded(!isCollapsed)
+      })
+      const { rightSidebarVisible: current, setRightSidebarVisible } =
         useUIStore.getState()
-      if (isCollapsed && current) setFrontmatterPanelVisible(false)
-      if (!isCollapsed && !current) setFrontmatterPanelVisible(true)
+      if (isCollapsed && current) setRightSidebarVisible(false)
+      if (!isCollapsed && !current) setRightSidebarVisible(true)
     },
     []
   )
@@ -216,7 +229,7 @@ export const Layout: React.FC = () => {
             minSize={LAYOUT_SIZES.leftSidebar.min}
             maxSize={LAYOUT_SIZES.leftSidebar.max}
             style={{
-              minWidth: sidebarVisible
+              minWidth: leftSidebarVisible
                 ? LAYOUT_SIZES.leftSidebar.minWidth
                 : undefined,
             }}
@@ -225,7 +238,7 @@ export const Layout: React.FC = () => {
             <LeftSidebar />
           </ResizablePanel>
           <ResizableHandle
-            className={`!cursor-col-resize ${sidebarVisible ? '' : 'hidden'}`}
+            className={`!cursor-col-resize ${leftSidebarVisible ? '' : 'hidden'}`}
           />
 
           <ResizablePanel
@@ -237,7 +250,7 @@ export const Layout: React.FC = () => {
           </ResizablePanel>
 
           <ResizableHandle
-            className={`!cursor-col-resize ${frontmatterPanelVisible ? '' : 'hidden'}`}
+            className={`!cursor-col-resize ${rightSidebarVisible ? '' : 'hidden'}`}
           />
           <ResizablePanel
             id="right-sidebar"
@@ -249,9 +262,7 @@ export const Layout: React.FC = () => {
             maxSize={LAYOUT_SIZES.rightSidebar.max}
             onResize={handleRightPanelResize}
           >
-            <RightSidebar>
-              <FrontmatterPanel />
-            </RightSidebar>
+            <RightSidebar expanded={rightSidebarExpanded} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

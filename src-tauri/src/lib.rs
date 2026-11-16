@@ -260,17 +260,34 @@ pub fn run() {
                 &[
                     &MenuItem::with_id(
                         app,
-                        "toggle_sidebar",
-                        "Toggle Sidebar",
+                        "toggle_left_sidebar",
+                        "Toggle Left Sidebar",
                         true,
                         Some("CmdOrCtrl+1"),
                     )?,
                     &MenuItem::with_id(
                         app,
-                        "toggle_frontmatter",
+                        "toggle_right_sidebar",
+                        "Toggle Right Sidebar",
+                        true,
+                        None::<&str>,
+                    )?,
+                    &PredefinedMenuItem::separator(app)?,
+                    // The right sidebar's tabs (RIGHT_SIDEBAR_TABS in
+                    // src/lib/right-sidebar.ts): ids are toggle_right_sidebar_tab_<tab id>
+                    &MenuItem::with_id(
+                        app,
+                        "toggle_right_sidebar_tab_frontmatter",
                         "Toggle Frontmatter Panel",
                         true,
                         Some("CmdOrCtrl+2"),
+                    )?,
+                    &MenuItem::with_id(
+                        app,
+                        "toggle_right_sidebar_tab_copyedit",
+                        "Toggle Copyedit Panel",
+                        true,
+                        Some("CmdOrCtrl+3"),
                     )?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(
@@ -357,11 +374,15 @@ pub fn run() {
                 "save" => {
                     let _ = app.emit("menu-save", ());
                 }
-                "toggle_sidebar" => {
-                    let _ = app.emit("menu-toggle-sidebar", ());
+                "toggle_left_sidebar" => {
+                    let _ = app.emit("menu-toggle-left-sidebar", ());
                 }
-                "toggle_frontmatter" => {
-                    let _ = app.emit("menu-toggle-frontmatter", ());
+                "toggle_right_sidebar" => {
+                    let _ = app.emit("menu-toggle-right-sidebar", ());
+                }
+                id if id.starts_with("toggle_right_sidebar_tab_") => {
+                    let tab = id.trim_start_matches("toggle_right_sidebar_tab_");
+                    let _ = app.emit("menu-toggle-right-sidebar-tab", tab);
                 }
                 "enter_fullscreen" => {
                     // Toggle, so Ctrl+Cmd+F also leaves full screen

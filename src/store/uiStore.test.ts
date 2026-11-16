@@ -15,8 +15,8 @@ describe('Focus Mode Integration', () => {
   beforeEach(() => {
     // Reset store state before each test
     useUIStore.setState({
-      sidebarVisible: true,
-      frontmatterPanelVisible: true,
+      leftSidebarVisible: true,
+      rightSidebarVisible: true,
       focusModeEnabled: false,
     })
   })
@@ -40,12 +40,12 @@ describe('Focus Mode Integration', () => {
 
   describe('State Persistence', () => {
     test('maintains state across multiple operations', () => {
-      const { toggleFocusMode, toggleSidebar } = useUIStore.getState()
+      const { toggleFocusMode, toggleLeftSidebar } = useUIStore.getState()
 
       // Perform multiple operations
       toggleFocusMode() // Enable focus mode
-      toggleSidebar() // Toggle sidebar (unrelated)
-      toggleSidebar() // Toggle sidebar again
+      toggleLeftSidebar() // Toggle sidebar (unrelated)
+      toggleLeftSidebar() // Toggle sidebar again
 
       // Verify focus mode is still enabled
       const state = useUIStore.getState()
@@ -109,8 +109,53 @@ describe('Focus Mode Integration', () => {
 
       // All required methods should exist
       expect(typeof store.toggleFocusMode).toBe('function')
-      expect(typeof store.toggleSidebar).toBe('function')
-      expect(typeof store.toggleFrontmatterPanel).toBe('function')
+      expect(typeof store.toggleLeftSidebar).toBe('function')
+      expect(typeof store.toggleRightSidebar).toBe('function')
     })
+  })
+})
+
+describe('Right sidebar', () => {
+  const sidebar = () => {
+    const { rightSidebarVisible, rightSidebarTab } = useUIStore.getState()
+    return { visible: rightSidebarVisible, tab: rightSidebarTab }
+  }
+
+  beforeEach(() => {
+    useUIStore.setState({
+      rightSidebarVisible: false,
+      rightSidebarTab: 'frontmatter',
+    })
+  })
+
+  test('toggling the sidebar keeps its tab', () => {
+    useUIStore.setState({ rightSidebarTab: 'copyedit' })
+    useUIStore.getState().toggleRightSidebar()
+    expect(sidebar()).toEqual({ visible: true, tab: 'copyedit' })
+    useUIStore.getState().toggleRightSidebar()
+    expect(sidebar()).toEqual({ visible: false, tab: 'copyedit' })
+  })
+
+  test("a tab's toggle opens the closed sidebar on that tab", () => {
+    useUIStore.getState().toggleRightSidebarTab('copyedit')
+    expect(sidebar()).toEqual({ visible: true, tab: 'copyedit' })
+  })
+
+  test("a tab's toggle switches to it when another tab is showing", () => {
+    useUIStore.setState({ rightSidebarVisible: true })
+    useUIStore.getState().toggleRightSidebarTab('copyedit')
+    expect(sidebar()).toEqual({ visible: true, tab: 'copyedit' })
+  })
+
+  test("a tab's toggle closes the sidebar when that tab is showing", () => {
+    useUIStore.setState({ rightSidebarVisible: true })
+    useUIStore.getState().toggleRightSidebarTab('frontmatter')
+    expect(sidebar()).toEqual({ visible: false, tab: 'frontmatter' })
+  })
+
+  test('showing a tab never closes the sidebar', () => {
+    useUIStore.setState({ rightSidebarVisible: true })
+    useUIStore.getState().showRightSidebarTab('frontmatter')
+    expect(sidebar()).toEqual({ visible: true, tab: 'frontmatter' })
   })
 })

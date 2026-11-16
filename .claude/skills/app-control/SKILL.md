@@ -13,7 +13,7 @@ description: See and drive the running Astro Editor dev app with `bun run app`, 
 
 ## The loop for UI work
 
-1. Get the app into the right state: `app open-project`, `app open articles/first-article`, `app run toggle-sidebar`
+1. Get the app into the right state: `app open-project`, `app open articles/first-article`, `app run toggle-left-sidebar`
 2. Make the change. Vite hot-reloads the frontend
 3. `app shot <name>` saves a PNG for each theme to `docs/tasks-todo/temporary/`. Read both images. Danny sees the same files
 4. Check behaviour with `app state` and `app tree` rather than more screenshots where you can. Both are much cheaper to read

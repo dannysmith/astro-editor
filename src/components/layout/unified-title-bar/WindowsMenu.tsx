@@ -8,6 +8,7 @@ import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { commands } from '@/lib/bindings'
 import { toast } from '@/lib/toast'
+import { RIGHT_SIDEBAR_TABS } from '@/lib/right-sidebar'
 import { Button } from '../../ui/button'
 import {
   DropdownMenu,
@@ -63,12 +64,12 @@ export const WindowsMenu: React.FC = () => {
     void emit('menu-save')
   }
 
-  const handleToggleSidebar = () => {
-    void emit('menu-toggle-sidebar')
+  const handleToggleLeftSidebar = () => {
+    void emit('menu-toggle-left-sidebar')
   }
 
-  const handleToggleFrontmatter = () => {
-    void emit('menu-toggle-frontmatter')
+  const handleToggleRightSidebar = () => {
+    void emit('menu-toggle-right-sidebar')
   }
 
   const handleFullScreen = async () => {
@@ -148,14 +149,24 @@ export const WindowsMenu: React.FC = () => {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={handleToggleSidebar}>
-          Toggle Sidebar
+        <DropdownMenuItem onClick={handleToggleLeftSidebar}>
+          Toggle Left Sidebar
           <DropdownMenuShortcut>Ctrl+1</DropdownMenuShortcut>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleToggleFrontmatter}>
-          Toggle Frontmatter
-          <DropdownMenuShortcut>Ctrl+2</DropdownMenuShortcut>
+        <DropdownMenuItem onClick={handleToggleRightSidebar}>
+          Toggle Right Sidebar
         </DropdownMenuItem>
+        {RIGHT_SIDEBAR_TABS.map(tab => (
+          <DropdownMenuItem
+            key={tab.id}
+            onClick={() => void emit('menu-toggle-right-sidebar-tab', tab.id)}
+          >
+            Toggle {tab.label} Panel
+            <DropdownMenuShortcut>
+              Ctrl+{tab.shortcutDigit}
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuItem onClick={() => void handleFullScreen()}>
           {isFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}
           <DropdownMenuShortcut>F11</DropdownMenuShortcut>
