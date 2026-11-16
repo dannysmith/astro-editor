@@ -2,6 +2,8 @@
  * Type definitions for copyedit mode POS highlighting
  */
 
+import type { Highlights } from '@/lib/bindings'
+
 // Compromise.js type definitions
 export interface CompromiseOffset {
   start: number
@@ -28,8 +30,11 @@ export interface PosConfig {
   tag: string
   /** CSS class, e.g., 'cm-pos-noun' */
   className: string
-  /** Key in enabledPartsOfSpeech, e.g., 'nouns' */
-  settingKey: string
+  /** Its key in the `highlights` global settings, e.g. 'nouns' */
+  settingKey: keyof Highlights
+  /** Singular, e.g. 'Noun': the palette shows "Show Noun Highlights", the
+   * Copyedit panel "Nouns" */
+  name: string
   /** Tags to exclude, e.g., ['#Pronoun'] */
   exclusionTags?: string[]
 }

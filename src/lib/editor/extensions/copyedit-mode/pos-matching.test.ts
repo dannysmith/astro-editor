@@ -367,6 +367,7 @@ describe('processPosType', () => {
     tag: '#Noun',
     className: 'cm-pos-noun',
     settingKey: 'nouns',
+    name: 'Noun',
     exclusionTags: ['#Pronoun'],
   }
 
@@ -374,6 +375,7 @@ describe('processPosType', () => {
     tag: '#Adjective',
     className: 'cm-pos-adjective',
     settingKey: 'adjectives',
+    name: 'Adjective',
   }
 
   test('processes POS type with exclusions', () => {

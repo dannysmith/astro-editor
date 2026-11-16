@@ -16,14 +16,13 @@ import {
   ViewUpdate,
 } from '@codemirror/view'
 import nlp from 'compromise'
+import type { GlobalSettings } from '@/lib/bindings'
 
 import { useProjectStore } from '../../../../store/projectStore'
 import { POS_CONFIGS } from './constants'
+import { readHighlights } from './highlights'
 import { processPosType } from './pos-matching'
 import type { CompromiseDocument } from './types'
-
-// Global reference to current view for external updates
-let currentEditorView: EditorView | null = null
 
 // State effects for highlight control
 export const updatePosDecorations = StateEffect.define<DecorationSet>()
@@ -54,18 +53,12 @@ export const highlightDecorations = StateField.define<DecorationSet>({
  * Get enabled parts of speech from global settings
  */
 function getEnabledPartsOfSpeech(): Set<string> {
-  const globalSettings = useProjectStore.getState().globalSettings
-  const highlights = globalSettings?.general?.highlights
-
-  const enabled = new Set<string>()
-  // Use nullish coalescing to properly handle false values
-  if (highlights?.nouns ?? true) enabled.add('nouns')
-  if (highlights?.verbs ?? true) enabled.add('verbs')
-  if (highlights?.adjectives ?? true) enabled.add('adjectives')
-  if (highlights?.adverbs ?? true) enabled.add('adverbs')
-  if (highlights?.conjunctions ?? true) enabled.add('conjunctions')
-
-  return enabled
+  const highlights = readHighlights(useProjectStore.getState().globalSettings)
+  return new Set(
+    Object.entries(highlights)
+      .filter(([, on]) => on)
+      .map(([key]) => key)
+  )
 }
 
 /**
@@ -79,16 +72,15 @@ function hasAnyHighlightsEnabled(): boolean {
 /**
  * Create decorations for parts of speech highlighting.
  * Uses a configuration-driven approach to process all POS types uniformly.
+ * Words at `cursorPosition` are skipped, as they're being edited.
  */
 function createPosDecorations(
   text: string,
-  enabledPartsOfSpeech: Set<string>
+  enabledPartsOfSpeech: Set<string>,
+  cursorPosition: number
 ): DecorationSet {
   const marks: Range<Decoration>[] = []
   const processedRanges = new Set<string>()
-
-  // Get current cursor position to exclude words being actively edited
-  const cursorPosition = currentEditorView?.state.selection.main.head ?? -1
 
   try {
     // Parse the text with compromise.js
@@ -132,38 +124,52 @@ function createPosDecorations(
   return Decoration.set(marks, true)
 }
 
-/**
- * Trigger re-analysis from external components
- */
-export function updateCopyeditModePartsOfSpeech() {
-  if (currentEditorView) {
-    // Always re-analyze when called externally (user toggled settings)
-    const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
-    const doc = currentEditorView.state.doc.toString()
-    const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
-
-    // Preserve cursor position during decoration update
-    currentEditorView.dispatch({
-      effects: updatePosDecorations.of(decorations),
-      selection: currentEditorView.state.selection,
-      scrollIntoView: false,
-    })
-
-    // Force the view to update by requesting a measure
-    currentEditorView.requestMeasure()
-  }
+/** Whether two global settings objects have the same highlights on */
+function sameHighlights(
+  a: GlobalSettings | null,
+  b: GlobalSettings | null
+): boolean {
+  const first = readHighlights(a)
+  const second = readHighlights(b)
+  return POS_CONFIGS.every(
+    ({ settingKey }) => first[settingKey] === second[settingKey]
+  )
 }
 
-// Highlight plugin with view tracking
+// Highlight plugin: analyses the document as it changes, and again whenever
+// the highlight settings change, from the Copyedit panel or the palette
 export const highlightPlugin = ViewPlugin.fromClass(
   class {
     private timeoutId: number | null = null
     private hasInitialAnalysis = false
     private isActivelyEditing = false
     private editingTimeoutId: number | null = null
+    private unsubscribe: () => void
 
     constructor(public view: EditorView) {
-      currentEditorView = view // Store reference for external access
+      this.unsubscribe = useProjectStore.subscribe((state, previous) => {
+        if (!sameHighlights(state.globalSettings, previous.globalSettings)) {
+          this.applySettings()
+        }
+      })
+    }
+
+    /** Re-analyses straight away, even mid-edit, as the user asked for it */
+    applySettings() {
+      if (this.timeoutId !== null) {
+        clearTimeout(this.timeoutId)
+        this.timeoutId = null
+      }
+      this.hasInitialAnalysis = true
+      this.view.dispatch({
+        effects: updatePosDecorations.of(
+          createPosDecorations(
+            this.view.state.doc.toString(),
+            getEnabledPartsOfSpeech(),
+            this.view.state.selection.main.head
+          )
+        ),
+      })
     }
 
     update(update: ViewUpdate) {
@@ -219,7 +225,11 @@ export const highlightPlugin = ViewPlugin.fromClass(
       // Get enabled parts of speech from global settings
       const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
 
-      const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
+      const decorations = createPosDecorations(
+        doc,
+        enabledPartsOfSpeech,
+        this.view.state.selection.main.head
+      )
 
       // Store cursor position before applying decorations
       const currentSelection = this.view.state.selection
@@ -238,9 +248,7 @@ export const highlightPlugin = ViewPlugin.fromClass(
       if (this.editingTimeoutId !== null) {
         clearTimeout(this.editingTimeoutId)
       }
-      if (currentEditorView === this.view) {
-        currentEditorView = null // Clear reference
-      }
+      this.unsubscribe()
     }
   }
 )

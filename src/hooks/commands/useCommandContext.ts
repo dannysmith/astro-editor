@@ -62,23 +62,5 @@ export function useCommandContext(): CommandContext {
     toggleTypewriterMode: () => {
       window.dispatchEvent(new CustomEvent('toggle-typewriter-mode'))
     },
-    toggleHighlightNouns: () => {
-      window.dispatchEvent(new CustomEvent('toggle-highlight-nouns'))
-    },
-    toggleHighlightVerbs: () => {
-      window.dispatchEvent(new CustomEvent('toggle-highlight-verbs'))
-    },
-    toggleHighlightAdjectives: () => {
-      window.dispatchEvent(new CustomEvent('toggle-highlight-adjectives'))
-    },
-    toggleHighlightAdverbs: () => {
-      window.dispatchEvent(new CustomEvent('toggle-highlight-adverbs'))
-    },
-    toggleHighlightConjunctions: () => {
-      window.dispatchEvent(new CustomEvent('toggle-highlight-conjunctions'))
-    },
-    toggleAllHighlights: () => {
-      window.dispatchEvent(new CustomEvent('toggle-all-highlights'))
-    },
   }
 }

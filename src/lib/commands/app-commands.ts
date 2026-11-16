@@ -31,6 +31,12 @@ import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 import { useUIStore } from '@/store/uiStore'
 import { RIGHT_SIDEBAR_TABS } from '../right-sidebar'
+import {
+  POS_CONFIGS,
+  readHighlights,
+  toggleAllHighlights,
+  toggleHighlight,
+} from '../editor/extensions/copyedit-mode'
 
 /**
  * File-related commands
@@ -220,97 +226,34 @@ export const viewModeCommands: AppCommand[] = [
 ]
 
 /**
- * Highlight commands for parts of speech with dynamic labels
+ * Copyedit commands: the part-of-speech highlights, with labels that say what
+ * they'll do
  */
-export function getHighlightCommands(context: CommandContext): AppCommand[] {
-  const highlights = context.globalSettings?.general?.highlights
-
-  // Get the actual state with proper defaults using nullish coalescing
-  const highlightStates = {
-    nouns: highlights?.nouns ?? true,
-    verbs: highlights?.verbs ?? true,
-    adjectives: highlights?.adjectives ?? true,
-    adverbs: highlights?.adverbs ?? true,
-    conjunctions: highlights?.conjunctions ?? true,
-  }
-
-  // Check if any highlights are enabled for the "Toggle All" command
-  const anyEnabled = Object.values(highlightStates).some(enabled => enabled)
+export function getCopyeditCommands(context: CommandContext): AppCommand[] {
+  // Labels read the context, so the palette updates when a highlight changes
+  const highlights = readHighlights(context.globalSettings)
+  const anyEnabled = Object.values(highlights).some(Boolean)
 
   return [
-    {
-      id: 'toggle-highlight-nouns',
-      label: highlightStates.nouns
-        ? 'Hide Noun Highlights'
-        : 'Show Noun Highlights',
-      description: 'Toggle highlighting of nouns in the editor',
+    ...POS_CONFIGS.map(({ settingKey, name }): AppCommand => ({
+      id: `toggle-highlight-${settingKey}`,
+      label: `${highlights[settingKey] ? 'Hide' : 'Show'} ${name} Highlights`,
+      description: `Toggle highlighting of ${settingKey} in the editor`,
       icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleHighlightNouns()
+      group: 'copyedit',
+      execute: () => {
+        toggleHighlight(settingKey)
       },
       isAvailable: () => true,
-    },
-    {
-      id: 'toggle-highlight-verbs',
-      label: highlightStates.verbs
-        ? 'Hide Verb Highlights'
-        : 'Show Verb Highlights',
-      description: 'Toggle highlighting of verbs in the editor',
-      icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleHighlightVerbs()
-      },
-      isAvailable: () => true,
-    },
-    {
-      id: 'toggle-highlight-adjectives',
-      label: highlightStates.adjectives
-        ? 'Hide Adjective Highlights'
-        : 'Show Adjective Highlights',
-      description: 'Toggle highlighting of adjectives in the editor',
-      icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleHighlightAdjectives()
-      },
-      isAvailable: () => true,
-    },
-    {
-      id: 'toggle-highlight-adverbs',
-      label: highlightStates.adverbs
-        ? 'Hide Adverb Highlights'
-        : 'Show Adverb Highlights',
-      description: 'Toggle highlighting of adverbs in the editor',
-      icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleHighlightAdverbs()
-      },
-      isAvailable: () => true,
-    },
-    {
-      id: 'toggle-highlight-conjunctions',
-      label: highlightStates.conjunctions
-        ? 'Hide Conjunction Highlights'
-        : 'Show Conjunction Highlights',
-      description: 'Toggle highlighting of conjunctions in the editor',
-      icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleHighlightConjunctions()
-      },
-      isAvailable: () => true,
-    },
+    })),
     {
       id: 'toggle-all-highlights',
       label: anyEnabled ? 'Hide All Highlights' : 'Show All Highlights',
       description: 'Toggle all part-of-speech highlights on or off together',
       icon: Highlighter,
-      group: 'highlight',
-      execute: (context: CommandContext) => {
-        context.toggleAllHighlights()
+      group: 'copyedit',
+      execute: () => {
+        toggleAllHighlights()
       },
       isAvailable: () => true,
     },
@@ -440,7 +383,7 @@ export const ideCommands: AppCommand[] = [
  */
 export function getAllCommands(context: CommandContext): AppCommand[] {
   const collectionCommands = generateCollectionCommands(context.collections)
-  const highlightCommands = getHighlightCommands(context)
+  const copyeditCommands = getCopyeditCommands(context)
 
   return [
     ...fileCommands,
@@ -448,7 +391,7 @@ export function getAllCommands(context: CommandContext): AppCommand[] {
     ...projectCommands,
     ...settingsCommands,
     ...viewModeCommands,
-    ...highlightCommands,
+    ...copyeditCommands,
     ...ideCommands,
     ...helpCommands,
     ...collectionCommands,

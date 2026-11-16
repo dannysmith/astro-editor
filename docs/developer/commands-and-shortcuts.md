@@ -17,7 +17,7 @@ The menu is built in Rust in `src-tauri/src/lib.rs` with `MenuItem::with_id`. `o
 
 ## Actions that need hooks
 
-Some actions need a query or mutation hook (creating a file needs `useCreateFile`), which neither a command context function nor a store can call. These dispatch a DOM `CustomEvent` instead (`create-new-file`, …), and `src/hooks/useDOMEventListeners.ts`, mounted once in `Layout`, handles them with the hook's function. Cmd+N uses the same event. Some store-only actions (focus mode, the highlight toggles) also go through events; a new one doesn't need to.
+Some actions need a query or mutation hook (creating a file needs `useCreateFile`), which neither a command context function nor a store can call. These dispatch a DOM `CustomEvent` instead (`create-new-file`, …), and `src/hooks/useDOMEventListeners.ts`, mounted once in `Layout`, handles them with the hook's function. Cmd+N uses the same event. Focus and typewriter mode also go through events though they only touch a store; a new store-only action doesn't need to (the highlight toggles call `copyedit-mode/highlights.ts` directly).
 
 ## The palette's command list
 
@@ -34,8 +34,9 @@ Save is deliberately not in the palette. Everyone uses Cmd+S, and it would make 
 ## Shortcuts
 
 - **App shortcuts** are `useHotkeys` calls in `src/hooks/useKeyboardShortcuts.ts`, plus Cmd+P in `useCommandPalette`. They use `enableOnFormTags` and `enableOnContentEditable` (`DEFAULT_HOTKEY_OPTS`): the editor is a contenteditable and the frontmatter fields are inputs, so without them Cmd+S and the rest would do nothing while you type, which is most of the time.
+- **Sidebars:** Cmd+1 toggles the left sidebar. Cmd+2, Cmd+3… toggle the right sidebar's tabs (`toggleRightSidebarTab`), one hotkey per tab in `RIGHT_SIDEBAR_TABS`; their View menu items are written by hand in `lib.rs` and emit `menu-toggle-right-sidebar-tab` with the tab id. See "Right sidebar" in `architecture-guide.md`.
 - **Editor shortcuts** (formatting, headings, focus and typewriter mode, Tab) are CodeMirror keymaps in `src/lib/editor/extensions/keymap.ts`. They only fire while the editor has focus. The file's header lists them and their precedence. CodeMirror's `Mod-/` comment toggle is removed from the defaults and rebound to the component builder, which falls back to toggling a comment.
-- **Several keys are bound both as native menu accelerators and as JS shortcuts** (Cmd+S, Cmd+N, Cmd+Shift+O, Cmd+B/I/K, Option+Cmd+1–4). Only one fires. WebKit gives the page a key before the menu, and a hotkey or CodeMirror keymap that handles it calls `preventDefault`, so the menu never sees it; when nothing on the page handles it (Cmd+B outside the editor), the menu does. On Windows the native accelerators don't fire while the webview has focus, so the JS bindings are the only path there (see `cross-platform.md`). Keep both.
+- **Several keys are bound both as native menu accelerators and as JS shortcuts** (Cmd+S, Cmd+N, Cmd+Shift+O, Cmd+1–3, Cmd+B/I/K, Option+Cmd+1–4). Only one fires. WebKit gives the page a key before the menu, and a hotkey or CodeMirror keymap that handles it calls `preventDefault`, so the menu never sees it; when nothing on the page handles it (Cmd+B outside the editor), the menu does. On Windows the native accelerators don't fire while the webview has focus, so the JS bindings are the only path there (see `cross-platform.md`). Keep both.
 - **Cmd+W closes the window on macOS** (`getCurrentWindow().close()`, which `lib.rs` turns into a hide, like the red button) **and the current file on Windows and Linux**, where closing the only window would quit. Close File is in the palette on every platform.
 
 The user-facing list is `website/src/content/docs/reference/keyboard-shortcuts.mdx` (Help → Keyboard Shortcuts opens it). Update it whenever a shortcut changes.
