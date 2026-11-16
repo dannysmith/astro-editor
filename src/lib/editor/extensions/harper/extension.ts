@@ -295,6 +295,11 @@ const harperTheme = EditorView.theme({
     maxWidth: '22rem',
     overflow: 'hidden',
   },
+  // The lint package's own tooltip still adds a section after its 300 ms
+  // delay, empty because of `tooltipFilter`. Hidden, it still makes ours the
+  // second section, which CodeMirror gives a top border
+  '.cm-tooltip-lint:empty': { display: 'none' },
+  '.cm-tooltip-section.cm-tooltip-lint': { borderTop: 'none !important' },
   // The kind, then the message, then the fixes
   '.cm-tooltip-lint .cm-diagnostic': {
     display: 'flex',
