@@ -34,9 +34,22 @@ const WelcomeScreen: React.FC = () => {
   )
 }
 
+// Shown in place of the editor when the open file couldn't be loaded
+const LoadError: React.FC<{ message: string }> = ({ message }) => (
+  <div className="flex h-full items-center justify-center p-8">
+    <div className="flex max-w-md flex-col gap-2 text-center">
+      <h2 className="m-0 text-lg font-medium text-foreground">
+        This file couldn’t be opened
+      </h2>
+      <p className="m-0 text-sm break-words text-muted-foreground">{message}</p>
+    </div>
+  </div>
+)
+
 export const MainEditor: React.FC = () => {
   // A boolean, not currentFile, so changes to the file object don't re-render this
   const hasCurrentFile = useEditorStore(state => !!state.currentFile)
+  const loadError = useEditorStore(state => state.loadError)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
 
   return (
@@ -44,7 +57,17 @@ export const MainEditor: React.FC = () => {
       <div
         className={`flex-1 overflow-x-hidden overflow-y-auto bg-editor-background${typewriterModeEnabled ? ' no-scrollbar' : ''}`}
       >
-        {hasCurrentFile ? <Editor /> : <WelcomeScreen />}
+        {hasCurrentFile ? (
+          <>
+            {loadError && <LoadError message={loadError} />}
+            {/* Kept mounted, so the editor's state survives the error */}
+            <div className={loadError ? 'hidden' : 'contents'}>
+              <Editor />
+            </div>
+          </>
+        ) : (
+          <WelcomeScreen />
+        )}
       </div>
     </div>
   )

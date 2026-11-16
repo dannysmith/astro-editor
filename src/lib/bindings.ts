@@ -438,6 +438,13 @@ export type MarkdownContent = {
 	content: string,
 	raw_frontmatter: string,
 	imports: string,
+	/**
+	 *  Why the frontmatter couldn't be read, if it couldn't: the parser's
+	 *  error, with line numbers counted from the top of the file. The
+	 *  frontmatter is then empty, and saving writes `raw_frontmatter` back
+	 *  unchanged
+	 */
+	frontmatter_error: string | null,
 };
 
 export type MdxComponent = {

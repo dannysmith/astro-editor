@@ -484,7 +484,7 @@
 }
 
 === handwritten/tab-on-blank-line.md
-(error) Failed to parse YAML: found a tab character that violates indentation at line 2 column 1, while scanning a plain scalar at line 1 column 8
+(unreadable) found a tab character that violates indentation at line 3 column 1, while scanning a plain scalar at line 2 column 8
 
 === handwritten/toml-frontmatter.md
 (no frontmatter)

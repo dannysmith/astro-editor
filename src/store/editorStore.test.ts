@@ -162,3 +162,48 @@ describe('editorStore.closeFile', () => {
     expect(useEditorStore.getState().currentFile?.id).toBe('second')
   })
 })
+
+describe('editing a file that has not loaded', () => {
+  beforeEach(() => {
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: '',
+      frontmatter: {},
+      imports: '',
+      isLoaded: false,
+      frontmatterError: null,
+      isDirty: false,
+      isFrontmatterDirty: false,
+      autoSaveTimeoutId: null,
+      autoSaveCallback: null,
+    })
+  })
+
+  it('ignores edits until the file has loaded', () => {
+    const store = useEditorStore.getState()
+    store.setEditorContent('Typed into the placeholder')
+    store.setImports("import A from './a'")
+    store.updateFrontmatterField('title', 'Hello')
+
+    expect(useEditorStore.getState()).toMatchObject({
+      editorContent: '',
+      imports: '',
+      frontmatter: {},
+      isDirty: false,
+    })
+  })
+
+  it("ignores frontmatter edits when the frontmatter can't be read", () => {
+    useEditorStore.setState({ isLoaded: true, frontmatterError: 'bad YAML' })
+
+    useEditorStore.getState().updateFrontmatterField('title', 'Hello')
+    expect(useEditorStore.getState().isFrontmatterDirty).toBe(false)
+
+    useEditorStore.getState().setEditorContent('Edited')
+    expect(useEditorStore.getState()).toMatchObject({
+      editorContent: 'Edited',
+      isDirty: true,
+      isFrontmatterDirty: false,
+    })
+  })
+})

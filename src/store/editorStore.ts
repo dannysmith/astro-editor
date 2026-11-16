@@ -22,6 +22,20 @@ interface EditorState {
   frontmatterBaseline: FrontmatterBaseline | null
   imports: string // MDX imports (hidden from editor)
 
+  // Load state. Until the open file has loaded, the editor holds an empty
+  // placeholder, so nothing may edit or save it: a save would write the
+  // placeholder over the file
+  /** Whether the open file's content has loaded from disk */
+  isLoaded: boolean
+  /** Why the open file couldn't be loaded, if it couldn't */
+  loadError: string | null
+  /**
+   * Why the open file's frontmatter couldn't be read, if it couldn't. The
+   * body can still be edited, the frontmatter can't, and saving writes
+   * `rawFrontmatter` back unchanged
+   */
+  frontmatterError: string | null
+
   // Status state
   isDirty: boolean // True if ANY changes need to be saved
   isFrontmatterDirty: boolean // True if frontmatter was modified (vs content-only edits)
@@ -80,6 +94,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   rawFrontmatter: '',
   frontmatterBaseline: null,
   imports: '',
+  isLoaded: false,
+  loadError: null,
+  frontmatterError: null,
   isDirty: false,
   isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
@@ -120,6 +137,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: false,
+      loadError: null,
+      frontmatterError: null,
       currentFile: file,
       isDirty: false,
       isFrontmatterDirty: false,
@@ -165,6 +185,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: false,
+      loadError: null,
+      frontmatterError: null,
       isDirty: false,
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
@@ -184,7 +207,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  // The edits below are ignored until the file has loaded, and the frontmatter
+  // ones while its frontmatter can't be read (see `isLoaded`)
+
   setEditorContent: (content: string) => {
+    if (!get().isLoaded) return
     set({ editorContent: content, isDirty: true })
     get().scheduleAutoSave()
   },
@@ -192,17 +219,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Marks the file dirty in the same update: until then, useEditorFileContent
   // would put back the imports from disk
   setImports: (imports: string) => {
+    if (!get().isLoaded) return
     set({ imports, isDirty: true })
     get().scheduleAutoSave()
   },
 
   updateFrontmatter: (frontmatter: Record<string, unknown>) => {
+    if (!get().isLoaded || get().frontmatterError) return
     set({ frontmatter, isDirty: true, isFrontmatterDirty: true })
     get().scheduleAutoSave()
   },
 
   updateFrontmatterField: (key: string, value: unknown) => {
-    const { frontmatter } = get()
+    const { frontmatter, isLoaded, frontmatterError } = get()
+    if (!isLoaded || frontmatterError) return
 
     // Clearing a field removes its key (and any parent objects left empty)
     // rather than writing `title: ''` or `tags: []` into the file

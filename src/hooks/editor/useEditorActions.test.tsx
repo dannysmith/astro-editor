@@ -41,6 +41,7 @@ function holdSave(outcome: 'resolve' | 'reject') {
 /** Opens another file the way openFile leaves the store, without saving. */
 function switchToSecondFile() {
   useEditorStore.setState({
+    isLoaded: true,
     currentFile: fileEntry('second'),
     editorContent: 'Second file',
     frontmatter: {},
@@ -53,6 +54,7 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'First file edit',
       frontmatter: { title: 'First' },
@@ -104,6 +106,7 @@ describe('useEditorActions.saveFile when the same file changes mid-save', () => 
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       frontmatter: {},
@@ -139,6 +142,7 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       rawFrontmatter: rewritten,
@@ -191,6 +195,7 @@ describe('useEditorActions.saveFile and the sidebar listing', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       frontmatter: {},
@@ -262,6 +267,7 @@ describe('useEditorActions.saveFile when saves overlap', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Older',
       frontmatter: {},
@@ -298,5 +304,56 @@ describe('useEditorActions.saveFile when saves overlap', () => {
     await Promise.all([first, second])
     expect(written).toEqual(['Older', 'Newer'])
     expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+})
+
+describe('useEditorActions.saveFile and what it may write', () => {
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Body',
+      frontmatter: {},
+      rawFrontmatter: '',
+      frontmatterBaseline: null,
+      imports: '',
+      isLoaded: true,
+      frontmatterError: null,
+      isDirty: true,
+      isFrontmatterDirty: false,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  const saveCall = () =>
+    globalThis.mockTauri.invoke.mock.calls.find(
+      ([cmd]) => cmd === 'save_markdown_content'
+    )
+
+  it('writes nothing before the file has loaded', async () => {
+    useEditorStore.setState({ isLoaded: false })
+
+    await renderActions().saveFile(false)
+
+    expect(saveCall()).toBeUndefined()
+  })
+
+  it("writes frontmatter that couldn't be read back as it was", async () => {
+    useEditorStore.setState({
+      rawFrontmatter: 'title: "Unclosed',
+      frontmatterError: 'found unexpected end of stream',
+      frontmatter: { title: 'Not from the file' },
+      isFrontmatterDirty: true,
+    })
+
+    await renderActions().saveFile(false)
+
+    const args = saveCall()![1] as {
+      frontmatter: Record<string, unknown> | null
+      rawFrontmatter: string | null
+    }
+    expect(args.frontmatter).toBeNull()
+    expect(args.rawFrontmatter).toBe('title: "Unclosed')
   })
 })

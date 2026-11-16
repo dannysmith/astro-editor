@@ -85,8 +85,12 @@ async function saveCurrentFile(
     frontmatterBaseline,
     isFrontmatterDirty,
     imports,
+    isLoaded,
+    frontmatterError,
   } = useEditorStore.getState()
-  if (!currentFile) return
+  // Until the file has loaded, the store holds an empty placeholder, which
+  // must never be written over it
+  if (!currentFile || !isLoaded) return
 
   // Get project path using direct store access pattern
   const { projectPath } = useProjectStore.getState()
@@ -117,12 +121,14 @@ async function saveCurrentFile(
 
     // Edited frontmatter is re-serialised from its values. Unedited, or edited
     // back to what was loaded, the original text is written instead, keeping
-    // its formatting
+    // its formatting. Frontmatter that couldn't be read has no values, so its
+    // text is always written back as it was
     const backToBaseline =
       isFrontmatterDirty &&
       frontmatterBaseline !== null &&
       isBackToBaseline(frontmatter, frontmatterBaseline, fields ?? [])
-    const writeValues = isFrontmatterDirty && !backToBaseline
+    const writeValues =
+      isFrontmatterDirty && !backToBaseline && frontmatterError === null
     const originalText = backToBaseline
       ? frontmatterBaseline.raw
       : rawFrontmatter

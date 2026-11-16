@@ -9,6 +9,7 @@ const gallery = () => useEditorStore.getState().frontmatter.gallery
 describe('ImageArrayField', () => {
   beforeEach(() => {
     useEditorStore.setState({
+      isLoaded: true,
       frontmatter: { gallery: ['a.png', 'b.png', 'c.png'] },
     })
     renderWithProviders(<ImageArrayField name="gallery" label="Gallery" />)

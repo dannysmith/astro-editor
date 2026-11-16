@@ -49,8 +49,19 @@ export function useEditorFileContent() {
       },
       imports: data.imports,
       isFrontmatterDirty: false, // Reset when loading from disk
+      isLoaded: true,
+      loadError: null,
+      frontmatterError: data.frontmatter_error,
     })
   }, [data, currentFile])
+
+  // A file that can't be loaded can't be edited, since the editor would only
+  // hold an empty placeholder. A failed reload of a loaded file changes
+  // nothing: what's in the editor is still the file
+  useEffect(() => {
+    if (!isError || !error || useEditorStore.getState().isLoaded) return
+    useEditorStore.setState({ loadError: error.message })
+  }, [isError, error])
 
   return { isLoading, isError, error }
 }

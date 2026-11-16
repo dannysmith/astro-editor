@@ -118,6 +118,7 @@ describe('componentBuilderStore imports', () => {
     addsImports.value = true
     useProjectStore.setState({ projectPath: '/site' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: {
         id: 'notes/a',
         path: '/site/src/content/notes/a.mdx',
@@ -147,6 +148,7 @@ describe('componentBuilderStore imports', () => {
 
     const inserting = useComponentBuilderStore.getState().insert()
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: {
         ...useEditorStore.getState().currentFile!,
         id: 'notes/b',

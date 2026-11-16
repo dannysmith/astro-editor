@@ -313,6 +313,11 @@ pub struct MarkdownContent {
     pub content: String,
     pub raw_frontmatter: String,
     pub imports: String, // MDX imports to hide from editor
+    /// Why the frontmatter couldn't be read, if it couldn't: the parser's
+    /// error, with line numbers counted from the top of the file. The
+    /// frontmatter is then empty, and saving writes `raw_frontmatter` back
+    /// unchanged
+    pub frontmatter_error: Option<String>,
 }
 
 #[tauri::command]
@@ -378,11 +383,23 @@ pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String
             content: body_content,
             raw_frontmatter: String::new(),
             imports,
+            frontmatter_error: None,
         });
     };
 
     let raw_frontmatter = yaml_lines.join("\n");
-    let frontmatter = yaml_values(&raw_frontmatter)?;
+    let (frontmatter, frontmatter_error) = match yaml_values(&raw_frontmatter) {
+        Ok(values) => (values, None),
+        // Parsed again after a blank line standing in for the opening fence,
+        // so the error's line numbers count from the top of the file
+        Err(error) => {
+            let shifted = format!("\n{raw_frontmatter}");
+            let error = serde_norway::from_str::<IndexMap<String, Value>>(&shifted)
+                .err()
+                .map_or(error, |e| e.to_string());
+            (IndexMap::new(), Some(error))
+        }
+    };
 
     // Extract content after frontmatter and process imports: the body starts
     // after the opening line, the YAML and the closing line
@@ -406,6 +423,7 @@ pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String
         content: body_content,
         raw_frontmatter,
         imports,
+        frontmatter_error,
     })
 }
 
@@ -2200,17 +2218,30 @@ Content"#;
     // ============================================================================
 
     #[test]
-    fn test_frontmatter_unclosed_quote() {
+    fn unreadable_frontmatter_keeps_its_text_and_the_body() {
         // Common typo: forget closing quote
-        let content = r#"---
-title: "Unclosed quote
-description: "Valid"
----
+        let content = "---\ntitle: \"Unclosed quote\ndescription: \"Valid\"\n---\n\nThe body.\n";
 
-Content"#;
+        let parsed = parse_frontmatter(content).unwrap();
+        assert!(parsed.frontmatter_error.is_some());
+        assert!(parsed.frontmatter.is_empty());
+        assert_eq!(
+            parsed.raw_frontmatter,
+            "title: \"Unclosed quote\ndescription: \"Valid\""
+        );
+        assert_eq!(parsed.content.trim(), "The body.");
+    }
 
-        let result = parse_frontmatter(content);
-        assert!(result.is_err(), "Should reject unclosed quote");
+    #[test]
+    fn frontmatter_errors_count_lines_from_the_top_of_the_file() {
+        // A tab on the blank line at line 3
+        let content = "---\ntitle: A tab\n\t\npubDate: 2024-01-01\n---\n\nBody.\n";
+
+        let error = parse_frontmatter(content)
+            .unwrap()
+            .frontmatter_error
+            .unwrap();
+        assert!(error.contains("at line 3 column 1"), "{error}");
     }
 
     #[test]
@@ -2218,11 +2249,10 @@ Content"#;
         // Common issue: mixing tabs and spaces
         let content = "---\ntitle: Test\n\tdescription: Mixed\n  author: Name\n---\n\nContent";
 
-        let result = parse_frontmatter(content);
-        // Should either parse correctly or fail gracefully (not corrupt)
-        if let Ok(parsed) = result {
-            assert!(parsed.frontmatter.contains_key("title"));
-        }
+        // Either readable, or unreadable with its text kept for saving
+        let parsed = parse_frontmatter(content).unwrap();
+        assert!(parsed.frontmatter.contains_key("title") || parsed.frontmatter_error.is_some());
+        assert!(parsed.raw_frontmatter.contains("\tdescription: Mixed"));
     }
 
     #[test]
@@ -2301,10 +2331,17 @@ Content"#;
             assert_eq!(frontmatter_values(content).unwrap(), opened, "{content:?}");
         }
 
-        for broken in ["---\ntitle: Never closed\n", "---\ntitle: [unclosed\n---\n"] {
-            assert!(parse_frontmatter(broken).is_err(), "{broken:?}");
-            assert!(frontmatter_values(broken).is_err(), "{broken:?}");
-        }
+        let never_closed = "---\ntitle: Never closed\n";
+        assert!(parse_frontmatter(never_closed).is_err());
+        assert!(frontmatter_values(never_closed).is_err());
+
+        // The file opens with its frontmatter unread; the listings skip it
+        let invalid = "---\ntitle: [unclosed\n---\n";
+        assert!(parse_frontmatter(invalid)
+            .unwrap()
+            .frontmatter_error
+            .is_some());
+        assert!(frontmatter_values(invalid).is_err());
     }
 
     #[test]
@@ -2662,6 +2699,10 @@ mod frontmatter_corpus_tests {
             let content = std::fs::read_to_string(&path).unwrap();
             let values = match parse_frontmatter(&content) {
                 Ok(parsed) if parsed.raw_frontmatter.is_empty() => "(no frontmatter)".to_string(),
+                Ok(MarkdownContent {
+                    frontmatter_error: Some(e),
+                    ..
+                }) => format!("(unreadable) {e}"),
                 Ok(parsed) => serde_json::to_string_pretty(&parsed.frontmatter).unwrap(),
                 Err(e) => format!("(error) {e}"),
             };

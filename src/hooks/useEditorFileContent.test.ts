@@ -5,13 +5,16 @@ import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import type { FileEntry } from '@/types'
 
-const query = vi.hoisted(() => ({ data: undefined as unknown }))
+const query = vi.hoisted(() => ({
+  data: undefined as unknown,
+  error: null as Error | null,
+}))
 vi.mock('./queries/useFileContentQuery', () => ({
   useFileContentQuery: () => ({
     data: query.data,
     isLoading: false,
-    isError: false,
-    error: null,
+    isError: query.error !== null,
+    error: query.error,
   }),
 }))
 
@@ -31,16 +34,52 @@ const fromDisk = (raw: string, title: string) => ({
   frontmatter: { title },
   raw_frontmatter: raw,
   imports: '',
+  frontmatter_error: null,
 })
 
 describe('useEditorFileContent', () => {
   beforeEach(() => {
+    query.data = undefined
+    query.error = null
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
       currentFile: file,
       frontmatterBaseline: null,
       isDirty: false,
+      isLoaded: false,
+      loadError: null,
+      frontmatterError: null,
     })
+  })
+
+  it("marks the file loaded, with its frontmatter's error", () => {
+    query.data = {
+      ...fromDisk('title: [', ''),
+      frontmatter: {},
+      frontmatter_error: 'did not find expected node content',
+    }
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState()).toMatchObject({
+      isLoaded: true,
+      rawFrontmatter: 'title: [',
+      frontmatterError: 'did not find expected node content',
+    })
+  })
+
+  it("records why a file couldn't be loaded", () => {
+    query.error = new Error('Failed to read file')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().loadError).toBe('Failed to read file')
+  })
+
+  it('keeps a loaded file when it fails to reload', () => {
+    useEditorStore.setState({ isLoaded: true })
+    query.error = new Error('Failed to read file')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().loadError).toBeNull()
   })
 
   it('keeps the first load as the baseline when the file reloads', () => {

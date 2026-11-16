@@ -116,18 +116,19 @@ The options below fix the reading side, and we don't use its serialiser.
 
 This comes first, because it stops data loss today, and because the parser switch makes some files that read today unreadable.
 
-- [ ] **Rust:** when the block is found but its YAML can't be parsed, `parse_markdown_content` returns the body, the imports and the raw frontmatter text, with the error (message and line), instead of failing. A file that can't be read at all still fails.
-- [ ] **Frontend:** the store holds the error.
+- [x] **Rust:** when the block is found but its YAML can't be parsed, `parse_markdown_content` returns the body, the imports and the raw frontmatter text, with the error (`frontmatter_error`), instead of failing. The error is parsed again after a blank line, so its line numbers count from the top of the file. A file that can't be read at all still fails.
+- [x] **Frontend:** the store holds `frontmatterError`.
   - The body loads and can be edited.
   - Saving sends the raw frontmatter text unchanged.
-  - Nothing can mark the frontmatter edited, so its values are never written.
-- [ ] **The frontmatter panel** shows the error and its line in place of the fields, with Open in IDE.
-- [ ] **A failed load** (the file is unreadable, or missing) shows an error in the editor area rather than an empty, editable document.
-- [ ] **The sidebar** falls back to the file name for an entry whose frontmatter can't be read, as now. Check that drafts and dates don't do anything misleading.
-- [ ] **Tests:**
-  - Rust: the corpus files that don't parse (`tab-on-blank-line.md`, and `duplicate-keys.md` once Phase 3 rejects duplicates) come back with their body and raw text.
-  - Frontend: a save while the frontmatter is unreadable writes the raw text.
-- [ ] **Try it in the dev app** with the test vault: open a broken file, edit the body, and check that the frontmatter is unchanged on disk.
+  - The store ignores frontmatter edits, so its values are never written.
+- [x] **The frontmatter panel** shows the error and its line in place of the fields, with Open in IDE when an IDE is set. Fixing the file outside the app brings the fields back without reopening it.
+- [x] **A failed load** shows an error in the editor area, with the editor kept mounted and hidden. The file content query no longer retries (a file that can't be read fails the same way every time) and runs offline (`networkMode: 'always'`). Before this, retries paused while the window wasn't focused.
+- [x] **Editing before a file has loaded** was the same data loss as a race: the editor held an empty placeholder that typing could mark dirty, and the load was then skipped, so the save wrote what was typed. Now nothing edits or saves a file until `isLoaded`: the editor is read-only, the store's edit actions do nothing, and `saveFile` writes nothing. Documented in `editor.md`.
+- [x] **The sidebar** falls back to the file name for an entry whose frontmatter can't be read, as before. It can't tell whether such a file is a draft, so it doesn't mark it as one.
+- [x] **Tests:**
+  - Rust: unreadable frontmatter keeps its text and the body, and its error's lines count from the top of the file. The corpus test writes `tab-on-blank-line.md` back unchanged. `duplicate-keys.md` joins it once Phase 3 rejects duplicates.
+  - Frontend: edits are ignored before the file loads; frontmatter edits are ignored while it can't be read; a save writes nothing before the file loads and writes unreadable frontmatter's text unchanged; loading marks the file loaded with its frontmatter error, records a failed load, and keeps a loaded file when a reload fails.
+- [x] **Tried in the dev app** with the test vault: a note with a tab on a blank line opens with its body and the error, and a body edit leaves the frontmatter byte-identical on disk. A note with an unclosed `---` shows the load error, and nothing typed is written.
 
 ## Phase 3: Reading
 

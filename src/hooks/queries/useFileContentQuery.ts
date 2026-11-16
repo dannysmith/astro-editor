@@ -35,5 +35,10 @@ export const useFileContentQuery = (
     staleTime: 30 * 1000,
     // Cache time: keep data in cache for 5 minutes after component unmounts
     gcTime: 5 * 60 * 1000,
+    // A file that can't be read fails the same way every time, so the error
+    // shows at once rather than after retries. It's read from disk, so being
+    // offline doesn't pause it
+    retry: false,
+    networkMode: 'always',
   })
 }

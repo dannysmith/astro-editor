@@ -32,6 +32,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     // Reset all stores
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: null,
       editorContent: '',
       frontmatter: {},
@@ -89,11 +90,13 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       // Mock the auto-save callback
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockAutoSaveCallback,
       })
 
       // Setup: Open a file with save timestamp from 5 seconds ago
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now() - 5000,
         isDirty: false,
@@ -112,6 +115,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     it('should schedule debounced save when typing with pauses', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -139,6 +143,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
   describe('Dirty State Changes', () => {
     it('should set dirty state when content changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -154,6 +159,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     it('should set dirty state when frontmatter changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -171,6 +177,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
   describe('Auto-Save Scheduling', () => {
     it('should schedule auto-save when content changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -187,6 +194,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     it('should clear previous timeout when scheduling new auto-save', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -212,11 +220,13 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       // Mock the auto-save callback
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockAutoSaveCallback,
       })
 
       // Setup: Last save was only 3 seconds ago
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now() - 3000,
         isDirty: false,
@@ -235,11 +245,13 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       // Mock the auto-save callback
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockAutoSaveCallback,
       })
 
       // Setup: Last save was 11 seconds ago
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now() - 11000,
         isDirty: true,
@@ -276,6 +288,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
             projectRoot: '/test',
           })
           useEditorStore.setState({
+            isLoaded: true,
             isDirty: false,
             lastSaveTimestamp: Date.now(),
           })
@@ -284,6 +297,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
       // Register the mock callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockSaveCallback,
       })
     })
@@ -294,6 +308,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
       // Clear the callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: null,
       })
     })
@@ -303,6 +318,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       const mockImports = "import { Component } from 'astro:components';"
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         imports: mockImports,
         frontmatter: { title: 'Original Title' },
@@ -348,6 +364,7 @@ import {
 } from './utils';`
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         imports: mockImports,
         frontmatter: { title: 'Test' },

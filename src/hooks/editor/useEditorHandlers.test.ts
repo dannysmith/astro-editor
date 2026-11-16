@@ -39,6 +39,9 @@ interface MockEditorState {
   rawFrontmatter: string
   frontmatterBaseline: null
   imports: string
+  isLoaded: boolean
+  loadError: string | null
+  frontmatterError: string | null
   openFile: Mock
   closeFile: Mock
   closeCurrentFile: Mock
@@ -69,6 +72,9 @@ describe('useEditorHandlers', () => {
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: true,
+      loadError: null,
+      frontmatterError: null,
       openFile: vi.fn(),
       closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),
