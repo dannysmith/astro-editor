@@ -28,9 +28,10 @@ export const commands = {
 	/**
 	 *  Saves a file from its parts. `raw_frontmatter` is its frontmatter block
 	 *  as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
-	 *  `frontmatter` holds edited values, which are spliced into it
+	 *  `frontmatter` holds edited values, which are spliced into it, with the
+	 *  keys put in schema order if `reorder_frontmatter` (the project setting)
 	 */
-	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, projectRoot })),
+	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, reorderFrontmatter: boolean, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, reorderFrontmatter, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
 	/**
@@ -557,6 +558,11 @@ export type ProjectSettings = {
 	mdxComponentsDirectories?: string[] | null,
 	/**  Experimental: the component builder adds the import a component needs */
 	addComponentImports?: boolean | null,
+	/**
+	 *  Editing a file's frontmatter puts its keys in schema order, then the
+	 *  rest alphabetically
+	 */
+	reorderFrontmatter?: boolean | null,
 };
 
 /**  A project's stored settings, as the frontend reads and edits them */
@@ -633,6 +639,7 @@ export type ResolvedProjectSettings = {
 	/**  Relative to the project root */
 	mdxComponentsDirectories: Resolved<string[]>,
 	addComponentImports: Resolved<boolean>,
+	reorderFrontmatter: Resolved<boolean>,
 	/**  The project's default for collections. Relative to the project root. */
 	assetsDirectory: Resolved<string>,
 	/**  The project's default for collections */

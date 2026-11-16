@@ -169,10 +169,15 @@ fn key_order(
     schema: &FrontmatterSchema,
     reorder: bool,
 ) -> Vec<String> {
-    // Top-level keys in schema order: `seo.title` is under `seo`
+    // Top-level keys in schema order: `seo.title` is under `seo`, unless the
+    // frontmatter has a key with a dot in it
     let mut top: Vec<&str> = vec![];
     for field in &schema.fields {
-        let key = field.split('.').next().unwrap_or(field);
+        let key = if values.contains_key(field) {
+            field.as_str()
+        } else {
+            field.split('.').next().unwrap_or(field)
+        };
         if !top.contains(&key) {
             top.push(key);
         }

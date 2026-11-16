@@ -170,8 +170,9 @@ This comes first, because it stops data loss today, and because the parser switc
 
 ## Phase 5: Reordering
 
-- [ ] `reorderFrontmatter` in `ProjectSettings`, off by default, with its switch in Project Settings. Save passes it to Rust.
-- [ ] With it on, sort the chunks: schema keys in schema order, then the rest alphabetically. Corpus test: the result is in that order, and each chunk's text is unchanged.
+- [x] `reorderFrontmatter` in `ProjectSettings`, off by default, with its switch ("Reorder frontmatter") in Project Settings' Content group. Save reads it from the project scan and passes it to Rust, rather than Rust reading the settings file on every save.
+- [x] With it on, the chunks are sorted: schema keys in schema order, then the rest alphabetically. Corpus test (`reordering_moves_keys_with_their_text`): the result is in that order, and each other key's text is unchanged. A key with a dot in its name counts as itself when the schema names it, rather than as part of an object.
+- [x] **Tried in the dev app:** with it on, editing a file's title put its keys in schema order, its comment moved with its key, and keys outside the schema went last, alphabetically.
 
 ## Phase 6: Docs and finishing
 

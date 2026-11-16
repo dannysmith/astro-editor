@@ -107,10 +107,15 @@ async function saveCurrentFile(
     // The collection's schema fields, from the query cache, for the field
     // order and to compare with the baseline
     let fields: SchemaField[] | null = null
+    const scan = queryClient.getQueryData<ProjectScan>(
+      queryKeys.collections(projectPath)
+    )
+    const reorderFrontmatter =
+      scan?.projectSettings.reorderFrontmatter.value ?? false
     try {
-      const collection = queryClient
-        .getQueryData<ProjectScan>(queryKeys.collections(projectPath))
-        ?.collections.find(c => c.name === currentFile.collection)
+      const collection = scan?.collections.find(
+        c => c.name === currentFile.collection
+      )
       const schema = collection?.completeSchema
         ? deserializeCompleteSchema(collection.completeSchema)
         : null
@@ -146,6 +151,7 @@ async function saveCurrentFile(
         editorContent,
         imports,
         frontmatterSchema(fields ?? []),
+        reorderFrontmatter,
         projectPath
       )
     const write = writeUnderWay ? writeUnderWay.then(save) : save()

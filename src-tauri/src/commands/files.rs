@@ -317,7 +317,11 @@ pub async fn parse_markdown_content(
 
 /// Saves a file from its parts. `raw_frontmatter` is its frontmatter block
 /// as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
-/// `frontmatter` holds edited values, which are spliced into it
+/// `frontmatter` holds edited values, which are spliced into it, with the
+/// keys put in schema order if `reorder_frontmatter` (the project setting)
+// A command's arguments are its IPC payload, so there's no struct to gather
+// them in that wouldn't just be this list
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 #[specta::specta]
 pub async fn save_markdown_content(
@@ -327,12 +331,13 @@ pub async fn save_markdown_content(
     content: String,
     imports: String,
     schema: FrontmatterSchema,
+    reorder_frontmatter: bool,
     project_root: String,
 ) -> Result<(), String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
 
     let block = match frontmatter {
-        Some(values) => write_block(&raw_frontmatter, &values, &schema, false)?,
+        Some(values) => write_block(&raw_frontmatter, &values, &schema, reorder_frontmatter)?,
         None => raw_frontmatter,
     };
 
@@ -913,6 +918,7 @@ mod tests {
             content.to_string(),
             String::new(), // No imports for this test
             FrontmatterSchema::default(),
+            false,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -1220,6 +1226,7 @@ This is the main content."#;
             parsed.content,
             parsed.imports,
             FrontmatterSchema::default(),
+            false,
             project_root.to_string_lossy().to_string(),
         )
         .await;

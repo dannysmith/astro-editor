@@ -228,6 +228,10 @@ pub struct ProjectSettings {
     /// Experimental: the component builder adds the import a component needs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub add_component_imports: Option<bool>,
+    /// Editing a file's frontmatter puts its keys in schema order, then the
+    /// rest alphabetically
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reorder_frontmatter: Option<bool>,
 }
 
 /// Settings for one collection. Paths are relative to the project root.

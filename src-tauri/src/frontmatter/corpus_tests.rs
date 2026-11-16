@@ -294,4 +294,60 @@ mod frontmatter_corpus_tests {
         }
         assert!(edits > 200, "Only {edits} edits: is the corpus there?");
     }
+
+    /// With reordering on, an edit puts the keys in schema order, then the
+    /// rest alphabetically, and every other key's text moves unchanged. The
+    /// schema here is each file's keys backwards, leaving out its last two
+    #[test]
+    fn reordering_moves_keys_with_their_text() {
+        let files = content_files(&test_dir().join("frontmatter/files"));
+        let mut reordered = 0;
+        for path in files {
+            let name = name(&path);
+            let parsed = parse_frontmatter(&std::fs::read_to_string(&path).unwrap());
+            let old = &parsed.frontmatter;
+            if old.len() < 3 || parsed.frontmatter_error.is_some() {
+                continue;
+            }
+            let raw = &parsed.raw_frontmatter;
+            let lines: Vec<&str> = raw.lines().collect();
+            let block = find_block(raw.lines()).unwrap();
+            let Some((entries, _)) = write::split(&lines[block.yaml_line..lines.len() - 1]) else {
+                continue;
+            };
+            let keys: Vec<&String> = old.keys().collect();
+            let schema = FrontmatterSchema {
+                fields: keys[2..].iter().rev().map(|k| k.to_string()).collect(),
+                date_fields: vec![],
+            };
+            let edited = keys[keys.len() - 1];
+            let Some(value) = changed(&old[edited]) else {
+                continue;
+            };
+            let mut new = old.clone();
+            new.insert(edited.clone(), value);
+
+            let written = write_block(raw, &new, &schema, true).unwrap();
+            let read = yaml::mapping(&find_block(written.lines()).unwrap().yaml).unwrap();
+            let mut expected: Vec<&String> = schema.fields.iter().collect();
+            let mut rest = vec![keys[0], keys[1]];
+            rest.sort();
+            expected.extend(rest);
+            assert_eq!(
+                read.keys().collect::<Vec<_>>(),
+                expected,
+                "{name}:\n{written}"
+            );
+            for entry in entries.iter().filter(|e| &e.key != edited) {
+                let text = entry.lines.join("\n");
+                assert!(
+                    written.contains(text.trim_end()),
+                    "{name} [{}] changed:\n{written}",
+                    entry.key
+                );
+            }
+            reordered += 1;
+        }
+        assert!(reordered > 15, "Only {reordered} files reordered");
+    }
 }
