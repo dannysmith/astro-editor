@@ -49,6 +49,7 @@ interface MockEditorState {
   scheduleAutoSave: Mock
   autoSaveTimeoutId: ReturnType<typeof setTimeout> | null
   lastSaveTimestamp: number | null
+  dirtySince: number | null
   updateCurrentFileAfterRename: Mock
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null
   setAutoSaveCallback: Mock
@@ -81,6 +82,7 @@ describe('useEditorHandlers', () => {
       scheduleAutoSave: vi.fn(),
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
+      dirtySince: null,
       updateCurrentFileAfterRename: vi.fn(),
       autoSaveCallback: null,
       setAutoSaveCallback: vi.fn(),

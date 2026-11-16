@@ -3,13 +3,13 @@ import { booleanDefault, FieldType, type SchemaField } from '../schema'
 type Values = Record<string, unknown>
 
 /**
- * The open file's frontmatter as it was first loaded: its values and the exact
- * text they were read from. Editing a field re-serialises the whole block, so
- * a save whose values are back to these writes this text instead, and a field
- * changed and changed back leaves the file as it was. It's kept across our own
- * saves, which rewrite the text on disk. It isn't moved by changes made
- * outside the app either, which is safe: the text is only written when the
- * values match exactly what it reads back as.
+ * The open file's frontmatter as it was first loaded, or last changed outside
+ * the app: its values and the exact text they were read from. It's kept
+ * across our own saves, which rewrite the text on disk. Edits are spliced
+ * into this text, so the file only ever differs from it by the edits. A save
+ * whose values are back to these writes this text as it is, so a field
+ * changed and changed back, or a switch turned on and off again (which adds
+ * its default), leaves the file as it was.
  */
 export interface FrontmatterBaseline {
   values: Values

@@ -9,32 +9,58 @@ fn save_unchanged(parsed: &MarkdownContent) -> String {
     assemble(&parsed.raw_frontmatter, &parsed.imports, &parsed.content)
 }
 
+fn test_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../test")
+}
+
+/// The files under `dir` with one of `extensions`, sorted
+fn files(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .map(|entry| entry.into_path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|ext| extensions.iter().any(|e| ext == *e))
+        })
+        .collect();
+    paths.sort();
+    paths
+}
+
+/// A file's path from `test/`
+fn name(path: &Path) -> String {
+    path.strip_prefix(test_dir())
+        .unwrap()
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Checks `actual` against the snapshot in `path`, or with `UPDATE_SNAPSHOTS`
+/// set, writes it there. Sections start with `=== `, and the first that
+/// differs is shown
+fn check_snapshot(path: &Path, actual: String) {
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(path, actual).unwrap();
+        return;
+    }
+    let expected = std::fs::read_to_string(path).unwrap_or_default();
+    let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
+    let first_difference = sections(&actual)
+        .into_iter()
+        .zip(sections(&expected))
+        .find(|(a, e)| a != e);
+    assert!(
+        actual == expected,
+        "{} differs, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff.",
+        name(path)
+    );
+}
+
 /// Runs the MDX files in `test/mdx-imports` through reading and saving
-#[cfg(test)]
 mod mdx_corpus_tests {
     use super::*;
 
-    fn corpus() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-imports")
-    }
-
-    fn mdx_files(dir: &Path) -> Vec<PathBuf> {
-        let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .map(|entry| entry.into_path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "mdx"))
-            .collect();
-        paths.sort();
-        paths
-    }
-
-    fn name(path: &Path) -> String {
-        path.strip_prefix(corpus())
-            .unwrap()
-            .to_string_lossy()
-            .into_owned()
-    }
     fn non_blank_lines(text: &str) -> Vec<&str> {
         text.lines()
             .filter(|line| !line.trim().is_empty())
@@ -43,7 +69,7 @@ mod mdx_corpus_tests {
 
     #[test]
     fn saving_an_unchanged_file_reads_back_the_same() {
-        for path in mdx_files(&corpus()) {
+        for path in files(&test_dir().join("mdx-imports"), &["mdx"]) {
             let name = name(&path);
             let original = std::fs::read_to_string(&path).unwrap();
             let parsed = parse_frontmatter(&original);
@@ -71,7 +97,7 @@ mod mdx_corpus_tests {
              # that counts as already imported. Checked by `mdx_corpus_tests` in\n\
              # `src-tauri/src/frontmatter/corpus_tests.rs`.\n",
         );
-        for path in mdx_files(&corpus().join("files")) {
+        for path in files(&test_dir().join("mdx-imports/files"), &["mdx"]) {
             let parsed = parse_frontmatter(&std::fs::read_to_string(&path).unwrap());
             let block = if parsed.imports.is_empty() {
                 "(none)"
@@ -79,61 +105,24 @@ mod mdx_corpus_tests {
                 &parsed.imports
             };
             let name = name(&path);
-            let name = name.strip_prefix("files/").unwrap();
+            let name = name.strip_prefix("mdx-imports/files/").unwrap();
             actual.push_str(&format!("\n=== {name}\n{block}\n"));
             // Imports further down, which count as already imported
             for esm in crate::mdx_esm::body_esm(&parsed.content) {
                 actual.push_str(&format!("--- further down\n{}\n", esm.text));
             }
         }
-
-        let snapshot = corpus().join("files/blocks.txt");
-        if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, actual).unwrap();
-            return;
-        }
-        let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
-        let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
-        let first_difference = sections(&actual)
-            .into_iter()
-            .zip(sections(&expected))
-            .find(|(a, e)| a != e);
-        assert!(
-            actual == expected,
-            "Hidden blocks differ from files/blocks.txt, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
-        );
+        check_snapshot(&test_dir().join("mdx-imports/files/blocks.txt"), actual);
     }
 }
 
 /// Tests over the frontmatter corpus in `test/frontmatter/` (see its README)
-#[cfg(test)]
 mod frontmatter_corpus_tests {
     use super::*;
 
-    fn test_dir() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../test")
-    }
-
     /// Every Markdown and MDX file under `dir`, sorted
     fn content_files(dir: &Path) -> Vec<PathBuf> {
-        let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .map(|entry| entry.into_path())
-            .filter(|path| {
-                path.extension()
-                    .is_some_and(|ext| ext == "md" || ext == "mdx")
-            })
-            .collect();
-        paths.sort();
-        paths
-    }
-
-    fn name(path: &Path) -> String {
-        path.strip_prefix(test_dir())
-            .unwrap()
-            .to_string_lossy()
-            .into_owned()
+        files(dir, &["md", "mdx"])
     }
 
     /// Including files whose frontmatter can't be read. Files with an MDX
@@ -181,22 +170,7 @@ mod frontmatter_corpus_tests {
             let name = name.strip_prefix("frontmatter/files/").unwrap();
             actual.push_str(&format!("\n=== {name}\n{values}\n"));
         }
-
-        let snapshot = test_dir().join("frontmatter/values.txt");
-        if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, actual).unwrap();
-            return;
-        }
-        let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
-        let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
-        let first_difference = sections(&actual)
-            .into_iter()
-            .zip(sections(&expected))
-            .find(|(a, e)| a != e);
-        assert!(
-            actual == expected,
-            "Values differ from frontmatter/values.txt, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
-        );
+        check_snapshot(&test_dir().join("frontmatter/values.txt"), actual);
     }
 
     /// A changed value, as an edit in the frontmatter panel might make it
@@ -248,7 +222,7 @@ mod frontmatter_corpus_tests {
             let block = find_block(raw.lines()).unwrap();
             let lines: Vec<&str> = raw.lines().collect();
             // Files whose keys can't be split apart are written whole
-            let entries = write::split(&lines[block.yaml_line..lines.len() - 1]).map(|(e, _)| e);
+            let entries = write::split(&lines[block.yaml_line..lines.len() - 1]).map(|s| s.entries);
 
             let check = |new: &IndexMap<String, Value>, key: &str, deleted: bool| {
                 let written = write_block(raw, new, &schema, false)
@@ -259,8 +233,11 @@ mod frontmatter_corpus_tests {
                     "{name} [{key}] reads back differently:\n{written}"
                 );
                 let Some(entries) = &entries else { return };
+                // Blank lines are left out: one that separated a deleted key
+                // from the next goes with it
                 let kept: Vec<&str> = lines
                     .iter()
+                    .filter(|line| !line.trim().is_empty())
                     .filter(|line| {
                         !entries.iter().any(|e| {
                             e.key == key
@@ -312,7 +289,9 @@ mod frontmatter_corpus_tests {
             let raw = &parsed.raw_frontmatter;
             let lines: Vec<&str> = raw.lines().collect();
             let block = find_block(raw.lines()).unwrap();
-            let Some((entries, _)) = write::split(&lines[block.yaml_line..lines.len() - 1]) else {
+            let Some(write::Split { entries, .. }) =
+                write::split(&lines[block.yaml_line..lines.len() - 1])
+            else {
                 continue;
             };
             let keys: Vec<&String> = old.keys().collect();

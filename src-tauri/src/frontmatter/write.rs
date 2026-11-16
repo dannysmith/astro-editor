@@ -38,6 +38,9 @@ pub(crate) fn write_block(
     schema: &FrontmatterSchema,
     reorder: bool,
 ) -> Result<String, String> {
+    if raw.is_empty() && values.is_empty() {
+        return Ok(String::new());
+    }
     let lines: Vec<&str> = raw.lines().collect();
     let (opening, yaml_lines, closing, old) = if raw.is_empty() {
         (vec!["---"], vec![], "---", IndexMap::new())
@@ -46,66 +49,131 @@ pub(crate) fn write_block(
         let Ok(old) = yaml::mapping(&block.yaml) else {
             return Ok(raw.to_string());
         };
-        let yaml_lines = lines[block.yaml_line..lines.len() - 1].to_vec();
+        let last = lines.len() - 1;
+        let yaml_lines = lines[block.yaml_line..last].to_vec();
         (
             lines[..block.yaml_line].to_vec(),
             yaml_lines,
-            lines[lines.len() - 1],
+            lines[last],
             old,
         )
     };
-    if raw.is_empty() && values.is_empty() {
-        return Ok(String::new());
-    }
 
-    let style = FileStyle::of(&yaml_lines);
+    let style = FileStyle::DEFAULT.within(&yaml_lines);
     let keys = key_order(&old, values, schema, reorder);
-    let render = |key: &str, original: Option<&str>| {
-        render_entry(key, &values[key], original, &style, &schema.date_fields)
+    let render = |key: &str, own_text: Option<&str>, written: &str| {
+        render_entry(
+            key,
+            &values[key],
+            own_text,
+            written,
+            style,
+            &schema.date_fields,
+        )
+    };
+    let reads_back = |yaml: &[String]| {
+        let text: String = yaml.iter().map(|l| format!("{l}\n")).collect();
+        yaml::mapping(&text).is_ok_and(|back| same_mapping(&back, values))
     };
 
-    let spliced = split(&yaml_lines)
-        .filter(|(entries, _)| {
-            entries.len() == old.len() && entries.iter().all(|e| old.contains_key(&e.key))
-        })
-        .map(|(entries, trailer)| {
-            let mut out: Vec<String> = vec![];
-            for key in &keys {
-                match entries.iter().find(|e| &e.key == key) {
-                    Some(entry) => {
-                        out.extend(entry.lead.iter().map(|l| l.to_string()));
-                        if same(&old[key], &values[key]) {
-                            out.extend(entry.lines.iter().map(|l| l.to_string()));
-                        } else {
-                            out.extend(render(key, Some(&entry.lines.join("\n"))));
-                            // Keep the blank lines that separated it from the next key
-                            let blank =
-                                entry.lines.iter().rev().take_while(|l| l.trim().is_empty());
-                            out.extend(blank.map(|l| l.to_string()));
-                        }
-                    }
-                    None => out.extend(render(key, None)),
-                }
+    let yaml = match splice(&yaml_lines, &old, values, &keys, render) {
+        Some(spliced) if reads_back(&spliced) => spliced,
+        _ => {
+            // Each key's own text isn't known, but how its values were written
+            // can still be found in the whole block
+            let old_yaml = yaml_lines.join("\n");
+            let whole: Vec<String> = keys
+                .iter()
+                .flat_map(|key| {
+                    let written = if old.contains_key(key) {
+                        old_yaml.as_str()
+                    } else {
+                        ""
+                    };
+                    render(key, None, written)
+                })
+                .collect();
+            if !reads_back(&whole) {
+                return Err(
+                    "Couldn't write the frontmatter so that it reads back as the values being saved"
+                        .into(),
+                );
             }
-            out.extend(trailer.iter().map(|l| l.to_string()));
-            out
-        });
-    let whole = || {
-        keys.iter()
-            .flat_map(|key| render(key, None))
-            .collect::<Vec<_>>()
-    };
-
-    for yaml in spliced.into_iter().chain(std::iter::once_with(whole)) {
-        let text = yaml.iter().map(|l| format!("{l}\n")).collect::<String>();
-        if yaml::mapping(&text).is_ok_and(|back| same_mapping(&back, values)) {
-            let mut block: Vec<&str> = opening.clone();
-            block.extend(yaml.iter().map(String::as_str));
-            block.push(closing);
-            return Ok(block.join("\n"));
+            whole
         }
+    };
+    let mut block = opening;
+    block.extend(yaml.iter().map(String::as_str));
+    block.push(closing);
+    Ok(block.join("\n"))
+}
+
+/// The YAML with each changed or new key rendered, and every other key's
+/// lines kept as written, in `keys`' order. `None` when it can't be split
+/// into one entry for each key it had
+fn splice(
+    yaml_lines: &[&str],
+    old: &IndexMap<String, Value>,
+    values: &IndexMap<String, Value>,
+    keys: &[String],
+    render: impl Fn(&str, Option<&str>, &str) -> Vec<String>,
+) -> Option<Vec<String>> {
+    let Split {
+        header,
+        entries,
+        trailer,
+    } = split(yaml_lines)?;
+    if entries.len() != old.len() || !entries.iter().all(|e| old.contains_key(&e.key)) {
+        return None;
     }
-    Err("Couldn't write the frontmatter so that it reads back as the values being saved".into())
+    let mut out: Vec<String> = header.iter().map(|l| l.to_string()).collect();
+    for key in keys {
+        let Some(entry) = entries.iter().find(|e| &e.key == key) else {
+            out.extend(render(key, None, ""));
+            continue;
+        };
+        out.extend(entry.lead.iter().map(|l| l.to_string()));
+        if same(&old[key], &values[key]) {
+            out.extend(entry.lines.iter().map(|l| l.to_string()));
+            continue;
+        }
+        let text = entry.lines.join("\n");
+        let mut rendered = render(key, Some(&text), &text);
+        // A one-line value keeps the comment after it
+        let blank = entry
+            .lines
+            .iter()
+            .rev()
+            .take_while(|l| l.trim().is_empty())
+            .count();
+        if let ([line], [new_line]) = (&entry.lines[..entry.lines.len() - blank], &mut rendered[..])
+        {
+            if let Some(comment) = trailing_comment(line) {
+                new_line.push_str(comment);
+            }
+        }
+        out.extend(rendered);
+        // And the blank lines that separated it from the next key
+        out.extend(std::iter::repeat_n(String::new(), blank));
+    }
+    // Blank lines that separated a key that's been moved or deleted from the
+    // next don't end up at the end of the block
+    while out.last().is_some_and(|l| l.trim().is_empty()) && out.len() > header.len() {
+        out.pop();
+    }
+    out.extend(trailer.iter().map(|l| l.to_string()));
+    Some(out)
+}
+
+/// The comment at the end of a one-line `key: value`, with the space before
+/// it, if it has one: the `#` that starts it is the one where the line reads
+/// the same without what follows
+fn trailing_comment(line: &str) -> Option<&str> {
+    let whole = yaml::mapping(&format!("{line}\n")).ok()?;
+    line.match_indices(" #")
+        .map(|(at, _)| at)
+        .find(|&at| yaml::mapping(&format!("{}\n", &line[..at])).is_ok_and(|m| m == whole))
+        .map(|at| &line[at..])
 }
 
 /// A file put back together from its frontmatter block, MDX import block and
@@ -135,9 +203,10 @@ pub(crate) fn assemble(block: &str, imports: &str, content: &str) -> String {
     result
 }
 
-/// Whether two values are the same frontmatter. Numbers compare by value,
-/// since values make a round trip through JavaScript, where `1.0` is `1`, and
-/// objects ignore key order
+/// Whether two values are the same frontmatter. Numbers also compare as
+/// floats: values make a round trip through JavaScript, which rounds
+/// integers beyond 2^53, so one that comes back rounded still counts as
+/// unchanged and keeps its text
 fn same(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => a == b || a.as_f64() == b.as_f64(),
@@ -219,11 +288,21 @@ fn key_order(
 pub(super) struct Entry<'a> {
     pub(super) key: String,
     /// The comments at column 0 directly above the key, which move and go
-    /// with it. Above the first key, any blank lines too
+    /// with it
     pub(super) lead: Vec<&'a str>,
     /// The key's own lines, then any blank lines after it, which can belong
     /// to its value (`|+` keeps trailing blank lines)
     pub(super) lines: Vec<&'a str>,
+}
+
+/// YAML split into one entry per top-level key
+pub(super) struct Split<'a> {
+    /// The blank and comment lines before the first key, which stay at the
+    /// top whichever keys move or go
+    pub(super) header: Vec<&'a str>,
+    pub(super) entries: Vec<Entry<'a>>,
+    /// The blank and comment lines after the last key
+    pub(super) trailer: Vec<&'a str>,
 }
 
 /// A line that starts a top-level key: anything at column 0 except a
@@ -236,10 +315,10 @@ fn starts_entry(line: &str) -> bool {
         || !line.is_empty() && !line.starts_with([' ', '\t', '#', '-', ']', '}', ',', '"', '\''])
 }
 
-/// The YAML split into one entry per top-level key, and the blank and comment
-/// lines after the last one. `None` unless each entry reads on its own as
-/// exactly one key (an alias to an anchor in another entry doesn't)
-pub(super) fn split<'a>(lines: &[&'a str]) -> Option<(Vec<Entry<'a>>, Vec<&'a str>)> {
+/// `None` unless each entry reads on its own as exactly one key (an alias to
+/// an anchor in another entry doesn't)
+pub(super) fn split<'a>(lines: &[&'a str]) -> Option<Split<'a>> {
+    let mut header: Vec<&str> = vec![];
     let mut entries: Vec<Entry> = vec![];
     let mut pending: Vec<&str> = vec![];
     for &line in lines {
@@ -253,7 +332,10 @@ pub(super) fn split<'a>(lines: &[&'a str]) -> Option<(Vec<Entry<'a>>, Vec<&'a st
                     previous.lines.append(&mut pending);
                     lead
                 }
-                None => std::mem::take(&mut pending),
+                None => {
+                    header.append(&mut pending);
+                    vec![]
+                }
             };
             entries.push(Entry {
                 key: String::new(),
@@ -275,7 +357,11 @@ pub(super) fn split<'a>(lines: &[&'a str]) -> Option<(Vec<Entry<'a>>, Vec<&'a st
         }
         entry.key = map.keys().next()?.clone();
     }
-    Some((entries, pending))
+    Some(Split {
+        header,
+        entries,
+        trailer: pending,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -300,76 +386,67 @@ struct FileStyle {
 }
 
 impl FileStyle {
-    /// Measured from the whole block, with two-space indents when it has no
-    /// objects or lists to measure (the most common style)
-    fn of(lines: &[&str]) -> Self {
-        let (indent, list_indent, quote) = measure(lines);
-        Self {
-            indent: indent.unwrap_or(2),
-            list_indent: list_indent.unwrap_or(2),
-            quote: quote.unwrap_or(Quote::Plain),
-        }
-    }
+    /// Two-space indents and plain strings, the most common style
+    const DEFAULT: Self = Self {
+        indent: 2,
+        list_indent: 2,
+        quote: Quote::Plain,
+    };
 
-    /// The style of one key's original text, where it shows one, since a
-    /// file's keys can differ: one list indented, another not
-    fn within(self, original: Option<&str>) -> Self {
-        let Some(original) = original else {
-            return self;
-        };
-        let (indent, list_indent, quote) = measure(&original.lines().collect::<Vec<_>>());
+    /// This style, changed to how `lines` indent objects and lists (measured
+    /// from the first key holding each) and write most of their strings,
+    /// where they show it. Measured from the whole block, then from each
+    /// key's own text, since a file's keys can differ: one list indented,
+    /// another not
+    fn within(self, lines: &[&str]) -> Self {
+        let indent_of = |line: &str| line.len() - line.trim_start().len();
+        let mut indent = None;
+        let mut list_indent = None;
+        for pair in lines.windows(2) {
+            let (parent, child) = (pair[0], pair[1]);
+            // A key whose value starts on the next line: `key:` or `- key:`
+            let opens = parent.trim_end().ends_with(':') && !parent.trim_start().starts_with('#');
+            if !opens || child.trim().is_empty() {
+                continue;
+            }
+            let item = if parent.trim_start().starts_with("- ") {
+                2
+            } else {
+                0
+            };
+            let (key_column, child_column) = (indent_of(parent) + item, indent_of(child));
+            if child.trim_start().starts_with("- ") {
+                list_indent.get_or_insert(child_column.saturating_sub(key_column));
+            } else if child_column > key_column {
+                indent.get_or_insert(child_column - key_column);
+            }
+        }
         Self {
             indent: indent.unwrap_or(self.indent),
             list_indent: list_indent.unwrap_or(self.list_indent),
-            quote: quote.unwrap_or(self.quote),
+            quote: prevailing_quote(&lines.join("\n")).unwrap_or(self.quote),
         }
     }
 }
-
-/// How some YAML indents objects and lists, from the first key holding each,
-/// and how most of its strings are written: whatever it shows
-fn measure(lines: &[&str]) -> (Option<usize>, Option<usize>, Option<Quote>) {
-    let indent_of = |line: &str| line.len() - line.trim_start().len();
-    let mut indent = None;
-    let mut list_indent = None;
-    for pair in lines.windows(2) {
-        let (parent, child) = (pair[0], pair[1]);
-        // A key whose value starts on the next line: `key:` or `- key:`
-        let opens = parent.trim_end().ends_with(':') && !parent.trim_start().starts_with('#');
-        if !opens || child.trim().is_empty() {
-            continue;
-        }
-        let item = if parent.trim_start().starts_with("- ") {
-            2
-        } else {
-            0
-        };
-        let (key_column, child_column) = (indent_of(parent) + item, indent_of(child));
-        if child.trim_start().starts_with("- ") {
-            list_indent.get_or_insert(child_column.saturating_sub(key_column));
-        } else if child_column > key_column {
-            indent.get_or_insert(child_column - key_column);
-        }
-    }
-    (indent, list_indent, prevailing_quote(&lines.join("\n")))
-}
-
-/// The start of each scalar in some YAML: after `key: `, `- `, `[` or `, `
+/// Each scalar in some YAML, after `key: `, `- `, `[` or `, `: its opening
+/// quote, or the text of an unquoted one
 fn scalar_start() -> &'static Regex {
     static SCALAR_START: OnceLock<Regex> = OnceLock::new();
     SCALAR_START.get_or_init(|| {
-        Regex::new(r#"(?m)(?:^[ \t]*(?:-[ \t]+)*[^\s#][^:\n]*:[ \t]+|^[ \t]*-[ \t]+|[\[,][ \t]*)(["']|[^\s"'\[\]{}|>&*!#,])"#)
+        Regex::new(r#"(?m)(?:^[ \t]*(?:-[ \t]+)*[^\s#][^:\n]*:[ \t]+|^[ \t]*-[ \t]+|[\[,][ \t]*)(["']|[^\s"'\[\]{}|>&*!#,][^,\]\n#]*)"#)
             .expect("valid regex")
     })
 }
 
-/// How most of the strings in some YAML are written, if it has any
+/// How most of the strings in some YAML are written, if it has any. Numbers,
+/// booleans, nulls and dates are left out, since they're never quoted
 fn prevailing_quote(yaml: &str) -> Option<Quote> {
     let (mut plain, mut single, mut double) = (0, 0, 0);
     for capture in scalar_start().captures_iter(yaml) {
-        match &capture[1] {
+        match capture[1].trim() {
             "\"" => double += 1,
             "'" => single += 1,
+            text if is_other_type(text) || is_date_like(text) || text.parse::<f64>().is_ok() => {}
             _ => plain += 1,
         }
     }
@@ -392,42 +469,23 @@ fn prevailing_quote(yaml: &str) -> Option<Quote> {
 struct Context<'a> {
     /// The file's style, as the key's own text shows it
     style: FileStyle,
-    /// The key's text as it was, when it was in the file
-    original: Option<&'a str>,
-    /// The key was a list written inline (`[a, b]`): on the key's own line,
-    /// or on the next
-    inline_list: Option<InlineList>,
+    /// Text showing how the key's values were written: its own text, or the
+    /// whole block when that isn't known. Empty for a new key
+    written: &'a str,
     date_fields: &'a [String],
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum InlineList {
-    OnTheKeysLine,
-    OnTheNextLine,
-}
-
-impl Context<'_> {
-    /// How `s` was written in the key's original text, if it's there: under
-    /// `key` first, so the same text written two ways under two keys is told
-    /// apart
-    fn written_as(&self, s: &str, key: Option<&str>) -> Option<Quote> {
-        let original = self.original?;
-        if let Some(quote) = key.and_then(|key| written_after(original, &format!("{key}: "), s)) {
-            return Some(quote);
-        }
-        if original.contains(&double_quoted(s)) {
-            Some(Quote::Double)
-        } else if original.contains(&single_quoted(s)) {
-            Some(Quote::Single)
-        } else if [": ", "- ", "[", ", "]
-            .iter()
-            .any(|b| ends_a_value(original, &format!("{b}{s}")))
-        {
-            Some(Quote::Plain)
-        } else {
-            None
-        }
-    }
+/// How `s` was written in `written` (see `Context`), if it's there: under
+/// its own `key` first, so the same text written two ways under two keys is
+/// told apart, then anywhere a value starts
+fn written_as(written: &str, s: &str, key: Option<&str>) -> Option<Quote> {
+    let under_key = key.map(|k| format!("{k}: "));
+    let found = under_key
+        .as_deref()
+        .into_iter()
+        .chain([": ", "- ", "[", ", "])
+        .find_map(|before| written_after(written, before, s));
+    found
 }
 
 /// How `s` is written straight after `before` in `yaml`, if it is
@@ -452,35 +510,60 @@ fn ends_a_value(yaml: &str, text: &str) -> bool {
     })
 }
 
-/// The lines for `key` holding `value`, at the top level
+/// Whether `written` (see `Context`) held an unquoted date where a value
+/// goes: under its own `key`, or for a list item, as any item. Astro read
+/// that as a date, so what replaces it is written as one too, even when the
+/// schema doesn't say the field is a date (it may not have been generated)
+fn held_an_unquoted_date(written: &str, key: Option<&str>) -> bool {
+    let uncommented = |v: &str| v.split(" #").next().unwrap_or(v).trim().to_string();
+    written.lines().any(|line| {
+        let line = line.trim_start().trim_start_matches("- ");
+        match key {
+            Some(key) => line
+                .strip_prefix(key)
+                .and_then(|rest| rest.strip_prefix(": "))
+                .is_some_and(|v| is_date_like(&uncommented(v))),
+            // A list item, in a block list or an inline one
+            None => line
+                .split(['[', ',', ']'])
+                .any(|item| is_date_like(&uncommented(item.trim_start().trim_start_matches("- ")))),
+        }
+    })
+}
+
+/// The lines for `key` holding `value`, at the top level, given its own
+/// lines when it had them, and text showing how its values were written. A
+/// list that was written inline (`[a, b]`) stays inline, on the key's line or
+/// the next, as it was
 fn render_entry(
     key: &str,
     value: &Value,
-    original: Option<&str>,
-    style: &FileStyle,
+    own_text: Option<&str>,
+    written: &str,
+    style: FileStyle,
     date_fields: &[String],
 ) -> Vec<String> {
-    // What follows the key's colon, on its line and on the next
-    let after_colon = original.and_then(|o| o.split_once(':')).map(|(_, v)| v);
-    let inline_list = after_colon.and_then(|v| {
-        let (same_line, rest) = v.split_once('\n').unwrap_or((v, ""));
-        let next_line = rest.lines().next().unwrap_or("");
-        if same_line.trim_start().starts_with('[') {
-            Some(InlineList::OnTheKeysLine)
-        } else if same_line.trim().is_empty() && next_line.trim_start().starts_with('[') {
-            Some(InlineList::OnTheNextLine)
-        } else {
-            None
-        }
-    });
     let context = Context {
-        style: style.within(original),
-        original,
-        inline_list,
+        style: own_text.map_or(style, |o| style.within(&o.lines().collect::<Vec<_>>())),
+        written,
         date_fields,
     };
+    // What came between the key's colon and an inline list: a space, or a
+    // line break and an indent
+    let inline_list_after = own_text.and_then(|o| {
+        let (_, value) = o.split_once(':')?;
+        let list = value.trim_start();
+        list.starts_with('[')
+            .then(|| &value[..value.len() - list.len()])
+    });
+    if let (Some(separator), Value::Array(items)) = (inline_list_after, value) {
+        if let Some(list) = inline_list(items, key, &context) {
+            let text = format!("{}:{separator}{list}", render_key(key));
+            return text.lines().map(String::from).collect();
+        }
+    }
     let mut out = vec![];
-    entry(&mut out, 0, key, value, key, &context, true);
+    entry(&mut out, 0, key, value, key, &context);
     out
 }
 
@@ -493,7 +576,6 @@ fn entry(
     value: &Value,
     path: &str,
     context: &Context,
-    top: bool,
 ) {
     let pad = " ".repeat(indent);
     let written_key = render_key(key);
@@ -502,46 +584,20 @@ fn entry(
             out.push(format!("{pad}{written_key}:"));
             for (k, v) in map {
                 let path = format!("{path}.{k}");
-                entry(
-                    out,
-                    indent + context.style.indent,
-                    k,
-                    v,
-                    &path,
-                    context,
-                    false,
-                );
+                entry(out, indent + context.style.indent, k, v, &path, context);
             }
         }
         Value::Array(items) if !items.is_empty() => {
-            let inline = match context.inline_list {
-                Some(place) if top => inline_list(items, path, context).map(|list| (place, list)),
-                _ => None,
-            };
-            match inline {
-                Some((InlineList::OnTheKeysLine, list)) => {
-                    out.push(format!("{pad}{written_key}: {list}"));
-                }
-                Some((InlineList::OnTheNextLine, list)) => {
-                    let inner = " ".repeat(indent + context.style.indent);
-                    out.push(format!("{pad}{written_key}:"));
-                    out.push(format!("{inner}{list}"));
-                }
-                None => {
-                    out.push(format!("{pad}{written_key}:"));
-                    for item in items {
-                        list_item(out, indent + context.style.list_indent, item, path, context);
-                    }
-                }
+            out.push(format!("{pad}{written_key}:"));
+            for item in items {
+                list_item(out, indent + context.style.list_indent, item, path, context);
             }
         }
-        Value::String(s) => match string(s, path, Some(key), context, indent) {
-            Text::Inline(text) => out.push(format!("{pad}{written_key}: {text}")),
-            Text::Block(header, lines) => {
-                out.push(format!("{pad}{written_key}: {header}"));
-                out.extend(lines);
-            }
-        },
+        Value::String(s) => {
+            let (first, rest) = string_value(s, path, Some(key), context, indent);
+            out.push(format!("{pad}{written_key}: {first}"));
+            out.extend(rest);
+        }
         _ => out.push(format!("{pad}{written_key}: {}", scalar(value))),
     }
 }
@@ -561,7 +617,6 @@ fn list_item(out: &mut Vec<String>, indent: usize, value: &Value, path: &str, co
                     v,
                     &format!("{path}.{k}"),
                     context,
-                    false,
                 );
             }
         }
@@ -570,13 +625,11 @@ fn list_item(out: &mut Vec<String>, indent: usize, value: &Value, path: &str, co
                 list_item(&mut nested, indent + 2, item, path, context);
             }
         }
-        Value::String(s) => match string(s, path, None, context, indent) {
-            Text::Inline(text) => nested.push(format!("{pad}  {text}")),
-            Text::Block(header, lines) => {
-                nested.push(format!("{pad}  {header}"));
-                nested.extend(lines);
-            }
-        },
+        Value::String(s) => {
+            let (first, rest) = string_value(s, path, None, context, indent);
+            nested.push(format!("{pad}  {first}"));
+            nested.extend(rest);
+        }
         _ => nested.push(format!("{pad}  {}", scalar(value))),
     }
     nested[0] = format!("{pad}- {}", &nested[0][indent + 2..]);
@@ -619,28 +672,29 @@ fn render_key(key: &str) -> String {
     }
 }
 
-enum Text {
-    Inline(String),
-    /// A `|` block scalar: its header and its lines
-    Block(String, Vec<String>),
-}
-
-fn string(s: &str, path: &str, key: Option<&str>, context: &Context, indent: usize) -> Text {
-    if s.contains('\n') {
-        if let Some((header, lines)) = block_scalar(s, indent + context.style.indent) {
-            return Text::Block(header, lines);
-        }
-        return Text::Inline(double_quoted(s));
+/// A string value: the text that goes after its key or `- `, and the lines
+/// after that, which only a `|` block scalar has. Its content sits one
+/// indent in from `indent`
+fn string_value(
+    s: &str,
+    path: &str,
+    key: Option<&str>,
+    context: &Context,
+    indent: usize,
+) -> (String, Vec<String>) {
+    if !s.contains('\n') {
+        return (inline_string(s, path, key, context, false), vec![]);
     }
-    Text::Inline(inline_string(s, path, key, context, false))
+    block_scalar(s, indent + context.style.indent).unwrap_or_else(|| (double_quoted(s), vec![]))
 }
 
 /// A one-line string: as it was written in the original if it's there,
 /// otherwise in the key's prevailing style, but only unquoted when that
 /// reads back as the same string and no YAML reader would take it for
-/// something else. A date-like string is unquoted only in a date field or
-/// where it was unquoted before, so Astro reads it as a date there and as
-/// text everywhere else
+/// something else. A date-like string is unquoted only where it's a date: in
+/// a date field, or where an unquoted date was before (see
+/// `held_an_unquoted_date`), so Astro reads it as a date there and as text
+/// everywhere else
 fn inline_string(
     s: &str,
     path: &str,
@@ -648,11 +702,13 @@ fn inline_string(
     context: &Context,
     in_list: bool,
 ) -> String {
-    let written_as = context.written_as(s, key);
-    let date_field = context.date_fields.iter().any(|f| f == path);
+    let written_as = written_as(context.written, s, key);
+    let date = is_date_like(s)
+        && (context.date_fields.iter().any(|f| f == path)
+            || held_an_unquoted_date(context.written, key));
     let can_be_plain = reads_back_plain(s, in_list)
-        && (!is_date_like(s) || date_field || written_as == Some(Quote::Plain));
-    if can_be_plain && date_field && is_date_like(s) {
+        && (!is_date_like(s) || date || written_as == Some(Quote::Plain));
+    if can_be_plain && date {
         return s.to_string();
     }
     match written_as.unwrap_or(context.style.quote) {
@@ -702,17 +758,10 @@ fn reads_back_plain(s: &str, in_list: bool) -> bool {
 
 /// A multi-line string as a `|` block scalar with its content at `indent`
 /// spaces, keeping its trailing newlines. `None` when that wouldn't read back
-/// as the same string, including when its first line starts with a space,
-/// which would need an indentation indicator
+/// as the same string: when its first line starts with a space, which would
+/// need an indentation indicator, or it holds control characters
 fn block_scalar(s: &str, indent: usize) -> Option<(String, Vec<String>)> {
     let body = s.trim_end_matches('\n');
-    let starts_with_space = body
-        .lines()
-        .find(|l| !l.is_empty())
-        .is_some_and(|l| l.starts_with(' '));
-    if starts_with_space || s.chars().any(|c| c.is_control() && c != '\n' && c != '\t') {
-        return None;
-    }
     let trailing = s.len() - body.len();
     let header = match trailing {
         0 => "|-",
@@ -974,11 +1023,96 @@ mod tests {
     }
 
     #[test]
-    fn keeps_keys_whose_numbers_only_look_different() {
-        // JavaScript turns `1.0` into `1`
-        let raw = "---\nrating: 1.0\ntitle: A\n---";
-        let written = edit(raw, json!({ "rating": 1, "title": "B" }));
-        assert_eq!(written, "---\nrating: 1.0\ntitle: B\n---");
+    fn keeps_an_integer_javascript_rounded() {
+        // JavaScript gives back 12345678901234567000
+        let raw = "---\nid: 12345678901234567890\ntitle: A\n---";
+        let written = edit(
+            raw,
+            json!({ "id": 12345678901234567890.0_f64, "title": "B" }),
+        );
+        assert_eq!(written, "---\nid: 12345678901234567890\ntitle: B\n---");
+    }
+
+    #[test]
+    fn keeps_an_edited_date_a_date_where_it_was_one() {
+        // Without a schema saying so, as when `astro sync` hasn't run
+        let raw = "---\npubDate: 2024-01-15\nversion: \"2024-01-15\"\ndates:\n  - 2024-01-01\ninline: [2024-01-01]\nevents:\n  - name: Launch\n    date: 2024-01-15\n---";
+        let written = edit(
+            raw,
+            json!({
+                "pubDate": "2024-01-16",
+                "version": "2024-01-16",
+                "dates": ["2024-01-01", "2024-02-01"],
+                "inline": ["2024-01-01", "2024-02-01"],
+                "events": [
+                    { "name": "Launch", "date": "2024-01-15" },
+                    { "name": "Party", "date": "2024-03-01" },
+                ],
+            }),
+        );
+        assert_eq!(
+            written,
+            "---\npubDate: 2024-01-16\nversion: \"2024-01-16\"\ndates:\n  - 2024-01-01\n  - 2024-02-01\ninline: [2024-01-01, 2024-02-01]\nevents:\n  - name: Launch\n    date: 2024-01-15\n  - name: Party\n    date: 2024-03-01\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_dates_when_writing_the_whole_block() {
+        // The alias can't be split off, so the block is written whole
+        let raw = "---\ntitle: Hello\nauthor: &me Danny\neditor: *me\nupdated: 2024-02-01\nnote: \"2024-02-01\"\n---";
+        assert_eq!(
+            edit(
+                raw,
+                json!({ "title": "Hello", "author": "Danny", "editor": "Danny", "updated": "2024-03-01", "note": "2024-02-01" })
+            ),
+            "---\ntitle: Hello\nauthor: Danny\neditor: Danny\nupdated: 2024-03-01\nnote: \"2024-02-01\"\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_the_comments_at_the_top_at_the_top() {
+        let raw = "---\n# yaml-language-server: $schema=schema.json\n\ntitle: A\ndraft: true\n---";
+        assert_eq!(
+            edit(raw, json!({ "draft": true })),
+            "---\n# yaml-language-server: $schema=schema.json\n\ndraft: true\n---"
+        );
+        let reordered = write_block(
+            raw,
+            &values(json!({ "title": "A", "draft": false })),
+            &schema(&["draft", "title"], &[]),
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            reordered,
+            "---\n# yaml-language-server: $schema=schema.json\n\ndraft: false\ntitle: A\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_the_comment_after_an_edited_value() {
+        let raw = "---\ndraft: true # remove before publishing\ntitle: 'A # not a comment' # working title\n---";
+        assert_eq!(
+            edit(raw, json!({ "draft": false, "title": "B # still not" })),
+            "---\ndraft: false # remove before publishing\ntitle: 'B # still not' # working title\n---"
+        );
+    }
+
+    #[test]
+    fn leaves_no_blank_lines_where_a_deleted_key_was() {
+        let raw = "---\ntitle: A\n\ndraft: true\n---";
+        assert_eq!(edit(raw, json!({ "title": "A" })), "---\ntitle: A\n---");
+    }
+
+    #[test]
+    fn writes_a_new_key_in_the_file_s_quote_style() {
+        // Dates, numbers and booleans don't count: they're never quoted
+        let raw = "---\ntitle: \"A\"\ndescription: \"B\"\npubDate: 2024-01-15\ncount: 3\ndraft: false\n---";
+        let written = edit(
+            raw,
+            json!({ "title": "A", "description": "B", "pubDate": "2024-01-15", "count": 3, "draft": false, "author": "Danny" }),
+        );
+        assert!(written.ends_with("author: \"Danny\"\n---"), "{written}");
     }
 
     #[test]

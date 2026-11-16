@@ -41,6 +41,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       isDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
+      dirtySince: null,
     })
 
     useProjectStore.setState({
@@ -94,22 +95,24 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
         autoSaveCallback: mockAutoSaveCallback,
       })
 
-      // Setup: Open a file with save timestamp from 5 seconds ago
       useEditorStore.setState({
         isLoaded: true,
         currentFile: mockFileEntry,
-        lastSaveTimestamp: Date.now() - 5000,
         isDirty: false,
+        dirtySince: null,
       })
 
       const store = useEditorStore.getState()
 
-      // Type once - this will check if 10s has passed (5s ago + 5s now = 10s)
-      // The current time will be Date.now() which we can control by advancing fake time
-      vi.advanceTimersByTime(5000) // Advance 5 more seconds
+      // Type every second, faster than the debounce: only the forced save,
+      // 10s after the first unsaved edit, saves
+      for (let second = 0; second < 10; second++) {
+        store.setEditorContent(`content ${second}`)
+        expect(mockAutoSaveCallback).not.toHaveBeenCalled()
+        vi.advanceTimersByTime(1000)
+      }
       store.setEditorContent('content after 10s')
 
-      // Verify: Force save should have been triggered because 10s elapsed
       expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
     })
 
@@ -241,29 +244,35 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       expect(mockAutoSaveCallback).not.toHaveBeenCalled()
     })
 
-    it('should force save if more than 10s since last save', () => {
-      // Mock the auto-save callback
+    it('should force save once the first unsaved edit is over 10s old', () => {
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
         isLoaded: true,
+        currentFile: mockFileEntry,
         autoSaveCallback: mockAutoSaveCallback,
+        isDirty: true,
+        dirtySince: Date.now() - 11000,
       })
 
-      // Setup: Last save was 11 seconds ago
+      useEditorStore.getState().setEditorContent('content')
+
+      expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
+    })
+
+    it("doesn't save the first edit after a pause on its own", () => {
+      const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
         isLoaded: true,
         currentFile: mockFileEntry,
-        lastSaveTimestamp: Date.now() - 11000,
-        isDirty: true,
+        autoSaveCallback: mockAutoSaveCallback,
+        lastSaveTimestamp: Date.now() - 60000,
+        isDirty: false,
+        dirtySince: null,
       })
 
-      const store = useEditorStore.getState()
+      useEditorStore.getState().setEditorContent('c')
 
-      // Type (11s has passed, exceeds 10s max)
-      store.setEditorContent('content')
-
-      // Verify: Force save WAS triggered
-      expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
+      expect(mockAutoSaveCallback).not.toHaveBeenCalled()
     })
   })
 

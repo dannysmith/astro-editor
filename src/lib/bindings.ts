@@ -26,12 +26,14 @@ export const commands = {
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
 	/**
-	 *  Saves a file from its parts. `raw_frontmatter` is its frontmatter block
-	 *  as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+	 *  Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
+	 *  read (`MarkdownContent::raw_frontmatter`), written back as it is unless
 	 *  `frontmatter` holds edited values, which are spliced into it, with the
-	 *  keys put in schema order if `reorder_frontmatter` (the project setting)
+	 *  keys put in schema order if `reorder_frontmatter` (the project setting).
+	 *  Returns the frontmatter block written, so the frontend can tell its own
+	 *  writes from changes made outside the app
 	 */
-	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, reorderFrontmatter: boolean, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, reorderFrontmatter, projectRoot })),
+	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, reorderFrontmatter: boolean, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, reorderFrontmatter, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
 	/**

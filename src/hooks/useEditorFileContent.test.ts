@@ -82,11 +82,12 @@ describe('useEditorFileContent', () => {
     expect(useEditorStore.getState().loadError).toBeNull()
   })
 
-  it('keeps the first load as the baseline when the file reloads', () => {
+  it('keeps the first load as the baseline when our own save reloads', () => {
     query.data = fromDisk('title: "Hello"', 'Hello')
     const { rerender } = renderHook(() => useEditorFileContent())
 
-    // The reload after our own save, which rewrote the text
+    // Our save wrote new text, which it keeps in the store, then the reload
+    useEditorStore.setState({ rawFrontmatter: 'title: Hello!' })
     query.data = fromDisk('title: Hello!', 'Hello!')
     rerender()
 
@@ -95,6 +96,22 @@ describe('useEditorFileContent', () => {
     expect(state.frontmatterBaseline).toEqual({
       values: { title: 'Hello' },
       raw: 'title: "Hello"',
+    })
+  })
+
+  it('takes a change made outside the app as the baseline', () => {
+    query.data = fromDisk('title: "Hello"', 'Hello')
+    const { rerender } = renderHook(() => useEditorFileContent())
+
+    query.data = fromDisk(
+      '# A comment added elsewhere\ntitle: "Hello"',
+      'Hello'
+    )
+    rerender()
+
+    expect(useEditorStore.getState().frontmatterBaseline).toEqual({
+      values: { title: 'Hello' },
+      raw: '# A comment added elsewhere\ntitle: "Hello"',
     })
   })
 })

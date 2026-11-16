@@ -9,9 +9,7 @@
 //! Astro itself). Unquoted dates and datetimes come through as the strings
 //! they're written as; the schema says which fields are dates.
 //!
-//! serde-saphyr and its parser are pinned to exact versions in `Cargo.toml`,
-//! because their defaults have changed between minor versions. Upgrade them
-//! only after the corpus tests and the comparison with Astro pass.
+//! serde-saphyr is pinned to an exact version: see `Cargo.toml`.
 #![allow(clippy::disallowed_methods)]
 
 use indexmap::IndexMap;
@@ -77,6 +75,8 @@ fn read<T: DeserializeOwned>(yaml: &str) -> Result<Option<T>, YamlError> {
     serde_saphyr::from_str_with_options(yaml, options()).map_err(|error| {
         let location = error.location();
         let (line, column) = (location.map(|l| l.line()), location.map(|l| l.column()));
+        // The message ends with where the error is. It's kept apart, so
+        // `shifted` can renumber the line, and `Display` puts it back
         let mut message = error.to_string();
         if let (Some(line), Some(column)) = (line, column) {
             let suffix = format!(" at line {line}, column {column}");

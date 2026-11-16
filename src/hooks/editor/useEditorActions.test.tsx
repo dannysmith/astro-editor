@@ -181,9 +181,9 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
 
     const args = await save()
 
-    // Spliced into the text on disk
+    // Spliced into the text as it was loaded, not as an earlier save wrote it
     expect(args.frontmatter).toEqual(edited)
-    expect(args.rawFrontmatter).toBe(rewritten)
+    expect(args.rawFrontmatter).toBe(original)
   })
 })
 
@@ -340,21 +340,23 @@ describe('useEditorActions.saveFile and what it may write', () => {
     expect(saveCall()).toBeUndefined()
   })
 
-  it("writes frontmatter that couldn't be read back as it was", async () => {
+  it('keeps the frontmatter the save wrote as what is on disk', async () => {
+    const written = '---\ntitle: B\n---'
+    globalThis.mockTauri.invoke.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'save_markdown_content' ? written : null)
+    )
     useEditorStore.setState({
-      rawFrontmatter: 'title: "Unclosed',
-      frontmatterError: 'found unexpected end of stream',
-      frontmatter: { title: 'Not from the file' },
+      rawFrontmatter: '---\ntitle: A\n---',
+      frontmatterBaseline: {
+        values: { title: 'A' },
+        raw: '---\ntitle: A\n---',
+      },
+      frontmatter: { title: 'B' },
       isFrontmatterDirty: true,
     })
 
     await renderActions().saveFile(false)
 
-    const args = saveCall()![1] as {
-      frontmatter: Record<string, unknown> | null
-      rawFrontmatter: string | null
-    }
-    expect(args.frontmatter).toBeNull()
-    expect(args.rawFrontmatter).toBe('title: "Unclosed')
+    expect(useEditorStore.getState().rawFrontmatter).toBe(written)
   })
 })

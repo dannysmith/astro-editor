@@ -41,6 +41,8 @@ interface EditorState {
   isFrontmatterDirty: boolean // True if frontmatter was modified (vs content-only edits)
   autoSaveTimeoutId: ReturnType<typeof setTimeout> | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
+  /** When the first edit not yet saved was made: the forced save's clock */
+  dirtySince: number | null
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
 
   // Actions
@@ -100,6 +102,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
   lastSaveTimestamp: null,
+  dirtySince: null,
   autoSaveCallback: null,
 
   // Actions
@@ -127,9 +130,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // The outgoing file's content is cleared in the same update that sets
     // currentFile, so Editor.tsx never reads it against the new file.
-    // lastSaveTimestamp starts the maximum auto-save delay's clock, and also
-    // makes useFileChangeHandler ignore changes to the file on disk for its
-    // first few seconds, as it does after a save
+    // lastSaveTimestamp makes useFileChangeHandler ignore changes to the file
+    // on disk for its first few seconds, as it does after a save
     set({
       editorContent: '',
       frontmatter: {},
@@ -144,6 +146,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: Date.now(),
+      dirtySince: null,
     })
     rememberLastEntry(file.path)
 
@@ -191,6 +194,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
+      dirtySince: null,
     })
     if (!options?.keepLastEntry) rememberLastEntry(null)
   },
@@ -253,16 +257,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const store = get()
     const now = Date.now()
 
-    // Check if we should force save due to max delay
-    if (store.isDirty && store.lastSaveTimestamp) {
-      const timeSinceLastSave = now - store.lastSaveTimestamp
-      if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
-        const { autoSaveCallback } = store
-        if (autoSaveCallback) {
-          void autoSaveCallback(false) // Auto-save without toast
-        }
-        return
+    // Debouncing never saves during continuous typing, so a save is forced
+    // once the first unsaved edit is 10 seconds old. Timed from that edit,
+    // not the last save, so the first keystroke after a pause isn't saved on
+    // its own
+    if (store.dirtySince === null) {
+      set({ dirtySince: now })
+    } else if (
+      store.isDirty &&
+      now - store.dirtySince >= MAX_AUTO_SAVE_DELAY_MS
+    ) {
+      const { autoSaveCallback } = store
+      if (autoSaveCallback) {
+        void autoSaveCallback(false) // Auto-save without toast
       }
+      return
     }
 
     // Clear existing timeout

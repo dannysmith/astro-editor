@@ -69,13 +69,12 @@ function waitForProjectReady(
 let writeUnderWay: Promise<void> | null = null
 
 /**
- * Saves the open file: writes its body, imports and frontmatter (in the
- * schema's field order, or the original text if its values are unchanged
- * from it), marks it clean if nothing changed meanwhile, and
- * refreshes the queries that show it. On failure, writes recovery data and a
- * crash report and keeps the file dirty. Plain function rather than inline in
- * the hook so the React Compiler can compile the hook (it can't handle `throw`
- * inside `try`).
+ * Saves the open file: writes its body, imports and frontmatter (edited
+ * values spliced into the frontmatter's text, see below), marks it clean if
+ * nothing changed meanwhile, and refreshes the queries that show it. On
+ * failure, writes recovery data and a crash report and keeps the file dirty.
+ * Plain function rather than inline in the hook so the React Compiler can
+ * compile the hook (it can't handle `throw` inside `try`).
  */
 async function saveCurrentFile(
   queryClient: QueryClient,
@@ -90,7 +89,6 @@ async function saveCurrentFile(
     isFrontmatterDirty,
     imports,
     isLoaded,
-    frontmatterError,
   } = useEditorStore.getState()
   // Until the file has loaded, the store holds an empty placeholder, which
   // must never be written over it
@@ -104,18 +102,21 @@ async function saveCurrentFile(
   }
 
   try {
-    // The collection's schema fields, from the query cache, for the field
-    // order and to compare with the baseline
+    // The collection's schema fields, from the query cache, for their order,
+    // which hold dates, and to compare with the baseline
     let fields: SchemaField[] | null = null
     const scan = queryClient.getQueryData<ProjectScan>(
       queryKeys.collections(projectPath)
     )
+    const collection = scan?.collections.find(
+      c => c.name === currentFile.collection
+    )
+    // Only with the whole schema: without it, the keys would just be sorted
+    // alphabetically
     const reorderFrontmatter =
-      scan?.projectSettings.reorderFrontmatter.value ?? false
+      (scan?.projectSettings.reorderFrontmatter.value ?? false) &&
+      collection?.schemaStatus === 'complete'
     try {
-      const collection = scan?.collections.find(
-        c => c.name === currentFile.collection
-      )
       const schema = collection?.completeSchema
         ? deserializeCompleteSchema(collection.completeSchema)
         : null
@@ -128,26 +129,29 @@ async function saveCurrentFile(
     const rename = renameUnderWay(currentFile.path)
     const path = rename ? await rename : currentFile.path
 
-    // Edited frontmatter's values are spliced into the text as it was read.
-    // Unedited, or edited back to what was loaded, that text is written back
-    // unchanged. Frontmatter that couldn't be read has no values, so its text
-    // is always written back as it was
+    // Unedited frontmatter is written back as it is on disk. Edited, its
+    // values are spliced into the baseline's text (the frontmatter as the
+    // file was opened, or last changed outside the app), so the file only
+    // ever differs from that by the edits, however many saves came between:
+    // a key cleared and retyped goes back where it was, and how one looked
+    // halfway through typing doesn't stick. Edited back to the baseline's
+    // values, the baseline's text is written as it is
     const backToBaseline =
       isFrontmatterDirty &&
       frontmatterBaseline !== null &&
       isBackToBaseline(frontmatter, frontmatterBaseline, fields ?? [])
-    const writeValues =
-      isFrontmatterDirty && !backToBaseline && frontmatterError === null
-    const originalText = backToBaseline
-      ? frontmatterBaseline.raw
-      : rawFrontmatter
+    const writeValues = isFrontmatterDirty && !backToBaseline
+    const text =
+      isFrontmatterDirty && frontmatterBaseline !== null
+        ? frontmatterBaseline.raw
+        : rawFrontmatter
 
     // Waits for a write under way, so an older save can't land last
     const save = () =>
       commands.saveMarkdownContent(
         path,
         writeValues ? (frontmatter as Record<string, JsonValue>) : null,
-        originalText,
+        text,
         editorContent,
         imports,
         frontmatterSchema(fields ?? []),
@@ -185,12 +189,18 @@ async function saveCurrentFile(
       const frontmatterUnchanged =
         JSON.stringify(currentState.frontmatter) === JSON.stringify(frontmatter)
 
+      const stillDirty = !contentUnchanged || !frontmatterUnchanged
       useEditorStore.setState({
         autoSaveTimeoutId: null,
-        isDirty: !contentUnchanged || !frontmatterUnchanged,
+        isDirty: stillDirty,
         isFrontmatterDirty:
           currentState.isFrontmatterDirty || !frontmatterUnchanged,
         lastSaveTimestamp: Date.now(),
+        // What's on disk now. A load that brings anything else is a change
+        // made outside the app (see useEditorFileContent)
+        rawFrontmatter: result.data,
+        // Edits made during the save start the clock again
+        dirtySince: stillDirty ? Date.now() : null,
       })
     }
 

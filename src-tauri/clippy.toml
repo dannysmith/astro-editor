@@ -1,3 +1,4 @@
+# serde-saphyr needs Rust 1.89
 msrv = "1.89"
 cognitive-complexity-threshold = 30
 

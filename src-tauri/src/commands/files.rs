@@ -315,10 +315,12 @@ pub async fn parse_markdown_content(
     Ok(parse_frontmatter(&content))
 }
 
-/// Saves a file from its parts. `raw_frontmatter` is its frontmatter block
-/// as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+/// Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
+/// read (`MarkdownContent::raw_frontmatter`), written back as it is unless
 /// `frontmatter` holds edited values, which are spliced into it, with the
-/// keys put in schema order if `reorder_frontmatter` (the project setting)
+/// keys put in schema order if `reorder_frontmatter` (the project setting).
+/// Returns the frontmatter block written, so the frontend can tell its own
+/// writes from changes made outside the app
 // A command's arguments are its IPC payload, so there's no struct to gather
 // them in that wouldn't just be this list
 #[allow(clippy::too_many_arguments)]
@@ -333,7 +335,7 @@ pub async fn save_markdown_content(
     schema: FrontmatterSchema,
     reorder_frontmatter: bool,
     project_root: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
 
     let block = match frontmatter {
@@ -342,7 +344,8 @@ pub async fn save_markdown_content(
     };
 
     std::fs::write(&validated_path, assemble(&block, &imports, &content))
-        .map_err(|e| format!("Failed to write file: {e}"))
+        .map_err(|e| format!("Failed to write file: {e}"))?;
+    Ok(block)
 }
 
 #[tauri::command]
