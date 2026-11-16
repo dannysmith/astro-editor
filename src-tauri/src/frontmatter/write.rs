@@ -694,7 +694,8 @@ fn string_value(
 /// something else. A date-like string is unquoted only where it's a date: in
 /// a date field, or where an unquoted date was before (see
 /// `held_an_unquoted_date`), so Astro reads it as a date there and as text
-/// everywhere else
+/// everywhere else. A list item that was quoted stays quoted, since that
+/// made it text even in a list of dates
 fn inline_string(
     s: &str,
     path: &str,
@@ -703,11 +704,11 @@ fn inline_string(
     in_list: bool,
 ) -> String {
     let written_as = written_as(context.written, s, key);
+    let quoted_item = key.is_none() && matches!(written_as, Some(Quote::Single | Quote::Double));
     let date = is_date_like(s)
         && (context.date_fields.iter().any(|f| f == path)
-            || held_an_unquoted_date(context.written, key));
-    let can_be_plain = reads_back_plain(s, in_list)
-        && (!is_date_like(s) || date || written_as == Some(Quote::Plain));
+            || (held_an_unquoted_date(context.written, key) && !quoted_item));
+    let can_be_plain = reads_back_plain(s, in_list) && (!is_date_like(s) || date);
     if can_be_plain && date {
         return s.to_string();
     }
@@ -1053,6 +1054,24 @@ mod tests {
         assert_eq!(
             written,
             "---\npubDate: 2024-01-16\nversion: \"2024-01-16\"\ndates:\n  - 2024-01-01\n  - 2024-02-01\ninline: [2024-01-01, 2024-02-01]\nevents:\n  - name: Launch\n    date: 2024-01-15\n  - name: Party\n    date: 2024-03-01\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_date_like_text_text_beside_dates() {
+        // Without a schema: a quoted item in a list that also holds a date,
+        // and a field given the text of a date another field holds
+        let raw = "---\nvalues: [2024-01-01, \"2024-02-01\"]\nevent:\n  date: 2024-02-01\n  label: release\n---";
+        let written = edit(
+            raw,
+            json!({
+                "values": ["2024-01-01", "2024-02-01", "other"],
+                "event": { "date": "2024-02-01", "label": "2024-02-01" },
+            }),
+        );
+        assert_eq!(
+            written,
+            "---\nvalues: [2024-01-01, \"2024-02-01\", \"other\"]\nevent:\n  date: 2024-02-01\n  label: \"2024-02-01\"\n---"
         );
     }
 

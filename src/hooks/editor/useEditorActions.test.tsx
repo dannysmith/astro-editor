@@ -130,6 +130,22 @@ describe('useEditorActions.saveFile when the same file changes mid-save', () => 
     // Marked clean, the reload from disk would put back the old imports
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
+
+  it('auto-saves what was typed during the save', async () => {
+    const release = holdSave('resolve')
+    const { saveFile } = renderActions()
+    useEditorStore.setState({ autoSaveCallback: saveFile })
+
+    const saving = saveFile(false)
+    useEditorStore.getState().setEditorContent('Body, typed during the save')
+    release()
+    await saving
+
+    // The edit's own timer was cleared when the save finished
+    const timer = useEditorStore.getState().autoSaveTimeoutId
+    expect(timer).not.toBeNull()
+    clearTimeout(timer!)
+  })
 })
 
 describe('useEditorActions.saveFile with edited frontmatter', () => {

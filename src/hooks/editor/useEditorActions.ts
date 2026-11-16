@@ -202,6 +202,8 @@ async function saveCurrentFile(
         // Edits made during the save start the clock again
         dirtySince: stillDirty ? Date.now() : null,
       })
+      // Their auto-save timer was cleared above, so they need another
+      if (stillDirty) useEditorStore.getState().scheduleAutoSave()
     }
 
     // Invalidate queries to update UI
