@@ -176,11 +176,10 @@ This comes first, because it stops data loss today, and because the parser switc
 
 ## Phase 6: Docs and finishing
 
-- [ ] **`editor.md`:** replace "Only an edited frontmatter is re-serialised…" with how splicing works, the renderer, the check and what happens when it fails, unreadable frontmatter, and what's read like Astro and what isn't.
-- [ ] **`architecture-guide.md` or `schema-system.md`:** the `yaml` module, why serde-saphyr is pinned, and the upgrade check.
-- [ ] **AGENTS.md rules:** all YAML goes through the `yaml` module, and serde-saphyr is only upgraded after the corpus and the Astro comparison pass.
-- [ ] **`app-data.md`:** the new project setting.
-- [ ] **Website:** the reordering setting, what an edit does to a file's frontmatter, and what the frontmatter panel shows when it can't read a file.
-- [ ] **`bun run check:all`.**
-- [ ] **Try it in the dev app** on the test projects and a copy of a real site: edit fields of every type, with reordering on and off; files with comments, inline lists and nested objects; a broken file; a new file.
-- [ ] **Close #370 and #388.**
+- [x] **`editor.md`:** replace "Only an edited frontmatter is re-serialised…" with how splicing works, the renderer, the check and what happens when it fails, unreadable frontmatter, and what's read like Astro and what isn't.
+- [x] **`architecture-guide.md` or `schema-system.md`:** the `yaml` module, why serde-saphyr is pinned, and the upgrade check.
+- [x] **AGENTS.md rules:** all YAML goes through the `yaml` module, and serde-saphyr is only upgraded after the corpus and the Astro comparison pass.
+- [x] **`app-data.md`:** the new project setting.
+- [x] **Website:** the reordering setting, what an edit does to a file's frontmatter, and what the frontmatter panel shows when it can't read a file.
+- [x] **`bun run check:all`.**
+- [x] **Try it in the dev app** on the test projects and a copy of a real site: edit fields of every type, with reordering on and off; files with comments, inline lists and nested objects; a broken file; a new file.
