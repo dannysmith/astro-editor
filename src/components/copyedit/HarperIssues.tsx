@@ -110,7 +110,8 @@ const IssueRow: React.FC<{ issue: HarperIssue }> = ({ issue }) => {
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           {issue.fixes.map((fix, fixIndex) => (
             <button
-              key={fix}
+              // Two fixes can share a label, like "Remove"
+              key={fixIndex}
               type="button"
               className="font-(family-name:--editor-font-family) text-[13px] text-foreground hover:text-(--issue-colour)"
               style={

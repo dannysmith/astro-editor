@@ -60,6 +60,10 @@ const MDX_STATEMENT = /^(?:import|export)\s/
  * inside one (code, links, images) is only masked by these.
  */
 const TEXT_PATTERNS = [
+  // Anything too long to be a word, like a pasted hash or base64, first:
+  // Harper crashes on a single token of a few thousand characters, and the
+  // path and domain patterns below slow down badly on one
+  new RegExp(`[^\\s${MASK}]{200,}`, 'g'),
   // Contents of script and style elements
   /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,
   // Fenced code, which may be indented inside a component
@@ -81,9 +85,6 @@ const TEXT_PATTERNS = [
   // HTML and JSX tags, including multi-line ones. A letter must follow `<`, so
   // prose like `a < b` is left alone
   /<\/?[A-Za-z][^<>]*>/g,
-  // Anything too long to be a word, like a pasted hash or base64. Harper
-  // crashes on a single token of a few thousand characters
-  /\S{200,}/g,
 ]
 
 /** The document's prose, as described above */
