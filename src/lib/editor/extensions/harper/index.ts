@@ -1,10 +1,16 @@
 export {
-  applyIssueAction,
+  applyIssueFix,
   clearIgnoredIssues,
   createHarperExtension,
+  ignoreIssue,
   selectIssue,
 } from './extension'
-export { HARPER_CHECKS, HARPER_DIALECTS, type HarperCheck } from './checks'
+export {
+  CHECK_COLOURS,
+  HARPER_CHECKS,
+  HARPER_DIALECTS,
+  type HarperCheck,
+} from './checks'
 export {
   addWords,
   readCopyedit,

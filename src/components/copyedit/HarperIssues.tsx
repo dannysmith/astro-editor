@@ -3,16 +3,27 @@ import { useEditorStore } from '../../store/editorStore'
 import { useHarperStore, type HarperIssue } from '../../store/harperStore'
 import { useProjectStore } from '../../store/projectStore'
 import {
-  applyIssueAction,
+  applyIssueFix,
+  CHECK_COLOURS,
+  ignoreIssue,
   readCopyedit,
   selectIssue,
 } from '../../lib/editor/extensions/harper'
 import { cn } from '../../lib/utils'
-import { CHECK_COLOURS } from './HarperChecks'
+
+/** Kinds that say no more than the issue's colour, so they're left out */
+const PLAIN_KINDS = new Set([
+  'Spelling',
+  'Typo',
+  'Miscellaneous',
+  'Grammar',
+  'Style',
+])
 
 /**
- * The open document's Harper issues, in document order. Clicking one selects
- * it in the editor; the one at the cursor shows its fixes.
+ * The open document's Harper issues, in document order, each in its check's
+ * colour. Clicking one selects it in the editor and shows its tooltip; the
+ * one at the cursor shows its fixes here too.
  */
 export const HarperIssues: React.FC = () => {
   const issues = useHarperStore(state => state.issues)
@@ -35,13 +46,8 @@ export const HarperIssues: React.FC = () => {
         <p className="text-sm text-muted-foreground">No issues found.</p>
       ) : (
         <ul className="-mx-2 space-y-0.5">
-          {issues.map((issue, index) => (
-            <IssueRow
-              // Issues have no identity across checks: the list is replaced
-              key={index}
-              issue={issue}
-              index={index}
-            />
+          {issues.map(issue => (
+            <IssueRow key={issue.id} issue={issue} />
           ))}
         </ul>
       )}
@@ -49,11 +55,21 @@ export const HarperIssues: React.FC = () => {
   )
 }
 
-const IssueRow: React.FC<{ issue: HarperIssue; index: number }> = ({
-  issue,
-  index,
-}) => {
-  const active = useHarperStore(state => state.activeIssue === index)
+/** Harper's message, with the words it quotes in bold */
+const Message: React.FC<{ text: string }> = ({ text }) =>
+  text.split('`').map((part, index) =>
+    index % 2 === 1 ? (
+      // The parts never move, so their position is their identity
+      <strong key={index} className="font-semibold">
+        {part}
+      </strong>
+    ) : (
+      part
+    )
+  )
+
+const IssueRow: React.FC<{ issue: HarperIssue }> = ({ issue }) => {
+  const active = useHarperStore(state => state.activeIssue === issue.id)
   const ref = React.useRef<HTMLLIElement>(null)
 
   React.useEffect(() => {
@@ -71,38 +87,49 @@ const IssueRow: React.FC<{ issue: HarperIssue; index: number }> = ({
       <button
         type="button"
         className="block w-full text-left"
-        onClick={() => selectIssue(index)}
+        onClick={() => selectIssue(issue.id)}
       >
-        <span className="flex items-center gap-2">
+        <span className="flex items-baseline gap-2">
           <span
-            className={cn(
-              'size-2 shrink-0 rounded-full',
-              CHECK_COLOURS[issue.check]
-            )}
-          />
-          <span className="truncate font-medium text-foreground">
+            className="truncate font-medium"
+            style={{ color: CHECK_COLOURS[issue.check] }}
+          >
             {issue.text}
           </span>
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-            {issue.kind}
-          </span>
+          {!PLAIN_KINDS.has(issue.kind) && (
+            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+              {issue.kind}
+            </span>
+          )}
         </span>
         <span className="mt-0.5 block text-xs text-muted-foreground">
-          {issue.message.replaceAll('`', '')}
+          <Message text={issue.message} />
         </span>
       </button>
-      {active && issue.actions.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {issue.actions.map((name, actionIndex) => (
+      {active && (
+        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {issue.fixes.map((fix, fixIndex) => (
             <button
-              key={name}
+              key={fix}
               type="button"
-              className="rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground hover:bg-secondary"
-              onClick={() => applyIssueAction(index, actionIndex)}
+              className="font-(family-name:--editor-font-family) text-[13px] text-foreground hover:text-(--issue-colour)"
+              style={
+                {
+                  '--issue-colour': CHECK_COLOURS[issue.check],
+                } as React.CSSProperties
+              }
+              onClick={() => applyIssueFix(issue.id, fixIndex)}
             >
-              {name}
+              {fix}
             </button>
           ))}
+          <button
+            type="button"
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => ignoreIssue(issue.id)}
+          >
+            Ignore
+          </button>
         </div>
       )}
     </li>

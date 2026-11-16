@@ -81,6 +81,9 @@ const TEXT_PATTERNS = [
   // HTML and JSX tags, including multi-line ones. A letter must follow `<`, so
   // prose like `a < b` is left alone
   /<\/?[A-Za-z][^<>]*>/g,
+  // Anything too long to be a word, like a pasted hash or base64. Harper
+  // crashes on a single token of a few thousand characters
+  /\S{200,}/g,
 ]
 
 /** The document's prose, as described above */

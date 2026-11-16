@@ -1,37 +1,38 @@
 /**
  * Harper's spelling, grammar and style checks in the editor.
  *
- * Built on `@codemirror/lint`, which runs the check after typing pauses, keeps
- * the issues in editor state (mapped through edits) and marks them. This adds
- * the Harper source, the underlines, a tooltip with each issue's fixes
- * (`tooltip.ts`), and a plugin that publishes the issues to `harperStore` for
- * the Copyedit panel and re-checks when Harper's settings change.
+ * Built on `@codemirror/lint`, which runs the check after typing pauses and
+ * keeps the issues in editor state, mapped through edits. This adds the
+ * Harper source, the underlines, the issue tooltip (`tooltip.ts`), and a
+ * plugin that publishes the issues to `harperStore` for the Copyedit panel and
+ * re-checks when Harper's settings change. `issues.ts` holds what each issue
+ * is and how it's fixed.
  */
 
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
-import {
-  forceLinting,
-  forEachDiagnostic,
-  linter,
-  setDiagnosticsEffect,
-  type Action,
-  type Diagnostic,
-} from '@codemirror/lint'
-import { StateEffect, type EditorState } from '@codemirror/state'
+import { linter, setDiagnosticsEffect, type Diagnostic } from '@codemirror/lint'
+import type { EditorState } from '@codemirror/state'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
-import type { Lint, Linter, Suggestion } from 'harper.js'
+import type { Lint, Suggestion } from 'harper.js'
 import { useHarperStore, type HarperIssue } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
 import { getCurrentEditorView } from '../../editor-view-ref'
-import { checkForKind, type HarperCheck } from './checks'
-import { clearIgnoredLints, getHarper, ignoreLint } from './linter'
+import { CHECK_COLOURS, checkForKind } from './checks'
 import { shouldShow } from './filter'
-import { MASK_PATTERN, proseText } from './prose'
-import { addWords, readCopyedit } from './settings'
-import { issueTooltip, showIssueTooltip } from './tooltip'
-
-/** The check each diagnostic belongs to, for the panel */
-const diagnosticChecks = new WeakMap<Diagnostic, HarperCheck>()
+import {
+  addIssue,
+  applyFix,
+  currentIssues,
+  issueById,
+  recheck,
+  recheckEffect,
+  type Fix,
+  type Issue,
+} from './issues'
+import { clearIgnoredLints, ignoreLint, lintProse } from './linter'
+import { proseText } from './prose'
+import { readCopyedit } from './settings'
+import { issueTooltip, showIssueTooltip, tooltipTheme } from './tooltip'
 
 /** harper.js's `SuggestionKind`, which can't be imported without loading harper.js */
 const REMOVE = 1
@@ -40,34 +41,37 @@ const INSERT_AFTER = 2
 /** How many of a lint's suggestions are offered as fixes */
 const MAX_SUGGESTIONS = 3
 
-/** Marks a transaction as needing a fresh check, though the document is the same */
-const recheckEffect = StateEffect.define()
+/** The latest check. They run one at a time, since the worker answers in turn */
+let checking: Promise<unknown> = Promise.resolve()
 
 /**
- * Checks the document again straight away, after a setting changes or an
- * issue is ignored. `forceLinting` alone only hurries a check that's already
- * waiting, so this schedules one first.
+ * The lint source. A check waits for the one before it, and is skipped if the
+ * document changed while it waited: typing in bursts on a long document would
+ * otherwise queue checks whose results are all thrown away.
  */
-function recheck(view: EditorView) {
-  view.dispatch({ effects: recheckEffect.of(null) })
-  forceLinting(view)
-}
-
-async function lintDocument(view: EditorView): Promise<Diagnostic[]> {
+function lintDocument(view: EditorView): Promise<Diagnostic[]> {
   // The lint plugin discards the result if the document changes meanwhile
   const { state } = view
+  const check = checking.then(() =>
+    view.state.doc === state.doc ? checkDocument(state) : []
+  )
+  checking = check.catch(() => undefined)
+  return check
+}
+
+async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
   const { checks } = readCopyedit(useProjectStore.getState().globalSettings)
   if (!Object.values(checks).some(Boolean)) return []
 
-  const harper = await getHarper()
+  // The whole document's tree, giving up after a second on a huge document
+  // and using what's been parsed so far
   const tree =
     ensureSyntaxTree(state, state.doc.length, 1000) ?? syntaxTree(state)
   const doc = state.doc.toString()
   const text = proseText(doc, tree)
-  const lintsByRule = await harper.organizedLints(text, {
-    language: 'plaintext',
-    regex_mask: MASK_PATTERN,
-  })
+  // A failed check has reset the worker and set Harper's status
+  const lintsByRule = await lintProse(text).catch(() => null)
+  if (!lintsByRule) return []
 
   const diagnostics: Diagnostic[] = []
   for (const [rule, lints] of Object.entries(lintsByRule)) {
@@ -83,12 +87,18 @@ async function lintDocument(view: EditorView): Promise<Diagnostic[]> {
         to: end,
         severity: 'info',
         markClass: `cm-harper cm-harper-${check}`,
-        source: lint.lint_kind_pretty(),
         message: lint.message(),
         renderMessage: () => renderMessage(lint),
-        actions: lintActions(lint, text, harper),
       }
-      diagnosticChecks.set(diagnostic, check)
+      addIssue(diagnostic, {
+        check,
+        kind: lint.lint_kind_pretty(),
+        text: doc.slice(start, end),
+        fixes: lint.suggestions().slice(0, MAX_SUGGESTIONS).map(toFix),
+        // Typos are words run together, like "isnow", so not dictionary words
+        word: kind === 'Spelling' ? lint.get_problem_text() : null,
+        ignore: () => ignoreLint(text, lint),
+      })
       diagnostics.push(diagnostic)
     }
   }
@@ -103,105 +113,69 @@ function renderMessage(lint: Lint): Node {
   return template.content
 }
 
-function lintActions(lint: Lint, text: string, harper: Linter): Action[] {
-  const actions: Action[] = lint
-    .suggestions()
-    .slice(0, MAX_SUGGESTIONS)
-    .map(suggestion => ({
-      name: suggestionLabel(suggestion),
-      apply: (view, from, to) => applySuggestion(view, suggestion, from, to),
-    }))
-
-  if (lint.lint_kind() === 'Spelling') {
-    const word = lint.get_problem_text()
-    actions.push({
-      name: 'Add to Dictionary',
-      apply: () => addWords([word]),
-    })
-  }
-
-  actions.push({
-    name: 'Ignore',
-    apply: view => {
-      void ignoreLint(harper, text, lint).then(() => recheck(view))
-    },
-  })
-  return actions
-}
-
-function suggestionLabel(suggestion: Suggestion): string {
-  const replacement = suggestion.get_replacement_text()
-  switch (Number(suggestion.kind())) {
-    case REMOVE:
-      return 'Remove'
-    case INSERT_AFTER:
-      return `Add “${replacement}”`
-    default:
-      return replacement || 'Remove'
-  }
-}
-
-function applySuggestion(
-  view: EditorView,
-  suggestion: Suggestion,
-  from: number,
-  to: number
-) {
+function toFix(suggestion: Suggestion): Fix {
   const replacement = suggestion.get_replacement_text()
   const kind = Number(suggestion.kind())
-  const change =
-    kind === REMOVE
-      ? { from, to, insert: '' }
-      : kind === INSERT_AFTER
-        ? { from: to, insert: replacement }
-        : { from, to, insert: replacement }
+  if (kind === REMOVE || !replacement) {
+    return {
+      label: 'Remove',
+      apply: (view, from, to) => edit(view, from, to, ''),
+    }
+  }
+  if (kind === INSERT_AFTER) {
+    return {
+      label: `Add “${replacement}”`,
+      apply: (view, _from, to) => edit(view, to, to, replacement),
+    }
+  }
+  return {
+    label: replacement,
+    apply: (view, from, to) => edit(view, from, to, replacement),
+  }
+}
+
+function edit(view: EditorView, from: number, to: number, insert: string) {
   view.dispatch({
-    changes: change,
-    selection: { anchor: change.from + change.insert.length },
+    changes: { from, to, insert },
+    selection: { anchor: from + insert.length },
     userEvent: 'input',
   })
 }
 
-/** The document's diagnostics with their current positions, in document order */
-function currentDiagnostics(state: EditorState) {
-  const found: { diagnostic: Diagnostic; from: number; to: number }[] = []
-  forEachDiagnostic(state, (diagnostic, from, to) =>
-    found.push({ diagnostic, from, to })
-  )
-  return found
-}
-
-function publishIssues(state: EditorState) {
-  const issues: HarperIssue[] = currentDiagnostics(state).map(
-    ({ diagnostic, from, to }) => ({
-      check: diagnosticChecks.get(diagnostic) ?? 'grammar',
-      kind: diagnostic.source ?? '',
+function publishIssues(state: EditorState, issues: Issue[]) {
+  useHarperStore.getState().setIssues(
+    issues.map(({ diagnostic, details, from, to }): HarperIssue => ({
+      id: details.id,
+      check: details.check,
+      kind: details.kind,
       text: state.sliceDoc(from, to),
       message: diagnostic.message,
-      actions: (diagnostic.actions ?? []).map(action => action.name),
-    })
+      fixes: details.fixes.map(fix => fix.label),
+    }))
   )
-  useHarperStore.getState().setIssues(issues)
 }
 
-function publishActiveIssue(state: EditorState) {
+function publishActiveIssue(state: EditorState, issues: Issue[]) {
   const head = state.selection.main.head
-  const index = currentDiagnostics(state).findIndex(
-    ({ from, to }) => from <= head && head <= to
-  )
-  const active = index === -1 ? null : index
+  const active =
+    issues.find(({ from, to }) => from <= head && head <= to)?.details.id ??
+    null
   if (useHarperStore.getState().activeIssue !== active) {
     useHarperStore.getState().setActiveIssue(active)
   }
 }
 
-/** Publishes the issues to the store, and re-checks when the settings change */
+/**
+ * Publishes the issues to the store after each check, and when an edit
+ * removes one, so the panel never lists an issue that's gone (such as after
+ * a fix, or when another file opens). Re-checks when the settings change.
+ */
 const issuesPlugin = ViewPlugin.fromClass(
   class {
     private unsubscribe: () => void
 
     constructor(view: EditorView) {
-      // Settings are replaced as a whole when any part changes
+      // Each change to the settings replaces the `copyedit` object
       this.unsubscribe = useProjectStore.subscribe((state, previous) => {
         if (
           state.globalSettings?.copyedit !== previous.globalSettings?.copyedit
@@ -212,13 +186,14 @@ const issuesPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      const diagnosticsChanged = update.transactions.some(tr =>
+      const checked = update.transactions.some(tr =>
         tr.effects.some(effect => effect.is(setDiagnosticsEffect))
       )
-      if (diagnosticsChanged) publishIssues(update.state)
-      if (diagnosticsChanged || update.selectionSet || update.docChanged) {
-        publishActiveIssue(update.state)
-      }
+      if (!checked && !update.docChanged && !update.selectionSet) return
+      const issues = currentIssues(update.state)
+      if (checked || issues.length !== useHarperStore.getState().issues.length)
+        publishIssues(update.state, issues)
+      publishActiveIssue(update.state, issues)
     }
 
     destroy() {
@@ -227,20 +202,27 @@ const issuesPlugin = ViewPlugin.fromClass(
   }
 )
 
-/** Shows every ignored issue again, re-checking the open document */
-export async function clearIgnoredIssues() {
-  await clearIgnoredLints()
-  const view = getCurrentEditorView()
-  if (view) recheck(view)
+/**
+ * Shows every ignored issue again, re-checking the open document once
+ * Harper has forgotten them. Doesn't wait for Harper, which may be stuck.
+ */
+export function clearIgnoredIssues() {
+  void clearIgnoredLints().then(
+    () => {
+      const view = getCurrentEditorView()
+      if (view) recheck(view)
+    },
+    () => undefined
+  )
 }
 
 /**
- * Selects an issue from the panel by its index, scrolls it into view and
- * shows its tooltip, which stays until the selection moves
+ * Selects an issue from the panel, scrolls it into view and shows its
+ * tooltip, which stays until the selection moves
  */
-export function selectIssue(index: number) {
+export function selectIssue(id: number) {
   const view = getCurrentEditorView()
-  const issue = view && currentDiagnostics(view.state)[index]
+  const issue = view && issueById(view.state, id)
   if (!view || !issue) return
   view.dispatch({
     selection: { anchor: issue.from, head: issue.to },
@@ -251,20 +233,31 @@ export function selectIssue(index: number) {
 }
 
 /** Applies one of an issue's fixes from the panel */
-export function applyIssueAction(index: number, actionIndex: number) {
+export function applyIssueFix(id: number, fixIndex: number) {
   const view = getCurrentEditorView()
-  const issue = view && currentDiagnostics(view.state)[index]
-  const action = issue?.diagnostic.actions?.[actionIndex]
-  if (!view || !issue || !action) return
-  action.apply(view, issue.from, issue.to)
+  const issue = view && issueById(view.state, id)
+  const fix = issue?.details.fixes[fixIndex]
+  if (!view || !issue || !fix) return
+  applyFix(view, issue.diagnostic, fix)
   view.focus()
+}
+
+/** Ignores an issue from the panel */
+export function ignoreIssue(id: number) {
+  const view = getCurrentEditorView()
+  const issue = view && issueById(view.state, id)
+  if (!view || !issue) return
+  void issue.details.ignore().then(
+    () => recheck(view),
+    () => undefined
+  )
 }
 
 /** An issue's underline in its check's colour, softened so it doesn't shout */
 const underline = (colour: string) =>
-  `color-mix(in oklch, var(--editor-color-${colour}) 60%, transparent)`
+  `color-mix(in oklch, ${colour} 60%, transparent)`
 
-const harperTheme = EditorView.theme({
+const underlineTheme = EditorView.theme({
   // Replaces the lint package's own underline, a background image
   '.cm-harper': {
     backgroundImage: 'none',
@@ -275,68 +268,13 @@ const harperTheme = EditorView.theme({
     textUnderlineOffset: '5px',
     textDecorationSkipInk: 'none',
   },
-  '.cm-harper-spelling': { textDecorationColor: underline('red') },
-  '.cm-harper-grammar': { textDecorationColor: underline('blue') },
-  '.cm-harper-style': { textDecorationColor: underline('green') },
-  '.cm-lintRange-active': {
-    backgroundColor: 'var(--editor-color-selectedtext-background)',
+  '.cm-harper-spelling': {
+    textDecorationColor: underline(CHECK_COLOURS.spelling),
   },
-  // The hover tooltip that holds the lint section. Harper's are the editor's
-  // only hover tooltips
-  '.cm-tooltip.cm-tooltip-hover': {
-    backgroundColor: 'var(--popover)',
-    color: 'var(--popover-foreground)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    boxShadow: '0 4px 16px oklch(0 0 0 / 0.12)',
-    fontFamily: 'var(--font-ui, -apple-system, sans-serif)',
-    fontSize: '13px',
-    lineHeight: '1.4',
-    maxWidth: '22rem',
-    overflow: 'hidden',
+  '.cm-harper-grammar': {
+    textDecorationColor: underline(CHECK_COLOURS.grammar),
   },
-  // The lint package's own tooltip still adds a section after its 300 ms
-  // delay, empty because of `tooltipFilter`. Hidden, it still makes ours the
-  // second section, which CodeMirror gives a top border
-  '.cm-tooltip-lint:empty': { display: 'none' },
-  '.cm-tooltip-section.cm-tooltip-lint': { borderTop: 'none !important' },
-  // The kind, then the message, then the fixes
-  '.cm-tooltip-lint .cm-diagnostic': {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
-    borderLeft: 'none',
-    padding: '8px 10px',
-    marginLeft: '0',
-  },
-  '.cm-tooltip-lint .cm-diagnostic + .cm-diagnostic': {
-    borderTop: '1px solid var(--border)',
-  },
-  // Harper's HTML ends with a newline, which `pre-wrap` would show
-  '.cm-diagnosticText': { flexBasis: '100%', whiteSpace: 'normal' },
-  '.cm-diagnosticText p': { margin: '0' },
-  '.cm-diagnosticText code': {
-    fontFamily: 'inherit',
-    fontWeight: '600',
-  },
-  '.cm-diagnosticSource': {
-    order: '-1',
-    flexBasis: '100%',
-    fontSize: '11px',
-    color: 'var(--muted-foreground)',
-    opacity: '1',
-  },
-  '.cm-diagnosticAction': {
-    backgroundColor: 'var(--secondary)',
-    color: 'var(--secondary-foreground)',
-    border: '1px solid var(--border)',
-    borderRadius: '4px',
-    padding: '1px 6px',
-    margin: '0',
-    fontSize: '12px',
-  },
-  '.cm-diagnosticAction:hover': { backgroundColor: 'var(--accent)' },
-  '.cm-diagnosticAction u': { textDecoration: 'none' },
+  '.cm-harper-style': { textDecorationColor: underline(CHECK_COLOURS.style) },
 })
 
 export function createHarperExtension() {
@@ -351,6 +289,7 @@ export function createHarperExtension() {
     }),
     issueTooltip,
     issuesPlugin,
-    harperTheme,
+    underlineTheme,
+    tooltipTheme,
   ]
 }

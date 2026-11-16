@@ -50,6 +50,13 @@ export const HARPER_CHECKS = [
 
 export type HarperCheck = keyof CopyeditChecks
 
+/** Each check's colour: its underlines, and its issues in the panel */
+export const CHECK_COLOURS: Record<HarperCheck, string> = {
+  spelling: 'var(--editor-color-red)',
+  grammar: 'var(--editor-color-blue)',
+  style: 'var(--editor-color-green)',
+}
+
 /** The check a Harper lint kind belongs to */
 export function checkForKind(kind: string): HarperCheck {
   const check = HARPER_CHECKS.find(({ kinds }) =>

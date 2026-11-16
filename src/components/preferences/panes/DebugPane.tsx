@@ -68,7 +68,7 @@ export const DebugPane: React.FC = () => {
         setResetting(false)
         return
       }
-      await clearIgnoredIssues()
+      clearIgnoredIssues()
       // On success the app restarts; on failure, say why and let them retry
       const result = await commands.resetAllPreferences()
       if (result.status === 'error') {

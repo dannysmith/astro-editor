@@ -101,6 +101,10 @@ describe('proseText', () => {
     ).toBe('Put in , as on now.')
   })
 
+  it('removes anything too long to be a word', () => {
+    expect(prose(`A key: ${'a1'.repeat(150)} here.`)).toBe('A key: here.')
+  })
+
   it('removes display maths', () => {
     expect(prose('Where $$\\frac{1}{n}$$ is small.')).toBe('Where is small.')
   })

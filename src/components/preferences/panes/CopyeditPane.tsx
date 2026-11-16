@@ -97,11 +97,10 @@ export const CopyeditPane: React.FC = () => {
           <Button
             variant="outline"
             className="w-fit"
-            onClick={() =>
-              void clearIgnoredIssues().then(() =>
-                toast.success('Ignored issues will show again')
-              )
-            }
+            onClick={() => {
+              clearIgnoredIssues()
+              toast.success('Ignored issues will show again')
+            }}
           >
             Clear Ignored Issues
           </Button>

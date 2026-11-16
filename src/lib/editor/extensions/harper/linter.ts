@@ -1,15 +1,21 @@
 /**
  * The one Harper linter, running in a Web Worker. harper.js and its
- * WebAssembly (about 20 MB) are only loaded when a check is first switched
- * on, so the app pays nothing for Harper until then.
+ * WebAssembly (about 20 MB) are only loaded when a check first runs, which is
+ * when a check is switched on or, if one was left on, when a file is opened.
+ *
+ * harper.js's worker never reports an error: a call that fails in it never
+ * settles, and every later call waits behind it. So each call here has a
+ * time limit, and a call that fails or runs out of time throws the worker
+ * away, so the next call starts a new one.
  */
 
-import { error as logError } from '@tauri-apps/plugin-log'
-import type { Lint, Linter } from 'harper.js'
-import type { CopyeditSettings } from '@/lib/bindings'
+import { error as logError, warn as logWarn } from '@tauri-apps/plugin-log'
+import type { Dialect as HarperDialect, Lint, Linter } from 'harper.js'
+import type { Dialect } from '@/lib/bindings'
 import { useHarperStore } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
 import { HARPER_DIALECTS } from './checks'
+import { MASK_PATTERN } from './prose'
 import { readCopyedit } from './settings'
 
 /**
@@ -55,15 +61,6 @@ const ASTRO_WORDS = [
   'npx',
 ]
 
-async function ruleOverrides(linter: Linter) {
-  const rules = Object.keys(await linter.getDefaultLintConfig())
-  return Object.fromEntries(
-    rules
-      .filter(rule => rule.startsWith('Expand') || RULES_OFF.includes(rule))
-      .map(rule => [rule, false])
-  )
-}
-
 /**
  * Where ignored issues are kept. Harper records each as a hash of the issue
  * and the text around it, so an ignore holds in any document with the same
@@ -72,82 +69,154 @@ async function ruleOverrides(linter: Linter) {
  */
 const IGNORED_KEY = 'harper-ignored-issues'
 
-let harper: Promise<Linter> | null = null
+/** The form Harper exports ignored issues in, which is all it will import */
+const IGNORED_FORMAT = /^\{"context_hashes":\[(?:\d+(?:,\d+)*)?\]\}$/
+
+/** How long Harper may take to start, and to answer a call, in ms */
+const START_TIMEOUT = 30_000
+const CALL_TIMEOUT = 15_000
+
+interface Harper {
+  linter: Linter
+  /** harper.js's `Dialect` enum, from the lazily loaded module */
+  dialects: typeof HarperDialect
+}
+
+let harper: Promise<Harper> | null = null
 
 /** What the linter was last given, so settings are only sent when they change */
-let applied: Pick<CopyeditSettings, 'dialect' | 'dictionary'> | null = null
+let applied: { dialect: Dialect; words: string | null } | null = null
 
 const settings = () => readCopyedit(useProjectStore.getState().globalSettings)
 
-async function createLinter(): Promise<Linter> {
-  const [{ WorkerLinter, Dialect }, { binary }] = await Promise.all([
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Harper didn't answer within ${ms} ms`)),
+      ms
+    )
+    promise.then(
+      value => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    )
+  })
+}
+
+async function start(): Promise<Harper> {
+  const [{ WorkerLinter, Dialect: dialects }, { binary }] = await Promise.all([
     import('harper.js'),
     import('harper.js/binary'),
   ])
-  const { dialect, dictionary } = settings()
+  const { dialect } = settings()
   const linter = new WorkerLinter({
     binary,
-    dialect: Dialect[HARPER_DIALECTS[dialect]],
+    dialect: dialects[HARPER_DIALECTS[dialect]],
   })
   await linter.setup()
-  await linter.setLintConfig(await ruleOverrides(linter))
-  await linter.importWords([...ASTRO_WORDS, ...dictionary])
-  const ignored = localStorage.getItem(IGNORED_KEY)
-  if (ignored) {
-    await linter.importIgnoredLints(ignored).catch((error: unknown) => {
-      void logError(
-        `Astro Editor [HARPER] Couldn't read ignored issues: ${String(error)}`
-      )
-    })
-  }
-  applied = { dialect, dictionary }
-  return linter
+  const rules = Object.keys(await linter.getDefaultLintConfig())
+  await linter.setLintConfig(
+    Object.fromEntries(
+      rules
+        .filter(rule => rule.startsWith('Expand') || RULES_OFF.includes(rule))
+        .map(rule => [rule, false])
+    )
+  )
+  const ignored = storedIgnores()
+  if (ignored) await linter.importIgnoredLints(ignored)
+  applied = { dialect, words: null }
+  return { linter, dialects }
 }
 
-/** Ignores an issue Harper found in `text`, here and in later checks */
-export async function ignoreLint(linter: Linter, text: string, lint: Lint) {
-  await linter.ignoreLint(text, lint)
-  localStorage.setItem(IGNORED_KEY, await linter.exportIgnoredLints())
-}
-
-/** Forgets every ignored issue */
-export async function clearIgnoredLints() {
+/** The stored ignored issues. Anything Harper wouldn't import is dropped */
+function storedIgnores(): string | null {
+  const stored = localStorage.getItem(IGNORED_KEY)
+  if (stored === null || IGNORED_FORMAT.test(stored)) return stored
   localStorage.removeItem(IGNORED_KEY)
-  if (harper) await (await harper).clearIgnoredLints()
+  void logWarn('Astro Editor [HARPER] Dropped unreadable ignored issues')
+  return null
+}
+
+/** Gives the linter the dialect and dictionary from the settings */
+async function syncSettings({ linter, dialects }: Harper) {
+  const { dialect, dictionary } = settings()
+  if (dialect !== applied?.dialect) {
+    await linter.setDialect(dialects[HARPER_DIALECTS[dialect]])
+  }
+  const words = [...ASTRO_WORDS, ...dictionary]
+  if (words.join('\n') !== applied?.words) {
+    await linter.clearWords()
+    await linter.importWords(words)
+  }
+  applied = { dialect, words: words.join('\n') }
+}
+
+/** Stops the worker, so the next call starts a new one */
+function reset() {
+  const stopping = harper
+  harper = null
+  applied = null
+  // harper.js's `dispose()` asks the worker to stop, which a stuck worker
+  // never answers, so stop it directly
+  void stopping?.then(
+    ({ linter }) =>
+      (linter as unknown as { worker: Worker }).worker.terminate(),
+    () => undefined
+  )
 }
 
 /**
- * The linter, with the dialect and dictionary from the settings applied.
- * Starts it the first time, setting Harper's status while it loads.
+ * Runs a call into Harper, starting it and applying the settings first. If
+ * anything fails or runs out of time, the worker is reset and the call throws.
  */
-export async function getHarper(): Promise<Linter> {
-  if (!harper) {
-    useHarperStore.getState().setStatus('loading')
-    harper = createLinter()
-    harper.then(
-      () => useHarperStore.getState().setStatus('ready'),
-      (error: unknown) => {
-        harper = null
-        useHarperStore.getState().setStatus('error')
-        void logError(`Astro Editor [HARPER] Failed to start: ${String(error)}`)
-      }
-    )
+async function run<T>(call: (linter: Linter) => Promise<T>): Promise<T> {
+  const status = useHarperStore.getState()
+  try {
+    if (!harper) {
+      status.setStatus('loading')
+      harper = withTimeout(start(), START_TIMEOUT)
+    }
+    const current = await harper
+    await withTimeout(syncSettings(current), CALL_TIMEOUT)
+    const result = await withTimeout(call(current.linter), CALL_TIMEOUT)
+    if (useHarperStore.getState().status !== 'ready') status.setStatus('ready')
+    return result
+  } catch (error) {
+    reset()
+    status.setStatus('error')
+    void logError(`Astro Editor [HARPER] ${String(error)}`)
+    throw error
   }
-  const linter = await harper
-  await applySettings(linter)
-  return linter
 }
 
-async function applySettings(linter: Linter) {
-  const { dialect, dictionary } = settings()
-  if (!applied) return
-  if (dialect !== applied.dialect) {
-    const { Dialect } = await import('harper.js')
-    await linter.setDialect(Dialect[HARPER_DIALECTS[dialect]])
-  }
-  if (dictionary.join('\n') !== applied.dictionary.join('\n')) {
-    await linter.clearWords()
-    await linter.importWords([...ASTRO_WORDS, ...dictionary])
-  }
-  applied = { dialect, dictionary }
+/** The issues Harper finds in prose from `proseText`, by the rule that found them */
+export function lintProse(text: string): Promise<Record<string, Lint[]>> {
+  return run(linter =>
+    linter.organizedLints(text, {
+      language: 'plaintext',
+      regex_mask: MASK_PATTERN,
+    })
+  )
+}
+
+/** Ignores an issue Harper found in `text`, in this and later checks */
+export async function ignoreLint(text: string, lint: Lint) {
+  await run(async linter => {
+    await linter.ignoreLint(text, lint)
+    localStorage.setItem(IGNORED_KEY, await linter.exportIgnoredLints())
+  })
+}
+
+/**
+ * Forgets every ignored issue. The stored list goes at once; the running
+ * linter's copy follows, and the promise settles when it has.
+ */
+export async function clearIgnoredLints() {
+  localStorage.removeItem(IGNORED_KEY)
+  if (harper) await run(linter => linter.clearIgnoredLints())
 }

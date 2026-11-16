@@ -3,19 +3,23 @@ import type { HarperCheck } from '../lib/editor/extensions/harper/checks'
 
 /** An issue Harper found in the open document, as the Copyedit panel lists it */
 export interface HarperIssue {
+  /** Stable for the life of the issue, which the panel's actions refer to it by */
+  id: number
   check: HarperCheck
   /** Harper's name for the kind of issue, like "Word Choice" */
   kind: string
   /** The text the issue is about */
   text: string
+  /** Harper's message, with the words it quotes in backticks */
   message: string
-  /** The names of its fixes, which `applyIssueAction` applies by index */
-  actions: string[]
+  /** Its suggested fixes, which `applyIssueFix` applies by index */
+  fixes: string[]
 }
 
 /**
- * Harper's state: idle until a check is first switched on, then loading while
- * its WebAssembly starts, then ready (or error if it couldn't start)
+ * Harper's state: idle until the first check, loading while its WebAssembly
+ * starts, then ready. Error when a check failed; the next one starts Harper
+ * afresh.
  */
 export type HarperStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -23,14 +27,14 @@ interface HarperState {
   status: HarperStatus
   /** The open document's issues, in document order */
   issues: HarperIssue[]
-  /** The index in `issues` of the issue at the cursor */
+  /** The id of the issue at the cursor */
   activeIssue: number | null
 }
 
 interface HarperActions {
   setStatus: (status: HarperStatus) => void
   setIssues: (issues: HarperIssue[]) => void
-  setActiveIssue: (index: number | null) => void
+  setActiveIssue: (id: number | null) => void
 }
 
 /**
