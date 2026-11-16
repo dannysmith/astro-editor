@@ -13,12 +13,55 @@ import { HARPER_DIALECTS } from './checks'
 import { readCopyedit } from './settings'
 
 /**
- * Rules turned off for every check. Masking syntax out of the text leaves
- * runs of spaces, which these would flag.
+ * Rules turned off for every check, as well as the `Expand…` rules, which ask
+ * for abbreviations like "config" and "ctrl" to be spelled out
  */
-const RULE_OVERRIDES = {
-  Spaces: false,
-  NoFrenchSpaces: false,
+const RULES_OFF = [
+  // Masking syntax out of the text leaves runs of spaces
+  'Spaces',
+  'NoFrenchSpaces',
+  // House style, not mistakes
+  'OxfordComma',
+  'UseEllipsisCharacter',
+  'NumericRangeEnDash',
+  'AvoidCurses',
+  'Gonna',
+  'Gotta',
+  'Wanna',
+  // Mostly wrong on blogs and docs: "file names" → "filenames", "auto-save"
+  // → "autosave", "a greeting" as a mass noun, "plugin" as a phrasal verb
+  'CompoundNouns',
+  'DisjointPrefixes',
+  'MassNouns',
+  'PhrasalVerbAsCompoundNoun',
+  'WrongNegative',
+]
+
+/**
+ * Words every Astro project uses that Harper doesn't know. Short on purpose:
+ * acronyms and names inside a sentence are never flagged (`filter.ts`), so
+ * this only needs words that are lowercase or start sentences.
+ */
+const ASTRO_WORDS = [
+  'Astro',
+  "Astro's",
+  'Astro’s',
+  'frontmatter',
+  'blockquote',
+  'blockquotes',
+  'Markdoc',
+  'Starlight',
+  'pnpm',
+  'npx',
+]
+
+async function ruleOverrides(linter: Linter) {
+  const rules = Object.keys(await linter.getDefaultLintConfig())
+  return Object.fromEntries(
+    rules
+      .filter(rule => rule.startsWith('Expand') || RULES_OFF.includes(rule))
+      .map(rule => [rule, false])
+  )
 }
 
 let harper: Promise<Linter> | null = null
@@ -39,8 +82,8 @@ async function createLinter(): Promise<Linter> {
     dialect: Dialect[HARPER_DIALECTS[dialect]],
   })
   await linter.setup()
-  await linter.setLintConfig(RULE_OVERRIDES)
-  if (dictionary.length > 0) await linter.importWords(dictionary)
+  await linter.setLintConfig(await ruleOverrides(linter))
+  await linter.importWords([...ASTRO_WORDS, ...dictionary])
   applied = { dialect, dictionary }
   return linter
 }
@@ -76,7 +119,7 @@ async function applySettings(linter: Linter) {
   }
   if (dictionary.join('\n') !== applied.dictionary.join('\n')) {
     await linter.clearWords()
-    await linter.importWords(dictionary)
+    await linter.importWords([...ASTRO_WORDS, ...dictionary])
   }
   applied = { dialect, dictionary }
 }

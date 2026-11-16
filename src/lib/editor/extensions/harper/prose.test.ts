@@ -83,6 +83,28 @@ describe('proseText', () => {
     expect(prose('<script>\nlet x = 1\n</script>\n\nProse.')).toBe('Prose.')
   })
 
+  it('removes code, links and images inside a component', () => {
+    const doc = [
+      '<Aside>',
+      '  Run `bun install`, see [the docs](https://example.com) and ![alt](a.png).',
+      '  ```sh',
+      '  npm create astro',
+      '  ```',
+      '</Aside>',
+    ].join('\n')
+    expect(prose(doc)).toBe('Run , see the docs and .')
+  })
+
+  it('removes paths, file names and domains', () => {
+    expect(
+      prose('Put first-post.md in src/content/blog, as on astro.build now.')
+    ).toBe('Put in , as on now.')
+  })
+
+  it('removes display maths', () => {
+    expect(prose('Where $$\\frac{1}{n}$$ is small.')).toBe('Where is small.')
+  })
+
   it('keeps the escaped character', () => {
     expect(prose('Not \\*emphasis\\*.')).toBe('Not *emphasis*.')
   })

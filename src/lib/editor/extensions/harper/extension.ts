@@ -25,7 +25,8 @@ import { useProjectStore } from '@/store/projectStore'
 import { getCurrentEditorView } from '../../editor-view-ref'
 import { checkForKind, type HarperCheck } from './checks'
 import { getHarper } from './linter'
-import { MASK, MASK_PATTERN, proseText } from './prose'
+import { shouldShow } from './filter'
+import { MASK_PATTERN, proseText } from './prose'
 import { addWords, readCopyedit } from './settings'
 
 /** The check each diagnostic belongs to, for the panel */
@@ -60,35 +61,38 @@ async function lintDocument(view: EditorView): Promise<Diagnostic[]> {
   const harper = await getHarper()
   const tree =
     ensureSyntaxTree(state, state.doc.length, 1000) ?? syntaxTree(state)
-  const text = proseText(state.doc.toString(), tree)
-  const lints = await harper.lint(text, {
+  const doc = state.doc.toString()
+  const text = proseText(doc, tree)
+  const lintsByRule = await harper.organizedLints(text, {
     language: 'plaintext',
     regex_mask: MASK_PATTERN,
   })
 
   const diagnostics: Diagnostic[] = []
-  for (const lint of lints) {
-    const check = checkForKind(lint.lint_kind())
-    if (!checks[check]) continue
-    const { start, end } = lint.span()
-    const problem = text.slice(start, end)
-    // Issues made by masking: runs of spaces, or words joined across code
-    if (!problem.trim() || problem.includes(MASK)) continue
+  for (const [rule, lints] of Object.entries(lintsByRule)) {
+    for (const lint of lints) {
+      const kind = lint.lint_kind()
+      const check = checkForKind(kind)
+      const { start, end } = lint.span()
+      if (!checks[check] || !shouldShow({ rule, kind, start, end }, text, doc))
+        continue
 
-    const diagnostic: Diagnostic = {
-      from: start,
-      to: end,
-      severity: 'info',
-      markClass: `cm-harper cm-harper-${check}`,
-      source: lint.lint_kind_pretty(),
-      message: lint.message(),
-      renderMessage: () => renderMessage(lint),
-      actions: lintActions(lint, text, harper),
+      const diagnostic: Diagnostic = {
+        from: start,
+        to: end,
+        severity: 'info',
+        markClass: `cm-harper cm-harper-${check}`,
+        source: lint.lint_kind_pretty(),
+        message: lint.message(),
+        renderMessage: () => renderMessage(lint),
+        actions: lintActions(lint, text, harper),
+      }
+      diagnosticChecks.set(diagnostic, check)
+      diagnostics.push(diagnostic)
     }
-    diagnosticChecks.set(diagnostic, check)
-    diagnostics.push(diagnostic)
   }
-  return diagnostics
+  // Grouped by rule, so put them back in document order
+  return diagnostics.sort((a, b) => a.from - b.from)
 }
 
 /** Harper's message as HTML, which marks the words it quotes as code */

@@ -54,10 +54,27 @@ const BLOCK_MARKS = new Set(['ListMark', 'TableDelimiter', 'HeaderMark'])
 /** MDX lines that are code: `import … from '…'` and `export const …` */
 const MDX_STATEMENT = /^(?:import|export)\s/
 
-/** Patterns masked across the whole text once the tree has been walked */
+/**
+ * Patterns masked across the whole text once the tree has been walked. The
+ * tree reads an HTML or MDX component as one HTML block, so the Markdown
+ * inside one (code, links, images) is only masked by these.
+ */
 const TEXT_PATTERNS = [
   // Contents of script and style elements
   /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,
+  // Fenced code, which may be indented inside a component
+  /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$/gm,
+  // Inline code
+  /`[^`\n]+`/g,
+  // Display maths
+  /\$\$[\s\S]*?\$\$/g,
+  // Images
+  /!\[[^\]\n]*\]\([^)\n]*\)/g,
+  // Bare URLs
+  /\bhttps?:\/\/[^\s)>\]]+/g,
+  // Paths, file names and domains: src/assets, first-post.md, astro.build
+  /(?:\/?[\w.-]+\/)+[\w.-]*/g,
+  /\b[\w-]+(?:\.[A-Za-z0-9-]{2,})+\b/g,
   // MDX expressions, innermost first so nesting is handled by repeat passes
   /\{[^{}]*\}/g,
   /\{[^{}]*\}/g,
@@ -103,9 +120,15 @@ export function proseText(doc: string, tree: Tree): string {
     },
   })
 
+  const maskAll = (match: string) => match.replace(/[^\n]/g, MASK)
   let text = chars.join('')
   for (const pattern of TEXT_PATTERNS) {
-    text = text.replace(pattern, match => match.replace(/[^\n]/g, MASK))
+    text = text.replace(pattern, maskAll)
   }
-  return text
+  // Links: the text is prose, the brackets and target aren't
+  return text.replace(
+    /\[([^\]\n]*)\](\([^)\n]*\))/g,
+    (_match, label: string, target: string) =>
+      MASK + label + maskAll(`]${target}`)
+  )
 }
