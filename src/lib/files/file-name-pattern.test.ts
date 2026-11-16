@@ -103,6 +103,8 @@ describe('nextIndex', () => {
     expect(nextIndex('{index:2}-{slug}', names)).toBe(8)
     expect(nextIndex('{index:2}-{slug}', ['notes'])).toBe(1)
     expect(nextIndex('{slug}', names)).toBe(1)
+    // Hyphens the pattern doubles are merged in the names it gives
+    expect(nextIndex('{index:2}--{slug}', ['01-welcome'])).toBe(2)
   })
 })
 

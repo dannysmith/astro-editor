@@ -151,6 +151,45 @@ describe('renameNewFileFromTitle', () => {
     await renameNewFileFromTitle()
     expect(renames()).toBe(0)
   })
+
+  it('keeps a new file’s number, without reading its folder', async () => {
+    start('{index:2}-{slug}', 'My Trip to the Lake')
+    useEditorStore.setState({ currentFile: entry('03') })
+    rememberNewFile(entry('03').path, 'Untitled')
+
+    await renameNewFileFromTitle()
+    const calls = globalThis.mockTauri.invoke.mock.calls
+    expect(calls.map(([cmd]) => cmd)).not.toContain('scan_directory')
+    expect(calls.find(([cmd]) => cmd === 'rename_entry')?.[1]).toMatchObject({
+      stem: '03-my-trip-to-the-lake',
+    })
+  })
+
+  it('doesn’t rename another file opened while it reads the folder', async () => {
+    start('{index:2}-{slug}', 'My Trip to the Lake')
+    useEditorStore.setState({ currentFile: entry('trip') })
+    rememberNewFile(entry('trip').path, 'Untitled')
+    let finishScan = () => {}
+    globalThis.mockTauri.invoke.mockImplementation((cmd: string) =>
+      cmd === 'scan_directory'
+        ? new Promise(resolve => {
+            finishScan = () => resolve({ subdirectories: [], files: [] })
+          })
+        : Promise.resolve(null)
+    )
+
+    const renaming = renameNewFileFromTitle()
+    await vi.waitFor(() =>
+      expect(globalThis.mockTauri.invoke).toHaveBeenCalledWith(
+        'scan_directory',
+        expect.anything()
+      )
+    )
+    useEditorStore.setState({ currentFile: entry('other') })
+    finishScan()
+    await renaming
+    expect(renames()).toBe(0)
+  })
 })
 
 describe('renamableStem', () => {

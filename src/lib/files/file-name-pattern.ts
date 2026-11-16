@@ -224,16 +224,18 @@ export function fileNameStem(
  * Names that don't follow the pattern are skipped.
  */
 export function nextIndex(pattern: string, names: string[]): number {
+  const indexes = names.map(name => indexInName(pattern, name) ?? 0)
+  return Math.max(0, ...indexes) + 1
+}
+
+/** The `{index}` in a name that follows the pattern, or null */
+export function indexInName(pattern: string, name: string): number | null {
   const parsed = parseFileNamePattern(pattern)
-  if ('error' in parsed) return 1
+  if ('error' in parsed) return null
   const indexPart = parsed.parts.find(p => p.kind === 'index')
-  if (!indexPart) return 1
-  let highest = 0
-  for (const name of names) {
-    const value = matchName(name, parsed.parts)?.values.get(indexPart)
-    if (value) highest = Math.max(highest, Number(value))
-  }
-  return highest + 1
+  const value =
+    indexPart && matchName(name, parsed.parts)?.values.get(indexPart)
+  return value ? Number(value) : null
 }
 
 /**
@@ -276,7 +278,10 @@ function matchName(
 ): { parts: Part[]; values: Map<Part, string> } | null {
   for (const candidate of [parts, untitledParts(parts)]) {
     const groups = candidate.map(part => {
-      if (part.kind === 'text') return `(${escapeRegExp(part.text)})`
+      // Hyphens merged, as `fileNameStem` merges them
+      if (part.kind === 'text') {
+        return `(${escapeRegExp(part.text.replace(/-{2,}/g, '-'))})`
+      }
       if (part.kind === 'index') return '(\\d+)'
       if (part.kind === 'token') return `(${TOKENS[part.token].match})`
       return '(.*)'

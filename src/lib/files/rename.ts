@@ -16,6 +16,7 @@ import { slugFromTitle } from '../slug'
 import { toast } from '../toast'
 import {
   fileNameStem,
+  indexInName,
   nextIndex,
   patternHasIndex,
   patternHasTitle,
@@ -81,7 +82,8 @@ export async function nextIndexIn(
 /**
  * What the open file's name is made from: its title, its published date (or
  * today), and the times and number in its current name, or now and the next
- * number when it has none
+ * number when it has none. Only a name without a number waits for its folder
+ * to be read, so a new file, which has one, is renamed at once.
  */
 async function openFileNameValues(
   file: FileEntry,
@@ -92,12 +94,16 @@ async function openFileNameValues(
   const mappings = fieldMappings(collection)
   const title = frontmatter[mappings.title]
   const directory = file.path.slice(0, file.path.lastIndexOf('/'))
+  const current = renamableStem(file.path)
+  const pattern = collection.settings.fileNamePattern.value
   return {
     title: typeof title === 'string' ? title : '',
     date: getPublishedDate(frontmatter, mappings.publishedDate) ?? new Date(),
     now: new Date(),
-    index: await nextIndexIn(directory, collection, projectPath),
-    current: renamableStem(file.path) ?? undefined,
+    index:
+      (current === null ? null : indexInName(pattern, current)) ??
+      (await nextIndexIn(directory, collection, projectPath)),
+    current: current ?? undefined,
   }
 }
 
@@ -271,6 +277,7 @@ export async function renameOpenFileFromPattern(): Promise<void> {
     collection,
     projectPath
   )
+  if (!stillOpen(currentFile)) return
   const stem = fileNameStem(pattern, values)
   if (!stem) {
     toast.error("Couldn't rename the file", {
@@ -317,5 +324,15 @@ export async function renameNewFileFromTitle(): Promise<void> {
     collection,
     projectPath
   )
-  await renameOpenFile(fileNameStem(pattern, values))
+  if (stillOpen(currentFile))
+    await renameOpenFile(fileNameStem(pattern, values))
+}
+
+/**
+ * Whether `file` is still the open file, after waiting to work out its name.
+ * `renameOpenFile` renames whichever file is open, so it mustn't run if another
+ * one was opened meanwhile.
+ */
+function stillOpen(file: FileEntry): boolean {
+  return useEditorStore.getState().currentFile?.path === file.path
 }
