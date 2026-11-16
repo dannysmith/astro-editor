@@ -8,6 +8,7 @@ The production frontend build is `bun run build` (`tsc && vite build`), which `t
 
 - **Minified with terser, which is a direct devDependency.** Vite treats terser as optional and fails the build if `minify: 'terser'` is set and it isn't installed, so it looks unused but isn't.
 - **`console.*` and `debugger` are stripped** (`drop_console`, `drop_debugger`). That's why logging goes through plugin-log (see Logging in `architecture-guide.md`).
+- **Harper's 20 MB of WebAssembly only loads when a check runs.** Only Harper's worker (`lib/editor/extensions/harper/harper.worker.ts`) imports harper.js, so it's in the worker's bundle, not the app's, and the worker starts the first time a check runs. Vite builds workers as ES modules (`worker.format`), because harper.js finds its `.wasm` with `import.meta.url`, and harper.js is left out of `optimizeDeps`, because pre-bundling breaks that lookup in development.
 - **Every build writes `bundle-stats.html`** (gitignored) with `rollup-plugin-visualizer`, a treemap of the bundle with gzip and brotli sizes, and opens it in your browser (`open: true`).
 
 ## Rust build

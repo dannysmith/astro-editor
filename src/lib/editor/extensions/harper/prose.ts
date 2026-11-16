@@ -13,7 +13,7 @@
 
 import type { Tree } from '@lezer/common'
 
-/** Stands in for each character that isn't prose. A private-use character, so never in prose */
+/** Stands in for each character that isn't prose. A private-use character, so it won't be in prose */
 export const MASK = ''
 
 /** Harper's `regex_mask`: masked runs are hidden from it */

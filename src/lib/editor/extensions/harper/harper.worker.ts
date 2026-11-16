@@ -28,7 +28,8 @@ const RULES_OFF = [
   'Gotta',
   'Wanna',
   // Mostly wrong on blogs and docs: "file names" → "filenames", "auto-save"
-  // → "autosave", "a greeting" as a mass noun, "plugin" as a phrasal verb
+  // → "autosave", "a greeting" as a mass noun, "plugin" as a phrasal verb,
+  // "unclosed" and "dedent" as negatives meant to be other words
   'CompoundNouns',
   'DisjointPrefixes',
   'MassNouns',

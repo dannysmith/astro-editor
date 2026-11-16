@@ -2,11 +2,11 @@
  * Harper's spelling, grammar and style checks in the editor.
  *
  * Built on `@codemirror/lint`, which runs the check after typing pauses and
- * keeps the issues in editor state, mapped through edits. This adds the
- * Harper source, the underlines, the issue tooltip (`tooltip.ts`), and a
- * plugin that publishes the issues to `harperStore` for the Copyedit panel and
- * re-checks when Harper's settings change. `issues.ts` holds what each issue
- * is and how it's fixed.
+ * keeps the issues in editor state, mapped through edits. This adds the lint
+ * source that runs Harper (`lintDocument`), the underlines, the issue tooltip
+ * (`tooltip.ts`), and a plugin that publishes the issues to `harperStore` for
+ * the Copyedit panel and re-checks when Harper's settings change. `issues.ts`
+ * holds what each issue is and how it's fixed.
  */
 
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
@@ -205,7 +205,8 @@ const issuesPlugin = ViewPlugin.fromClass(
     private unsubscribe: () => void
 
     constructor(view: EditorView) {
-      // Each change to the settings replaces the `copyedit` object
+      // `updateGlobalSettings` copies only the objects a change touches, so
+      // `copyedit` is a new object exactly when Harper's settings change
       this.unsubscribe = useProjectStore.subscribe((state, previous) => {
         if (
           state.globalSettings?.copyedit !== previous.globalSettings?.copyedit

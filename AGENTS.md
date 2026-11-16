@@ -54,7 +54,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `copyedit/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
 - `src/hooks/`: hooks, including queries and mutations (`queries/`, `mutations/`) and actions (`editor/useEditorActions.ts`)
 - `src/store/`: Zustand stores
-- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `right-sidebar.ts` (its tabs), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
+- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands; `extensions/harper/` is the spelling, grammar and style checks), `commands/` (command palette), `right-sidebar.ts` (its tabs), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only

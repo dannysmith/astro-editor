@@ -40,7 +40,7 @@ Frontmatter fields each take a field `name`, read their value with a selector an
 - **`lib/`** is plain TypeScript: business logic, utilities, classes. It may read a store with `getState()` (a one-way call with no React coupling) but never subscribe. The one exception is `lib/theme-provider.tsx`, a context provider kept with its hook.
 - **`components/ui/`** is shadcn (see `ui-patterns.md`); **`components/tauri/`** holds reusable components that call Tauri APIs.
 
-ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in-lib`), because `lib/` code that subscribes to a store can't be used or tested outside React. That means a React subscription (`useStore(selector)`). A CodeMirror extension may follow a store with its plain `.subscribe()`, unsubscribing in its plugin's `destroy`: the copyedit extension does, so it re-analyses whenever the highlight settings change, wherever they're changed from.
+ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in-lib`), because `lib/` code that subscribes to a store can't be used or tested outside React. That means a React subscription (`useStore(selector)`). A CodeMirror extension may follow a store with its plain `.subscribe()`, unsubscribing in its plugin's `destroy`: the copyedit and Harper extensions do, so they run again whenever their settings change, wherever they're changed from.
 
 ## How the parts talk
 
@@ -59,7 +59,7 @@ Something that's hidden but keeps working (a panel in a background tab) goes in 
 
 ## Right sidebar
 
-The right sidebar holds a panel per tab: Frontmatter, Copyedit, and later ones for Harper and git. `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) lists the tabs, and the tab bar, the ⌘2/⌘3… shortcuts and the palette commands are built from it. A panel doesn't assume a file is open; it shows its own empty state.
+The right sidebar holds a panel per tab: Frontmatter, Copyedit (the part-of-speech highlights and Harper's spelling, grammar and style checks), and later ones such as git. `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) lists the tabs, and the tab bar, the ⌘2/⌘3… shortcuts and the palette commands are built from it. A panel doesn't assume a file is open; it shows its own empty state.
 
 `uiStore` holds `rightSidebarVisible` and `rightSidebarTab`, with three actions:
 
@@ -73,11 +73,12 @@ To add a tab, add it to `RIGHT_SIDEBAR_TABS`, map its id to the panel in `RightS
 
 ### Linking a panel to the editor
 
-A panel that lists things in the document (Harper's issues, say) and follows the cursor:
+A panel that lists things in the document and follows the cursor, like the Copyedit panel's list of Harper's issues (`lib/editor/extensions/harper/`):
 
-- **Anything with document positions lives in CodeMirror state,** because positions have to be mapped through edits (`tr.changes`).
-- **Editor → panel:** a view plugin publishes what the panel shows to a small feature store, such as the issues and the id of the one at the cursor, only when it changes. Each row selects a boolean (`s => s.activeId === id`), so moving the cursor re-renders two rows, not the list. The active row scrolls itself into view in an effect, which `<Activity>` pauses while the panel is hidden.
-- **Panel → editor:** a plain `lib/` function takes the view from `getCurrentEditorView()` and dispatches the selection with `EditorView.scrollIntoView`.
+- **Anything with document positions lives in CodeMirror state,** because positions have to be mapped through edits (`tr.changes`). Harper's issues are `@codemirror/lint` diagnostics, which the lint package maps for us.
+- **Give each item an id that outlives an update,** and have the panel refer to items by it, never by their place in the list. The panel's copy is only as fresh as the last publish, so a position can point at a different item after an edit. Harper's ids come from Harper's hash of the issue and the text around it, so an issue keeps its id while its text is unchanged.
+- **Editor → panel:** a view plugin publishes what the panel shows to a small feature store, such as the issues and the id of the one at the cursor, only when it changes. Reuse the published object for an item that hasn't changed, so the React Compiler skips its row. Each row selects a boolean (`s => s.activeIssue === id`), so moving the cursor re-renders two rows, not the list. The active row scrolls itself into view in an effect, which `<Activity>` pauses while the panel is hidden.
+- **Panel → editor:** a plain `lib/` function finds the item by id with `getCurrentEditorView()`, then dispatches the selection with `EditorView.scrollIntoView`. An action that edits the document checks the text is still what the item was made from first.
 - **Not DOM events,** which are for actions that need a hook.
 
 ## React Compiler
@@ -95,7 +96,7 @@ Log through `@tauri-apps/plugin-log` (`error as logError`, `warn as logWarn`, `i
 
 ## Security boundaries
 
-- **CSP** (`src-tauri/tauri.conf.json`): a frontend `fetch` to a new origin needs adding to `connect-src` (origin only); images may load from `https:`. Requests made from Rust aren't affected.
+- **CSP** (`src-tauri/tauri.conf.json`): a frontend `fetch` to a new origin needs adding to `connect-src` (origin only); images may load from `https:`. Requests made from Rust aren't affected. `script-src 'wasm-unsafe-eval'` lets Harper's worker compile its WebAssembly; without it, the Copyedit panel's checks can't run.
 - **File access:** the asset protocol scope is `**`, because projects can live anywhere, so the Rust commands are the boundary. They check paths with `validate_project_path` before reading or writing.
 
 ## Deliberate choices
