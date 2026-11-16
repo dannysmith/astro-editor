@@ -1,5 +1,5 @@
 # What the frontmatter of each file in files/ reads as. Checked by
-# `frontmatter_corpus_tests` in `src-tauri/src/commands/files.rs`.
+# `frontmatter_corpus_tests` in `src-tauri/src/frontmatter/corpus_tests.rs`.
 
 === astro-editor-docs/privacy.mdx
 {
@@ -140,11 +140,8 @@
   "author": "Danny",
   "editor": "Danny",
   "page": {
-    "<<": {
-      "layout": "post",
-      "comments": true
-    },
-    "comments": false
+    "comments": false,
+    "layout": "post"
   },
   "tags": [
     "one",
@@ -201,7 +198,7 @@
 {
   "title": "A block scalar as the last key",
   "banner": {
-    "content": "Version 2 is here! <a href=\"/upgrade/\">Upgrade your site</a>"
+    "content": "Version 2 is here! <a href=\"/upgrade/\">Upgrade your site</a>\n"
   }
 }
 
@@ -222,8 +219,15 @@
   "title": "Thematic breaks in the body"
 }
 
+=== handwritten/bom-in-value.md
+{
+  "title": "A byte order mark ﻿inside a value"
+}
+
 === handwritten/bom.md
-(no frontmatter)
+{
+  "title": "A byte order mark before the opening fence"
+}
 
 === handwritten/comment-only-frontmatter.md
 {}
@@ -267,16 +271,36 @@
 }
 
 === handwritten/duplicate-keys.md
-{
-  "title": "The second title",
-  "draft": false
-}
+(unreadable) duplicate mapping key: title at line 4, column 1
 
 === handwritten/empty-frontmatter.md
-(no frontmatter)
+{}
 
 === handwritten/fence-trailing-spaces.md
-(no frontmatter)
+{
+  "title": "Trailing spaces after both fences"
+}
+
+=== handwritten/generated-anchors.md
+{
+  "title": "Anchors written by a generator",
+  "sends": [
+    {
+      "id": "orders.created",
+      "version": "1.0.0"
+    },
+    {
+      "id": "orders.updated",
+      "version": "1.0.0"
+    }
+  ],
+  "receives": [
+    {
+      "id": "orders.created",
+      "version": "1.0.0"
+    }
+  ]
+}
 
 === handwritten/inline-lists.md
 {
@@ -329,7 +353,9 @@
 }
 
 === handwritten/leading-blank-lines.md
-(no frontmatter)
+{
+  "title": "Blank lines before the opening fence"
+}
 
 === handwritten/nested-objects.md
 {
@@ -358,6 +384,9 @@
 
 === handwritten/no-frontmatter.md
 (no frontmatter)
+
+=== handwritten/null-key.md
+(unreadable) cannot deserialize null into string; use Option<String> at line 3, column 1
 
 === handwritten/numeric-key.md
 {
@@ -396,13 +425,13 @@
   "capitalTrue": true,
   "hex": 16,
   "octal": 15,
-  "leadingZero": "017",
+  "leadingZero": 17,
   "version": 1.1,
-  "oneDotZero": 1.0,
-  "exponent": 1000.0,
-  "infinity": null,
-  "negativeInfinity": null,
-  "notANumber": null,
+  "oneDotZero": 1,
+  "exponent": 1000,
+  "infinity": ".inf",
+  "negativeInfinity": "-.inf",
+  "notANumber": ".nan",
   "plusOne": 1,
   "bigInteger": 12345678901234567890,
   "semver": "1.2.3"
@@ -484,13 +513,22 @@
 }
 
 === handwritten/tab-on-blank-line.md
-(unreadable) found a tab character that violates indentation at line 3 column 1, while scanning a plain scalar at line 2 column 8
+{
+  "title": "A tab on a blank line",
+  "description": "libyaml rejects the tab, Astro reads it"
+}
+
+=== handwritten/tabs-in-flow-list.md
+(unreadable) tabs disallowed within this context (block indentation) at line 5, column 2
+
+=== handwritten/timestamp-tag.md
+(unreadable) cannot deserialize tagged scalar into string at line 3, column 19
 
 === handwritten/toml-frontmatter.md
 (no frontmatter)
 
 === handwritten/unclosed-frontmatter.md
-(error) Frontmatter not properly closed with '---'
+(no frontmatter)
 
 === handwritten/whitespace.md
 {

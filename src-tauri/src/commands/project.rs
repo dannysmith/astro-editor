@@ -1,5 +1,5 @@
 use crate::collections;
-use crate::commands::files::{self, rename_without_replacing};
+use crate::commands::files::rename_without_replacing;
 use crate::commands::run_blocking;
 use crate::content_config::pattern::{EntryPattern, MARKDOWN_EXTENSIONS};
 use crate::content_config::{self, Loader};
@@ -255,7 +255,7 @@ pub async fn load_file_based_collection(
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse JSON: {e}"))?
         }
         Some("yml" | "yaml") => {
-            serde_norway::from_str(&content).map_err(|e| format!("Failed to parse YAML: {e}"))?
+            crate::yaml::value(&content).map_err(|e| format!("Failed to parse YAML: {e}"))?
         }
         _ => {
             return Err(format!(
@@ -583,11 +583,11 @@ fn free_entry(
 /// cost of reading one, so it's only parsed when the text mentions `slug`.
 fn slug_of(path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(path).ok()?;
-    let yaml = files::frontmatter_yaml(&content).ok().flatten()?;
+    let yaml = crate::frontmatter::frontmatter_yaml(&content)?;
     if !yaml.contains("slug") {
         return None;
     }
-    files::yaml_values(&yaml)
+    crate::yaml::mapping(&yaml)
         .ok()?
         .get("slug")?
         .as_str()
@@ -644,7 +644,7 @@ impl<'a> CollectionListing<'a> {
         entry.is_entry = is_entry;
         if frontmatter {
             if let Ok(content) = std::fs::read_to_string(path) {
-                if let Ok(values) = files::frontmatter_values(&content) {
+                if let Ok(values) = crate::frontmatter::frontmatter_values(&content) {
                     entry = entry.with_frontmatter(values);
                 }
             }

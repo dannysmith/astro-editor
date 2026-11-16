@@ -28,6 +28,14 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_norway = "0.9.42"
+# Reads all YAML (src/yaml.rs). Pinned with its parser, granit-parser, because
+# their defaults change between minor versions, which would change how users'
+# frontmatter reads. Upgrade only after the frontmatter corpus tests and the
+# comparison with Astro pass (test/frontmatter/README.md)
+serde-saphyr = { version = "=2.1.1", default-features = false, features = [
+  "deserialize",
+] }
+granit-parser = "=2.1.0"
 tokio = { version = "1", features = ["full"] }
 notify = "=9.0.0-rc.7"
 walkdir = "2"

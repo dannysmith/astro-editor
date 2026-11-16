@@ -132,31 +132,21 @@ This comes first, because it stops data loss today, and because the parser switc
 
 ## Phase 3: Reading
 
-- [ ] **A `frontmatter` module** in `src-tauri/src/` that owns finding the block, reading it and writing it, moved out of `commands/files.rs`. `parse_frontmatter`, the listings (`frontmatter_values`), `slug_of`, `mdx_esm/plan.rs` and `create_file` use it. Move `frontmatter_corpus_tests` with it.
-- [ ] **A `yaml` module that's the only caller of serde-saphyr,** enforced with Clippy's `disallowed-methods` in `src-tauri/clippy.toml`, allowed in that module only.
-  - [ ] Pin `serde-saphyr = "=2.1.1"` (`default-features = false, features = ["deserialize"]`) and `granit-parser` exactly, with a comment in `Cargo.toml` saying why. The AGENTS.md rule in Phase 6 covers upgrades.
-  - [ ] Options:
-    - `strict_booleans`.
-    - Duplicate keys are an error.
-    - Merge keys are applied.
-    - Non-finite floats don't fail the file.
-    - A `Budget` large enough for big `file()` collections.
-    - Errors without file snippets, keeping one line with its position.
-  - [ ] Read numbers as JavaScript sees them, so `017` is 17 as in Astro, not `17.0`. A `file()` entry with `id: 007` gets the id `"7"`, as in Astro. Check `id_of` in `project.rs`.
-  - [ ] `file()` collections (`project.rs`) read through it too.
-- [ ] **The line scanner,** as in "Reading". An opening `---` that's never closed means no frontmatter, as in Astro, rather than an error. An empty block (`---` then `---`) is kept when saving. Empty `NOT_KEPT`.
-- [ ] **Parse with the final newline,** so a `|` block scalar that's the last key keeps its trailing newline.
-- [ ] **More corpus cases:**
-  - Tabs indenting the items of a `[ … ]` list (as in maggieappleton.com's talks).
-  - A `null:` key.
-  - `!!timestamp`.
-  - A BOM inside a value.
-  - Generated anchors (`&ref_0`).
-  - `id: 007` in a `file()` collection.
-  - A large `file()` collection.
-  - `yes`/`no` values.
-- [ ] **Regenerate `values.txt`** and review the diff against `astro-values.mjs`. What's left should be the deliberate differences above.
-- [ ] **Update the tests and comments that describe serde_norway's behaviour** (`test_serde_norway_handles_*`, the serialisation tests, and the comments in `files.rs`).
+- [x] **A `frontmatter` module** (`src-tauri/src/frontmatter/`) that owns finding the block, reading it and writing it, moved out of `commands/files.rs`. `parse_frontmatter`, the listings (`frontmatter_values`), `slug_of`, `mdx_esm/plan.rs` and the commands use it. Its tests (`tests.rs`) and both corpus tests (`corpus_tests.rs`) moved with it; the command tests stay in `files.rs`.
+  - `parse_frontmatter` no longer fails: an unclosed `---` is no frontmatter, and bad YAML is unreadable frontmatter.
+  - **`raw_frontmatter` is now the whole block as written,** from the top of the file through the closing fence, so a BOM, blank lines and spaces after the fences are written back unchanged. The frontend treats it as opaque text. Until Phase 4, editing the values of such a file still rewrites the block from `---`.
+- [x] **A `yaml` module (`src-tauri/src/yaml.rs`) that's the only caller of serde-saphyr,** enforced with Clippy's `disallowed-methods` (which also bans `serde_norway::from_str`).
+  - [x] `serde-saphyr = "=2.1.1"` and `granit-parser = "=2.1.0"` pinned, with a comment in `Cargo.toml`. serde-saphyr only asks for granit-parser `2.1.0`, which Cargo would update within 2.x, so it's pinned directly.
+  - [x] Options: `strict_booleans`, `underscored_numbers_as_strings` (`1_000` is a string in YAML 1.2's core schema), duplicate keys an error, merge keys applied, non-finite floats as text, no snippets in errors, and no limit on events or nodes (the input size and alias limits still apply).
+  - [x] Errors are a `YamlError` (message, line, column), so frontmatter errors are shifted to file lines rather than parsed again. serde-saphyr's hint for developers on duplicate keys is dropped.
+  - [x] Numbers as JavaScript sees them: a float with no fraction is an integer, so `017` is 17 and `id: 007` gives the id `"7"`.
+  - [x] `file()` collections (`project.rs`) read through it.
+- [x] **The line scanner** (`find_block`). An opening `---` that's never closed means no frontmatter. An empty block is kept. `NOT_KEPT` is gone: every corpus file saves back byte for byte.
+- [x] **Parse with the final newline:** a `|` block scalar that's the last key keeps its trailing newline.
+- [x] **More corpus cases:** `tabs-in-flow-list.md`, `null-key.md`, `timestamp-tag.md`, `bom-in-value.md`, `generated-anchors.md`. `id: 007`, a 40,000-entry collection and `yes`/`no` are unit tests in `yaml.rs`.
+- [x] **Regenerated `values.txt`** and compared with `astro-values.mjs`. What's left is in the README: dates as text, JavaScript's numbers and key order, merged keys' order, `.inf` as text, TOML, and two rare things Astro reads that we can't (`null` keys and `!!timestamp`), which show as unreadable.
+- [x] **Tests that described serde_norway's reading** are renamed and read through `crate::yaml`. The comments about its writing in `tests.rs` and `editor.md` change with the writer in Phase 4.
+- [x] **Tried in the dev app:** a file with a BOM before its fence reads (title in the panel and the sidebar), and a body edit keeps the BOM and the block byte for byte. A file with duplicate keys shows the frontmatter error.
 
 ## Phase 4: Writing
 

@@ -17,7 +17,7 @@ interface EditorState {
   // Content state
   editorContent: string // Content without frontmatter and imports
   frontmatter: Record<string, unknown> // Current frontmatter being edited
-  rawFrontmatter: string // Original frontmatter string from disk
+  rawFrontmatter: string // The frontmatter block as written on disk, fences included
   /** The frontmatter as first loaded after opening; see `FrontmatterBaseline` */
   frontmatterBaseline: FrontmatterBaseline | null
   imports: string // MDX imports (hidden from editor)

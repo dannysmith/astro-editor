@@ -2,7 +2,7 @@
 
 Real and handwritten Markdown and MDX for testing how the editor reads frontmatter and writes it back. None of it builds. The bodies are stubs: only the frontmatter matters here.
 
-The tests are `frontmatter_corpus_tests` in `src-tauri/src/commands/files.rs`. They run over every `.md` and `.mdx` file in `files/`, so adding a file is enough to add a case. They check that:
+The tests are `frontmatter_corpus_tests` in `src-tauri/src/frontmatter/corpus_tests.rs`. They run over every `.md` and `.mdx` file in `files/`, so adding a file is enough to add a case. They check that:
 
 - saving a file whose frontmatter hasn't been edited writes it back byte for byte (with LF line endings). This also runs over `test/mdx-imports/files/`, except files with an import block, whose blank lines `mdx_corpus_tests` checks.
 - each file reads as the values in `values.txt`. After adding a file or changing how frontmatter is read, regenerate it with `UPDATE_SNAPSHOTS=1 cargo test frontmatter_corpus` (in `src-tauri`) and review the diff.
@@ -32,11 +32,16 @@ Handwritten, in `handwritten/`. Some are modelled on shapes from astro.build and
 | `scalars.md` | `~`, `null`, empty values, `yes`/`no`/`on`/`off`, `True`, hex, octal, a leading zero, `1.10`, `1.0`, `1e3`, infinities, NaN, an integer too big for JavaScript, a version number |
 | `nested-objects.md` | Objects indented by two and by four, three levels deep, with a list inside; an empty object value; a key with a dot in it |
 | `anchors-and-merge-keys.md` | Anchors and aliases across keys, and a `<<` merge key |
+| `generated-anchors.md` | Anchors like `&ref_0`, which serialisers such as js-yaml add when one object appears twice |
 | `keys.md` | Quoted keys, keys with spaces, a colon inside a quoted key |
 | `numeric-key.md` | A number as a key |
+| `null-key.md` | `null` as a key |
 | `duplicate-keys.md` | The same key twice |
+| `timestamp-tag.md` | An explicit `!!timestamp` tag |
+| `bom-in-value.md` | A byte order mark inside a value |
 | `whitespace.md` | Trailing spaces, blank lines between keys and inside a list, several spaces after a colon, a tab inside a value, a blank line before the closing fence |
 | `tab-on-blank-line.md` | A blank line holding a tab |
+| `tabs-in-flow-list.md` | Tabs indenting the items of a `[ … ]` list, which Astro 5 (js-yaml) read and Astro 7 rejects |
 | `starlight.mdx` | Every frontmatter field Starlight adds |
 | `bom.md` | A byte order mark before the opening fence |
 | `leading-blank-lines.md` | Blank lines before the opening fence |
@@ -61,5 +66,10 @@ tail -n +3 test/frontmatter/values.txt | diff - $TMPDIR/astro.txt
 Some differences are expected, because the editor keeps frontmatter as it's written rather than as JavaScript sees it:
 
 - Astro reads dates and datetimes as `Date`s, which print in UTC (`2024-06-15T00:00:00.000Z`). The editor keeps the text, and knows from the schema which fields are dates.
-- JavaScript prints `1.0` as `1`, loses precision in integers over 2^53, and puts numeric keys first.
+- JavaScript loses precision in integers over 2^53, and puts numeric keys first. Keys from a `<<` merge come after an object's own keys in the editor, and before them in Astro; the values are the same.
+- `.inf` and `.nan` are the text `".inf"` and `".nan"` in the editor, since JSON can't hold them.
 - Astro reads TOML frontmatter between `+++` fences. The editor doesn't.
+
+Astro reads a few rare things the editor can't: a `null` key (`null-key.md`) and an explicit `!!timestamp` tag (`timestamp-tag.md`). The editor shows that frontmatter as unreadable, and leaves its text alone.
+
+Comparing with Astro 5 (js-yaml) also differs on `tabs-in-flow-list.md`, which js-yaml read and Astro 7 rejects, as the editor does.

@@ -36,13 +36,15 @@ export type {
    * Markdown file content with parsed YAML frontmatter.
    *
    * This type is auto-generated from the Rust MarkdownContent struct.
-   * @see src-tauri/src/commands/files.rs
+   * @see src-tauri/src/frontmatter/mod.rs
    *
    * Fields:
    * - `frontmatter` - Parsed frontmatter as key-value pairs
    * - `content` - Markdown content (body, without frontmatter)
-   * - `raw_frontmatter` - Raw YAML frontmatter text (between --- delimiters)
+   * - `raw_frontmatter` - The frontmatter block as written, fences included,
+   *   which saving writes back unchanged when the frontmatter wasn't edited
    * - `imports` - MDX imports at top of file
+   * - `frontmatter_error` - Why the frontmatter couldn't be read, if it couldn't
    */
   MarkdownContent,
   /**

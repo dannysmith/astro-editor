@@ -433,9 +433,16 @@ export type ListedProject = {
 	favicon: string | null,
 };
 
+/**  A content file, split for the editor */
 export type MarkdownContent = {
 	frontmatter: { [key in string]: Value },
 	content: string,
+	/**
+	 *  The frontmatter block as written, from the top of the file through
+	 *  the closing `---` (without its line ending), including any byte order
+	 *  mark, blank lines and spaces after the fences. Empty when the file has
+	 *  none. Saving writes it back unchanged when the frontmatter wasn't edited
+	 */
 	raw_frontmatter: string,
 	imports: string,
 	/**
