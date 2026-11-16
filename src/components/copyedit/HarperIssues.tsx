@@ -34,8 +34,12 @@ export const HarperIssues: React.FC = () => {
     Object.values(readCopyedit(state.globalSettings).checks).some(Boolean)
   )
   const hasFile = useEditorStore(state => state.currentFile !== null)
+  const ready = useHarperStore(state => state.status === 'ready')
 
   if (!anyCheckOn || !hasFile) return null
+  // Until Harper is ready, an empty list means nothing has been checked yet.
+  // The checks above say it's starting, or why it can't run
+  if (!ready && issues.length === 0) return null
 
   return (
     <section className="space-y-2">

@@ -172,9 +172,16 @@ export function lintProse(text: string): Promise<HarperLint[]> {
   return run('lint', text, MASK_PATTERN)
 }
 
+/** How many times the ignored issues have been cleared */
+let clears = 0
+
 /** Ignores an issue by its hash, in this and later checks */
 export async function ignoreLint(hash: string) {
-  localStorage.setItem(IGNORED_KEY, await run('ignore', hash))
+  const clearsBefore = clears
+  const ignored = await run('ignore', hash)
+  // A clear while this was waiting has emptied the list, which this would
+  // otherwise put back
+  if (clears === clearsBefore) localStorage.setItem(IGNORED_KEY, ignored)
 }
 
 /**
@@ -182,6 +189,7 @@ export async function ignoreLint(hash: string) {
  * copy follows, and the promise settles when it has.
  */
 export async function clearIgnoredLints() {
+  clears++
   localStorage.removeItem(IGNORED_KEY)
   if (worker) await run('clearIgnored')
 }
