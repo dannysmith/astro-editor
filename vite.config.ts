@@ -32,6 +32,11 @@ export default defineConfig(async () => ({
   optimizeDeps: {
     exclude: ['harper.js'],
   },
+  // Harper's worker imports harper.js, which needs `import.meta.url`, so it's
+  // built as a module
+  worker: {
+    format: 'es' as const,
+  },
 
   // Build optimizations
   build: {

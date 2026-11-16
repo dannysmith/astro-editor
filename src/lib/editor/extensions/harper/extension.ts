@@ -13,7 +13,7 @@ import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { linter, setDiagnosticsEffect, type Diagnostic } from '@codemirror/lint'
 import type { EditorState } from '@codemirror/state'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
-import type { Lint, Suggestion } from 'harper.js'
+import type { HarperLint } from './harper.worker'
 import { useHarperStore, type HarperIssue } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
 import { getCurrentEditorView } from '../../editor-view-ref'
@@ -34,7 +34,7 @@ import { proseText } from './prose'
 import { readCopyedit } from './settings'
 import { issueTooltip, showIssueTooltip, tooltipTheme } from './tooltip'
 
-/** harper.js's `SuggestionKind`, which can't be imported without loading harper.js */
+/** harper.js's `SuggestionKind`, which the worker sends as a number */
 const REMOVE = 1
 const INSERT_AFTER = 2
 
@@ -70,52 +70,50 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
   const doc = state.doc.toString()
   const text = proseText(doc, tree)
   // A failed check has reset the worker and set Harper's status
-  const lintsByRule = await lintProse(text).catch(() => null)
-  if (!lintsByRule) return []
+  const lints = await lintProse(text).catch(() => null)
+  if (!lints) return []
 
   const diagnostics: Diagnostic[] = []
-  for (const [rule, lints] of Object.entries(lintsByRule)) {
-    for (const lint of lints) {
-      const kind = lint.lint_kind()
-      const check = checkForKind(kind)
-      const { start, end } = lint.span()
-      if (!checks[check] || !shouldShow({ rule, kind, start, end }, text, doc))
-        continue
+  for (const lint of lints) {
+    const { rule, kind, start, end } = lint
+    const check = checkForKind(kind)
+    if (!checks[check] || !shouldShow({ rule, kind, start, end }, text, doc))
+      continue
 
-      const diagnostic: Diagnostic = {
-        from: start,
-        to: end,
-        severity: 'info',
-        markClass: `cm-harper cm-harper-${check}`,
-        message: lint.message(),
-        renderMessage: () => renderMessage(lint),
-      }
-      addIssue(diagnostic, {
-        check,
-        kind: lint.lint_kind_pretty(),
-        text: doc.slice(start, end),
-        fixes: lint.suggestions().slice(0, MAX_SUGGESTIONS).map(toFix),
-        // Typos are words run together, like "isnow", so not dictionary words
-        word: kind === 'Spelling' ? lint.get_problem_text() : null,
-        ignore: () => ignoreLint(text, lint),
-      })
-      diagnostics.push(diagnostic)
+    const diagnostic: Diagnostic = {
+      from: start,
+      to: end,
+      severity: 'info',
+      markClass: `cm-harper cm-harper-${check}`,
+      message: lint.message,
+      renderMessage: () => renderMessage(lint.messageHtml),
     }
+    addIssue(diagnostic, {
+      check,
+      kind: lint.kindLabel,
+      text: doc.slice(start, end),
+      fixes: lint.suggestions.slice(0, MAX_SUGGESTIONS).map(toFix),
+      // Typos are words run together, like "isnow", so not dictionary words
+      word: kind === 'Spelling' ? lint.problem : null,
+      ignore: () => ignoreLint(lint.hash),
+    })
+    diagnostics.push(diagnostic)
   }
   // Grouped by rule, so put them back in document order
   return diagnostics.sort((a, b) => a.from - b.from)
 }
 
 /** Harper's message as HTML, which marks the words it quotes as code */
-function renderMessage(lint: Lint): Node {
+function renderMessage(html: string): Node {
   const template = document.createElement('template')
-  template.innerHTML = lint.message_html()
+  template.innerHTML = html
   return template.content
 }
 
-function toFix(suggestion: Suggestion): Fix {
-  const replacement = suggestion.get_replacement_text()
-  const kind = Number(suggestion.kind())
+function toFix({
+  kind,
+  text: replacement,
+}: HarperLint['suggestions'][number]): Fix {
   if (kind === REMOVE || !replacement) {
     return {
       label: 'Remove',
