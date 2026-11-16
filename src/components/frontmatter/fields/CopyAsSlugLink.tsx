@@ -1,7 +1,7 @@
 import React from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { commands } from '@/lib/bindings'
-import { slugFromTitle } from '@/lib/slug'
+import { shortSlugFromTitle } from '@/lib/slug'
 
 interface CopyAsSlugLinkProps {
   text: string
@@ -13,7 +13,7 @@ interface CopyAsSlugLinkProps {
  * slug would be empty.
  */
 export const CopyAsSlugLink: React.FC<CopyAsSlugLinkProps> = ({ text }) => {
-  const slug = slugFromTitle(text)
+  const slug = shortSlugFromTitle(text)
   if (!slug) return null
 
   const handleClick = () => {

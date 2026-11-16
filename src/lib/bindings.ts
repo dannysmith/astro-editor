@@ -273,7 +273,7 @@ export type CollectionSettings = {
 	draftField?: string | null,
 	defaultSort?: DefaultSort | null,
 	defaultFileType?: FileType | null,
-	/**  How files are named, like `{YYYY-MM-DD}-{title}` */
+	/**  How files are named, like `{YYYY-MM-DD}-{slug}` */
 	fileNamePattern?: string | null,
 	/**  A template for links to this collection's entries, like `/blog/{slug}` */
 	urlPattern?: string | null,
@@ -553,8 +553,9 @@ export type ResolvedCollectionSettings = {
 	defaultSort: Resolved<DefaultSort | null>,
 	newFileType: Resolved<FileType>,
 	/**
-	 *  How files are named, like `{YYYY-MM-DD}-{title}`. `{title}` is the title as
-	 *  a slug, and other placeholders are date formats. Applied by the frontend.
+	 *  How files are named, like `{YYYY-MM-DD}-{slug}`. `{slug}` is the title as a
+	 *  slug, and other placeholders are numbers, dates and times. Applied by the
+	 *  frontend (`lib/files/file-name-pattern.ts`).
 	 */
 	fileNamePattern: Resolved<string>,
 	/**  Unset, links use the file's relative path */

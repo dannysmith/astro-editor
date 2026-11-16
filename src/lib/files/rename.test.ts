@@ -116,7 +116,7 @@ describe('renameNewFileFromTitle', () => {
   })
 
   it('renames a new file once its title is written, and only once', async () => {
-    start('{title}', 'My Trip to the Lake')
+    start('{slug}', 'My Trip to the Lake')
     await renameNewFileFromTitle()
     expect(renames()).toBe(1)
 
@@ -129,7 +129,7 @@ describe('renameNewFileFromTitle', () => {
   })
 
   it('waits while the title is still the placeholder', async () => {
-    start('{title}', 'Untitled')
+    start('{slug}', 'Untitled')
     await renameNewFileFromTitle()
     expect(renames()).toBe(0)
 
@@ -146,7 +146,7 @@ describe('renameNewFileFromTitle', () => {
     // Even if the pattern changes afterwards
     queryClient.setQueryData(
       queryKeys.collections('/site'),
-      makeScan([titled('{title}')])
+      makeScan([titled('{slug}')])
     )
     await renameNewFileFromTitle()
     expect(renames()).toBe(0)
