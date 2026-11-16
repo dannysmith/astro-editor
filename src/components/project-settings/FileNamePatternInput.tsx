@@ -49,8 +49,10 @@ export function FileNamePatternInput({
     }
   }
 
-  const untitled = fileNameStem(pattern, { title: '', date }) || todayIsoDate()
-  const titled = fileNameStem(pattern, { title: EXAMPLE_TITLE, date })
+  const values = { date, now: date, index: 1 }
+  const untitled =
+    fileNameStem(pattern, { ...values, title: '' }) || todayIsoDate()
+  const titled = fileNameStem(pattern, { ...values, title: EXAMPLE_TITLE })
 
   return (
     <div className="space-y-2">

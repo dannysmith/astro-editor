@@ -14,7 +14,14 @@ import { queryClient } from '../query-client'
 import { isFileListing } from '../query-keys'
 import { slugFromTitle } from '../slug'
 import { toast } from '../toast'
-import { fileNameStem, patternHasTitle } from './file-name-pattern'
+import {
+  fileNameStem,
+  indexInName,
+  nextIndex,
+  patternHasIndex,
+  patternHasTitle,
+  type FileNameValues,
+} from './file-name-pattern'
 import { getPublishedDate } from './sorting'
 
 /** Files created this session, by path, with the placeholder title they got */
@@ -47,16 +54,56 @@ export function renamableStem(path: string): string | null {
   return name === 'index' ? null : name
 }
 
-/** The title and date a file's name is made from: today without a date */
-export function fileNameValues(
+/**
+ * The number a file in `directory` gets for its collection's `{index}`: the
+ * next one in the folder, counting its files and folders. 1 when the pattern
+ * has none, without looking.
+ */
+export async function nextIndexIn(
+  directory: string,
+  collection: Collection,
+  projectPath: string
+): Promise<number> {
+  const pattern = collection.settings.fileNamePattern.value
+  if (!patternHasIndex(pattern)) return 1
+  const result = await commands.scanDirectory(
+    directory,
+    collection,
+    projectPath
+  )
+  if (result.status === 'error') throw new Error(result.error)
+  const { files, subdirectories } = result.data
+  return nextIndex(pattern, [
+    ...files.map(file => file.name),
+    ...subdirectories.map(folder => folder.name),
+  ])
+}
+
+/**
+ * What the open file's name is made from: its title, its published date (or
+ * today), and the times and number in its current name, or now and the next
+ * number when it has none. Only a name without a number waits for its folder
+ * to be read, so a new file, which has one, is renamed at once.
+ */
+async function openFileNameValues(
+  file: FileEntry,
   frontmatter: Record<string, unknown>,
-  collection: Collection
-): { title: string; date: Date } {
+  collection: Collection,
+  projectPath: string
+): Promise<FileNameValues> {
   const mappings = fieldMappings(collection)
   const title = frontmatter[mappings.title]
+  const directory = file.path.slice(0, file.path.lastIndexOf('/'))
+  const current = renamableStem(file.path)
+  const pattern = collection.settings.fileNamePattern.value
   return {
     title: typeof title === 'string' ? title : '',
     date: getPublishedDate(frontmatter, mappings.publishedDate) ?? new Date(),
+    now: new Date(),
+    index:
+      (current === null ? null : indexInName(pattern, current)) ??
+      (await nextIndexIn(directory, collection, projectPath)),
+    current: current ?? undefined,
   }
 }
 
@@ -220,10 +267,18 @@ async function followRenamedFile(
 /** Renames the open file to the name its collection's pattern gives it now */
 export async function renameOpenFileFromPattern(): Promise<void> {
   const { currentFile, frontmatter } = useEditorStore.getState()
+  const { projectPath } = useProjectStore.getState()
   const collection = getCollection(currentFile?.collection)
-  if (!currentFile || !collection) return
+  if (!currentFile || !collection || !projectPath) return
   const pattern = collection.settings.fileNamePattern.value
-  const stem = fileNameStem(pattern, fileNameValues(frontmatter, collection))
+  const values = await openFileNameValues(
+    currentFile,
+    frontmatter,
+    collection,
+    projectPath
+  )
+  if (!stillOpen(currentFile)) return
+  const stem = fileNameStem(pattern, values)
   if (!stem) {
     toast.error("Couldn't rename the file", {
       description: patternHasTitle(pattern)
@@ -242,18 +297,42 @@ export async function renameOpenFileFromPattern(): Promise<void> {
  */
 export async function renameNewFileFromTitle(): Promise<void> {
   const { currentFile, frontmatter } = useEditorStore.getState()
+  const { projectPath } = useProjectStore.getState()
   const collection = getCollection(currentFile?.collection)
   const placeholder = currentFile ? newFiles.get(currentFile.path) : undefined
-  if (!currentFile || !collection || placeholder === undefined) return
+  if (!currentFile || !collection || !projectPath || placeholder === undefined)
+    return
 
   const pattern = collection.settings.fileNamePattern.value
   if (!patternHasTitle(pattern) || renamableStem(currentFile.path) === null) {
     newFiles.delete(currentFile.path)
     return
   }
-  const values = fileNameValues(frontmatter, collection)
-  if (values.title === placeholder || !slugFromTitle(values.title)) return
+  const title = frontmatter[fieldMappings(collection).title]
+  if (
+    typeof title !== 'string' ||
+    title === placeholder ||
+    !slugFromTitle(title)
+  ) {
+    return
+  }
 
   newFiles.delete(currentFile.path)
-  await renameOpenFile(fileNameStem(pattern, values))
+  const values = await openFileNameValues(
+    currentFile,
+    frontmatter,
+    collection,
+    projectPath
+  )
+  if (stillOpen(currentFile))
+    await renameOpenFile(fileNameStem(pattern, values))
+}
+
+/**
+ * Whether `file` is still the open file, after waiting to work out its name.
+ * `renameOpenFile` renames whichever file is open, so it mustn't run if another
+ * one was opened meanwhile.
+ */
+function stillOpen(file: FileEntry): boolean {
+  return useEditorStore.getState().currentFile?.path === file.path
 }

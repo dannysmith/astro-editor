@@ -223,7 +223,7 @@ pub struct CollectionSettings {
     pub default_sort: Option<DefaultSort>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_file_type: Option<FileType>,
-    /// How files are named, like `{YYYY-MM-DD}-{title}`
+    /// How files are named, like `{YYYY-MM-DD}-{slug}`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_name_pattern: Option<String>,
     /// A template for links to this collection's entries, like `/blog/{slug}`

@@ -13,7 +13,7 @@ import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
 import { fieldMappings, getCollection } from '../lib/project-scan'
 import { fileNameStem } from '../lib/files/file-name-pattern'
-import { rememberNewFile } from '../lib/files/rename'
+import { nextIndexIn, rememberNewFile } from '../lib/files/rename'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -66,10 +66,13 @@ async function createFileInCurrentFolder(
   // The collection's pattern with no title yet, which may leave just the date,
   // or today's date if it leaves nothing
   const today = todayIsoDate()
+  const now = new Date()
   const stem =
     fileNameStem(collection.settings.fileNamePattern.value, {
       title: '',
-      date: new Date(),
+      date: now,
+      now,
+      index: await nextIndexIn(targetDirectory, collection, currentProjectPath),
     }) || today
 
   // A free name the collection's pattern includes, in its new file type

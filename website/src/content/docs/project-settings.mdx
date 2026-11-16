@@ -106,13 +106,28 @@ If Astro Editor can't read a collection's loader, or its definition (such as one
 
 **Name**: how new files are named, as a pattern. **Date**, **Title** and **Date and title** fill in the common ones, and the example beside them shows what the pattern gives as you type.
 
-- `{title}` is the title as a slug, as **Copy as slug** makes it: lowercase, without accents, punctuation or small words like "the", so "My Trip to the Lake" becomes `trip-lake`. A new file has no title yet, so it's named without one, then renamed once when you first write its title and leave the field.
-- Any other placeholder is a date, written with `YYYY`, `YY`, `MM`, `M`, `DD` and `D`, such as `{YYYY-MM-DD}` or `{YYYY}`. It's the file's published date, or today.
-- Everything else is kept as written, so `{YYYY}-{MM}-{DD}-{title}` and `notes-{title}` work too.
+- `{slug}` is the title as a slug: lowercase, without accents or punctuation, so "My Trip to the Lake" becomes `my-trip-to-the-lake`.
+- `{shortSlug}` is a shorter slug, as **Copy as slug** makes it, without small words like "the" and cut to about 50 characters, so "My Trip to the Lake" becomes `trip-lake`.
+- `{index}` numbers files: one more than the highest number already in the folder. `{index:2}` pads it to two digits, so `{index:2}-{slug}` gives `01-welcome`, `02-installation`… and `10` still sorts after `09`.
+- Any other placeholder is a date and time, written with [Moment's tokens](https://momentjs.com/docs/#/displaying/format/), such as `{YYYY-MM-DD}` or `{YYYYMMDDHHmm}`:
 
-The default, `{YYYY-MM-DD}`, names files with today's date. If the name is taken, `-1`, `-2`… is added. Files named `index` are never renamed.
+  | Token       | Gives                                      |
+  | ----------- | ------------------------------------------ |
+  | `YYYY` `YY` | Year: `2026`, `26`                         |
+  | `MM` `M`    | Month: `03`, `3`                           |
+  | `DD` `D`    | Day: `07`, `7`                             |
+  | `HH` `H`    | Hour, 24-hour: `09`, `9`                   |
+  | `mm` `m`    | Minute: `05`, `5`                          |
+  | `ss` `s`    | Second: `05`, `5`                          |
+  | `X` `x`     | Unix timestamp, in seconds or milliseconds |
 
-To rename any file by the pattern, use the **Rename File from Pattern** command. When the published date changes, a **Rename file to match** link below it changes just the date in the file's name.
+  The date is the file's published date, or today. The time is when the file was created. Tokens are case-sensitive: `MM` is the month and `mm` is minutes.
+
+- Everything else is kept as written, so `{YYYY}-{MM}-{DD}-{slug}` and `notes-{slug}` work too.
+
+A new file has no title yet, so it's named without one, then renamed once when you first write its title and leave the field. The default, `{YYYY-MM-DD}`, names files with today's date. If the name is taken, `-1`, `-2`… is added. Files named `index` are never renamed.
+
+To rename any file by the pattern, use the **Rename File from Pattern** command. When the published date changes, a **Rename file to match** link below it changes just the date in the file's name. Renaming keeps the time and number already in a file's name, so a timestamp ID like `202611122158` never changes.
 
 ### Frontmatter
 
