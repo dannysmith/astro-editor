@@ -21,9 +21,10 @@ export type ThemeTokens = Record<string, string>
 
 /**
  * A value that could load something when a token is used in a `background`
- * shorthand: `url()`, or a string as in `image-set("…")`. No colour has either.
+ * shorthand: `url()`, a string as in `image-set("…")`, or an escape, which
+ * could spell `url(` (`\75 rl(`). No colour has any of these.
  */
-const LOADS_SOMETHING = /url\(|["']/i
+const LOADS_SOMETHING = /url\(|["'\\]/i
 
 /**
  * Reads the colour tokens from a theme's CSS. Only declarations in top-level

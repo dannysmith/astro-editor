@@ -57,11 +57,12 @@ describe('parseColourTheme', () => {
       :root {
         --background: url(https://example.com/a.png);
         --card: image-set("https://example.com/a.png" 1x);
+        --muted: \\75 rl(https://example.com/a.png);
         --popover: #ffffff;
       }
     `)
     expect(tokens).toEqual({ popover: '#ffffff' })
-    expect(ignored).toEqual(['--background', '--card'])
+    expect(ignored).toEqual(['--background', '--card', '--muted'])
   })
 
   it('ignores @import and rules inside at-rules', () => {

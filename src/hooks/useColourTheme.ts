@@ -28,9 +28,10 @@ export function useColourTheme() {
   }, [refetch])
 
   useEffect(() => {
-    // Until both are read, the theme cached at launch stays
-    if (!settingsLoaded || !themes) return
-    const theme = chosen && themes.find(t => t.name === chosen)
+    // Until settings are read, and the themes folder if a theme is chosen,
+    // the theme cached at launch stays
+    if (!settingsLoaded || (chosen && !themes)) return
+    const theme = chosen && themes?.find(t => t.name === chosen)
     if (!theme) {
       applyColourTheme({})
       cacheColourTheme(null)
