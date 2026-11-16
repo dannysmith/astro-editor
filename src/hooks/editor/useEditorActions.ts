@@ -5,7 +5,7 @@ import {
   warn as logWarn,
 } from '@tauri-apps/plugin-log'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { commands, type JsonValue } from '@/types'
+import { commands, type DirectoryScanResult, type JsonValue } from '@/types'
 import type { ProjectScan } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -185,27 +185,47 @@ async function saveCurrentFile(
         queryKey: queryKeys.fileContent(projectPath, currentFile.id),
       })
 
-      // Invalidate directory scans for this collection (root + all subdirectories)
-      if (currentFile.collection) {
-        void queryClient.invalidateQueries({
-          queryKey: [
-            ...queryKeys.all,
-            projectPath,
-            currentFile.collection,
-            'directory',
-          ],
-        })
-      }
-
-      // Entry pickers show titles and ids, which come from the frontmatter
-      // (a `slug` is the id)
+      // The collection's folder listings (root + all subdirectories)
+      const directories = [
+        ...queryKeys.all,
+        projectPath,
+        currentFile.collection,
+        'directory',
+      ]
       if (isFrontmatterDirty) {
+        // The sidebar and entry pickers show titles, dates and ids, which come
+        // from the frontmatter (a `slug` is the id)
+        void queryClient.invalidateQueries({ queryKey: directories })
         void queryClient.invalidateQueries({
           queryKey: queryKeys.collectionFiles(
             projectPath,
             currentFile.collection
           ),
         })
+      } else {
+        // A body-only save changes only the file's modified time, which the
+        // sidebar can sort by. Updating it in place saves re-reading every
+        // file in the folder on each auto-save. A write marks a listing fresh,
+        // so listings waiting to be re-read (after a change outside the app)
+        // and listings without the file are left alone
+        const lastModified = Math.floor(Date.now() / 1000)
+        queryClient.setQueriesData<DirectoryScanResult>(
+          {
+            queryKey: directories,
+            predicate: query => !query.state.isInvalidated,
+          },
+          data => {
+            if (!data?.files.some(file => file.path === path)) return undefined
+            return {
+              ...data,
+              files: data.files.map(file =>
+                file.path === path
+                  ? { ...file, last_modified: lastModified }
+                  : file
+              ),
+            }
+          }
+        )
       }
     }
 

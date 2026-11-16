@@ -1,5 +1,6 @@
 use crate::collections;
-use crate::commands::files::rename_without_replacing;
+use crate::commands::files::{self, rename_without_replacing};
+use crate::commands::run_blocking;
 use crate::content_config::pattern::{EntryPattern, MARKDOWN_EXTENSIONS};
 use crate::content_config::{self, Loader};
 use crate::models::collection::ProjectScan;
@@ -198,11 +199,14 @@ pub async fn scan_project(
     project_path: String,
 ) -> Result<ProjectScan, String> {
     info!("Astro Editor [PROJECT_SCAN] Scanning project at path: {project_path}");
-    let project = canonical_project(&project_path)?;
-    let preferences = Preferences::from_app(&app)?;
-    let settings = preferences.project_settings_for_path(&project);
-    let global = preferences.global_settings();
-    Ok(collections::scan_project(&project, &settings, &global))
+    run_blocking(move || {
+        let project = canonical_project(&project_path)?;
+        let preferences = Preferences::from_app(&app)?;
+        let settings = preferences.project_settings_for_path(&project);
+        let global = preferences.global_settings();
+        Ok(collections::scan_project(&project, &settings, &global))
+    })
+    .await
 }
 
 fn canonical_project(project_path: &str) -> Result<PathBuf, String> {
@@ -341,41 +345,44 @@ pub async fn scan_directory(
 ) -> Result<DirectoryScanResult, String> {
     validate_project_path(&directory_path, &project_path)?;
     let dir_path = PathBuf::from(&directory_path);
-    if !dir_path.is_dir() {
-        return Err(format!("Not a directory: {}", dir_path.display()));
-    }
-
-    let listing = CollectionListing::new(&collection);
-    let mut subdirectories = Vec::new();
-    let mut files = Vec::new();
-
-    for entry in
-        std::fs::read_dir(&dir_path).map_err(|e| format!("Failed to read directory: {e}"))?
-    {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
-        let path = entry.path();
-        let file_type = entry
-            .file_type()
-            .map_err(|e| format!("Failed to read metadata: {e}"))?;
-        if file_type.is_symlink() || is_ignored_name(&path) {
-            continue;
+    run_blocking(move || {
+        if !dir_path.is_dir() {
+            return Err(format!("Not a directory: {}", dir_path.display()));
         }
 
-        if file_type.is_dir() {
-            if listing.has_visible_files(&path) {
-                if let Ok(dir_info) = DirectoryInfo::new(path, &collection.path) {
-                    subdirectories.push(dir_info);
-                }
+        let listing = CollectionListing::new(&collection);
+        let mut subdirectories = Vec::new();
+        let mut files = Vec::new();
+
+        for entry in
+            std::fs::read_dir(&dir_path).map_err(|e| format!("Failed to read directory: {e}"))?
+        {
+            let entry = entry.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+            let path = entry.path();
+            let file_type = entry
+                .file_type()
+                .map_err(|e| format!("Failed to read metadata: {e}"))?;
+            if file_type.is_symlink() || is_ignored_name(&path) {
+                continue;
             }
-        } else if let Some(file_entry) = listing.file_entry(&path, true) {
-            files.push(file_entry);
-        }
-    }
 
-    Ok(DirectoryScanResult {
-        subdirectories,
-        files,
+            if file_type.is_dir() {
+                if listing.has_visible_files(&path) {
+                    if let Ok(dir_info) = DirectoryInfo::new(path, &collection.path) {
+                        subdirectories.push(dir_info);
+                    }
+                }
+            } else if let Some(file_entry) = listing.file_entry(&path, true) {
+                files.push(file_entry);
+            }
+        }
+
+        Ok(DirectoryScanResult {
+            subdirectories,
+            files,
+        })
     })
+    .await
 }
 
 /// How many entries a collection has, in all its folders
@@ -386,15 +393,18 @@ pub async fn count_collection_files_recursive(
     project_path: String,
 ) -> Result<u32, String> {
     validate_project_path(&collection.path, &project_path)?;
-    let listing = CollectionListing::new(&collection);
-    let mut count = 0;
-    walk_markdown(&collection.path, &mut |path| {
-        if listing.is_entry(path) {
-            count += 1;
-        }
-        false
-    });
-    Ok(count)
+    run_blocking(move || {
+        let listing = CollectionListing::new(&collection);
+        let mut count = 0;
+        walk_markdown(&collection.path, &mut |path| {
+            if listing.is_entry(path) {
+                count += 1;
+            }
+            false
+        });
+        Ok(count)
+    })
+    .await
 }
 
 /// Every entry in a collection, in all its folders, for the reference pickers and
@@ -407,16 +417,19 @@ pub async fn scan_collection_files_recursive(
     project_path: String,
 ) -> Result<Vec<FileEntry>, String> {
     validate_project_path(&collection.path, &project_path)?;
-    let listing = CollectionListing::new(&collection);
-    let mut files = Vec::new();
-    walk_markdown(&collection.path, &mut |path| {
-        // Checked before reading the file, which skipped files aren't worth
-        if listing.is_entry(path) {
-            files.extend(listing.file_entry(path, true));
-        }
-        false
-    });
-    Ok(files)
+    run_blocking(move || {
+        let listing = CollectionListing::new(&collection);
+        let mut files = Vec::new();
+        walk_markdown(&collection.path, &mut |path| {
+            // Checked before reading the file, which skipped files aren't worth
+            if listing.is_entry(path) {
+                files.extend(listing.file_entry(path, true));
+            }
+            false
+        });
+        Ok(files)
+    })
+    .await
 }
 
 /// A free name, relative to `directory`, for a new file the collection's pattern
@@ -438,17 +451,20 @@ pub async fn new_file_name(
         FileType::Md => "md",
         FileType::Mdx => "mdx",
     };
-    let listing = CollectionListing::new(&collection);
-    let file = free_entry(&listing, &directory, &stem, None, &|name| {
-        vec![
-            directory.join(format!("{name}.{extension}")),
-            directory.join(name).join(format!("index.{extension}")),
-        ]
-    })?;
-    Ok(file.and_then(|file| {
-        let relative = file.strip_prefix(&directory).ok()?;
-        Some(relative.to_string_lossy().replace('\\', "/"))
-    }))
+    run_blocking(move || {
+        let listing = CollectionListing::new(&collection);
+        let file = free_entry(&listing, &directory, &stem, None, &|name| {
+            vec![
+                directory.join(format!("{name}.{extension}")),
+                directory.join(name).join(format!("index.{extension}")),
+            ]
+        })?;
+        Ok(file.and_then(|file| {
+            let relative = file.strip_prefix(&directory).ok()?;
+            Some(relative.to_string_lossy().replace('\\', "/"))
+        }))
+    })
+    .await
 }
 
 /// Renames an entry's file to `stem`, or the first free name after it (`-1`,
@@ -469,25 +485,28 @@ pub async fn rename_entry(
     project_root: String,
 ) -> Result<Option<String>, String> {
     let file = validate_project_path(&file_path, &project_root)?;
-    let Some(directory) = file.parent() else {
-        return Err("Invalid file path".to_string());
-    };
-    if file.file_stem().is_some_and(|stem| stem == "index") {
-        return Err(INDEX_FILES_KEEP_THEIR_NAME.to_string());
-    }
-    let extension = file.extension().unwrap_or_default().to_string_lossy();
+    run_blocking(move || {
+        let Some(directory) = file.parent() else {
+            return Err("Invalid file path".to_string());
+        };
+        if file.file_stem().is_some_and(|stem| stem == "index") {
+            return Err(INDEX_FILES_KEEP_THEIR_NAME.to_string());
+        }
+        let extension = file.extension().unwrap_or_default().to_string_lossy();
 
-    let listing = CollectionListing::new(&collection);
-    let found = free_entry(&listing, directory, &stem, Some(&file), &|name| {
-        vec![directory.join(format!("{name}.{extension}"))]
-    })?;
-    let Some(new_file) = found else {
-        return Ok(None);
-    };
-    if new_file != file {
-        rename_without_replacing(&file, &new_file)?;
-    }
-    Ok(Some(normalize_path_for_serialization(&new_file)))
+        let listing = CollectionListing::new(&collection);
+        let found = free_entry(&listing, directory, &stem, Some(&file), &|name| {
+            vec![directory.join(format!("{name}.{extension}"))]
+        })?;
+        let Some(new_file) = found else {
+            return Ok(None);
+        };
+        if new_file != file {
+            rename_without_replacing(&file, &new_file)?;
+        }
+        Ok(Some(normalize_path_for_serialization(&new_file)))
+    })
+    .await
 }
 
 const INDEX_FILES_KEEP_THEIR_NAME: &str =
@@ -533,17 +552,9 @@ fn free_entry(
 
     let mut slugs = HashSet::new();
     walk_markdown(&listing.collection.path, &mut |path| {
-        let slug = listing
-            .file_entry(path, true)
-            .filter(|entry| entry.is_entry && !is_renaming(path))
-            .and_then(|entry| {
-                entry
-                    .frontmatter?
-                    .get("slug")?
-                    .as_str()
-                    .map(str::to_lowercase)
-            });
-        slugs.extend(slug);
+        if listing.is_entry(path) && !is_renaming(path) {
+            slugs.extend(slug_of(path));
+        }
         false
     });
 
@@ -565,6 +576,22 @@ fn free_entry(
         }
     }
     Err("Couldn't find a free file name".to_string())
+}
+
+/// The `slug` in a file's frontmatter, lowercased, which Astro uses as the
+/// entry's id. Most entries have none, and parsing the YAML is most of the
+/// cost of reading one, so it's only parsed when the text mentions `slug`.
+fn slug_of(path: &Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let yaml = files::frontmatter_yaml(&content).ok().flatten()?;
+    if !yaml.contains("slug") {
+        return None;
+    }
+    files::yaml_values(&yaml)
+        .ok()?
+        .get("slug")?
+        .as_str()
+        .map(str::to_lowercase)
 }
 
 /// The id Astro gives the entry at `file`, lowercased: its path from the
@@ -617,8 +644,8 @@ impl<'a> CollectionListing<'a> {
         entry.is_entry = is_entry;
         if frontmatter {
             if let Ok(content) = std::fs::read_to_string(path) {
-                if let Ok(parsed) = crate::commands::files::parse_frontmatter(&content) {
-                    entry = entry.with_frontmatter(parsed.frontmatter);
+                if let Ok(values) = files::frontmatter_values(&content) {
+                    entry = entry.with_frontmatter(values);
                 }
             }
         }
@@ -686,14 +713,17 @@ pub async fn resolve_file_entry(
     file_path: String,
     project_path: String,
 ) -> Result<Option<FileEntry>, String> {
-    let project = canonical_project(&project_path)?;
-    let preferences = Preferences::from_app(&app)?;
-    let scan = collections::scan_project(
-        &project,
-        &preferences.project_settings_for_path(&project),
-        &preferences.global_settings(),
-    );
-    resolve_file_in_scan(&file_path, &project, &scan)
+    run_blocking(move || {
+        let project = canonical_project(&project_path)?;
+        let preferences = Preferences::from_app(&app)?;
+        let scan = collections::scan_project(
+            &project,
+            &preferences.project_settings_for_path(&project),
+            &preferences.global_settings(),
+        );
+        resolve_file_in_scan(&file_path, &project, &scan)
+    })
+    .await
 }
 
 fn resolve_file_in_scan(
@@ -1375,6 +1405,22 @@ mod tests {
         std::fs::write(blog.path.join("2024/moved.md"), "---\nslug: taken\n---\n").unwrap();
         assert_eq!(new_name(&blog, "", "notes").as_deref(), Some("notes-1.md"));
         assert_eq!(new_name(&blog, "", "taken").as_deref(), Some("taken-1.md"));
+    }
+
+    #[test]
+    fn slugs_count_however_the_key_is_written_but_only_in_entries() {
+        let (_temp, blog) = blog_collection("['**/*.md', '!README.md']", SkippedFiles::Hide);
+        std::fs::write(
+            blog.path.join("2024/moved.md"),
+            "---\ntitle: Moved\n\"slug\": Quoted\n---\n",
+        )
+        .unwrap();
+        std::fs::write(blog.path.join("README.md"), "---\nslug: hidden\n---\n").unwrap();
+        assert_eq!(
+            new_name(&blog, "", "quoted").as_deref(),
+            Some("quoted-1.md")
+        );
+        assert_eq!(new_name(&blog, "", "hidden").as_deref(), Some("hidden.md"));
     }
 
     fn rename(collection: &Collection, file: &str, stem: &str) -> Result<Option<String>, String> {

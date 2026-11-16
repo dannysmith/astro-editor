@@ -44,7 +44,7 @@ ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in
 
 ## How the parts talk
 
-- **Tauri commands** for request and response, through `@/lib/bindings`.
+- **Tauri commands** for request and response, through `@/lib/bindings`. Tauri runs each command's body on one of the async runtime's few worker threads, so a command that walks a collection or reads many files runs that work in `run_blocking` (`commands/mod.rs`). Otherwise a slow walk holds up the commands behind it, saves included.
 - **Tauri events** from Rust: native menu items (`menu-*`, handled in `useMenuEvents`), the file watcher, schema changes and `rust-toast`.
 - **DOM custom events** when code that can't call hooks (a palette command, a store) needs an action that lives in one, such as creating a file. `useDOMEventListeners` (mounted by Layout) handles them.
 - **`useEditorStore.subscribe`** to push store changes into CodeMirror without re-rendering (see `editor.md`).

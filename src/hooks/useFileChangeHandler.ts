@@ -39,7 +39,7 @@ export function useFileChangeHandler() {
         lastSaveTimestamp === null ? Infinity : Date.now() - lastSaveTimestamp
       const isOwnSave = isOpenFile && timeSinceLastSave < OWN_SAVE_WINDOW_MS
 
-      // Our own saves already refresh the file list (useEditorActions). Only
+      // Our own saves already update the file list (useEditorActions). Only
       // queries on screen refetch, and scans don't write, so this can't loop
       if (!isOwnSave) {
         void queryClient.invalidateQueries({

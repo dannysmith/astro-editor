@@ -365,8 +365,7 @@ pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String
     let original_ends_with_newline = content.ends_with('\n');
     let lines: Vec<&str> = content.lines().collect();
 
-    // Check if file starts with frontmatter
-    if lines.is_empty() || lines[0] != "---" {
+    let Some(yaml_lines) = frontmatter_lines(lines.iter().copied())? else {
         // No frontmatter, but might have imports at the top
         let (imports, mut body_content) = split_esm_block(&lines.join("\n"));
         // Preserve trailing newline that lines() dropped.
@@ -380,34 +379,14 @@ pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String
             raw_frontmatter: String::new(),
             imports,
         });
-    }
-
-    // Find the closing ---
-    let mut frontmatter_end = None;
-    for (i, line) in lines.iter().enumerate().skip(1) {
-        if *line == "---" {
-            frontmatter_end = Some(i);
-            break;
-        }
-    }
-
-    let Some(end_index) = frontmatter_end else {
-        return Err("Frontmatter not properly closed with '---'".to_string());
     };
 
-    // Extract frontmatter lines (between the --- markers)
-    let frontmatter_lines: Vec<&str> = lines[1..end_index].to_vec();
-    let raw_frontmatter = frontmatter_lines.join("\n");
+    let raw_frontmatter = yaml_lines.join("\n");
+    let frontmatter = yaml_values(&raw_frontmatter)?;
 
-    // Parse YAML frontmatter
-    let frontmatter: IndexMap<String, Value> = if raw_frontmatter.trim().is_empty() {
-        IndexMap::new()
-    } else {
-        parse_yaml_to_json(&raw_frontmatter)?
-    };
-
-    // Extract content after frontmatter and process imports
-    let content_start = end_index + 1;
+    // Extract content after frontmatter and process imports: the body starts
+    // after the opening line, the YAML and the closing line
+    let content_start = yaml_lines.len() + 2;
     let remaining_lines: Vec<&str> = if content_start < lines.len() {
         lines[content_start..].to_vec()
     } else {
@@ -463,6 +442,47 @@ fn build_ordered_frontmatter(
 /// Parse YAML string to IndexMap using serde_norway
 fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
     serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
+}
+
+/// The lines between a file's opening and closing `---`. `None` when its
+/// first line isn't `---`, so it has no frontmatter; an error when it's never
+/// closed. Reads no further than the closing line, so the listings never go
+/// through the body.
+fn frontmatter_lines<'a>(
+    mut lines: impl Iterator<Item = &'a str>,
+) -> Result<Option<Vec<&'a str>>, String> {
+    if lines.next() != Some("---") {
+        return Ok(None);
+    }
+    let mut yaml = Vec::new();
+    for line in lines {
+        if line == "---" {
+            return Ok(Some(yaml));
+        }
+        yaml.push(line);
+    }
+    Err("Frontmatter not properly closed with '---'".to_string())
+}
+
+/// A file's frontmatter as YAML text, found as `parse_frontmatter` finds it,
+/// without reading the body. `None` when it has none.
+pub(crate) fn frontmatter_yaml(content: &str) -> Result<Option<String>, String> {
+    Ok(frontmatter_lines(content.lines())?.map(|lines| lines.join("\n")))
+}
+
+/// The values in frontmatter's YAML text, which may be empty
+pub(crate) fn yaml_values(yaml: &str) -> Result<IndexMap<String, Value>, String> {
+    if yaml.trim().is_empty() {
+        Ok(IndexMap::new())
+    } else {
+        parse_yaml_to_json(yaml)
+    }
+}
+
+/// The values in a file's frontmatter, as `parse_frontmatter` reads them, for
+/// the file listings, which don't need the body or the MDX imports
+pub(crate) fn frontmatter_values(content: &str) -> Result<IndexMap<String, Value>, String> {
+    frontmatter_yaml(content)?.map_or_else(|| Ok(IndexMap::new()), |yaml| yaml_values(&yaml))
 }
 
 /// Rebuilds the file with the frontmatter serialised from its values, schema
@@ -2259,6 +2279,32 @@ Content"#;
         let parsed = result.unwrap();
         assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
         assert_eq!(parsed.frontmatter.get("description").unwrap(), "Mixed");
+    }
+
+    #[test]
+    fn listings_read_the_frontmatter_as_opening_the_file_does() {
+        let cases = [
+            "---\ntitle: Test\ndraft: true\n---\n\nContent",
+            "---\r\ntitle: Test\r\n---\r\n\r\nContent",
+            "---\r\ntitle: Test\ndescription: Mixed\r\n---\n",
+            "---\n---\nContent",
+            "---\n# Only a comment\n---\n",
+            "---\ntitle: Test\n---\nimport A from './A.astro'\n\n<A />\n",
+            "No frontmatter\n",
+            "",
+            // Not opening lines, so no frontmatter either way
+            "--- \ntitle: Trailing space\n---\n",
+            "\u{feff}---\ntitle: After a byte order mark\n---\n",
+        ];
+        for content in cases {
+            let opened = parse_frontmatter(content).unwrap().frontmatter;
+            assert_eq!(frontmatter_values(content).unwrap(), opened, "{content:?}");
+        }
+
+        for broken in ["---\ntitle: Never closed\n", "---\ntitle: [unclosed\n---\n"] {
+            assert!(parse_frontmatter(broken).is_err(), "{broken:?}");
+            assert!(frontmatter_values(broken).is_err(), "{broken:?}");
+        }
     }
 
     #[test]

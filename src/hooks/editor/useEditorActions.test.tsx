@@ -18,8 +18,7 @@ const fileEntry = (id: string): FileEntry => ({
   is_entry: true,
 })
 
-function renderActions() {
-  const queryClient = new QueryClient()
+function renderActions(queryClient = new QueryClient()) {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
@@ -180,6 +179,81 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
 
     expect(args.frontmatter).toEqual(edited)
     expect(args.rawFrontmatter).toBeNull()
+  })
+})
+
+describe('useEditorActions.saveFile and the sidebar listing', () => {
+  const listingKey = ['project', '/test', 'blog', 'directory', 'root']
+  const listed = { ...fileEntry('first'), last_modified: 1 }
+  const other = { ...fileEntry('other'), last_modified: 1 }
+
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Body',
+      frontmatter: {},
+      rawFrontmatter: '',
+      frontmatterBaseline: null,
+      imports: '',
+      isDirty: true,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  function saveWithListing(isFrontmatterDirty: boolean) {
+    useEditorStore.setState({ isFrontmatterDirty })
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(listingKey, {
+      subdirectories: [],
+      files: [listed, other],
+    })
+    return { queryClient, saving: renderActions(queryClient).saveFile(false) }
+  }
+
+  it("updates the saved file's modified time in place after a body edit", async () => {
+    const { queryClient, saving } = saveWithListing(false)
+    await saving
+
+    const files = queryClient.getQueryData<{ files: FileEntry[] }>(
+      listingKey
+    )!.files
+    expect(files[0]!.last_modified).toBeGreaterThan(1)
+    expect(files[1]).toBe(other)
+    expect(queryClient.getQueryState(listingKey)?.isInvalidated).toBe(false)
+  })
+
+  it('leaves a listing waiting to be re-read for its re-read', async () => {
+    const { queryClient, saving } = saveWithListing(false)
+    await queryClient.invalidateQueries({ queryKey: listingKey })
+    await saving
+
+    const state = queryClient.getQueryState<{ files: FileEntry[] }>(listingKey)
+    expect(state?.isInvalidated).toBe(true)
+    expect(state?.data?.files[0]!.last_modified).toBe(1)
+  })
+
+  it('leaves listings without the saved file alone', async () => {
+    const { queryClient, saving } = saveWithListing(false)
+    const otherFolder = ['project', '/test', 'blog', 'directory', '2024']
+    const otherListing = { subdirectories: [], files: [other] }
+    queryClient.setQueryData(otherFolder, otherListing)
+    const updatedAt = queryClient.getQueryState(otherFolder)!.dataUpdatedAt
+    await new Promise(resolve => setTimeout(resolve, 5))
+    await saving
+
+    expect(queryClient.getQueryData(otherFolder)).toBe(otherListing)
+    expect(queryClient.getQueryState(otherFolder)!.dataUpdatedAt).toBe(
+      updatedAt
+    )
+  })
+
+  it('reads the folder again after a frontmatter edit', async () => {
+    const { queryClient, saving } = saveWithListing(true)
+    await saving
+
+    expect(queryClient.getQueryState(listingKey)?.isInvalidated).toBe(true)
   })
 })
 
