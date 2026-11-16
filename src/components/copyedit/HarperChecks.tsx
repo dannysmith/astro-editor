@@ -1,19 +1,14 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useHarperStore } from '../../store/harperStore'
+import { useProjectStore } from '../../store/projectStore'
 import {
   HARPER_CHECKS,
-  HARPER_DIALECTS,
+  readCopyedit,
+  setCheck,
   type HarperCheck,
-  type HarperDialect,
 } from '../../lib/editor/extensions/harper'
 import { FieldLabel } from '../ui/field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
 import { Spinner } from '../ui/spinner'
 import { Switch } from '../ui/switch'
 
@@ -24,15 +19,14 @@ export const CHECK_COLOURS: Record<HarperCheck, string> = {
   style: 'bg-(--editor-color-green)',
 }
 
-const DIALECT_ITEMS = HARPER_DIALECTS.map(dialect => ({
-  value: dialect,
-  label: `${dialect} English`,
-}))
-
-/** The Copyedit tab's switches for Harper's checks, and its dialect */
+/**
+ * The Copyedit tab's switches for Harper's checks. They're global settings;
+ * the dialect and dictionary are in Preferences.
+ */
 export const HarperChecks: React.FC = () => {
-  const checks = useHarperStore(state => state.checks)
-  const dialect = useHarperStore(state => state.dialect)
+  const checks = useProjectStore(
+    useShallow(state => readCopyedit(state.globalSettings).checks)
+  )
   const status = useHarperStore(state => state.status)
   const id = React.useId()
 
@@ -58,30 +52,10 @@ export const HarperChecks: React.FC = () => {
           <Switch
             id={`${id}-${check}`}
             checked={checks[check]}
-            onCheckedChange={on =>
-              useHarperStore.getState().setCheck(check, on)
-            }
+            onCheckedChange={on => setCheck(check, on)}
           />
         </div>
       ))}
-      <Select
-        items={DIALECT_ITEMS}
-        value={dialect}
-        onValueChange={(value: HarperDialect | null) => {
-          if (value) useHarperStore.getState().setDialect(value)
-        }}
-      >
-        <SelectTrigger size="sm" className="w-full" aria-label="Dialect">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {DIALECT_ITEMS.map(item => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </section>
   )
 }

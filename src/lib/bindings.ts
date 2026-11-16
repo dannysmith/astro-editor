@@ -283,11 +283,29 @@ export type CollectionSettings = {
 
 export type ComponentFramework = "astro" | "react" | "vue" | "svelte";
 
+/**  Which of Harper's checks are on */
+export type CopyeditChecks = {
+	spelling: boolean,
+	grammar: boolean,
+	style: boolean,
+};
+
+/**  Harper's spelling, grammar and style checks */
+export type CopyeditSettings = {
+	dialect: Dialect,
+	checks: CopyeditChecks,
+	/**  Words the user added, which spelling accepts */
+	dictionary: string[],
+};
+
 export type DefaultSort = {
 	/**  A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
 	mode: string,
 	direction: SortDirection,
 };
+
+/**  The English Harper checks against */
+export type Dialect = "american" | "british" | "canadian" | "australian" | "indian";
 
 export type DirectoryInfo = {
 	name: string,
@@ -346,6 +364,7 @@ export type GeneralSettings = {
 export type GlobalSettings = {
 	general: GeneralSettings,
 	appearance: AppearanceSettings,
+	copyedit: CopyeditSettings,
 	version: number,
 };
 

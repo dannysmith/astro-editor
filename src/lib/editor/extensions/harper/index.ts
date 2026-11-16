@@ -3,9 +3,11 @@ export {
   createHarperExtension,
   selectIssue,
 } from './extension'
+export { HARPER_CHECKS, HARPER_DIALECTS, type HarperCheck } from './checks'
 export {
-  HARPER_CHECKS,
-  HARPER_DIALECTS,
-  type HarperCheck,
-  type HarperDialect,
-} from './checks'
+  addWords,
+  readCopyedit,
+  setCheck,
+  setDialect,
+  setDictionary,
+} from './settings'

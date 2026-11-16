@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowUpRight, Settings, Wrench } from 'lucide-react'
+import { ArrowUpRight, Settings, SpellCheck, Wrench } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar'
 import { GeneralPane } from './panes/GeneralPane'
+import { CopyeditPane } from './panes/CopyeditPane'
 import { DebugPane } from './panes/DebugPane'
 import { useProjectStore } from '../../store/projectStore'
 import { showProjectSettings } from '../../lib/project-settings/actions'
@@ -31,6 +32,7 @@ interface PreferencesDialogProps {
 
 const NAVIGATION_ITEMS = [
   { id: 'general', name: 'General', icon: Settings },
+  { id: 'copyedit', name: 'Copyedit', icon: SpellCheck },
   { id: 'debug', name: 'Advanced', icon: Wrench },
 ] as const
 
@@ -114,6 +116,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             <div className="flex-1 overflow-y-auto p-4 pt-0">
               <div className="space-y-6">
                 {activePane === 'general' && <GeneralPane />}
+                {activePane === 'copyedit' && <CopyeditPane />}
                 {activePane === 'debug' && <DebugPane />}
               </div>
             </div>

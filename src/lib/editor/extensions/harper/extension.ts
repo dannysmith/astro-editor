@@ -5,7 +5,7 @@
  * the issues in editor state (mapped through edits), underlines them and
  * shows a tooltip with their fixes on hover. This adds the Harper source, the
  * styling, and a plugin that publishes the issues to `harperStore` for the
- * Copyedit panel and re-checks when the panel's settings change.
+ * Copyedit panel and re-checks when Harper's settings change.
  */
 
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
@@ -21,10 +21,12 @@ import { StateEffect, type EditorState } from '@codemirror/state'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import type { Lint, Linter, Suggestion } from 'harper.js'
 import { useHarperStore, type HarperIssue } from '@/store/harperStore'
+import { useProjectStore } from '@/store/projectStore'
 import { getCurrentEditorView } from '../../editor-view-ref'
 import { checkForKind, type HarperCheck } from './checks'
 import { getHarper } from './linter'
 import { MASK, MASK_PATTERN, proseText } from './prose'
+import { addWords, readCopyedit } from './settings'
 
 /** The check each diagnostic belongs to, for the panel */
 const diagnosticChecks = new WeakMap<Diagnostic, HarperCheck>()
@@ -52,7 +54,7 @@ function recheck(view: EditorView) {
 async function lintDocument(view: EditorView): Promise<Diagnostic[]> {
   // The lint plugin discards the result if the document changes meanwhile
   const { state } = view
-  const { checks } = useHarperStore.getState()
+  const { checks } = readCopyedit(useProjectStore.getState().globalSettings)
   if (!Object.values(checks).some(Boolean)) return []
 
   const harper = await getHarper()
@@ -109,7 +111,7 @@ function lintActions(lint: Lint, text: string, harper: Linter): Action[] {
     const word = lint.get_problem_text()
     actions.push({
       name: 'Add to Dictionary',
-      apply: () => useHarperStore.getState().addWord(word),
+      apply: () => addWords([word]),
     })
   }
 
@@ -194,11 +196,10 @@ const issuesPlugin = ViewPlugin.fromClass(
     private unsubscribe: () => void
 
     constructor(view: EditorView) {
-      this.unsubscribe = useHarperStore.subscribe((state, previous) => {
+      // Settings are replaced as a whole when any part changes
+      this.unsubscribe = useProjectStore.subscribe((state, previous) => {
         if (
-          state.checks !== previous.checks ||
-          state.dialect !== previous.dialect ||
-          state.words !== previous.words
+          state.globalSettings?.copyedit !== previous.globalSettings?.copyedit
         ) {
           recheck(view)
         }

@@ -6,7 +6,11 @@
 
 import { error as logError } from '@tauri-apps/plugin-log'
 import type { Linter } from 'harper.js'
+import type { CopyeditSettings } from '@/lib/bindings'
 import { useHarperStore } from '@/store/harperStore'
+import { useProjectStore } from '@/store/projectStore'
+import { HARPER_DIALECTS } from './checks'
+import { readCopyedit } from './settings'
 
 /**
  * Rules turned off for every check. Masking syntax out of the text leaves
@@ -20,30 +24,34 @@ const RULE_OVERRIDES = {
 let harper: Promise<Linter> | null = null
 
 /** What the linter was last given, so settings are only sent when they change */
-let applied: { dialect: string; words: string[] } | null = null
+let applied: Pick<CopyeditSettings, 'dialect' | 'dictionary'> | null = null
+
+const settings = () => readCopyedit(useProjectStore.getState().globalSettings)
 
 async function createLinter(): Promise<Linter> {
   const [{ WorkerLinter, Dialect }, { binary }] = await Promise.all([
     import('harper.js'),
     import('harper.js/binary'),
   ])
-  const { dialect, words } = useHarperStore.getState()
-  const linter = new WorkerLinter({ binary, dialect: Dialect[dialect] })
+  const { dialect, dictionary } = settings()
+  const linter = new WorkerLinter({
+    binary,
+    dialect: Dialect[HARPER_DIALECTS[dialect]],
+  })
   await linter.setup()
   await linter.setLintConfig(RULE_OVERRIDES)
-  if (words.length > 0) await linter.importWords(words)
-  applied = { dialect, words }
+  if (dictionary.length > 0) await linter.importWords(dictionary)
+  applied = { dialect, dictionary }
   return linter
 }
 
 /**
- * The linter, with the store's dialect and dictionary applied. Starts it the
- * first time, setting the store's status while it loads.
+ * The linter, with the dialect and dictionary from the settings applied.
+ * Starts it the first time, setting Harper's status while it loads.
  */
 export async function getHarper(): Promise<Linter> {
-  const store = useHarperStore.getState()
   if (!harper) {
-    store.setStatus('loading')
+    useHarperStore.getState().setStatus('loading')
     harper = createLinter()
     harper.then(
       () => useHarperStore.getState().setStatus('ready'),
@@ -60,15 +68,15 @@ export async function getHarper(): Promise<Linter> {
 }
 
 async function applySettings(linter: Linter) {
-  const { dialect, words } = useHarperStore.getState()
+  const { dialect, dictionary } = settings()
   if (!applied) return
   if (dialect !== applied.dialect) {
     const { Dialect } = await import('harper.js')
-    await linter.setDialect(Dialect[dialect])
+    await linter.setDialect(Dialect[HARPER_DIALECTS[dialect]])
   }
-  if (words !== applied.words) {
+  if (dictionary.join('\n') !== applied.dictionary.join('\n')) {
     await linter.clearWords()
-    await linter.importWords(words)
+    await linter.importWords(dictionary)
   }
-  applied = { dialect, words }
+  applied = { dialect, dictionary }
 }

@@ -72,6 +72,11 @@ describe('Store ↔ Query Integration Tests', () => {
             dark: '#FFFFFF',
           },
         },
+        copyedit: {
+          dialect: 'american',
+          checks: { spelling: false, grammar: false, style: false },
+          dictionary: [],
+        },
         version: 1,
       },
     })

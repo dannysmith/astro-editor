@@ -14,7 +14,7 @@ Dev builds use `is.danny.astroeditor.dev` instead, so they never read or write t
 
 Inside it:
 
-- `preferences/global-settings.json`: app-wide settings (theme, IDE command, auto-save delay, appearance and so on).
+- `preferences/global-settings.json`: app-wide settings (theme, IDE command, auto-save delay, appearance, the Copyedit panel's highlights and checks, the dialect and dictionary for those checks, and so on).
 - `preferences/project-registry.json`: every project ever opened (id, name, path, dates, the entry open when it was last left) and which was open last.
 - `preferences/projects/{id}.json`: one project's settings, and its path.
 - `recovery/` and `crash-reports/`: see [Recovery Files](#recovery-files).

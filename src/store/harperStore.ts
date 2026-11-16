@@ -1,9 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type {
-  HarperCheck,
-  HarperDialect,
-} from '../lib/editor/extensions/harper/checks'
+import type { HarperCheck } from '../lib/editor/extensions/harper/checks'
 
 /** An issue Harper found in the open document, as the Copyedit panel lists it */
 export interface HarperIssue {
@@ -24,10 +20,6 @@ export interface HarperIssue {
 export type HarperStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 interface HarperState {
-  checks: Record<HarperCheck, boolean>
-  dialect: HarperDialect
-  /** Words added to the user's dictionary */
-  words: string[]
   status: HarperStatus
   /** The open document's issues, in document order */
   issues: HarperIssue[]
@@ -36,44 +28,22 @@ interface HarperState {
 }
 
 interface HarperActions {
-  setCheck: (check: HarperCheck, on: boolean) => void
-  setDialect: (dialect: HarperDialect) => void
-  addWord: (word: string) => void
   setStatus: (status: HarperStatus) => void
   setIssues: (issues: HarperIssue[]) => void
   setActiveIssue: (index: number | null) => void
 }
 
 /**
- * Harper's settings and what it found. The editor extension
- * (`lib/editor/extensions/harper`) follows the settings and publishes the
- * issues; the Copyedit panel shows both. The settings are kept in
- * localStorage.
+ * What Harper is doing and what it found. The editor extension
+ * (`lib/editor/extensions/harper`) publishes it and the Copyedit panel shows
+ * it. Harper's settings are global settings (`harper/settings.ts`).
  */
-export const useHarperStore = create<HarperState & HarperActions>()(
-  persist(
-    set => ({
-      checks: { spelling: false, grammar: false, style: false },
-      dialect: 'American',
-      words: [],
-      status: 'idle',
-      issues: [],
-      activeIssue: null,
+export const useHarperStore = create<HarperState & HarperActions>()(set => ({
+  status: 'idle',
+  issues: [],
+  activeIssue: null,
 
-      setCheck: (check, on) =>
-        set(state => ({ checks: { ...state.checks, [check]: on } })),
-      setDialect: dialect => set({ dialect }),
-      addWord: word =>
-        set(state =>
-          state.words.includes(word) ? state : { words: [...state.words, word] }
-        ),
-      setStatus: status => set({ status }),
-      setIssues: issues => set({ issues }),
-      setActiveIssue: activeIssue => set({ activeIssue }),
-    }),
-    {
-      name: 'harper-settings',
-      partialize: ({ checks, dialect, words }) => ({ checks, dialect, words }),
-    }
-  )
-)
+  setStatus: status => set({ status }),
+  setIssues: issues => set({ issues }),
+  setActiveIssue: activeIssue => set({ activeIssue }),
+}))

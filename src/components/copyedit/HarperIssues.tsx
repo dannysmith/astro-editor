@@ -1,8 +1,10 @@
 import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { useHarperStore, type HarperIssue } from '../../store/harperStore'
+import { useProjectStore } from '../../store/projectStore'
 import {
   applyIssueAction,
+  readCopyedit,
   selectIssue,
 } from '../../lib/editor/extensions/harper'
 import { cn } from '../../lib/utils'
@@ -14,8 +16,8 @@ import { CHECK_COLOURS } from './HarperChecks'
  */
 export const HarperIssues: React.FC = () => {
   const issues = useHarperStore(state => state.issues)
-  const anyCheckOn = useHarperStore(state =>
-    Object.values(state.checks).some(Boolean)
+  const anyCheckOn = useProjectStore(state =>
+    Object.values(readCopyedit(state.globalSettings).checks).some(Boolean)
   )
   const hasFile = useEditorStore(state => state.currentFile !== null)
 
