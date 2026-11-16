@@ -38,17 +38,14 @@ export const HarperChecks: React.FC = () => {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">Checks</h3>
-        {status === 'loading' && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Spinner className="size-3" /> Starting Harper
-          </span>
-        )}
-        {status === 'error' && (
-          <span className="text-xs text-destructive">Harper didn’t start</span>
-        )}
-      </div>
+      {status === 'loading' && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Spinner className="size-3" /> Starting Harper
+        </p>
+      )}
+      {status === 'error' && (
+        <p className="text-xs text-destructive">Harper didn’t start</p>
+      )}
       {HARPER_CHECKS.map(({ id: check, label }) => (
         <div key={check} className="flex items-center justify-between gap-3">
           <FieldLabel
