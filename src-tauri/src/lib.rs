@@ -4,6 +4,7 @@ mod bindings;
 mod collections;
 mod commands;
 mod content_config;
+mod frontmatter;
 mod mdx_components;
 mod mdx_esm;
 mod models;
@@ -13,6 +14,7 @@ mod schema_merger;
 mod telemetry;
 mod utils;
 mod window_state;
+mod yaml;
 
 use std::collections::HashMap;
 use std::sync::Mutex;

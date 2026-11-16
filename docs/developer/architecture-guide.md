@@ -105,6 +105,7 @@ Decisions a newcomer might be tempted to undo, and why not to:
 
 - **Vanilla CodeMirror, not a React wrapper.** Custom decorations, transactions and the store sync need direct access to the view.
 - **Astro's generated JSON schemas are the source of truth** for frontmatter fields; parsing Zod is limited to what the JSON loses. See `schema-system.md`.
+- **YAML is read in one place, the way Astro reads it.** `src-tauri/src/yaml.rs` holds the only serde-saphyr calls (Clippy's `disallowed-methods` keeps them there), so frontmatter, the sidebar listings and `file()` collections can't read the same text differently. serde-saphyr is pinned to an exact version because its defaults have changed between minor versions; upgrade it only after the frontmatter corpus tests and the comparison with Astro pass (`test/frontmatter/README.md`). YAML is written by our own renderer, `frontmatter/write.rs`, which splices edits into the user's text (see `editor.md`).
 - **shadcn on Base UI, not Radix.** It's shadcn's default, and its Combobox needs Base UI anyway. See `ui-patterns.md`.
 - **Every colour is a `light-dark()` token** in `App.css`. See `color-system.md`.
 - **Native menus and context menus** come from Tauri, not HTML, so they behave like macOS menus.

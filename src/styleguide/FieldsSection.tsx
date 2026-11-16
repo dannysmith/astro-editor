@@ -111,8 +111,9 @@ const FRONTMATTER = {
   links: [{ label: 'Docs', url: 'https://docs.astro.build' }],
 }
 
-// The fields read their values from the editor store, as in the frontmatter panel
-useEditorStore.setState({ frontmatter: FRONTMATTER })
+// The fields read their values from the editor store, as in the frontmatter
+// panel. The store ignores edits until a file has loaded
+useEditorStore.setState({ frontmatter: FRONTMATTER, isLoaded: true })
 
 export function FieldsSection() {
   return (

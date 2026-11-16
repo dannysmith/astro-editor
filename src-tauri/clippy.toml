@@ -1,4 +1,5 @@
-msrv = "1.70"
+# serde-saphyr needs Rust 1.89
+msrv = "1.89"
 cognitive-complexity-threshold = 30
 
 # On Windows, std's canonicalize prefixes paths with \\?\, which breaks comparing
@@ -6,4 +7,9 @@ cognitive-complexity-threshold = 30
 disallowed-methods = [
   { path = "std::fs::canonicalize", reason = "use dunce::canonicalize, which leaves no \\\\?\\ prefix on Windows" },
   { path = "std::path::Path::canonicalize", reason = "use dunce::canonicalize, which leaves no \\\\?\\ prefix on Windows" },
+  # All YAML is read through src/yaml.rs, with the options that match Astro
+  { path = "serde_saphyr::from_str", reason = "read YAML through crate::yaml" },
+  { path = "serde_saphyr::from_str_with_options", reason = "read YAML through crate::yaml" },
+  { path = "serde_saphyr::from_slice", reason = "read YAML through crate::yaml" },
+  { path = "serde_saphyr::from_reader", reason = "read YAML through crate::yaml" },
 ]

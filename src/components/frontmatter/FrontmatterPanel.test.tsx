@@ -52,9 +52,6 @@ describe('FrontmatterPanel Component', () => {
     useEditorStore.setState({
       currentFile: null,
       frontmatter: {},
-      updateFrontmatter: (frontmatter: Record<string, unknown>) => {
-        useEditorStore.setState({ frontmatter })
-      },
       updateFrontmatterField: (key: string, value: unknown) => {
         const { frontmatter } = useEditorStore.getState()
         const newFrontmatter = { ...frontmatter }

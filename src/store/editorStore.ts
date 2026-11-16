@@ -17,16 +17,32 @@ interface EditorState {
   // Content state
   editorContent: string // Content without frontmatter and imports
   frontmatter: Record<string, unknown> // Current frontmatter being edited
-  rawFrontmatter: string // Original frontmatter string from disk
+  rawFrontmatter: string // The frontmatter block as written on disk, fences included
   /** The frontmatter as first loaded after opening; see `FrontmatterBaseline` */
   frontmatterBaseline: FrontmatterBaseline | null
   imports: string // MDX imports (hidden from editor)
+
+  // Load state. Until the open file has loaded, the editor holds an empty
+  // placeholder, so nothing may edit or save it: a save would write the
+  // placeholder over the file
+  /** Whether the open file's content has loaded from disk */
+  isLoaded: boolean
+  /** Why the open file couldn't be loaded, if it couldn't */
+  loadError: string | null
+  /**
+   * Why the open file's frontmatter couldn't be read, if it couldn't. The
+   * body can still be edited, the frontmatter can't, and saving writes
+   * `rawFrontmatter` back unchanged
+   */
+  frontmatterError: string | null
 
   // Status state
   isDirty: boolean // True if ANY changes need to be saved
   isFrontmatterDirty: boolean // True if frontmatter was modified (vs content-only edits)
   autoSaveTimeoutId: ReturnType<typeof setTimeout> | null // Auto-save timeout ID
   lastSaveTimestamp: number | null // Timestamp of last successful save
+  /** When the first edit not yet saved was made: the forced save's clock */
+  dirtySince: number | null
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null // Hook-provided save callback
 
   // Actions
@@ -47,7 +63,6 @@ interface EditorState {
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
   setImports: (imports: string) => void
-  updateFrontmatter: (frontmatter: Record<string, unknown>) => void
   updateFrontmatterField: (key: string, value: unknown) => void
   scheduleAutoSave: () => void
   setAutoSaveCallback: (
@@ -80,10 +95,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   rawFrontmatter: '',
   frontmatterBaseline: null,
   imports: '',
+  isLoaded: false,
+  loadError: null,
+  frontmatterError: null,
   isDirty: false,
   isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
   lastSaveTimestamp: null,
+  dirtySince: null,
   autoSaveCallback: null,
 
   // Actions
@@ -111,20 +130,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // The outgoing file's content is cleared in the same update that sets
     // currentFile, so Editor.tsx never reads it against the new file.
-    // lastSaveTimestamp starts the maximum auto-save delay's clock, and also
-    // makes useFileChangeHandler ignore changes to the file on disk for its
-    // first few seconds, as it does after a save
+    // lastSaveTimestamp makes useFileChangeHandler ignore changes to the file
+    // on disk for its first few seconds, as it does after a save
     set({
       editorContent: '',
       frontmatter: {},
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: false,
+      loadError: null,
+      frontmatterError: null,
       currentFile: file,
       isDirty: false,
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: Date.now(),
+      dirtySince: null,
     })
     rememberLastEntry(file.path)
 
@@ -165,10 +187,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: false,
+      loadError: null,
+      frontmatterError: null,
       isDirty: false,
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
+      dirtySince: null,
     })
     if (!options?.keepLastEntry) rememberLastEntry(null)
   },
@@ -184,7 +210,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  // The edits below are ignored until the file has loaded, and the frontmatter
+  // ones while its frontmatter can't be read (see `isLoaded`)
+
   setEditorContent: (content: string) => {
+    if (!get().isLoaded) return
     set({ editorContent: content, isDirty: true })
     get().scheduleAutoSave()
   },
@@ -192,17 +222,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Marks the file dirty in the same update: until then, useEditorFileContent
   // would put back the imports from disk
   setImports: (imports: string) => {
+    if (!get().isLoaded) return
     set({ imports, isDirty: true })
     get().scheduleAutoSave()
   },
 
-  updateFrontmatter: (frontmatter: Record<string, unknown>) => {
-    set({ frontmatter, isDirty: true, isFrontmatterDirty: true })
-    get().scheduleAutoSave()
-  },
-
   updateFrontmatterField: (key: string, value: unknown) => {
-    const { frontmatter } = get()
+    const { frontmatter, isLoaded, frontmatterError } = get()
+    if (!isLoaded || frontmatterError) return
 
     // Clearing a field removes its key (and any parent objects left empty)
     // rather than writing `title: ''` or `tags: []` into the file
@@ -230,16 +257,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const store = get()
     const now = Date.now()
 
-    // Check if we should force save due to max delay
-    if (store.isDirty && store.lastSaveTimestamp) {
-      const timeSinceLastSave = now - store.lastSaveTimestamp
-      if (timeSinceLastSave >= MAX_AUTO_SAVE_DELAY_MS) {
-        const { autoSaveCallback } = store
-        if (autoSaveCallback) {
-          void autoSaveCallback(false) // Auto-save without toast
-        }
-        return
+    // Debouncing never saves during continuous typing, so a save is forced
+    // once the first unsaved edit is 10 seconds old. Timed from that edit,
+    // not the last save, so the first keystroke after a pause isn't saved on
+    // its own
+    if (store.dirtySince === null) {
+      set({ dirtySince: now })
+    } else if (
+      store.isDirty &&
+      now - store.dirtySince >= MAX_AUTO_SAVE_DELAY_MS
+    ) {
+      const { autoSaveCallback } = store
+      if (autoSaveCallback) {
+        void autoSaveCallback(false) // Auto-save without toast
       }
+      return
     }
 
     // Clear existing timeout

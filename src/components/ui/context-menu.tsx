@@ -18,6 +18,7 @@ import { getTitle } from '@/lib/files/sorting'
 import { getPlatform } from '@/hooks/usePlatform'
 import { getPlatformString } from '@/lib/platform-strings'
 import { fieldMappings, getCollection } from '@/lib/project-scan'
+import { frontmatterSchema } from '@/lib/schema'
 
 interface ContextMenuOptions {
   file: FileEntry
@@ -148,7 +149,7 @@ export class FileContextMenu {
                 filename,
                 readResult.data,
                 null,
-                null,
+                frontmatterSchema([]),
                 projectPath
               )
               if (createResult.status === 'error') {

@@ -4,7 +4,7 @@ Real and handwritten MDX for testing how the editor reads the import block betwe
 
 ## `files/`: finding the import block
 
-MDX files whose import block the editor has to find and hide. The tests (`mdx_corpus_tests` in `src-tauri/src/commands/files.rs`) run over every `.mdx` file in here, so adding a file is enough to add a case. They check that saving an unchanged file changes nothing but blank lines and reads back the same, and that each file's hidden block matches `blocks.txt`. After adding a file or changing how blocks are found, regenerate `blocks.txt` with `UPDATE_SNAPSHOTS=1 cargo test mdx_corpus` (in `src-tauri`) and review the diff.
+MDX files whose import block the editor has to find and hide. The tests (`mdx_corpus_tests` in `src-tauri/src/frontmatter/corpus_tests.rs`) run over every `.mdx` file in here, so adding a file is enough to add a case. They check that saving an unchanged file changes nothing but blank lines and reads back the same, and that each file's hidden block matches `blocks.txt`. After adding a file or changing how blocks are found, regenerate `blocks.txt` with `UPDATE_SNAPSHOTS=1 cargo test mdx_corpus` (in `src-tauri`) and review the diff.
 
 Real files, copied whole:
 

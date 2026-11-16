@@ -21,6 +21,7 @@ const file: FileEntry = {
 describe('JsonField', () => {
   beforeEach(() => {
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: file,
       frontmatter: { embed: { kind: 'video' } },
     })
@@ -71,6 +72,7 @@ describe('JsonField', () => {
     // Another file with the same value: the stored value doesn't change
     act(() => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: { ...file, id: 'notes/other' },
         frontmatter: { embed: { kind: 'video' } },
       })

@@ -1,6 +1,6 @@
 # The ESM block the editor hides in each file here, and the ESM further down
 # that counts as already imported. Checked by `mdx_corpus_tests` in
-# `src-tauri/src/commands/files.rs`.
+# `src-tauri/src/frontmatter/corpus_tests.rs`.
 
 === astro-docs/editor-setup.mdx
 import PackageManagerTabs from '~/components/tabs/PackageManagerTabs.astro'

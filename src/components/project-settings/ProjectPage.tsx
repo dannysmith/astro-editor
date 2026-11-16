@@ -216,6 +216,24 @@ export function ProjectPage({
             />
           )}
         </Setting>
+
+        <Setting
+          label="Reorder frontmatter"
+          help="When you edit a file's frontmatter, put its fields in the schema's order, then any others alphabetically. Off, fields stay where they are."
+          source={resolved.reorderFrontmatter.source}
+          onReset={reset('reorderFrontmatter')}
+          resetTo="off"
+        >
+          {({ id }) => (
+            <Switch
+              id={id}
+              checked={resolved.reorderFrontmatter.value}
+              onCheckedChange={checked =>
+                void updateProject({ reorderFrontmatter: checked })
+              }
+            />
+          )}
+        </Setting>
       </SettingsGroup>
 
       {removed.length > 0 && (

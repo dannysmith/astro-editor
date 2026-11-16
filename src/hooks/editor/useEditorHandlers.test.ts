@@ -39,6 +39,9 @@ interface MockEditorState {
   rawFrontmatter: string
   frontmatterBaseline: null
   imports: string
+  isLoaded: boolean
+  loadError: string | null
+  frontmatterError: string | null
   openFile: Mock
   closeFile: Mock
   closeCurrentFile: Mock
@@ -46,7 +49,7 @@ interface MockEditorState {
   scheduleAutoSave: Mock
   autoSaveTimeoutId: ReturnType<typeof setTimeout> | null
   lastSaveTimestamp: number | null
-  updateFrontmatter: Mock
+  dirtySince: number | null
   updateCurrentFileAfterRename: Mock
   autoSaveCallback: ((showToast?: boolean) => Promise<void>) | null
   setAutoSaveCallback: Mock
@@ -69,6 +72,9 @@ describe('useEditorHandlers', () => {
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
+      isLoaded: true,
+      loadError: null,
+      frontmatterError: null,
       openFile: vi.fn(),
       closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),
@@ -76,7 +82,7 @@ describe('useEditorHandlers', () => {
       scheduleAutoSave: vi.fn(),
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
-      updateFrontmatter: vi.fn(),
+      dirtySince: null,
       updateCurrentFileAfterRename: vi.fn(),
       autoSaveCallback: null,
       setAutoSaveCallback: vi.fn(),

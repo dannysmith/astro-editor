@@ -41,6 +41,7 @@ function holdSave(outcome: 'resolve' | 'reject') {
 /** Opens another file the way openFile leaves the store, without saving. */
 function switchToSecondFile() {
   useEditorStore.setState({
+    isLoaded: true,
     currentFile: fileEntry('second'),
     editorContent: 'Second file',
     frontmatter: {},
@@ -53,6 +54,7 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'First file edit',
       frontmatter: { title: 'First' },
@@ -104,6 +106,7 @@ describe('useEditorActions.saveFile when the same file changes mid-save', () => 
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       frontmatter: {},
@@ -127,6 +130,22 @@ describe('useEditorActions.saveFile when the same file changes mid-save', () => 
     // Marked clean, the reload from disk would put back the old imports
     expect(useEditorStore.getState().isDirty).toBe(true)
   })
+
+  it('auto-saves what was typed during the save', async () => {
+    const release = holdSave('resolve')
+    const { saveFile } = renderActions()
+    useEditorStore.setState({ autoSaveCallback: saveFile })
+
+    const saving = saveFile(false)
+    useEditorStore.getState().setEditorContent('Body, typed during the save')
+    release()
+    await saving
+
+    // The edit's own timer was cleared when the save finished
+    const timer = useEditorStore.getState().autoSaveTimeoutId
+    expect(timer).not.toBeNull()
+    clearTimeout(timer!)
+  })
 })
 
 describe('useEditorActions.saveFile with edited frontmatter', () => {
@@ -139,6 +158,7 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       rawFrontmatter: rewritten,
@@ -177,8 +197,9 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
 
     const args = await save()
 
+    // Spliced into the text as it was loaded, not as an earlier save wrote it
     expect(args.frontmatter).toEqual(edited)
-    expect(args.rawFrontmatter).toBeNull()
+    expect(args.rawFrontmatter).toBe(original)
   })
 })
 
@@ -191,6 +212,7 @@ describe('useEditorActions.saveFile and the sidebar listing', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Body',
       frontmatter: {},
@@ -262,6 +284,7 @@ describe('useEditorActions.saveFile when saves overlap', () => {
     globalThis.mockTauri.reset()
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: fileEntry('first'),
       editorContent: 'Older',
       frontmatter: {},
@@ -298,5 +321,58 @@ describe('useEditorActions.saveFile when saves overlap', () => {
     await Promise.all([first, second])
     expect(written).toEqual(['Older', 'Newer'])
     expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+})
+
+describe('useEditorActions.saveFile and what it may write', () => {
+  beforeEach(() => {
+    globalThis.mockTauri.reset()
+    useProjectStore.setState({ projectPath: '/test' })
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      editorContent: 'Body',
+      frontmatter: {},
+      rawFrontmatter: '',
+      frontmatterBaseline: null,
+      imports: '',
+      isLoaded: true,
+      frontmatterError: null,
+      isDirty: true,
+      isFrontmatterDirty: false,
+      autoSaveTimeoutId: null,
+    })
+  })
+
+  const saveCall = () =>
+    globalThis.mockTauri.invoke.mock.calls.find(
+      ([cmd]) => cmd === 'save_markdown_content'
+    )
+
+  it('writes nothing before the file has loaded', async () => {
+    useEditorStore.setState({ isLoaded: false })
+
+    await renderActions().saveFile(false)
+
+    expect(saveCall()).toBeUndefined()
+  })
+
+  it('keeps the frontmatter the save wrote as what is on disk', async () => {
+    const written = '---\ntitle: B\n---'
+    globalThis.mockTauri.invoke.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'save_markdown_content' ? written : null)
+    )
+    useEditorStore.setState({
+      rawFrontmatter: '---\ntitle: A\n---',
+      frontmatterBaseline: {
+        values: { title: 'A' },
+        raw: '---\ntitle: A\n---',
+      },
+      frontmatter: { title: 'B' },
+      isFrontmatterDirty: true,
+    })
+
+    await renderActions().saveFile(false)
+
+    expect(useEditorStore.getState().rawFrontmatter).toBe(written)
   })
 })

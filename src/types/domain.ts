@@ -36,15 +36,28 @@ export type {
    * Markdown file content with parsed YAML frontmatter.
    *
    * This type is auto-generated from the Rust MarkdownContent struct.
-   * @see src-tauri/src/commands/files.rs
+   * @see src-tauri/src/frontmatter/mod.rs
    *
    * Fields:
    * - `frontmatter` - Parsed frontmatter as key-value pairs
    * - `content` - Markdown content (body, without frontmatter)
-   * - `raw_frontmatter` - Raw YAML frontmatter text (between --- delimiters)
+   * - `raw_frontmatter` - The frontmatter block as written, fences included,
+   *   which saving writes back unchanged when the frontmatter wasn't edited
    * - `imports` - MDX imports at top of file
+   * - `frontmatter_error` - Why the frontmatter couldn't be read, if it couldn't
    */
   MarkdownContent,
+  /**
+   * What a collection's schema says about its frontmatter, for writing it.
+   * Built by `frontmatterSchema` in `lib/schema.ts`.
+   * @see src-tauri/src/frontmatter/write.rs
+   *
+   * Fields:
+   * - `fields` - Field names in schema order, flattened (`seo.title`)
+   * - `dateFields` - The fields holding dates or lists of dates, written
+   *   unquoted so Astro reads them as dates
+   */
+  FrontmatterSchema,
   /**
    * A content collection, resolved from the content config, the project's
    * settings and AE's conventions. Each resolved setting carries its source.

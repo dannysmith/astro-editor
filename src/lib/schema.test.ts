@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   deserializeCompleteSchema,
+  frontmatterSchema,
   FieldType,
   type CompleteSchema,
+  type SchemaField,
 } from './schema'
 
 // Helper to assert result is not null and return typed result
@@ -751,6 +753,26 @@ describe('deserializeCompleteSchema', () => {
 
       assertResult(result)
       expect(result.collectionName).toBe('blog_posts-2024')
+    })
+  })
+})
+
+describe('frontmatterSchema', () => {
+  const field = (name: string, type: FieldType, subType?: FieldType) =>
+    ({ name, label: name, type, subType, required: false }) as SchemaField
+
+  it('gives the fields in order, and the ones holding dates', () => {
+    const schema = frontmatterSchema([
+      field('title', FieldType.String),
+      field('pubDate', FieldType.Date),
+      field('event.date', FieldType.Date),
+      field('dates', FieldType.Array, FieldType.Date),
+      field('tags', FieldType.Array, FieldType.String),
+    ])
+
+    expect(schema).toEqual({
+      fields: ['title', 'pubDate', 'event.date', 'dates', 'tags'],
+      dateFields: ['pubDate', 'event.date', 'dates'],
     })
   })
 })

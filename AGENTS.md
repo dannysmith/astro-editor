@@ -33,7 +33,7 @@ These are for AI agents working with Danny.
 
 ## Rules
 
-Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)*, *(Oxlint)* or *(compiler:check)* fail `check:all`.
+Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)*, *(Oxlint)*, *(Clippy)* or *(compiler:check)* fail `check:all`.
 
 - **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
 - **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
@@ -47,6 +47,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - **One copy of each `@lezer/*` and `@codemirror/*` package.** Duplicates break highlighting at runtime and typecheck. After `bun update`, `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing; if it doesn't, run `rm -rf node_modules bun.lock && bun install`.
 - **Keep `@babel/core` on 7.** `babel-plugin-react-compiler` is built against Babel 7, and nothing else pins it, so dependency updates will offer 8.
 - **Test in the app, not Chrome.** macOS runs WebKit, so CSS and behaviour that work in Chrome DevTools can fail. For example, `field-sizing: content` isn't supported (use `AutoExpandingTextarea`).
+- **Read YAML only through `src-tauri/src/yaml.rs`,** which reads it as Astro does, and upgrade serde-saphyr only after the frontmatter corpus tests and the comparison with Astro pass. Its defaults change between versions, which would change how writers' frontmatter reads. See the architecture guide. *(Clippy)*
 - **Unsaved edits are never overwritten** by a reload from disk, and reading a saved file back must give exactly the text the editor holds, or the view jumps. See `editor.md` before touching saving, file loading or the Rust parser.
 
 ## Where things live
@@ -58,7 +59,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only
-- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `mdx_esm/` (finding an MDX file's import block, and planning imports to add), `agent_bridge/` (dev only)
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `frontmatter/` (splitting a content file into frontmatter, imports and body, and putting it back), `yaml.rs` (every YAML read, matching Astro), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `mdx_esm/` (finding an MDX file's import block, and planning imports to add), `agent_bridge/` (dev only)
 - `test/`: Astro projects for manual and agent testing. Work in the gitignored copies: `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`, and `temp-test-projects/`, which `bun run reset:testprojects` recreates from `personal-site`, `unusual-structure` and `starlight-minimal`
 - `scripts/`: the `app` CLI, release script, dev launcher, dev slots and setup
 

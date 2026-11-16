@@ -30,27 +30,44 @@ export function useEditorFileContent() {
     if (!data || !currentFile) return
 
     // CRITICAL: Don't overwrite user's unsaved edits
-    const { isDirty: currentIsDirty, frontmatterBaseline } =
-      useEditorStore.getState()
+    const {
+      isDirty: currentIsDirty,
+      frontmatterBaseline,
+      rawFrontmatter,
+    } = useEditorStore.getState()
     if (currentIsDirty) {
       return // User is editing - their version is authoritative
     }
 
     // Safe to update - file is saved and matches disk. The first load after
-    // opening becomes the baseline, which later loads (our own saves
-    // included) leave alone
+    // opening becomes the baseline. So does a load whose frontmatter isn't
+    // what the store last knew was on disk (as loaded, or as our last save
+    // wrote it), since that's a change made outside the app. Loads after our
+    // own saves leave it alone
+    const changedOutside = data.raw_frontmatter !== rawFrontmatter
     useEditorStore.setState({
       editorContent: data.content,
       frontmatter: data.frontmatter,
       rawFrontmatter: data.raw_frontmatter,
-      frontmatterBaseline: frontmatterBaseline ?? {
-        values: data.frontmatter,
-        raw: data.raw_frontmatter,
-      },
+      frontmatterBaseline:
+        frontmatterBaseline === null || changedOutside
+          ? { values: data.frontmatter, raw: data.raw_frontmatter }
+          : frontmatterBaseline,
       imports: data.imports,
       isFrontmatterDirty: false, // Reset when loading from disk
+      isLoaded: true,
+      loadError: null,
+      frontmatterError: data.frontmatter_error,
     })
   }, [data, currentFile])
+
+  // A file that can't be loaded can't be edited, since the editor would only
+  // hold an empty placeholder. A failed reload of a loaded file changes
+  // nothing: what's in the editor is still the file
+  useEffect(() => {
+    if (!error || useEditorStore.getState().isLoaded) return
+    useEditorStore.setState({ loadError: error.message })
+  }, [error])
 
   return { isLoading, isError, error }
 }

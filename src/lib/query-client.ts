@@ -13,6 +13,13 @@ export const queryClient = new QueryClient({
 
       // Keep unused data in cache for 10 minutes
       gcTime: 10 * 60 * 1000,
+
+      // Everything here reads local files through Tauri, so being offline
+      // mustn't pause it (the default assumes queries need the network)
+      networkMode: 'always',
+    },
+    mutations: {
+      networkMode: 'always',
     },
   },
 })

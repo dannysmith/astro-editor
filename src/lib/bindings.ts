@@ -12,11 +12,10 @@ export const commands = {
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
 	/**
 	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
-	 *  is serialised as saving does (so dates come out unquoted and strings
-	 *  escaped), in schema field order. Returns the new file's path,
-	 *  with `/` on Windows too
+	 *  is written as saving writes it (so date fields come out unquoted), in
+	 *  schema order. Returns the new file's path, with `/` on Windows too
 	 */
-	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
+	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schema: FrontmatterSchema, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schema, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	/**
@@ -26,7 +25,15 @@ export const commands = {
 	 */
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
-	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
+	/**
+	 *  Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
+	 *  read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+	 *  `frontmatter` holds edited values, which are spliced into it, with the
+	 *  keys put in schema order if `reorder_frontmatter` (the project setting).
+	 *  Returns the frontmatter block written, so the frontend can tell its own
+	 *  writes from changes made outside the app
+	 */
+	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, reorderFrontmatter: boolean, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, reorderFrontmatter, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
 	/**
@@ -364,6 +371,17 @@ export type FolderStatus = "ok" | "missing" |
 /**  AE only reads and writes inside the project */
 "outsideProject";
 
+/**  What a collection's schema says about its frontmatter, for writing it */
+export type FrontmatterSchema = {
+	/**  Field names in schema order, flattened (`seo.title`) */
+	fields: string[],
+	/**
+	 *  The fields holding dates or lists of dates, flattened. Their values
+	 *  are written unquoted, so Astro reads them as dates
+	 */
+	dateFields: string[],
+};
+
 export type GeneralSettings = {
 	ideCommand: string,
 	theme: Theme,
@@ -433,11 +451,25 @@ export type ListedProject = {
 	favicon: string | null,
 };
 
+/**  A content file, split for the editor */
 export type MarkdownContent = {
 	frontmatter: { [key in string]: Value },
 	content: string,
+	/**
+	 *  The frontmatter block as written, from the top of the file through
+	 *  the closing `---` (without its line ending), including any byte order
+	 *  mark, blank lines and spaces after the fences. Empty when the file has
+	 *  none. Saving writes it back unchanged when the frontmatter wasn't edited
+	 */
 	raw_frontmatter: string,
 	imports: string,
+	/**
+	 *  Why the frontmatter couldn't be read, if it couldn't: the parser's
+	 *  error, with line numbers counted from the top of the file. The
+	 *  frontmatter is then empty, and saving writes `raw_frontmatter` back
+	 *  unchanged
+	 */
+	frontmatter_error: string | null,
 };
 
 export type MdxComponent = {
@@ -528,6 +560,11 @@ export type ProjectSettings = {
 	mdxComponentsDirectories?: string[] | null,
 	/**  Experimental: the component builder adds the import a component needs */
 	addComponentImports?: boolean | null,
+	/**
+	 *  Editing a file's frontmatter puts its keys in schema order, then the
+	 *  rest alphabetically
+	 */
+	reorderFrontmatter?: boolean | null,
 };
 
 /**  A project's stored settings, as the frontend reads and edits them */
@@ -604,6 +641,7 @@ export type ResolvedProjectSettings = {
 	/**  Relative to the project root */
 	mdxComponentsDirectories: Resolved<string[]>,
 	addComponentImports: Resolved<boolean>,
+	reorderFrontmatter: Resolved<boolean>,
 	/**  The project's default for collections. Relative to the project root. */
 	assetsDirectory: Resolved<string>,
 	/**  The project's default for collections */

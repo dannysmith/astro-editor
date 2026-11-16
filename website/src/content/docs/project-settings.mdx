@@ -65,6 +65,8 @@ These are the defaults for every collection, and each collection can change them
 
 **Content folder**: where collections are looked for when the content config doesn't say where they are, and whose folders become collections when there's no content config. The default is `src/content`.
 
+**Reorder frontmatter**: off by default, so editing a file's frontmatter leaves its fields where they are. When it's on, editing a file puts its fields in the order your schema defines them, then any others alphabetically, each with its comments. It only reorders in collections whose generated schema Astro Editor has read. See [How YAML is Handled](/reference/yaml/#reordering).
+
 ### Removed collections
 
 If you have settings saved for collections your content config no longer has, they're listed at the bottom of the page with a **Clear** button.

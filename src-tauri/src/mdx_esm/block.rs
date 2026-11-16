@@ -214,7 +214,7 @@ pub(super) fn extend_through_line_tail(text: &str, end: usize) -> usize {
 // The shapes real files take (multi-line imports, statements with blank lines
 // inside, JSX or a heading straight after an import, comments, prose that starts
 // with "import") are covered by the corpus in `test/mdx-imports/files/`, which
-// `mdx_corpus_tests` in `commands/files.rs` splits. These cover the rest.
+// `mdx_corpus_tests` in `frontmatter/corpus_tests.rs` splits. These cover the rest.
 #[cfg(test)]
 mod tests {
     use super::*;

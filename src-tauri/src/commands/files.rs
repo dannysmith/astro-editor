@@ -2,11 +2,12 @@ use chrono::Local;
 use indexmap::IndexMap;
 use pathdiff::diff_paths;
 use serde_json::Value;
-use serde_norway;
 use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
-use crate::mdx_esm::split_esm_block;
+use crate::frontmatter::{
+    assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
+};
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
 
 /// Calculates the relative path from the current file to an asset
@@ -55,9 +56,8 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 }
 
 /// Creates a file holding `content`, under `frontmatter` if it's given, which
-/// is serialised as saving does (so dates come out unquoted and strings
-/// escaped), in schema field order. Returns the new file's path,
-/// with `/` on Windows too
+/// is written as saving writes it (so date fields come out unquoted), in
+/// schema order. Returns the new file's path, with `/` on Windows too
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
@@ -65,7 +65,7 @@ pub async fn create_file(
     filename: String,
     content: String,
     frontmatter: Option<IndexMap<String, Value>>,
-    schema_field_order: Option<Vec<String>>,
+    schema: FrontmatterSchema,
     project_root: String,
 ) -> Result<String, String> {
     // Validate directory is within project
@@ -96,12 +96,7 @@ pub async fn create_file(
     }
 
     let content = match frontmatter {
-        Some(fm) => rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &fm,
-            "",
-            &content,
-            schema_field_order,
-        )?,
+        Some(values) => assemble(&write_block("", &values, &schema, true)?, "", &content),
         None => content,
     };
     std::fs::write(&validated_final_path, content)
@@ -307,14 +302,6 @@ pub async fn copy_file_to_assets(
     Ok(final_path)
 }
 
-#[derive(serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct MarkdownContent {
-    pub frontmatter: IndexMap<String, Value>,
-    pub content: String,
-    pub raw_frontmatter: String,
-    pub imports: String, // MDX imports to hide from editor
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_markdown_content(
@@ -325,268 +312,40 @@ pub async fn parse_markdown_content(
     let content = std::fs::read_to_string(&validated_path)
         .map_err(|e| format!("Failed to read file: {e}"))?;
 
-    parse_frontmatter(&content)
+    Ok(parse_frontmatter(&content))
 }
 
+/// Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
+/// read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+/// `frontmatter` holds edited values, which are spliced into it, with the
+/// keys put in schema order if `reorder_frontmatter` (the project setting).
+/// Returns the frontmatter block written, so the frontend can tell its own
+/// writes from changes made outside the app
+// A command's arguments are its IPC payload, so there's no struct to gather
+// them in that wouldn't just be this list
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 #[specta::specta]
 pub async fn save_markdown_content(
     file_path: String,
     frontmatter: Option<IndexMap<String, Value>>,
-    raw_frontmatter: Option<String>,
+    raw_frontmatter: String,
     content: String,
     imports: String,
-    schema_field_order: Option<Vec<String>>,
+    schema: FrontmatterSchema,
+    reorder_frontmatter: bool,
     project_root: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
 
-    let new_content = match (frontmatter, raw_frontmatter) {
-        // Frontmatter was edited - reorder and normalize
-        (Some(fm), _) => rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &fm,
-            &imports,
-            &content,
-            schema_field_order,
-        )?,
-        // Frontmatter unchanged - preserve original (non-empty)
-        (None, Some(ref raw)) if !raw.trim().is_empty() => {
-            rebuild_markdown_with_raw_frontmatter(raw, &imports, &content)?
-        }
-        // No frontmatter at all (None, None, or empty string)
-        _ => rebuild_markdown_content_only(&imports, &content)?,
+    let block = match frontmatter {
+        Some(values) => write_block(&raw_frontmatter, &values, &schema, reorder_frontmatter)?,
+        None => raw_frontmatter,
     };
 
-    std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
-}
-
-pub(crate) fn parse_frontmatter(content: &str) -> Result<MarkdownContent, String> {
-    // Track if original content ends with newline - lines() drops this info
-    let original_ends_with_newline = content.ends_with('\n');
-    let lines: Vec<&str> = content.lines().collect();
-
-    let Some(yaml_lines) = frontmatter_lines(lines.iter().copied())? else {
-        // No frontmatter, but might have imports at the top
-        let (imports, mut body_content) = split_esm_block(&lines.join("\n"));
-        // Preserve trailing newline that lines() dropped.
-        // lines() always drops exactly one trailing \n, so always add one back.
-        if original_ends_with_newline && !body_content.is_empty() {
-            body_content.push('\n');
-        }
-        return Ok(MarkdownContent {
-            frontmatter: IndexMap::new(),
-            content: body_content,
-            raw_frontmatter: String::new(),
-            imports,
-        });
-    };
-
-    let raw_frontmatter = yaml_lines.join("\n");
-    let frontmatter = yaml_values(&raw_frontmatter)?;
-
-    // Extract content after frontmatter and process imports: the body starts
-    // after the opening line, the YAML and the closing line
-    let content_start = yaml_lines.len() + 2;
-    let remaining_lines: Vec<&str> = if content_start < lines.len() {
-        lines[content_start..].to_vec()
-    } else {
-        vec![]
-    };
-
-    let (imports, mut body_content) = split_esm_block(&remaining_lines.join("\n"));
-
-    // Preserve trailing newline that lines() dropped.
-    // lines() always drops exactly one trailing \n, so always add one back.
-    if original_ends_with_newline && !body_content.is_empty() {
-        body_content.push('\n');
-    }
-
-    Ok(MarkdownContent {
-        frontmatter,
-        content: body_content,
-        raw_frontmatter,
-        imports,
-    })
-}
-
-/// Builds an ordered IndexMap with schema fields first, then remaining fields alphabetically
-fn build_ordered_frontmatter(
-    frontmatter: IndexMap<String, Value>,
-    schema_field_order: Option<Vec<String>>,
-) -> IndexMap<String, Value> {
-    let mut ordered = IndexMap::new();
-
-    // First, add schema fields in order
-    if let Some(schema_order) = schema_field_order {
-        for key in schema_order {
-            if let Some(value) = frontmatter.get(&key) {
-                ordered.insert(key, value.clone());
-            }
-        }
-    }
-
-    // Then add remaining fields alphabetically
-    let mut remaining: Vec<_> = frontmatter
-        .iter()
-        .filter(|(k, _)| !ordered.contains_key(*k))
-        .collect();
-    remaining.sort_by_key(|(k, _)| *k);
-
-    for (key, value) in remaining {
-        ordered.insert(key.clone(), value.clone());
-    }
-
-    ordered
-}
-
-/// Parse YAML string to IndexMap using serde_norway
-fn parse_yaml_to_json(yaml_str: &str) -> Result<IndexMap<String, Value>, String> {
-    serde_norway::from_str(yaml_str).map_err(|e| format!("Failed to parse YAML: {e}"))
-}
-
-/// The lines between a file's opening and closing `---`. `None` when its
-/// first line isn't `---`, so it has no frontmatter; an error when it's never
-/// closed. Reads no further than the closing line, so the listings never go
-/// through the body.
-fn frontmatter_lines<'a>(
-    mut lines: impl Iterator<Item = &'a str>,
-) -> Result<Option<Vec<&'a str>>, String> {
-    if lines.next() != Some("---") {
-        return Ok(None);
-    }
-    let mut yaml = Vec::new();
-    for line in lines {
-        if line == "---" {
-            return Ok(Some(yaml));
-        }
-        yaml.push(line);
-    }
-    Err("Frontmatter not properly closed with '---'".to_string())
-}
-
-/// A file's frontmatter as YAML text, found as `parse_frontmatter` finds it,
-/// without reading the body. `None` when it has none.
-pub(crate) fn frontmatter_yaml(content: &str) -> Result<Option<String>, String> {
-    Ok(frontmatter_lines(content.lines())?.map(|lines| lines.join("\n")))
-}
-
-/// The values in frontmatter's YAML text, which may be empty
-pub(crate) fn yaml_values(yaml: &str) -> Result<IndexMap<String, Value>, String> {
-    if yaml.trim().is_empty() {
-        Ok(IndexMap::new())
-    } else {
-        parse_yaml_to_json(yaml)
-    }
-}
-
-/// The values in a file's frontmatter, as `parse_frontmatter` reads them, for
-/// the file listings, which don't need the body or the MDX imports
-pub(crate) fn frontmatter_values(content: &str) -> Result<IndexMap<String, Value>, String> {
-    frontmatter_yaml(content)?.map_or_else(|| Ok(IndexMap::new()), |yaml| yaml_values(&yaml))
-}
-
-/// Rebuilds the file with the frontmatter serialised from its values, schema
-/// fields first. Values are written as they are: dates and datetimes stay the
-/// strings they were read as (the date picker writes `YYYY-MM-DD`), and
-/// serde_norway leaves them unquoted, so Astro reads them as dates
-fn rebuild_markdown_with_frontmatter_and_imports_ordered(
-    frontmatter: &IndexMap<String, Value>,
-    imports: &str,
-    content: &str,
-    schema_field_order: Option<Vec<String>>,
-) -> Result<String, String> {
-    let mut result = String::new();
-
-    // Add frontmatter if present
-    if !frontmatter.is_empty() {
-        // Build ordered frontmatter (schema fields first, then alphabetical)
-        let ordered = build_ordered_frontmatter(frontmatter.clone(), schema_field_order);
-
-        // Serialize to YAML using serde_norway
-        result.push_str("---\n");
-        let yaml = serde_norway::to_string(&ordered)
-            .map_err(|e| format!("Failed to serialize YAML: {e}"))?;
-        result.push_str(&yaml);
-        result.push_str("---\n");
-    }
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        if !frontmatter.is_empty() {
-            result.push('\n');
-        }
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        if !frontmatter.is_empty() || !imports.trim().is_empty() {
-            result.push('\n');
-        }
-        result.push_str(content);
-    }
-
-    Ok(result)
-}
-
-/// Rebuild markdown file preserving original raw frontmatter (no normalization)
-fn rebuild_markdown_with_raw_frontmatter(
-    raw_frontmatter: &str,
-    imports: &str,
-    content: &str,
-) -> Result<String, String> {
-    let mut result = String::new();
-
-    // Add frontmatter with raw content (preserves original formatting). It's
-    // the lines between the markers joined by `parse_frontmatter`, so one that
-    // ends in `\n` ends in a blank line, which needs a line of its own
-    result.push_str("---\n");
-    result.push_str(raw_frontmatter);
-    result.push('\n');
-    result.push_str("---\n");
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        result.push('\n');
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        result.push('\n');
-        result.push_str(content);
-    }
-
-    Ok(result)
-}
-
-/// Rebuild markdown file with no frontmatter (content only)
-fn rebuild_markdown_content_only(imports: &str, content: &str) -> Result<String, String> {
-    let mut result = String::new();
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        if !imports.trim().is_empty() {
-            result.push('\n');
-        }
-        result.push_str(content);
-    }
-
-    Ok(result)
+    std::fs::write(&validated_path, assemble(&block, &imports, &content))
+        .map_err(|e| format!("Failed to write file: {e}"))?;
+    Ok(block)
 }
 
 #[tauri::command]
@@ -932,7 +691,7 @@ mod tests {
             "test_create.md".to_string(),
             test_content.to_string(),
             None,
-            None,
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -963,27 +722,31 @@ mod tests {
             "featured": false,
         }))
         .unwrap();
-        let order = ["title", "pubDate", "sponsor", "tags", "featured"]
-            .map(String::from)
-            .to_vec();
+        let schema = FrontmatterSchema {
+            fields: ["title", "pubDate", "sponsor.name", "tags", "featured"]
+                .map(String::from)
+                .to_vec(),
+            date_fields: vec!["pubDate".to_string()],
+        };
 
         let path = create_file(
             project_root.clone(),
             "new.md".to_string(),
             String::new(),
             Some(frontmatter.clone()),
-            Some(order),
+            schema,
             project_root,
         )
         .await
         .unwrap();
 
+        // In schema order, with the date unquoted so Astro reads it as a date
         let written = fs::read_to_string(&path).unwrap();
         assert_eq!(
             written,
-            "---\ntitle: 'Say \"hi\": now'\npubDate: 2026-11-10\nsponsor:\n  name: Acme\ntags: []\nfeatured: false\n---\n"
+            "---\ntitle: \"Say \\\"hi\\\": now\"\npubDate: 2026-11-10\nsponsor:\n  name: Acme\ntags: []\nfeatured: false\n---\n"
         );
-        let parsed = parse_frontmatter(&written).unwrap();
+        let parsed = parse_frontmatter(&written);
         assert_eq!(parsed.frontmatter, frontmatter);
         assert_eq!(parsed.content, "");
         let expected = dunce::canonicalize(dir.path()).unwrap().join("new.md");
@@ -1013,7 +776,7 @@ mod tests {
                 filename.to_string(),
                 String::new(),
                 None,
-                None,
+                FrontmatterSchema::default(),
                 project_root.to_string_lossy().to_string(),
             )
         };
@@ -1050,7 +813,7 @@ mod tests {
             "malicious.md".to_string(),
             "malicious content".to_string(),
             None,
-            None,
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -1126,107 +889,6 @@ mod tests {
         let _ = fs::remove_dir_all(&project_root);
     }
 
-    #[test]
-    fn test_parse_frontmatter_with_yaml() {
-        let content = r#"---
-title: Test Post
-description: A test post for parsing
-draft: false
-date: 2023-12-01
----
-
-# Content
-
-This is the main content of the post."#;
-
-        let result = parse_frontmatter(content).unwrap();
-
-        assert_eq!(result.frontmatter.len(), 4);
-        assert_eq!(result.frontmatter.get("title").unwrap(), "Test Post");
-        assert_eq!(
-            result.frontmatter.get("draft").unwrap(),
-            &Value::Bool(false)
-        );
-        assert!(result.content.contains("# Content"));
-    }
-
-    #[test]
-    fn test_parse_frontmatter_no_yaml() {
-        let content = r#"# Regular Markdown
-
-This is just regular markdown content without frontmatter."#;
-
-        let result = parse_frontmatter(content).unwrap();
-
-        assert!(result.frontmatter.is_empty());
-        assert_eq!(result.content, content);
-        assert!(result.raw_frontmatter.is_empty());
-    }
-
-    #[test]
-    fn test_parse_frontmatter_with_arrays() {
-        let content = r#"---
-title: Test Post
-tags:
-  - javascript
-  - typescript
-  - react
-categories: [tech, programming]
----
-
-# Content
-
-This is a test post with arrays."#;
-
-        let result = parse_frontmatter(content).unwrap();
-
-        assert_eq!(result.frontmatter.len(), 3);
-        assert_eq!(result.frontmatter.get("title").unwrap(), "Test Post");
-
-        // Check multi-line array
-        let tags = result.frontmatter.get("tags").unwrap();
-        if let Value::Array(tags_array) = tags {
-            assert_eq!(tags_array.len(), 3);
-            assert_eq!(tags_array[0], Value::String("javascript".to_string()));
-            assert_eq!(tags_array[1], Value::String("typescript".to_string()));
-            assert_eq!(tags_array[2], Value::String("react".to_string()));
-        } else {
-            panic!("Expected tags to be an array");
-        }
-
-        // Check inline array
-        let categories = result.frontmatter.get("categories").unwrap();
-        if let Value::Array(categories_array) = categories {
-            assert_eq!(categories_array.len(), 2);
-            assert_eq!(categories_array[0], Value::String("tech".to_string()));
-            assert_eq!(
-                categories_array[1],
-                Value::String("programming".to_string())
-            );
-        } else {
-            panic!("Expected categories to be an array");
-        }
-    }
-
-    #[test]
-    fn test_rebuild_markdown_with_frontmatter() {
-        let mut frontmatter = IndexMap::new();
-        frontmatter.insert("title".to_string(), Value::String("New Title".to_string()));
-        frontmatter.insert("draft".to_string(), Value::Bool(true));
-
-        let content = "# Content\n\nThis is the content.";
-
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
-                .unwrap();
-
-        assert!(result.starts_with("---\n"));
-        // serde_norway doesn't quote simple strings without special characters
-        assert!(result.contains("title: New Title") || result.contains("title: \"New Title\""));
-        assert!(result.contains("draft: true"));
-        assert!(result.contains("# Content"));
-    }
-
     #[tokio::test]
     async fn test_save_markdown_content() {
         let temp_dir = std::env::temp_dir();
@@ -1255,10 +917,11 @@ This is a test post with arrays."#;
         let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
             Some(frontmatter), // Frontmatter was edited
-            None,              // No raw frontmatter (frontmatter was edited)
+            String::new(),     // The file had no frontmatter
             content.to_string(),
             String::new(), // No imports for this test
-            None,          // No schema field order for this test
+            FrontmatterSchema::default(),
+            false,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -1268,149 +931,14 @@ This is a test post with arrays."#;
         // Verify the saved file
         let saved_content = fs::read_to_string(&test_file).unwrap();
         assert!(saved_content.starts_with("---\n"));
-        // serde_norway doesn't quote simple strings
-        assert!(
-            saved_content.contains("title: Test Article")
-                || saved_content.contains("title: \"Test Article\"")
-        );
+        // Simple strings are written unquoted
+        assert!(saved_content.contains("title: Test Article"));
         assert!(saved_content.contains("draft: false"));
         assert!(saved_content.contains("# Test Article"));
         assert!(saved_content.contains("This is the article content."));
 
         // Clean up
         let _ = fs::remove_dir_all(&project_root);
-    }
-
-    #[test]
-    fn test_rebuild_with_raw_frontmatter() {
-        // Test that raw frontmatter is preserved exactly as-is
-        let raw_frontmatter = "title: My Title\ndate: 2024-01-15T12:30:00Z\ncustom_field: value";
-        let content = "# Heading\n\nSome content.";
-        let imports = "";
-
-        let result = rebuild_markdown_with_raw_frontmatter(raw_frontmatter, imports, content);
-        assert!(result.is_ok());
-
-        let output = result.unwrap();
-        // Should preserve the exact raw frontmatter including the datetime format
-        assert!(output.contains("date: 2024-01-15T12:30:00Z"));
-        assert!(output.starts_with("---\n"));
-        assert!(output.contains("---\n\n# Heading"));
-        assert!(output.contains("Some content."));
-    }
-
-    #[test]
-    fn test_rebuild_with_raw_frontmatter_and_imports() {
-        let raw_frontmatter = "title: Test";
-        let content = "# Heading";
-        let imports = "import Component from './Component';";
-
-        let result = rebuild_markdown_with_raw_frontmatter(raw_frontmatter, imports, content);
-        assert!(result.is_ok());
-
-        let output = result.unwrap();
-        assert!(output.contains("---\ntitle: Test\n---"));
-        assert!(output.contains("import Component from './Component';"));
-        assert!(output.contains("# Heading"));
-    }
-
-    #[test]
-    fn test_rebuild_content_only() {
-        // Test when there's no frontmatter at all
-        let content = "# Just Content\n\nNo frontmatter here.";
-        let imports = "";
-
-        let result = rebuild_markdown_content_only(imports, content);
-        assert!(result.is_ok());
-
-        let output = result.unwrap();
-        assert!(!output.contains("---"));
-        assert!(output.starts_with("# Just Content"));
-        assert!(output.contains("No frontmatter here."));
-    }
-
-    #[test]
-    fn test_rebuild_content_only_with_imports() {
-        let content = "# Content";
-        let imports = "import React from 'react';";
-
-        let result = rebuild_markdown_content_only(imports, content);
-        assert!(result.is_ok());
-
-        let output = result.unwrap();
-        assert!(!output.contains("---"));
-        assert!(output.starts_with("import React from 'react';"));
-        assert!(output.contains("# Content"));
-    }
-
-    #[test]
-    fn test_parse_mdx_with_imports() {
-        let content = r#"---
-title: Test Post
-draft: false
----
-
-import React from 'react';
-import { Callout } from '../components/Callout';
-
-# Test Post
-
-<Callout type="info">
-This is a callout component.
-</Callout>
-
-Regular markdown content here."#;
-
-        let result = parse_frontmatter(content).unwrap();
-
-        assert_eq!(result.frontmatter.len(), 2);
-        assert_eq!(result.frontmatter.get("title").unwrap(), "Test Post");
-        assert!(result.imports.contains("import React from 'react';"));
-        assert!(result
-            .imports
-            .contains("import { Callout } from '../components/Callout';"));
-        assert!(result.content.contains("# Test Post"));
-        assert!(result.content.contains("<Callout"));
-        assert!(!result.content.contains("import React"));
-    }
-
-    #[test]
-    fn test_rebuild_with_imports() {
-        let mut frontmatter = IndexMap::new();
-        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
-
-        let imports = "import React from 'react';\nimport { Component } from './Component';";
-        let content = "# Test\n\n<Component />";
-
-        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            imports,
-            content,
-            None,
-        )
-        .unwrap();
-
-        assert!(result.starts_with("---\n"));
-        assert!(result.contains("title: Test"));
-        assert!(result.contains("import React from 'react';"));
-        assert!(result.contains("import { Component } from './Component';"));
-        assert!(result.contains("# Test"));
-        assert!(result.contains("<Component />"));
-
-        // Ensure proper spacing
-        let lines: Vec<&str> = result.lines().collect();
-        let frontmatter_end = lines.iter().position(|&line| line == "---").unwrap();
-        let second_frontmatter_end = lines[frontmatter_end + 1..]
-            .iter()
-            .position(|&line| line == "---")
-            .unwrap()
-            + frontmatter_end
-            + 1;
-
-        // Should have a blank line after frontmatter before imports
-        assert_eq!(lines[second_frontmatter_end + 1], "");
-        // Should have imports next
-        assert!(lines[second_frontmatter_end + 2].starts_with("import"));
     }
 
     #[test]
@@ -1654,339 +1182,6 @@ Regular markdown content here."#;
         assert!(dest_path.exists());
     }
 
-    #[test]
-    fn test_serialize_nested_object_to_yaml() {
-        use serde_json::json;
-
-        let mut frontmatter = IndexMap::new();
-        frontmatter.insert("title".to_string(), json!("Test Post"));
-        frontmatter.insert(
-            "metadata".to_string(),
-            json!({
-                "category": "Blog",
-                "priority": 2,
-                "deadline": "2025-10-21"
-            }),
-        );
-        frontmatter.insert("tags".to_string(), json!(["rust", "yaml", "testing"]));
-
-        let content = "# Test Content\n\nThis is a test.";
-
-        let result =
-            rebuild_markdown_with_frontmatter_and_imports_ordered(&frontmatter, "", content, None)
-                .unwrap();
-
-        // Verify the result contains proper YAML nested object syntax
-        assert!(result.contains("metadata:"));
-        assert!(result.contains("  category: Blog"));
-        assert!(result.contains("  priority: 2"));
-        assert!(result.contains("  deadline: 2025-10-21"));
-
-        // Verify tags array is formatted correctly
-        // serde_norway uses "- item" without indent (valid YAML)
-        assert!(result.contains("tags:"));
-        assert!(result.contains("- rust"));
-        assert!(result.contains("- yaml"));
-        assert!(result.contains("- testing"));
-
-        // Ensure metadata is NOT JSON-stringified
-        assert!(!result.contains(r#"metadata: "{"#));
-        assert!(!result.contains(r#"{"category":"Blog""#));
-
-        // Verify proper frontmatter structure
-        assert!(result.starts_with("---\n"));
-        assert!(result.contains("---\n\n# Test Content"));
-    }
-
-    #[test]
-    fn test_parse_nested_object_from_yaml() {
-        let yaml_content = r#"title: Test Post
-metadata:
-  category: Blog
-  priority: 2
-  deadline: 2025-10-21
-tags:
-  - rust
-  - yaml
-  - testing"#;
-
-        let result = parse_yaml_to_json(yaml_content).unwrap();
-
-        // Verify title
-        assert_eq!(
-            result.get("title").unwrap(),
-            &Value::String("Test Post".to_string())
-        );
-
-        // Verify nested metadata object
-        let metadata = result.get("metadata").unwrap();
-        assert!(metadata.is_object());
-        let metadata_obj = metadata.as_object().unwrap();
-        assert_eq!(
-            metadata_obj.get("category").unwrap(),
-            &Value::String("Blog".to_string())
-        );
-        assert_eq!(
-            metadata_obj.get("priority").unwrap(),
-            &Value::Number(serde_json::Number::from(2))
-        );
-        assert_eq!(
-            metadata_obj.get("deadline").unwrap(),
-            &Value::String("2025-10-21".to_string())
-        );
-
-        // Verify tags array
-        let tags = result.get("tags").unwrap();
-        assert!(tags.is_array());
-        let tags_array = tags.as_array().unwrap();
-        assert_eq!(tags_array.len(), 3);
-        assert_eq!(tags_array[0], Value::String("rust".to_string()));
-        assert_eq!(tags_array[1], Value::String("yaml".to_string()));
-        assert_eq!(tags_array[2], Value::String("testing".to_string()));
-    }
-
-    #[test]
-    fn test_parse_and_serialize_roundtrip() {
-        let original_yaml = r#"title: Roundtrip Test
-description: Testing parse and serialize roundtrip
-metadata:
-  category: Development
-  priority: 5
-  deadline: 2025-12-31
-tags:
-  - test
-  - roundtrip"#;
-
-        // Parse YAML to HashMap
-        let parsed = parse_yaml_to_json(original_yaml).unwrap();
-
-        // Serialize back to markdown with frontmatter (verifies serialization works)
-        let content = "# Test Content";
-        let _serialized =
-            rebuild_markdown_with_frontmatter_and_imports_ordered(&parsed, "", content, None)
-                .unwrap();
-
-        // Parse again
-        let reparsed_content = format!("---\n{original_yaml}\n---\n\n{content}");
-        let reparsed = parse_frontmatter(&reparsed_content).unwrap();
-
-        // Verify metadata object survived the roundtrip
-        let metadata = reparsed.frontmatter.get("metadata").unwrap();
-        assert!(metadata.is_object());
-        let metadata_obj = metadata.as_object().unwrap();
-        assert_eq!(
-            metadata_obj.get("category").unwrap(),
-            &Value::String("Development".to_string())
-        );
-        assert_eq!(
-            metadata_obj.get("priority").unwrap(),
-            &Value::Number(serde_json::Number::from(5))
-        );
-    }
-
-    #[test]
-    fn test_serde_norway_handles_anchors() {
-        // Test that serde_norway parses YAML with anchors/aliases without errors
-        // Note: When deserializing to serde_json::Value, YAML merge keys (<<) are
-        // preserved as literal keys rather than being merged. This is expected behavior
-        // and doesn't affect Astro frontmatter which rarely uses anchors.
-        let yaml = r#"base: &base
-  title: Base Title
-  category: Blog
-reference: *base"#;
-
-        let result = parse_yaml_to_json(yaml);
-        assert!(
-            result.is_ok(),
-            "serde_norway should parse YAML with anchors without error"
-        );
-
-        let parsed = result.unwrap();
-
-        // Verify base object
-        let base = parsed.get("base").unwrap();
-        assert!(base.is_object());
-        let base_obj = base.as_object().unwrap();
-        assert_eq!(
-            base_obj.get("title").unwrap(),
-            &Value::String("Base Title".to_string())
-        );
-        assert_eq!(
-            base_obj.get("category").unwrap(),
-            &Value::String("Blog".to_string())
-        );
-
-        // Verify reference points to the same structure
-        let reference = parsed.get("reference").unwrap();
-        assert!(reference.is_object());
-        let reference_obj = reference.as_object().unwrap();
-        assert_eq!(
-            reference_obj.get("title").unwrap(),
-            &Value::String("Base Title".to_string())
-        );
-        assert_eq!(
-            reference_obj.get("category").unwrap(),
-            &Value::String("Blog".to_string())
-        );
-    }
-
-    #[test]
-    fn test_serde_norway_handles_block_scalars() {
-        // Test multi-line strings with pipe (literal) and fold scalars
-        let yaml = r#"literal: |
-  First line
-  Second line
-  Third line
-folded: >
-  This is a
-  long description
-  that will be folded"#;
-
-        let result = parse_yaml_to_json(yaml);
-        assert!(
-            result.is_ok(),
-            "serde_norway should parse block scalars (| and >)"
-        );
-
-        let parsed = result.unwrap();
-
-        // Verify literal scalar (preserves newlines)
-        let literal = parsed.get("literal").unwrap();
-        assert!(literal.is_string());
-        let literal_str = literal.as_str().unwrap();
-        assert!(literal_str.contains("First line"));
-        assert!(literal_str.contains("Second line"));
-
-        // Verify folded scalar exists
-        let folded = parsed.get("folded").unwrap();
-        assert!(folded.is_string());
-        let folded_str = folded.as_str().unwrap();
-        assert!(folded_str.contains("This is a"));
-        assert!(folded_str.contains("long description"));
-    }
-
-    #[test]
-    fn test_frontmatter_edit_keeps_nested_key_order() {
-        let original =
-            "---\ntitle: Old\nseo:\n  title: SEO title\n  description: About it\n---\n\nBody\n";
-        let parsed = parse_frontmatter(original).unwrap();
-        let mut frontmatter = parsed.frontmatter;
-        frontmatter.insert("title".to_string(), Value::String("New".to_string()));
-
-        let saved = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            &parsed.imports,
-            &parsed.content,
-            None,
-        )
-        .unwrap();
-
-        assert!(
-            saved.contains("seo:\n  title: SEO title\n  description: About it\n"),
-            "{saved}"
-        );
-    }
-
-    #[test]
-    fn test_frontmatter_edit_keeps_datetimes_in_other_keys() {
-        // Editing one field rewrites the whole block, which must keep the time
-        // in every datetime, unquoted so Astro still reads them as dates
-        let original = "---\ntitle: Old\npubDate: 2024-01-15T10:30:00Z\nmeta:\n  created: 2024-01-01T12:30:00+01:00\nevents:\n- 2024-02-14T09:00:00Z\nday: 2024-03-20\n---\n\nBody\n";
-        let parsed = parse_frontmatter(original).unwrap();
-        let mut frontmatter = parsed.frontmatter;
-        frontmatter.insert("title".to_string(), Value::String("New".to_string()));
-
-        let saved = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            &parsed.imports,
-            &parsed.content,
-            None,
-        )
-        .unwrap();
-
-        assert!(saved.contains("pubDate: 2024-01-15T10:30:00Z\n"), "{saved}");
-        assert!(
-            saved.contains("  created: 2024-01-01T12:30:00+01:00\n"),
-            "{saved}"
-        );
-        assert!(saved.contains("- 2024-02-14T09:00:00Z\n"), "{saved}");
-        assert!(saved.contains("day: 2024-03-20\n"), "{saved}");
-        assert_eq!(parse_frontmatter(&saved).unwrap().frontmatter, frontmatter);
-    }
-
-    #[test]
-    fn test_field_ordering_preserved() {
-        // Test that build_ordered_frontmatter respects schema order then alphabetical
-        let mut frontmatter = IndexMap::new();
-
-        // Add fields in random order
-        frontmatter.insert("zebra".to_string(), Value::String("z".to_string()));
-        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
-        frontmatter.insert(
-            "publishDate".to_string(),
-            Value::String("2024-01-15".to_string()),
-        );
-        frontmatter.insert("apple".to_string(), Value::String("a".to_string()));
-        frontmatter.insert("draft".to_string(), Value::Bool(false));
-
-        // Define schema order (common Astro frontmatter fields)
-        let schema_order = vec![
-            "title".to_string(),
-            "publishDate".to_string(),
-            "draft".to_string(),
-        ];
-
-        let ordered = build_ordered_frontmatter(frontmatter, Some(schema_order));
-
-        // Verify order: schema fields first (title, publishDate, draft),
-        // then non-schema fields alphabetically (apple, zebra)
-        let keys: Vec<&String> = ordered.keys().collect();
-        assert_eq!(keys.len(), 5);
-        assert_eq!(keys[0], "title");
-        assert_eq!(keys[1], "publishDate");
-        assert_eq!(keys[2], "draft");
-        assert_eq!(keys[3], "apple"); // Alphabetical
-        assert_eq!(keys[4], "zebra"); // Alphabetical
-    }
-
-    #[test]
-    fn test_field_ordering_no_schema() {
-        // Test that without schema, fields are purely alphabetical
-        let mut frontmatter = IndexMap::new();
-
-        frontmatter.insert("zebra".to_string(), Value::String("z".to_string()));
-        frontmatter.insert("apple".to_string(), Value::String("a".to_string()));
-        frontmatter.insert("middle".to_string(), Value::String("m".to_string()));
-
-        let ordered = build_ordered_frontmatter(frontmatter, None);
-
-        let keys: Vec<&String> = ordered.keys().collect();
-        assert_eq!(keys, vec!["apple", "middle", "zebra"]);
-    }
-
-    #[test]
-    fn test_field_ordering_partial_schema_match() {
-        // Test when schema specifies fields that don't exist in frontmatter
-        let mut frontmatter = IndexMap::new();
-
-        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
-        frontmatter.insert("extra".to_string(), Value::String("e".to_string()));
-
-        // Schema includes fields that don't exist
-        let schema_order = vec![
-            "title".to_string(),
-            "publishDate".to_string(), // Doesn't exist
-            "draft".to_string(),       // Doesn't exist
-        ];
-
-        let ordered = build_ordered_frontmatter(frontmatter, Some(schema_order));
-
-        let keys: Vec<&String> = ordered.keys().collect();
-        assert_eq!(keys.len(), 2);
-        assert_eq!(keys[0], "title"); // Schema field that exists
-        assert_eq!(keys[1], "extra"); // Non-schema field, alphabetically
-    }
-
     #[tokio::test]
     async fn test_frontmatter_edit_preserves_mdx_imports() {
         // Regression test: editing frontmatter must not delete MDX imports
@@ -2026,14 +1221,15 @@ This is the main content."#;
 
         // Save as the editor does after a frontmatter edit: the imports and body
         // come separately from the parsed file
-        let parsed = parse_frontmatter(original_content).unwrap();
+        let parsed = parse_frontmatter(original_content);
         let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
             Some(new_frontmatter),
-            None,
+            parsed.raw_frontmatter,
             parsed.content,
             parsed.imports,
-            None,
+            FrontmatterSchema::default(),
+            false,
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -2075,489 +1271,5 @@ This is the main content."#;
 
         // Cleanup
         let _ = fs::remove_dir_all(&project_root);
-    }
-
-    // ============================================================================
-    // Unicode Edge Case Tests
-    // ============================================================================
-
-    #[test]
-    fn test_frontmatter_with_emoji_in_values() {
-        // Real-world: users type emoji in titles and descriptions
-        let content = r#"---
-title: "New Feature 🚀 Released!"
-description: "Super cool ✨ stuff"
-tags: ["🎉", "announcement"]
----
-
-Content here"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(
-            parsed.frontmatter.get("title").unwrap(),
-            "New Feature 🚀 Released!"
-        );
-        assert_eq!(
-            parsed.frontmatter.get("description").unwrap(),
-            "Super cool ✨ stuff"
-        );
-    }
-
-    #[test]
-    fn test_frontmatter_with_rtl_text() {
-        // Right-to-left languages (Arabic, Hebrew)
-        let content = r#"---
-title: "مرحبا بك في العالم"
-author: "محمد"
-titleHebrew: "שלום עולם"
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(
-            parsed.frontmatter.get("title").unwrap(),
-            "مرحبا بك في العالم"
-        );
-        assert_eq!(parsed.frontmatter.get("author").unwrap(), "محمد");
-        assert_eq!(parsed.frontmatter.get("titleHebrew").unwrap(), "שלום עולם");
-    }
-
-    #[test]
-    fn test_frontmatter_with_mixed_scripts() {
-        // CJK + Latin + Cyrillic
-        let content = r#"---
-title: "Hello 世界 Мир"
-author: "名前-Name-Имя"
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Hello 世界 Мир");
-        assert_eq!(parsed.frontmatter.get("author").unwrap(), "名前-Name-Имя");
-    }
-
-    #[test]
-    fn test_frontmatter_with_combining_characters() {
-        // Combining diacritics (common in some languages)
-        let content = r#"---
-title: "café"
-author: "José"
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "café");
-        assert_eq!(parsed.frontmatter.get("author").unwrap(), "José");
-    }
-
-    #[test]
-    fn test_frontmatter_with_zero_width_characters() {
-        // Zero-width characters (can break parsing if not handled)
-        let content = "---\ntitle: \"test\u{200B}word\"\n---\n\nContent"; // zero-width space
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "test\u{200B}word");
-    }
-
-    #[test]
-    fn test_serialize_unicode_roundtrip() {
-        // CRITICAL: Ensure unicode survives parse → serialize → parse
-        let mut frontmatter = IndexMap::new();
-        frontmatter.insert(
-            "title".to_string(),
-            Value::String("🚀 Test 世界".to_string()),
-        );
-        frontmatter.insert("emoji".to_string(), Value::String("✨🎉🔥".to_string()));
-
-        let serialized = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            "",
-            "Content",
-            None,
-        )
-        .unwrap();
-        let reparsed = parse_frontmatter(&serialized).unwrap();
-
-        assert_eq!(reparsed.frontmatter.get("title").unwrap(), "🚀 Test 世界");
-        assert_eq!(reparsed.frontmatter.get("emoji").unwrap(), "✨🎉🔥");
-    }
-
-    // ============================================================================
-    // Malformed YAML Tests
-    // ============================================================================
-
-    #[test]
-    fn test_frontmatter_unclosed_quote() {
-        // Common typo: forget closing quote
-        let content = r#"---
-title: "Unclosed quote
-description: "Valid"
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_err(), "Should reject unclosed quote");
-    }
-
-    #[test]
-    fn test_frontmatter_mixed_indentation() {
-        // Common issue: mixing tabs and spaces
-        let content = "---\ntitle: Test\n\tdescription: Mixed\n  author: Name\n---\n\nContent";
-
-        let result = parse_frontmatter(content);
-        // Should either parse correctly or fail gracefully (not corrupt)
-        if let Ok(parsed) = result {
-            assert!(parsed.frontmatter.contains_key("title"));
-        }
-    }
-
-    #[test]
-    fn test_frontmatter_missing_closing_delimiter() {
-        // Missing closing ---
-        let content = r#"---
-title: Test
-description: Missing closer
-
-Content starts here"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_err(), "Should reject missing closing delimiter");
-    }
-
-    #[test]
-    fn test_frontmatter_with_only_comments() {
-        // Edge case: frontmatter block with only comments
-        let content = r#"---
-# This is just a comment
-# Another comment
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        assert!(result.unwrap().frontmatter.is_empty());
-    }
-
-    // ============================================================================
-    // Line Ending Edge Case Tests
-    // ============================================================================
-
-    #[test]
-    fn test_frontmatter_with_crlf_line_endings() {
-        // Windows line endings
-        let content = "---\r\ntitle: Test\r\ndescription: Windows\r\n---\r\n\r\nContent";
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
-        assert_eq!(parsed.frontmatter.get("description").unwrap(), "Windows");
-    }
-
-    #[test]
-    fn test_frontmatter_with_mixed_line_endings() {
-        // Mixed CRLF and LF (can happen with git autocrlf)
-        let content = "---\r\ntitle: Test\ndescription: Mixed\r\n---\n\nContent";
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
-        assert_eq!(parsed.frontmatter.get("description").unwrap(), "Mixed");
-    }
-
-    #[test]
-    fn listings_read_the_frontmatter_as_opening_the_file_does() {
-        let cases = [
-            "---\ntitle: Test\ndraft: true\n---\n\nContent",
-            "---\r\ntitle: Test\r\n---\r\n\r\nContent",
-            "---\r\ntitle: Test\ndescription: Mixed\r\n---\n",
-            "---\n---\nContent",
-            "---\n# Only a comment\n---\n",
-            "---\ntitle: Test\n---\nimport A from './A.astro'\n\n<A />\n",
-            "No frontmatter\n",
-            "",
-            // Not opening lines, so no frontmatter either way
-            "--- \ntitle: Trailing space\n---\n",
-            "\u{feff}---\ntitle: After a byte order mark\n---\n",
-        ];
-        for content in cases {
-            let opened = parse_frontmatter(content).unwrap().frontmatter;
-            assert_eq!(frontmatter_values(content).unwrap(), opened, "{content:?}");
-        }
-
-        for broken in ["---\ntitle: Never closed\n", "---\ntitle: [unclosed\n---\n"] {
-            assert!(parse_frontmatter(broken).is_err(), "{broken:?}");
-            assert!(frontmatter_values(broken).is_err(), "{broken:?}");
-        }
-    }
-
-    #[test]
-    fn test_serialize_preserves_unix_line_endings() {
-        // Our output should always be LF, not CRLF
-        let mut frontmatter = IndexMap::new();
-        frontmatter.insert("title".to_string(), Value::String("Test".to_string()));
-
-        let result = rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &frontmatter,
-            "",
-            "Content",
-            None,
-        )
-        .unwrap();
-
-        assert!(!result.contains("\r\n"), "Should use LF, not CRLF");
-        assert!(result.contains('\n'), "Should have LF line endings");
-    }
-
-    // ============================================================================
-    // Empty/Minimal Input Tests
-    // ============================================================================
-
-    #[test]
-    fn test_frontmatter_with_empty_string_values() {
-        // Empty strings should be preserved, not treated as null
-        let content = r#"---
-title: ""
-description: ""
-author: "Actual Value"
----
-
-Content"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "");
-        assert_eq!(parsed.frontmatter.get("description").unwrap(), "");
-        assert_eq!(parsed.frontmatter.get("author").unwrap(), "Actual Value");
-    }
-
-    #[test]
-    fn test_single_character_content_after_frontmatter() {
-        // Edge case: minimal content
-        let content = r#"---
-title: Test
----
-
-X"#;
-
-        let result = parse_frontmatter(content);
-        assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert_eq!(parsed.content, "X");
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Test");
-    }
-
-    // --- Trailing newline round-trip tests ---
-    // These verify that save -> reload preserves trailing whitespace exactly,
-    // preventing the editor scroll jump bug (full doc replacement on content mismatch).
-
-    #[test]
-    fn test_roundtrip_keeps_a_blank_line_before_the_closing_marker() {
-        let file = "---\ntitle: Test\n\n---\n\nHello world.\n";
-        let parsed = parse_frontmatter(file).unwrap();
-        let saved =
-            rebuild_markdown_with_raw_frontmatter(&parsed.raw_frontmatter, "", &parsed.content)
-                .unwrap();
-        assert_eq!(saved, file);
-    }
-
-    #[test]
-    fn test_roundtrip_content_no_trailing_newline() {
-        let body = "Hello world.";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-    }
-
-    #[test]
-    fn test_roundtrip_content_single_trailing_newline() {
-        let body = "Hello world.\n";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-    }
-
-    #[test]
-    fn test_roundtrip_content_double_trailing_newline() {
-        let body = "Hello world.\n\n";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-    }
-
-    #[test]
-    fn test_roundtrip_content_triple_trailing_newline() {
-        let body = "Hello world.\n\n\n";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, "", body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-    }
-
-    #[test]
-    fn test_roundtrip_content_with_imports_no_trailing_newline() {
-        let body = "Some content";
-        let imports = "import Foo from './foo'";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, imports, body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-        assert_eq!(parsed.imports, imports);
-    }
-
-    #[test]
-    fn test_roundtrip_content_with_imports_double_trailing_newline() {
-        let body = "Some content\n\n";
-        let imports = "import Foo from './foo'";
-        let raw_fm = "title: Test";
-        let saved = rebuild_markdown_with_raw_frontmatter(raw_fm, imports, body).unwrap();
-        let parsed = parse_frontmatter(&saved).unwrap();
-        assert_eq!(parsed.content, body);
-        assert_eq!(parsed.imports, imports);
-    }
-
-    #[test]
-    fn test_roundtrip_no_frontmatter_no_trailing_newline() {
-        let saved = "Just some content.";
-        let parsed = parse_frontmatter(saved).unwrap();
-        assert_eq!(parsed.content, saved);
-    }
-
-    #[test]
-    fn test_roundtrip_no_frontmatter_double_trailing_newline() {
-        let saved = "Just some content.\n\n";
-        let parsed = parse_frontmatter(saved).unwrap();
-        assert_eq!(parsed.content, saved);
-    }
-}
-
-/// Runs the MDX files in `test/mdx-imports` through reading and saving
-#[cfg(test)]
-mod mdx_corpus_tests {
-    use super::*;
-
-    fn corpus() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/mdx-imports")
-    }
-
-    fn mdx_files(dir: &Path) -> Vec<PathBuf> {
-        let mut paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .map(|entry| entry.into_path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "mdx"))
-            .collect();
-        paths.sort();
-        paths
-    }
-
-    fn name(path: &Path) -> String {
-        path.strip_prefix(corpus())
-            .unwrap()
-            .to_string_lossy()
-            .into_owned()
-    }
-
-    /// What `save_markdown_content` writes when the frontmatter hasn't been edited
-    fn save(parsed: &MarkdownContent) -> String {
-        if parsed.raw_frontmatter.trim().is_empty() {
-            rebuild_markdown_content_only(&parsed.imports, &parsed.content)
-        } else {
-            rebuild_markdown_with_raw_frontmatter(
-                &parsed.raw_frontmatter,
-                &parsed.imports,
-                &parsed.content,
-            )
-        }
-        .unwrap()
-    }
-
-    fn non_blank_lines(text: &str) -> Vec<&str> {
-        text.lines()
-            .filter(|line| !line.trim().is_empty())
-            .collect()
-    }
-
-    #[test]
-    fn saving_an_unchanged_file_reads_back_the_same() {
-        for path in mdx_files(&corpus()) {
-            let name = name(&path);
-            let original = std::fs::read_to_string(&path).unwrap();
-            let parsed = parse_frontmatter(&original).unwrap_or_else(|e| panic!("{name}: {e}"));
-            let saved = save(&parsed);
-
-            // Only the blank lines between frontmatter, block and body may change
-            assert_eq!(
-                non_blank_lines(&saved),
-                non_blank_lines(&original),
-                "{name}: saving changed more than blank lines"
-            );
-            let reread = parse_frontmatter(&saved).unwrap();
-            assert_eq!(reread.imports, parsed.imports, "{name}: block changed");
-            assert_eq!(reread.content, parsed.content, "{name}: body changed");
-        }
-    }
-
-    /// The block each file in `files/` hides is kept in `files/blocks.txt`. After
-    /// a deliberate change, regenerate it with `UPDATE_SNAPSHOTS=1` and review
-    /// the diff.
-    #[test]
-    fn hidden_blocks_match_the_snapshot() {
-        let mut actual = String::from(
-            "# The ESM block the editor hides in each file here, and the ESM further down\n\
-             # that counts as already imported. Checked by `mdx_corpus_tests` in\n\
-             # `src-tauri/src/commands/files.rs`.\n",
-        );
-        for path in mdx_files(&corpus().join("files")) {
-            let parsed = parse_frontmatter(&std::fs::read_to_string(&path).unwrap()).unwrap();
-            let block = if parsed.imports.is_empty() {
-                "(none)"
-            } else {
-                &parsed.imports
-            };
-            let name = name(&path);
-            let name = name.strip_prefix("files/").unwrap();
-            actual.push_str(&format!("\n=== {name}\n{block}\n"));
-            // Imports further down, which count as already imported
-            for esm in crate::mdx_esm::body_esm(&parsed.content) {
-                actual.push_str(&format!("--- further down\n{}\n", esm.text));
-            }
-        }
-
-        let snapshot = corpus().join("files/blocks.txt");
-        if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, actual).unwrap();
-            return;
-        }
-        let expected = std::fs::read_to_string(&snapshot).unwrap_or_default();
-        let sections = |text: &str| text.split("\n=== ").map(String::from).collect::<Vec<_>>();
-        let first_difference = sections(&actual)
-            .into_iter()
-            .zip(sections(&expected))
-            .find(|(a, e)| a != e);
-        assert!(
-            actual == expected,
-            "Hidden blocks differ from files/blocks.txt, first at:\n{first_difference:#?}\nIf that's intended, rerun with UPDATE_SNAPSHOTS=1 and review the diff."
-        );
     }
 }

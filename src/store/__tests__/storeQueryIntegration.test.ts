@@ -40,6 +40,7 @@ describe('Store ↔ Query Integration Tests', () => {
   beforeEach(() => {
     // Reset stores
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: null,
       editorContent: '',
       frontmatter: {},
@@ -91,6 +92,7 @@ describe('Store ↔ Query Integration Tests', () => {
     it('should set dirty state when content changes', () => {
       // Setup: File open, clean state
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -108,6 +110,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
     it('should set dirty state when frontmatter changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -126,6 +129,7 @@ describe('Store ↔ Query Integration Tests', () => {
     it('should reset dirty state when opening new file', () => {
       // Setup: Current file is dirty
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'dirty content',
         isDirty: true,
@@ -170,6 +174,7 @@ describe('Store ↔ Query Integration Tests', () => {
       // Setup: Open file A and make it dirty with auto-save scheduled
       store.openFile(mockFileEntry)
       useEditorStore.setState({
+        isLoaded: true,
         editorContent: 'content for file A',
         frontmatter: { title: 'File A' },
         isDirty: true,
@@ -202,6 +207,7 @@ describe('Store ↔ Query Integration Tests', () => {
   describe('Content and Frontmatter Updates', () => {
     it('should merge frontmatter updates correctly', () => {
       useEditorStore.setState({
+        isLoaded: true,
         frontmatter: { title: 'Original', author: 'John' },
       })
 
@@ -220,6 +226,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
     it('should remove frontmatter field when set to empty value', () => {
       useEditorStore.setState({
+        isLoaded: true,
         frontmatter: { title: 'Title', tags: ['a', 'b'], draft: true },
       })
 
@@ -247,6 +254,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
     it('should handle nested frontmatter updates', () => {
       useEditorStore.setState({
+        isLoaded: true,
         frontmatter: {
           author: {
             name: 'John',
@@ -279,6 +287,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
       // Simulate query success by setting content (as useEditorFileContent hook does)
       useEditorStore.setState({
+        isLoaded: true,
         editorContent: 'Test content body',
         frontmatter: {
           title: 'Test Post',
@@ -308,6 +317,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
       // Simulate empty content load
       useEditorStore.setState({
+        isLoaded: true,
         editorContent: '',
         frontmatter: {},
         rawFrontmatter: '',
@@ -327,6 +337,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
       // Simulate content load
       useEditorStore.setState({
+        isLoaded: true,
         editorContent: 'Content',
         frontmatter: { title: 'Test' },
         rawFrontmatter: 'title: Test',
@@ -353,10 +364,11 @@ describe('Store ↔ Query Integration Tests', () => {
               frontmatter: state.frontmatter,
               content: state.editorContent,
               imports: state.imports,
-              schemaFieldOrder: null,
+              schema: { fields: [], dateFields: [] },
               projectRoot: '/test',
             })
             useEditorStore.setState({
+              isLoaded: true,
               isDirty: false,
               lastSaveTimestamp: Date.now(),
             })
@@ -371,6 +383,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
       // Register the mock callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockSaveCallback,
       })
     })
@@ -378,6 +391,7 @@ describe('Store ↔ Query Integration Tests', () => {
     afterEach(() => {
       // Clear the callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: null,
       })
     })
@@ -385,6 +399,7 @@ describe('Store ↔ Query Integration Tests', () => {
     it('should save file and mark clean', async () => {
       // Setup: file open, dirty state
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Modified content',
         frontmatter: { title: 'Modified Title' },
@@ -421,6 +436,7 @@ describe('Store ↔ Query Integration Tests', () => {
     it('should not save when not dirty', async () => {
       // Setup: file open, clean state
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Content',
         frontmatter: { title: 'Title' },
@@ -446,6 +462,7 @@ describe('Store ↔ Query Integration Tests', () => {
 
       // Setup: file with imports
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Content with image',
         frontmatter: { title: 'Post with Images' },
@@ -476,6 +493,7 @@ describe('Store ↔ Query Integration Tests', () => {
       )
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Content',
         frontmatter: { title: 'Title' },
@@ -496,6 +514,7 @@ describe('Store ↔ Query Integration Tests', () => {
       const beforeSaveTime = Date.now()
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Content',
         frontmatter: { title: 'Title' },
@@ -520,6 +539,7 @@ describe('Store ↔ Query Integration Tests', () => {
       const fileA = mockFileEntry
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: fileA,
         editorContent: 'File A content',
         frontmatter: { title: 'File A Title', tags: ['a'] },
@@ -556,6 +576,7 @@ describe('Store ↔ Query Integration Tests', () => {
       const fileA = mockFileEntry
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: fileA,
         editorContent: 'Modified content',
         isDirty: true,
@@ -603,6 +624,7 @@ describe('Store ↔ Query Integration Tests', () => {
     it('should handle switching to same file idempotently', () => {
       // Setup: File already open
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         editorContent: 'Content',
         frontmatter: { title: 'Title' },

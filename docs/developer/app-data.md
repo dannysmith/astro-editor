@@ -79,6 +79,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 | Absolute or relative image paths | Project → collection | Relative |
 | MDX components folders | Project | `src/components/mdx`. A list: the component builder reads each, and a component in two of them (one inside another) once |
 | Add component imports | Project | Off |
+| Reorder frontmatter | Project | Off: an edit leaves keys where they are. On, an edited file's keys go in schema order, then the rest alphabetically, but only in a collection whose whole schema is known |
 | Content folder | Project | `src/content` |
 
 - **Field detection** looks in the schema by name and type. Without a schema, the conventional names apply and are read from each file's frontmatter. A schema without a matching field leaves the setting missing: no draft badge or filter, for example.

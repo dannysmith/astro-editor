@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { Compartment, EditorState } from '@codemirror/state'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
@@ -19,6 +19,15 @@ import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
 import '../../lib/editor/extensions/copyedit-mode/copyedit-mode.css'
+
+/**
+ * The editor is read-only until the open file has loaded: until then it holds
+ * an empty placeholder (see `isLoaded` in editorStore). Read-only rather than
+ * not editable, so focus stays in the editor while switching files
+ */
+const readOnlyCompartment = new Compartment()
+const readOnlyUntilLoaded = (isLoaded: boolean) =>
+  EditorState.readOnly.of(!isLoaded)
 
 // Extend window to include editor focus tracking
 declare global {
@@ -161,12 +170,13 @@ const EditorViewComponent: React.FC = () => {
     const currentCleanupCommands = cleanupCommands
 
     // Get initial content directly from store, not from subscription
-    const { editorContent } = useEditorStore.getState()
+    const { editorContent, isLoaded } = useEditorStore.getState()
 
     const startState = EditorState.create({
       doc: editorContent,
       extensions: [
         ...extensions,
+        readOnlyCompartment.of(readOnlyUntilLoaded(isLoaded)),
         EditorView.updateListener.of(update => {
           if (update.docChanged && !isProgrammaticUpdate.current) {
             const newContent = update.state.doc.toString()
@@ -300,6 +310,17 @@ const EditorViewComponent: React.FC = () => {
 
     return unsubscribe
   }, [currentFileId])
+
+  // Follow the open file's load state without re-rendering
+  useEffect(() => {
+    return useEditorStore.subscribe(({ isLoaded }) => {
+      const view = viewRef.current
+      if (!view || view.state.readOnly === !isLoaded) return
+      view.dispatch({
+        effects: readOnlyCompartment.reconfigure(readOnlyUntilLoaded(isLoaded)),
+      })
+    })
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {

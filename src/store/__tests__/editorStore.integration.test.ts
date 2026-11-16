@@ -32,6 +32,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     // Reset all stores
     useEditorStore.setState({
+      isLoaded: true,
       currentFile: null,
       editorContent: '',
       frontmatter: {},
@@ -40,6 +41,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       isDirty: false,
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
+      dirtySince: null,
     })
 
     useProjectStore.setState({
@@ -89,29 +91,34 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       // Mock the auto-save callback
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockAutoSaveCallback,
       })
 
-      // Setup: Open a file with save timestamp from 5 seconds ago
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
-        lastSaveTimestamp: Date.now() - 5000,
         isDirty: false,
+        dirtySince: null,
       })
 
       const store = useEditorStore.getState()
 
-      // Type once - this will check if 10s has passed (5s ago + 5s now = 10s)
-      // The current time will be Date.now() which we can control by advancing fake time
-      vi.advanceTimersByTime(5000) // Advance 5 more seconds
+      // Type every second, faster than the debounce: only the forced save,
+      // 10s after the first unsaved edit, saves
+      for (let second = 0; second < 10; second++) {
+        store.setEditorContent(`content ${second}`)
+        expect(mockAutoSaveCallback).not.toHaveBeenCalled()
+        vi.advanceTimersByTime(1000)
+      }
       store.setEditorContent('content after 10s')
 
-      // Verify: Force save should have been triggered because 10s elapsed
       expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
     })
 
     it('should schedule debounced save when typing with pauses', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -139,6 +146,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
   describe('Dirty State Changes', () => {
     it('should set dirty state when content changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -154,6 +162,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     it('should set dirty state when frontmatter changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         isDirty: false,
       })
@@ -171,6 +180,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
   describe('Auto-Save Scheduling', () => {
     it('should schedule auto-save when content changes', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -187,6 +197,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
     it('should clear previous timeout when scheduling new auto-save', () => {
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now(),
       })
@@ -212,11 +223,13 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       // Mock the auto-save callback
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockAutoSaveCallback,
       })
 
       // Setup: Last save was only 3 seconds ago
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         lastSaveTimestamp: Date.now() - 3000,
         isDirty: false,
@@ -231,27 +244,35 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       expect(mockAutoSaveCallback).not.toHaveBeenCalled()
     })
 
-    it('should force save if more than 10s since last save', () => {
-      // Mock the auto-save callback
+    it('should force save once the first unsaved edit is over 10s old', () => {
       const mockAutoSaveCallback = vi.fn()
       useEditorStore.setState({
-        autoSaveCallback: mockAutoSaveCallback,
-      })
-
-      // Setup: Last save was 11 seconds ago
-      useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
-        lastSaveTimestamp: Date.now() - 11000,
+        autoSaveCallback: mockAutoSaveCallback,
         isDirty: true,
+        dirtySince: Date.now() - 11000,
       })
 
-      const store = useEditorStore.getState()
+      useEditorStore.getState().setEditorContent('content')
 
-      // Type (11s has passed, exceeds 10s max)
-      store.setEditorContent('content')
-
-      // Verify: Force save WAS triggered
       expect(mockAutoSaveCallback).toHaveBeenCalledWith(false)
+    })
+
+    it("doesn't save the first edit after a pause on its own", () => {
+      const mockAutoSaveCallback = vi.fn()
+      useEditorStore.setState({
+        isLoaded: true,
+        currentFile: mockFileEntry,
+        autoSaveCallback: mockAutoSaveCallback,
+        lastSaveTimestamp: Date.now() - 60000,
+        isDirty: false,
+        dirtySince: null,
+      })
+
+      useEditorStore.getState().setEditorContent('c')
+
+      expect(mockAutoSaveCallback).not.toHaveBeenCalled()
     })
   })
 
@@ -272,10 +293,11 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
             frontmatter: state.frontmatter,
             content: state.editorContent,
             imports: state.imports,
-            schemaFieldOrder: null,
+            schema: { fields: [], dateFields: [] },
             projectRoot: '/test',
           })
           useEditorStore.setState({
+            isLoaded: true,
             isDirty: false,
             lastSaveTimestamp: Date.now(),
           })
@@ -284,6 +306,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
       // Register the mock callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: mockSaveCallback,
       })
     })
@@ -294,6 +317,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
 
       // Clear the callback
       useEditorStore.setState({
+        isLoaded: true,
         autoSaveCallback: null,
       })
     })
@@ -303,6 +327,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
       const mockImports = "import { Component } from 'astro:components';"
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         imports: mockImports,
         frontmatter: { title: 'Original Title' },
@@ -348,6 +373,7 @@ import {
 } from './utils';`
 
       useEditorStore.setState({
+        isLoaded: true,
         currentFile: mockFileEntry,
         imports: mockImports,
         frontmatter: { title: 'Test' },

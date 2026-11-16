@@ -3,29 +3,44 @@ title: 'How YAML is Handled'
 description: 'Reference for how YAML frontmatter is read, written, and formatted'
 ---
 
-When Astro Editor reads a markdown/MDX file it splits it into three parts: the **YAML frontmatter**, any component **imports**, and the **body**. These are handled separately, with any changes to them stitched back together and saved to disk. This page describes exactly how the frontmatter half of that is read and written, because the rules occasionally surprise people.
+When Astro Editor reads a Markdown or MDX file, it splits it into three parts: the **YAML frontmatter**, any component **imports**, and the **body**. Each is handled separately, and saving puts them back together. This page describes how the frontmatter is read and written.
 
 ## Reading frontmatter
 
-When a file opens, Astro Editor looks for a frontmatter block: a **first** line of `---` followed by some YAML and a closing `---` on its own line. If the first line is not `---` the file is treated as having no frontmatter.
+Astro Editor finds and reads frontmatter the way Astro does, so if your site builds, its files open here.
 
-The YAML is then parsed and used to populate the fields in the [frontmatter panel](/frontmatter/overview/). While these fields will appear ordered by the **schema**, the file's frontmatter will not be reordered to match until a change is made. Any frontmatter fields which don't appear in the schema will be shown at the bottom.
+- The frontmatter is the YAML between a `---` line at the top of the file and the next `---` line. A byte order mark, blank lines before the first `---`, and spaces after either line are all fine.
+- A file whose first `---` is never closed has no frontmatter: the line is a horizontal rule in the body.
+- The YAML is read as YAML 1.2, as Astro reads it. `yes`, `no`, `on` and `off` are text, not true and false, and anchors, aliases and `<<` merge keys work.
+- Dates are kept as you wrote them. Your schema says which fields are dates.
+- Frontmatter written in TOML, between `+++` lines, isn't read.
+
+The fields appear in the [frontmatter panel](/frontmatter/overview/) in your schema's order, with any fields not in the schema at the bottom. That's only how the panel shows them: the file isn't changed until you edit something.
+
+### Frontmatter that can't be read
+
+If the YAML isn't valid, or has the same field twice (which also fails Astro's build), the frontmatter panel says it couldn't read the frontmatter and shows the error, with its line number in the file. You can still edit the body, and saving writes the frontmatter back exactly as it was. Fix it in another editor and the fields appear.
 
 ## Writing frontmatter
 
-How the frontmatter is written depends on whether you've touched it or not. If you edit the body of a document without touching the frontmatter, the original frontmatter block is written back exactly as it was.
+Saving a file whose frontmatter you haven't edited writes the frontmatter back exactly as it was. When you edit fields, only those fields change:
 
-**If you edit ANY frontmatter field**, the whole block is re-generated according to Astro Editor's rules. This means:
+- **Other fields keep their text exactly:** quotes, comments, blank lines, indentation, and how lists and objects are written.
+- **A changed field keeps its style.** It's written with the same quotes as before, an inline list (`[a, b]`) stays inline, a list indented under its key stays indented, and a comment at the end of its line stays.
+- **A new field goes where your schema puts it,** before the next field the schema defines after it, and in the quote style the rest of the file uses.
+- **A cleared field is removed,** with its comments. Astro Editor doesn't write empty values like `title: ''` or `tags: []`.
+- **Edits are applied to the frontmatter as it was when you opened the file,** not to what the last auto-save wrote. Clearing a field and typing it again puts it back where it was, with its comment, and changing a field back to what it was leaves the file as it was.
 
-- Fields are written **according to your schema's order**, followed by any non-schema fields alphabetically.
-- Any YAML comments are removed.
-- Quoting and spacing are normalised according to Astro Editor's conventions: strings are left unquoted unless they need quoting, indentation is standardised, some inline arrays are rewritten.
-- Datetimes are shortened to ISO dates (values like `2024-01-15T09:30:00Z` become `2024-01-15`).
+Multi-line text is written as a `|` block. Text that YAML would read as something else, like `true`, `1.5` or `null`, is quoted so it stays text.
 
-<Aside type="caution">
-Because editing a single field rewrites the whole block, comments in your frontmatter and any hand-tuned formatting will be lost the first time you change anything in that file's frontmatter through Astro Editor.
-</Aside>
+### Dates
 
-## Types
+A date or datetime is written exactly as you entered it, like `2024-01-15` or `2024-01-15T09:30:00Z`. In a date field, it's written without quotes, so Astro reads it as a date. Elsewhere, text that looks like a date is quoted so it stays text, unless the field had an unquoted date before.
 
-Values keep their YAML types as you'd expect: `true` / `false` stay booleans, numbers stay numbers, and quoted and unquoted strings are both read as text. These round-trip back to bare `true`, `false`, and numbers when the block is re-generated.
+### Reordering
+
+By default, fields stay where they are. With [Reorder frontmatter](/project-settings/#content) on, editing a file's frontmatter also puts its fields in your schema's order, then any others alphabetically, each with its comments. This only happens in collections whose generated schema Astro Editor has read, since without it every field would be sorted alphabetically.
+
+### A safety check
+
+Before writing, Astro Editor reads the frontmatter it's about to write and checks it gives exactly the values you edited. If it doesn't, it writes the whole block out again from the values instead, and if even that doesn't check out, it doesn't save and tells you, so your file is never written with values you didn't enter.
