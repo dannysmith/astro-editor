@@ -27,6 +27,17 @@ export default defineConfig(async () => ({
     },
   },
 
+  // harper.js finds its WebAssembly with `new URL(…, import.meta.url)`, which
+  // breaks if Vite pre-bundles it into `.vite/deps`
+  optimizeDeps: {
+    exclude: ['harper.js'],
+  },
+  // Harper's worker imports harper.js, which needs `import.meta.url`, so it's
+  // built as a module
+  worker: {
+    format: 'es' as const,
+  },
+
   // Build optimizations
   build: {
     sourcemap: false, // Disable source maps in production

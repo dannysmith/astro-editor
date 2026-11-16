@@ -64,6 +64,11 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
             dark: '#FFFFFF',
           },
         },
+        copyedit: {
+          dialect: 'american',
+          checks: { spelling: false, grammar: false, style: false },
+          dictionary: [],
+        },
         version: 1,
       },
     })

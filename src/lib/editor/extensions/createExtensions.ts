@@ -26,6 +26,7 @@
  * 5. Writing Modes
  *    - Focus mode (sentence-based dimming)
  *    - Copyedit mode (parts of speech highlighting)
+ *    - Harper (spelling, grammar and style checks)
  *
  * 6. Visual Enhancements
  *    - Hanging headers (# in margin)
@@ -51,6 +52,7 @@ import { createKeymapExtensions, type KeymapHandlers } from './keymap'
 import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
+import { createHarperExtension } from './harper'
 import { createTypewriterModeExtension } from './typewriter-mode'
 import { hangingHeadersExtension } from './hanging-headers'
 import { syntaxMarkDecorationsExtension } from './syntax-mark-decorations'
@@ -121,6 +123,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     // Writing modes - Always include extensions, toggle via state
     ...createFocusModeExtension(),
     ...createCopyeditModeExtension(),
+    ...createHarperExtension(),
     ...createTypewriterModeExtension(),
 
     // Visual enhancements

@@ -32,6 +32,7 @@ pub enum Theme {
 pub struct GlobalSettings {
     pub general: GeneralSettings,
     pub appearance: AppearanceSettings,
+    pub copyedit: CopyeditSettings,
     pub version: u32,
 }
 
@@ -40,6 +41,7 @@ impl Default for GlobalSettings {
         Self {
             general: GeneralSettings::default(),
             appearance: AppearanceSettings::default(),
+            copyedit: CopyeditSettings::default(),
             version: 2,
         }
     }
@@ -76,6 +78,35 @@ pub struct Highlights {
     pub adjectives: bool,
     pub adverbs: bool,
     pub conjunctions: bool,
+}
+
+/// Harper's spelling, grammar and style checks
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+pub struct CopyeditSettings {
+    pub dialect: Dialect,
+    pub checks: CopyeditChecks,
+    /// Words the user added, which spelling accepts
+    pub dictionary: Vec<String>,
+}
+
+/// The English Harper checks against
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum Dialect {
+    #[default]
+    American,
+    British,
+    Canadian,
+    Australian,
+    Indian,
+}
+
+/// Which of Harper's checks are on
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+pub struct CopyeditChecks {
+    pub spelling: bool,
+    pub grammar: bool,
+    pub style: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]

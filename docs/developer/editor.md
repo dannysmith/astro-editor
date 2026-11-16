@@ -32,6 +32,15 @@ Highlighting runs through custom tags rather than `@lezer/highlight`'s built-in 
 
 Colours and type come from `editor-styles.md` and the `--editor-color-*` tokens in `App.css` (see `color-system.md`).
 
+## Spelling, grammar and style checks
+
+The Copyedit panel's checks run [Harper](https://writewithharper.com) through `@codemirror/lint`. The code is in `extensions/harper/`, and each file's header says what it does. Things to know before changing it:
+
+- **Harper checks a masked copy of the document.** `prose.ts` replaces everything that isn't prose (code, URLs, tags, MDX) with a private-use character, keeping the document's length, so Harper's offsets are document positions. New Markdown or MDX syntax that isn't prose needs masking there, or Harper will check it.
+- **Harper runs in its own worker** (`harper.worker.ts`), which answers with plain data. The main thread never loads harper.js or its WebAssembly, so don't import harper.js values outside the worker (types are fine).
+- **A fix only applies while the issue covers the text it was raised on** (`issues.ts`). Checks are a second or more behind typing, so anything that edits the document from an issue has to go through `applyFix`.
+- **Harper's tooltip is the editor's only hover tooltip,** so `tooltip.ts` styles `.cm-tooltip-hover` itself. The lint package's own tooltip is emptied with `tooltipFilter` but still adds an empty section, which is hidden. A new hover tooltip needs those styles scoped to Harper's section first.
+
 ## Auto-save and data safety
 
 Never losing work is a product principle, and each of these rules guards against a way of losing it.

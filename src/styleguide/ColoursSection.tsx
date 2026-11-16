@@ -104,6 +104,7 @@ const GROUPS: { title: string; tokens: string[] }[] = [
       'editor-color-codeblock-background',
       'editor-color-snippet-border',
       'editor-color-snippet-border-active',
+      'editor-color-tooltip-shadow',
       'editor-color-brown',
       'editor-color-red',
       'editor-color-pink',

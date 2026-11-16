@@ -251,6 +251,11 @@
     oklch(0 0 0 / 0.1),
     oklch(1 0 0 / 0.2)
   );
+  /* Under the tooltip for a spelling, grammar or style issue */
+  --editor-color-tooltip-shadow: light-dark(
+    oklch(0 0 0 / 0.12),
+    oklch(0 0 0 / 0.5)
+  );
 }
 
 .light {
