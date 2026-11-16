@@ -125,19 +125,19 @@ Checked against the code. Marked *(1.0.20)* where it was already in the last rel
 In order.
 
 1. [x] **Use the prerelease on my real sites for a few days.** Fix anything that comes up on `main`, and make another test build with `bun run test-build "<note>"` if it's worth checking.
-2. [ ] **Edit the release notes** (the draft below).
-3. [ ] **Commit this doc to `main`.** `prepare-release` refuses a dirty working tree.
-4. [ ] **Release.**
+2. [x] **Edit the release notes** (the draft below).
+3. [x] **Commit this doc to `main`.** `prepare-release` refuses a dirty working tree.
+4. [x] **Release.**
    - On an up-to-date `main`, run `bun run prepare-release v1.1.0`. Without the version it proposes 1.0.21.
    - When `release.yml` finishes, paste everything below the `---` in the draft notes into the draft release, and publish it.
    - Check that the website's page appears (`publish-release-notes.yml`), and that the installed prerelease offers the update.
-5. [ ] **Close the roadmap epic, #354.** It's already updated, with v1.1.0 under "Shipped" and a "Still open" list. Remove the line saying it's being tested as a prerelease, then close it.
-6. [ ] **Publish the note on danny.is:** set `draft: false`, then commit and push there.
-7. [ ] **Post about it** on the Astro Discord and on Bluesky, linking the note.
-8. [ ] **Tidy up.**
+5. [x] **Close the roadmap epic, #354.** It's already updated, with v1.1.0 under "Shipped" and a "Still open" list. Remove the line saying it's being tested as a prerelease, then close it.
+6. [x] **Publish the note on danny.is:** set `draft: false`, then commit and push there.
+7. [x] **Post about it** on the Astro Discord and on Bluesky, linking the note.
+8. [x] **Tidy up.**
    - Delete the test build: `gh release delete v1.0.21-test.1 --cleanup-tag`.
    - Once 1.1.0 has settled in, delete `~/Library/Application Support/is.danny.astroeditor.backup`.
-9.  [ ] **Close this task:** move it to `docs/tasks-done/task-YYYY-MM-DD-8-reviews-and-release.md`, and commit to `main`.
+9.  [x] **Close this task:** move it to `docs/tasks-done/task-YYYY-MM-DD-8-reviews-and-release.md`, and commit to `main`.
 
 ## Release notes for 1.1.0 (draft)
 
