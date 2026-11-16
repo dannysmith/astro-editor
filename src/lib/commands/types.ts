@@ -24,12 +24,6 @@ export interface CommandContext {
   openPreferences: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
-  toggleHighlightNouns: () => void
-  toggleHighlightVerbs: () => void
-  toggleHighlightAdjectives: () => void
-  toggleHighlightAdverbs: () => void
-  toggleHighlightConjunctions: () => void
-  toggleAllHighlights: () => void
 }
 
 export interface AppCommand {
@@ -43,7 +37,7 @@ export interface AppCommand {
     | 'project'
     | 'ide'
     | 'settings'
-    | 'highlight'
+    | 'copyedit'
     | 'help'
   execute: (context: CommandContext) => void | Promise<void>
   isAvailable: (context: CommandContext) => boolean

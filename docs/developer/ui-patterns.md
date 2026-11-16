@@ -17,6 +17,8 @@ The app should feel like a native macOS app, in the spirit of iA Writer.
 
 Components in `src/components/ui/` come from shadcn, built on [Base UI](https://base-ui.com/), not Radix. `components.json` uses the `base-vega` style, the closest to our look, so `shadcn add` delivers Base UI versions. Examples written for Radix won't work as they are.
 
+**Check what `shadcn add` changed.** It has imported `cn` from an npm package called `cn`, and installed it, instead of from `@/lib/utils`; revert `package.json` and `bun.lock` and fix the import if it does. Its components can also drop props: `Tabs` set `data-orientation` instead of passing `orientation` on to Base UI.
+
 - **`render`, not `asChild`:** pass the element to render as, e.g. `<PopoverTrigger render={<Button variant="outline" />}>Pick</PopoverTrigger>`. Our own polymorphic wrappers (badge, breadcrumb link, the sidebar parts) use `useRender` + `mergeProps`; `Button` uses Base UI's Button.
 - **Select labels:** pass `items` (value → label) to `Select` whenever labels differ from values, or the trigger shows the raw value. Build the list once and map it into the `SelectItem`s. `onValueChange` receives `null` when cleared.
 - **State styling:** use `data-open:`, `data-closed:`, `data-checked:`, `data-disabled:` and `data-active:`. They come from `shadcn/tailwind.css` and are wrapped in `:where()`, so they lose to any plain utility setting the same property. Base UI writes boolean attributes only when true (`data-active`, not `data-active="false"`), so `data-[active=true]` selectors never match. Style a trigger whose menu is open with `data-popup-open:`, including submenu triggers.
@@ -24,6 +26,7 @@ Components in `src/components/ui/` come from shadcn, built on [Base UI](https://
 - **Exit animations:** popups use tw-animate's `animate-in` / `animate-out` on `data-open` / `data-closed`. Base UI unmounts a popup when its exit animation ends, and a dialog's backdrop only when its popup goes. So a part with a shorter exit animation than its popup (a backdrop fade, say) snaps back into view until the unmount; give it `data-closed:fill-mode-forwards`.
 - **Menus:** `DropdownMenuLabel` must sit inside a `DropdownMenuGroup`. Checkbox and radio items don't close the menu when clicked (pass `closeOnClick` to change that).
 - **`ui/context-menu.tsx` isn't shadcn's ContextMenu.** It's the `FileContextMenu` class, which builds a native Tauri menu for the file list. Don't `shadcn add context-menu` over it.
+- **Tabs with icons** use `ResponsiveTabsList` (`ui/responsive-tabs-list.tsx`) inside `Tabs`: each tab shows an icon and a label, or only the icon (with the label as a tooltip) when the labels don't fit. It measures the tabs rather than using a breakpoint, so it works for any number of them. The right sidebar's tab bar uses it.
 
 ## Icon buttons
 

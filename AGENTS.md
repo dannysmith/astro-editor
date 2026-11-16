@@ -38,10 +38,10 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
 - **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
 - **No React Hook Form.** Frontmatter fields read and write the store directly (the Direct Store Pattern). Hook Form and Zustand together looped infinitely, and auto-save needs every change in the store at once.
-- **Hooks go in `hooks/`; `lib/` stays free of React** and reads stores only with `getState()` (the one exception is `lib/theme-provider.tsx`). *(ast-grep)*
+- **Hooks go in `hooks/`; `lib/` stays free of React** and reads stores only with `getState()`, or follows one with `.subscribe()` in a CodeMirror extension (the one exception is `lib/theme-provider.tsx`). *(ast-grep)*
 - **Colours only through the tokens in `src/App.css`.** No Tailwind palette classes or literal colours; tokens use `light-dark()`, so one change covers both themes. See `color-system.md`. *(ast-grep)*
 - **Log through `@tauri-apps/plugin-log`, not `console`.** Release builds strip `console.*`, so it never reaches a user's log. Release builds also log at debug level, so anything that fires per keystroke or per save goes behind `import.meta.env.DEV`. *(Oxlint)*
-- **Keep stateful panels mounted** and hide them instead. Unmounting loses panel sizes, scroll position and editor state.
+- **Keep stateful panels mounted** and hide them instead, with `<Activity>` when they should stop working while hidden. Unmounting loses panel sizes, scroll position and editor state.
 - **Don't add `useMemo`, `useCallback` or `React.memo` by default.** The React Compiler handles memoisation; it doesn't change the Zustand rules.
 - **Every component and hook must compile with the React Compiler.** It silently skips ones that break the Rules of React or use `try`/`finally`, `throw` inside `try`, or `?:`/`&&`/`||`/`??`/`?.` inside `try`; move that logic into a plain function. See the architecture guide. *(compiler:check)*
 - **One copy of each `@lezer/*` and `@codemirror/*` package.** Duplicates break highlighting at runtime and typecheck. After `bun update`, `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing; if it doesn't, run `rm -rf node_modules bun.lock && bun install`.
@@ -51,10 +51,10 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 
 ## Where things live
 
-- `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
+- `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `copyedit/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
 - `src/hooks/`: hooks, including queries and mutations (`queries/`, `mutations/`) and actions (`editor/useEditorActions.ts`)
 - `src/store/`: Zustand stores
-- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
+- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands), `commands/` (command palette), `right-sidebar.ts` (its tabs), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only

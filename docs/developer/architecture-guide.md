@@ -40,7 +40,7 @@ Frontmatter fields each take a field `name`, read their value with a selector an
 - **`lib/`** is plain TypeScript: business logic, utilities, classes. It may read a store with `getState()` (a one-way call with no React coupling) but never subscribe. The one exception is `lib/theme-provider.tsx`, a context provider kept with its hook.
 - **`components/ui/`** is shadcn (see `ui-patterns.md`); **`components/tauri/`** holds reusable components that call Tauri APIs.
 
-ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in-lib`), because `lib/` code that subscribes to a store can't be used or tested outside React.
+ast-grep enforces the first two (`hooks-in-hooks-dir`, `no-store-subscription-in-lib`), because `lib/` code that subscribes to a store can't be used or tested outside React. That means a React subscription (`useStore(selector)`). A CodeMirror extension may follow a store with its plain `.subscribe()`, unsubscribing in its plugin's `destroy`: the copyedit extension does, so it re-analyses whenever the highlight settings change, wherever they're changed from.
 
 ## How the parts talk
 
@@ -53,7 +53,32 @@ Commands, menus and shortcuts are covered in `commands-and-shortcuts.md`.
 
 ## Keep stateful panels mounted
 
-The sidebar and frontmatter panel are collapsed and expanded through `react-resizable-panels`' `collapse()` and `expand()`, not unmounted, and the same goes for anything else that's expensive to rebuild or holds state. Unmounting loses the panel sizes, the scroll position, the CodeMirror view and any local state. Prefer hiding with CSS over `{visible && <Thing />}` for those.
+Both sidebars are collapsed and expanded through `react-resizable-panels`' `collapse()` and `expand()`, not unmounted, and the same goes for anything else that's expensive to rebuild or holds state. Unmounting loses the panel sizes, the scroll position, the CodeMirror view and any local state. Prefer hiding with CSS over `{visible && <Thing />}` for those.
+
+Something that's hidden but keeps working (a panel in a background tab) goes in React's `<Activity mode="hidden">`. It keeps its DOM and state, scroll position included, but its effects are torn down until it's shown again. Store subscriptions are effects, so **a hidden component doesn't follow the stores**; it catches up when it's shown. That catch-up has to happen before the browser paints, or it shows stale values for a moment: it does when the reveal is a store update (Zustand updates render synchronously), and a reveal from anything else needs `flushSync`. The right sidebar does both (see below).
+
+## Right sidebar
+
+The right sidebar holds a panel per tab: Frontmatter, Copyedit, and later ones for Harper and git. `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) lists the tabs, and the tab bar, the ⌘2/⌘3… shortcuts and the palette commands are built from it. A panel doesn't assume a file is open; it shows its own empty state.
+
+`uiStore` holds `rightSidebarVisible` and `rightSidebarTab`, with three actions:
+
+- **`toggleRightSidebar`** opens or closes it and keeps the tab: the title bar button.
+- **`toggleRightSidebarTab(tab)`** closes it if it's open on that tab, and otherwise opens it there: the tab's shortcut, menu item and palette command.
+- **`showRightSidebarTab(tab)`** only opens: for code that reveals a panel, like creating a file with a title field.
+
+To add a tab, add it to `RIGHT_SIDEBAR_TABS`, map its id to the panel in `RightSidebar.tsx` (a typed `Record`, so a tab can't lack one), and add its View menu item in `lib.rs` (`toggle_right_sidebar_tab_<id>`, with its shortcut).
+
+**Each panel is shown from the sidebar's real width, not `rightSidebarVisible`.** The store flag changes a render before Layout expands the panel, and a panel shown then would measure itself at zero width (textarea heights, scrolling to an item). So Layout sets `rightSidebarExpanded` from the panel's `onResize`, inside `flushSync` so a reopened panel catches up with the stores before it's painted. While collapsed, the sidebar is `inert`, and focus in a panel that's about to be hidden moves to the editor.
+
+### Linking a panel to the editor
+
+A panel that lists things in the document (Harper's issues, say) and follows the cursor:
+
+- **Anything with document positions lives in CodeMirror state,** because positions have to be mapped through edits (`tr.changes`).
+- **Editor → panel:** a view plugin publishes what the panel shows to a small feature store, such as the issues and the id of the one at the cursor, only when it changes. Each row selects a boolean (`s => s.activeId === id`), so moving the cursor re-renders two rows, not the list. The active row scrolls itself into view in an effect, which `<Activity>` pauses while the panel is hidden.
+- **Panel → editor:** a plain `lib/` function takes the view from `getCurrentEditorView()` and dispatches the selection with `EditorView.scrollIntoView`.
+- **Not DOM events,** which are for actions that need a hook.
 
 ## React Compiler
 

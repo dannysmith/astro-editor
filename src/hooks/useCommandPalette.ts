@@ -12,7 +12,7 @@ const GROUP_ORDER: Array<{ key: AppCommand['group']; heading: string }> = [
   { key: 'navigation', heading: 'Navigation' },
   { key: 'project', heading: 'Project' },
   { key: 'settings', heading: 'Settings' },
-  { key: 'highlight', heading: 'Highlights' },
+  { key: 'copyedit', heading: 'Copyedit' },
   { key: 'ide', heading: 'IDE' },
   { key: 'help', heading: 'Help' },
 ]
