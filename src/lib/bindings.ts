@@ -129,6 +129,11 @@ export const commands = {
 	 */
 	renameEntry: (filePath: string, collection: Collection, stem: string, projectRoot: string) => typedError<string | null, string>(__TAURI_INVOKE("rename_entry", { filePath, collection, stem, projectRoot })),
 	/**
+	 *  What Project Settings shows about git for the project at `project_path`:
+	 *  the `git` found, the repository, and the config that affects committing
+	 */
+	gitSetup: (projectPath: string) => typedError<GitSetup, string>(__TAURI_INVOKE("git_setup", { projectPath })),
+	/**
 	 *  Watches a project. `folders` are its collection folders, which can be anywhere
 	 *  in the project.
 	 */
@@ -390,6 +395,68 @@ export type GeneralSettings = {
 	autoSaveDelay: number,
 	/**  For new files when a collection allows both and doesn't set one */
 	defaultFileType: FileType,
+};
+
+/**  A config value and the file it comes from */
+export type GitConfigValue = {
+	value: string,
+	/**
+	 *  Where it's set, as git reports it: a path like `/Users/me/.gitconfig` or
+	 *  `.git/config`, or `command line`
+	 */
+	origin: string,
+};
+
+/**  Something git is in the middle of, which only a git tool should finish */
+export type GitOperation = "merge" | "rebase" | "cherryPick" | "revert";
+
+export type GitProblem = { kind: "notInstalled" } | 
+/**  macOS's `/usr/bin/git` needs the command line tools */
+{ kind: "commandLineToolsMissing" } | { kind: "notARepository" } | 
+/**  The project is in a folder the repository at `root` ignores */
+{ kind: "ignored"; root: string } | 
+/**  git failed, with its message */
+{ kind: "failed"; message: string };
+
+export type GitProgram = {
+	path: string,
+	/**  Like `2.56.1` or `2.50.1 (Apple Git-155)` */
+	version: string,
+};
+
+export type GitRepository = {
+	root: string,
+	/**
+	 *  The project's folder within the repository, like `docs`. `None` when
+	 *  the project is the repository's root.
+	 */
+	projectFolder: string | null,
+	/**  The parent repository, when this one is a submodule */
+	superproject: string | null,
+	/**  `None` when HEAD is detached */
+	branch: string | null,
+	/**  Like `origin/main` */
+	upstream: string | null,
+	ahead: number,
+	behind: number,
+	/**  False until the first commit */
+	hasCommits: boolean,
+	operation: GitOperation | null,
+	userName: GitConfigValue | null,
+	userEmail: GitConfigValue | null,
+	/**  The signature format (`openpgp`, `ssh`, `x509`) when commits are signed */
+	signing: string | null,
+	/**  The hooks a commit or push from AE runs, in the order they run */
+	hooks: string[],
+};
+
+export type GitSetup = {
+	/**  `None` when there's no `git` to run */
+	git: GitProgram | null,
+	/**  Why git can't be used for this project, if it can't */
+	problem: GitProblem | null,
+	/**  Set when the project is in a repository git can read */
+	repository: GitRepository | null,
 };
 
 export type GlobalSettings = {

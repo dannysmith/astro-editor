@@ -194,7 +194,7 @@ Each phase ends with `bun run check:all` passing and a commit on `experiment/git
 - The test repos in `~/dev/temp-git-repos-for-ae-testing/` and the script that rebuilds them (see Testing), checked to open properly in the dev app.
 - The agent sandbox can write to the test repos (a temporary entry in Danny's `.claude/settings.local.json`), so an agent can play the other app without prompting.
 
-### Phase 1: the Rust side of git
+### Phase 1: the Rust side of git (done)
 
 No UI. A `src-tauri/src/git/` module that later phases only call into.
 
@@ -204,7 +204,11 @@ No UI. A `src-tauri/src/git/` module that later phases only call into.
 4. **`git_setup(project)`**, returning everything Project Settings shows, and its tests: temp repos with `GIT_CEILING_DIRECTORIES`, no global or system config, for a repo at the root, a site in a subfolder, an ignored folder, no repo, a submodule.
 5. Regenerate the bindings, and add the new types to `src/types/domain.ts`.
 
-Watch for: `tauri dev` starts the app from a terminal, so it already has the full PATH and the Dock problem never shows in development. Test the lookup's parsing in unit tests, and check it for real once in a release build.
+Done as `src-tauri/src/shell_path.rs` (the PATH lookup) and `src-tauri/src/git/` (`runner`, `status`, `repo`, `setup`, and `test_repos` for the tests), with `git_setup` in `commands/git.rs`. Serialising commands per repository is left for phase 4, the first time anything writes. What it turned up:
+
+- **The shell and git run in a new session (`setsid`), not just their own process group.** Under `tauri dev` the app has a controlling terminal, and an interactive zsh in a background process group was stopped by the system until the 8-second timeout, so the lookup failed every time. A hook that wants the terminal (a passphrase prompt) would hang the same way. With no terminal, they fail at once. With it, the first `git_setup` takes about 450ms (the shell lookup) and later ones about 110ms.
+- **`git check-ignore` refuses `GIT_LITERAL_PATHSPECS=1`** ("pathspec magic not supported"). It takes plain paths, so the runner turns it off for that one command.
+- `tauri dev` starts the app with the terminal's PATH, so a broken lookup can still hide in development (the fallback PATH is nearly complete there). Check it once in a release build opened from the Dock.
 
 ### Phase 2: the switch and an empty tab
 
