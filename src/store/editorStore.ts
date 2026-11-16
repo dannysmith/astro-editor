@@ -61,7 +61,6 @@ interface EditorState {
   saveFile: (showToast?: boolean) => Promise<void>
   setEditorContent: (content: string) => void
   setImports: (imports: string) => void
-  updateFrontmatter: (frontmatter: Record<string, unknown>) => void
   updateFrontmatterField: (key: string, value: unknown) => void
   scheduleAutoSave: () => void
   setAutoSaveCallback: (
@@ -221,12 +220,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setImports: (imports: string) => {
     if (!get().isLoaded) return
     set({ imports, isDirty: true })
-    get().scheduleAutoSave()
-  },
-
-  updateFrontmatter: (frontmatter: Record<string, unknown>) => {
-    if (!get().isLoaded || get().frontmatterError) return
-    set({ frontmatter, isDirty: true, isFrontmatterDirty: true })
     get().scheduleAutoSave()
   },
 
