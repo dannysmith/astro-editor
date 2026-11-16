@@ -23,7 +23,7 @@ Inside it:
 
 **Reset All Preferences** (Preferences → Advanced) saves the open file, then deletes `preferences/` and `window-state.json` and restarts the app. It keeps recovery files, which may hold the only copy of unsaved text, crash reports and the telemetry ID.
 
-The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, and a skipped update version. Logs live elsewhere; see `agent-tooling.md`.
+The webview's localStorage holds a few per-machine conveniences: panel sizes (`panel-v4:*`), a copy of the theme (`astro-editor-theme`) so the theme provider has it before settings load, a skipped update version, and the spelling and grammar issues the user ignored (`harper-ignored-issues`, which Reset All Preferences also clears). Logs live elsewhere; see `agent-tooling.md`.
 
 ## The model
 

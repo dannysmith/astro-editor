@@ -5,7 +5,7 @@
  */
 
 import { error as logError } from '@tauri-apps/plugin-log'
-import type { Linter } from 'harper.js'
+import type { Lint, Linter } from 'harper.js'
 import type { CopyeditSettings } from '@/lib/bindings'
 import { useHarperStore } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
@@ -64,6 +64,14 @@ async function ruleOverrides(linter: Linter) {
   )
 }
 
+/**
+ * Where ignored issues are kept. Harper records each as a hash of the issue
+ * and the text around it, so an ignore holds in any document with the same
+ * wording, and the list can't be read back as words: it can only be cleared.
+ * They're cheap to lose, so localStorage is enough.
+ */
+const IGNORED_KEY = 'harper-ignored-issues'
+
 let harper: Promise<Linter> | null = null
 
 /** What the linter was last given, so settings are only sent when they change */
@@ -84,8 +92,28 @@ async function createLinter(): Promise<Linter> {
   await linter.setup()
   await linter.setLintConfig(await ruleOverrides(linter))
   await linter.importWords([...ASTRO_WORDS, ...dictionary])
+  const ignored = localStorage.getItem(IGNORED_KEY)
+  if (ignored) {
+    await linter.importIgnoredLints(ignored).catch((error: unknown) => {
+      void logError(
+        `Astro Editor [HARPER] Couldn't read ignored issues: ${String(error)}`
+      )
+    })
+  }
   applied = { dialect, dictionary }
   return linter
+}
+
+/** Ignores an issue Harper found in `text`, here and in later checks */
+export async function ignoreLint(linter: Linter, text: string, lint: Lint) {
+  await linter.ignoreLint(text, lint)
+  localStorage.setItem(IGNORED_KEY, await linter.exportIgnoredLints())
+}
+
+/** Forgets every ignored issue */
+export async function clearIgnoredLints() {
+  localStorage.removeItem(IGNORED_KEY)
+  if (harper) await (await harper).clearIgnoredLints()
 }
 
 /**

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { commands } from '@/lib/bindings'
 import { saveUnsavedEdits } from '@/lib/quit'
+import { clearIgnoredIssues } from '@/lib/editor/extensions/harper'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -67,6 +68,7 @@ export const DebugPane: React.FC = () => {
         setResetting(false)
         return
       }
+      await clearIgnoredIssues()
       // On success the app restarts; on failure, say why and let them retry
       const result = await commands.resetAllPreferences()
       if (result.status === 'error') {
@@ -151,6 +153,7 @@ export const DebugPane: React.FC = () => {
                 <li>Your preferences</li>
                 <li>Every project's settings</li>
                 <li>The project list</li>
+                <li>Ignored spelling, grammar and style issues</li>
               </ul>
               <p className="text-sm">
                 Astro Editor then restarts. Your projects' files aren't touched,

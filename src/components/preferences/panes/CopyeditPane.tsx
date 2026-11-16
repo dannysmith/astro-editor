@@ -2,12 +2,15 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Dialect } from '@/lib/bindings'
 import { useProjectStore } from '@/store/projectStore'
+import { toast } from '@/lib/toast'
 import {
+  clearIgnoredIssues,
   HARPER_DIALECTS,
   readCopyedit,
   setDialect,
   setDictionary,
 } from '@/lib/editor/extensions/harper'
+import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldContent,
@@ -84,6 +87,27 @@ export const CopyeditPane: React.FC = () => {
           <FieldDescription>
             Words the spelling check accepts. Add them here, or with Add to
             Dictionary on a spelling mistake.
+          </FieldDescription>
+        </FieldContent>
+      </Field>
+
+      <Field>
+        <FieldLabel>Ignored issues</FieldLabel>
+        <FieldContent>
+          <Button
+            variant="outline"
+            className="w-fit"
+            onClick={() =>
+              void clearIgnoredIssues().then(() =>
+                toast.success('Ignored issues will show again')
+              )
+            }
+          >
+            Clear Ignored Issues
+          </Button>
+          <FieldDescription>
+            An issue you ignore stays hidden wherever the same words appear.
+            This shows every one again.
           </FieldDescription>
         </FieldContent>
       </Field>

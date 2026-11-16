@@ -1,5 +1,6 @@
 export {
   applyIssueAction,
+  clearIgnoredIssues,
   createHarperExtension,
   selectIssue,
 } from './extension'

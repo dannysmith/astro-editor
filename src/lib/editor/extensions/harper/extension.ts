@@ -24,7 +24,7 @@ import { useHarperStore, type HarperIssue } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
 import { getCurrentEditorView } from '../../editor-view-ref'
 import { checkForKind, type HarperCheck } from './checks'
-import { getHarper } from './linter'
+import { clearIgnoredLints, getHarper, ignoreLint } from './linter'
 import { shouldShow } from './filter'
 import { MASK_PATTERN, proseText } from './prose'
 import { addWords, readCopyedit } from './settings'
@@ -122,7 +122,7 @@ function lintActions(lint: Lint, text: string, harper: Linter): Action[] {
   actions.push({
     name: 'Ignore',
     apply: view => {
-      void harper.ignoreLint(text, lint).then(() => recheck(view))
+      void ignoreLint(harper, text, lint).then(() => recheck(view))
     },
   })
   return actions
@@ -225,6 +225,13 @@ const issuesPlugin = ViewPlugin.fromClass(
     }
   }
 )
+
+/** Shows every ignored issue again, re-checking the open document */
+export async function clearIgnoredIssues() {
+  await clearIgnoredLints()
+  const view = getCurrentEditorView()
+  if (view) recheck(view)
+}
 
 /** Selects an issue from the panel by its index, and scrolls it into view */
 export function selectIssue(index: number) {
