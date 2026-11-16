@@ -632,6 +632,11 @@ export type ProjectSettings = {
 	 *  rest alphabetically
 	 */
 	reorderFrontmatter?: boolean | null,
+	/**
+	 *  Experimental: the Git tab in the right sidebar, and its report in
+	 *  Project Settings. Off, AE runs no git commands for the project.
+	 */
+	gitPanel?: boolean | null,
 };
 
 /**  A project's stored settings, as the frontend reads and edits them */
@@ -709,6 +714,7 @@ export type ResolvedProjectSettings = {
 	mdxComponentsDirectories: Resolved<string[]>,
 	addComponentImports: Resolved<boolean>,
 	reorderFrontmatter: Resolved<boolean>,
+	gitPanel: Resolved<boolean>,
 	/**  The project's default for collections. Relative to the project root. */
 	assetsDirectory: Resolved<string>,
 	/**  The project's default for collections */

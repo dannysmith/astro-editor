@@ -39,6 +39,9 @@ export const queryKeys = {
     ] as const,
   projectDependencies: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'dependencies'] as const,
+  // What Project Settings shows about git for the project
+  gitSetup: (projectPath: string) =>
+    [...queryKeys.all, projectPath, 'gitSetup'] as const,
   // A loadable URL for an image path as written in a file. Relative paths
   // depend on the file, so it's part of the key
   imageSrc: (projectPath: string, filePath: string | null, imagePath: string) =>

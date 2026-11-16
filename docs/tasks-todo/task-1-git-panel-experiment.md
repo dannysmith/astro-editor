@@ -210,13 +210,15 @@ Done as `src-tauri/src/shell_path.rs` (the PATH lookup) and `src-tauri/src/git/`
 - **`git check-ignore` refuses `GIT_LITERAL_PATHSPECS=1`** ("pathspec magic not supported"). It takes plain paths, so the runner turns it off for that one command.
 - `tauri dev` starts the app with the terminal's PATH, so a broken lookup can still hide in development (the fallback PATH is nearly complete there). Check it once in a release build opened from the Dock.
 
-### Phase 2: the switch and an empty tab
+### Phase 2: the switch and an empty tab (done)
 
 1. **The `gitPanel` project setting** in `ProjectSettings` (`models/preferences.rs`), resolved in `collections.rs` like `add_component_imports`, and the Git group in `ProjectPage.tsx` with the switch and the Experimental badge.
 2. **The setup report under the switch**, from `git_setup`, shown only while it's on: git path and version, repository, branch and upstream, identity with sources, signing, hooks, and the problems as `ProblemCallout`s. The Check remote button can wait for phase 5. Add the states to the styleguide's Project Settings section.
 3. **The tab, gated.** An optional condition on `RIGHT_SIDEBAR_TABS` entries, one function that returns the tabs available for the open project, and all five readers using it. Fall back to Frontmatter when the Git tab is showing and the project changes to one without it. A placeholder panel.
 
 Check it against every test repo: each one's report in Project Settings, and that with the switch off nothing appears and no git runs.
+
+Done: `gitPanel` in the project settings; `GitSettings` (container) and `GitSettingsView` in `components/project-settings/`, with `lib/git/setup.ts` turning the report into problems with fixes; the `git-settings` and `git-settings-problems` styleguide sections; the Git tab (⌘4) gated by `isRightSidebarTabAvailable` in the tab bar, shortcut, palette and Windows menu, falling back to Frontmatter; a placeholder `GitPanel`; and `docs/developer/git.md`. The setup report is read again on window focus and with a Check again button, since git gets fixed in another app. Checked in the app against `blog`, `monorepo/docs`, `ignored-site/site` and `no-repo`.
 
 ### Phase 3: the read-only tab
 

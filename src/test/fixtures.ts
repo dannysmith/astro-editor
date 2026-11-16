@@ -63,6 +63,7 @@ export function makeScan(
       },
       addComponentImports: { value: false, source: 'convention' },
       reorderFrontmatter: { value: false, source: 'convention' },
+    gitPanel: { value: false, source: 'convention' },
       assetsDirectory: { value: 'src/assets', source: 'convention' },
       useAbsoluteAssetPaths: { value: false, source: 'convention' },
       ...projectSettings,

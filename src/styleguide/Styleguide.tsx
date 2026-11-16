@@ -23,6 +23,10 @@ import { ColoursSection } from './ColoursSection'
 import { ComponentBuilderSection } from './ComponentBuilderSection'
 import { ProjectListSection } from './ProjectListSection'
 import { ProjectSettingsSection } from './ProjectSettingsSection'
+import {
+  GitSettingsProblemsSection,
+  GitSettingsSection,
+} from './GitSettingsSection'
 
 interface Section {
   id: string
@@ -54,6 +58,12 @@ const SECTIONS: Section[] = [
     id: 'project-settings',
     title: 'Project settings',
     Component: ProjectSettingsSection,
+  },
+  { id: 'git-settings', title: 'Git settings', Component: GitSettingsSection },
+  {
+    id: 'git-settings-problems',
+    title: 'Git settings problems',
+    Component: GitSettingsProblemsSection,
   },
   { id: 'select', title: 'Select', Component: SelectSection, overlay: true },
   {
