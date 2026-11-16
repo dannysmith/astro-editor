@@ -1,3 +1,4 @@
+use crate::commands::run_blocking;
 use crate::mdx_components::{self, starlight};
 use crate::mdx_esm::{self, ImportPlan, PropImports};
 use crate::models::MdxComponent;
@@ -13,22 +14,25 @@ pub async fn scan_mdx_components(
     project_path: String,
     mdx_directories: Vec<String>,
 ) -> Result<Vec<MdxComponent>, String> {
-    let project_root = Path::new(&project_path);
-    let mut components: Vec<MdxComponent> = Vec::new();
-    for directory in &mdx_directories {
-        for component in mdx_components::scan(project_root, directory) {
-            if !components
-                .iter()
-                .any(|c| c.file_path == component.file_path)
-            {
-                components.push(component);
+    run_blocking(move || {
+        let project_root = Path::new(&project_path);
+        let mut components: Vec<MdxComponent> = Vec::new();
+        for directory in &mdx_directories {
+            for component in mdx_components::scan(project_root, directory) {
+                if !components
+                    .iter()
+                    .any(|c| c.file_path == component.file_path)
+                {
+                    components.push(component);
+                }
             }
         }
-    }
-    if starlight::uses_starlight(project_root) {
-        components.extend(starlight::components());
-    }
-    Ok(components)
+        if starlight::uses_starlight(project_root) {
+            components.extend(starlight::components());
+        }
+        Ok(components)
+    })
+    .await
 }
 
 /// The imports the component builder would add with `component`, and with the
@@ -61,15 +65,19 @@ pub async fn plan_component_import(
             image.file_name
         ));
     }
-    Ok(mdx_esm::plan_component_import(
-        &project_root,
-        &collection_dir,
-        &file,
-        &imports,
-        &body,
-        &component,
-        &props,
-    ))
+    // Reads the collection's other MDX files when the file has no imports to go by
+    run_blocking(move || {
+        Ok(mdx_esm::plan_component_import(
+            &project_root,
+            &collection_dir,
+            &file,
+            &imports,
+            &body,
+            &component,
+            &props,
+        ))
+    })
+    .await
 }
 
 /// The packages in the project's `package.json` dependencies and
