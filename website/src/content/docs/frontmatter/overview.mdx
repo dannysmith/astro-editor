@@ -44,7 +44,15 @@ Fields appear in the sidebar in the order they're defined in your schema, except
 
 A new file gets a placeholder title and today's date for its published date. A required switch, date or list gets off, today or an empty list. Other required fields, like text, numbers, choices and images, are left for you to fill in: they're marked required in the panel, and Astro's build names any that are still missing.
 
-The frontmatter is written to your file in the same order it's defined in the schema, with any fields that aren't in the schema written after them, in alphabetical order by field name.
+## How Edits Are Saved
+
+Astro Editor changes only what you edit. Every other field keeps its text, comments included, and the field you changed is written the way it was before, such as in single quotes or as a `[a, b]` list. A new field goes where your schema puts it. Changing a field and changing it back leaves the file as it was. [How YAML is Handled](/reference/yaml/) has the details.
+
+To have edited files put their fields in your schema's order instead, turn on [Reorder frontmatter](/project-settings/#content) in Project Settings.
+
+## Frontmatter Astro Editor Can't Read
+
+Astro Editor reads frontmatter the way Astro does, so if your site builds, its files open here. If a file's frontmatter isn't valid YAML, or has the same field twice, the sidebar says it couldn't read it and shows the error with its line number. You can still edit the rest of the file, and saving leaves the frontmatter exactly as it was. Fix it in another editor (**Open in IDE**, if you've set one in Preferences) and the fields appear.
 
 ## Fields not in your schema
 

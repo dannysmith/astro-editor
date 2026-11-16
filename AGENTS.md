@@ -33,7 +33,7 @@ These are for AI agents working with Danny.
 
 ## Rules
 
-Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)*, *(Oxlint)* or *(compiler:check)* fail `check:all`.
+Breaking any of these causes bugs or wasted work. The reasons are in the architecture guide or the area doc a rule names. Rules tagged *(ast-grep)*, *(Oxlint)*, *(Clippy)* or *(compiler:check)* fail `check:all`.
 
 - **Never destructure a Zustand store** (`const { a } = useStore()`). Select each value: `useStore(s => s.a)`. Destructuring subscribes to the whole store, which caused 15+ re-renders per keystroke. Use `useShallow` when a selector builds an object or array. *(ast-grep)*
 - **Use `getState()` in callbacks, effects and async code** to read store state without subscribing, so callbacks stay stable and never go stale.
@@ -47,6 +47,7 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - **One copy of each `@lezer/*` and `@codemirror/*` package.** Duplicates break highlighting at runtime and typecheck. After `bun update`, `grep -E '"[^"]+/@(codemirror|lezer)/' bun.lock` must print nothing; if it doesn't, run `rm -rf node_modules bun.lock && bun install`.
 - **Keep `@babel/core` on 7.** `babel-plugin-react-compiler` is built against Babel 7, and nothing else pins it, so dependency updates will offer 8.
 - **Test in the app, not Chrome.** macOS runs WebKit, so CSS and behaviour that work in Chrome DevTools can fail. For example, `field-sizing: content` isn't supported (use `AutoExpandingTextarea`).
+- **Read YAML only through `src-tauri/src/yaml.rs`,** which reads it as Astro does, and upgrade serde-saphyr only after the frontmatter corpus tests and the comparison with Astro pass. Its defaults change between versions, which would change how writers' frontmatter reads. See the architecture guide. *(Clippy)*
 - **Unsaved edits are never overwritten** by a reload from disk, and reading a saved file back must give exactly the text the editor holds, or the view jumps. See `editor.md` before touching saving, file loading or the Rust parser.
 
 ## Where things live
