@@ -1,4 +1,4 @@
-msrv = "1.70"
+msrv = "1.89"
 cognitive-complexity-threshold = 30
 
 # On Windows, std's canonicalize prefixes paths with \\?\, which breaks comparing
@@ -11,5 +11,4 @@ disallowed-methods = [
   { path = "serde_saphyr::from_str_with_options", reason = "read YAML through crate::yaml" },
   { path = "serde_saphyr::from_slice", reason = "read YAML through crate::yaml" },
   { path = "serde_saphyr::from_reader", reason = "read YAML through crate::yaml" },
-  { path = "serde_norway::from_str", reason = "read YAML through crate::yaml" },
 ]

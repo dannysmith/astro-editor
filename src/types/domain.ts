@@ -48,6 +48,17 @@ export type {
    */
   MarkdownContent,
   /**
+   * What a collection's schema says about its frontmatter, for writing it.
+   * Built by `frontmatterSchema` in `lib/schema.ts`.
+   * @see src-tauri/src/frontmatter/write.rs
+   *
+   * Fields:
+   * - `fields` - Field names in schema order, flattened (`seo.title`)
+   * - `dateFields` - The fields holding dates or lists of dates, written
+   *   unquoted so Astro reads them as dates
+   */
+  FrontmatterSchema,
+  /**
    * A content collection, resolved from the content config, the project's
    * settings and AE's conventions. Each resolved setting carries its source.
    *

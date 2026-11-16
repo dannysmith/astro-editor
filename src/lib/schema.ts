@@ -1,4 +1,5 @@
 import { error as logError } from '@tauri-apps/plugin-log'
+import type { FrontmatterSchema } from '@/types'
 
 // Complete schema from Rust backend
 export interface CompleteSchema {
@@ -172,4 +173,22 @@ export function booleanDefault(field: SchemaField | undefined): boolean {
   if (field.default === 'true') return true
   if (field.default === 'false') return false
   return Boolean(field.default)
+}
+
+/**
+ * What Rust needs to know about a collection's schema to write frontmatter:
+ * its fields in order, and which hold dates, which are written unquoted so
+ * Astro reads them as dates. Empty without a schema.
+ */
+export function frontmatterSchema(fields: SchemaField[]): FrontmatterSchema {
+  return {
+    fields: fields.map(f => f.name),
+    dateFields: fields
+      .filter(
+        f =>
+          f.type === FieldType.Date ||
+          (f.type === FieldType.Array && f.subType === FieldType.Date)
+      )
+      .map(f => f.name),
+  }
 }

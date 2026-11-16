@@ -6,9 +6,7 @@ use std::path::{Path, PathBuf};
 use tauri::{path::BaseDirectory, Manager};
 
 use crate::frontmatter::{
-    parse_frontmatter, rebuild_markdown_content_only,
-    rebuild_markdown_with_frontmatter_and_imports_ordered, rebuild_markdown_with_raw_frontmatter,
-    MarkdownContent,
+    assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
 };
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
 
@@ -58,9 +56,8 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
 }
 
 /// Creates a file holding `content`, under `frontmatter` if it's given, which
-/// is serialised as saving does (so dates come out unquoted and strings
-/// escaped), in schema field order. Returns the new file's path,
-/// with `/` on Windows too
+/// is written as saving writes it (so date fields come out unquoted), in
+/// schema order. Returns the new file's path, with `/` on Windows too
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
@@ -68,7 +65,7 @@ pub async fn create_file(
     filename: String,
     content: String,
     frontmatter: Option<IndexMap<String, Value>>,
-    schema_field_order: Option<Vec<String>>,
+    schema: FrontmatterSchema,
     project_root: String,
 ) -> Result<String, String> {
     // Validate directory is within project
@@ -99,12 +96,7 @@ pub async fn create_file(
     }
 
     let content = match frontmatter {
-        Some(fm) => rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &fm,
-            "",
-            &content,
-            schema_field_order,
-        )?,
+        Some(values) => assemble(&write_block("", &values, &schema, true)?, "", &content),
         None => content,
     };
     std::fs::write(&validated_final_path, content)
@@ -323,36 +315,29 @@ pub async fn parse_markdown_content(
     Ok(parse_frontmatter(&content))
 }
 
+/// Saves a file from its parts. `raw_frontmatter` is its frontmatter block
+/// as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+/// `frontmatter` holds edited values, which are spliced into it
 #[tauri::command]
 #[specta::specta]
 pub async fn save_markdown_content(
     file_path: String,
     frontmatter: Option<IndexMap<String, Value>>,
-    raw_frontmatter: Option<String>,
+    raw_frontmatter: String,
     content: String,
     imports: String,
-    schema_field_order: Option<Vec<String>>,
+    schema: FrontmatterSchema,
     project_root: String,
 ) -> Result<(), String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
 
-    let new_content = match (frontmatter, raw_frontmatter) {
-        // Frontmatter was edited - reorder and normalize
-        (Some(fm), _) => rebuild_markdown_with_frontmatter_and_imports_ordered(
-            &fm,
-            &imports,
-            &content,
-            schema_field_order,
-        )?,
-        // Frontmatter unchanged - preserve original (non-empty)
-        (None, Some(ref raw)) if !raw.trim().is_empty() => {
-            rebuild_markdown_with_raw_frontmatter(raw, &imports, &content)?
-        }
-        // No frontmatter at all (None, None, or empty string)
-        _ => rebuild_markdown_content_only(&imports, &content)?,
+    let block = match frontmatter {
+        Some(values) => write_block(&raw_frontmatter, &values, &schema, false)?,
+        None => raw_frontmatter,
     };
 
-    std::fs::write(&validated_path, new_content).map_err(|e| format!("Failed to write file: {e}"))
+    std::fs::write(&validated_path, assemble(&block, &imports, &content))
+        .map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[tauri::command]
@@ -698,7 +683,7 @@ mod tests {
             "test_create.md".to_string(),
             test_content.to_string(),
             None,
-            None,
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -729,25 +714,29 @@ mod tests {
             "featured": false,
         }))
         .unwrap();
-        let order = ["title", "pubDate", "sponsor", "tags", "featured"]
-            .map(String::from)
-            .to_vec();
+        let schema = FrontmatterSchema {
+            fields: ["title", "pubDate", "sponsor.name", "tags", "featured"]
+                .map(String::from)
+                .to_vec(),
+            date_fields: vec!["pubDate".to_string()],
+        };
 
         let path = create_file(
             project_root.clone(),
             "new.md".to_string(),
             String::new(),
             Some(frontmatter.clone()),
-            Some(order),
+            schema,
             project_root,
         )
         .await
         .unwrap();
 
+        // In schema order, with the date unquoted so Astro reads it as a date
         let written = fs::read_to_string(&path).unwrap();
         assert_eq!(
             written,
-            "---\ntitle: 'Say \"hi\": now'\npubDate: 2026-11-10\nsponsor:\n  name: Acme\ntags: []\nfeatured: false\n---\n"
+            "---\ntitle: \"Say \\\"hi\\\": now\"\npubDate: 2026-11-10\nsponsor:\n  name: Acme\ntags: []\nfeatured: false\n---\n"
         );
         let parsed = parse_frontmatter(&written);
         assert_eq!(parsed.frontmatter, frontmatter);
@@ -779,7 +768,7 @@ mod tests {
                 filename.to_string(),
                 String::new(),
                 None,
-                None,
+                FrontmatterSchema::default(),
                 project_root.to_string_lossy().to_string(),
             )
         };
@@ -816,7 +805,7 @@ mod tests {
             "malicious.md".to_string(),
             "malicious content".to_string(),
             None,
-            None,
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -920,10 +909,10 @@ mod tests {
         let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
             Some(frontmatter), // Frontmatter was edited
-            None,              // No raw frontmatter (frontmatter was edited)
+            String::new(),     // The file had no frontmatter
             content.to_string(),
             String::new(), // No imports for this test
-            None,          // No schema field order for this test
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;
@@ -933,11 +922,8 @@ mod tests {
         // Verify the saved file
         let saved_content = fs::read_to_string(&test_file).unwrap();
         assert!(saved_content.starts_with("---\n"));
-        // serde_norway doesn't quote simple strings
-        assert!(
-            saved_content.contains("title: Test Article")
-                || saved_content.contains("title: \"Test Article\"")
-        );
+        // Simple strings are written unquoted
+        assert!(saved_content.contains("title: Test Article"));
         assert!(saved_content.contains("draft: false"));
         assert!(saved_content.contains("# Test Article"));
         assert!(saved_content.contains("This is the article content."));
@@ -1230,10 +1216,10 @@ This is the main content."#;
         let result = save_markdown_content(
             test_file.to_string_lossy().to_string(),
             Some(new_frontmatter),
-            None,
+            parsed.raw_frontmatter,
             parsed.content,
             parsed.imports,
-            None,
+            FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
         .await;

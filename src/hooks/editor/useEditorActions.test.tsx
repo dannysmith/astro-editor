@@ -181,8 +181,9 @@ describe('useEditorActions.saveFile with edited frontmatter', () => {
 
     const args = await save()
 
+    // Spliced into the text on disk
     expect(args.frontmatter).toEqual(edited)
-    expect(args.rawFrontmatter).toBeNull()
+    expect(args.rawFrontmatter).toBe(rewritten)
   })
 })
 

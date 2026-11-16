@@ -27,7 +27,6 @@ tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-serde_norway = "0.9.42"
 # Reads all YAML (src/yaml.rs). Pinned with its parser, granit-parser, because
 # their defaults change between minor versions, which would change how users'
 # frontmatter reads. Upgrade only after the frontmatter corpus tests and the

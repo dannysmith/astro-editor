@@ -7,7 +7,7 @@ import {
   useCreateFileMutation,
   type CreateFilePayload,
 } from './mutations/useCreateFileMutation'
-import { deserializeCompleteSchema } from '../lib/schema'
+import { deserializeCompleteSchema, frontmatterSchema } from '../lib/schema'
 import { newFileFrontmatter } from '../lib/files/new-file'
 import { toast } from '../lib/toast'
 import { todayIsoDate } from '../lib/dates'
@@ -112,7 +112,7 @@ async function createFileInCurrentFolder(
       defaultTitle,
       today
     ) as Record<string, JsonValue>,
-    schemaFieldOrder: fields.map(f => f.name),
+    schema: frontmatterSchema(fields),
     projectPath: currentProjectPath,
   })
 

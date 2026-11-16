@@ -12,7 +12,11 @@ import { useProjectStore } from '../../store/projectStore'
 import { saveRecoveryData, saveCrashReport } from '../../lib/recovery'
 import { toast } from '../../lib/toast'
 import { queryKeys } from '../../lib/query-keys'
-import { deserializeCompleteSchema, type SchemaField } from '../../lib/schema'
+import {
+  deserializeCompleteSchema,
+  frontmatterSchema,
+  type SchemaField,
+} from '../../lib/schema'
 import { isBackToBaseline } from '../../lib/files/frontmatter-baseline'
 import { findOwningProjectPath } from '../../lib/deep-link'
 import { showProjectList } from '../../lib/projects/actions'
@@ -119,10 +123,10 @@ async function saveCurrentFile(
     const rename = renameUnderWay(currentFile.path)
     const path = rename ? await rename : currentFile.path
 
-    // Edited frontmatter is re-serialised from its values. Unedited, or edited
-    // back to what was loaded, the original text is written instead, keeping
-    // its formatting. Frontmatter that couldn't be read has no values, so its
-    // text is always written back as it was
+    // Edited frontmatter's values are spliced into the text as it was read.
+    // Unedited, or edited back to what was loaded, that text is written back
+    // unchanged. Frontmatter that couldn't be read has no values, so its text
+    // is always written back as it was
     const backToBaseline =
       isFrontmatterDirty &&
       frontmatterBaseline !== null &&
@@ -138,10 +142,10 @@ async function saveCurrentFile(
       commands.saveMarkdownContent(
         path,
         writeValues ? (frontmatter as Record<string, JsonValue>) : null,
-        writeValues ? null : originalText,
+        originalText,
         editorContent,
         imports,
-        fields ? fields.map(f => f.name) : null,
+        frontmatterSchema(fields ?? []),
         projectPath
       )
     const write = writeUnderWay ? writeUnderWay.then(save) : save()

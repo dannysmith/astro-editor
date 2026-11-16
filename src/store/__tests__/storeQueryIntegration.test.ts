@@ -364,7 +364,7 @@ describe('Store ↔ Query Integration Tests', () => {
               frontmatter: state.frontmatter,
               content: state.editorContent,
               imports: state.imports,
-              schemaFieldOrder: null,
+              schema: { fields: [], dateFields: [] },
               projectRoot: '/test',
             })
             useEditorStore.setState({

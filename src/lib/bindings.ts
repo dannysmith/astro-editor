@@ -12,11 +12,10 @@ export const commands = {
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
 	/**
 	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
-	 *  is serialised as saving does (so dates come out unquoted and strings
-	 *  escaped), in schema field order. Returns the new file's path,
-	 *  with `/` on Windows too
+	 *  is written as saving writes it (so date fields come out unquoted), in
+	 *  schema order. Returns the new file's path, with `/` on Windows too
 	 */
-	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schemaFieldOrder, projectRoot })),
+	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schema: FrontmatterSchema, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schema, projectRoot })),
 	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	/**
@@ -26,7 +25,12 @@ export const commands = {
 	 */
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
-	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string | null, content: string, imports: string, schemaFieldOrder: string[] | null, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schemaFieldOrder, projectRoot })),
+	/**
+	 *  Saves a file from its parts. `raw_frontmatter` is its frontmatter block
+	 *  as read (`MarkdownContent::raw_frontmatter`), written back as it is unless
+	 *  `frontmatter` holds edited values, which are spliced into it
+	 */
+	saveMarkdownContent: (filePath: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("save_markdown_content", { filePath, frontmatter, rawFrontmatter, content, imports, schema, projectRoot })),
 	saveRecoveryData: (data: Value) => typedError<null, string>(__TAURI_INVOKE("save_recovery_data", { data })),
 	saveCrashReport: (report: Value) => typedError<null, string>(__TAURI_INVOKE("save_crash_report", { report })),
 	/**
@@ -363,6 +367,17 @@ export type FileType = "md" | "mdx";
 export type FolderStatus = "ok" | "missing" | 
 /**  AE only reads and writes inside the project */
 "outsideProject";
+
+/**  What a collection's schema says about its frontmatter, for writing it */
+export type FrontmatterSchema = {
+	/**  Field names in schema order, flattened (`seo.title`) */
+	fields: string[],
+	/**
+	 *  The fields holding dates or lists of dates, flattened. Their values
+	 *  are written unquoted, so Astro reads them as dates
+	 */
+	dateFields: string[],
+};
 
 export type GeneralSettings = {
 	ideCommand: string,

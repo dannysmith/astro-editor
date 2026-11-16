@@ -6,6 +6,7 @@ The tests are `frontmatter_corpus_tests` in `src-tauri/src/frontmatter/corpus_te
 
 - saving a file whose frontmatter hasn't been edited writes it back byte for byte (with LF line endings). This also runs over `test/mdx-imports/files/`, except files with an import block, whose blank lines `mdx_corpus_tests` checks.
 - each file reads as the values in `values.txt`. After adding a file or changing how frontmatter is read, regenerate it with `UPDATE_SNAPSHOTS=1 cargo test frontmatter_corpus` (in `src-tauri`) and review the diff.
+- editing each top-level key in turn, deleting each one, and adding one, writes frontmatter that reads back as the new values and keeps every line of the other keys. This also runs over `test/mdx-imports/files/`.
 
 ## `files/`
 

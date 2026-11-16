@@ -150,24 +150,23 @@ This comes first, because it stops data loss today, and because the parser switc
 
 ## Phase 4: Writing
 
-- [ ] **The renderer,** as above, with unit tests:
-  - Strings that need quoting: `: `, ` #`, a leading indicator, `yes`, `017`, dates in a text field, leading or trailing spaces.
-  - Multi-line strings, with and without trailing newlines.
-  - Long strings, which stay on one line.
-  - Dates in date fields, at the top level and nested.
-  - Empty lists and objects, and lists of objects.
-  - Every rendered value must read back as itself.
-- [ ] **The splice, the style matching and the check, with the whole-block render as the fallback.** A save that fails both checks returns an error and writes nothing.
-- [ ] **Compare numbers by value** when deciding whether a key changed. Values make a round trip through JavaScript, so `1.0` comes back as `1`.
-- [ ] **Save sends:**
-  - the values and the raw text (the baseline's text when edits are back to it), instead of today's three cases;
-  - the schema's field order and its date fields (flattened names, like `event.date`).
-  - Keep `isBackToBaseline`: it's what puts back the exact text when style matching can't.
-- [ ] **`create_file`** renders new files' frontmatter with the renderer, in schema order.
-- [ ] **Remove serde_norway.**
-- [ ] **The corpus edit test,** over `test/frontmatter/files/` and `test/mdx-imports/files/`:
-  - Editing, deleting and adding each top-level key changes only that key's lines, and reads back as the new values.
-  - What Astro reads from the result matches the new values, checked with `astro-values.mjs` by hand at the end of the phase.
+- [x] **The renderer** (`src-tauri/src/frontmatter/write.rs`), with unit tests: strings that need quoting (a test writes ~70 awkward strings at the top level, in lists and nested, and reads each back), multi-line strings, long strings on one line, dates in date fields and in text fields, empty lists and objects, lists of objects, nested lists, keys that need quoting.
+  - How a value was written is found in the key's original text: under its own key first (`key: "value"`), then anywhere in the key's text. A new value takes the style most of the key's strings use, or the file's.
+  - Indentation of objects and lists is measured from the key's own text, or the file's.
+  - A multi-line string whose first line starts with a space is written as a JSON string rather than a block scalar with an indentation indicator.
+- [x] **The splice, the style matching and the check, with the whole-block render as the fallback.** A save that fails both checks returns an error and writes nothing. Frontmatter that can't be read is returned unchanged, whatever the frontend sends.
+  - The comments directly above a key go with it; blank lines between keys belong to the key before, since a `|+` block keeps them as part of its value. A re-rendered key keeps the blank lines after it.
+  - A new key goes before the first key that comes after it in the schema, or else after the last that comes before it, or else at the end.
+  - Inline lists stay inline, whether on the key's line or the next.
+- [x] **Compare numbers by value** (`same` in `write.rs`).
+- [x] **Save sends** the raw text always, the values only when they were edited, and a `FrontmatterSchema` (`fields` and `dateFields`, built by `frontmatterSchema` in `lib/schema.ts`). `isBackToBaseline` stays.
+- [x] **`create_file`** renders new files' frontmatter with the renderer, in schema order (reordering on). Duplicating a file passes an empty schema.
+- [x] **Removed serde_norway.** One `assemble` replaces the three `rebuild_*` functions.
+- [x] **The corpus edit test** (`edits_change_only_the_keys_edited`), over both corpora: editing, deleting and adding each top-level key reads back as the new values and keeps every line of the other keys.
+- [x] **Checked against real sites and Astro** (temporary, not committed):
+  - Every top-level key of the 1,900 real files edited in turn: 12,409 edits, no errors, none touching another key's lines, one file (with anchors) written whole.
+  - Each edited file read with Astro's own parser: in all 12,416 edits, every untouched value reads exactly as before (a `Date` stays a `Date`, text stays text), and the edited one as written.
+- [x] **Tried in the dev app:** editing a title and a switch changes only those two lines, keeping single quotes; adding a tag keeps an inline list inline; a new file's `pubDate` is unquoted.
 
 ## Phase 5: Reordering
 

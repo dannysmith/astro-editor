@@ -4,14 +4,18 @@
 //! The frontmatter is found as Astro finds it (`find_block`), read with
 //! `crate::yaml`, and kept as the text it was written as. Saving a file whose
 //! frontmatter wasn't edited writes that text back, so the file is unchanged
-//! byte for byte (except that CRLF line endings become LF). See "Auto-save and
-//! data safety" in `docs/developer/editor.md`.
+//! byte for byte (except that CRLF line endings become LF). An edit is
+//! spliced into that text (`write`). See "Auto-save and data safety" in
+//! `docs/developer/editor.md`.
 
 use indexmap::IndexMap;
 use serde_json::Value;
 
 use crate::mdx_esm::split_esm_block;
 use crate::yaml::{self, YamlError};
+
+mod write;
+pub(crate) use write::{assemble, write_block, FrontmatterSchema};
 
 #[cfg(test)]
 mod corpus_tests;
@@ -145,138 +149,4 @@ pub(crate) fn frontmatter_yaml(content: &str) -> Option<String> {
 /// the file listings, which don't need the body or the MDX imports
 pub(crate) fn frontmatter_values(content: &str) -> Result<IndexMap<String, Value>, YamlError> {
     frontmatter_yaml(content).map_or_else(|| Ok(IndexMap::new()), |yaml| yaml::mapping(&yaml))
-}
-
-/// Builds an ordered IndexMap with schema fields first, then remaining fields alphabetically
-fn build_ordered_frontmatter(
-    frontmatter: IndexMap<String, Value>,
-    schema_field_order: Option<Vec<String>>,
-) -> IndexMap<String, Value> {
-    let mut ordered = IndexMap::new();
-
-    // First, add schema fields in order
-    if let Some(schema_order) = schema_field_order {
-        for key in schema_order {
-            if let Some(value) = frontmatter.get(&key) {
-                ordered.insert(key, value.clone());
-            }
-        }
-    }
-
-    // Then add remaining fields alphabetically
-    let mut remaining: Vec<_> = frontmatter
-        .iter()
-        .filter(|(k, _)| !ordered.contains_key(*k))
-        .collect();
-    remaining.sort_by_key(|(k, _)| *k);
-
-    for (key, value) in remaining {
-        ordered.insert(key.clone(), value.clone());
-    }
-
-    ordered
-}
-
-/// Rebuilds the file with the frontmatter serialised from its values, schema
-/// fields first. Values are written as they are: dates and datetimes stay the
-/// strings they were read as (the date picker writes `YYYY-MM-DD`), and
-/// serde_norway leaves them unquoted, so Astro reads them as dates
-pub(crate) fn rebuild_markdown_with_frontmatter_and_imports_ordered(
-    frontmatter: &IndexMap<String, Value>,
-    imports: &str,
-    content: &str,
-    schema_field_order: Option<Vec<String>>,
-) -> Result<String, String> {
-    let mut result = String::new();
-
-    // Add frontmatter if present
-    if !frontmatter.is_empty() {
-        // Build ordered frontmatter (schema fields first, then alphabetical)
-        let ordered = build_ordered_frontmatter(frontmatter.clone(), schema_field_order);
-
-        // Serialize to YAML using serde_norway
-        result.push_str("---\n");
-        let yaml = serde_norway::to_string(&ordered)
-            .map_err(|e| format!("Failed to serialize YAML: {e}"))?;
-        result.push_str(&yaml);
-        result.push_str("---\n");
-    }
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        if !frontmatter.is_empty() {
-            result.push('\n');
-        }
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        if !frontmatter.is_empty() || !imports.trim().is_empty() {
-            result.push('\n');
-        }
-        result.push_str(content);
-    }
-
-    Ok(result)
-}
-
-/// Rebuilds the file with its frontmatter block written back as it was read
-/// (`MarkdownContent::raw_frontmatter`)
-pub(crate) fn rebuild_markdown_with_raw_frontmatter(
-    raw_frontmatter: &str,
-    imports: &str,
-    content: &str,
-) -> Result<String, String> {
-    let mut result = String::new();
-
-    // The block ends at the closing fence, without its line ending
-    result.push_str(raw_frontmatter);
-    result.push('\n');
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        result.push('\n');
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        result.push('\n');
-        result.push_str(content);
-    }
-
-    Ok(result)
-}
-
-/// Rebuild markdown file with no frontmatter (content only)
-pub(crate) fn rebuild_markdown_content_only(
-    imports: &str,
-    content: &str,
-) -> Result<String, String> {
-    let mut result = String::new();
-
-    // Add imports if present
-    if !imports.trim().is_empty() {
-        result.push_str(imports);
-        if !imports.ends_with('\n') {
-            result.push('\n');
-        }
-    }
-
-    // Add content if present
-    if !content.is_empty() {
-        if !imports.trim().is_empty() {
-            result.push('\n');
-        }
-        result.push_str(content);
-    }
-
-    Ok(result)
 }
