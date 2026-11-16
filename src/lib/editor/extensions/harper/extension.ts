@@ -2,10 +2,10 @@
  * Harper's spelling, grammar and style checks in the editor.
  *
  * Built on `@codemirror/lint`, which runs the check after typing pauses, keeps
- * the issues in editor state (mapped through edits), underlines them and
- * shows a tooltip with their fixes on hover. This adds the Harper source, the
- * styling, and a plugin that publishes the issues to `harperStore` for the
- * Copyedit panel and re-checks when Harper's settings change.
+ * the issues in editor state (mapped through edits) and marks them. This adds
+ * the Harper source, the underlines, a tooltip with each issue's fixes
+ * (`tooltip.ts`), and a plugin that publishes the issues to `harperStore` for
+ * the Copyedit panel and re-checks when Harper's settings change.
  */
 
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
@@ -28,6 +28,7 @@ import { clearIgnoredLints, getHarper, ignoreLint } from './linter'
 import { shouldShow } from './filter'
 import { MASK_PATTERN, proseText } from './prose'
 import { addWords, readCopyedit } from './settings'
+import { issueTooltip, showIssueTooltip } from './tooltip'
 
 /** The check each diagnostic belongs to, for the panel */
 const diagnosticChecks = new WeakMap<Diagnostic, HarperCheck>()
@@ -233,7 +234,10 @@ export async function clearIgnoredIssues() {
   if (view) recheck(view)
 }
 
-/** Selects an issue from the panel by its index, and scrolls it into view */
+/**
+ * Selects an issue from the panel by its index, scrolls it into view and
+ * shows its tooltip, which stays until the selection moves
+ */
 export function selectIssue(index: number) {
   const view = getCurrentEditorView()
   const issue = view && currentDiagnostics(view.state)[index]
@@ -243,6 +247,7 @@ export function selectIssue(index: number) {
     effects: EditorView.scrollIntoView(issue.from, { y: 'center' }),
   })
   view.focus()
+  showIssueTooltip(view, issue.from)
 }
 
 /** Applies one of an issue's fixes from the panel */
@@ -336,7 +341,10 @@ export function createHarperExtension() {
         update.transactions.some(tr =>
           tr.effects.some(effect => effect.is(recheckEffect))
         ),
+      // The lint package's own tooltip, which `issueTooltip` replaces
+      tooltipFilter: () => [],
     }),
+    issueTooltip,
     issuesPlugin,
     harperTheme,
   ]
