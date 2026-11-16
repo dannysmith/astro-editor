@@ -26,9 +26,8 @@ import { DOCS_URLS } from '../../../lib/docs-urls'
 // headings take the editor text colour, which may be a theme's
 const HEADING_COLOR_START = { light: '#191919', dark: '#cccccc' }
 
-// The colour theme choice for none. Theme names come from file names, so this
-// can't be one
-const DEFAULT_COLOURS = '__default__'
+// The colour theme picker's value for Default (no theme)
+const NO_THEME = '__default__'
 
 const THEME_ITEMS = [
   { value: 'light', label: 'Light' },
@@ -75,19 +74,19 @@ export const GeneralPane: React.FC = () => {
   // The colour theme picker only shows once there's a theme, or a chosen one has gone
   const { data: colourThemes } = useColourThemesQuery()
   const themeNames = colourThemes?.map(theme => theme.name) ?? []
-  const colorTheme = globalSettings?.appearance?.colorTheme ?? null
-  const colourItems = [
-    { value: DEFAULT_COLOURS, label: 'Default' },
+  const chosenTheme = globalSettings?.appearance?.colorTheme ?? null
+  const colourThemeItems = [
+    { value: NO_THEME, label: 'Default' },
     ...themeNames.map(name => ({ value: name, label: name })),
-    ...(colorTheme && !themeNames.includes(colorTheme)
-      ? [{ value: colorTheme, label: `${colorTheme} (missing)` }]
+    ...(chosenTheme && !themeNames.includes(chosenTheme)
+      ? [{ value: chosenTheme, label: `${chosenTheme} (missing)` }]
       : []),
   ]
 
-  const handleColorThemeChange = (value: string | null) => {
+  const handleColourThemeChange = (value: string | null) => {
     if (!value) return
     void updateGlobal({
-      appearance: { colorTheme: value === DEFAULT_COLOURS ? null : value },
+      appearance: { colorTheme: value === NO_THEME ? null : value },
     })
   }
 
@@ -182,22 +181,22 @@ export const GeneralPane: React.FC = () => {
           </FieldContent>
         </Field>
 
-        {colourItems.length > 1 && (
+        {colourThemeItems.length > 1 && (
           <Field>
             <FieldLabel id={`${id}-colour-theme`}>
               Custom colour theme
             </FieldLabel>
             <FieldContent>
               <Select
-                items={colourItems}
-                value={colorTheme ?? DEFAULT_COLOURS}
-                onValueChange={handleColorThemeChange}
+                items={colourThemeItems}
+                value={chosenTheme ?? NO_THEME}
+                onValueChange={handleColourThemeChange}
               >
                 <SelectTrigger aria-labelledby={`${id}-colour-theme`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {colourItems.map(item => (
+                  {colourThemeItems.map(item => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>

@@ -46,15 +46,11 @@ The user's heading colours from Appearance settings are set by Layout as `--head
 
 ## User themes
 
-A colour theme is a CSS file in the `themes/` folder of the app data folder (`app-data.md`), chosen with `appearance.colorTheme` in global settings. It's an advanced feature with no built-in themes: the picker in General preferences only appears once the folder has one. The user docs are in the website's `reference/advanced-preferences.mdx`.
+A colour theme is a CSS file in the app data folder's `themes/` folder, chosen with `appearance.colorTheme`. The code is `lib/colour-themes.ts` and `hooks/useColourTheme.ts`; the user docs are in the website's `reference/advanced-preferences.mdx`.
 
-- **Rust only lists the files** (`list_colour_themes`, returning each file's name and CSS). `lib/colour-themes.ts` does the rest; `useColourTheme`, called once by Layout, wires it to the setting.
-- **Only colour tokens are read.** `parseColourTheme` parses the file with a constructed `CSSStyleSheet` (which drops `@import`), and keeps declarations in top-level style rules whose name is in `COLOUR_TOKEN_GROUPS` (`lib/colour-tokens.ts`), except `--editor-color-heading`, which is the user's. Values with `url(` or a quote are dropped, since tokens feed `background` shorthands, where they could load an image. What's left out is logged as a warning.
-- **Tokens are set as inline styles on `<html>`**, which beat `App.css`. Tokens a theme leaves out keep their `App.css` value through the cascade. The file is never added as a stylesheet, so a theme can't add rules.
-- **The token list is `COLOUR_TOKEN_GROUPS`, not read from the CSSOM.** Production builds rewrite `light-dark()`: Vite minifies CSS with Lightning CSS for its default targets, which include Safari 16.4, so every token becomes `var(--lightningcss-light, …) var(--lightningcss-dark, …)`. The dev server serves `App.css` as written, so matching values would differ between dev and release. Themes are unaffected: they're applied at runtime with native `light-dark()`, which resolves against the `color-scheme` the built CSS still sets.
-- **No flash at launch.** The chosen theme's tokens are cached in localStorage (`astro-editor-colour-theme`) and applied in `main.tsx` before React renders. Nothing is stored unless a theme is in use; Reset All Preferences clears it.
-- **Editing a theme shows on focus.** The window's `focus` event re-reads the folder, so a theme author sees changes on switching back. A chosen theme whose file is gone falls back to the defaults and shows as "(missing)" in the picker; the setting is kept.
-- **Token names are public.** Renaming a token silently breaks user themes that set it (they get the default). Mention renames in the release notes.
+- **Only colour tokens are read, and set as inline styles on `<html>`.** The file is never added as a stylesheet, so a theme can't add rules. Values with `url(` or a quote are dropped: tokens feed `background` shorthands, where those could load an image.
+- **The token list is `COLOUR_TOKEN_GROUPS`, not read from the CSSOM.** Production builds rewrite `light-dark()`: Vite minifies CSS with Lightning CSS for targets that include Safari 16.4, so every token becomes `var(--lightningcss-light, …) var(--lightningcss-dark, …)`, while the dev server serves `App.css` as written. Themes are unaffected, since they're applied at runtime with native `light-dark()`.
+- **Token names are public.** Renaming one silently breaks user themes that set it (they get the default), so mention renames in the release notes.
 
 ## Rules
 

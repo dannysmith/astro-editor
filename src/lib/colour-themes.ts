@@ -10,7 +10,7 @@ import { COLOUR_TOKEN_GROUPS } from './colour-tokens'
  * The tokens a theme may set: every colour token except the heading colour,
  * which follows the user's preference and falls back to the editor text colour
  */
-export const THEME_TOKENS: ReadonlySet<string> = new Set(
+const THEME_TOKENS: ReadonlySet<string> = new Set(
   COLOUR_TOKEN_GROUPS.flatMap(group => group.tokens).filter(
     token => token !== 'editor-color-heading'
   )

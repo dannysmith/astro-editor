@@ -171,8 +171,8 @@ export const Layout: React.FC = () => {
   useColourTheme()
 
   // Heading colours from appearance settings. --editor-color-heading picks
-  // between them with light-dark(), so theme changes need nothing here. Unset,
-  // headings take the editor text colour
+  // between them with light-dark(), so switching light and dark needs nothing
+  // here. Unset, headings take the editor text colour
   useEffect(() => {
     const { style } = window.document.documentElement
     for (const mode of ['light', 'dark'] as const) {

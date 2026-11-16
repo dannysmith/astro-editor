@@ -294,6 +294,7 @@ mod tests {
         .unwrap();
         std::fs::write(dir.path().join("Dracula.CSS"), ":root {}").unwrap();
         std::fs::write(dir.path().join("notes.txt"), "not a theme").unwrap();
+        std::fs::write(dir.path().join("broken.css"), [0xff, 0xfe, 0x00]).unwrap();
         std::fs::create_dir(dir.path().join("folder.css")).unwrap();
 
         let themes = read_colour_themes(dir.path());
@@ -306,18 +307,5 @@ mod tests {
     fn no_folder_means_no_themes() {
         let dir = tempfile::tempdir().unwrap();
         assert!(read_colour_themes(&dir.path().join("themes")).is_empty());
-    }
-
-    #[test]
-    fn skips_files_that_are_not_text() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("broken.css"), [0xff, 0xfe, 0x00]).unwrap();
-        std::fs::write(dir.path().join("fine.css"), ":root {}").unwrap();
-
-        let names: Vec<_> = read_colour_themes(dir.path())
-            .into_iter()
-            .map(|t| t.name)
-            .collect();
-        assert_eq!(names, ["fine"]);
     }
 }
