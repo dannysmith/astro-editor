@@ -511,18 +511,21 @@ fn ends_a_value(yaml: &str, text: &str) -> bool {
 }
 
 /// Whether `written` (see `Context`) held an unquoted date where a value
-/// goes: under its own `key`, or for a list item, as any item. Astro read
-/// that as a date, so what replaces it is written as one too, even when the
-/// schema doesn't say the field is a date (it may not have been generated)
+/// goes: under its own `key` (written plain or quoted), or for a list item,
+/// as any item. Astro read that as a date, so what replaces it is written as
+/// one too, even when the schema doesn't say the field is a date (it may not
+/// have been generated)
 fn held_an_unquoted_date(written: &str, key: Option<&str>) -> bool {
     let uncommented = |v: &str| v.split(" #").next().unwrap_or(v).trim().to_string();
+    let key_spellings = key.map(|k| [k.to_string(), double_quoted(k), single_quoted(k)]);
     written.lines().any(|line| {
         let line = line.trim_start().trim_start_matches("- ");
-        match key {
-            Some(key) => line
-                .strip_prefix(key)
-                .and_then(|rest| rest.strip_prefix(": "))
-                .is_some_and(|v| is_date_like(&uncommented(v))),
+        match &key_spellings {
+            Some(spellings) => spellings.iter().any(|key| {
+                line.strip_prefix(key.as_str())
+                    .and_then(|rest| rest.strip_prefix(": "))
+                    .is_some_and(|v| is_date_like(&uncommented(v)))
+            }),
             // A list item, in a block list or an inline one
             None => line
                 .split(['[', ',', ']'])
@@ -1060,18 +1063,20 @@ mod tests {
     #[test]
     fn keeps_date_like_text_text_beside_dates() {
         // Without a schema: a quoted item in a list that also holds a date,
-        // and a field given the text of a date another field holds
-        let raw = "---\nvalues: [2024-01-01, \"2024-02-01\"]\nevent:\n  date: 2024-02-01\n  label: release\n---";
+        // a field given the text of a date another field holds, and a date
+        // under a quoted key
+        let raw = "---\nvalues: [2024-01-01, \"2024-02-01\"]\nevent:\n  date: 2024-02-01\n  label: release\nlaunch:\n  \"date\": 2024-03-01\n  label: party\n---";
         let written = edit(
             raw,
             json!({
                 "values": ["2024-01-01", "2024-02-01", "other"],
                 "event": { "date": "2024-02-01", "label": "2024-02-01" },
+                "launch": { "date": "2024-03-01", "label": "big party" },
             }),
         );
         assert_eq!(
             written,
-            "---\nvalues: [2024-01-01, \"2024-02-01\", \"other\"]\nevent:\n  date: 2024-02-01\n  label: \"2024-02-01\"\n---"
+            "---\nvalues: [2024-01-01, \"2024-02-01\", \"other\"]\nevent:\n  date: 2024-02-01\n  label: \"2024-02-01\"\nlaunch:\n  date: 2024-03-01\n  label: big party\n---"
         );
     }
 
