@@ -134,6 +134,21 @@ export const commands = {
 	 */
 	gitSetup: (projectPath: string) => typedError<GitSetup, string>(__TAURI_INVOKE("git_setup", { projectPath })),
 	/**
+	 *  What the Git tab shows: the branch, the changes in the project folder, and
+	 *  the state of the entry at `entry_path` (absolute) if one is open
+	 */
+	gitState: (projectPath: string, entryPath: string | null) => typedError<GitState, string>(__TAURI_INVOKE("git_state", { projectPath, entryPath })),
+	/**
+	 *  Watches the project's git folder and sends `git-changed` (with the project
+	 *  path) when something changes there: a commit, staging, a branch switch, a
+	 *  push or fetch (remote refs move), or a merge or rebase starting or ending.
+	 *  That's how the tab notices git used from another app. Replaces any earlier
+	 *  watcher. A project that isn't in a repository is quietly not watched.
+	 */
+	gitWatchStart: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_watch_start", { projectPath })),
+	/**  Stops the git folder watcher, if it's for this project */
+	gitWatchStop: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_watch_stop", { projectPath })),
+	/**
 	 *  Watches a project. `folders` are its collection folders, which can be anywhere
 	 *  in the project.
 	 */
@@ -397,6 +412,32 @@ export type GeneralSettings = {
 	defaultFileType: FileType,
 };
 
+/**  One changed, new or conflicted file */
+export type GitChange = {
+	/**  Relative to the repository root */
+	path: string,
+	/**  For a rename or copy, the path it came from */
+	originalPath: string | null,
+	kind: GitChangeKind,
+	/**  A submodule rather than a file */
+	submodule: boolean,
+};
+
+export type GitChangeKind = 
+/**  Untracked, or added to the index but not committed */
+"new" | "modified" | "deleted" | "renamed" | 
+/**  Has unresolved conflicts */
+"conflicted";
+
+export type GitCommit = {
+	/**  Abbreviated */
+	hash: string,
+	subject: string,
+	author: string,
+	/**  Seconds since the Unix epoch */
+	time: number,
+};
+
 /**  A config value and the file it comes from */
 export type GitConfigValue = {
 	value: string,
@@ -406,6 +447,20 @@ export type GitConfigValue = {
 	 */
 	origin: string,
 };
+
+export type GitEntry = {
+	/**  Relative to the repository root. Empty when it's outside the repository. */
+	path: string,
+	state: GitEntryState,
+	/**  The last commit that changed it, if it's been committed */
+	lastCommit: GitCommit | null,
+};
+
+export type GitEntryState = "new" | "modified" | "deleted" | "renamed" | "conflicted" | 
+/**  Committed, with no changes since */
+"unchanged" | "ignored" | 
+/**  Its real path (after symlinks) is outside the project's repository */
+"outsideRepository";
 
 /**  Something git is in the middle of, which only a git tool should finish */
 export type GitOperation = "merge" | "rebase" | "cherryPick" | "revert";
@@ -457,6 +512,33 @@ export type GitSetup = {
 	problem: GitProblem | null,
 	/**  Set when the project is in a repository git can read */
 	repository: GitRepository | null,
+};
+
+export type GitState = {
+	/**  Why git can't be used for the project, if it can't */
+	problem: GitProblem | null,
+	/**  Set when the project is in a repository git can read */
+	tree: GitWorkingTree | null,
+};
+
+export type GitWorkingTree = {
+	root: string,
+	/**  The project folder within the root, like `docs/`. Empty at the root. */
+	prefix: string,
+	/**  `None` when HEAD is detached */
+	branch: string | null,
+	upstream: string | null,
+	ahead: number,
+	behind: number,
+	hasCommits: boolean,
+	operation: GitOperation | null,
+	/**
+	 *  Changed, new and conflicted files in the project folder, without
+	 *  submodules. Paths are relative to `root`.
+	 */
+	changes: GitChange[],
+	/**  The open entry, when one was asked about */
+	entry: GitEntry | null,
 };
 
 export type GlobalSettings = {

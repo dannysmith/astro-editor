@@ -27,6 +27,7 @@ import {
   GitSettingsProblemsSection,
   GitSettingsSection,
 } from './GitSettingsSection'
+import { GitPanelSection } from './GitPanelSection'
 
 interface Section {
   id: string
@@ -65,6 +66,7 @@ const SECTIONS: Section[] = [
     title: 'Git settings problems',
     Component: GitSettingsProblemsSection,
   },
+  { id: 'git-panel', title: 'Git panel', Component: GitPanelSection },
   { id: 'select', title: 'Select', Component: SelectSection, overlay: true },
   {
     id: 'date',

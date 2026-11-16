@@ -106,6 +106,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_os::init())
         .manage(commands::watcher::init_watcher_state())
+        .manage(commands::git::GitWatcherState::default())
         .manage(window_state::WindowStateCache::default())
         .setup(|app| {
             // Log app startup information

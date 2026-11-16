@@ -58,6 +58,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::project::rename_entry,
             // git.rs commands
             crate::commands::git::git_setup,
+            crate::commands::git::git_state,
+            crate::commands::git::git_watch_start,
+            crate::commands::git::git_watch_stop,
             // watcher.rs commands
             crate::commands::watcher::start_watching_project,
             crate::commands::watcher::stop_watching_project,

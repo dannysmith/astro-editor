@@ -42,6 +42,11 @@ export const queryKeys = {
   // What Project Settings shows about git for the project
   gitSetup: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'gitSetup'] as const,
+  // What the Git tab shows, for each entry it's asked about
+  gitStates: (projectPath: string) =>
+    [...queryKeys.all, projectPath, 'gitState'] as const,
+  gitState: (projectPath: string, entryPath: string | null) =>
+    [...queryKeys.gitStates(projectPath), entryPath] as const,
   // A loadable URL for an image path as written in a file. Relative paths
   // depend on the file, so it's part of the key
   imageSrc: (projectPath: string, filePath: string | null, imagePath: string) =>

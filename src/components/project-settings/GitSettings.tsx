@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { GitSetup, Resolved, SettingSource } from '@/lib/bindings'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +36,13 @@ export function GitSettings({
     projectPath,
     gitPanel.value
   )
+  // Git gets fixed in another app, so check again on coming back to AE
+  useEffect(() => {
+    if (!gitPanel.value) return
+    const check = () => void refetch()
+    window.addEventListener('focus', check)
+    return () => window.removeEventListener('focus', check)
+  }, [gitPanel.value, refetch])
   return (
     <GitSettingsView
       on={gitPanel.value}
@@ -140,7 +147,7 @@ export function GitSettingsView({
 function SetupRows({ setup, home }: { setup: GitSetup; home: string | null }) {
   const path = (p: string) => `\`${tildePath(p, home)}\``
   const repository = setup.repository
-  const branch = describeBranch(setup)
+  const branch = repository && describeBranch(repository)
   return (
     <>
       {setup.git && (

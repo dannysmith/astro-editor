@@ -14,8 +14,7 @@ async function fetchGitSetup(projectPath: string) {
 
 /**
  * What git looks like for the project, with the home folder for showing paths.
- * Only runs git while `enabled` (the Git panel setting is on). Read again
- * whenever the window regains focus, since git is fixed in another app.
+ * Only runs git while `enabled` (the Git panel setting is on).
  */
 export function useGitSetupQuery(projectPath: string, enabled: boolean) {
   return useQuery({
@@ -23,6 +22,5 @@ export function useGitSetupQuery(projectPath: string, enabled: boolean) {
     queryFn: () => fetchGitSetup(projectPath),
     enabled,
     staleTime: 0,
-    refetchOnWindowFocus: true,
   })
 }

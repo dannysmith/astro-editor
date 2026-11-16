@@ -99,57 +99,25 @@ pub fn check(project: &Path) -> GitSetup {
 }
 
 fn check_with(git: Result<Git, FindError>, project: &Path) -> GitSetup {
+    let unusable = |git: Option<GitProgram>, problem: GitProblem| GitSetup {
+        git,
+        problem: Some(problem),
+        repository: None,
+    };
     let git = match git {
         Ok(git) => git,
-        Err(error) => {
-            return GitSetup {
-                git: None,
-                problem: Some(match error {
-                    FindError::NotInstalled => GitProblem::NotInstalled,
-                    FindError::CommandLineToolsMissing => GitProblem::CommandLineToolsMissing,
-                }),
-                repository: None,
-            }
-        }
+        Err(error) => return unusable(None, error.into()),
     };
     let program = match version(&git, project) {
         Ok(version) => GitProgram {
             path: git.program().display().to_string(),
             version,
         },
-        Err(message) => {
-            return GitSetup {
-                git: None,
-                problem: Some(GitProblem::Failed { message }),
-                repository: None,
-            }
-        }
+        Err(message) => return unusable(None, GitProblem::Failed { message }),
     };
-    let failed = |message: String| GitSetup {
-        git: Some(program.clone()),
-        problem: Some(GitProblem::Failed { message }),
-        repository: None,
-    };
-
-    let repository = match repo::discover(&git, project) {
-        Ok(Discovery::Found(repository)) => repository,
-        Ok(Discovery::NotARepository) => {
-            return GitSetup {
-                git: Some(program),
-                problem: Some(GitProblem::NotARepository),
-                repository: None,
-            }
-        }
-        Ok(Discovery::Ignored { root }) => {
-            return GitSetup {
-                git: Some(program),
-                problem: Some(GitProblem::Ignored {
-                    root: root.display().to_string(),
-                }),
-                repository: None,
-            }
-        }
-        Err(message) => return failed(message),
+    let repository = match open(&git, project) {
+        Ok(repository) => repository,
+        Err(problem) => return unusable(Some(program), problem),
     };
     match report(&git, &repository) {
         Ok(report) => GitSetup {
@@ -157,7 +125,28 @@ fn check_with(git: Result<Git, FindError>, project: &Path) -> GitSetup {
             problem: None,
             repository: Some(report),
         },
-        Err(message) => failed(message),
+        Err(message) => unusable(Some(program), GitProblem::Failed { message }),
+    }
+}
+
+impl From<FindError> for GitProblem {
+    fn from(error: FindError) -> GitProblem {
+        match error {
+            FindError::NotInstalled => GitProblem::NotInstalled,
+            FindError::CommandLineToolsMissing => GitProblem::CommandLineToolsMissing,
+        }
+    }
+}
+
+/// The repository the project is in, or why there isn't one git can use
+pub fn open(git: &Git, project: &Path) -> Result<Repository, GitProblem> {
+    match repo::discover(git, project) {
+        Ok(Discovery::Found(repository)) => Ok(repository),
+        Ok(Discovery::NotARepository) => Err(GitProblem::NotARepository),
+        Ok(Discovery::Ignored { root }) => Err(GitProblem::Ignored {
+            root: root.display().to_string(),
+        }),
+        Err(message) => Err(GitProblem::Failed { message }),
     }
 }
 
@@ -177,20 +166,8 @@ fn version(git: &Git, dir: &Path) -> Result<String, String> {
 
 fn report(git: &Git, repository: &Repository) -> Result<GitRepository, String> {
     let root = &repository.root;
-    let pathspec = if repository.prefix.is_empty() {
-        "."
-    } else {
-        repository.prefix.as_str()
-    };
-    let mut args = status::STATUS_ARGS.to_vec();
     // Only the branch is wanted here, so skip looking for untracked files
-    args.retain(|arg| *arg != "--untracked-files=all");
-    args.extend(["--untracked-files=no", "--", pathspec]);
-    let output = git.run(root, &args, READ_TIMEOUT)?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    let branch = status::parse(&output.stdout).branch;
+    let branch = status::read(git, repository, false)?.branch;
 
     let signing = match config(git, root, &["--type=bool", "commit.gpgsign"])? {
         Some(sign) if sign.value == "true" => Some(

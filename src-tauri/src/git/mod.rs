@@ -11,6 +11,7 @@
 pub mod repo;
 pub mod runner;
 pub mod setup;
+pub mod state;
 pub mod status;
 
 #[cfg(test)]

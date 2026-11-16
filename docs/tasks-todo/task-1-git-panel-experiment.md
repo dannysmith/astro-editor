@@ -220,7 +220,7 @@ Check it against every test repo: each one's report in Project Settings, and tha
 
 Done: `gitPanel` in the project settings; `GitSettings` (container) and `GitSettingsView` in `components/project-settings/`, with `lib/git/setup.ts` turning the report into problems with fixes; the `git-settings` and `git-settings-problems` styleguide sections; the Git tab (⌘4) gated by `isRightSidebarTabAvailable` in the tab bar, shortcut, palette and Windows menu, falling back to Frontmatter; a placeholder `GitPanel`; and `docs/developer/git.md`. The setup report is read again on window focus and with a Check again button, since git gets fixed in another app. Checked in the app against `blog`, `monorepo/docs`, `ignored-site/site` and `no-repo`.
 
-### Phase 3: the read-only tab
+### Phase 3: the read-only tab (done)
 
 1. **`git_state(project, entry)`** with tests: the branch line, the changes in the project folder, the entry's state, whether the entry is in another repository, the read-only states.
 2. **Which files belong to the entry:** the pure function in `lib/git/` and its tests.
@@ -228,6 +228,14 @@ Done: `gitPanel` in the project settings; `GitSettings` (container) and `GitSett
 4. **Refreshing:** the query enabled only while the tab is visible, refreshed on save, `file-changed`, window focus and becoming visible, and the refresh button. Then `git_watch_start`/`git_watch_stop` and the debounced `git-changed` event.
 
 Check the watcher by committing, staging, pushing and fetching in `blog` and `blog-collaborator` from Bash while AE shows the tab, without touching AE. Then hand over to Danny.
+
+Done: `git_state` (`git/state.rs`), `git_watch_start`/`git_watch_stop` in `commands/git.rs`, `lib/git/entry-files.ts`, `useGitStateQuery`, `useGitRefresh`, and `GitPanel` with `GitPanelView` (styleguide section `git-panel`). Checked in the app: a commit, a push, and a collaborator's push plus fetch from Bash all updated the tab within a couple of seconds without touching AE; typing a reference to a new image ticked it; the monorepo shows only `docs/` changes. Differences from the plan:
+
+- **Other content files never join the entry's group,** even when the entry links to them by file name. Committing another article because this one links to it would be a surprise.
+- **Window focus is a `focus` listener,** not TanStack's `refetchOnWindowFocus`, which only listens for `visibilitychange`.
+- **The entry's title comes from its frontmatter** (the collection's title field), falling back to the file name.
+- **The branch line is two lines,** the branch, then how it stands against the upstream, since one sentence wrapped badly at sidebar width.
+- Renames within a session (pre-ticking the old path) moved to phase 4, where they matter.
 
 ### Phase 4: committing
 

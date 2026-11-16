@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import type { GitRepository, GitSetup } from '@/lib/bindings'
-import { describeBranch, gitSetupProblems } from './setup'
+import {
+  describeBranch,
+  describeUpstream,
+  gitSetupProblems,
+  readOnlyReason,
+} from './setup'
 
 const HOME = '/Users/writer'
 
@@ -100,24 +105,57 @@ describe('gitSetupProblems', () => {
 
 describe('describeBranch', () => {
   it('counts commits each way', () => {
-    expect(
-      describeBranch(setup({ repository: repository({ ahead: 2, behind: 1 }) }))
-    ).toBe('`main` → `origin/main`, 2 to push, 1 to pull')
-    expect(describeBranch(setup())).toBe('`main` → `origin/main`, up to date')
+    expect(describeBranch(repository({ ahead: 2, behind: 1 }))).toBe(
+      '`main` → `origin/main`, 2 to push, 1 to pull'
+    )
+    expect(describeBranch(repository())).toBe(
+      '`main` → `origin/main`, up to date'
+    )
   })
 
   it('says when there is nowhere to push', () => {
-    expect(
-      describeBranch(setup({ repository: repository({ upstream: null }) }))
-    ).toBe('`main`, not pushed anywhere yet. Push it from your git tool first.')
+    expect(describeBranch(repository({ upstream: null }))).toBe(
+      '`main`, not pushed anywhere yet. Push it from your git tool first.'
+    )
   })
 
   it('describes a new repository and a detached HEAD', () => {
-    expect(
-      describeBranch(setup({ repository: repository({ hasCommits: false }) }))
-    ).toBe('`main`, no commits yet')
-    expect(
-      describeBranch(setup({ repository: repository({ branch: null }) }))
-    ).toBe('Detached HEAD')
+    expect(describeBranch(repository({ hasCommits: false }))).toBe(
+      '`main`, no commits yet'
+    )
+    expect(describeBranch(repository({ branch: null }))).toBe('Detached HEAD')
+  })
+})
+
+describe('describeUpstream', () => {
+  it('says which way commits need to go', () => {
+    expect(describeUpstream(repository({ ahead: 2 }))).toBe(
+      '2 to push to `origin/main`'
+    )
+    expect(describeUpstream(repository({ behind: 1 }))).toBe(
+      '1 to pull from `origin/main`'
+    )
+    expect(describeUpstream(repository({ ahead: 2, behind: 1 }))).toBe(
+      '2 to push and 1 to pull, with `origin/main`'
+    )
+    expect(describeUpstream(repository())).toBe('Up to date with `origin/main`')
+    expect(describeUpstream(repository({ upstream: null }))).toBe(
+      'Not pushed anywhere yet'
+    )
+  })
+})
+
+describe('readOnlyReason', () => {
+  it('stops for conflicted files', () => {
+    const conflict = {
+      path: 'a.md',
+      originalPath: null,
+      kind: 'conflicted' as const,
+      submodule: false,
+    }
+    expect(readOnlyReason(repository(), [conflict])?.message).toBe(
+      'Some files have conflicts.'
+    )
+    expect(readOnlyReason(repository())).toBeNull()
   })
 })

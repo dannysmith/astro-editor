@@ -34,6 +34,22 @@ Success is the exit code, never an empty stderr: git prints warnings and hints w
 
 Every command that writes takes explicit paths. Never `add -A`, `commit -a`, or anything else repository-wide.
 
+## Keeping the Git tab current
+
+People commit from other apps while they write, often side by side, so the tab can't wait for AE to be focused again. While it's showing (`useGitRefresh`), it reads git again when:
+
+- **The git folder changes.** `git_watch_start` watches the git folder, and the shared one in a linked worktree; a submodule's is under the parent's `.git/modules/`, so neither need be in the project. It ignores `objects/`, `logs/` and `*.lock` (git writes `index.lock` and renames it to `index`, so the rename is what matters), and sends one `git-changed` after 300ms of quiet. That covers commits, staging, branch switches, and pushes and fetches, which move remote refs.
+- **AE saves the open file,** or the project watcher sees a content file change.
+- **The window is focused again.** TanStack Query's own refetch on focus listens for `visibilitychange`, which switching apps doesn't fire in a desktop window, so the hooks listen for the window's `focus`.
+
+Our own status never writes the index (`GIT_OPTIONAL_LOCKS=0`), so reading git can't wake the watcher. Other apps' background status does refresh the index, which just means an extra read. The panel is inside `<Activity>`, so when the tab is hidden its effects are torn down and the watcher stops.
+
+Not seen until one of those happens: images or other non-content files changed by another app while AE stays focused, since the project watcher only reports `.md` and `.mdx`. The refresh button covers it.
+
+## Which files go with the entry
+
+`lib/git/entry-files.ts` decides which changes are ticked for the open entry's commit: the entry, files whose name appears in its text as the editor has it, and the folder of a `folder/index.md` entry. Other content files never join, even when the entry links to them. The panel works this out in a store selector that returns only the list of paths, so typing doesn't re-render it; only adding or removing a file name does.
+
 ## Testing
 
 Rust tests build throwaway repositories with the real `git` (`git::test_repos`): a temp folder git can't look above (`GIT_CEILING_DIRECTORIES`), with the global and system config ignored, so they never read the developer's config or touch their repositories.

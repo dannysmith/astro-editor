@@ -6,14 +6,41 @@
 use serde::Serialize;
 use specta::Type;
 
-/// The arguments that produce what `parse` reads, without the pathspec
-pub const STATUS_ARGS: [&str; 5] = [
-    "status",
-    "--porcelain=v2",
-    "-z",
-    "--branch",
-    "--untracked-files=all",
-];
+use super::repo::Repository;
+use super::runner::Git;
+use super::READ_TIMEOUT;
+
+/// The status of the project's folder in `repository`. Untracked files are
+/// listed one by one when `untracked`, and left out otherwise (quicker, for
+/// when only the branch is wanted).
+pub fn read(git: &Git, repository: &Repository, untracked: bool) -> Result<Status, String> {
+    let pathspec = if repository.prefix.is_empty() {
+        "."
+    } else {
+        repository.prefix.as_str()
+    };
+    let output = git.run(
+        &repository.root,
+        &[
+            "status",
+            "--porcelain=v2",
+            "-z",
+            "--branch",
+            if untracked {
+                "--untracked-files=all"
+            } else {
+                "--untracked-files=no"
+            },
+            "--",
+            pathspec,
+        ],
+        READ_TIMEOUT,
+    )?;
+    if !output.success() {
+        return Err(output.error_message());
+    }
+    Ok(parse(&output.stdout))
+}
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Status {
@@ -60,7 +87,7 @@ pub enum GitChangeKind {
     Conflicted,
 }
 
-/// Parses the output of `STATUS_ARGS`. Lines it doesn't know are skipped, so a
+/// Parses the output of the `status` command in `read`. Lines it doesn't know are skipped, so a
 /// newer git adding to the format doesn't break it.
 pub fn parse(output: &[u8]) -> Status {
     let text = String::from_utf8_lossy(output);
