@@ -205,12 +205,18 @@ async function saveCurrentFile(
       } else {
         // A body-only save changes only the file's modified time, which the
         // sidebar can sort by. Updating it in place saves re-reading every
-        // file in the folder on each auto-save
+        // file in the folder on each auto-save. A write marks a listing fresh,
+        // so listings waiting to be re-read (after a change outside the app)
+        // and listings without the file are left alone
         const lastModified = Math.floor(Date.now() / 1000)
         queryClient.setQueriesData<DirectoryScanResult>(
-          { queryKey: directories },
-          data =>
-            data && {
+          {
+            queryKey: directories,
+            predicate: query => !query.state.isInvalidated,
+          },
+          data => {
+            if (!data?.files.some(file => file.path === path)) return undefined
+            return {
               ...data,
               files: data.files.map(file =>
                 file.path === path
@@ -218,6 +224,7 @@ async function saveCurrentFile(
                   : file
               ),
             }
+          }
         )
       }
     }

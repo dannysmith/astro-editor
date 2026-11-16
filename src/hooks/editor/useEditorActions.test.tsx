@@ -224,6 +224,31 @@ describe('useEditorActions.saveFile and the sidebar listing', () => {
     expect(queryClient.getQueryState(listingKey)?.isInvalidated).toBe(false)
   })
 
+  it('leaves a listing waiting to be re-read for its re-read', async () => {
+    const { queryClient, saving } = saveWithListing(false)
+    await queryClient.invalidateQueries({ queryKey: listingKey })
+    await saving
+
+    const state = queryClient.getQueryState<{ files: FileEntry[] }>(listingKey)
+    expect(state?.isInvalidated).toBe(true)
+    expect(state?.data?.files[0]!.last_modified).toBe(1)
+  })
+
+  it('leaves listings without the saved file alone', async () => {
+    const { queryClient, saving } = saveWithListing(false)
+    const otherFolder = ['project', '/test', 'blog', 'directory', '2024']
+    const otherListing = { subdirectories: [], files: [other] }
+    queryClient.setQueryData(otherFolder, otherListing)
+    const updatedAt = queryClient.getQueryState(otherFolder)!.dataUpdatedAt
+    await new Promise(resolve => setTimeout(resolve, 5))
+    await saving
+
+    expect(queryClient.getQueryData(otherFolder)).toBe(otherListing)
+    expect(queryClient.getQueryState(otherFolder)!.dataUpdatedAt).toBe(
+      updatedAt
+    )
+  })
+
   it('reads the folder again after a frontmatter edit', async () => {
     const { queryClient, saving } = saveWithListing(true)
     await saving
