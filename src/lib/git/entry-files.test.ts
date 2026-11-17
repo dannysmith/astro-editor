@@ -1,14 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import type { GitChange, GitChangeKind } from '@/lib/bindings'
-import { entryChanges } from './entry-files'
+import { groupChanges, usedFiles } from './entry-files'
+import { changeStatus } from './status'
 
 function change(path: string, kind: GitChangeKind = 'modified'): GitChange {
-  return { path, originalPath: null, kind, submodule: false }
+  return {
+    path,
+    originalPath: null,
+    kind,
+    staged: false,
+    unstaged: kind !== 'new',
+    submodule: false,
+  }
 }
 
 const paths = (changes: GitChange[]) => changes.map(c => c.path)
 
-describe('entryChanges', () => {
+describe('usedFiles', () => {
   const changes = [
     change('src/assets/articles/2026-11-16-harbour.jpg', 'new'),
     change('src/content/articles/harbour.md'),
@@ -18,70 +26,95 @@ describe('entryChanges', () => {
     change('package.json'),
   ]
 
-  it('takes the entry and the files its text names, entry first', () => {
-    const { entry, others } = entryChanges({
-      changes,
-      entryPath: 'src/content/articles/harbour.md',
-      entryText:
-        '---\ncover: ../../assets/articles/2026-11-16-harbour.jpg\n---\n\nSee [the other one](./other.md).\n\n![](../../assets/articles/2026-11-16-old-map.png)\n',
-    })
-    expect(paths(entry)).toEqual([
-      'src/content/articles/harbour.md',
+  it('finds the files the text names, but not other entries', () => {
+    expect(
+      usedFiles({
+        changes,
+        entryPath: 'src/content/articles/harbour.md',
+        entryText:
+          '---\ncover: ../../assets/articles/2026-11-16-harbour.jpg\n---\n\nSee [the other one](./other.md).\n\n![](../../assets/articles/2026-11-16-old-map.png)\n',
+      })
+    ).toEqual([
+      // map.png is only named as the end of a longer name
       'src/assets/articles/2026-11-16-harbour.jpg',
       'src/assets/articles/2026-11-16-old-map.png',
-    ])
-    // map.png is only named as the end of a longer name, and other.md is
-    // another entry
-    expect(paths(others)).toEqual([
-      'src/assets/articles/map.png',
-      'src/content/articles/other.md',
-      'package.json',
     ])
   })
 
   it('matches a name written URL-encoded', () => {
-    const { entry } = entryChanges({
-      changes: [change('notes/a.md'), change('notes/my photo.jpg', 'new')],
-      entryPath: 'notes/a.md',
-      entryText: '![](./my%20photo.jpg)',
-    })
-    expect(paths(entry)).toEqual(['notes/a.md', 'notes/my photo.jpg'])
+    expect(
+      usedFiles({
+        changes: [change('notes/a.md'), change('notes/my photo.jpg', 'new')],
+        entryPath: 'notes/a.md',
+        entryText: '![](./my%20photo.jpg)',
+      })
+    ).toEqual(['notes/my photo.jpg'])
   })
 
   it("takes the files in a colocated entry's folder, but not other entries", () => {
-    const { entry } = entryChanges({
+    expect(
+      usedFiles({
+        changes: [
+          change('posts/trip/cover.jpg', 'new'),
+          change('posts/trip/index.mdx'),
+          change('posts/trip/notes.md', 'new'),
+          change('posts/other/cover.jpg', 'new'),
+        ],
+        entryPath: 'posts/trip/index.mdx',
+        entryText: '',
+      })
+    ).toEqual(['posts/trip/cover.jpg'])
+  })
+
+  it('finds nothing without an entry', () => {
+    expect(usedFiles({ changes, entryPath: '', entryText: 'map.png' })).toEqual(
+      []
+    )
+  })
+})
+
+describe('groupChanges', () => {
+  it('separates the entry, its files, files it named earlier, and the rest', () => {
+    const groups = groupChanges({
       changes: [
-        change('posts/trip/cover.jpg', 'new'),
-        change('posts/trip/index.mdx'),
-        change('posts/trip/notes.md', 'new'),
-        change('posts/other/cover.jpg', 'new'),
+        change('a/old.jpg', 'new'),
+        change('a/entry.md'),
+        change('a/cover.jpg', 'new'),
+        change('README.md'),
       ],
-      entryPath: 'posts/trip/index.mdx',
-      entryText: '',
+      entryPath: 'a/entry.md',
+      used: ['a/cover.jpg'],
+      named: ['a/cover.jpg', 'a/old.jpg', 'a/committed-since.jpg'],
     })
-    expect(paths(entry)).toEqual([
-      'posts/trip/index.mdx',
-      'posts/trip/cover.jpg',
-    ])
+    expect(groups.entry?.path).toBe('a/entry.md')
+    expect(paths(groups.used)).toEqual(['a/cover.jpg'])
+    expect(paths(groups.unused)).toEqual(['a/old.jpg'])
+    expect(paths(groups.others)).toEqual(['README.md'])
+  })
+})
+
+describe('changeStatus', () => {
+  it("names a change in git's terms", () => {
+    const label = (c: Partial<GitChange>) =>
+      changeStatus({ ...change('a.md'), ...c }).label
+    expect(label({ kind: 'new', staged: false, unstaged: false })).toBe(
+      'Untracked'
+    )
+    expect(label({ kind: 'new', staged: true, unstaged: false })).toBe('Added')
+    expect(label({ staged: false, unstaged: true })).toBe('Modified')
+    expect(label({ staged: true, unstaged: false })).toBe('Staged')
+    expect(label({ staged: true, unstaged: true })).toBe('Partly staged')
+    expect(label({ kind: 'conflicted' })).toBe('Conflicted')
   })
 
-  it('includes the old path of a rename', () => {
-    const { entry } = entryChanges({
-      changes: [change('a/old.md', 'deleted'), change('a/new.md', 'new')],
-      entryPath: 'a/new.md',
-      entryText: '',
-      alsoInclude: ['a/old.md'],
-    })
-    expect(paths(entry)).toEqual(['a/new.md', 'a/old.md'])
-  })
-
-  it('puts everything in others without an entry', () => {
-    const { entry, others } = entryChanges({
-      changes,
-      entryPath: '',
-      entryText: '',
-    })
-    expect(entry).toEqual([])
-    expect(others).toEqual(changes)
+  it("gives VS Code's letter, the same staged or not", () => {
+    const letter = (c: Partial<GitChange>) =>
+      changeStatus({ ...change('a.md'), ...c }).letter
+    expect(letter({ kind: 'new', staged: false, unstaged: false })).toBe('U')
+    expect(letter({ kind: 'new', staged: true, unstaged: false })).toBe('A')
+    expect(letter({ staged: true, unstaged: true })).toBe('M')
+    expect(letter({ kind: 'deleted' })).toBe('D')
+    expect(letter({ kind: 'renamed' })).toBe('R')
+    expect(letter({ kind: 'conflicted' })).toBe('!')
   })
 })

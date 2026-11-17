@@ -1,19 +1,30 @@
-import type { GitChange, GitState, GitWorkingTree } from '@/lib/bindings'
-import { GitPanelView } from '../components/git/GitPanelView'
+import type { GitChange, GitWorkingTree } from '@/lib/bindings'
+import {
+  GitPanelView,
+  type GitPanelViewProps,
+} from '../components/git/GitPanelView'
 
 const NOW = new Date('2026-11-16T12:00:00')
 const DAY = 86_400
 
-const change = (path: string, kind: GitChange['kind']): GitChange => ({
+const change = (
+  path: string,
+  kind: GitChange['kind'],
+  staged = false
+): GitChange => ({
   path,
   originalPath: null,
   kind,
+  staged,
+  unstaged: kind !== 'new' && !staged,
   submodule: false,
 })
 
 const ENTRY = change('docs/src/content/docs/guides/harbour.md', 'modified')
 const IMAGE = change('docs/src/assets/docs/2026-11-16-harbour.jpg', 'new')
-const OTHER = change('docs/astro.config.mjs', 'modified')
+const OLD_IMAGE = change('docs/src/assets/docs/2026-11-16-old-map.png', 'new')
+const CONFIG = change('docs/astro.config.mjs', 'modified', true)
+const OTHER_ENTRY = change('docs/src/content/docs/guides/tides.md', 'modified')
 
 const TREE: GitWorkingTree = {
   root: '/Users/writer/dev/widget',
@@ -24,7 +35,7 @@ const TREE: GitWorkingTree = {
   behind: 0,
   hasCommits: true,
   operation: null,
-  changes: [ENTRY, IMAGE, OTHER],
+  changes: [ENTRY, IMAGE, OLD_IMAGE, CONFIG, OTHER_ENTRY],
   entry: {
     path: ENTRY.path,
     state: 'modified',
@@ -37,35 +48,52 @@ const TREE: GitWorkingTree = {
   },
 }
 
-const STATES: {
-  name: string
-  state: GitState
-  title: string | null
-  entry: GitChange[]
-  others: GitChange[]
-}[] = [
+const ENTRY_INFO = { name: 'harbour.md', collection: 'docs' }
+
+type Example = Pick<
+  GitPanelViewProps,
+  'state' | 'entry' | 'entryChange' | 'used' | 'unused' | 'others'
+> & { name: string; staging?: boolean }
+
+const EXAMPLES: Example[] = [
   {
-    name: 'An entry with an image, and another change',
+    name: 'An entry with an image in use, one taken out, and other changes',
     state: { problem: null, tree: TREE },
-    title: 'Harbour at dawn',
-    entry: [ENTRY, IMAGE],
-    others: [OTHER],
+    entry: ENTRY_INFO,
+    entryChange: ENTRY,
+    used: [IMAGE],
+    unused: [OLD_IMAGE],
+    others: [CONFIG, OTHER_ENTRY],
+  },
+  {
+    name: 'Staged, with the commit card open',
+    state: { problem: null, tree: TREE },
+    entry: ENTRY_INFO,
+    entryChange: ENTRY,
+    used: [IMAGE],
+    unused: [OLD_IMAGE],
+    others: [CONFIG, OTHER_ENTRY],
+    staging: true,
   },
   {
     name: 'A merge in progress, no file open',
     state: {
       problem: null,
-      tree: { ...TREE, operation: 'merge', ahead: 0, behind: 3, entry: null },
+      tree: { ...TREE, operation: 'merge', ahead: 1, behind: 3, entry: null },
     },
-    title: null,
-    entry: [],
-    others: [ENTRY, IMAGE, OTHER],
+    entry: null,
+    entryChange: null,
+    used: [],
+    unused: [],
+    others: [ENTRY, IMAGE, CONFIG],
   },
   {
     name: 'Not in a repository',
     state: { problem: { kind: 'notARepository' }, tree: null },
-    title: 'Harbour at dawn',
-    entry: [],
+    entry: ENTRY_INFO,
+    entryChange: null,
+    used: [],
+    unused: [],
     others: [],
   },
 ]
@@ -74,21 +102,24 @@ const STATES: {
 export function GitPanelSection() {
   return (
     <div className="flex flex-wrap gap-6">
-      {STATES.map(({ name, state, title, entry, others }) => (
+      {EXAMPLES.map(({ name, used, staging = false, ...example }) => (
         <div key={name} className="w-80 space-y-2">
           <p className="text-xs text-muted-foreground">{name}</p>
-          <div className="h-96 rounded-lg border">
+          <div className="h-[34rem] rounded-lg border">
             <GitPanelView
-              state={state}
-              refreshing={false}
+              {...example}
+              used={used}
+              readAt={0}
               onRefresh={() => {}}
-              title={title}
-              entryChanges={entry}
-              otherChanges={others}
-              isTicked={path => entry.some(c => c.path === path)}
+              isTicked={path => used.some(c => c.path === path)}
               onTick={() => {}}
               onOpen={() => {}}
               onOpenSettings={() => {}}
+              staging={staging}
+              message="Update “Harbour at dawn”"
+              onMessageChange={() => {}}
+              onStage={() => {}}
+              onUnstage={() => {}}
               now={NOW}
             />
           </div>

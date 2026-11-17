@@ -69,7 +69,18 @@ export const COLOUR_TOKEN_GROUPS: { title: string; tokens: string[] }[] = [
   },
   {
     title: 'Status',
-    tokens: ['draft', 'draft-bg', 'filter', 'filter-bg', 'required', 'warning'],
+    tokens: [
+      'draft',
+      'draft-bg',
+      'filter',
+      'filter-bg',
+      'required',
+      'warning',
+      'git-added',
+      'git-modified',
+      'git-deleted',
+      'git-conflict',
+    ],
   },
   {
     title: 'Window controls',

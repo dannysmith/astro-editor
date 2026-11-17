@@ -419,6 +419,13 @@ export type GitChange = {
 	/**  For a rename or copy, the path it came from */
 	originalPath: string | null,
 	kind: GitChangeKind,
+	/**  Some of the change is in the index (staged, by AE or another tool) */
+	staged: boolean,
+	/**
+	 *  Some of the change is only in the working tree. Untracked files are
+	 *  neither staged nor unstaged.
+	 */
+	unstaged: boolean,
 	/**  A submodule rather than a file */
 	submodule: boolean,
 };

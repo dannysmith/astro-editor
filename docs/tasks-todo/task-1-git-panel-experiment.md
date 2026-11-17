@@ -237,6 +237,32 @@ Done: `git_state` (`git/state.rs`), `git_watch_start`/`git_watch_stop` in `comma
 - **The branch line is two lines,** the branch, then how it stands against the upstream, since one sentence wrapped badly at sidebar width.
 - Renames within a session (pre-ticking the old path) moved to phase 4, where they matter.
 
+### Phase 3a: get the tab right (done)
+
+Danny's first look at the read-only tab. The behaviour is right; the layout puts the wrong things first. Iterate on it with Danny until it reads well, with the commit and push controls drawn in but not working yet, since the layout depends on them.
+
+What the tab should be, top to bottom:
+
+1. **The repository, as context.** The branch and whether it's ahead of or behind its upstream, by how many commits, in the usual git way (↑2 ↓1 with `origin/main`), not "1 to push to `origin/main`", which mixes our words with git's and reads as if one file needed pushing. Push sits here. It's not the headline, so it's quieter than the entry.
+2. **This entry, as a card.** Its git status in git's own terms (untracked, added, modified, staged, partly staged, deleted, renamed, conflicted) with a coloured dot in the colours people know from VS Code, and when it was last committed. No title (the sidebar and editor already show it) and no checkbox: anything the tab does is about this entry, so it's always included. Named "entry", Astro's word for an item in a collection (`getEntry`, `CollectionEntry`), with the collection's name as written as a label, since collection names can't be singularised reliably.
+3. **Staging and committing, as a card under the entry card,** so it never scrolls away below a long list of files or, later, the history. Folded, it's one button, "Stage 2 files". Pressing it stages the ticked files and the entry for real, locks the ticks, and opens the card: a full-width banner with a small tick ("2 files staged for commit"), so it's clear something happened, then the labelled commit message (prefilled, focused and selected), Cancel and Commit directly under it, and a quieter "To be committed to main" list of what git now has staged (from git, not from our ticks). Cancel unstages what it staged, unlocks the ticks and folds the card. Commit commits what's staged.
+4. **The files it uses,** each with a checkbox, its name and its own status, independent of the entry's: the entry may be committed while its images aren't. Files named in the entry's text now are ticked. Files it named earlier in this session but no longer does (an image dragged in, then its reference deleted) stay listed, unticked, with a warning sign and a short note, since the image file is usually still there.
+5. **Other changes,** folded away and unticked, each with its status, for adding another file or entry to the commit. A short title, since it wrapped at sidebar width; opened, a line underneath says what it is (uncommitted changes elsewhere in this project).
+
+Second round:
+
+- **Statuses as VS Code's letters** (U untracked, A added, M modified, D deleted, R renamed, ! conflicted), coloured, on the right of each file row, with the full status as a tooltip. The letters replace the dots in file rows. The entry card keeps the dot and the full word, since it has room.
+- **Quieter type:** smaller, dimmer secondary text, so names and statuses lead.
+- **A typed commit message is kept** for each entry while the project is open, in the tab's own state, so cancelling, editing or opening other entries doesn't lose it. Switching project or quitting forgets it. A message never edited isn't kept, so it follows the entry's title. Committing clears it (phase 4).
+
+Also:
+
+- **Refresh** re-reads git's state from disk and never fetches. Next to the branch it looked like a fetch, so it moves away from the branch, with a tooltip saying what it does, and its animation is one quick spin per refresh rather than a flicker.
+- **Ticks belong to the entry being looked at** and are forgotten on opening another. Ticking never stages anything; only the Stage button does.
+- **Status colours** are new `--git-*` tokens in `App.css`.
+- **The tab bar's labels** show on first open with three tabs and only switch to icons on a resize. `ResponsiveTabsList` measures with a `ResizeObserver` and assumes the tabs don't change while it's mounted, but the Git tab appears once the project's settings load, and the list's width doesn't change, so nothing measures again. The measuring also runs a frame behind, which is the lag while resizing. Once the rest of 3a is settled, replace the measuring with CSS. Danny's leaning: each label hides itself when its own tab is too narrow (the label in a one-line `flex-wrap` box with `overflow: hidden`, so it wraps out of sight). That needs no numbers and works for any tabs, at the cost of labels going one tab at a time near the threshold. The alternative, if that looks wrong: a container query whose threshold depends on the tab count (`:has(> :nth-child(3))`), which hides them all at once but is tuned to the label text. Scroll-state container queries would do it exactly, but WebKit hasn't shipped them.
+- Not doing: showing whether this entry in particular is behind the upstream. Hard to get right, and the repository line already says the branch is behind.
+
 ### Phase 4: committing
 
 1. **`git_commit(project, paths, message)`** doing the four steps in "Committing", with tests: `--only` leaving other staged work alone, a deleted file, a rename with both paths, the re-staging hook and the `reset` after it, "nothing to commit".
@@ -244,11 +270,33 @@ Done: `git_state` (`git/state.rs`), `git_watch_start`/`git_watch_stop` in `comma
 3. **Around the commit:** save first with `saveUnsavedEdits()`, then afterwards reload the open file if a hook rewrote it, the inline "Committed `a1b2c3d`" line, and git's errors in the tab.
 4. **Renames this session**, recorded in `lib/files/rename.ts` so the old path comes pre-ticked.
 
+The stage card from phase 3a changes "Committing" above: staging is now its own step, so `git_stage` and `git_unstage` come first, and Commit commits what the card shows as staged. Settled with Danny:
+
+- **No confirmation dialog.** The open card already shows exactly what will be committed.
+- **Files staged by something else** are listed in the card, marked "staged outside AE", since a commit takes everything staged. Our status is scoped to the project folder, so this needs the whole repository's staged files (`git diff --cached --name-only`): the monorepo has a staged change outside `docs/` the tab can't see now.
+- **Edits saved while the card is open** go in: Commit stages the entry again first.
+
 Check it in `monorepo/docs` (hooks, someone else's staged work) and `blog`, then hand over to Danny for the first real commits.
 
 ### Phase 5: pushing
 
 `git_push`, the Push button on the branch line, the list of unpushed commits, the non-fast-forward message, the submodule note, and the Check remote button in Project Settings. Check it with `blog-collaborator` (rejected push) and `.block-push` in `monorepo` (refusing hook).
+
+### Phase 5a: pulling, when it's clean
+
+The usual way of working is to bring in what's changed on the remote before committing, so your commit goes on top of the latest work (and a push isn't rejected). So when the branch is behind, the repository line offers Pull next to Push, and it only ever does a pull that can't go wrong:
+
+- Fetch first, then decide from what's actually there.
+- **Only behind:** `git merge --ff-only @{u}`. Git refuses on its own, changing nothing, if a file you've changed locally would be overwritten, so that case is a message, not a mess.
+- **Behind and ahead** (your own unpushed commits): this needs a rebase or a merge. Check first without touching the working tree (`git merge-tree --write-tree`, git 2.38+, reports conflicts); if it's clean, rebase. If it isn't, don't start: say which files conflict and to sort it out in their git tool.
+- Never leave a half-done merge or rebase behind. If anything unexpected happens, stop and show git's message.
+
+This changes files on disk, so the open entry has to reload if the pull changed it (and unsaved edits still win, as everywhere else).
+
+### Phase 5b: context menus
+
+- **Right-click a file row**: Open in IDE (when one is set), Copy path, Reveal in Finder, the same actions and code as the file list's context menu.
+- **Right-click elsewhere in the tab**: maybe a menu of the tab's git actions (Stage, Push, Refresh, Project Settings → Git), for someone unsure what they can do. To revisit once the tab has its actions; it may not be worth it.
 
 ### Phase 6: history
 
@@ -295,7 +343,6 @@ The Rust tests don't use these: they build their own repos in a temp folder (see
 ## Ideas for later, not this experiment
 
 - A count badge on the Git tab while there are unpushed commits, and status dots in the file list.
-- `pull --ff-only` when nothing local would conflict.
 - "Open on GitHub" from the history list.
 - Showing the entry's changes since the last commit in the editor (`@codemirror/merge` against `HEAD:<path>`), the most writer-friendly diff there is.
 - Opening a terminal at the project (the ▶ button idea in #360), which shares the login-shell PATH code.

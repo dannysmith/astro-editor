@@ -151,6 +151,8 @@ describe('readOnlyReason', () => {
       path: 'a.md',
       originalPath: null,
       kind: 'conflicted' as const,
+      staged: false,
+      unstaged: true,
       submodule: false,
     }
     expect(readOnlyReason(repository(), [conflict])?.message).toBe(

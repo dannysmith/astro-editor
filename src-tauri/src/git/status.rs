@@ -71,6 +71,11 @@ pub struct GitChange {
     /// For a rename or copy, the path it came from
     pub original_path: Option<String>,
     pub kind: GitChangeKind,
+    /// Some of the change is in the index (staged, by AE or another tool)
+    pub staged: bool,
+    /// Some of the change is only in the working tree. Untracked files are
+    /// neither staged nor unstaged.
+    pub unstaged: bool,
     /// A submodule rather than a file
     pub submodule: bool,
 }
@@ -105,10 +110,13 @@ pub fn parse(output: &[u8]) -> Status {
             "1" => {
                 let parts: Vec<&str> = rest.splitn(8, ' ').collect();
                 if let [xy, sub, _, _, _, _, _, path] = parts[..] {
+                    let (staged, unstaged) = staging(xy);
                     status.changes.push(GitChange {
                         path: path.to_string(),
                         original_path: None,
                         kind: ordinary_kind(xy),
+                        staged,
+                        unstaged,
                         submodule: sub.starts_with('S'),
                     });
                 }
@@ -118,11 +126,14 @@ pub fn parse(output: &[u8]) -> Status {
             "2" => {
                 let parts: Vec<&str> = rest.splitn(9, ' ').collect();
                 let original = fields.next().map(str::to_string);
-                if let [_, sub, _, _, _, _, _, _, path] = parts[..] {
+                if let [xy, sub, _, _, _, _, _, _, path] = parts[..] {
+                    let (staged, unstaged) = staging(xy);
                     status.changes.push(GitChange {
                         path: path.to_string(),
                         original_path: original,
                         kind: GitChangeKind::Renamed,
+                        staged,
+                        unstaged,
                         submodule: sub.starts_with('S'),
                     });
                 }
@@ -135,6 +146,8 @@ pub fn parse(output: &[u8]) -> Status {
                         path: path.to_string(),
                         original_path: None,
                         kind: GitChangeKind::Conflicted,
+                        staged: false,
+                        unstaged: true,
                         submodule: sub.starts_with('S'),
                     });
                 }
@@ -143,6 +156,8 @@ pub fn parse(output: &[u8]) -> Status {
                 path: rest.to_string(),
                 original_path: None,
                 kind: GitChangeKind::New,
+                staged: false,
+                unstaged: false,
                 submodule: false,
             }),
             _ => {}
@@ -170,6 +185,16 @@ fn read_header(header: &str, branch: &mut BranchStatus) {
     }
 }
 
+/// Whether an `XY` pair has anything in the index (X) and in the working
+/// tree (Y). `.` means unchanged.
+fn staging(xy: &str) -> (bool, bool) {
+    let mut letters = xy.chars();
+    (
+        letters.next().is_some_and(|x| x != '.'),
+        letters.next().is_some_and(|y| y != '.'),
+    )
+}
+
 /// The kind of an ordinary change from its index (X) and worktree (Y) letters.
 /// AE doesn't show the staging area, so the two are read together.
 fn ordinary_kind(xy: &str) -> GitChangeKind {
@@ -188,12 +213,23 @@ fn ordinary_kind(xy: &str) -> GitChangeKind {
 mod tests {
     use super::*;
 
+    /// A change with nothing staged
     fn change(path: &str, kind: GitChangeKind) -> GitChange {
         GitChange {
             path: path.to_string(),
             original_path: None,
             kind,
+            staged: false,
+            unstaged: kind != GitChangeKind::New,
             submodule: false,
+        }
+    }
+
+    fn staged(change: GitChange, unstaged: bool) -> GitChange {
+        GitChange {
+            staged: true,
+            unstaged,
+            ..change
         }
     }
 
@@ -237,13 +273,16 @@ mod tests {
             changes,
             vec![
                 change("docs/changed file.md", GitChangeKind::Modified),
-                change("docs/added.md", GitChangeKind::New),
+                staged(change("docs/added.md", GitChangeKind::New), false),
                 change("docs/gone.md", GitChangeKind::Deleted),
-                change("docs/both.md", GitChangeKind::Modified),
-                GitChange {
-                    original_path: Some("docs/old name.md".into()),
-                    ..change("docs/new name.md", GitChangeKind::Renamed)
-                },
+                staged(change("docs/both.md", GitChangeKind::Modified), true),
+                staged(
+                    GitChange {
+                        original_path: Some("docs/old name.md".into()),
+                        ..change("docs/new name.md", GitChangeKind::Renamed)
+                    },
+                    false
+                ),
                 change("docs/conflict.md", GitChangeKind::Conflicted),
                 GitChange {
                     submodule: true,

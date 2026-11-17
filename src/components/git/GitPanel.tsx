@@ -1,23 +1,27 @@
-import React, { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { GitChange } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { toast } from '@/lib/toast'
 import { useEditorStore } from '../../store/editorStore'
+import { useGitPanelStore } from '../../store/gitPanelStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useGitStateQuery } from '../../hooks/queries/useGitStateQuery'
 import { useGitRefresh } from '../../hooks/git/useGitRefresh'
 import { useFieldMappings } from '../../hooks/settings'
-import { entryChanges, fileName } from '../../lib/git/entry-files'
+import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
 
+/** Stands in for a missing list in selectors, so it's the same each time */
+const NONE: string[] = []
+
 /**
  * The right sidebar's Git tab, for projects with the experimental Git panel
- * switched on in Project Settings: the branch, the open entry's state and the
- * files that go with it, and the project's other changes.
+ * switched on in Project Settings: the branch, the open entry's state, the
+ * files it uses, and the project's other changes.
  */
-export const GitPanel: React.FC = () => {
+export const GitPanel = () => {
   const projectPath = useProjectStore(state => state.projectPath)
   if (!projectPath) {
     return (
@@ -32,33 +36,51 @@ export const GitPanel: React.FC = () => {
 function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   useGitRefresh(projectPath)
   const currentFile = useEditorStore(state => state.currentFile)
-  const { data, error, isFetching, isPlaceholderData, refetch } =
+  const { data, error, dataUpdatedAt, isPlaceholderData, refetch } =
     useGitStateQuery(projectPath, currentFile?.path ?? null)
-  const { title: titleField } = useFieldMappings(currentFile?.collection)
-  const title = useEditorStore(state => {
-    const value = titleField ? state.frontmatter[titleField] : undefined
-    return typeof value === 'string' && value.trim() ? value : null
-  })
 
   // While another entry's state loads, the last one's is still on screen, so
-  // its files aren't grouped with the newly opened entry
+  // nothing is grouped with the newly opened entry until it arrives
   const tree = data?.tree
   const entryPath = (!isPlaceholderData && tree?.entry?.path) || ''
   const changes = tree?.changes ?? []
-  // Recomputed as the entry is edited, but it re-renders only when the files
-  // it names change (an image dropped in or removed)
-  const entryPaths = useEditorStore(
+  // Recomputed as the entry is edited, but re-renders only when the files it
+  // names change (an image dropped in or taken out)
+  const used = useEditorStore(
     useShallow(state =>
-      entryChanges({
-        changes,
-        entryPath,
-        entryText: entryText(state),
-      }).entry.map(change => change.path)
+      usedFiles({ changes, entryPath, entryText: entryText(state) })
     )
   )
+  const entryKey = entryPath && tree ? `${tree.root}/${entryPath}` : ''
+  const named = useGitPanelStore(state => state.named[entryKey] ?? NONE)
+  useEffect(() => {
+    if (entryKey && used.length > 0) {
+      useGitPanelStore.getState().rememberNamed(entryKey, used)
+    }
+  }, [entryKey, used])
+  const groups = groupChanges({ changes, entryPath, used, named })
+
+  const { title: titleField } = useFieldMappings(currentFile?.collection)
+  const title = useEditorStore(state => {
+    const value = titleField ? state.frontmatter[titleField] : undefined
+    return typeof value === 'string' && value.trim() ? value.trim() : null
+  })
+  const subject = `“${title ?? fileName(entryPath)}”`
+  const prefill =
+    tree?.entry?.state === 'new' ? `Add ${subject}` : `Update ${subject}`
+  // Messages typed for each entry, kept while the project is open so closing
+  // the card or opening another entry doesn't lose them. One never edited
+  // isn't kept, so it follows the entry's title
+  const [messages, setMessages] = useState<Record<string, string>>({})
+  const message = messages[entryPath] ?? prefill
+
+  // Which entry has its files staged, with the commit card open. Drawn only
+  // for now: nothing is staged in git yet
+  const [stagedFor, setStagedFor] = useState('')
+  const staging = entryPath !== '' && stagedFor === entryPath
 
   // What's been ticked or unticked by hand, for this entry. Opening another
-  // entry starts again from its own files.
+  // entry starts again.
   const [ticks, setTicks] = useState<{
     entry: string
     overrides: Record<string, boolean>
@@ -69,16 +91,21 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
     <GitPanelView
       state={data}
       error={error?.message}
-      refreshing={isFetching}
+      readAt={dataUpdatedAt}
       onRefresh={() => void refetch()}
-      title={
+      entry={
         currentFile && !isPlaceholderData
-          ? (title ?? fileName(currentFile.path))
+          ? {
+              name: fileName(currentFile.path),
+              collection: currentFile.collection,
+            }
           : null
       }
-      entryChanges={changes.filter(c => entryPaths.includes(c.path))}
-      otherChanges={changes.filter(c => !entryPaths.includes(c.path))}
-      isTicked={path => overrides[path] ?? entryPaths.includes(path)}
+      entryChange={groups.entry}
+      used={groups.used}
+      unused={groups.unused}
+      others={groups.others}
+      isTicked={path => overrides[path] ?? used.includes(path)}
       onTick={(path, ticked) =>
         setTicks({
           entry: entryPath,
@@ -87,6 +114,11 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       }
       onOpen={change => void openChange(projectPath, tree?.root, change)}
       onOpenSettings={() => showProjectSettings()}
+      staging={staging}
+      message={message}
+      onMessageChange={text => setMessages({ ...messages, [entryPath]: text })}
+      onStage={() => setStagedFor(entryPath)}
+      onUnstage={() => setStagedFor('')}
     />
   )
 }
