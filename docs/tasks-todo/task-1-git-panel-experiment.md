@@ -1,59 +1,33 @@
 # Task: Git panel experiment
 
-Issue #369. An experimental Git tab in the right sidebar for technical writers who have git and a local checkout: see the state of the open entry, commit it together with the files it uses, and push. It's an experiment to dogfood, switched on per project, and everything it shows lives in that one tab until we've used it for a while. This branch may stay an experiment or become the feature branch; that's decided by using it.
+Issue #369. An experimental Git tab in the right sidebar for technical writers who have git and a local checkout: see the state of the open entry, commit it together with the files it uses, and push and pull. It's switched on per project and everything lives in that one tab. This branch may stay an experiment or become the feature branch; that's decided by dogfooding it. How it works, and why, is in `docs/developer/git.md`.
 
 ## Why, and for whom
 
-AE is for writer mode, so git earns a place only for the moments a writer hits while writing: "have I changed this, is it committed?", "this piece is finished (draft off), commit it with its images and nothing else", "don't let me forget to push", and maybe "when did this last change?". Branches, pulling, merging and conflicts are where a writer should switch to a git tool, because getting them wrong loses work or breaks a shared repo. Hence the scope rule below: AE only does git operations that can't rewrite the working tree.
+AE is for writer mode, so git earns a place only for the moments a writer hits while writing: "have I changed this, is it committed?", "this piece is finished, commit it with its images and nothing else", "bring in what's changed upstream before I commit", "don't let me forget to push". Branches, merges and conflicts are where a writer should switch to a git tool, because getting them wrong loses work or breaks a shared repo.
 
-Two audiences: a solo blogger with their own repo that deploys on push, and a contributor to a Starlight site that lives in `docs/` of a library's monorepo, with other people's changes, hooks, signing and a protected `main`. So the project folder not being the repo root is the normal case, not an edge case. Non-technical site owners (no terminal, no git config) need AE to own auth and the clone, which is a different product; that's what Gustavo's AE+ fork (`~/dev/astro-editor-plus`) does with libgit2 and GitHub sign-in.
+Two audiences: a solo blogger with their own repo that deploys on push, and a contributor to a Starlight site in `docs/` of a library's monorepo, with other people's changes, hooks, signing and a protected `main`. So the project folder not being the repo root is the normal case. Non-technical site owners (no terminal, no git config) need AE to own auth and the clone, which is a different product: Gustavo's AE+ fork (`~/dev/astro-editor-plus`) does that with libgit2 and GitHub sign-in.
 
-Similar tools: Markdown Monster pre-selects only the active document in its commit dialog and lets you tick more, which is the model here. Obsidian Git shells out to system git; its auto-sync is where its users get conflicts, so nothing here is automatic. Front Matter CMS has one Sync button that commits everything and pulls, wrong for a shared repo. GitHub Desktop labels its button "Commit to <branch>". Decap, Keystatic, Pages CMS and Tina commit through the GitHub API, the non-technical model.
+Similar tools: Markdown Monster pre-selects only the active document in its commit dialog and lets you tick more, which is the model here. Obsidian Git's auto-sync is where its users get conflicts, so nothing here is automatic. Front Matter CMS's one Sync button commits everything and pulls, wrong for a shared repo.
 
 ## Scope
 
-**In:** the open entry's state, staging and committing the entry and its assets (or any other changed files you tick), pushing the current branch to its upstream, pulling when it can be done cleanly (fast-forward, or rebasing your own commits, never leaving anything half done), and a Git section in Project Settings that shows what AE found and whether it works.
+**In:** the open entry's state; staging and committing it with its assets (or any other changed file you tick); pushing the branch to its upstream; pulling when it can be done cleanly; a Git group in Project Settings showing what AE found and whether it works.
 
-**Out:** checkout, discard, stash, merge commits, branch creation, the first push of a new branch, conflict handling and sign-in. No git UI outside the tab and Project Settings (no file list dots, no badges, no title bar), apart from toasts for a finished push or pull. The entry's history is dropped for now (phase 6).
-
-Git's own config is the only source of truth. AE stores nothing about git except the on/off setting, and when git doesn't work it says what failed and where to look, rather than working around it.
+**Out:** checkout, discard, stash, merge commits, branches, the first push of a new branch, conflict handling, sign-in, the entry's history (phase 6). No git UI outside the tab and Project Settings, apart from toasts for a finished push or pull.
 
 ## Decisions
 
-- **System `git`, run as a child process.** Credentials, SSH agents, hooks, commit signing, LFS, worktrees and submodules all behave as they do in the terminal, and AE needs no auth code. It needs git installed, which is fine for this audience.
-- **The switch is a project setting, `gitPanel`,** in a new **Git** group on the project page in Project Settings, with the Experimental badge, the same shape as `addComponentImports`. Git is a per-repository thing: you might want it for your blog but not a work monorepo. No general flag system yet; revisit when there's a global experiment or a third one.
-- **While it's off, no git command runs.** No tab, no Cmd+4, no palette command, no detection in Project Settings beyond the switch.
-- **Only when the tab is visible.** `RightSidebar` already hides inactive panels with `<Activity>`, which tears down effects, so a hidden Git tab runs no queries. That's both the "panel only" rule and the reason it costs nothing when you're not looking at it.
-- **AE never shows git's staging area.** The ticked files *are* the commit. On Commit it runs `git add -- <ticked>` then `git commit -m <message> --only -- <ticked>`, so whatever you've staged in a terminal stays staged and isn't included (checked in a spike). Files are committed whole, never in hunks.
-- **The commit button is the confirmation:** "Commit 3 files to main" (GitHub Desktop labels its button with the branch the same way). No modal. Cmd+Enter in the message box does the same.
-- **Commit and Push are separate buttons.** Pushing stays a deliberate act. Push needs an upstream; without one the tab says to push the branch from your git tool.
-- **Every command that writes takes explicit paths.** Never `add -A`, `commit -a` or anything repo-wide. A site in a folder that a parent repo ignores would otherwise commit into the parent (this happened during research).
-- **No automatic fetch.** "Behind" uses the remote refs from your last fetch or pull. A rejected push says so.
+- **System `git` as a child process,** found on the login shell's PATH, so credentials, SSH agents, hooks, signing, LFS and worktrees behave as in the terminal and AE needs no auth code. Git's config is the only source of truth; when git fails, AE shows git's message rather than working around it.
+- **A project setting, `gitPanel`,** in a Git group in Project Settings with the Experimental badge. While it's off no git command runs: no tab, no ⌘4, no palette command. Git runs only while the tab is visible (`<Activity>` tears down its effects when hidden).
+- **Staging is shown and is its own step,** as in git: Stage, then a card with the message, what git has staged (including anything staged outside AE, marked), Cancel and Commit. No confirmation dialog; the open card is the confirmation.
+- **Writes take explicit paths,** never `add -A` or `commit -a`. A site in a folder a parent repo ignores is treated as not in a repository, or it would commit into the parent (this happened during research).
+- **Pull only does what can't go wrong:** fast-forward, or rebase the branch's own commits; refuse up front if uncommitted changes touch the upstream's files; abort a rebase that conflicts. Pull is the only thing that fetches; nothing is automatic.
+- **Hooks run as in the terminal.** Commands that run hooks get none of AE's own git environment settings.
 
-## Finding the repository
+## What's built
 
-From the project folder:
-
-1. Find `git` (below). None: "Git isn't installed".
-2. `git rev-parse --show-toplevel --show-prefix --git-dir` from the project folder. Fails: "Not in a git repository". This climbs to parent folders on purpose, so a site in `docs/` of a monorepo works.
-3. `git check-ignore -q <project>` against that repo. Ignored: treat it as not in a repository ("This folder is ignored by the repository at `~/dev/thing`").
-4. `git rev-parse --show-superproject-working-tree`: when the repo is a submodule, say so in Project Settings and under the Push button ("Pushing doesn't update `parent`'s pointer to this submodule").
-
-The open entry is checked too: if its real path (after symlinks) isn't in the project's repository, which happens with content symlinked in from a vault, content kept as a submodule, or a loader `base` outside the project, the tab says "This entry is in a different repository" and offers nothing for it. Handling the entry's own repo can come later if anyone needs it.
-
-## Finding `git`, and the environment it runs in
-
-Apps opened from the Dock get a minimal PATH, so hooks that call `node`, `bun`, `gpg` or `git-lfs` would fail. Resolve the login shell's PATH once, lazily, off the main thread (`$SHELL -ilc` printing PATH between markers, with a timeout), and use it for every git command. AE+ has this in `env_path.rs`; it's also wanted by the ▶ button in #360 and could replace the folder list in `commands/ide.rs`, so build it as shared code.
-
-`git` is the first one on that PATH. If it's `/usr/bin/git`, check `xcode-select -p` first: without the command line tools that shim opens Apple's install dialog.
-
-The lookup takes 0.5–0.8 s on Danny's Mac (an interactive login zsh), so run it once, the first time git is needed, and keep the result. On Windows and Linux use the process's own PATH; they aren't officially supported.
-
-Every command runs from the repo root with stdin `/dev/null`, `GIT_TERMINAL_PROMPT=0` (a missing credential fails instead of waiting) and `GIT_LITERAL_PATHSPECS=1` (otherwise a file named `a*.md` is a pattern and also matches `ab.md`). Status uses `--no-optional-locks` (as VS Code does) so it never fights a terminal git for `index.lock`. Output is `--porcelain=v2 -z` with `-c core.quotepath=off`. Success is the exit code, never "nothing on stderr", because git prints warnings (line endings, hints) on success. A timeout kills the command: a pinentry or passphrase prompt with nowhere to show can otherwise hang forever. Use a generous one for commit and push, since hooks can run tests.
-
-## The tab
-
-As built (phases 3a to 5b), top to bottom:
+The tab, top to bottom:
 
 ```
 ⎇ main  origin/main ↑2          [Pull] [Push]
@@ -72,282 +46,61 @@ Files it uses
 Updates as git changes                   ↻
 ```
 
-- **The repository strip**: branch, upstream and ↑/↓ counts (which open the commits to push and pull), with Pull and Push. See phase 5.
-- **This entry**: its status in git's words with a coloured dot, and when and by whom it was last committed.
-- **Stage**, which opens the commit card: a "staged for commit" banner, the message, Cancel and Commit, and what git has staged. See phase 3a and "Committing".
-- **Files it uses**, ticked, and files it named earlier this session, unticked and marked. Statuses as VS Code's letters.
-- **Other changes**, folded, unticked, for adding anything else in the project to the commit. Clicking a content file opens it; right-clicking any file gives Reveal in Finder, Open in IDE and Copy Path.
-- **Errors** appear inline: one sentence and git's own message. Successful pushes and pulls are toasts.
-- **Read-only states**, where Stage, Pull and Push are hidden and the tab says to finish in a git tool: detached HEAD, a merge, rebase, cherry-pick or revert in progress, or conflicted files.
-
-### Which files belong to the entry
-
-- The entry file.
-- Any changed or untracked file in the project folder whose **file name appears in the entry's current text** (from the editor, not disk). That covers markdown images, image fields, MDX imports and component props. AE names dropped files `YYYY-MM-DD-name.ext`, so false matches are unlikely. A file you dropped in and then removed from the text drops back into Other changes, which is right.
-- If the entry is `folder/index.md(x)`, changed files in that folder.
-- If AE renamed the entry this session, its old path (git sees a deleted file plus a new one, and committing only the new path leaves the deletion behind). After a restart, the deleted path is in Other changes for you to tick.
-
-Submodule entries in the status (porcelain v2 marks them) are left out of every list.
-
-This is a pure function (changed files + entry path + entry text → pre-ticked paths) in `lib/git/`, with tests.
-
-### When the tab refreshes
-
-Expect people to be writing in AE and committing in another app (a terminal, VS Code, GitHub Desktop, lazygit) at the same time, often side by side, so AE may not regain focus. The tab has to notice git changing by itself, but only while it's visible.
-
-The project watcher (`commands/watcher.rs`) can't do it: it watches collection folders, the content config folders and the schemas, emits only for `.md`/`.mdx`, and never sees `.git`. A commit, stage, push, fetch or pull elsewhere only changes files in the git folder.
-
-So, while the tab is visible:
-
-- **A git folder watcher.** Starts when the tab is shown and stops when it's hidden (the `<Activity>` effect lifecycle does this for free), so it costs nothing otherwise. It watches `git rev-parse --git-dir` and `--git-common-dir` (different in a linked worktree; a submodule's lives under the parent's `.git/modules/`), since neither is necessarily inside the project folder. It ignores `objects/`, `logs/` and `*.lock` files (git writes `index.lock` and renames it to `index`, so the rename is the event that matters) and emits one debounced `git-changed` event (a few hundred ms) for anything else: `HEAD`, `index`, `refs/…`, `packed-refs`, `FETCH_HEAD`, `MERGE_HEAD`, `rebase-*`. That covers commits, staging, branch switches, pushes and fetches (remote refs move), and operations starting or finishing.
-- **No feedback loop.** Our own status runs with `--no-optional-locks`, so it never writes the index and never triggers the watcher. Other tools' background status *does* refresh the index (VS Code, GitHub Desktop), which means extra refreshes; the debounce absorbs them, and status scoped to the project folder is cheap.
-- **Working-tree changes**: AE's own saves (debounced), the project watcher's `file-changed` events (entries edited elsewhere), and window focus. Assets or other non-markdown files changed by another app while AE stays focused aren't seen until the next refresh; the refresh button covers that. If it turns out to matter, the project watcher could emit for any file in the folders it already watches, though the assets folder usually isn't one of them.
-- **Also**: when the tab becomes visible, after our own commands, and from the refresh button.
-
-Refreshing replaces the lists but keeps what you've ticked and typed: a ticked path that's still changed stays ticked, one that's been committed elsewhere disappears, and an edited message is never replaced.
-
-## Committing
-
-In two steps, as git does it (see phase 3a for the card):
-
-1. **Stage:** save the open file if it has unsaved edits (stop if the save fails), then `git add -- <entry and ticked>`.
-2. **Commit:** save again, `git add` the same paths again (edits saved while the card was open go in), then a plain `git commit`, which takes everything staged, including anything staged outside AE, which the card lists.
-3. **Cancel** instead: `git reset -q -- <the paths AE staged>`.
-4. After committing, if the open file has no unsaved edits, read it from disk again. A hook may have rewritten it, and `useFileChangeHandler` ignores watcher events for 3 seconds after our own save, so that change would be missed and the next auto-save would undo it.
-
-Plain `commit` rather than `commit --only <paths>`: with `--only`, a pre-commit hook that reformats and re-stages a file (lint-staged + prettier) leaves the real index holding the pre-hook version, so status shows `MM` straight after (seen in a spike).
-
-Editing isn't blocked while it runs. Keystrokes during a commit either make it into the commit or stay as unsaved edits, which "unsaved edits win over disk" already protects.
-
-If the files were committed elsewhere in the meantime, git exits 1 with "nothing to commit", shown as "There's nothing staged to commit. It may have been committed somewhere else."
-
-Failures just show git's message. The common ones are no identity ("Author identity unknown"), a hook refusing, signing failing, `index.lock` held by another git process, and `safe.directory` refusing the repo.
-
-## Pushing
-
-`git push` with no arguments, only when the branch has an upstream (from `--porcelain=v2 --branch`). A rejection shows git's message, and for a non-fast-forward adds "The remote has commits you don't have. Pull in your git tool, then push again." A `pre-push` hook that fails shows its output, which is how someone who wants a build check before pushing gets one.
-
-## Project Settings → Git
-
-A **Git** group on the project page, following how the page already shows what it read from the content config, with problems as callouts:
-
-- **Git panel** switch (Experimental). Everything below only shows, and only runs, when it's on.
-- **Git**: the path and version found (`/opt/homebrew/bin/git`, 2.56.1), or "Git isn't installed".
-- **Repository**: its root, the project's folder within it when that isn't the root, and whether it's a submodule. Or the "not in a repository" or "ignored" message.
-- **Branch**: branch and upstream, or "no upstream".
-- **Commit as**: `user.name <user.email>` with where each comes from (`git config --show-origin`, so "from `~/.gitconfig`"), or a problem: "Set `user.name` and `user.email`".
-- **Signing**: "Commits are signed (ssh)" when `commit.gpgsign` is on, so a slow or prompting commit makes sense.
-- **Hooks**: which ones will run (executable files in `core.hooksPath` or the hooks folder), for the same reason.
-- **Check remote** button: `git ls-remote --exit-code <upstream remote> HEAD` with a timeout, showing success or git's message. Runs only when pressed, because it touches the network and credentials.
-
-One Rust command returns all of this. Nothing here is editable: fixing git is done in git.
-
-## Edge cases
-
-Handled by git with no code from us: the project in a subfolder of a repo, worktrees, sparse checkouts, LFS (given the PATH), signing, credential helpers and SSH agents, `includeIf` configs, unicode file names (with `-z` and `quotepath=off`).
-
-Handled by one small check each, all covered above: git missing (and the `/usr/bin/git` dialog), not a repo, ignored by a parent repo, the repo being a submodule, the entry in another repository, submodules inside the project, detached HEAD and operations in progress, conflicted files, no upstream, renames within a session, hooks that re-stage, hooks that rewrite the open file, prompts that would hang.
-
-Everything else is git's own error message in the tab: no identity, bad credentials, rejected pushes, protected branches, `index.lock`, `safe.directory`, broken repos, failed hooks. No special handling.
-
-## Checked in spikes
-
-The scripts are in `docs/tasks-todo/temporary/git-369/spikes/` in the main checkout (gitignored, so not in worktrees); the findings below are what matters, and the Rust tests should cover them. Run the scripts outside the agent sandbox, which blocks writing `.git` folders inside the checkout. Each sets `GIT_CEILING_DIRECTORIES` so git can't reach a parent repo; spike 3 also ignores the global and system config. Without that, a failed `git init` in a subfolder lets the next `git add -A && git commit` land in the parent repo, which happened once during research.
-
-- Scoped status in a monorepo, and `add` + `commit --only` leaving other staged and unstaged work alone (spike 1).
-- Renames need both paths; `log --follow` follows them; a re-staging hook leaves `MM`; a refusing `pre-push` hook gives its stderr and exit 1 (spike 2).
-- `git reset -q -- <paths>` after the commit clears the `MM` (spike 3).
-- Ticking a deleted file works with `add` + `commit --only`. Ticked files that turn out unchanged are fine alongside changed ones; if all are unchanged, exit 1.
-- A repo with no commits yet: status shows `# branch.oid (initial)`, the first `commit --only` works, and `git log` **fails** (exit 128), so history treats it as empty.
-- No upstream: no `# branch.upstream` or `# branch.ab` lines, and `@{u}` fails. Read upstream state from those lines only.
-- `check-ignore -q` says a folder is ignored with or without a trailing slash, and for folders inside an ignored one.
-- A submodule inside the project shows as `1 .M S.M. 160000 …` (the `S` marks it). From inside a submodule, `--show-superproject-working-tree` gives the parent.
-- In a linked worktree, `rev-parse --git-path MERGE_HEAD` gives that worktree's own path, so in-progress checks work there.
-- `config --show-origin --get user.email` gives `file:<path>\t<value>`, and exits 1 when unset.
-
-## Where it touches the code
-
-- **Sidebar tabs.** `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) is read in five places: `RightSidebar.tsx`, `unified-title-bar/WindowsMenu.tsx`, `hooks/useMenuEvents.ts`, `hooks/useKeyboardShortcuts.ts` and `lib/commands/app-commands.ts`. The native menu items are written by hand in `src-tauri/src/lib.rs`. Add one non-React function in `lib/right-sidebar.ts` that returns the tabs available for the open project (reading the project settings with `getState()`) and use it in all five. If the Git tab is showing when you switch to a project without it, `uiStore` needs to fall back to Frontmatter.
-- **The switch.** `ProjectSettings` in `src-tauri/src/models/preferences.rs` (next to `add_component_imports`), resolved with a source like the others; the UI goes in `project-settings/ProjectPage.tsx`, which already has the `Setting` + Experimental badge pattern and `ProblemCallout` for problems.
-- **Saving first.** `saveUnsavedEdits()` in `lib/quit.ts` saves the open file if it's dirty and says whether it worked. Reuse it.
-- **The 3-second window** is in `useFileChangeHandler` (see "Unsaved edits win over disk" in `editor.md`).
-- **Renames this session.** `lib/files/rename.ts` does every rename of the open file (and the sidebar's). It needs to record old → new paths for the session, so the tab can pre-tick the old path.
-- **"Publish" prefill.** The draft field is resolved per collection (`draftField` in the scan, `fieldMappings()` in `lib/project-scan.ts`). `git_state` can take the draft field name and return whether the entry was a draft in `HEAD`, reading `git show HEAD:<path>` with the existing frontmatter reader (`src-tauri/src/frontmatter/`, YAML through `yaml.rs` as always).
-- **No schema warning in this experiment.** Upstream has no frontmatter validation. AE+ has one (`src/lib/frontmatter-validation.ts`, used by its `lib/git/publish-check.ts`); if that comes upstream as its own feature, the warning is easy to add.
-- **PATH.** AE+'s `src-tauri/src/dev_server/env_path.rs` (about 420 lines with tests) has the `-ilc` lookup with markers, a guard variable, a timeout and well-known folders as a fallback. Take the lookup and the marker parsing; the fallback folder list probably isn't needed for git.
-
-## Implementation notes
-
-- Rust: `src-tauri/src/git/` with a runner (PATH, environment, timeout, one command at a time per repository), a porcelain v2 parser, and `commands/git.rs`. Commands: `git_setup(project)` for Project Settings, `git_state(project, entry)` for the tab (status, branch, push counts, entry repository check, operation in progress), `git_commit(project, paths, message)`, `git_push(project)`, `git_file_log(project, path)`, `git_check_remote(project)`, and `git_watch_start(project)` / `git_watch_stop(project)` for the git folder watcher (the same `notify` setup and debounced event loop as `commands/watcher.rs`, in its own state map).
-- Rust tests build temporary repos with the real `git`, with `GIT_CEILING_DIRECTORIES` set to the temp folder, `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_NOSYSTEM=1`, and an identity in each repo's config, so they never touch the developer's repos or config. Cover: scoped status in a monorepo, `--only` leaving other staged work alone, renames, a re-staging hook, an ignored project folder, a refusing pre-push hook, operations in progress.
-- Frontend: TanStack queries under `queryKeys` for the project (watch the `'files'` index-4 convention), enabled only while the tab is visible and the setting is on. A `GitPanel` container and a presentational view, so the styleguide can show every state.
-- `RIGHT_SIDEBAR_TABS` gets an optional condition; the tab bar, Cmd+digit shortcuts and palette commands filter on it. The native View menu items are written by hand in `lib.rs`; leave the Git tab out of the menu for the experiment.
-- Docs: `docs/developer/git.md` for the rules above (explicit paths, no working-tree changes, the `--only` index fix, why not libgit2). A short website page for the experimental setting can wait until it's been dogfooded.
-
-## Phases
-
-A rough order, not a contract: expect to change it as we learn. Rust first, because everything in the tab is a view of what the Rust side reports, and it can be tested against real repos before there's any UI. Then the switch and an empty tab, so the gating is right from the start, then the tab grows one job at a time: see, commit, push, history.
-
-Each phase ends with `bun run check:all` passing and a commit on `experiment/git-panel`. Stop for Danny to try it after phases 3 and 4, the first time the tab shows real state and the first time it writes to a repo.
-
-### Phase 0: setup (done)
-
-- Research and spikes: the exploration doc and spike scripts in `docs/tasks-todo/temporary/git-369/` (gitignored), with the findings in this doc.
-- The `experiment/git-panel` branch, off `main` after the frontmatter work landed.
-- This task doc.
-- The test repos in `~/dev/temp-git-repos-for-ae-testing/` and the script that rebuilds them (see Testing), checked to open properly in the dev app.
-- The agent sandbox can write to the test repos (a temporary entry in Danny's `.claude/settings.local.json`), so an agent can play the other app without prompting.
-
-### Phase 1: the Rust side of git (done)
-
-No UI. A `src-tauri/src/git/` module that later phases only call into.
-
-1. **Running git.** Find `git` (the login-shell PATH lookup taken from AE+'s `env_path.rs`, done once and cached, and the `xcode-select -p` check for `/usr/bin/git`), and one function that runs a git command from a folder with the fixed environment, a timeout, and stdin closed, returning exit code, stdout and stderr. Serialise commands per repository.
-2. **The porcelain v2 parser.** `status --porcelain=v2 -z --branch --untracked-files=all` into typed changes (ordinary, renamed, unmerged, untracked, submodule) and the branch header (oid, head, upstream, ahead/behind). Pure, with unit tests from captured output.
-3. **Finding the repository.** The steps in "Finding the repository": root, prefix, git dir and common dir, ignored by a parent, submodule, operation in progress.
-4. **`git_setup(project)`**, returning everything Project Settings shows, and its tests: temp repos with `GIT_CEILING_DIRECTORIES`, no global or system config, for a repo at the root, a site in a subfolder, an ignored folder, no repo, a submodule.
-5. Regenerate the bindings, and add the new types to `src/types/domain.ts`.
-
-Done as `src-tauri/src/shell_path.rs` (the PATH lookup) and `src-tauri/src/git/` (`runner`, `status`, `repo`, `setup`, and `test_repos` for the tests), with `git_setup` in `commands/git.rs`. Serialising commands per repository is left for phase 4, the first time anything writes. What it turned up:
-
-- **The shell and git run in a new session (`setsid`), not just their own process group.** Under `tauri dev` the app has a controlling terminal, and an interactive zsh in a background process group was stopped by the system until the 8-second timeout, so the lookup failed every time. A hook that wants the terminal (a passphrase prompt) would hang the same way. With no terminal, they fail at once. With it, the first `git_setup` takes about 450ms (the shell lookup) and later ones about 110ms.
-- **`git check-ignore` refuses `GIT_LITERAL_PATHSPECS=1`** ("pathspec magic not supported"). It takes plain paths, so the runner turns it off for that one command.
-- `tauri dev` starts the app with the terminal's PATH, so a broken lookup can still hide in development (the fallback PATH is nearly complete there). Check it once in a release build opened from the Dock.
-
-### Phase 2: the switch and an empty tab (done)
-
-1. **The `gitPanel` project setting** in `ProjectSettings` (`models/preferences.rs`), resolved in `collections.rs` like `add_component_imports`, and the Git group in `ProjectPage.tsx` with the switch and the Experimental badge.
-2. **The setup report under the switch**, from `git_setup`, shown only while it's on: git path and version, repository, branch and upstream, identity with sources, signing, hooks, and the problems as `ProblemCallout`s. The Check remote button can wait for phase 5. Add the states to the styleguide's Project Settings section.
-3. **The tab, gated.** An optional condition on `RIGHT_SIDEBAR_TABS` entries, one function that returns the tabs available for the open project, and all five readers using it. Fall back to Frontmatter when the Git tab is showing and the project changes to one without it. A placeholder panel.
-
-Check it against every test repo: each one's report in Project Settings, and that with the switch off nothing appears and no git runs.
-
-Done: `gitPanel` in the project settings; `GitSettings` (container) and `GitSettingsView` in `components/project-settings/`, with `lib/git/setup.ts` turning the report into problems with fixes; the `git-settings` and `git-settings-problems` styleguide sections; the Git tab (⌘4) gated by `isRightSidebarTabAvailable` in the tab bar, shortcut, palette and Windows menu, falling back to Frontmatter; a placeholder `GitPanel`; and `docs/developer/git.md`. The setup report is read again on window focus and with a Check again button, since git gets fixed in another app. Checked in the app against `blog`, `monorepo/docs`, `ignored-site/site` and `no-repo`.
-
-### Phase 3: the read-only tab (done)
-
-1. **`git_state(project, entry)`** with tests: the branch line, the changes in the project folder, the entry's state, whether the entry is in another repository, the read-only states.
-2. **Which files belong to the entry:** the pure function in `lib/git/` and its tests.
-3. **The view:** `GitPanel` container and a presentational view: branch line, entry state, the file list with the entry's group ticked and Other changes collapsed, read-only states and errors. Every state in the styleguide. Ticking works but nothing commits yet.
-4. **Refreshing:** the query enabled only while the tab is visible, refreshed on save, `file-changed`, window focus and becoming visible, and the refresh button. Then `git_watch_start`/`git_watch_stop` and the debounced `git-changed` event.
-
-Check the watcher by committing, staging, pushing and fetching in `blog` and `blog-collaborator` from Bash while AE shows the tab, without touching AE. Then hand over to Danny.
-
-Done: `git_state` (`git/state.rs`), `git_watch_start`/`git_watch_stop` in `commands/git.rs`, `lib/git/entry-files.ts`, `useGitStateQuery`, `useGitRefresh`, and `GitPanel` with `GitPanelView` (styleguide section `git-panel`). Checked in the app: a commit, a push, and a collaborator's push plus fetch from Bash all updated the tab within a couple of seconds without touching AE; typing a reference to a new image ticked it; the monorepo shows only `docs/` changes. Differences from the plan:
-
-- **Other content files never join the entry's group,** even when the entry links to them by file name. Committing another article because this one links to it would be a surprise.
-- **Window focus is a `focus` listener,** not TanStack's `refetchOnWindowFocus`, which only listens for `visibilitychange`.
-- **The entry's title comes from its frontmatter** (the collection's title field), falling back to the file name.
-- **The branch line is two lines,** the branch, then how it stands against the upstream, since one sentence wrapped badly at sidebar width.
-- Renames within a session (pre-ticking the old path) moved to phase 4, where they matter.
-
-### Phase 3a: get the tab right (done)
-
-Danny's first look at the read-only tab. The behaviour is right; the layout puts the wrong things first. Iterate on it with Danny until it reads well, with the commit and push controls drawn in but not working yet, since the layout depends on them.
-
-What the tab should be, top to bottom:
-
-1. **The repository, as context.** The branch and whether it's ahead of or behind its upstream, by how many commits, in the usual git way (↑2 ↓1 with `origin/main`), not "1 to push to `origin/main`", which mixes our words with git's and reads as if one file needed pushing. Push sits here. It's not the headline, so it's quieter than the entry.
-2. **This entry, as a card.** Its git status in git's own terms (untracked, added, modified, staged, partly staged, deleted, renamed, conflicted) with a coloured dot in the colours people know from VS Code, and when it was last committed. No title (the sidebar and editor already show it) and no checkbox: anything the tab does is about this entry, so it's always included. Named "entry", Astro's word for an item in a collection (`getEntry`, `CollectionEntry`), with the collection's name as written as a label, since collection names can't be singularised reliably.
-3. **Staging and committing, as a card under the entry card,** so it never scrolls away below a long list of files or, later, the history. Folded, it's one button, "Stage 2 files". Pressing it stages the ticked files and the entry for real, locks the ticks, and opens the card: a full-width banner with a small tick ("2 files staged for commit"), so it's clear something happened, then the labelled commit message (prefilled, focused and selected), Cancel and Commit directly under it, and a quieter "To be committed to main" list of what git now has staged (from git, not from our ticks). Cancel unstages what it staged, unlocks the ticks and folds the card. Commit commits what's staged.
-4. **The files it uses,** each with a checkbox, its name and its own status, independent of the entry's: the entry may be committed while its images aren't. Files named in the entry's text now are ticked. Files it named earlier in this session but no longer does (an image dragged in, then its reference deleted) stay listed, unticked, with a warning sign and a short note, since the image file is usually still there.
-5. **Other changes,** folded away and unticked, each with its status, for adding another file or entry to the commit. A short title, since it wrapped at sidebar width; opened, a line underneath says what it is (uncommitted changes elsewhere in this project).
-
-Second round:
-
-- **Statuses as VS Code's letters** (U untracked, A added, M modified, D deleted, R renamed, ! conflicted), coloured, on the right of each file row, with the full status as a tooltip. The letters replace the dots in file rows. The entry card keeps the dot and the full word, since it has room.
-- **Quieter type:** smaller, dimmer secondary text, so names and statuses lead.
-- **A typed commit message is kept** for each entry while the project is open, in the tab's own state, so cancelling, editing or opening other entries doesn't lose it. Switching project or quitting forgets it. A message never edited isn't kept, so it follows the entry's title. Committing clears it (phase 4).
-
-Also:
-
-- **Refresh** re-reads git's state from disk and never fetches. Next to the branch it looked like a fetch, so it moves away from the branch, with a tooltip saying what it does, and its animation is one quick spin per refresh rather than a flicker.
-- **Ticks belong to the entry being looked at** and are forgotten on opening another. Ticking never stages anything; only the Stage button does.
-- **Status colours** are new `--git-*` tokens in `App.css`.
-- **The tab bar's labels** show on first open with three tabs and only switch to icons on a resize. `ResponsiveTabsList` measures with a `ResizeObserver` and assumes the tabs don't change while it's mounted, but the Git tab appears once the project's settings load, and the list's width doesn't change, so nothing measures again. The measuring also runs a frame behind, which is the lag while resizing. Fixed by replacing the measuring with CSS, Danny's choice: each label hides itself when its own tab is too narrow (the label in a one-line `flex-wrap` box with `overflow: hidden`, so it wraps out of sight). That needs no numbers and works for any tabs, at the cost of labels going one tab at a time near the threshold. The alternative, if that looks wrong: a container query whose threshold depends on the tab count (`:has(> :nth-child(3))`), which hides them all at once but is tuned to the label text. Scroll-state container queries would do it exactly, but WebKit hasn't shipped them.
-- Not doing: showing whether this entry in particular is behind the upstream. Hard to get right, and the repository line already says the branch is behind.
-
-### Phase 4: committing (done)
-
-`git_stage`, `git_unstage` and `git_commit` (in `git::commit`, one at a time across the app), `git_state` returning everything staged in the repository, and the stage card working for real: saving first, the staged list from git with "staged outside AE", Cancel, Commit with Cmd+Enter, git's errors in the card, "Committed `a1b2c3d` to main" after, and the entry reloaded in case a hook rewrote it. Renames this session are remembered in `gitPanelStore`, from both ways of renaming, so the old path comes ticked.
-
-Settled with Danny on the way: no confirmation dialog (the open card already shows what will be committed); files staged by something else are listed and marked; edits saved while the card is open go in; the typed message is kept per entry while the project is open and cleared by a commit.
-
-Checked in the app in `blog` (stage, cancel, a file staged from the terminal, a commit, a refusing hook) and `monorepo/docs` (work staged outside `docs/` listed and committed; the whitespace-stripping hook rewriting the open entry, which reloaded).
-
-Found and fixed: **hooks inherited our git environment.** `GIT_LITERAL_PATHSPECS=1` made the monorepo hook's `'*.md'` pathspec match nothing, so it silently did nothing. Commands that run hooks now get none of our pathspec, lock or `quotepath` settings (see `docs/developer/git.md`).
-
-Differences from the plan:
-
-- **No "Publish" prefill.** "Add" for an untracked entry, "Update" otherwise; reading the draft field from `HEAD` wasn't worth it for a prefill Danny wants kept simple.
-- **The commit runs plain `git commit`,** not `commit --only` and `reset`, since staging is now its own step. That also removes the `MM` problem with re-staging hooks.
-- **Renames weren't tried in the app** (the sidebar's rename is in a native menu the agent can't drive); the store's rename memory has a test.
-
-### Phase 5: pushing (done)
-
-`git_push`, Pull and Push on the repository strip, the ↑/↓ counts opening the commits to push and to pull, the "Pull, then push again" message for a rejected push, the submodule note (Push's tooltip, and under the list), and Check remote in Project Settings. Success is a toast; failures stay in the tab.
-
-### Phase 5a: pulling, when it's clean (done)
-
-Pull is always offered with an upstream, since it's the tab's only way to fetch. It fetches, then fast-forwards when only behind, or rebases the branch's commits (`--autostash`) when ahead too. It refuses up front, changing nothing, when uncommitted changes touch files the upstream changed, and aborts a rebase that stops on a conflict, so nothing is ever left half done. The open entry is saved before and read again after. Details in `docs/developer/git.md`.
-
-Checked with Rust tests (fast-forward, rebase, the refusal, a conflicting rebase put back, a rejected push) and in the app against `blog-collaborator`: push, fast-forward, the refusal with unsaved words in the entry, a conflicting rebase put back, and a clean rebase that changed the open entry.
-
-Differences from the plan: no `merge-tree` check before rebasing. Trying the rebase and aborting on a conflict is simpler and works with any git, and the up-front check on uncommitted changes is what makes aborting safe.
-
-**Fixed: an entry saved empty.** While testing, `the-second-article.md` in `blog` was saved as an empty file, after two saves a few seconds apart around a pull. It didn't reproduce, but the likely cause is real: `fs::write` empties a file before writing it, so a reload landing in that moment reads an empty entry, and if the editor isn't dirty it takes it, and the next save writes it back. Saves now write a temporary file and rename it over the entry (see "Auto-save and data safety" in `docs/developer/editor.md`).
-
-### Phase 5b: context menus (done)
-
-Right-clicking a file in the Git tab (the entry card, a file row, a file in the staged list) shows Reveal in Finder, Open in IDE (when one is set) and Copy Path, for the real file. A deleted file can only have its path copied. Those three items are now one helper, `pathMenuItems` in `lib/path-menu.ts`, shared with the file list's menu and the project list's, so the file list's Reveal now selects the file in Finder as the project list's did, rather than opening its folder.
-
-Not done: a menu for the rest of the tab with its git actions. Everything it would hold is a button already; revisit if people right-click looking for them.
-
-### Phase 6: history (not doing for now)
-
-A timeline of the entry's commits (`git log --follow`), with uncommitted changes at the top and unpushed commits marked. Dropped for now: the entry card already shows the last commit, and the strip lists unpushed ones, which may be all that's needed. Dogfooding will say whether it's missed (see "What to find out by using it"). `commits()` in `git/state.rs` already reads a log, so it's a small addition if it comes back.
-
-### Phase 7: dogfood and decide
-
-Danny uses it on `~/dev/dannyis-astro-content` for real writing, with the questions in "What to find out by using it". Write `docs/developer/git.md`. Then decide: keep it as an experiment, turn this branch into the feature, or drop it.
+- **Repository strip:** branch, upstream, ↑/↓ counts that open the commits to push and pull, Pull and Push.
+- **This entry:** its status in git's words with a coloured dot, and its last commit.
+- **Stage** opens the commit card. The typed message is kept per entry while the project is open; the prefill is "Add “Title”" or "Update “Title”".
+- **Files it uses:** files the entry's text names, ticked; files it named earlier this session, unticked with a warning; an entry renamed this session brings its old path. Statuses as VS Code's letters.
+- **Other changes,** folded and unticked, for anything else in the project folder.
+- **Right-click** any file for Reveal in Finder, Open in IDE and Copy Path. Clicking a content file opens it.
+- **Read-only states** (detached HEAD, an operation in progress, conflicts) hide Stage, Pull and Push and say to finish in a git tool.
+- **Refreshing:** a watcher on the git folder while the tab is visible, AE's saves, the project watcher, window focus, and the refresh button, which never fetches.
+- **Project Settings → Git:** the switch, the git found, repository, branch, identity with where it's set, signing, hooks, Check remote, and problems with fixes.
+
+Phases, all on `experiment/git-panel`: 0 setup, 1 the Rust side, 2 the switch and an empty tab, 3 the read-only tab, 3a the layout with Danny, 4 committing, 5 pushing, 5a pulling, 5b context menus. Along the way:
+
+- **The tab bar's labels** now hide with CSS (each label wraps out of a one-line clipped box when its tab is too narrow), replacing a `ResizeObserver` that missed tabs added after mount. A container query keyed on the tab count is the alternative if labels going one at a time ever looks wrong.
+- **Saves are atomic** (temp file renamed over the entry). An entry was once saved empty during testing, most likely a reload reading the file while `fs::write` had it emptied. Never reproduced; watch for it.
+
+## Left to do, or to revisit
+
+- **Not tried in the app:** renaming an entry from the sidebar and seeing its old path ticked (unit test only); a refusing `pre-push` hook (`.block-push` in `monorepo`) and a rejected push (Rust tests only); SSH remotes, signing and credential prompts (the test repos have none, so the first dogfood repo is the first real test). The login-shell PATH lookup should be checked once in a release build opened from the Dock, since `tauri dev` inherits the terminal's PATH.
+- **Deliberately left:** a right-click menu for the rest of the tab (everything is a button); images changed by another app while AE stays focused aren't seen until a refresh or focus (the project watcher only reports `.md`/`.mdx`); whether this entry, rather than the branch, is behind; a "Publish" prefill when the draft field was turned off.
+- **Phase 6, history:** not doing for now. The entry card shows the last commit and the strip lists unpushed ones, which may be enough. `commits()` in `git/state.rs` already reads a log if it comes back.
+- **Phase 7, dogfood and decide:** Danny uses it on `~/dev/dannyis-astro-content` with the questions below, then decides: keep it as an experiment, make it the feature, or drop it.
 
 ## Testing
 
-**Never test in the astro-editor checkout or a real site's repo.** This checkout is a git repo with other work in it, and its test projects (`temp-dummy-astro-project` and the like) sit inside it, so a Git tab opened on them would show and commit into astro-editor itself. Test only in the throwaway repos in `~/dev/temp-git-repos-for-ae-testing/`, which nothing else uses.
+**Never test in the astro-editor checkout or a real site's repo.** Its test projects sit inside this repo, so a Git tab on them would commit into astro-editor. Use the throwaway repos in `~/dev/temp-git-repos-for-ae-testing/`.
 
-Build or rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, run from the main checkout outside the agent sandbox (it writes to `~/dev`). The script wipes the folder and starts again, so rerun it whenever a repo gets into a state you don't want. It's a throwaway script in the gitignored temporary folder, not tooling; copy it across if this work moves to a worktree. Each site is a copy of a project in `test/`, including its generated `.astro/` (committed, so clones have it), plus `bun install`, so AE reads them properly and they build.
+Rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, from the main checkout, outside the agent sandbox. It wipes the folder and starts again. It's a throwaway script in the gitignored temporary folder, so copy it across if this work moves to a worktree. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds. The spike scripts and research notes are alongside it.
 
 | Repo | Open in AE | For |
 | --- | --- | --- |
-| `blog` | `blog` | The happy path: the dummy project at the repo root, a few weeks of history by two authors (including a rename, for `log --follow`), a local bare remote with one commit to push, and one uncommitted change to `first-article.md` |
-| `blog-collaborator` | (not opened) | Another clone of the same remote, to play a second writer: commit and push here, then `git -C …/blog fetch`, and `blog` is behind and its push is rejected |
-| `monorepo` | `monorepo/docs` | A Starlight site in `docs/` of a library repo. Someone's work in progress is already there: a staged change outside `docs/`, an unstaged one outside `docs/`, and a staged change to `docs/astro.config.mjs`, all of which a commit from AE must leave alone. Hooks in `.githooks/`: `pre-commit` strips trailing whitespace from staged markdown and re-stages it (the `MM` case, and a hook rewriting the open file); `pre-push` refuses while a `.block-push` file exists at the repo root |
-| `ignored-site` | `ignored-site/site` | A site in a folder the parent repo ignores: should say it isn't in a repository |
+| `blog` | `blog` | The happy path: history by two authors (with a rename), a bare remote, a commit to push, an uncommitted change |
+| `blog-collaborator` | (not opened) | A second clone of the same remote, to play another writer: commit and push here, then pull in `blog` |
+| `monorepo` | `monorepo/docs` | A Starlight site in `docs/`, with someone's staged and unstaged work outside it and a staged `docs/astro.config.mjs`. Hooks in `.githooks/`: `pre-commit` strips trailing whitespace and re-stages; `pre-push` refuses while `.block-push` exists |
+| `ignored-site` | `ignored-site/site` | A site in a folder the parent repo ignores |
 | `no-repo` | `no-repo` | No git at all |
-| `submodule-parent` | `submodule-parent/site` | The site as a submodule. Detach it (`git -C …/site checkout --detach`) for the detached HEAD state |
+| `submodule-parent` | `submodule-parent/site` | The site as a submodule; `checkout --detach` it for detached HEAD |
 
-Every remote is a bare repo in `remotes/`, so pushing works offline and touches nothing real. Commits use your global identity, so Project Settings shows "from `~/.gitconfig`"; the script's own setup commits are unsigned and skip global hooks.
-
-Playing "another app" is plain git from Bash, always as `git -C ~/dev/temp-git-repos-for-ae-testing/<repo> …` with the full path, never `cd` and a bare `git` (one slip and it runs in astro-editor). Before driving the app, check `bun run app state` shows a project under that folder. Opening one: `bun run app open-project ~/dev/temp-git-repos-for-ae-testing/blog`. The other states (merge in progress, conflicts, a missing identity with `git -C … config user.name ""`) are quick to make by hand in `blog` when a phase needs them.
-
-The Rust tests don't use these: they build their own repos in a temp folder (see Implementation notes).
+Remotes are bare repos in `remotes/`, so pushing works offline. Play "another app" with `git -C ~/dev/temp-git-repos-for-ae-testing/<repo> …`, always with the full path, never `cd` and a bare `git`. Open one with `bun run app open-project ~/dev/temp-git-repos-for-ae-testing/blog`, and check `bun run app state` shows a project there before driving the app. The Rust tests build their own repos in a temp folder (`git::test_repos`).
 
 ## First dogfood target
 
-`~/dev/dannyis-astro-content`: identity from `~/.gitconfig`, commit signing off (only tags are signed, and the tab never tags), no hooks at all, HTTPS remote on github.com. So it exercises the happy path only: hooks, signing and SSH need a second test repo (one of the `test/` projects with a husky hook and a signing key in its local config would do). The credential helper is `osxkeychain`, set in Homebrew git's system config (`/opt/homebrew/etc/gitconfig`). Only Homebrew's `git` reads that file; Apple's `/usr/bin/git` reads its own system config instead. So which `git` AE runs changes what config applies, and finding the same `git` the terminal uses (the login-shell PATH) is what makes AE behave like the terminal. Project Settings should show the git path, and `--show-origin` sources, for exactly this reason. On this Mac it happens not to matter for credentials: Apple's git sets `osxkeychain` too, in Xcode's own `gitconfig`, and both read the same Keychain items.
+`~/dev/dannyis-astro-content`: identity from `~/.gitconfig`, no commit signing, no hooks, HTTPS remote on github.com with `osxkeychain` set in Homebrew git's system config. Only Homebrew's `git` reads that file, so which `git` AE finds changes what config applies; that's why Project Settings shows the git path and where config comes from. It exercises the happy path only.
 
 ## What to find out by using it
 
 - Do I commit from AE, or still switch to a terminal? If the latter, why?
-- Is the pre-ticked set right? How often do I untick or tick from Other changes?
+- Is the pre-ticked set right? How often do I untick, or tick from Other changes?
 - Do I keep the prefilled message?
-- Is the tab enough for "don't forget to push", or does that one job need to show up outside the tab (a badge on the tab is the smallest step)?
+- Is the tab enough for "don't forget to push", or does that need to show outside the tab (a badge is the smallest step)?
 - Do I miss a history of the entry's commits?
 - What did git do that the tab didn't explain well?
 
 ## Ideas for later, not this experiment
 
 - A count badge on the Git tab while there are unpushed commits.
-- The entry's history (phase 6), and "Open on GitHub" from it.
-- Showing the entry's changes since the last commit in the editor (`@codemirror/merge` against `HEAD:<path>`), the most writer-friendly diff there is.
-- Opening a terminal at the project (the ▶ button idea in #360), which shares the login-shell PATH code.
+- The entry's history, and "Open on GitHub" from it.
+- The entry's changes since its last commit, shown in the editor (`@codemirror/merge` against `HEAD:<path>`).
+- Opening a terminal at the project (the ▶ button in #360), which shares the login-shell PATH code.
