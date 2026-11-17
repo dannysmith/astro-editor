@@ -12,9 +12,9 @@ Similar tools: Markdown Monster pre-selects only the active document in its comm
 
 ## Scope
 
-**In:** the open entry's state, committing the entry and its assets (or any other changed files you tick), pushing the current branch to its upstream, the entry's history, and a Git section in Project Settings that shows what AE found and whether it works.
+**In:** the open entry's state, staging and committing the entry and its assets (or any other changed files you tick), pushing the current branch to its upstream, pulling when it can be done cleanly (fast-forward, or rebasing your own commits, never leaving anything half done), and a Git section in Project Settings that shows what AE found and whether it works.
 
-**Out:** anything that changes files on disk. No pull, fetch, checkout, discard, stash, merge or rebase. No branch creation, no first push of a new branch, no conflict handling, no sign-in. No git UI outside the tab and Project Settings (no file list dots, no badges, no title bar, no toasts).
+**Out:** checkout, discard, stash, merge commits, branch creation, the first push of a new branch, conflict handling and sign-in. No git UI outside the tab and Project Settings (no file list dots, no badges, no title bar), apart from toasts for a finished push or pull. The entry's history is dropped for now (phase 6).
 
 Git's own config is the only source of truth. AE stores nothing about git except the on/off setting, and when git doesn't work it says what failed and where to look, rather than working around it.
 
@@ -53,32 +53,32 @@ Every command runs from the repo root with stdin `/dev/null`, `GIT_TERMINAL_PROM
 
 ## The tab
 
-Narrow sidebar, so in order of use:
+As built (phases 3a to 5b), top to bottom:
 
 ```
-main · 2 to push to origin/main    [Push]
-───────────────────────────────────────────
-Harbour at dawn
-New, not committed yet
-☑ harbour-at-dawn.md                 New
-☑ 2026-11-16-harbour.jpg             New
-☐ Other changes (3)                    ›
+⎇ main  origin/main ↑2          [Pull] [Push]
+This entry                          articles
 ┌─────────────────────────────────────────┐
-│ Add “Harbour at dawn”                   │
+│ ● first-article.md             Modified │
+│   Last committed on 28 Oct by Sam       │
 └─────────────────────────────────────────┘
-[ Commit 2 files to main ]
+[            Stage 2 files              ]
+Files it uses
+☑ 2026-11-17-harbour.jpg                 U
+☐ 2026-11-17-old-map.jpg               ⚠ U
+  No longer used in the entry
+› Other changes 1
 ───────────────────────────────────────────
-History                                  ›
+Updates as git changes                   ↻
 ```
 
-- **Branch line**: branch, commits to push, and behind count if any, with Push. Expands to list the unpushed commits' subjects (`git log @{u}..HEAD`), which include commits made elsewhere. With nothing to push: "Up to date with origin/main".
-- **Entry state**, in words: "New, not committed yet", "Changed since it was last committed, 3 days ago", "Committed, no changes", "Ignored by git". No open file: just the branch line and other changes.
-- **Files**: one list. The entry's group is pre-ticked; "Other changes" (every other changed file in the project folder) starts collapsed and unticked. Ticking from there is how you commit a deleted entry, a stray image, or a second entry. Clicking a changed entry opens it.
-- **Message**: prefilled until you edit it. "Add “Title”" for a new entry, "Update “Title”" for a changed one, "Publish “Title”" when the collection's draft field was true in `HEAD` and isn't now. A new prefill replaces an unedited one when the ticked files or the draft field change.
-- **After a commit**: an inline "Committed `a1b2c3d`" line; the lists and history refresh.
-- **History**, collapsed: `git log --follow` for the entry (subject, author, relative date). Nothing to click in this version.
-- **Errors** appear inline in the tab: one sentence plus git's own stderr in a monospace block, and "Details in Project Settings → Git".
-- **Read-only states**, where Commit and Push are hidden and the tab says "Finish this in your git tool": detached HEAD, a merge, rebase, cherry-pick or revert in progress (`MERGE_HEAD`, `rebase-merge/`, `rebase-apply/`, `CHERRY_PICK_HEAD`, `REVERT_HEAD` via `rev-parse --git-path`), or conflicted files.
+- **The repository strip**: branch, upstream and ↑/↓ counts (which open the commits to push and pull), with Pull and Push. See phase 5.
+- **This entry**: its status in git's words with a coloured dot, and when and by whom it was last committed.
+- **Stage**, which opens the commit card: a "staged for commit" banner, the message, Cancel and Commit, and what git has staged. See phase 3a and "Committing".
+- **Files it uses**, ticked, and files it named earlier this session, unticked and marked. Statuses as VS Code's letters.
+- **Other changes**, folded, unticked, for adding anything else in the project to the commit. Clicking a content file opens it; right-clicking any file gives Reveal in Finder, Open in IDE and Copy Path.
+- **Errors** appear inline: one sentence and git's own message. Successful pushes and pulls are toasts.
+- **Read-only states**, where Stage, Pull and Push are hidden and the tab says to finish in a git tool: detached HEAD, a merge, rebase, cherry-pick or revert in progress, or conflicted files.
 
 ### Which files belong to the entry
 
@@ -303,9 +303,9 @@ Right-clicking a file in the Git tab (the entry card, a file row, a file in the 
 
 Not done: a menu for the rest of the tab with its git actions. Everything it would hold is a button already; revisit if people right-click looking for them.
 
-### Phase 6: history
+### Phase 6: history (not doing for now)
 
-`git_file_log` with `--follow`, an empty history for a repo with no commits, and the collapsed History section.
+A timeline of the entry's commits (`git log --follow`), with uncommitted changes at the top and unpushed commits marked. Dropped for now: the entry card already shows the last commit, and the strip lists unpushed ones, which may be all that's needed. Dogfooding will say whether it's missed (see "What to find out by using it"). `commits()` in `git/state.rs` already reads a log, so it's a small addition if it comes back.
 
 ### Phase 7: dogfood and decide
 
@@ -342,12 +342,12 @@ The Rust tests don't use these: they build their own repos in a temp folder (see
 - Is the pre-ticked set right? How often do I untick or tick from Other changes?
 - Do I keep the prefilled message?
 - Is the tab enough for "don't forget to push", or does that one job need to show up outside the tab (a badge on the tab is the smallest step)?
-- Is the history worth its space?
+- Do I miss a history of the entry's commits?
 - What did git do that the tab didn't explain well?
 
 ## Ideas for later, not this experiment
 
-- A count badge on the Git tab while there are unpushed commits, and status dots in the file list.
-- "Open on GitHub" from the history list.
+- A count badge on the Git tab while there are unpushed commits.
+- The entry's history (phase 6), and "Open on GitHub" from it.
 - Showing the entry's changes since the last commit in the editor (`@codemirror/merge` against `HEAD:<path>`), the most writer-friendly diff there is.
 - Opening a terminal at the project (the ▶ button idea in #360), which shares the login-shell PATH code.
