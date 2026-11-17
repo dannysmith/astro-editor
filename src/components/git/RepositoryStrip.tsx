@@ -65,39 +65,45 @@ export function RepositoryStrip({
   return (
     <div className="space-y-2">
       <div className="rounded-md bg-muted/50 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <GitBranch className="size-3.5 shrink-0" />
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="font-medium text-foreground">
+        {/* One line when it fits. Narrower, the buttons wrap onto their own
+            line, and then the upstream's name is cut short */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+          <div className="flex min-w-0 flex-auto items-center gap-2 whitespace-nowrap">
+            <GitBranch className="size-3.5 shrink-0" />
+            <span className="max-w-[60%] shrink-0 truncate font-medium text-foreground">
               {tree.branch ?? 'Detached HEAD'}
             </span>
             {!tree.hasCommits ? (
-              <span>no commits yet</span>
+              <span className="truncate">no commits yet</span>
             ) : tree.branch && !tree.upstream ? (
-              <span>no upstream</span>
+              <span className="truncate">no upstream</span>
             ) : (
               tree.upstream && (
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="truncate">{tree.upstream}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate" title={tree.upstream}>
+                    {tree.upstream}
+                  </span>
                   {listed ? (
                     <button
                       type="button"
                       onClick={() => setOpen(!open)}
                       aria-expanded={open}
                       title={open ? 'Hide the commits' : 'Show the commits'}
-                      className="inline-flex items-center gap-1.5 rounded-sm hover:text-foreground"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-sm hover:text-foreground"
                     >
                       {counts}
                     </button>
                   ) : (
-                    counts
+                    <span className="inline-flex shrink-0 items-center gap-1.5">
+                      {counts}
+                    </span>
                   )}
                 </span>
               )
             )}
           </div>
           {canSync && (
-            <div className="flex shrink-0 gap-1">
+            <div className="ml-auto flex shrink-0 gap-1">
               <Button
                 variant="outline"
                 size="sm"

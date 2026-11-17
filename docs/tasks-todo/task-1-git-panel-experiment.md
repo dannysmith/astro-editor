@@ -72,7 +72,7 @@ Phases, all on `experiment/git-panel`: 0 setup, 1 the Rust side, 2 the switch an
 
 **Never test in the astro-editor checkout or a real site's repo.** Its test projects sit inside this repo, so a Git tab on them would commit into astro-editor. Use the throwaway repos in `~/dev/temp-git-repos-for-ae-testing/`.
 
-Rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, from the main checkout, outside the agent sandbox. It wipes the folder and starts again. It's a throwaway script in the gitignored temporary folder, so copy it across if this work moves to a worktree. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds. The spike scripts and research notes are alongside it.
+Rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, from the main checkout, outside the agent sandbox. It wipes the folder and starts again. It's a throwaway script in the gitignored temporary folder, so copy it across if this work moves to a worktree. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds. The original research notes (`git-integration-exploration.md`) are alongside it.
 
 | Repo | Open in AE | For |
 | --- | --- | --- |
@@ -84,6 +84,8 @@ Rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, f
 | `submodule-parent` | `submodule-parent/site` | The site as a submodule; `checkout --detach` it for detached HEAD |
 
 Remotes are bare repos in `remotes/`, so pushing works offline. Play "another app" with `git -C ~/dev/temp-git-repos-for-ae-testing/<repo> …`, always with the full path, never `cd` and a bare `git`. Open one with `bun run app open-project ~/dev/temp-git-repos-for-ae-testing/blog`, and check `bun run app state` shows a project there before driving the app. The Rust tests build their own repos in a temp folder (`git::test_repos`).
+
+When this ships or is dropped: delete `~/dev/temp-git-repos-for-ae-testing/`, and remove its entry from the sandbox's allowed write paths in `.claude/settings.local.json`, which lets agents play "another app" in the test repos without prompting.
 
 ## First dogfood target
 
