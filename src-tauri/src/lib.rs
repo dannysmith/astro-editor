@@ -11,6 +11,7 @@ mod mdx_esm;
 mod models;
 mod parser;
 mod preferences;
+mod process;
 mod schema_merger;
 mod shell_path;
 mod telemetry;

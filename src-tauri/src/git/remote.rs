@@ -35,14 +35,14 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
 /// how many there were (0 when it was already up to date).
 pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     let _writing = writing();
-    let fetch = git.run(&repository.root, &["fetch", "--quiet"], WRITE_TIMEOUT)?;
-    if !fetch.success() {
-        return Err(fetch.error_message());
-    }
-    let counts = read(
-        git,
-        repository,
+    // So the abort below only ever undoes a rebase AE started
+    repo::not_mid_operation(repository)?;
+    let root = &repository.root;
+    git.read(root, &["fetch", "--quiet"], WRITE_TIMEOUT)?;
+    let counts = git.read(
+        root,
         &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+        READ_TIMEOUT,
     )?;
     let mut counts = counts.split_whitespace().map(|n| n.parse().unwrap_or(0));
     let (ahead, behind): (u32, u32) = (counts.next().unwrap_or(0), counts.next().unwrap_or(0));
@@ -69,14 +69,11 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     }
 
     if ahead == 0 {
-        let merge = git.run(
-            &repository.root,
+        git.read(
+            root,
             &["merge", "--ff-only", "--quiet", "@{upstream}"],
             WRITE_TIMEOUT,
         )?;
-        if !merge.success() {
-            return Err(merge.error_message());
-        }
         return Ok(behind);
     }
 
@@ -123,43 +120,32 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
 /// Checks the branch's remote can be reached with the user's credentials.
 /// Returns its URL.
 pub fn check(git: &Git, repository: &Repository) -> Result<String, String> {
-    let branch = read(git, repository, &["symbolic-ref", "--short", "-q", "HEAD"])
+    let root = &repository.root;
+    let branch = git
+        .read(
+            root,
+            &["symbolic-ref", "--short", "-q", "HEAD"],
+            READ_TIMEOUT,
+        )
         .map_err(|_| "HEAD is detached, so there's no branch to check.".to_string())?;
-    let remote = read(
-        git,
-        repository,
-        &[
-            "config",
-            "--get",
-            &format!("branch.{}.remote", branch.trim()),
-        ],
-    )
-    .map_err(|_| "The branch has no upstream to check.".to_string())?;
+    let remote_key = format!("branch.{}.remote", branch.trim());
+    let remote = git
+        .read(root, &["config", "--get", &remote_key], READ_TIMEOUT)
+        .map_err(|_| "The branch has no upstream to check.".to_string())?;
     let remote = remote.trim();
-    let url = read(git, repository, &["remote", "get-url", remote])?;
-    let output = git.run(
-        &repository.root,
+    let url = git.read(root, &["remote", "get-url", remote], READ_TIMEOUT)?;
+    git.read(
+        root,
         &["ls-remote", "--quiet", remote, "HEAD"],
         CHECK_TIMEOUT,
     )?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
     Ok(url.trim().to_string())
-}
-
-/// What a reading command prints, or git's message if it fails
-fn read(git: &Git, repository: &Repository, args: &[&str]) -> Result<String, String> {
-    let output = git.run(&repository.root, args, READ_TIMEOUT)?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    Ok(output.stdout_text())
 }
 
 /// The paths a `-z` command lists
 fn paths(git: &Git, repository: &Repository, args: &[&str]) -> Result<Vec<String>, String> {
-    Ok(read(git, repository, args)?
+    Ok(git
+        .read(&repository.root, args, READ_TIMEOUT)?
         .split('\0')
         .filter(|path| !path.is_empty())
         .map(String::from)

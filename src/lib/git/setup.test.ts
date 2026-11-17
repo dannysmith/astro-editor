@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { GitRepository, GitSetup } from '@/lib/bindings'
-import {
-  describeBranch,
-  describeUpstream,
-  gitSetupProblems,
-  readOnlyReason,
-} from './setup'
+import { describeBranch, gitSetupProblems, readOnlyReason } from './setup'
 
 const HOME = '/Users/writer'
 
@@ -124,24 +119,6 @@ describe('describeBranch', () => {
       '`main`, no commits yet'
     )
     expect(describeBranch(repository({ branch: null }))).toBe('Detached HEAD')
-  })
-})
-
-describe('describeUpstream', () => {
-  it('says which way commits need to go', () => {
-    expect(describeUpstream(repository({ ahead: 2 }))).toBe(
-      '2 to push to `origin/main`'
-    )
-    expect(describeUpstream(repository({ behind: 1 }))).toBe(
-      '1 to pull from `origin/main`'
-    )
-    expect(describeUpstream(repository({ ahead: 2, behind: 1 }))).toBe(
-      '2 to push and 1 to pull, with `origin/main`'
-    )
-    expect(describeUpstream(repository())).toBe('Up to date with `origin/main`')
-    expect(describeUpstream(repository({ upstream: null }))).toBe(
-      'Not pushed anywhere yet'
-    )
   })
 })
 

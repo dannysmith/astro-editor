@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useShallow } from 'zustand/react/shallow'
-import type { GitChange } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { toast } from '@/lib/toast'
 import { useEditorStore } from '../../store/editorStore'
@@ -18,6 +17,7 @@ import {
 } from '../../lib/git/actions'
 import { showGitFileMenu } from '../../lib/git/context-menu'
 import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
+import { counted } from '../../lib/plural'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
 
@@ -96,14 +96,21 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   const [messages, setMessages] = useState<Record<string, string>>({})
   const message = messages[entryPath] ?? prefill
 
-  // The files AE staged, and for which entry. The card stays open while
-  // they're staged, and folds if git's index is emptied elsewhere
+  // The files AE staged, and for which entry. They count only while git
+  // still has some of them staged, so committing or unstaging them in
+  // another app folds the card, and it can't reopen when something else is
+  // staged later
   const [stagedFor, setStagedFor] = useState<{
     entry: string
     paths: string[]
   } | null>(null)
-  const ours = stagedFor?.entry === entryPath ? stagedFor.paths : null
-  const staging = ours !== null && (tree?.staged.length ?? 0) > 0
+  const live =
+    stagedFor &&
+    tree?.staged.some(change => stagedFor.paths.includes(change.path))
+      ? stagedFor
+      : null
+  const staging = live !== null && live.entry === entryPath
+  const ours = staging ? live.paths : null
   const [committed, setCommitted] = useState<{
     entry: string
     hash: string
@@ -141,11 +148,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       const upstream = tree?.upstream ?? 'the remote'
       if (action === 'push') toast.success(`Pushed to ${upstream}`)
       else if (count === 0) toast.success('Already up to date')
-      else {
-        toast.success(
-          `Pulled ${count} ${count === 1 ? 'commit' : 'commits'} from ${upstream}`
-        )
-      }
+      else toast.success(`Pulled ${counted(count, 'commit')} from ${upstream}`)
       await refetch()
     },
   })
@@ -183,13 +186,16 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
           overrides: { ...overrides, [path]: ticked },
         })
       }
-      onOpen={change => void openChange(projectPath, tree?.root, change)}
+      onOpen={change => void openChange(projectPath, tree?.root, change.path)}
       onFileMenu={(path, exists, position) => {
         if (tree) void showGitFileMenu(`${tree.root}/${path}`, exists, position)
       }}
       onOpenSettings={() => showProjectSettings()}
       sync={{
         pending: sync.isPending ? sync.variables : null,
+        busy: write.isPending,
+        // A rebase would leave AE's staged files unstaged
+        pullBlocked: live ? 'Commit or cancel the staged files first' : null,
         error:
           sync.error && sync.variables
             ? { action: sync.variables, message: sync.error.message }
@@ -201,6 +207,15 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         staging,
         ourPaths: ours ?? [],
         pending: write.isPending && forEntry ? write.variables.action : null,
+        busy: sync.isPending || (write.isPending && !forEntry),
+        stagedElsewhere:
+          live && live.entry !== entryPath
+            ? {
+                name: fileName(live.entry),
+                onOpen: () =>
+                  void openChange(projectPath, tree?.root, live.entry),
+              }
+            : null,
         error:
           write.error && forEntry
             ? { action: write.variables.action, message: write.error.message }
@@ -236,17 +251,14 @@ function entryText(state: ReturnType<typeof useEditorStore.getState>): string {
   return JSON.stringify(state.frontmatter) + state.imports + state.editorContent
 }
 
-/** Opens a changed content file in the editor */
+/** Opens a content file (relative to the repository root) in the editor */
 async function openChange(
   projectPath: string,
   root: string | undefined,
-  change: GitChange
+  path: string
 ) {
   if (!root) return
-  const result = await commands.resolveFileEntry(
-    `${root}/${change.path}`,
-    projectPath
-  )
+  const result = await commands.resolveFileEntry(`${root}/${path}`, projectPath)
   if (result.status === 'ok' && result.data) {
     useEditorStore.getState().openFile(result.data)
   } else {

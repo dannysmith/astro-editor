@@ -79,74 +79,21 @@ fn parse_marked_path(output: &str) -> Option<String> {
 }
 
 /// Runs `<shell> -ilc` to print `PATH`. `None` if it fails, prints nothing
-/// usable, or takes longer than `timeout` (its process group is then killed).
+/// usable, or takes longer than `timeout` (it's then killed, with everything
+/// it started).
 #[cfg(unix)]
 fn resolve_shell_path(shell: &Path, timeout: Duration) -> Option<String> {
-    use std::io::Read;
-    use std::process::{Command, Stdio};
-    use std::time::Instant;
-
-    let mut command = Command::new(shell);
+    let mut command = std::process::Command::new(shell);
     command
         .arg("-ilc")
+        // `printenv` rather than `$PATH`, which fish expands to a list and
+        // doesn't accept as `${PATH}`. Every shell exports PATH colon-joined
         .arg(format!(
-            "printf '%s' \"{START_MARKER}${{PATH}}{END_MARKER}\""
+            "printf '%s' '{START_MARKER}'; /usr/bin/printenv PATH; printf '%s' '{END_MARKER}'"
         ))
-        .env(GUARD_VARIABLE, "1")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    in_new_session(&mut command);
-    let mut child = command.spawn().ok()?;
-    let group = child.id() as libc::pid_t;
-    // SAFETY: signals only the process group this function created
-    let kill_group = || unsafe {
-        libc::kill(-group, libc::SIGKILL);
-    };
-
-    let mut stdout = child.stdout.take()?;
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let mut output = Vec::new();
-        let _ = stdout.read_to_end(&mut output);
-        let _ = tx.send(output);
-    });
-
-    let deadline = Instant::now() + timeout;
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => break,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
-            _ => {
-                kill_group();
-                let _ = child.wait();
-                return None;
-            }
-        }
-    }
-    // Something the profile started in the background may hold the pipe open
-    let output = rx.recv_timeout(Duration::from_millis(500)).ok();
-    kill_group();
-    parse_marked_path(&String::from_utf8_lossy(&output?))
-}
-
-/// Starts `command` in a session of its own, with no controlling terminal and
-/// its own process group (whose id is its pid), so killing `-pid` ends it and
-/// everything it started. Without this, when AE itself has a terminal (`tauri
-/// dev`), an interactive shell or a hook that wants the terminal is stopped by
-/// the system and hangs until the timeout. Without a terminal, it fails at once.
-#[cfg(unix)]
-pub fn in_new_session(command: &mut std::process::Command) {
-    use std::os::unix::process::CommandExt;
-    // SAFETY: setsid is async-signal-safe, as pre_exec requires
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
+        .env(GUARD_VARIABLE, "1");
+    let finished = crate::process::run(&mut command, timeout).ok()?;
+    parse_marked_path(&String::from_utf8_lossy(&finished.stdout))
 }
 
 /// `base`, then each of `extra` that isn't in it already

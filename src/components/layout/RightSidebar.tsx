@@ -41,13 +41,19 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ expanded }) => {
     isRightSidebarTabAvailable(id, projectSettings)
   )
   // A tab the open project doesn't offer (the Git tab after switching to a
-  // project without it) shows Frontmatter, and the store follows below
+  // project without it) shows Frontmatter, and once the project's settings
+  // have loaded the store follows. Not before: while they load no optional
+  // tab is offered, and switching between two projects with the Git tab
+  // would otherwise leave it
   const available = tabs.some(({ id }) => id === storedTab)
   const activeTab = available ? storedTab : 'frontmatter'
+  const settingsLoaded = projectSettings !== undefined
 
   useEffect(() => {
-    if (!available) useUIStore.setState({ rightSidebarTab: 'frontmatter' })
-  }, [available])
+    if (settingsLoaded && !available) {
+      useUIStore.setState({ rightSidebarTab: 'frontmatter' })
+    }
+  }, [settingsLoaded, available])
 
   const sidebarRef = useRef<HTMLDivElement>(null)
 

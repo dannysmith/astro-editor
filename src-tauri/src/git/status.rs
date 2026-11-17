@@ -19,7 +19,7 @@ pub fn read(git: &Git, repository: &Repository, untracked: bool) -> Result<Statu
     } else {
         repository.prefix.as_str()
     };
-    let output = git.run(
+    let output = git.read(
         &repository.root,
         &[
             "status",
@@ -36,30 +36,24 @@ pub fn read(git: &Git, repository: &Repository, untracked: bool) -> Result<Statu
         ],
         READ_TIMEOUT,
     )?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    Ok(parse(&output.stdout))
+    Ok(parse(output.as_bytes()))
 }
 
 /// Everything staged in `repository`, in and out of the project folder: what
 /// `git commit` would take. Each change is marked staged, and not unstaged,
 /// since only its staged part is described.
 pub fn read_staged(git: &Git, repository: &Repository) -> Result<Vec<GitChange>, String> {
-    let output = git.run(
+    let output = git.read(
         &repository.root,
         &["diff", "--cached", "--name-status", "-z", "-M"],
         READ_TIMEOUT,
     )?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    Ok(parse_staged(&output.stdout))
+    Ok(parse_staged(output.as_bytes()))
 }
 
-/// Parses `diff --name-status -z`: a status (`M`, `A`, `D`, `T`, `U`, or `R`
-/// and `C` with a score), then the path, or for `R` and `C` the old path and
-/// then the new one
+/// Parses `diff --name-status -z -M`: a status (`M`, `A`, `D`, `T`, `U`, or
+/// `R` with a score), then the path, or for `R` the old path and then the new
+/// one
 pub fn parse_staged(output: &[u8]) -> Vec<GitChange> {
     let text = String::from_utf8_lossy(output);
     let mut fields = text.split('\0').filter(|f| !f.is_empty());
@@ -67,14 +61,9 @@ pub fn parse_staged(output: &[u8]) -> Vec<GitChange> {
     while let Some(status) = fields.next() {
         let Some(first) = fields.next() else { break };
         let (path, original_path, kind) = match status.chars().next() {
-            Some('R') | Some('C') => {
+            Some('R') => {
                 let Some(second) = fields.next() else { break };
-                let kind = if status.starts_with('R') {
-                    GitChangeKind::Renamed
-                } else {
-                    GitChangeKind::New
-                };
-                (second, Some(first.to_string()), kind)
+                (second, Some(first.to_string()), GitChangeKind::Renamed)
             }
             Some('A') => (first, None, GitChangeKind::New),
             Some('D') => (first, None, GitChangeKind::Deleted),

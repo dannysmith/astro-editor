@@ -6,10 +6,12 @@
 //! passphrase. Success is the exit code: git prints warnings and hints to stderr
 //! when it succeeds.
 
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+
+use crate::process::{self, Failure};
+use std::sync::OnceLock;
+use std::time::Duration;
 
 /// Why there's no `git` to run
 #[derive(Debug, Clone, PartialEq)]
@@ -71,8 +73,15 @@ impl Git {
     /// The first `git` on the user's `PATH` (see `shell_path`), the one their
     /// terminal runs, so AE reads the same config and runs the same hooks.
     /// Runs the user's shell the first time, so call it off the main thread.
+    /// Once found it's kept; not finding it isn't, so installing git or the
+    /// command line tools while AE runs is noticed.
     pub fn find() -> Result<Git, FindError> {
-        Git::find_on(crate::shell_path::user_path())
+        static FOUND: OnceLock<Git> = OnceLock::new();
+        if let Some(git) = FOUND.get() {
+            return Ok(git.clone());
+        }
+        let git = Git::find_on(crate::shell_path::user_path())?;
+        Ok(FOUND.get_or_init(|| git).clone())
     }
 
     /// The first `git` in the folders of `path`, a `PATH` value
@@ -102,6 +111,16 @@ impl Git {
     pub fn with_env(mut self, key: &str, value: &str) -> Git {
         self.extra_env.push((key.to_string(), value.to_string()));
         self
+    }
+
+    /// Runs `git <args>` in `dir` and returns what it printed, or git's own
+    /// message if it fails. For commands whose output is all that matters.
+    pub fn read(&self, dir: &Path, args: &[&str], timeout: Duration) -> Result<String, String> {
+        let output = self.run(dir, args, timeout)?;
+        if !output.success() {
+            return Err(output.error_message());
+        }
+        Ok(output.stdout_text())
     }
 
     /// Runs `git <args>` in `dir`. `Err` when git can't be started or takes
@@ -143,83 +162,26 @@ impl Git {
             .env_remove("GIT_DIR")
             .env_remove("GIT_WORK_TREE")
             .env_remove("GIT_INDEX_FILE")
-            .envs(self.extra_env.iter().map(|(k, v)| (k, v)))
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        // So a timeout also ends the hooks git started, and a hook that wants a
-        // terminal fails rather than hanging
-        #[cfg(unix)]
-        crate::shell_path::in_new_session(&mut command);
-
-        let mut child = command
-            .spawn()
-            .map_err(|e| format!("Couldn't run {}: {e}", self.program.display()))?;
-        let stdout = read_in_background(child.stdout.take());
-        let stderr = read_in_background(child.stderr.take());
-
-        let deadline = Instant::now() + timeout;
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
-                Ok(None) if Instant::now() < deadline => {
-                    std::thread::sleep(Duration::from_millis(10))
-                }
-                Ok(None) => {
-                    kill(&mut child);
-                    return Err(format!(
-                        "git {} took longer than {} seconds and was stopped",
-                        args.first().unwrap_or(&""),
-                        timeout.as_secs()
-                    ));
-                }
-                Err(e) => {
-                    kill(&mut child);
-                    return Err(format!("Couldn't wait for git: {e}"));
-                }
-            }
-        };
-        // Something a hook left running in the background may hold a pipe open
-        let collect = |rx: std::sync::mpsc::Receiver<Vec<u8>>| {
-            rx.recv_timeout(Duration::from_millis(500))
-                .unwrap_or_default()
-        };
-        Ok(GitOutput {
-            code: status.code(),
-            stdout: collect(stdout),
-            stderr: String::from_utf8_lossy(&collect(stderr)).into_owned(),
-        })
-    }
-}
-
-/// Reads a pipe to the end on its own thread, so a command that prints a lot
-/// can't fill one pipe and stall while we wait on the other
-fn read_in_background<R: Read + Send + 'static>(
-    pipe: Option<R>,
-) -> std::sync::mpsc::Receiver<Vec<u8>> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let mut output = Vec::new();
-        if let Some(mut pipe) = pipe {
-            let _ = pipe.read_to_end(&mut output);
+            .envs(self.extra_env.iter().map(|(k, v)| (k, v)));
+        match process::run(&mut command, timeout) {
+            Ok(finished) => Ok(GitOutput {
+                code: finished.status.code(),
+                stdout: finished.stdout,
+                stderr: String::from_utf8_lossy(&finished.stderr).into_owned(),
+            }),
+            Err(Failure::Spawn(e)) => Err(format!("Couldn't run {}: {e}", self.program.display())),
+            Err(Failure::Wait(e)) => Err(format!("Couldn't wait for git: {e}")),
+            Err(Failure::TimedOut) => Err(format!(
+                "git {} took longer than {} seconds and was stopped",
+                args.first().unwrap_or(&""),
+                timeout.as_secs()
+            )),
         }
-        let _ = tx.send(output);
-    });
-    rx
-}
-
-fn kill(child: &mut std::process::Child) {
-    #[cfg(unix)]
-    // SAFETY: signals only the process group created for this command
-    unsafe {
-        libc::kill(-(child.id() as libc::pid_t), libc::SIGKILL);
     }
-    #[cfg(not(unix))]
-    let _ = child.kill();
-    let _ = child.wait();
 }
 
-fn is_executable(path: &Path) -> bool {
+/// A file that can be run
+pub fn is_executable(path: &Path) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -248,6 +210,7 @@ mod tests {
     use super::*;
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
+    use std::time::Instant;
     use tempfile::TempDir;
 
     fn script(dir: &Path, name: &str, body: &str) -> PathBuf {

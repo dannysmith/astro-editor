@@ -4,15 +4,16 @@
 //! They take explicit paths (relative to the repository root), never `add -A`
 //! or `commit -a`, and run one at a time with the other writes (see `writing`).
 
-use std::time::Duration;
+use std::path::Path;
 
-use super::repo::Repository;
-use super::runner::{Git, GitOutput};
+use super::repo::{self, Repository};
+use super::runner::Git;
 use super::{writing, READ_TIMEOUT, WRITE_TIMEOUT};
 
 /// Stages `paths` as they are on disk: changed, new or deleted
 pub fn stage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
     let _writing = writing();
+    repo::not_mid_operation(repository)?;
     add(git, repository, paths)
 }
 
@@ -20,8 +21,13 @@ pub fn stage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(),
 /// Anything staged for them before goes too.
 pub fn unstage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
     let _writing = writing();
-    let output = run(git, repository, &["reset", "-q", "--"], paths, READ_TIMEOUT)?;
-    succeeded(output)
+    repo::not_mid_operation(repository)?;
+    git.read(
+        &repository.root,
+        &with_paths(&["reset", "-q", "--"], paths),
+        WRITE_TIMEOUT,
+    )?;
+    Ok(())
 }
 
 /// Stages `paths` again, so edits saved since they were first staged go in,
@@ -34,6 +40,7 @@ pub fn commit(
     message: &str,
 ) -> Result<String, String> {
     let _writing = writing();
+    repo::not_mid_operation(repository)?;
     add(git, repository, paths)?;
     let output = git.run(
         &repository.root,
@@ -50,44 +57,53 @@ pub fn commit(
         }
         return Err(output.error_message());
     }
-    let head = git.run(
+    let head = git.read(
         &repository.root,
         &["rev-parse", "--short", "HEAD"],
         READ_TIMEOUT,
     )?;
-    if !head.success() {
-        return Err(head.error_message());
-    }
-    Ok(head.stdout_text().trim().to_string())
+    Ok(head.trim().to_string())
 }
 
+/// Stages `paths`: changes, new files, and deletions (`add` stages a deleted
+/// path's removal). A path that's neither on disk nor in the index is left
+/// out, since `add` refuses it: its deletion is already staged.
 fn add(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
-    // `add` stages a deleted path's removal too
-    let output = run(git, repository, &["add", "--"], paths, WRITE_TIMEOUT)?;
-    succeeded(output)
+    let indexed = git.read(
+        &repository.root,
+        &with_paths(&["ls-files", "-z", "--cached", "--"], paths),
+        READ_TIMEOUT,
+    )?;
+    let indexed: Vec<&str> = indexed.split('\0').collect();
+    let paths: Vec<String> = paths
+        .iter()
+        .filter(|path| {
+            indexed.contains(&path.as_str())
+                || Path::new(&repository.root)
+                    .join(path)
+                    .symlink_metadata()
+                    .is_ok()
+        })
+        .cloned()
+        .collect();
+    if paths.is_empty() {
+        return Ok(());
+    }
+    git.read(
+        &repository.root,
+        &with_paths(&["add", "--"], &paths),
+        WRITE_TIMEOUT,
+    )?;
+    Ok(())
 }
 
-fn run(
-    git: &Git,
-    repository: &Repository,
-    command: &[&str],
-    paths: &[String],
-    timeout: Duration,
-) -> Result<GitOutput, String> {
-    let args: Vec<&str> = command
+/// `command` followed by `paths`
+fn with_paths<'a>(command: &[&'a str], paths: &'a [String]) -> Vec<&'a str> {
+    command
         .iter()
         .copied()
         .chain(paths.iter().map(String::as_str))
-        .collect();
-    git.run(&repository.root, &args, timeout)
-}
-
-fn succeeded(output: GitOutput) -> Result<(), String> {
-    if output.success() {
-        Ok(())
-    } else {
-        Err(output.error_message())
-    }
+        .collect()
 }
 
 #[cfg(test)]
@@ -182,6 +198,39 @@ mod tests {
             "Update “Entry”"
         );
         assert!(repos.git_ok(&dir, &["status", "--porcelain"]).is_empty());
+    }
+
+    #[test]
+    fn commits_a_deleted_file_staged_earlier() {
+        let repos = TestRepos::new();
+        let dir = repos.init("site");
+        fs::write(dir.join("old.md"), "one").unwrap();
+        repos.commit_all(&dir, "First");
+        fs::remove_file(dir.join("old.md")).unwrap();
+        fs::write(dir.join("new.md"), "one").unwrap();
+        let repository = open(&repos, &dir);
+        let paths = strings(&["new.md", "old.md"]);
+        stage(&repos.git, &repository, &paths).unwrap();
+        commit(&repos.git, &repository, &paths, "Rename").unwrap();
+        assert!(repos.git_ok(&dir, &["status", "--porcelain"]).is_empty());
+    }
+
+    #[test]
+    fn refuses_while_git_is_in_the_middle_of_something() {
+        let repos = TestRepos::new();
+        let dir = repos.init("site");
+        fs::write(dir.join("entry.md"), "one").unwrap();
+        repos.commit_all(&dir, "First");
+        fs::write(
+            dir.join(".git/MERGE_HEAD"),
+            "0000000000000000000000000000000000000000\n",
+        )
+        .unwrap();
+        fs::write(dir.join("entry.md"), "two").unwrap();
+        let repository = open(&repos, &dir);
+        let error = stage(&repos.git, &repository, &strings(&["entry.md"])).unwrap_err();
+        assert!(error.contains("merge"), "{error}");
+        assert!(staged_paths(&repos, &repository).is_empty());
     }
 
     #[test]

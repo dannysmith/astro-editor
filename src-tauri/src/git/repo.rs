@@ -90,24 +90,45 @@ pub fn discover(git: &Git, project: &Path) -> Result<Discovery, String> {
             .map(PathBuf::from),
     };
 
-    if !repository.prefix.is_empty() {
-        let folder = repository.prefix.trim_end_matches('/');
-        let ignored = git.run(
+    if !repository.prefix.is_empty()
+        && is_ignored(
+            git,
             &repository.root,
-            &["check-ignore", "-q", "--", folder],
-            READ_TIMEOUT,
-        )?;
-        match ignored.code {
-            Some(0) => {
-                return Ok(Discovery::Ignored {
-                    root: repository.root,
-                })
-            }
-            Some(1) => {}
-            _ => return Err(ignored.error_message()),
-        }
+            repository.prefix.trim_end_matches('/'),
+        )?
+    {
+        return Ok(Discovery::Ignored {
+            root: repository.root,
+        });
     }
     Ok(Discovery::Found(repository))
+}
+
+/// Whether the repository at `root` ignores `path` (relative to it)
+pub fn is_ignored(git: &Git, root: &Path, path: &str) -> Result<bool, String> {
+    let output = git.run(root, &["check-ignore", "-q", "--", path], READ_TIMEOUT)?;
+    match output.code {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => Err(output.error_message()),
+    }
+}
+
+/// Refuses to write while git is in the middle of something, since AE would
+/// otherwise finish or abort the user's own merge or rebase
+pub fn not_mid_operation(repository: &Repository) -> Result<(), String> {
+    let Some(operation) = operation_in_progress(repository) else {
+        return Ok(());
+    };
+    let name = match operation {
+        GitOperation::Merge => "merge",
+        GitOperation::Rebase => "rebase",
+        GitOperation::CherryPick => "cherry-pick",
+        GitOperation::Revert => "revert",
+    };
+    Err(format!(
+        "Git is in the middle of a {name}. Finish it in your git tool first."
+    ))
 }
 
 /// A merge, rebase, cherry-pick or revert that's been started and not finished

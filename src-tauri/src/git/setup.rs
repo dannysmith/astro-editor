@@ -7,7 +7,7 @@ use specta::Type;
 use std::path::Path;
 
 use super::repo::{self, Discovery, GitOperation, Repository};
-use super::runner::{FindError, Git};
+use super::runner::{is_executable, FindError, Git};
 use super::status;
 use super::READ_TIMEOUT;
 
@@ -129,6 +129,24 @@ fn check_with(git: Result<Git, FindError>, project: &Path) -> GitSetup {
     }
 }
 
+impl GitProblem {
+    /// One sentence for a command that can't run because of this. The tab and
+    /// Project Settings say more, with fixes (`lib/git/setup.ts`).
+    pub fn message(&self) -> String {
+        match self {
+            GitProblem::NotInstalled => "Git isn't installed.".to_string(),
+            GitProblem::CommandLineToolsMissing => {
+                "Git needs Apple's command line tools, which aren't installed.".to_string()
+            }
+            GitProblem::NotARepository => "The project isn't in a git repository.".to_string(),
+            GitProblem::Ignored { root } => {
+                format!("The repository at {root} ignores the project's folder.")
+            }
+            GitProblem::Failed { message } => message.clone(),
+        }
+    }
+}
+
 impl From<FindError> for GitProblem {
     fn from(error: FindError) -> GitProblem {
         match error {
@@ -152,11 +170,7 @@ pub fn open(git: &Git, project: &Path) -> Result<Repository, GitProblem> {
 
 /// `git --version` without the `git version ` in front
 fn version(git: &Git, dir: &Path) -> Result<String, String> {
-    let output = git.run(dir, &["--version"], READ_TIMEOUT)?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    let text = output.stdout_text();
+    let text = git.read(dir, &["--version"], READ_TIMEOUT)?;
     let text = text.trim();
     Ok(text
         .strip_prefix("git version ")
@@ -225,32 +239,17 @@ fn config(git: &Git, root: &Path, key: &[&str]) -> Result<Option<GitConfigValue>
 /// The hooks in `HOOKS_AE_RUNS` that exist and can run, from the hooks folder
 /// git uses (`core.hooksPath` when it's set)
 fn hooks(git: &Git, root: &Path) -> Result<Vec<String>, String> {
-    let output = git.run(
+    let folder = git.read(
         root,
         &["rev-parse", "--path-format=absolute", "--git-path", "hooks"],
         READ_TIMEOUT,
     )?;
-    if !output.success() {
-        return Err(output.error_message());
-    }
-    let folder = std::path::PathBuf::from(output.stdout_text().trim());
+    let folder = std::path::PathBuf::from(folder.trim());
     Ok(HOOKS_AE_RUNS
         .iter()
-        .filter(|name| is_runnable(&folder.join(name)))
+        .filter(|name| is_executable(&folder.join(name)))
         .map(|name| name.to_string())
         .collect())
-}
-
-fn is_runnable(path: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        path.metadata()
-            .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-            .unwrap_or(false)
-    }
-    #[cfg(not(unix))]
-    path.is_file()
 }
 
 #[cfg(test)]

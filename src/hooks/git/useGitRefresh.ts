@@ -27,14 +27,13 @@ export function useGitRefresh(projectPath: string) {
         queryKey: queryKeys.gitStates(projectPath),
       })
 
-    let stopped = false
-    void commands.gitWatchStart(projectPath).then(result => {
-      if (result.status === 'error') {
-        void logWarn(`Astro Editor [GIT] ${result.error}`)
-      } else if (stopped) {
-        // Hidden again before the watcher started
-        void commands.gitWatchStop(projectPath)
-      }
+    // Stopped with the number its start returns, once it has, so hiding the
+    // tab before the watcher started still stops it, and a late stop can't
+    // end the watcher a later showing started
+    const watcher = commands.gitWatchStart(projectPath).then(result => {
+      if (result.status === 'ok') return result.data
+      void logWarn(`Astro Editor [GIT] ${result.error}`)
+      return null
     })
     const unlisten = listen<string>('git-changed', event => {
       if (event.payload === projectPath) refresh()
@@ -46,8 +45,9 @@ export function useGitRefresh(projectPath: string) {
     window.addEventListener('focus', refresh)
 
     return () => {
-      stopped = true
-      void commands.gitWatchStop(projectPath)
+      void watcher.then(id => {
+        if (id !== null) void commands.gitWatchStop(id)
+      })
       void unlisten.then(stop => stop())
       unsubscribe()
       window.removeEventListener('file-changed', refresh)

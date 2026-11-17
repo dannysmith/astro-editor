@@ -1,7 +1,7 @@
 //! Writing files without anyone seeing them half written.
 
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::Path;
 
 /// Writes `contents` to `path` in one step: to a hidden file beside it, which
@@ -9,10 +9,13 @@ use std::path::Path;
 /// so anything reading in between (AE reloading the open file after a change,
 /// Astro's dev server, `git add`) would get an empty file, and AE could then
 /// save that emptiness back. A rename is atomic, so readers see the old text
-/// or the new. The file's permissions are kept.
+/// or the new. The data is flushed to disk before the rename. The file's
+/// permissions are kept, and a read-only file is refused, as `fs::write`
+/// would.
 ///
 /// `path` should be the real path, with symlinks resolved, so a symlinked
-/// file stays a symlink.
+/// file stays a symlink. The temporary file's name is fixed, so two writes to
+/// the same file mustn't overlap (AE's saves run one at a time).
 pub fn write_atomically(path: &Path, contents: &str) -> io::Result<()> {
     let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
         return Err(io::Error::new(
@@ -20,10 +23,23 @@ pub fn write_atomically(path: &Path, contents: &str) -> io::Result<()> {
             "Invalid file path",
         ));
     };
+    let existing = fs::metadata(path).ok();
+    if existing
+        .as_ref()
+        .is_some_and(|m| m.permissions().readonly())
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "The file is read-only",
+        ));
+    }
     // Not `.md`, so content watchers and Astro's loaders ignore it
     let temp = dir.join(format!(".{}.astro-editor-save", name.to_string_lossy()));
-    fs::write(&temp, contents)?;
-    if let Ok(metadata) = fs::metadata(path) {
+    let mut file = fs::File::create(&temp)?;
+    file.write_all(contents.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    if let Some(metadata) = existing {
         let _ = fs::set_permissions(&temp, metadata.permissions());
     }
     fs::rename(&temp, path).inspect_err(|_| {
@@ -58,6 +74,18 @@ mod tests {
             fs::metadata(&path).unwrap().permissions().mode() & 0o777,
             0o600
         );
+    }
+
+    #[test]
+    fn refuses_a_read_only_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("entry.md");
+        fs::write(&path, "old").unwrap();
+        let mut permissions = fs::metadata(&path).unwrap().permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(&path, permissions).unwrap();
+        assert!(write_atomically(&path, "new").is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "old");
     }
 
     #[test]

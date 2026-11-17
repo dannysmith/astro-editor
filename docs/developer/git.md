@@ -58,7 +58,7 @@ The tab follows git's own two steps, so what's committed is never a surprise. **
 
 Plain `commit` rather than `commit --only <paths>` is deliberate: with `--only`, a `pre-commit` hook that reformats and re-stages a file leaves the index holding the pre-hook version, and status shows the file changed straight after committing. After a commit, AE reloads the open entry from disk if it has no unsaved edits, since a hook may have rewritten it and the file watcher ignores changes just after AE's own save.
 
-Writes run one at a time across the app (a mutex in `git::commit`), with a longer timeout than reads, since hooks and signing can be slow. Git's message is shown as it is: a refusing hook's output, a missing identity, a held `index.lock`.
+Writes run one at a time across the app (`git::writing`), with a longer timeout than reads, since hooks and signing can be slow. None of them runs while git is in the middle of a merge, rebase, cherry-pick or revert (`repo::not_mid_operation`): AE would otherwise finish or abort the user's own. In the tab, Pull is unavailable while AE has files staged (a rebase would unstage them), and only one entry can have files staged by AE at a time, since one commit takes everything staged. Git's message is shown as it is: a refusing hook's output, a missing identity, a held `index.lock`.
 
 An entry AE renamed this session (`gitPanelStore.renamedFrom`) brings its old path along, ticked: git sees a rename as the old path deleted and the new one added, and committing only the new one would leave the deletion behind.
 
@@ -70,12 +70,12 @@ The repository strip at the top of the tab has Pull and Push (`git::remote`), sh
 
 **Pull** is the only thing in the tab that fetches, so it's always offered. It only ever does what can't go wrong, so a writer is never left with a half-done merge or rebase to sort out in a tool they may not know:
 
-1. Save the entry, then `git fetch`.
+1. Save the entry, pause editing (`editingPaused`, so nothing typed during the pull keeps the old text and later saves over the pulled changes), then `git fetch`.
 2. Nothing new: done.
 3. If uncommitted changes touch files the upstream changed, refuse, changing nothing. (This is what would make the steps below fail part way.)
 4. Only behind: `merge --ff-only`.
 5. Ahead too: `rebase --autostash` onto the upstream, so the writer's commits go on top, as they'd want before pushing. Uncommitted changes are put aside and back; step 3 means they come back cleanly. If the rebase stops on a conflict, `rebase --abort` puts everything back as it was, and the tab names the files both sides changed.
-6. Read the entry again from disk if anything came in.
+6. Read the entry again from disk if anything came in, then resume editing.
 
 Pull doesn't offer a merge commit, or a way through conflicts. Those are for the writer's git tool.
 

@@ -2,6 +2,7 @@
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -12,7 +13,7 @@ use crate::git::commit;
 use crate::git::remote;
 use crate::git::repo::Repository;
 use crate::git::runner::Git;
-use crate::git::setup::{self, GitSetup};
+use crate::git::setup::{self, GitProblem, GitSetup};
 use crate::git::state::{self, GitState};
 
 /// What Project Settings shows about git for the project at `project_path`:
@@ -116,15 +117,19 @@ pub async fn git_check_remote(project_path: String) -> Result<String, String> {
 /// Git and the project's repository, for the commands that write. The tab
 /// only offers them once it's read the repository, so failing here is rare.
 fn open(project_path: &str) -> Result<(Git, Repository), String> {
-    let git = Git::find().map_err(|_| "Git isn't available.".to_string())?;
-    let repository = setup::open(&git, Path::new(project_path))
-        .map_err(|_| "The project isn't in a git repository AE can use.".to_string())?;
+    let git = Git::find().map_err(|error| GitProblem::from(error).message())?;
+    let repository =
+        setup::open(&git, Path::new(project_path)).map_err(|problem| problem.message())?;
     Ok((git, repository))
 }
 
-/// The git folder watcher, while the Git tab is showing: the project it's for,
-/// and the watcher (dropping it stops it, and its thread ends)
-pub type GitWatcherState = Mutex<Option<(String, RecommendedWatcher)>>;
+/// The git folder watcher, while the Git tab is showing: the number its start
+/// returned, and the watcher (dropping it stops it, and its thread ends)
+pub type GitWatcherState = Mutex<Option<(u32, RecommendedWatcher)>>;
+
+/// Numbers each start, so a stop only ends the watcher it started, and a
+/// start that finishes after a later one doesn't replace it
+static NEXT_WATCHER: AtomicU32 = AtomicU32::new(1);
 
 /// How long the git folder has to be quiet before `git-changed` is sent. A
 /// commit or a pull writes many files in a burst.
@@ -134,10 +139,12 @@ const GIT_DEBOUNCE: Duration = Duration::from_millis(300);
 /// path) when something changes there: a commit, staging, a branch switch, a
 /// push or fetch (remote refs move), or a merge or rebase starting or ending.
 /// That's how the tab notices git used from another app. Replaces any earlier
-/// watcher. A project that isn't in a repository is quietly not watched.
+/// watcher. Returns a number to stop it with, or `None` when there's nothing
+/// to watch (the project isn't in a repository) or a later start won.
 #[tauri::command]
 #[specta::specta]
-pub async fn git_watch_start(app: AppHandle, project_path: String) -> Result<(), String> {
+pub async fn git_watch_start(app: AppHandle, project_path: String) -> Result<Option<u32>, String> {
+    let id = NEXT_WATCHER.fetch_add(1, Ordering::Relaxed);
     let project = project_path.clone();
     let folders = run_blocking(move || {
         let Ok(git) = Git::find() else {
@@ -149,7 +156,7 @@ pub async fn git_watch_start(app: AppHandle, project_path: String) -> Result<(),
     })
     .await?;
     let Some(folders) = folders else {
-        return Ok(());
+        return Ok(None);
     };
 
     let (tx, rx) = mpsc::channel::<Event>();
@@ -165,7 +172,13 @@ pub async fn git_watch_start(app: AppHandle, project_path: String) -> Result<(),
             .map_err(|e| format!("Couldn't watch {}: {e}", folder.display()))?;
     }
     let state: State<GitWatcherState> = app.state();
-    *state.lock().unwrap() = Some((project_path.clone(), watcher));
+    {
+        let mut current = state.lock().unwrap();
+        if current.as_ref().is_some_and(|(newer, _)| *newer > id) {
+            return Ok(None);
+        }
+        *current = Some((id, watcher));
+    }
 
     std::thread::spawn(move || loop {
         // Wait for something that matters, then for the burst to end
@@ -184,19 +197,17 @@ pub async fn git_watch_start(app: AppHandle, project_path: String) -> Result<(),
         }
         let _ = app.emit("git-changed", &project_path);
     });
-    Ok(())
+    Ok(Some(id))
 }
 
-/// Stops the git folder watcher, if it's for this project
+/// Stops the git folder watcher `git_watch_start` returned `id` for, if it's
+/// still the one running
 #[tauri::command]
 #[specta::specta]
-pub async fn git_watch_stop(app: AppHandle, project_path: String) -> Result<(), String> {
+pub async fn git_watch_stop(app: AppHandle, id: u32) -> Result<(), String> {
     let state: State<GitWatcherState> = app.state();
     let mut watcher = state.lock().unwrap();
-    if watcher
-        .as_ref()
-        .is_some_and(|(path, _)| *path == project_path)
-    {
+    if watcher.as_ref().is_some_and(|(current, _)| *current == id) {
         *watcher = None;
     }
     Ok(())

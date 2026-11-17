@@ -22,12 +22,19 @@ import '../../lib/editor/extensions/copyedit-mode/copyedit-mode.css'
 
 /**
  * The editor is read-only until the open file has loaded: until then it holds
- * an empty placeholder (see `isLoaded` in editorStore). Read-only rather than
- * not editable, so focus stays in the editor while switching files
+ * an empty placeholder (see `isLoaded` in editorStore). Also while editing is
+ * paused for a pull (`editingPaused`). Read-only rather than not editable, so
+ * focus stays in the editor while switching files
  */
 const readOnlyCompartment = new Compartment()
-const readOnlyUntilLoaded = (isLoaded: boolean) =>
-  EditorState.readOnly.of(!isLoaded)
+const readOnlyUnless = (editable: boolean) => EditorState.readOnly.of(!editable)
+const isEditable = ({
+  isLoaded,
+  editingPaused,
+}: {
+  isLoaded: boolean
+  editingPaused: boolean
+}) => isLoaded && !editingPaused
 
 // Extend window to include editor focus tracking
 declare global {
@@ -170,13 +177,15 @@ const EditorViewComponent: React.FC = () => {
     const currentCleanupCommands = cleanupCommands
 
     // Get initial content directly from store, not from subscription
-    const { editorContent, isLoaded } = useEditorStore.getState()
+    const { editorContent } = useEditorStore.getState()
 
     const startState = EditorState.create({
       doc: editorContent,
       extensions: [
         ...extensions,
-        readOnlyCompartment.of(readOnlyUntilLoaded(isLoaded)),
+        readOnlyCompartment.of(
+          readOnlyUnless(isEditable(useEditorStore.getState()))
+        ),
         EditorView.updateListener.of(update => {
           if (update.docChanged && !isProgrammaticUpdate.current) {
             const newContent = update.state.doc.toString()
@@ -311,13 +320,14 @@ const EditorViewComponent: React.FC = () => {
     return unsubscribe
   }, [currentFileId])
 
-  // Follow the open file's load state without re-rendering
+  // Follow whether the open file can be edited without re-rendering
   useEffect(() => {
-    return useEditorStore.subscribe(({ isLoaded }) => {
+    return useEditorStore.subscribe(state => {
       const view = viewRef.current
-      if (!view || view.state.readOnly === !isLoaded) return
+      const editable = isEditable(state)
+      if (!view || view.state.readOnly === !editable) return
       view.dispatch({
-        effects: readOnlyCompartment.reconfigure(readOnlyUntilLoaded(isLoaded)),
+        effects: readOnlyCompartment.reconfigure(readOnlyUnless(editable)),
       })
     })
   }, [])

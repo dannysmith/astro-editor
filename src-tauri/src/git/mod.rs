@@ -5,8 +5,9 @@
 //! terminal, and AE needs no auth code. Git's config is the only source of
 //! truth: AE stores nothing about git except whether the panel is on.
 //!
-//! Nothing here changes files in the working tree. Commands that write take
-//! explicit paths, never `add -A` or `commit -a`. See `docs/developer/git.md`.
+//! Only pulling changes files in the working tree, and only when it can do so
+//! cleanly (`remote`). Commands that change the index take explicit paths,
+//! never `add -A` or `commit -a`. See `docs/developer/git.md`.
 
 pub mod commit;
 pub mod remote;

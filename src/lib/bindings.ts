@@ -164,11 +164,15 @@ export const commands = {
 	 *  path) when something changes there: a commit, staging, a branch switch, a
 	 *  push or fetch (remote refs move), or a merge or rebase starting or ending.
 	 *  That's how the tab notices git used from another app. Replaces any earlier
-	 *  watcher. A project that isn't in a repository is quietly not watched.
+	 *  watcher. Returns a number to stop it with, or `None` when there's nothing
+	 *  to watch (the project isn't in a repository) or a later start won.
 	 */
-	gitWatchStart: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_watch_start", { projectPath })),
-	/**  Stops the git folder watcher, if it's for this project */
-	gitWatchStop: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_watch_stop", { projectPath })),
+	gitWatchStart: (projectPath: string) => typedError<number | null, string>(__TAURI_INVOKE("git_watch_start", { projectPath })),
+	/**
+	 *  Stops the git folder watcher `git_watch_start` returned `id` for, if it's
+	 *  still the one running
+	 */
+	gitWatchStop: (id: number) => typedError<null, string>(__TAURI_INVOKE("git_watch_stop", { id })),
 	/**
 	 *  Watches a project. `folders` are its collection folders, which can be anywhere
 	 *  in the project.

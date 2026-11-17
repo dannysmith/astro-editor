@@ -185,7 +185,7 @@ fn entry_state(
         Some(GitChangeKind::Renamed) => GitEntryState::Renamed,
         Some(GitChangeKind::Conflicted) => GitEntryState::Conflicted,
         // Untracked files are in the changes, so this one is committed or ignored
-        None if is_ignored(git, repository, &path)? => GitEntryState::Ignored,
+        None if repo::is_ignored(git, &repository.root, &path)? => GitEntryState::Ignored,
         None => GitEntryState::Unchanged,
     };
     let last_commit = match state {
@@ -213,19 +213,6 @@ fn path_in_repository(repository: &Repository, entry: &Path) -> Option<String> {
     )
 }
 
-fn is_ignored(git: &Git, repository: &Repository, path: &str) -> Result<bool, String> {
-    let output = git.run(
-        &repository.root,
-        &["check-ignore", "-q", "--", path],
-        READ_TIMEOUT,
-    )?;
-    match output.code {
-        Some(0) => Ok(true),
-        Some(1) => Ok(false),
-        _ => Err(output.error_message()),
-    }
-}
-
 /// The last commit that changed `path`. `None` before the repository's first
 /// commit or when no commit has touched it.
 fn last_commit(
@@ -241,8 +228,9 @@ fn last_commit(
 /// The most commits listed for pushing or pulling
 const COMMIT_LIST_LIMIT: &str = "50";
 
-/// The commits `git log <args>` lists, newest first. None before the first
-/// commit, when `log` fails.
+/// The commits `git log <args>` lists, newest first. Any failure gives none:
+/// before the first commit `log` fails, and an upstream that's gone is better
+/// shown as nothing to push than as an error.
 fn commits(git: &Git, repository: &Repository, args: &[&str]) -> Result<Vec<GitCommit>, String> {
     let mut log = vec![
         "log",

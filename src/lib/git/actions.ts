@@ -58,7 +58,7 @@ async function commitFiles(
   await saveEntry()
   const result = await commands.gitCommit(projectPath, paths, message)
   if (result.status === 'error') throw new Error(result.error)
-  reloadEntry()
+  void reloadEntry()
   return result.data
 }
 
@@ -76,11 +76,11 @@ async function saveEntry() {
  * the file watcher ignores changes just after our own save, so read it again.
  * Unsaved edits made during the commit win, as they do everywhere.
  */
-function reloadEntry() {
+async function reloadEntry() {
   const { currentFile, isDirty } = useEditorStore.getState()
   const { projectPath } = useProjectStore.getState()
   if (!currentFile || !projectPath || isDirty) return
-  void queryClient.invalidateQueries({
+  await queryClient.invalidateQueries({
     queryKey: queryKeys.fileContent(projectPath, currentFile.id),
   })
 }
@@ -94,13 +94,19 @@ export async function pushBranch(projectPath: string) {
 /**
  * Fetches and brings in the upstream's new commits, when that can be done
  * cleanly. Saves the entry first, so the check for uncommitted changes the
- * remote also changed sees the writer's latest, and reads it again after,
- * since the pull may have changed it. Returns how many commits came in.
+ * remote also changed sees the writer's latest, pauses editing while git
+ * works, and reads the entry again before editing resumes, since the pull may
+ * have changed it. Returns how many commits came in.
  */
 export async function pullBranch(projectPath: string): Promise<number> {
   await saveEntry()
-  const result = await commands.gitPull(projectPath)
-  if (result.status === 'error') throw new Error(result.error)
-  if (result.data > 0) reloadEntry()
-  return result.data
+  useEditorStore.setState({ editingPaused: true })
+  try {
+    const result = await commands.gitPull(projectPath)
+    if (result.status === 'error') throw new Error(result.error)
+    if (result.data > 0) await reloadEntry()
+    return result.data
+  } finally {
+    useEditorStore.setState({ editingPaused: false })
+  }
 }

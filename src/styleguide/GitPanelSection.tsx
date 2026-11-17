@@ -144,6 +144,8 @@ export function GitPanelSection() {
               onOpenSettings={() => {}}
               sync={{
                 pending: null,
+                busy: false,
+                pullBlocked: null,
                 error: null,
                 onPush: () => {},
                 onPull: () => {},
@@ -152,6 +154,8 @@ export function GitPanelSection() {
                 staging,
                 ourPaths: [ENTRY.path, IMAGE.path],
                 pending: null,
+                busy: false,
+                stagedElsewhere: null,
                 error: null,
                 committed: null,
                 message: 'Update “Harbour at dawn”',

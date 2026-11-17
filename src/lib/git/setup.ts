@@ -133,20 +133,3 @@ export function describeBranch(state: BranchState): string {
   ].filter(Boolean)
   return `${branch} → \`${state.upstream}\`${counts.length > 0 ? `, ${counts.join(', ')}` : ', up to date'}`
 }
-
-/**
- * How the branch stands against its upstream, for under the branch's name in
- * the Git tab, like "2 to push to `origin/main`"
- */
-export function describeUpstream(state: BranchState): string {
-  if (!state.branch) return 'Not on a branch'
-  if (!state.hasCommits) return 'No commits yet'
-  if (!state.upstream) return 'Not pushed anywhere yet'
-  const upstream = `\`${state.upstream}\``
-  if (state.ahead > 0 && state.behind > 0) {
-    return `${state.ahead} to push and ${state.behind} to pull, with ${upstream}`
-  }
-  if (state.ahead > 0) return `${state.ahead} to push to ${upstream}`
-  if (state.behind > 0) return `${state.behind} to pull from ${upstream}`
-  return `Up to date with ${upstream}`
-}
