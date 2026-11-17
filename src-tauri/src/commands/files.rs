@@ -8,6 +8,7 @@ use tauri::{path::BaseDirectory, Manager};
 use crate::frontmatter::{
     assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
 };
+use crate::utils::fs::write_atomically;
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
 
 /// Calculates the relative path from the current file to an asset
@@ -343,7 +344,7 @@ pub async fn save_markdown_content(
         None => raw_frontmatter,
     };
 
-    std::fs::write(&validated_path, assemble(&block, &imports, &content))
+    write_atomically(&validated_path, &assemble(&block, &imports, &content))
         .map_err(|e| format!("Failed to write file: {e}"))?;
     Ok(block)
 }

@@ -295,7 +295,7 @@ Checked with Rust tests (fast-forward, rebase, the refusal, a conflicting rebase
 
 Differences from the plan: no `merge-tree` check before rebasing. Trying the rebase and aborting on a conflict is simpler and works with any git, and the up-front check on uncommitted changes is what makes aborting safe.
 
-**Open: an entry saved empty.** While testing, `the-second-article.md` in `blog` was saved as an empty file (frontmatter and body gone), and the editor showed it empty, after typing into it and pressing Pull (which saves first). That was just after the app restarted for a Rust rebuild. Running the same steps again, and the restart, didn't reproduce it. The empty save happened before anything git did to the file; the logs show the file written while the editor had unsaved edits. Watch for it in dogfooding.
+**Fixed: an entry saved empty.** While testing, `the-second-article.md` in `blog` was saved as an empty file, after two saves a few seconds apart around a pull. It didn't reproduce, but the likely cause is real: `fs::write` empties a file before writing it, so a reload landing in that moment reads an empty entry, and if the editor isn't dirty it takes it, and the next save writes it back. Saves now write a temporary file and rename it over the entry (see "Auto-save and data safety" in `docs/developer/editor.md`).
 
 ### Phase 5b: context menus
 
