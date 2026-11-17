@@ -1,6 +1,12 @@
 import React, { useEffect } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
-import type { GitSetup, Resolved, SettingSource } from '@/lib/bindings'
+import {
+  commands,
+  type GitSetup,
+  type Resolved,
+  type SettingSource,
+} from '@/lib/bindings'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -43,6 +49,13 @@ export function GitSettings({
     window.addEventListener('focus', check)
     return () => window.removeEventListener('focus', check)
   }, [gitPanel.value, refetch])
+  const remote = useMutation({
+    mutationFn: async () => {
+      const result = await commands.gitCheckRemote(projectPath)
+      if (result.status === 'error') throw new Error(result.error)
+      return result.data
+    },
+  })
   return (
     <GitSettingsView
       on={gitPanel.value}
@@ -54,8 +67,24 @@ export function GitSettings({
       error={error?.message}
       checking={isFetching}
       onCheckAgain={() => void refetch()}
+      remoteCheck={{
+        checking: remote.isPending,
+        url: remote.data ?? null,
+        error: remote.error?.message ?? null,
+        onCheck: () => remote.mutate(),
+      }}
     />
   )
+}
+
+/** The Check remote button's state */
+export interface RemoteCheck {
+  checking: boolean
+  /** The remote's URL, once it's been reached */
+  url: string | null
+  /** Why it couldn't be reached, in git's words */
+  error: string | null
+  onCheck: () => void
 }
 
 interface GitSettingsViewProps {
@@ -70,6 +99,7 @@ interface GitSettingsViewProps {
   error?: string
   checking: boolean
   onCheckAgain: () => void
+  remoteCheck: RemoteCheck
 }
 
 /** The Git group, from what's passed in. See `GitSettings`. */
@@ -83,6 +113,7 @@ export function GitSettingsView({
   error,
   checking,
   onCheckAgain,
+  remoteCheck,
 }: GitSettingsViewProps) {
   const problems = setup ? gitSetupProblems(setup, home) : []
   return (
@@ -123,7 +154,9 @@ export function GitSettingsView({
           )}
         </Setting>
         {on && !setup && !error && <InfoRow label="Git">Checking…</InfoRow>}
-        {on && setup && <SetupRows setup={setup} home={home} />}
+        {on && setup && (
+          <SetupRows setup={setup} home={home} remoteCheck={remoteCheck} />
+        )}
       </SettingsGroup>
 
       {on && error && (
@@ -144,7 +177,15 @@ export function GitSettingsView({
 }
 
 /** What was found: the git program, the repository, branch, identity, hooks */
-function SetupRows({ setup, home }: { setup: GitSetup; home: string | null }) {
+function SetupRows({
+  setup,
+  home,
+  remoteCheck,
+}: {
+  setup: GitSetup
+  home: string | null
+  remoteCheck: RemoteCheck
+}) {
   const path = (p: string) => `\`${tildePath(p, home)}\``
   const repository = setup.repository
   const branch = repository && describeBranch(repository)
@@ -176,6 +217,28 @@ function SetupRows({ setup, home }: { setup: GitSetup; home: string | null }) {
           {branch && (
             <InfoRow label="Branch">
               <WithCode text={branch} />
+            </InfoRow>
+          )}
+          {repository.upstream && (
+            <InfoRow
+              label="Remote"
+              help={
+                remoteCheck.url
+                  ? `Reached ${path(remoteCheck.url)} with your credentials.`
+                  : remoteCheck.error
+                    ? `Couldn't reach it. Git said: ${remoteCheck.error}`
+                    : 'Checks AE can reach it, using the network and your credentials.'
+              }
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={remoteCheck.checking}
+                onClick={remoteCheck.onCheck}
+              >
+                {remoteCheck.checking ? 'Checking…' : 'Check remote'}
+              </Button>
             </InfoRow>
           )}
           <InfoRow

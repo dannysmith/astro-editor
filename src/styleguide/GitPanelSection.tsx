@@ -41,6 +41,22 @@ const TREE: GitWorkingTree = {
   behind: 0,
   hasCommits: true,
   operation: null,
+  superproject: null,
+  outgoing: [
+    {
+      hash: 'f4e5d6c',
+      subject: 'Add “Tides”',
+      author: 'Sam Writer',
+      time: NOW.getTime() / 1000 - DAY,
+    },
+    {
+      hash: '9a8b7c6',
+      subject: 'Fix the harbour photo’s caption',
+      author: 'Sam Writer',
+      time: NOW.getTime() / 1000 - 2 * DAY,
+    },
+  ],
+  incoming: [],
   changes: [ENTRY, IMAGE, OLD_IMAGE, CONFIG, OTHER_ENTRY],
   staged: [CONFIG],
   entry: {
@@ -125,6 +141,12 @@ export function GitPanelSection() {
               onTick={() => {}}
               onOpen={() => {}}
               onOpenSettings={() => {}}
+              sync={{
+                pending: null,
+                error: null,
+                onPush: () => {},
+                onPull: () => {},
+              }}
               commit={{
                 staging,
                 ourPaths: [ENTRY.path, IMAGE.path],

@@ -147,6 +147,18 @@ export const commands = {
 	 *  staged. Returns the commit's abbreviated hash.
 	 */
 	gitCommit: (projectPath: string, paths: string[], message: string) => typedError<string, string>(__TAURI_INVOKE("git_commit", { projectPath, paths, message })),
+	/**  Pushes the branch to its upstream */
+	gitPush: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_push", { projectPath })),
+	/**
+	 *  Fetches and brings in the upstream's new commits, only when that can be
+	 *  done cleanly. Returns how many commits came in.
+	 */
+	gitPull: (projectPath: string) => typedError<number, string>(__TAURI_INVOKE("git_pull", { projectPath })),
+	/**
+	 *  Checks the branch's remote can be reached, for Project Settings. Returns
+	 *  its URL.
+	 */
+	gitCheckRemote: (projectPath: string) => typedError<string, string>(__TAURI_INVOKE("git_check_remote", { projectPath })),
 	/**
 	 *  Watches the project's git folder and sends `git-changed` (with the project
 	 *  path) when something changes there: a commit, staging, a branch switch, a
@@ -548,6 +560,18 @@ export type GitWorkingTree = {
 	behind: number,
 	hasCommits: boolean,
 	operation: GitOperation | null,
+	/**  The parent repository's root, when this one is a submodule */
+	superproject: string | null,
+	/**
+	 *  Commits on the branch that aren't on its upstream (to push), newest
+	 *  first, up to `COMMIT_LIST_LIMIT`
+	 */
+	outgoing: GitCommit[],
+	/**
+	 *  Commits on the upstream that aren't on the branch (to pull), as of the
+	 *  last fetch
+	 */
+	incoming: GitCommit[],
 	/**
 	 *  Changed, new and conflicted files in the project folder, without
 	 *  submodules. Paths are relative to `root`.

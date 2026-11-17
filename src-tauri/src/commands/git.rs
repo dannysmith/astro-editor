@@ -9,6 +9,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::run_blocking;
 use crate::git::commit;
+use crate::git::remote;
 use crate::git::repo::Repository;
 use crate::git::runner::Git;
 use crate::git::setup::{self, GitSetup};
@@ -73,6 +74,41 @@ pub async fn git_commit(
     run_blocking(move || {
         let (git, repository) = open(&project_path)?;
         commit::commit(&git, &repository, &paths, &message)
+    })
+    .await
+}
+
+/// Pushes the branch to its upstream
+#[tauri::command]
+#[specta::specta]
+pub async fn git_push(project_path: String) -> Result<(), String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        remote::push(&git, &repository)
+    })
+    .await
+}
+
+/// Fetches and brings in the upstream's new commits, only when that can be
+/// done cleanly. Returns how many commits came in.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_pull(project_path: String) -> Result<u32, String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        remote::pull(&git, &repository)
+    })
+    .await
+}
+
+/// Checks the branch's remote can be reached, for Project Settings. Returns
+/// its URL.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_check_remote(project_path: String) -> Result<String, String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        remote::check(&git, &repository)
     })
     .await
 }

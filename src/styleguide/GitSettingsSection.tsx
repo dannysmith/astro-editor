@@ -85,6 +85,12 @@ function States({ states }: { states: State[] }) {
             error={error}
             checking={!setup}
             onCheckAgain={() => {}}
+            remoteCheck={{
+              checking: false,
+              url: null,
+              error: null,
+              onCheck: () => {},
+            }}
           />
         </div>
       ))}

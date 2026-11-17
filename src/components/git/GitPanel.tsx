@@ -10,7 +10,12 @@ import { useProjectStore } from '../../store/projectStore'
 import { useGitStateQuery } from '../../hooks/queries/useGitStateQuery'
 import { useGitRefresh } from '../../hooks/git/useGitRefresh'
 import { useFieldMappings } from '../../hooks/settings'
-import { runGitWrite, type GitWrite } from '../../lib/git/actions'
+import {
+  pullBranch,
+  pushBranch,
+  runGitWrite,
+  type GitWrite,
+} from '../../lib/git/actions'
 import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
@@ -126,6 +131,24 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   })
   const forEntry = write.variables?.entry === entryPath
 
+  const sync = useMutation({
+    mutationFn: async (action: 'push' | 'pull') =>
+      action === 'push'
+        ? (await pushBranch(projectPath), 0)
+        : pullBranch(projectPath),
+    onSuccess: async (count, action) => {
+      const upstream = tree?.upstream ?? 'the remote'
+      if (action === 'push') toast.success(`Pushed to ${upstream}`)
+      else if (count === 0) toast.success('Already up to date')
+      else {
+        toast.success(
+          `Pulled ${count} ${count === 1 ? 'commit' : 'commits'} from ${upstream}`
+        )
+      }
+      await refetch()
+    },
+  })
+
   // What's been ticked or unticked by hand, for this entry. Opening another
   // entry starts again.
   const [ticks, setTicks] = useState<{
@@ -161,6 +184,15 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       }
       onOpen={change => void openChange(projectPath, tree?.root, change)}
       onOpenSettings={() => showProjectSettings()}
+      sync={{
+        pending: sync.isPending ? sync.variables : null,
+        error:
+          sync.error && sync.variables
+            ? { action: sync.variables, message: sync.error.message }
+            : null,
+        onPush: () => sync.mutate('push'),
+        onPull: () => sync.mutate('pull'),
+      }}
       commit={{
         staging,
         ourPaths: ours ?? [],

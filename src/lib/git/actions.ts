@@ -1,7 +1,7 @@
 /**
- * The Git tab's writes, for its mutations: each saves the open entry first,
- * so what's staged or committed is what the writer sees. They throw with a
- * message to show when anything fails.
+ * The Git tab's writes, for its mutations. Those that take the entry's
+ * contents save it first, so what's staged, committed or checked is what the
+ * writer sees. They throw with a message to show when anything fails.
  */
 
 import { commands } from '@/lib/bindings'
@@ -83,4 +83,24 @@ function reloadEntry() {
   void queryClient.invalidateQueries({
     queryKey: queryKeys.fileContent(projectPath, currentFile.id),
   })
+}
+
+/** Pushes the branch to its upstream */
+export async function pushBranch(projectPath: string) {
+  const result = await commands.gitPush(projectPath)
+  if (result.status === 'error') throw new Error(result.error)
+}
+
+/**
+ * Fetches and brings in the upstream's new commits, when that can be done
+ * cleanly. Saves the entry first, so the check for uncommitted changes the
+ * remote also changed sees the writer's latest, and reads it again after,
+ * since the pull may have changed it. Returns how many commits came in.
+ */
+export async function pullBranch(projectPath: string): Promise<number> {
+  await saveEntry()
+  const result = await commands.gitPull(projectPath)
+  if (result.status === 'error') throw new Error(result.error)
+  if (result.data > 0) reloadEntry()
+  return result.data
 }

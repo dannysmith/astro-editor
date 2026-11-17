@@ -33,6 +33,14 @@ pub struct GitWorkingTree {
     pub behind: u32,
     pub has_commits: bool,
     pub operation: Option<GitOperation>,
+    /// The parent repository's root, when this one is a submodule
+    pub superproject: Option<String>,
+    /// Commits on the branch that aren't on its upstream (to push), newest
+    /// first, up to `COMMIT_LIST_LIMIT`
+    pub outgoing: Vec<GitCommit>,
+    /// Commits on the upstream that aren't on the branch (to pull), as of the
+    /// last fetch
+    pub incoming: Vec<GitCommit>,
     /// Changed, new and conflicted files in the project folder, without
     /// submodules. Paths are relative to `root`.
     pub changes: Vec<GitChange>,
@@ -124,6 +132,17 @@ fn working_tree(
         Some(path) => Some(entry_state(git, repository, &changes, path)?),
         None => None,
     };
+    let branch = &status.branch;
+    let outgoing = if branch.ahead > 0 {
+        commits(git, repository, &["@{upstream}..HEAD"])?
+    } else {
+        Vec::new()
+    };
+    let incoming = if branch.behind > 0 {
+        commits(git, repository, &["HEAD..@{upstream}"])?
+    } else {
+        Vec::new()
+    };
     Ok(GitWorkingTree {
         root: repository.root.display().to_string(),
         prefix: repository.prefix.clone(),
@@ -133,6 +152,12 @@ fn working_tree(
         ahead: status.branch.ahead,
         behind: status.branch.behind,
         operation: repo::operation_in_progress(repository),
+        superproject: repository
+            .superproject
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        outgoing,
+        incoming,
         changes,
         staged: status::read_staged(git, repository)?,
         entry,
@@ -202,33 +227,52 @@ fn is_ignored(git: &Git, repository: &Repository, path: &str) -> Result<bool, St
 }
 
 /// The last commit that changed `path`. `None` before the repository's first
-/// commit (when `git log` fails) or when no commit has touched it.
+/// commit or when no commit has touched it.
 fn last_commit(
     git: &Git,
     repository: &Repository,
     path: &str,
 ) -> Result<Option<GitCommit>, String> {
-    let output = git.run(
-        &repository.root,
-        &["log", "-1", "--format=%h%x00%ct%x00%an%x00%s", "--", path],
-        READ_TIMEOUT,
-    )?;
+    Ok(commits(git, repository, &["-1", "--", path])?
+        .into_iter()
+        .next())
+}
+
+/// The most commits listed for pushing or pulling
+const COMMIT_LIST_LIMIT: &str = "50";
+
+/// The commits `git log <args>` lists, newest first. None before the first
+/// commit, when `log` fails.
+fn commits(git: &Git, repository: &Repository, args: &[&str]) -> Result<Vec<GitCommit>, String> {
+    let mut log = vec![
+        "log",
+        "-n",
+        COMMIT_LIST_LIMIT,
+        "--format=%h%x00%ct%x00%an%x00%s",
+    ];
+    log.extend_from_slice(args);
+    let output = git.run(&repository.root, &log, READ_TIMEOUT)?;
     if !output.success() {
-        return Ok(None);
+        return Ok(Vec::new());
     }
-    let text = output.stdout_text();
-    let mut fields = text.trim_end_matches('\n').splitn(4, '\0');
-    let (Some(hash), Some(time), Some(author), Some(subject)) =
-        (fields.next(), fields.next(), fields.next(), fields.next())
-    else {
-        return Ok(None);
-    };
-    Ok(Some(GitCommit {
-        hash: hash.to_string(),
-        subject: subject.to_string(),
-        author: author.to_string(),
-        time: time.parse().unwrap_or(0),
-    }))
+    Ok(output
+        .stdout_text()
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.splitn(4, '\0');
+            let (Some(hash), Some(time), Some(author), Some(subject)) =
+                (fields.next(), fields.next(), fields.next(), fields.next())
+            else {
+                return None;
+            };
+            Some(GitCommit {
+                hash: hash.to_string(),
+                subject: subject.to_string(),
+                author: author.to_string(),
+                time: time.parse().unwrap_or(0),
+            })
+        })
+        .collect())
 }
 
 #[cfg(test)]

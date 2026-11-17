@@ -62,6 +62,25 @@ Writes run one at a time across the app (a mutex in `git::commit`), with a longe
 
 An entry AE renamed this session (`gitPanelStore.renamedFrom`) brings its old path along, ticked: git sees a rename as the old path deleted and the new one added, and committing only the new one would leave the deletion behind.
 
+## Pushing and pulling
+
+The repository strip at the top of the tab has Pull and Push (`git::remote`), shown when the branch has an upstream and git isn't in the middle of something. Its ↑/↓ counts open the commits to push (`@{upstream}..HEAD`) and to pull (`HEAD..@{upstream}`, as of the last fetch).
+
+**Push** is a plain `git push`, offered when the branch is ahead and not behind. A rejection because the remote has commits we don't gets its own message pointing at Pull; anything else (a `pre-push` hook refusing, credentials) shows git's message.
+
+**Pull** is the only thing in the tab that fetches, so it's always offered. It only ever does what can't go wrong, so a writer is never left with a half-done merge or rebase to sort out in a tool they may not know:
+
+1. Save the entry, then `git fetch`.
+2. Nothing new: done.
+3. If uncommitted changes touch files the upstream changed, refuse, changing nothing. (This is what would make the steps below fail part way.)
+4. Only behind: `merge --ff-only`.
+5. Ahead too: `rebase --autostash` onto the upstream, so the writer's commits go on top, as they'd want before pushing. Uncommitted changes are put aside and back; step 3 means they come back cleanly. If the rebase stops on a conflict, `rebase --abort` puts everything back as it was, and the tab names the files both sides changed.
+6. Read the entry again from disk if anything came in.
+
+Pull doesn't offer a merge commit, or a way through conflicts. Those are for the writer's git tool.
+
+**Check remote** in Project Settings runs `git ls-remote` against the branch's remote, only when pressed, since it uses the network and credentials.
+
 ## Testing
 
 Rust tests build throwaway repositories with the real `git` (`git::test_repos`): a temp folder git can't look above (`GIT_CEILING_DIRECTORIES`), with the global and system config ignored, so they never read the developer's config or touch their repositories.

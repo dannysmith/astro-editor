@@ -283,20 +283,19 @@ Differences from the plan:
 - **The commit runs plain `git commit`,** not `commit --only` and `reset`, since staging is now its own step. That also removes the `MM` problem with re-staging hooks.
 - **Renames weren't tried in the app** (the sidebar's rename is in a native menu the agent can't drive); the store's rename memory has a test.
 
-### Phase 5: pushing
+### Phase 5: pushing (done)
 
-`git_push`, the Push button on the branch line, the list of unpushed commits, the non-fast-forward message, the submodule note, and the Check remote button in Project Settings. Check it with `blog-collaborator` (rejected push) and `.block-push` in `monorepo` (refusing hook).
+`git_push`, Pull and Push on the repository strip, the ↑/↓ counts opening the commits to push and to pull, the "Pull, then push again" message for a rejected push, the submodule note (Push's tooltip, and under the list), and Check remote in Project Settings. Success is a toast; failures stay in the tab.
 
-### Phase 5a: pulling, when it's clean
+### Phase 5a: pulling, when it's clean (done)
 
-The usual way of working is to bring in what's changed on the remote before committing, so your commit goes on top of the latest work (and a push isn't rejected). So when the branch is behind, the repository line offers Pull next to Push, and it only ever does a pull that can't go wrong:
+Pull is always offered with an upstream, since it's the tab's only way to fetch. It fetches, then fast-forwards when only behind, or rebases the branch's commits (`--autostash`) when ahead too. It refuses up front, changing nothing, when uncommitted changes touch files the upstream changed, and aborts a rebase that stops on a conflict, so nothing is ever left half done. The open entry is saved before and read again after. Details in `docs/developer/git.md`.
 
-- Fetch first, then decide from what's actually there.
-- **Only behind:** `git merge --ff-only @{u}`. Git refuses on its own, changing nothing, if a file you've changed locally would be overwritten, so that case is a message, not a mess.
-- **Behind and ahead** (your own unpushed commits): this needs a rebase or a merge. Check first without touching the working tree (`git merge-tree --write-tree`, git 2.38+, reports conflicts); if it's clean, rebase. If it isn't, don't start: say which files conflict and to sort it out in their git tool.
-- Never leave a half-done merge or rebase behind. If anything unexpected happens, stop and show git's message.
+Checked with Rust tests (fast-forward, rebase, the refusal, a conflicting rebase put back, a rejected push) and in the app against `blog-collaborator`: push, fast-forward, the refusal with unsaved words in the entry, a conflicting rebase put back, and a clean rebase that changed the open entry.
 
-This changes files on disk, so the open entry has to reload if the pull changed it (and unsaved edits still win, as everywhere else).
+Differences from the plan: no `merge-tree` check before rebasing. Trying the rebase and aborting on a conflict is simpler and works with any git, and the up-front check on uncommitted changes is what makes aborting safe.
+
+**Open: an entry saved empty.** While testing, `the-second-article.md` in `blog` was saved as an empty file (frontmatter and body gone), and the editor showed it empty, after typing into it and pressing Pull (which saves first). That was just after the app restarted for a Rust rebuild. Running the same steps again, and the restart, didn't reproduce it. The empty save happened before anything git did to the file; the logs show the file written while the editor had unsaved edits. Watch for it in dogfooding.
 
 ### Phase 5b: context menus
 

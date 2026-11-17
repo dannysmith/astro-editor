@@ -2,32 +2,24 @@
 //! again, and committing.
 //!
 //! They take explicit paths (relative to the repository root), never `add -A`
-//! or `commit -a`, and run one at a time across the app, so two never race
-//! for git's `index.lock`.
+//! or `commit -a`, and run one at a time with the other writes (see `writing`).
 
-use std::sync::Mutex;
 use std::time::Duration;
 
 use super::repo::Repository;
 use super::runner::{Git, GitOutput};
-use super::READ_TIMEOUT;
-
-/// For commands that may run hooks or sign: a `pre-commit` running a linter,
-/// or a signing key that asks to be unlocked
-const WRITE_TIMEOUT: Duration = Duration::from_secs(120);
-
-static WRITING: Mutex<()> = Mutex::new(());
+use super::{writing, READ_TIMEOUT, WRITE_TIMEOUT};
 
 /// Stages `paths` as they are on disk: changed, new or deleted
 pub fn stage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
-    let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let _writing = writing();
     add(git, repository, paths)
 }
 
 /// Takes `paths` out of the index again, leaving the files on disk alone.
 /// Anything staged for them before goes too.
 pub fn unstage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
-    let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let _writing = writing();
     let output = run(git, repository, &["reset", "-q", "--"], paths, READ_TIMEOUT)?;
     succeeded(output)
 }
@@ -41,7 +33,7 @@ pub fn commit(
     paths: &[String],
     message: &str,
 ) -> Result<String, String> {
-    let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let _writing = writing();
     add(git, repository, paths)?;
     let output = git.run(
         &repository.root,
