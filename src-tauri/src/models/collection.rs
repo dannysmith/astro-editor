@@ -168,6 +168,7 @@ pub struct ResolvedProjectSettings {
     pub mdx_components_directories: Resolved<Vec<String>>,
     pub add_component_imports: Resolved<bool>,
     pub reorder_frontmatter: Resolved<bool>,
+    pub git_panel: Resolved<bool>,
     /// The project's default for collections. Relative to the project root.
     pub assets_directory: Resolved<String>,
     /// The project's default for collections

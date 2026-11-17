@@ -3,23 +3,21 @@ import { useUIStore } from '../../store/uiStore'
 import { focusEditor } from '../../lib/focus-utils'
 import {
   RIGHT_SIDEBAR_TABS,
+  isRightSidebarTabAvailable,
   type RightSidebarTab,
 } from '../../lib/right-sidebar'
+import { useResolvedProjectSettings } from '../../hooks/settings/useCollectionSettings'
 import { Tabs, TabsContent } from '../ui/tabs'
 import { ResponsiveTabsList } from '../ui/responsive-tabs-list'
 import { FrontmatterPanel } from '../frontmatter'
 import { CopyeditPanel } from '../copyedit'
+import { GitPanel } from '../git'
 
 const PANELS: Record<RightSidebarTab, React.ComponentType> = {
   frontmatter: FrontmatterPanel,
   copyedit: CopyeditPanel,
+  git: GitPanel,
 }
-
-const TABS = RIGHT_SIDEBAR_TABS.map(({ id, label, icon }) => ({
-  value: id,
-  label,
-  icon,
-}))
 
 interface RightSidebarProps {
   /** Whether the sidebar has width: Layout follows the resizable panel's size */
@@ -37,7 +35,26 @@ interface RightSidebarProps {
  * hidden panel doesn't follow the stores; it catches up as it's shown.
  */
 export const RightSidebar: React.FC<RightSidebarProps> = ({ expanded }) => {
-  const activeTab = useUIStore(state => state.rightSidebarTab)
+  const storedTab = useUIStore(state => state.rightSidebarTab)
+  const projectSettings = useResolvedProjectSettings()
+  const tabs = RIGHT_SIDEBAR_TABS.filter(({ id }) =>
+    isRightSidebarTabAvailable(id, projectSettings)
+  )
+  // A tab the open project doesn't offer (the Git tab after switching to a
+  // project without it) shows Frontmatter, and once the project's settings
+  // have loaded the store follows. Not before: while they load no optional
+  // tab is offered, and switching between two projects with the Git tab
+  // would otherwise leave it
+  const available = tabs.some(({ id }) => id === storedTab)
+  const activeTab = available ? storedTab : 'frontmatter'
+  const settingsLoaded = projectSettings !== undefined
+
+  useEffect(() => {
+    if (settingsLoaded && !available) {
+      useUIStore.setState({ rightSidebarTab: 'frontmatter' })
+    }
+  }, [settingsLoaded, available])
+
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   // Hiding what has focus (Cmd+3 while typing in a field, or closing the
@@ -73,9 +90,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ expanded }) => {
         className="min-h-0 flex-1 gap-0"
       >
         <div className="border-b border-border p-2">
-          <ResponsiveTabsList tabs={TABS} />
+          <ResponsiveTabsList
+            tabs={tabs.map(({ id, label, icon }) => ({
+              value: id,
+              label,
+              icon,
+            }))}
+          />
         </div>
-        {RIGHT_SIDEBAR_TABS.map(({ id }) => {
+        {tabs.map(({ id }) => {
           const Panel = PANELS[id]
           return (
             <TabsContent key={id} value={id} keepMounted className="min-h-0">

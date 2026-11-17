@@ -7,16 +7,13 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { commands } from '@/lib/bindings'
-import { openPath } from '@tauri-apps/plugin-opener'
 import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
 import { toast } from '../../lib/toast'
 import { deleteFile } from '../../lib/files/delete'
-import { openInIde } from '../../lib/ide'
+import { pathMenuItems } from '../../lib/path-menu'
 import { getTitle } from '@/lib/files/sorting'
-import { getPlatform } from '@/hooks/usePlatform'
-import { getPlatformString } from '@/lib/platform-strings'
 import { fieldMappings, getCollection } from '@/lib/project-scan'
 import { frontmatterSchema } from '@/lib/schema'
 
@@ -35,16 +32,6 @@ export class FileContextMenu {
       title: 'Delete File',
       kind: 'warning',
     })
-  }
-
-  private static getIdeCommand(): string | null {
-    try {
-      // Access global settings directly from the store
-      const { globalSettings } = useProjectStore.getState()
-      return globalSettings?.general?.ideCommand || null
-    } catch {
-      return null
-    }
   }
 
   private static generateDuplicatePath(originalPath: string): string {
@@ -70,9 +57,6 @@ export class FileContextMenu {
     onRename,
   }: ContextMenuOptions): Promise<void> {
     try {
-      // Get current IDE setting from global preferences
-      const ideCommand = FileContextMenu.getIdeCommand()
-
       // Get project path and settings from store
       const { projectPath } = useProjectStore.getState()
       if (!projectPath) {
@@ -81,46 +65,6 @@ export class FileContextMenu {
 
       // The file's collection's title field
       const titleField = fieldMappings(getCollection(file.collection)).title
-
-      // Create menu items
-      const currentPlatform = getPlatform()
-      const revealItem = await MenuItem.new({
-        id: 'reveal-in-finder',
-        text: getPlatformString('revealInFileManager', currentPlatform),
-        action: () => {
-          void (async () => {
-            try {
-              // Get the directory containing the file
-              const directory = file.path.substring(
-                0,
-                file.path.lastIndexOf('/')
-              )
-              await openPath(directory)
-            } catch (error) {
-              void logError(
-                `Failed to reveal in file manager: ${String(error)}`
-              )
-            }
-          })()
-        },
-      })
-
-      const copyPathItem = await MenuItem.new({
-        id: 'copy-path',
-        text: 'Copy Path',
-        action: () => {
-          void (async () => {
-            try {
-              const result = await commands.copyTextToClipboard(file.path)
-              if (result.status === 'error') {
-                throw new Error(result.error)
-              }
-            } catch (error) {
-              void logError(`Failed to copy path: ${String(error)}`)
-            }
-          })()
-        },
-      })
 
       const duplicateItem = await MenuItem.new({
         id: 'duplicate-file',
@@ -181,17 +125,6 @@ export class FileContextMenu {
         },
       })
 
-      // Create "Open in IDE" menu item if IDE is configured
-      const openInIdeItem = ideCommand
-        ? await MenuItem.new({
-            id: 'open-in-ide',
-            text: 'Open in IDE',
-            action: () => {
-              void openInIde(file.path, ideCommand)
-            },
-          })
-        : null
-
       const separator = await PredefinedMenuItem.new({
         text: 'separator',
         item: 'Separator',
@@ -227,11 +160,9 @@ export class FileContextMenu {
 
       // Create and show the context menu
       const menuItems = [
-        revealItem,
-        copyPathItem,
+        ...(await pathMenuItems(file.path)),
         duplicateItem,
         renameItem,
-        ...(openInIdeItem ? [openInIdeItem] : []),
         separator,
         deleteItem,
       ]

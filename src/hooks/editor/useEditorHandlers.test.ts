@@ -42,6 +42,7 @@ interface MockEditorState {
   isLoaded: boolean
   loadError: string | null
   frontmatterError: string | null
+  editingPaused: boolean
   openFile: Mock
   closeFile: Mock
   closeCurrentFile: Mock
@@ -75,6 +76,7 @@ describe('useEditorHandlers', () => {
       isLoaded: true,
       loadError: null,
       frontmatterError: null,
+      editingPaused: false,
       openFile: vi.fn(),
       closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),

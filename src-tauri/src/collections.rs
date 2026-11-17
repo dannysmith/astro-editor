@@ -338,6 +338,7 @@ fn resolve_project_settings(set: &ProjectSettings) -> ResolvedProjectSettings {
         ),
         add_component_imports: set_or(set.add_component_imports, false),
         reorder_frontmatter: set_or(set.reorder_frontmatter, false),
+        git_panel: set_or(set.git_panel, false),
         assets_directory: set_or(set.assets_directory.clone(), ASSETS_DIR.to_string()),
         use_absolute_asset_paths: set_or(set.use_absolute_asset_paths, false),
     }

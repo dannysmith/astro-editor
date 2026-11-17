@@ -183,6 +183,12 @@
   );
   /* Something AE is guessing at or can't fully use, like a missing schema */
   --warning: light-dark(oklch(0.56 0.14 60), oklch(0.8 0.14 70));
+  /* A file's git status, in the colours git tools use: new, changed,
+     deleted, conflicted */
+  --git-added: light-dark(oklch(0.55 0.14 150), oklch(0.78 0.14 150));
+  --git-modified: light-dark(oklch(0.62 0.13 75), oklch(0.82 0.12 80));
+  --git-deleted: light-dark(oklch(0.55 0.19 28), oklch(0.7 0.16 25));
+  --git-conflict: light-dark(oklch(0.52 0.17 300), oklch(0.75 0.13 300));
 
   /* Editor: the iA Writer palette, for the writing surface only. Keep all of
      it, used or not (see docs/developer/editor-styles.md) */
@@ -305,6 +311,10 @@
   --color-draft-bg: var(--draft-bg);
   --color-filter: var(--filter);
   --color-warning: var(--warning);
+  --color-git-added: var(--git-added);
+  --color-git-modified: var(--git-modified);
+  --color-git-deleted: var(--git-deleted);
+  --color-git-conflict: var(--git-conflict);
   --color-filter-bg: var(--filter-bg);
   --color-required: var(--required);
   --color-icon: var(--icon);

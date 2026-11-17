@@ -35,6 +35,12 @@ interface EditorState {
    * `rawFrontmatter` back unchanged
    */
   frontmatterError: string | null
+  /**
+   * While git rewrites files on disk (a pull), nothing may be edited: an edit
+   * not saved before the pull ends would keep the old text, and its save would
+   * undo the pulled changes. The editor is read-only and edits are ignored
+   */
+  editingPaused: boolean
 
   // Status state
   isDirty: boolean // True if ANY changes need to be saved
@@ -98,6 +104,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isLoaded: false,
   loadError: null,
   frontmatterError: null,
+  editingPaused: false,
   isDirty: false,
   isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
@@ -222,14 +229,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Marks the file dirty in the same update: until then, useEditorFileContent
   // would put back the imports from disk
   setImports: (imports: string) => {
-    if (!get().isLoaded) return
+    if (!get().isLoaded || get().editingPaused) return
     set({ imports, isDirty: true })
     get().scheduleAutoSave()
   },
 
   updateFrontmatterField: (key: string, value: unknown) => {
-    const { frontmatter, isLoaded, frontmatterError } = get()
-    if (!isLoaded || frontmatterError) return
+    const { frontmatter, isLoaded, frontmatterError, editingPaused } = get()
+    if (!isLoaded || frontmatterError || editingPaused) return
 
     // Clearing a field removes its key (and any parent objects left empty)
     // rather than writing `title: ''` or `tags: []` into the file

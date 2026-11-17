@@ -91,6 +91,11 @@ objc2-web-kit = { version = "0.3", default-features = false, features = [
   "WKSnapshotConfiguration",
 ] }
 
+# Killing a timed-out git command with the hooks it started (git/runner.rs,
+# shell_path.rs)
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3.27"
 toml = "1.1.8"

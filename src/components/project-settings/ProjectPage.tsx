@@ -12,6 +12,7 @@ import {
   projectProblems,
 } from '../../lib/project-settings/status'
 import { DocsLink } from '../preferences/DocsLink'
+import { GitSettings } from './GitSettings'
 import { ProjectIcon } from '../project-list'
 import { ProblemCallout, WithCode } from './Problems'
 import {
@@ -235,6 +236,8 @@ export function ProjectPage({
           )}
         </Setting>
       </SettingsGroup>
+
+      <GitSettings projectPath={projectPath} gitPanel={resolved.gitPanel} />
 
       {removed.length > 0 && (
         <SettingsGroup title="Removed Collections">

@@ -56,6 +56,17 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::project::scan_collection_files_recursive,
             crate::commands::project::new_file_name,
             crate::commands::project::rename_entry,
+            // git.rs commands
+            crate::commands::git::git_setup,
+            crate::commands::git::git_state,
+            crate::commands::git::git_stage,
+            crate::commands::git::git_unstage,
+            crate::commands::git::git_commit,
+            crate::commands::git::git_push,
+            crate::commands::git::git_pull,
+            crate::commands::git::git_check_remote,
+            crate::commands::git::git_watch_start,
+            crate::commands::git::git_watch_stop,
             // watcher.rs commands
             crate::commands::watcher::start_watching_project,
             crate::commands::watcher::stop_watching_project,

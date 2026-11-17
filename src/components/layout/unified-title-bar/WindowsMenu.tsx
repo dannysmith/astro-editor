@@ -8,7 +8,11 @@ import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { commands } from '@/lib/bindings'
 import { toast } from '@/lib/toast'
-import { RIGHT_SIDEBAR_TABS } from '@/lib/right-sidebar'
+import {
+  RIGHT_SIDEBAR_TABS,
+  isRightSidebarTabAvailable,
+} from '@/lib/right-sidebar'
+import { useResolvedProjectSettings } from '../../../hooks/settings/useCollectionSettings'
 import { Button } from '../../ui/button'
 import {
   DropdownMenu,
@@ -27,6 +31,7 @@ export const WindowsMenu: React.FC = () => {
   const currentFile = useEditorStore(state => state.currentFile)
   const isDirty = useEditorStore(state => state.isDirty)
   const selectedCollection = useProjectStore(state => state.selectedCollection)
+  const projectSettings = useResolvedProjectSettings()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
@@ -156,7 +161,9 @@ export const WindowsMenu: React.FC = () => {
         <DropdownMenuItem onClick={handleToggleRightSidebar}>
           Toggle Right Sidebar
         </DropdownMenuItem>
-        {RIGHT_SIDEBAR_TABS.map(tab => (
+        {RIGHT_SIDEBAR_TABS.filter(tab =>
+          isRightSidebarTabAvailable(tab.id, projectSettings)
+        ).map(tab => (
           <DropdownMenuItem
             key={tab.id}
             onClick={() => void emit('menu-toggle-right-sidebar-tab', tab.id)}

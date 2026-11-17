@@ -5,6 +5,7 @@ import { commands } from '@/lib/bindings'
 import { queryKeys } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
 import { useProjectStore } from '@/store/projectStore'
+import { useGitPanelStore } from '@/store/gitPanelStore'
 
 interface RenameFilePayload {
   oldPath: string
@@ -33,6 +34,9 @@ export const useRenameFileMutation = () => {
     mutationFn: renameFile,
     onSuccess: (_, variables) => {
       const { currentSubdirectory } = useProjectStore.getState()
+      useGitPanelStore
+        .getState()
+        .rememberRename(variables.oldPath, variables.newPath)
 
       // Invalidate current directory view to show the renamed file
       void queryClient.invalidateQueries({

@@ -129,6 +129,51 @@ export const commands = {
 	 */
 	renameEntry: (filePath: string, collection: Collection, stem: string, projectRoot: string) => typedError<string | null, string>(__TAURI_INVOKE("rename_entry", { filePath, collection, stem, projectRoot })),
 	/**
+	 *  What Project Settings shows about git for the project at `project_path`:
+	 *  the `git` found, the repository, and the config that affects committing
+	 */
+	gitSetup: (projectPath: string) => typedError<GitSetup, string>(__TAURI_INVOKE("git_setup", { projectPath })),
+	/**
+	 *  What the Git tab shows: the branch, the changes in the project folder, and
+	 *  the state of the entry at `entry_path` (absolute) if one is open
+	 */
+	gitState: (projectPath: string, entryPath: string | null) => typedError<GitState, string>(__TAURI_INVOKE("git_state", { projectPath, entryPath })),
+	/**  Stages `paths` (relative to the repository root) for a commit */
+	gitStage: (projectPath: string, paths: string[]) => typedError<null, string>(__TAURI_INVOKE("git_stage", { projectPath, paths })),
+	/**  Takes `paths` out of the index again, as cancelling a commit does */
+	gitUnstage: (projectPath: string, paths: string[]) => typedError<null, string>(__TAURI_INVOKE("git_unstage", { projectPath, paths })),
+	/**
+	 *  Stages `paths` again, to take edits saved since, and commits everything
+	 *  staged. Returns the commit's abbreviated hash.
+	 */
+	gitCommit: (projectPath: string, paths: string[], message: string) => typedError<string, string>(__TAURI_INVOKE("git_commit", { projectPath, paths, message })),
+	/**  Pushes the branch to its upstream */
+	gitPush: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_push", { projectPath })),
+	/**
+	 *  Fetches and brings in the upstream's new commits, only when that can be
+	 *  done cleanly. Returns how many commits came in.
+	 */
+	gitPull: (projectPath: string) => typedError<number, string>(__TAURI_INVOKE("git_pull", { projectPath })),
+	/**
+	 *  Checks the branch's remote can be reached, for Project Settings. Returns
+	 *  its URL.
+	 */
+	gitCheckRemote: (projectPath: string) => typedError<string, string>(__TAURI_INVOKE("git_check_remote", { projectPath })),
+	/**
+	 *  Watches the project's git folder and sends `git-changed` (with the project
+	 *  path) when something changes there: a commit, staging, a branch switch, a
+	 *  push or fetch (remote refs move), or a merge or rebase starting or ending.
+	 *  That's how the tab notices git used from another app. Replaces any earlier
+	 *  watcher. Returns a number to stop it with, or `None` when there's nothing
+	 *  to watch (the project isn't in a repository) or a later start won.
+	 */
+	gitWatchStart: (projectPath: string) => typedError<number | null, string>(__TAURI_INVOKE("git_watch_start", { projectPath })),
+	/**
+	 *  Stops the git folder watcher `git_watch_start` returned `id` for, if it's
+	 *  still the one running
+	 */
+	gitWatchStop: (id: number) => typedError<null, string>(__TAURI_INVOKE("git_watch_stop", { id })),
+	/**
 	 *  Watches a project. `folders` are its collection folders, which can be anywhere
 	 *  in the project.
 	 */
@@ -392,6 +437,159 @@ export type GeneralSettings = {
 	defaultFileType: FileType,
 };
 
+/**  One changed, new or conflicted file */
+export type GitChange = {
+	/**  Relative to the repository root */
+	path: string,
+	/**  For a rename or copy, the path it came from */
+	originalPath: string | null,
+	kind: GitChangeKind,
+	/**  Some of the change is in the index (staged, by AE or another tool) */
+	staged: boolean,
+	/**
+	 *  Some of the change is only in the working tree. Untracked files are
+	 *  neither staged nor unstaged.
+	 */
+	unstaged: boolean,
+	/**  A submodule rather than a file */
+	submodule: boolean,
+};
+
+export type GitChangeKind = 
+/**  Untracked, or added to the index but not committed */
+"new" | "modified" | "deleted" | "renamed" | 
+/**  Has unresolved conflicts */
+"conflicted";
+
+export type GitCommit = {
+	/**  Abbreviated */
+	hash: string,
+	subject: string,
+	author: string,
+	/**  Seconds since the Unix epoch */
+	time: number,
+};
+
+/**  A config value and the file it comes from */
+export type GitConfigValue = {
+	value: string,
+	/**
+	 *  Where it's set, as git reports it: a path like `/Users/me/.gitconfig` or
+	 *  `.git/config`, or `command line`
+	 */
+	origin: string,
+};
+
+export type GitEntry = {
+	/**  Relative to the repository root. Empty when it's outside the repository. */
+	path: string,
+	state: GitEntryState,
+	/**  The last commit that changed it, if it's been committed */
+	lastCommit: GitCommit | null,
+};
+
+export type GitEntryState = "new" | "modified" | "deleted" | "renamed" | "conflicted" | 
+/**  Committed, with no changes since */
+"unchanged" | "ignored" | 
+/**  Its real path (after symlinks) is outside the project's repository */
+"outsideRepository";
+
+/**  Something git is in the middle of, which only a git tool should finish */
+export type GitOperation = "merge" | "rebase" | "cherryPick" | "revert";
+
+export type GitProblem = { kind: "notInstalled" } | 
+/**  macOS's `/usr/bin/git` needs the command line tools */
+{ kind: "commandLineToolsMissing" } | { kind: "notARepository" } | 
+/**  The project is in a folder the repository at `root` ignores */
+{ kind: "ignored"; root: string } | 
+/**  git failed, with its message */
+{ kind: "failed"; message: string };
+
+export type GitProgram = {
+	path: string,
+	/**  Like `2.56.1` or `2.50.1 (Apple Git-155)` */
+	version: string,
+};
+
+export type GitRepository = {
+	root: string,
+	/**
+	 *  The project's folder within the repository, like `docs`. `None` when
+	 *  the project is the repository's root.
+	 */
+	projectFolder: string | null,
+	/**  The parent repository, when this one is a submodule */
+	superproject: string | null,
+	/**  `None` when HEAD is detached */
+	branch: string | null,
+	/**  Like `origin/main` */
+	upstream: string | null,
+	ahead: number,
+	behind: number,
+	/**  False until the first commit */
+	hasCommits: boolean,
+	operation: GitOperation | null,
+	userName: GitConfigValue | null,
+	userEmail: GitConfigValue | null,
+	/**  The signature format (`openpgp`, `ssh`, `x509`) when commits are signed */
+	signing: string | null,
+	/**  The hooks a commit or push from AE runs, in the order they run */
+	hooks: string[],
+};
+
+export type GitSetup = {
+	/**  `None` when there's no `git` to run */
+	git: GitProgram | null,
+	/**  Why git can't be used for this project, if it can't */
+	problem: GitProblem | null,
+	/**  Set when the project is in a repository git can read */
+	repository: GitRepository | null,
+};
+
+export type GitState = {
+	/**  Why git can't be used for the project, if it can't */
+	problem: GitProblem | null,
+	/**  Set when the project is in a repository git can read */
+	tree: GitWorkingTree | null,
+};
+
+export type GitWorkingTree = {
+	root: string,
+	/**  The project folder within the root, like `docs/`. Empty at the root. */
+	prefix: string,
+	/**  `None` when HEAD is detached */
+	branch: string | null,
+	upstream: string | null,
+	ahead: number,
+	behind: number,
+	hasCommits: boolean,
+	operation: GitOperation | null,
+	/**  The parent repository's root, when this one is a submodule */
+	superproject: string | null,
+	/**
+	 *  Commits on the branch that aren't on its upstream (to push), newest
+	 *  first, up to `COMMIT_LIST_LIMIT`
+	 */
+	outgoing: GitCommit[],
+	/**
+	 *  Commits on the upstream that aren't on the branch (to pull), as of the
+	 *  last fetch
+	 */
+	incoming: GitCommit[],
+	/**
+	 *  Changed, new and conflicted files in the project folder, without
+	 *  submodules. Paths are relative to `root`.
+	 */
+	changes: GitChange[],
+	/**
+	 *  Everything staged in the repository, in and out of the project folder:
+	 *  what a commit would take
+	 */
+	staged: GitChange[],
+	/**  The open entry, when one was asked about */
+	entry: GitEntry | null,
+};
+
 export type GlobalSettings = {
 	general: GeneralSettings,
 	appearance: AppearanceSettings,
@@ -565,6 +763,11 @@ export type ProjectSettings = {
 	 *  rest alphabetically
 	 */
 	reorderFrontmatter?: boolean | null,
+	/**
+	 *  Experimental: the Git tab in the right sidebar, and its report in
+	 *  Project Settings. Off, AE runs no git commands for the project.
+	 */
+	gitPanel?: boolean | null,
 };
 
 /**  A project's stored settings, as the frontend reads and edits them */
@@ -642,6 +845,7 @@ export type ResolvedProjectSettings = {
 	mdxComponentsDirectories: Resolved<string[]>,
 	addComponentImports: Resolved<boolean>,
 	reorderFrontmatter: Resolved<boolean>,
+	gitPanel: Resolved<boolean>,
 	/**  The project's default for collections. Relative to the project root. */
 	assetsDirectory: Resolved<string>,
 	/**  The project's default for collections */

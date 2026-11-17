@@ -125,6 +125,7 @@ In `docs/developer/`. Read the ones for the area you're working in.
 - `optimization.md`: build and bundle settings
 - `releases.md`: cutting a release, hotfixes, test builds, CI, updates and signing
 - `agent-tooling.md`: the dev identity, agent bridge, styleguide and logs
+- `git.md`: the experimental Git panel: running the user's git, finding the repository, testing
 
 ## Tasks
 
