@@ -26,13 +26,15 @@ On macOS, `/usr/bin/git` is a stand-in that opens Apple's installer dialog when 
 - **`-c core.quotepath=off`,** so paths come back as UTF-8, unquoted.
 - **`GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` removed,** since inherited they'd point every command at another repository.
 
+**Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks or `quotepath` settings. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them.
+
 Success is the exit code, never an empty stderr: git prints warnings and hints when it succeeds.
 
 ## Finding the repository
 
 `git::repo::discover` runs `rev-parse` from the project folder, which looks up through parent folders, so a site in `docs/` of a monorepo is found. Then, if the project isn't the repository's root, `check-ignore` asks whether the repository ignores the project's folder. If it does, the project is treated as not being in a repository. Otherwise anything committed from a site kept in an ignored folder would land in the parent repository, which is exactly what a stray `git add -A` did once while this was being researched.
 
-Every command that writes takes explicit paths. Never `add -A`, `commit -a`, or anything else repository-wide.
+Every command that changes the index takes explicit paths. Never `add -A`, `commit -a`, or anything else repository-wide.
 
 ## Keeping the Git tab current
 
@@ -49,6 +51,16 @@ Not seen until one of those happens: images or other non-content files changed b
 ## Which files go with the entry
 
 `lib/git/entry-files.ts` decides which changes are ticked for the open entry's commit: the entry, files whose name appears in its text as the editor has it, and the folder of a `folder/index.md` entry. Other content files never join, even when the entry links to them. The panel works this out in a store selector that returns only the list of paths, so typing doesn't re-render it; only adding or removing a file name does.
+
+## Staging and committing
+
+The tab follows git's own two steps, so what's committed is never a surprise. **Stage** saves the entry, then `git add`s the entry and the ticked files (`git::commit::stage`; `add` stages a deleted path's removal too). The card then shows everything in the index, read from git (`git diff --cached` across the whole repository, not just the project folder), with anything AE didn't stage marked "staged outside AE": `git commit` takes the whole index, and a monorepo may have work staged outside the site. **Cancel** runs `git reset` on the paths AE staged. **Commit** saves again, stages the same paths again (so edits saved while the card was open go in), and runs a plain `git commit`.
+
+Plain `commit` rather than `commit --only <paths>` is deliberate: with `--only`, a `pre-commit` hook that reformats and re-stages a file leaves the index holding the pre-hook version, and status shows the file changed straight after committing. After a commit, AE reloads the open entry from disk if it has no unsaved edits, since a hook may have rewritten it and the file watcher ignores changes just after AE's own save.
+
+Writes run one at a time across the app (a mutex in `git::commit`), with a longer timeout than reads, since hooks and signing can be slow. Git's message is shown as it is: a refusing hook's output, a missing identity, a held `index.lock`.
+
+An entry AE renamed this session (`gitPanelStore.renamedFrom`) brings its old path along, ticked: git sees a rename as the old path deleted and the new one added, and committing only the new one would leave the deletion behind.
 
 ## Testing
 

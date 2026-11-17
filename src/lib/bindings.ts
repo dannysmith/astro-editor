@@ -138,6 +138,15 @@ export const commands = {
 	 *  the state of the entry at `entry_path` (absolute) if one is open
 	 */
 	gitState: (projectPath: string, entryPath: string | null) => typedError<GitState, string>(__TAURI_INVOKE("git_state", { projectPath, entryPath })),
+	/**  Stages `paths` (relative to the repository root) for a commit */
+	gitStage: (projectPath: string, paths: string[]) => typedError<null, string>(__TAURI_INVOKE("git_stage", { projectPath, paths })),
+	/**  Takes `paths` out of the index again, as cancelling a commit does */
+	gitUnstage: (projectPath: string, paths: string[]) => typedError<null, string>(__TAURI_INVOKE("git_unstage", { projectPath, paths })),
+	/**
+	 *  Stages `paths` again, to take edits saved since, and commits everything
+	 *  staged. Returns the commit's abbreviated hash.
+	 */
+	gitCommit: (projectPath: string, paths: string[], message: string) => typedError<string, string>(__TAURI_INVOKE("git_commit", { projectPath, paths, message })),
 	/**
 	 *  Watches the project's git folder and sends `git-changed` (with the project
 	 *  path) when something changes there: a commit, staging, a branch switch, a
@@ -544,6 +553,11 @@ export type GitWorkingTree = {
 	 *  submodules. Paths are relative to `root`.
 	 */
 	changes: GitChange[],
+	/**
+	 *  Everything staged in the repository, in and out of the project folder:
+	 *  what a commit would take
+	 */
+	staged: GitChange[],
 	/**  The open entry, when one was asked about */
 	entry: GitEntry | null,
 };

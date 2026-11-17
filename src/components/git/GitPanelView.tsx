@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDown,
   ArrowUp,
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { fileName } from '../../lib/git/entry-files'
 import { gitProblem, readOnlyReason } from '../../lib/git/setup'
 import { changeStatus, type GitTone } from '../../lib/git/status'
+import type { GitWrite } from '../../lib/git/actions'
 import { formatLastOpened } from '../../lib/projects/display'
 import { ProblemCallout } from '../project-settings/Problems'
 
@@ -39,8 +40,29 @@ const LETTER_COLOURS: Record<GitTone, string> = {
   conflict: 'text-git-conflict',
 }
 
-/** Says why the commit and push buttons don't work yet */
-const NOT_YET = 'Committing and pushing from AE come next'
+/** Says why the push button doesn't work yet */
+const NOT_YET = 'Pushing from AE comes next'
+
+/** Staging and committing the open entry, from `GitPanel` */
+export interface GitCommitProps {
+  /** Whether AE has staged files for the entry, with the card open */
+  staging: boolean
+  /** The paths AE staged, so others in the index are marked */
+  ourPaths: string[]
+  /** The write under way, if any */
+  pending: GitWrite['action'] | null
+  /** Which write failed last, and why, in git's words */
+  error: { action: GitWrite['action']; message: string } | null
+  /** The hash of the commit just made for the entry */
+  committed: string | null
+  /** The commit message: the prefill, or what's been typed for this entry */
+  message: string
+  onMessageChange: (message: string) => void
+  /** Stages these paths, relative to the repository root */
+  onStage: (paths: string[]) => void
+  onUnstage: () => void
+  onCommit: () => void
+}
 
 export interface GitPanelViewProps {
   /** Undefined until git has been read once */
@@ -69,13 +91,7 @@ export interface GitPanelViewProps {
   /** Opens a changed content file */
   onOpen: (change: GitChange) => void
   onOpenSettings: () => void
-  /** Whether the ticked files are staged, with the commit card open */
-  staging: boolean
-  /** The commit message: the prefill, or what's been typed for this entry */
-  message: string
-  onMessageChange: (message: string) => void
-  onStage: () => void
-  onUnstage: () => void
+  commit: GitCommitProps
   /** For relative dates, so the styleguide stays the same */
   now?: Date
 }
@@ -95,18 +111,14 @@ export function GitPanelView({
   onTick,
   onOpen,
   onOpenSettings,
-  staging,
-  message,
-  onMessageChange,
-  onStage,
-  onUnstage,
+  commit,
   now,
 }: GitPanelViewProps) {
   const tree = state?.tree
   const readOnly = tree && readOnlyReason(tree, tree.changes)
   const rows = {
     prefix: tree?.prefix ?? '',
-    locked: staging,
+    locked: commit.staging || commit.pending !== null,
     isTicked,
     onTick,
     onOpen,
@@ -150,19 +162,7 @@ export function GitPanelView({
               now={now}
             />
             {!readOnly && gitEntry.state !== 'outsideRepository' && (
-              <CommitCard
-                changes={toStage}
-                alreadyStaged={tree.changes.filter(
-                  c => c.staged && !toStage.includes(c)
-                )}
-                branch={tree.branch}
-                staging={staging}
-                message={message}
-                onMessageChange={onMessageChange}
-                prefix={tree.prefix}
-                onStage={onStage}
-                onUnstage={onUnstage}
-              />
+              <CommitCard toStage={toStage} tree={tree} {...commit} />
             )}
           </section>
         )}
@@ -343,93 +343,96 @@ const UNCHANGED_LABELS: Partial<Record<GitEntry['state'], string>> = {
 
 /**
  * Staging and committing the entry with the files ticked below. Folded, it's
- * the Stage button; staged, it's `StagedCard`.
+ * the Stage button (and the last commit's hash, once there is one); staged,
+ * it's `StagedCard`.
  */
 function CommitCard({
-  changes,
-  alreadyStaged,
-  branch,
-  staging,
-  message,
-  onMessageChange,
-  prefix,
-  onStage,
-  onUnstage,
-}: {
+  toStage,
+  tree,
+  ...commit
+}: GitCommitProps & {
   /** The entry's change and the ticked files */
-  changes: GitChange[]
-  /** Files staged by something else, which a commit would also take */
-  alreadyStaged: GitChange[]
-  branch: string | null
-  staging: boolean
-  message: string
-  onMessageChange: (message: string) => void
-  prefix: string
-  onStage: () => void
-  onUnstage: () => void
+  toStage: GitChange[]
+  tree: GitWorkingTree
 }) {
-  const count = changes.length
-  const files = `${count} ${count === 1 ? 'file' : 'files'}`
-  if (!staging) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        disabled={count === 0}
-        onClick={onStage}
-      >
-        {count === 0 ? 'Nothing to stage' : `Stage ${files}`}
-      </Button>
-    )
-  }
-  return (
-    <StagedCard
-      changes={changes}
-      alreadyStaged={alreadyStaged}
-      branch={branch}
-      message={message}
-      onMessageChange={onMessageChange}
-      prefix={prefix}
-      onUnstage={onUnstage}
+  const errorCallout = commit.error && (
+    <ProblemCallout
+      problem={{
+        level: 'error',
+        message: ERROR_MESSAGES[commit.error.action],
+        detail: commit.error.message,
+      }}
     />
   )
+  if (!commit.staging) {
+    const count = toStage.length
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={count === 0 || commit.pending !== null}
+          onClick={() => commit.onStage(toStage.map(change => change.path))}
+        >
+          {commit.pending === 'stage'
+            ? 'Staging…'
+            : count === 0
+              ? 'Nothing to stage'
+              : `Stage ${files(count)}`}
+        </Button>
+        {errorCallout}
+        {commit.committed && !commit.error && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CircleCheck className="size-3.5 shrink-0 text-git-added" />
+            Committed <span className="font-mono">{commit.committed}</span>
+            {tree.branch && ` to ${tree.branch}`}
+          </p>
+        )}
+      </>
+    )
+  }
+  return <StagedCard {...commit} tree={tree} errorCallout={errorCallout} />
+}
+
+/** What failed, by the write that failed */
+const ERROR_MESSAGES: Record<GitWrite['action'], string> = {
+  stage: "Git couldn't stage the files.",
+  unstage: "Git couldn't unstage the files.",
+  commit: "Git couldn't commit.",
+}
+
+function files(count: number): string {
+  return `${count} ${count === 1 ? 'file' : 'files'}`
 }
 
 /**
  * The open commit card: a banner saying the files are staged, the message
  * (focused and selected, ready to type over), Cancel and Commit, and exactly
- * what the commit will hold.
+ * what the commit will hold, as git has it
  */
 function StagedCard({
-  changes,
-  alreadyStaged,
-  branch,
+  tree,
+  errorCallout,
+  ourPaths,
+  pending,
   message,
   onMessageChange,
-  prefix,
   onUnstage,
-}: {
-  changes: GitChange[]
-  alreadyStaged: GitChange[]
-  branch: string | null
-  message: string
-  onMessageChange: (message: string) => void
-  prefix: string
-  onUnstage: () => void
-}) {
+  onCommit,
+}: GitCommitProps & { tree: GitWorkingTree; errorCallout: ReactNode }) {
   const messageRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     messageRef.current?.focus()
     messageRef.current?.select()
   }, [])
-  const count = changes.length + alreadyStaged.length
-  const files = `${count} ${count === 1 ? 'file' : 'files'}`
+  const count = tree.staged.length
+  const canCommit = pending === null && message.trim() !== ''
   return (
     <div className="overflow-hidden rounded-md border bg-muted/30">
       <p className="flex items-center gap-1.5 bg-git-added/15 px-3 py-1.5 text-xs font-medium text-foreground">
         <CircleCheck className="size-3.5 shrink-0 text-git-added" />
-        {files} staged for commit
+        {files(count)} staged for commit
       </p>
       <div className="space-y-3 p-3">
         <div className="space-y-1.5">
@@ -441,45 +444,53 @@ function StagedCard({
             id="git-commit-message"
             value={message}
             onChange={event => onMessageChange(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && event.metaKey && canCommit) {
+                event.preventDefault()
+                onCommit()
+              }
+            }}
             rows={2}
             className="resize-none bg-background text-sm"
           />
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onUnstage}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending !== null}
+            onClick={onUnstage}
+          >
             Cancel
           </Button>
-          <Button size="sm" disabled title={NOT_YET}>
-            Commit {files}
+          <Button
+            size="sm"
+            disabled={!canCommit}
+            onClick={onCommit}
+            title="Commit (⌘↩)"
+          >
+            {pending === 'commit' ? 'Committing…' : `Commit ${files(count)}`}
           </Button>
         </div>
+        {errorCallout}
         <div className="space-y-1 text-xs text-muted-foreground">
-          <p>To be committed to {branch ?? 'this commit'}:</p>
+          <p>To be committed to {tree.branch ?? 'this commit'}:</p>
           <ul className="space-y-0.5">
-            {[...changes, ...alreadyStaged].map(change => {
-              // As git will have it once staged
-              const status = changeStatus({
-                ...change,
-                staged: true,
-                unstaged: false,
-              })
-              const elsewhere = alreadyStaged.includes(change)
-              return (
-                <li
-                  key={change.path}
-                  className="flex items-center gap-2"
-                  title={change.path.slice(prefix.length)}
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    {fileName(change.path)}
-                    {elsewhere && (
-                      <span className="italic"> · staged outside AE</span>
-                    )}
-                  </span>
-                  <StatusLetter status={status} />
-                </li>
-              )
-            })}
+            {tree.staged.map(change => (
+              <li
+                key={change.path}
+                className="flex items-center gap-2"
+                title={change.path}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {fileName(change.path)}
+                  {!ourPaths.includes(change.path) && (
+                    <span className="italic"> · staged outside AE</span>
+                  )}
+                </span>
+                <StatusLetter status={changeStatus(change)} />
+              </li>
+            ))}
           </ul>
         </div>
       </div>

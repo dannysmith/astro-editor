@@ -8,6 +8,7 @@
 //! Nothing here changes files in the working tree. Commands that write take
 //! explicit paths, never `add -A` or `commit -a`. See `docs/developer/git.md`.
 
+pub mod commit;
 pub mod repo;
 pub mod runner;
 pub mod setup;

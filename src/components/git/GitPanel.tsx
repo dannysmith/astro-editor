@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useShallow } from 'zustand/react/shallow'
 import type { GitChange } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
@@ -9,6 +10,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { useGitStateQuery } from '../../hooks/queries/useGitStateQuery'
 import { useGitRefresh } from '../../hooks/git/useGitRefresh'
 import { useFieldMappings } from '../../hooks/settings'
+import { runGitWrite, type GitWrite } from '../../lib/git/actions'
 import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
@@ -58,7 +60,21 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       useGitPanelStore.getState().rememberNamed(entryKey, used)
     }
   }, [entryKey, used])
-  const groups = groupChanges({ changes, entryPath, used, named })
+  // An entry renamed this session: git sees its old path deleted, and that
+  // goes with it
+  const renamedFrom = useGitPanelStore(state =>
+    currentFile ? state.renamedFrom[currentFile.path] : undefined
+  )
+  const oldPath =
+    renamedFrom && tree && renamedFrom.startsWith(`${tree.root}/`)
+      ? renamedFrom.slice(tree.root.length + 1)
+      : null
+  const goesWith =
+    oldPath &&
+    changes.some(change => change.path === oldPath && change.kind === 'deleted')
+      ? [...used, oldPath]
+      : used
+  const groups = groupChanges({ changes, entryPath, used: goesWith, named })
 
   const { title: titleField } = useFieldMappings(currentFile?.collection)
   const title = useEditorStore(state => {
@@ -74,10 +90,41 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   const [messages, setMessages] = useState<Record<string, string>>({})
   const message = messages[entryPath] ?? prefill
 
-  // Which entry has its files staged, with the commit card open. Drawn only
-  // for now: nothing is staged in git yet
-  const [stagedFor, setStagedFor] = useState('')
-  const staging = entryPath !== '' && stagedFor === entryPath
+  // The files AE staged, and for which entry. The card stays open while
+  // they're staged, and folds if git's index is emptied elsewhere
+  const [stagedFor, setStagedFor] = useState<{
+    entry: string
+    paths: string[]
+  } | null>(null)
+  const ours = stagedFor?.entry === entryPath ? stagedFor.paths : null
+  const staging = ours !== null && (tree?.staged.length ?? 0) > 0
+  const [committed, setCommitted] = useState<{
+    entry: string
+    hash: string
+  } | null>(null)
+
+  const write = useMutation({
+    mutationFn: (write: GitWrite) => runGitWrite(projectPath, write),
+    onSuccess: async (hash, write) => {
+      if (write.action === 'stage') {
+        setStagedFor({ entry: write.entry, paths: write.paths })
+        setCommitted(null)
+      } else {
+        setStagedFor(null)
+      }
+      if (write.action === 'commit' && hash) {
+        setCommitted({ entry: write.entry, hash })
+        setMessages(typed =>
+          Object.fromEntries(
+            Object.entries(typed).filter(([entry]) => entry !== write.entry)
+          )
+        )
+      }
+      // Stays pending until the tab shows what git now has
+      await refetch()
+    },
+  })
+  const forEntry = write.variables?.entry === entryPath
 
   // What's been ticked or unticked by hand, for this entry. Opening another
   // entry starts again.
@@ -105,7 +152,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       used={groups.used}
       unused={groups.unused}
       others={groups.others}
-      isTicked={path => overrides[path] ?? used.includes(path)}
+      isTicked={path => overrides[path] ?? goesWith.includes(path)}
       onTick={(path, ticked) =>
         setTicks({
           entry: entryPath,
@@ -114,11 +161,36 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       }
       onOpen={change => void openChange(projectPath, tree?.root, change)}
       onOpenSettings={() => showProjectSettings()}
-      staging={staging}
-      message={message}
-      onMessageChange={text => setMessages({ ...messages, [entryPath]: text })}
-      onStage={() => setStagedFor(entryPath)}
-      onUnstage={() => setStagedFor('')}
+      commit={{
+        staging,
+        ourPaths: ours ?? [],
+        pending: write.isPending && forEntry ? write.variables.action : null,
+        error:
+          write.error && forEntry
+            ? { action: write.variables.action, message: write.error.message }
+            : null,
+        committed: committed?.entry === entryPath ? committed.hash : null,
+        message,
+        onMessageChange: text =>
+          setMessages({ ...messages, [entryPath]: text }),
+        onStage: paths =>
+          write.mutate({ action: 'stage', entry: entryPath, paths }),
+        onUnstage: () => {
+          if (ours) {
+            write.mutate({ action: 'unstage', entry: entryPath, paths: ours })
+          }
+        },
+        onCommit: () => {
+          if (ours) {
+            write.mutate({
+              action: 'commit',
+              entry: entryPath,
+              paths: ours,
+              message: message.trim(),
+            })
+          }
+        },
+      }}
     />
   )
 }

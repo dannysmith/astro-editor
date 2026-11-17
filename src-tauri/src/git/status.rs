@@ -42,6 +42,57 @@ pub fn read(git: &Git, repository: &Repository, untracked: bool) -> Result<Statu
     Ok(parse(&output.stdout))
 }
 
+/// Everything staged in `repository`, in and out of the project folder: what
+/// `git commit` would take. Each change is marked staged, and not unstaged,
+/// since only its staged part is described.
+pub fn read_staged(git: &Git, repository: &Repository) -> Result<Vec<GitChange>, String> {
+    let output = git.run(
+        &repository.root,
+        &["diff", "--cached", "--name-status", "-z", "-M"],
+        READ_TIMEOUT,
+    )?;
+    if !output.success() {
+        return Err(output.error_message());
+    }
+    Ok(parse_staged(&output.stdout))
+}
+
+/// Parses `diff --name-status -z`: a status (`M`, `A`, `D`, `T`, `U`, or `R`
+/// and `C` with a score), then the path, or for `R` and `C` the old path and
+/// then the new one
+pub fn parse_staged(output: &[u8]) -> Vec<GitChange> {
+    let text = String::from_utf8_lossy(output);
+    let mut fields = text.split('\0').filter(|f| !f.is_empty());
+    let mut changes = Vec::new();
+    while let Some(status) = fields.next() {
+        let Some(first) = fields.next() else { break };
+        let (path, original_path, kind) = match status.chars().next() {
+            Some('R') | Some('C') => {
+                let Some(second) = fields.next() else { break };
+                let kind = if status.starts_with('R') {
+                    GitChangeKind::Renamed
+                } else {
+                    GitChangeKind::New
+                };
+                (second, Some(first.to_string()), kind)
+            }
+            Some('A') => (first, None, GitChangeKind::New),
+            Some('D') => (first, None, GitChangeKind::Deleted),
+            Some('U') => (first, None, GitChangeKind::Conflicted),
+            _ => (first, None, GitChangeKind::Modified),
+        };
+        changes.push(GitChange {
+            path: path.to_string(),
+            original_path,
+            kind,
+            staged: true,
+            unstaged: false,
+            submodule: false,
+        });
+    }
+    changes
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Status {
     pub branch: BranchStatus,
@@ -195,8 +246,8 @@ fn staging(xy: &str) -> (bool, bool) {
     )
 }
 
-/// The kind of an ordinary change from its index (X) and worktree (Y) letters.
-/// AE doesn't show the staging area, so the two are read together.
+/// The kind of an ordinary change from its index (X) and worktree (Y) letters,
+/// read together: the kind is the same whether it's staged or not.
 fn ordinary_kind(xy: &str) -> GitChangeKind {
     let mut letters = xy.chars();
     let (x, y) = (letters.next().unwrap_or('.'), letters.next().unwrap_or('.'));
@@ -231,6 +282,24 @@ mod tests {
             unstaged,
             ..change
         }
+    }
+
+    #[test]
+    fn reads_what_is_staged() {
+        let output = b"M\0docs/a.md\0A\0new file.jpg\0D\0gone.md\0R087\0old.md\0renamed.md\0";
+        let renamed = GitChange {
+            original_path: Some("old.md".to_string()),
+            ..change("renamed.md", GitChangeKind::Renamed)
+        };
+        assert_eq!(
+            parse_staged(output),
+            vec![
+                staged(change("docs/a.md", GitChangeKind::Modified), false),
+                staged(change("new file.jpg", GitChangeKind::New), false),
+                staged(change("gone.md", GitChangeKind::Deleted), false),
+                staged(renamed, false),
+            ]
+        );
     }
 
     #[test]

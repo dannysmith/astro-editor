@@ -108,14 +108,18 @@ Refreshing replaces the lists but keeps what you've ticked and typed: a ticked p
 
 ## Committing
 
-1. Save the open file if it has unsaved edits. If the save fails, stop.
-2. `git add -- <ticked>`, then `git commit -m <message> --only -- <ticked>`.
-3. `git reset -q -- <ticked>`. A pre-commit hook that reformats and re-stages a file (lint-staged + prettier) leaves the real index holding the pre-hook version when `--only` is used, so status shows `MM` (seen in a spike). Resetting those paths to the commit fixes it.
-4. If the open file on disk now differs from the editor and the editor has no unsaved edits, reload it. A hook may have rewritten it, and `useFileChangeHandler` ignores watcher events for 3 seconds after our own save, so that change would be missed and the next auto-save would undo it.
+In two steps, as git does it (see phase 3a for the card):
 
-Editing isn't blocked while it runs. Keystrokes during a commit either make it into the commit or stay as unsaved edits, which "unsaved edits win over disk" already protects. The worst case is a hook's formatting being undone in the working copy, not lost work.
+1. **Stage:** save the open file if it has unsaved edits (stop if the save fails), then `git add -- <entry and ticked>`.
+2. **Commit:** save again, `git add` the same paths again (edits saved while the card was open go in), then a plain `git commit`, which takes everything staged, including anything staged outside AE, which the card lists.
+3. **Cancel** instead: `git reset -q -- <the paths AE staged>`.
+4. After committing, if the open file has no unsaved edits, read it from disk again. A hook may have rewritten it, and `useFileChangeHandler` ignores watcher events for 3 seconds after our own save, so that change would be missed and the next auto-save would undo it.
 
-If the files were committed elsewhere since the tab last refreshed, git exits 1 with "nothing to commit": refresh and say so, rather than showing it as an error.
+Plain `commit` rather than `commit --only <paths>`: with `--only`, a pre-commit hook that reformats and re-stages a file (lint-staged + prettier) leaves the real index holding the pre-hook version, so status shows `MM` straight after (seen in a spike).
+
+Editing isn't blocked while it runs. Keystrokes during a commit either make it into the commit or stay as unsaved edits, which "unsaved edits win over disk" already protects.
+
+If the files were committed elsewhere in the meantime, git exits 1 with "nothing to commit", shown as "There's nothing staged to commit. It may have been committed somewhere else."
 
 Failures just show git's message. The common ones are no identity ("Author identity unknown"), a hook refusing, signing failing, `index.lock` held by another git process, and `safe.directory` refusing the repo.
 
@@ -263,20 +267,21 @@ Also:
 - **The tab bar's labels** show on first open with three tabs and only switch to icons on a resize. `ResponsiveTabsList` measures with a `ResizeObserver` and assumes the tabs don't change while it's mounted, but the Git tab appears once the project's settings load, and the list's width doesn't change, so nothing measures again. The measuring also runs a frame behind, which is the lag while resizing. Fixed by replacing the measuring with CSS, Danny's choice: each label hides itself when its own tab is too narrow (the label in a one-line `flex-wrap` box with `overflow: hidden`, so it wraps out of sight). That needs no numbers and works for any tabs, at the cost of labels going one tab at a time near the threshold. The alternative, if that looks wrong: a container query whose threshold depends on the tab count (`:has(> :nth-child(3))`), which hides them all at once but is tuned to the label text. Scroll-state container queries would do it exactly, but WebKit hasn't shipped them.
 - Not doing: showing whether this entry in particular is behind the upstream. Hard to get right, and the repository line already says the branch is behind.
 
-### Phase 4: committing
+### Phase 4: committing (done)
 
-1. **`git_commit(project, paths, message)`** doing the four steps in "Committing", with tests: `--only` leaving other staged work alone, a deleted file, a rename with both paths, the re-staging hook and the `reset` after it, "nothing to commit".
-2. **The message box** with the prefill (Add, Update, Publish) and its "edited" state, and the commit button labelled with the count and branch. Cmd+Enter.
-3. **Around the commit:** save first with `saveUnsavedEdits()`, then afterwards reload the open file if a hook rewrote it, the inline "Committed `a1b2c3d`" line, and git's errors in the tab.
-4. **Renames this session**, recorded in `lib/files/rename.ts` so the old path comes pre-ticked.
+`git_stage`, `git_unstage` and `git_commit` (in `git::commit`, one at a time across the app), `git_state` returning everything staged in the repository, and the stage card working for real: saving first, the staged list from git with "staged outside AE", Cancel, Commit with Cmd+Enter, git's errors in the card, "Committed `a1b2c3d` to main" after, and the entry reloaded in case a hook rewrote it. Renames this session are remembered in `gitPanelStore`, from both ways of renaming, so the old path comes ticked.
 
-The stage card from phase 3a changes "Committing" above: staging is now its own step, so `git_stage` and `git_unstage` come first, and Commit commits what the card shows as staged. Settled with Danny:
+Settled with Danny on the way: no confirmation dialog (the open card already shows what will be committed); files staged by something else are listed and marked; edits saved while the card is open go in; the typed message is kept per entry while the project is open and cleared by a commit.
 
-- **No confirmation dialog.** The open card already shows exactly what will be committed.
-- **Files staged by something else** are listed in the card, marked "staged outside AE", since a commit takes everything staged. Our status is scoped to the project folder, so this needs the whole repository's staged files (`git diff --cached --name-only`): the monorepo has a staged change outside `docs/` the tab can't see now.
-- **Edits saved while the card is open** go in: Commit stages the entry again first.
+Checked in the app in `blog` (stage, cancel, a file staged from the terminal, a commit, a refusing hook) and `monorepo/docs` (work staged outside `docs/` listed and committed; the whitespace-stripping hook rewriting the open entry, which reloaded).
 
-Check it in `monorepo/docs` (hooks, someone else's staged work) and `blog`, then hand over to Danny for the first real commits.
+Found and fixed: **hooks inherited our git environment.** `GIT_LITERAL_PATHSPECS=1` made the monorepo hook's `'*.md'` pathspec match nothing, so it silently did nothing. Commands that run hooks now get none of our pathspec, lock or `quotepath` settings (see `docs/developer/git.md`).
+
+Differences from the plan:
+
+- **No "Publish" prefill.** "Add" for an untracked entry, "Update" otherwise; reading the draft field from `HEAD` wasn't worth it for a prefill Danny wants kept simple.
+- **The commit runs plain `git commit`,** not `commit --only` and `reset`, since staging is now its own step. That also removes the `MM` problem with re-staging hooks.
+- **Renames weren't tried in the app** (the sidebar's rename is in a native menu the agent can't drive); the store's rename memory has a test.
 
 ### Phase 5: pushing
 

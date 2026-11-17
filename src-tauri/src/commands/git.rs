@@ -8,6 +8,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::run_blocking;
+use crate::git::commit;
+use crate::git::repo::Repository;
 use crate::git::runner::Git;
 use crate::git::setup::{self, GitSetup};
 use crate::git::state::{self, GitState};
@@ -35,6 +37,53 @@ pub async fn git_state(
         ))
     })
     .await
+}
+
+/// Stages `paths` (relative to the repository root) for a commit
+#[tauri::command]
+#[specta::specta]
+pub async fn git_stage(project_path: String, paths: Vec<String>) -> Result<(), String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        commit::stage(&git, &repository, &paths)
+    })
+    .await
+}
+
+/// Takes `paths` out of the index again, as cancelling a commit does
+#[tauri::command]
+#[specta::specta]
+pub async fn git_unstage(project_path: String, paths: Vec<String>) -> Result<(), String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        commit::unstage(&git, &repository, &paths)
+    })
+    .await
+}
+
+/// Stages `paths` again, to take edits saved since, and commits everything
+/// staged. Returns the commit's abbreviated hash.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_commit(
+    project_path: String,
+    paths: Vec<String>,
+    message: String,
+) -> Result<String, String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        commit::commit(&git, &repository, &paths, &message)
+    })
+    .await
+}
+
+/// Git and the project's repository, for the commands that write. The tab
+/// only offers them once it's read the repository, so failing here is rare.
+fn open(project_path: &str) -> Result<(Git, Repository), String> {
+    let git = Git::find().map_err(|_| "Git isn't available.".to_string())?;
+    let repository = setup::open(&git, Path::new(project_path))
+        .map_err(|_| "The project isn't in a git repository AE can use.".to_string())?;
+    Ok((git, repository))
 }
 
 /// The git folder watcher, while the Git tab is showing: the project it's for,

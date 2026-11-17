@@ -36,6 +36,9 @@ pub struct GitWorkingTree {
     /// Changed, new and conflicted files in the project folder, without
     /// submodules. Paths are relative to `root`.
     pub changes: Vec<GitChange>,
+    /// Everything staged in the repository, in and out of the project folder:
+    /// what a commit would take
+    pub staged: Vec<GitChange>,
     /// The open entry, when one was asked about
     pub entry: Option<GitEntry>,
 }
@@ -131,6 +134,7 @@ fn working_tree(
         behind: status.branch.behind,
         operation: repo::operation_in_progress(repository),
         changes,
+        staged: status::read_staged(git, repository)?,
         entry,
     })
 }

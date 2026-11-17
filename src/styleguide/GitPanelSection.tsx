@@ -26,6 +26,12 @@ const OLD_IMAGE = change('docs/src/assets/docs/2026-11-16-old-map.png', 'new')
 const CONFIG = change('docs/astro.config.mjs', 'modified', true)
 const OTHER_ENTRY = change('docs/src/content/docs/guides/tides.md', 'modified')
 
+const staged = (c: GitChange): GitChange => ({
+  ...c,
+  staged: true,
+  unstaged: false,
+})
+
 const TREE: GitWorkingTree = {
   root: '/Users/writer/dev/widget',
   prefix: 'docs/',
@@ -36,6 +42,7 @@ const TREE: GitWorkingTree = {
   hasCommits: true,
   operation: null,
   changes: [ENTRY, IMAGE, OLD_IMAGE, CONFIG, OTHER_ENTRY],
+  staged: [CONFIG],
   entry: {
     path: ENTRY.path,
     state: 'modified',
@@ -67,12 +74,15 @@ const EXAMPLES: Example[] = [
   },
   {
     name: 'Staged, with the commit card open',
-    state: { problem: null, tree: TREE },
     entry: ENTRY_INFO,
     entryChange: ENTRY,
     used: [IMAGE],
     unused: [OLD_IMAGE],
     others: [CONFIG, OTHER_ENTRY],
+    state: {
+      problem: null,
+      tree: { ...TREE, staged: [staged(ENTRY), staged(IMAGE), CONFIG] },
+    },
     staging: true,
   },
   {
@@ -115,11 +125,18 @@ export function GitPanelSection() {
               onTick={() => {}}
               onOpen={() => {}}
               onOpenSettings={() => {}}
-              staging={staging}
-              message="Update “Harbour at dawn”"
-              onMessageChange={() => {}}
-              onStage={() => {}}
-              onUnstage={() => {}}
+              commit={{
+                staging,
+                ourPaths: [ENTRY.path, IMAGE.path],
+                pending: null,
+                error: null,
+                committed: null,
+                message: 'Update “Harbour at dawn”',
+                onMessageChange: () => {},
+                onStage: () => {},
+                onUnstage: () => {},
+                onCommit: () => {},
+              }}
               now={NOW}
             />
           </div>

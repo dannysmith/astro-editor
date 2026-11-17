@@ -10,6 +10,14 @@ interface GitPanelState {
   named: Record<string, string[]>
   /** Adds to the files an entry has named */
   rememberNamed: (entry: string, paths: string[]) => void
+  /**
+   * Files renamed this session: the path each had first, keyed by its path
+   * now (both absolute). Git sees a rename as the old path deleted and the new
+   * one added, so the Git tab offers the old path with the entry. Forgotten
+   * when AE quits.
+   */
+  renamedFrom: Record<string, string>
+  rememberRename: (from: string, to: string) => void
 }
 
 export const useGitPanelStore = create<GitPanelState>((set, get) => ({
@@ -19,5 +27,12 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
     const added = paths.filter(path => !known.includes(path))
     if (added.length === 0) return
     set(state => ({ named: { ...state.named, [entry]: [...known, ...added] } }))
+  },
+  renamedFrom: {},
+  rememberRename: (from, to) => {
+    set(state => {
+      const { [from]: first = from, ...rest } = state.renamedFrom
+      return { renamedFrom: { ...rest, [to]: first } }
+    })
   },
 }))

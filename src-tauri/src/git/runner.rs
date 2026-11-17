@@ -59,6 +59,14 @@ impl GitOutput {
     }
 }
 
+/// Commands that run the repository's hooks
+fn runs_hooks(args: &[&str]) -> bool {
+    matches!(
+        args.first(),
+        Some(&("commit" | "push" | "merge" | "rebase" | "pull"))
+    )
+}
+
 impl Git {
     /// The first `git` on the user's `PATH` (see `shell_path`), the one their
     /// terminal runs, so AE reads the same config and runs the same hooks.
@@ -101,27 +109,36 @@ impl Git {
     /// non-zero code.
     pub fn run(&self, dir: &Path, args: &[&str], timeout: Duration) -> Result<GitOutput, String> {
         let mut command = Command::new(&self.program);
+        if runs_hooks(args) {
+            // Hooks inherit git's environment, and should run as they do in a
+            // terminal: a hook's `'*.md'` pathspec matching only a file named
+            // `*.md` would quietly do nothing. These commands take no paths
+            // from AE, so they need none of the settings below
+            command.args(args);
+        } else {
+            command
+                // Paths come back unquoted, as UTF-8
+                .args(["-c", "core.quotepath=off"])
+                .args(args)
+                // A file named `a*.md` is that file, not a pattern.
+                // `check-ignore` takes plain paths and refuses to run with it set.
+                .env(
+                    "GIT_LITERAL_PATHSPECS",
+                    if args.first() == Some(&"check-ignore") {
+                        "0"
+                    } else {
+                        "1"
+                    },
+                )
+                // Status doesn't write the index, so it never competes with a
+                // git running in a terminal for `index.lock`, or wakes the git
+                // folder watcher
+                .env("GIT_OPTIONAL_LOCKS", "0");
+        }
         command
-            // Paths come back unquoted, as UTF-8
-            .args(["-c", "core.quotepath=off"])
-            .args(args)
             .current_dir(dir)
             .env("PATH", &self.path)
             .env("GIT_TERMINAL_PROMPT", "0")
-            // A file named `a*.md` is that file, not a pattern. `check-ignore`
-            // takes plain paths and refuses to run with it set.
-            .env(
-                "GIT_LITERAL_PATHSPECS",
-                if args.first() == Some(&"check-ignore") {
-                    "0"
-                } else {
-                    "1"
-                },
-            )
-            // Status doesn't write the index, so it never competes with a git
-            // running in a terminal for `index.lock`, or wakes the git folder
-            // watcher
-            .env("GIT_OPTIONAL_LOCKS", "0")
             // Inherited, these would point every command at another repository
             .env_remove("GIT_DIR")
             .env_remove("GIT_WORK_TREE")
@@ -277,6 +294,12 @@ mod tests {
             "-c core.quotepath=off status --short|0|1|0|none\n"
         );
         assert_eq!(output.error_message(), "err");
+
+        // A command that runs hooks leaves git's settings as the user has them
+        let output = git
+            .run(dir.path(), &["commit", "-q"], Duration::from_secs(5))
+            .unwrap();
+        assert_eq!(output.stdout_text(), "commit -q|0|||none\n");
     }
 
     #[test]

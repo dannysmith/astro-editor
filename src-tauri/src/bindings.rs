@@ -59,6 +59,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             // git.rs commands
             crate::commands::git::git_setup,
             crate::commands::git::git_state,
+            crate::commands::git::git_stage,
+            crate::commands::git::git_unstage,
+            crate::commands::git::git_commit,
             crate::commands::git::git_watch_start,
             crate::commands::git::git_watch_stop,
             // watcher.rs commands
