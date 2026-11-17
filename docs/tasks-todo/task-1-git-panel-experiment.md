@@ -297,10 +297,11 @@ Differences from the plan: no `merge-tree` check before rebasing. Trying the reb
 
 **Fixed: an entry saved empty.** While testing, `the-second-article.md` in `blog` was saved as an empty file, after two saves a few seconds apart around a pull. It didn't reproduce, but the likely cause is real: `fs::write` empties a file before writing it, so a reload landing in that moment reads an empty entry, and if the editor isn't dirty it takes it, and the next save writes it back. Saves now write a temporary file and rename it over the entry (see "Auto-save and data safety" in `docs/developer/editor.md`).
 
-### Phase 5b: context menus
+### Phase 5b: context menus (done)
 
-- **Right-click a file row**: Open in IDE (when one is set), Copy path, Reveal in Finder, the same actions and code as the file list's context menu.
-- **Right-click elsewhere in the tab**: maybe a menu of the tab's git actions (Stage, Push, Refresh, Project Settings → Git), for someone unsure what they can do. To revisit once the tab has its actions; it may not be worth it.
+Right-clicking a file in the Git tab (the entry card, a file row, a file in the staged list) shows Reveal in Finder, Open in IDE (when one is set) and Copy Path, for the real file. A deleted file can only have its path copied. Those three items are now one helper, `pathMenuItems` in `lib/path-menu.ts`, shared with the file list's menu and the project list's, so the file list's Reveal now selects the file in Finder as the project list's did, rather than opening its folder.
+
+Not done: a menu for the rest of the tab with its git actions. Everything it would hold is a button already; revisit if people right-click looking for them.
 
 ### Phase 6: history
 

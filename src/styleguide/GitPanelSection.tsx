@@ -140,6 +140,7 @@ export function GitPanelSection() {
               isTicked={path => used.some(c => c.path === path)}
               onTick={() => {}}
               onOpen={() => {}}
+              onFileMenu={() => {}}
               onOpenSettings={() => {}}
               sync={{
                 pending: null,

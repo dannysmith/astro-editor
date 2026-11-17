@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react'
 import {
   ArrowDown,
   ArrowUp,
@@ -98,6 +104,8 @@ export interface GitPanelViewProps {
   onTick: (path: string, ticked: boolean) => void
   /** Opens a changed content file */
   onOpen: (change: GitChange) => void
+  /** Shows the right-click menu for a file (relative to the repository root) */
+  onFileMenu: FileMenu
   onOpenSettings: () => void
   sync: GitSyncProps
   commit: GitCommitProps
@@ -119,6 +127,7 @@ export function GitPanelView({
   isTicked,
   onTick,
   onOpen,
+  onFileMenu,
   onOpenSettings,
   sync,
   commit,
@@ -132,6 +141,7 @@ export function GitPanelView({
     isTicked,
     onTick,
     onOpen,
+    onFileMenu,
   }
   const ticked = [...used, ...unused, ...others].filter(c => isTicked(c.path))
   const toStage = entryChange ? [entryChange, ...ticked] : ticked
@@ -173,6 +183,7 @@ export function GitPanelView({
         {tree && entry && gitEntry && (
           <section className="space-y-2">
             <EntryCard
+              onFileMenu={onFileMenu}
               entry={gitEntry}
               name={entry.name}
               collection={entry.collection}
@@ -180,7 +191,12 @@ export function GitPanelView({
               now={now}
             />
             {!readOnly && gitEntry.state !== 'outsideRepository' && (
-              <CommitCard toStage={toStage} tree={tree} {...commit} />
+              <CommitCard
+                toStage={toStage}
+                tree={tree}
+                onFileMenu={onFileMenu}
+                {...commit}
+              />
             )}
           </section>
         )}
@@ -410,12 +426,14 @@ function CommitList({
 
 /** The open entry: its status in git's terms, and when it was last committed */
 function EntryCard({
+  onFileMenu,
   entry,
   name,
   collection,
   change,
   now,
 }: {
+  onFileMenu: FileMenu
   entry: GitEntry
   name: string
   collection: string
@@ -434,7 +452,15 @@ function EntryCard({
           {collection}
         </span>
       </div>
-      <div className="space-y-0.5 rounded-md border px-3 py-2.5">
+      <div
+        className="space-y-0.5 rounded-md border px-3 py-2.5"
+        onContextMenu={
+          // Empty when the entry is in another repository
+          entry.path
+            ? fileMenu(onFileMenu, entry.path, entry.state !== 'deleted')
+            : undefined
+        }
+      >
         <div className="flex items-center gap-2">
           <StatusDot tone={status.tone} />
           <span
@@ -474,11 +500,13 @@ const UNCHANGED_LABELS: Partial<Record<GitEntry['state'], string>> = {
 function CommitCard({
   toStage,
   tree,
+  onFileMenu,
   ...commit
 }: GitCommitProps & {
   /** The entry's change and the ticked files */
   toStage: GitChange[]
   tree: GitWorkingTree
+  onFileMenu: FileMenu
 }) {
   const errorCallout = commit.error && (
     <ProblemCallout
@@ -517,7 +545,14 @@ function CommitCard({
       </>
     )
   }
-  return <StagedCard {...commit} tree={tree} errorCallout={errorCallout} />
+  return (
+    <StagedCard
+      {...commit}
+      tree={tree}
+      errorCallout={errorCallout}
+      onFileMenu={onFileMenu}
+    />
+  )
 }
 
 /** What failed, by the write that failed */
@@ -545,7 +580,12 @@ function StagedCard({
   onMessageChange,
   onUnstage,
   onCommit,
-}: GitCommitProps & { tree: GitWorkingTree; errorCallout: ReactNode }) {
+  onFileMenu,
+}: GitCommitProps & {
+  tree: GitWorkingTree
+  errorCallout: ReactNode
+  onFileMenu: FileMenu
+}) {
   const messageRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     messageRef.current?.focus()
@@ -606,6 +646,11 @@ function StagedCard({
                 key={change.path}
                 className="flex items-center gap-2"
                 title={change.path}
+                onContextMenu={fileMenu(
+                  onFileMenu,
+                  change.path,
+                  change.kind !== 'deleted'
+                )}
               >
                 <span className="min-w-0 flex-1 truncate">
                   {fileName(change.path)}
@@ -667,6 +712,21 @@ interface RowProps {
   isTicked: (path: string) => boolean
   onTick: (path: string, ticked: boolean) => void
   onOpen: (change: GitChange) => void
+  onFileMenu: FileMenu
+}
+
+type FileMenu = (
+  path: string,
+  exists: boolean,
+  position: { x: number; y: number }
+) => void
+
+/** A right-click handler showing `path`'s menu */
+function fileMenu(onFileMenu: FileMenu, path: string, exists: boolean) {
+  return (event: MouseEvent) => {
+    event.preventDefault()
+    onFileMenu(path, exists, { x: event.clientX, y: event.clientY })
+  }
 }
 
 function OtherChanges({
@@ -729,13 +789,20 @@ function FileRow({
   isTicked,
   onTick,
   onOpen,
+  onFileMenu,
 }: RowProps & { change: GitChange; note?: string }) {
   const shown = change.path.startsWith(prefix)
     ? change.path.slice(prefix.length)
     : change.path
   const openable = /\.mdx?$/i.test(change.path) && change.kind !== 'deleted'
   return (
-    <li>
+    <li
+      onContextMenu={fileMenu(
+        onFileMenu,
+        change.path,
+        change.kind !== 'deleted'
+      )}
+    >
       <div className="flex items-center gap-2">
         <Checkbox
           checked={isTicked(change.path)}

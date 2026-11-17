@@ -1,15 +1,10 @@
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
-import { error as logError } from '@tauri-apps/plugin-log'
-import { commands, type ListedProject } from '@/lib/bindings'
-import { getPlatform } from '@/hooks/usePlatform'
+import type { ListedProject } from '@/lib/bindings'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
 import { showProjectSettings } from '../project-settings/actions'
-import { openInIde } from '../ide'
-import { getPlatformString } from '../platform-strings'
-import { toast } from '../toast'
+import { pathMenuItems } from '../path-menu'
 import { locateProject, removeProject } from './actions'
 
 /**
@@ -22,38 +17,10 @@ export async function showProjectContextMenu(
   { project, missing, disconnected }: ListedProject,
   position: { x: number; y: number }
 ): Promise<void> {
-  const { globalSettings, projectPath } = useProjectStore.getState()
-  const ideCommand = globalSettings?.general.ideCommand
+  const { projectPath } = useProjectStore.getState()
 
   const items = [
-    await MenuItem.new({
-      text: getPlatformString('revealInFileManager', getPlatform()),
-      enabled: !missing,
-      action: () => {
-        revealItemInDir(project.path).catch((error: unknown) => {
-          void logError(`Failed to reveal project: ${String(error)}`)
-        })
-      },
-    }),
-    ...(ideCommand
-      ? [
-          await MenuItem.new({
-            text: 'Open in IDE',
-            enabled: !missing,
-            action: () => void openInIde(project.path, ideCommand),
-          }),
-        ]
-      : []),
-    await MenuItem.new({
-      text: 'Copy Path',
-      action: () => {
-        void commands.copyTextToClipboard(project.path).then(result => {
-          if (result.status === 'error') {
-            toast.error("Couldn't copy the path", { description: result.error })
-          }
-        })
-      },
-    }),
+    ...(await pathMenuItems(project.path, { exists: !missing })),
     await PredefinedMenuItem.new({ item: 'Separator' }),
     ...(project.path === projectPath
       ? [

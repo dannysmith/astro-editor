@@ -16,6 +16,7 @@ import {
   runGitWrite,
   type GitWrite,
 } from '../../lib/git/actions'
+import { showGitFileMenu } from '../../lib/git/context-menu'
 import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
@@ -183,6 +184,9 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         })
       }
       onOpen={change => void openChange(projectPath, tree?.root, change)}
+      onFileMenu={(path, exists, position) => {
+        if (tree) void showGitFileMenu(`${tree.root}/${path}`, exists, position)
+      }}
       onOpenSettings={() => showProjectSettings()}
       sync={{
         pending: sync.isPending ? sync.variables : null,
