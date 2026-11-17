@@ -7,7 +7,7 @@
 //! when it succeeds.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use crate::process::{self, Failure};
 use std::sync::OnceLock;
@@ -19,6 +19,7 @@ pub enum FindError {
     NotInstalled,
     /// macOS's `/usr/bin/git` is a stand-in that opens Apple's installer
     /// dialog when the command line tools aren't installed
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     CommandLineToolsMissing,
 }
 
@@ -195,6 +196,7 @@ pub fn is_executable(path: &Path) -> bool {
 
 #[cfg(target_os = "macos")]
 fn command_line_tools_installed() -> bool {
+    use std::process::Stdio;
     Command::new("/usr/bin/xcode-select")
         .arg("-p")
         .stdin(Stdio::null())
