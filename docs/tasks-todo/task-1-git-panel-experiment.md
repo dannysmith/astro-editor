@@ -49,7 +49,7 @@ Updates as git changes                   ↻
 - **Repository strip:** branch, upstream, ↑/↓ counts that open the commits to push and pull, Pull and Push.
 - **This entry:** its status in git's words with a coloured dot, and its last commit.
 - **Stage** opens the commit card. The typed message is kept per entry while the project is open; the prefill is "Add “Title”" or "Update “Title”".
-- **Files it uses:** files the entry's text names, ticked; files it named earlier this session, unticked with a warning; an entry renamed this session brings its old path. Statuses as VS Code's letters.
+- **Files it uses:** files the entry's text names, ticked; files AE copied in for it this session (dropped in, or picked for an image field or prop) that its text no longer names, unticked with a warning (clicking it, or Delete… in its right-click menu, deletes the file after asking); an entry renamed this session brings its old path. Statuses as VS Code's letters.
 - **Other changes,** folded and unticked, for anything else in the project folder.
 - **Right-click** any file for Reveal in Finder, Open in IDE and Copy Path. Clicking a content file opens it.
 - **Read-only states** (detached HEAD, an operation in progress, conflicts) hide Stage, Pull and Push and say to finish in a git tool.

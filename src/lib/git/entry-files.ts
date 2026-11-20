@@ -43,19 +43,19 @@ export function usedFiles({
 
 /**
  * The project's changes, sorted for the Git tab: the entry's own change, the
- * files it uses, files it used earlier this session (`named`) that are still
- * changed, and everything else
+ * files it uses, files AE added for it this session that it no longer uses
+ * (`added`), and everything else
  */
 export function groupChanges({
   changes,
   entryPath,
   used,
-  named,
+  added,
 }: {
   changes: GitChange[]
   entryPath: string
   used: string[]
-  named: string[]
+  added: string[]
 }): {
   entry: GitChange | null
   used: GitChange[]
@@ -71,7 +71,7 @@ export function groupChanges({
   for (const change of changes) {
     if (entryPath && change.path === entryPath) groups.entry = change
     else if (used.includes(change.path)) groups.used.push(change)
-    else if (named.includes(change.path)) groups.unused.push(change)
+    else if (added.includes(change.path)) groups.unused.push(change)
     else groups.others.push(change)
   }
   return groups

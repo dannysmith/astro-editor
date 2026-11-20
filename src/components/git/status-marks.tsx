@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import { cn } from '@/lib/utils'
+import type { DeleteItem } from '../../lib/git/context-menu'
 import { changeStatus, type GitTone } from '../../lib/git/status'
 
 /** Each status colour's classes: the `--git-*` tokens */
@@ -47,13 +48,19 @@ export function StatusLetter({
 export type FileMenu = (
   path: string,
   exists: boolean,
-  position: { x: number; y: number }
+  position: { x: number; y: number },
+  deleteItem?: DeleteItem
 ) => void
 
 /** A right-click handler showing `path`'s menu */
-export function fileMenu(onFileMenu: FileMenu, path: string, exists: boolean) {
+export function fileMenu(
+  onFileMenu: FileMenu,
+  path: string,
+  exists: boolean,
+  deleteItem?: DeleteItem
+) {
   return (event: MouseEvent) => {
     event.preventDefault()
-    onFileMenu(path, exists, { x: event.clientX, y: event.clientY })
+    onFileMenu(path, exists, { x: event.clientX, y: event.clientY }, deleteItem)
   }
 }

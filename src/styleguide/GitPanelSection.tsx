@@ -137,6 +137,7 @@ export function GitPanelSection() {
               used={used}
               readAt={0}
               onRefresh={() => {}}
+              onDeleteUnused={() => {}}
               isTicked={path => used.some(c => c.path === path)}
               onTick={() => {}}
               onOpen={() => {}}

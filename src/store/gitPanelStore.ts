@@ -2,14 +2,15 @@ import { create } from 'zustand'
 
 interface GitPanelState {
   /**
-   * The changed files each entry's text has named this session, keyed by the
-   * entry's absolute path. An image dragged in and then taken out of the text
-   * usually stays on disk, so the Git tab keeps offering it with the entry,
-   * unticked. Forgotten when AE quits.
+   * The files AE copied into the project for each entry this session (dropped
+   * in, or picked for an image field or prop), keyed by the entry's absolute
+   * path, all absolute. One taken out of the text again usually stays on disk,
+   * so the Git tab keeps offering it with the entry, unticked. Recorded where
+   * the copy happens, so it doesn't matter whether the tab is open. Forgotten
+   * when AE quits.
    */
-  named: Record<string, string[]>
-  /** Adds to the files an entry has named */
-  rememberNamed: (entry: string, paths: string[]) => void
+  added: Record<string, string[]>
+  rememberAdded: (entry: string, path: string) => void
   /**
    * Files renamed this session: the path each had first, keyed by its path
    * now (both absolute). Git sees a rename as the old path deleted and the new
@@ -17,22 +18,26 @@ interface GitPanelState {
    * when AE quits.
    */
   renamedFrom: Record<string, string>
+  /** Also moves the files added for an entry along with it */
   rememberRename: (from: string, to: string) => void
 }
 
 export const useGitPanelStore = create<GitPanelState>((set, get) => ({
-  named: {},
-  rememberNamed: (entry, paths) => {
-    const known = get().named[entry] ?? []
-    const added = paths.filter(path => !known.includes(path))
-    if (added.length === 0) return
-    set(state => ({ named: { ...state.named, [entry]: [...known, ...added] } }))
+  added: {},
+  rememberAdded: (entry, path) => {
+    const known = get().added[entry] ?? []
+    if (known.includes(path)) return
+    set(state => ({ added: { ...state.added, [entry]: [...known, path] } }))
   },
   renamedFrom: {},
   rememberRename: (from, to) => {
     set(state => {
-      const { [from]: first = from, ...rest } = state.renamedFrom
-      return { renamedFrom: { ...rest, [to]: first } }
+      const { [from]: first = from, ...renamedFrom } = state.renamedFrom
+      const { [from]: added, ...others } = state.added
+      return {
+        renamedFrom: { ...renamedFrom, [to]: first },
+        added: added ? { ...others, [to]: added } : state.added,
+      }
     })
   },
 }))

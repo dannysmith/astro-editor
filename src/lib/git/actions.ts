@@ -4,11 +4,16 @@
  * writer sees. They throw with a message to show when anything fails.
  */
 
+import { ask } from '@tauri-apps/plugin-dialog'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { commands } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
+import { deleteFile } from '../files/delete'
 import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'
+import { toast } from '../toast'
+import { fileName } from './entry-files'
 
 /** One of the tab's writes, for the entry at `entry` (repository-relative) */
 export type GitWrite =
@@ -108,5 +113,31 @@ export async function pullBranch(projectPath: string): Promise<number> {
     return result.data
   } finally {
     useEditorStore.setState({ editingPaused: false })
+  }
+}
+
+/**
+ * Deletes a file AE added for the entry that it no longer uses (absolute
+ * `path`), after asking, the same way the sidebar deletes files. Shows a toast
+ * if it fails. Resolves to whether the file was deleted.
+ */
+export async function deleteUnusedFile(
+  projectPath: string,
+  path: string
+): Promise<boolean> {
+  const confirmed = await ask(
+    `Are you sure you want to delete "${fileName(path)}"?`,
+    { title: 'Delete File', kind: 'warning' }
+  )
+  if (!confirmed) return false
+  try {
+    await deleteFile(path, projectPath)
+    return true
+  } catch (error) {
+    void logError(`Failed to delete file: ${String(error)}`)
+    toast.error("Couldn't delete the file", {
+      description: error instanceof Error ? error.message : String(error),
+    })
+    return false
   }
 }

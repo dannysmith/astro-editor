@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useShallow } from 'zustand/react/shallow'
 import { commands } from '@/lib/bindings'
@@ -10,6 +10,7 @@ import { useGitStateQuery } from '../../hooks/queries/useGitStateQuery'
 import { useGitRefresh } from '../../hooks/git/useGitRefresh'
 import { useFieldMappings } from '../../hooks/settings'
 import {
+  deleteUnusedFile,
   pullBranch,
   pushBranch,
   runGitWrite,
@@ -59,28 +60,31 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       usedFiles({ changes, entryPath, entryText: entryText(state) })
     )
   )
-  const entryKey = entryPath && tree ? `${tree.root}/${entryPath}` : ''
-  const named = useGitPanelStore(state => state.named[entryKey] ?? NONE)
-  useEffect(() => {
-    if (entryKey && used.length > 0) {
-      useGitPanelStore.getState().rememberNamed(entryKey, used)
-    }
-  }, [entryKey, used])
+  // An absolute path as git has it, relative to the repository root
+  const inRepository = (path: string) =>
+    tree && path.startsWith(`${tree.root}/`)
+      ? path.slice(tree.root.length + 1)
+      : null
+  // Files AE copied in for the entry this session, offered with it (unticked)
+  // after they're taken out of its text
+  const addedForFile = useGitPanelStore(state =>
+    currentFile ? (state.added[currentFile.path] ?? NONE) : NONE
+  )
+  const added = entryPath
+    ? addedForFile.flatMap(path => inRepository(path) ?? [])
+    : NONE
   // An entry renamed this session: git sees its old path deleted, and that
   // goes with it
   const renamedFrom = useGitPanelStore(state =>
     currentFile ? state.renamedFrom[currentFile.path] : undefined
   )
-  const oldPath =
-    renamedFrom && tree && renamedFrom.startsWith(`${tree.root}/`)
-      ? renamedFrom.slice(tree.root.length + 1)
-      : null
+  const oldPath = renamedFrom ? inRepository(renamedFrom) : null
   const goesWith =
     oldPath &&
     changes.some(change => change.path === oldPath && change.kind === 'deleted')
       ? [...used, oldPath]
       : used
-  const groups = groupChanges({ changes, entryPath, used: goesWith, named })
+  const groups = groupChanges({ changes, entryPath, used: goesWith, added })
 
   const { title: titleField } = useFieldMappings(currentFile?.collection)
   const title = useEditorStore(state => {
@@ -178,6 +182,14 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       entryChange={groups.entry}
       used={groups.used}
       unused={groups.unused}
+      onDeleteUnused={path => {
+        if (!tree) return
+        void deleteUnusedFile(projectPath, `${tree.root}/${path}`).then(
+          deleted => {
+            if (deleted) void refetch()
+          }
+        )
+      }}
       others={groups.others}
       isTicked={path => overrides[path] ?? goesWith.includes(path)}
       onTick={(path, ticked) =>
@@ -187,8 +199,15 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         })
       }
       onOpen={change => void openChange(projectPath, tree?.root, change.path)}
-      onFileMenu={(path, exists, position) => {
-        if (tree) void showGitFileMenu(`${tree.root}/${path}`, exists, position)
+      onFileMenu={(path, exists, position, deleteItem) => {
+        if (tree) {
+          void showGitFileMenu(
+            `${tree.root}/${path}`,
+            exists,
+            position,
+            deleteItem
+          )
+        }
       }}
       onOpenSettings={() => showProjectSettings()}
       sync={{

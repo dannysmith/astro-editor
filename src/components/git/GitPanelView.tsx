@@ -30,8 +30,10 @@ export interface GitPanelViewProps {
   entryChange: GitChange | null
   /** Files the entry's text names */
   used: GitChange[]
-  /** Files its text named earlier this session, but doesn't now */
+  /** Files AE added for it this session that its text no longer names */
   unused: GitChange[]
+  /** Deletes one of the `unused` files, after asking */
+  onDeleteUnused: (path: string) => void
   others: GitChange[]
   isTicked: (path: string) => boolean
   onTick: (path: string, ticked: boolean) => void
@@ -59,6 +61,7 @@ export function GitPanelView({
   entryChange,
   used,
   unused,
+  onDeleteUnused,
   others,
   isTicked,
   onTick,
@@ -151,6 +154,7 @@ export function GitPanelView({
                   key={change.path}
                   change={change}
                   note="No longer used in the entry"
+                  onDelete={() => onDeleteUnused(change.path)}
                   {...rows}
                 />
               ))}

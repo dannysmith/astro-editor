@@ -12,6 +12,7 @@ vi.mock('@/lib/bindings', () => ({
 }))
 
 import { commands } from '@/lib/bindings'
+import { useGitPanelStore } from '../../store/gitPanelStore'
 
 describe('processFileToAssets', () => {
   const baseOptions: ProcessFileToAssetsOptions = {
@@ -317,6 +318,43 @@ describe('processFileToAssets', () => {
           copyStrategy: 'only-if-outside-project',
         })
       ).rejects.toThrow('Failed to get relative path')
+    })
+  })
+
+  describe('remembering copies for the Git tab', () => {
+    beforeEach(() => useGitPanelStore.setState({ added: {} }))
+
+    it("records where a copy landed, against the entry it's for", async () => {
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
+        status: 'ok',
+        data: '../../../assets/blog/2024-01-15-image-1.png',
+      })
+
+      await processFileToAssets({
+        ...baseOptions,
+        assetsDirectory: './src/content/../assets/',
+      })
+
+      expect(useGitPanelStore.getState().added).toEqual({
+        '/Users/test/project/src/content/blog/post.md': [
+          '/Users/test/project/src/assets/blog/2024-01-15-image-1.png',
+        ],
+      })
+    })
+
+    it("records nothing when the file's already in the project", async () => {
+      vi.mocked(commands.isPathInProject).mockResolvedValue(true)
+      vi.mocked(commands.getRelativePath).mockResolvedValue({
+        status: 'ok',
+        data: 'images/existing.png',
+      })
+
+      await processFileToAssets({
+        ...baseOptions,
+        copyStrategy: 'only-if-outside-project',
+      })
+
+      expect(useGitPanelStore.getState().added).toEqual({})
     })
   })
 })

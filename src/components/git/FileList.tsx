@@ -78,28 +78,35 @@ export function OtherChanges({
 
 /**
  * A changed file: a tick for the commit, its name (a link for content files),
- * an optional note with a warning sign, and its status letter
+ * an optional note with a warning sign, and its status letter. With
+ * `onDelete`, the warning sign and the right-click menu offer to delete the
+ * file, except while ticks are locked.
  */
 export function FileRow({
   change,
   note,
+  onDelete,
   prefix,
   locked,
   isTicked,
   onTick,
   onOpen,
   onFileMenu,
-}: RowProps & { change: GitChange; note?: string }) {
+}: RowProps & { change: GitChange; note?: string; onDelete?: () => void }) {
   const shown = change.path.startsWith(prefix)
     ? change.path.slice(prefix.length)
     : change.path
   const openable = /\.mdx?$/i.test(change.path) && change.kind !== 'deleted'
+  const warning = (
+    <TriangleAlert aria-hidden className="size-3.5 shrink-0 text-warning" />
+  )
   return (
     <li
       onContextMenu={fileMenu(
         onFileMenu,
         change.path,
-        change.kind !== 'deleted'
+        change.kind !== 'deleted',
+        onDelete && { enabled: !locked, onDelete }
       )}
     >
       <div className="flex items-center gap-2">
@@ -123,12 +130,21 @@ export function FileRow({
             {fileName(change.path)}
           </span>
         )}
-        {note && (
-          <TriangleAlert
-            aria-hidden
-            className="size-3.5 shrink-0 text-warning"
-          />
-        )}
+        {note &&
+          (onDelete ? (
+            <button
+              type="button"
+              title={`${note}. Click to delete it.`}
+              aria-label={`Delete ${shown}`}
+              disabled={locked}
+              onClick={onDelete}
+              className="shrink-0 disabled:opacity-50"
+            >
+              {warning}
+            </button>
+          ) : (
+            warning
+          ))}
         <StatusLetter status={changeStatus(change)} />
       </div>
       {note && <p className="pl-6 text-xs text-muted-foreground">{note}</p>}

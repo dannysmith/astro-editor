@@ -74,7 +74,7 @@ describe('usedFiles', () => {
 })
 
 describe('groupChanges', () => {
-  it('separates the entry, its files, files it named earlier, and the rest', () => {
+  it('separates the entry, its files, files added for it, and the rest', () => {
     const groups = groupChanges({
       changes: [
         change('a/old.jpg', 'new'),
@@ -84,7 +84,7 @@ describe('groupChanges', () => {
       ],
       entryPath: 'a/entry.md',
       used: ['a/cover.jpg'],
-      named: ['a/cover.jpg', 'a/old.jpg', 'a/committed-since.jpg'],
+      added: ['a/cover.jpg', 'a/old.jpg', 'a/committed-since.jpg'],
     })
     expect(groups.entry?.path).toBe('a/entry.md')
     expect(paths(groups.used)).toEqual(['a/cover.jpg'])
