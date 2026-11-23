@@ -159,6 +159,7 @@ export function GitPanelSection() {
                   staging,
                   ourPaths: [ENTRY.path, IMAGE.path],
                   notStaged,
+                  entryNotStaged: false,
                   pending: null,
                   busy: false,
                   stagedElsewhere: null,

@@ -238,12 +238,17 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       commit={{
         staging: ours !== null,
         ourPaths: ours ?? [],
-        // Used since staging, and not unticked before it
+        // The entry's file under a new name, and files used since staging and
+        // not unticked before it
         notStaged: ours
-          ? goesWith.filter(
+          ? [...(groups.entry ? [groups.entry.path] : []), ...goesWith].filter(
               path => !ours.includes(path) && (overrides[path] ?? true)
             )
           : [],
+        entryNotStaged:
+          ours !== null &&
+          groups.entry !== null &&
+          !ours.includes(groups.entry.path),
         pending: write.isPending && forEntry ? write.variables.action : null,
         // Until the editor has the entry's text, the files it uses aren't known
         busy: sync.isPending || (write.isPending && !forEntry) || !isLoaded,

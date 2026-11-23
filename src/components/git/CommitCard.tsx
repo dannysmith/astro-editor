@@ -18,10 +18,16 @@ export interface GitCommitProps {
   /** The paths AE staged, so others in the index are marked */
   ourPaths: string[]
   /**
-   * Files the entry uses that aren't staged, such as an image dropped in
-   * since. The commit is exactly what's staged, so they're offered, not added
+   * Files for the entry that aren't staged: an image dropped in since, or
+   * the entry itself after AE renamed it. The commit is exactly what's
+   * staged, so they're offered, not added
    */
   notStaged: string[]
+  /**
+   * The entry's own file is among `notStaged`, so Commit waits: it would
+   * commit the old name's deletion without the new file
+   */
+  entryNotStaged: boolean
   /** The write under way for this entry, if any */
   pending: GitWrite['action'] | null
   /** Another git command is under way (for another entry, or a pull) */
@@ -163,6 +169,7 @@ function StagedCard({
   tree,
   ourPaths,
   notStaged,
+  entryNotStaged,
   pending,
   busy,
   error,
@@ -186,7 +193,7 @@ function StagedCard({
   }, [focusMessage, messageTyped, onMessageFocused])
   const files = counted(tree.staged.length, 'file')
   const waiting = pending !== null || busy
-  const canCommit = !waiting && message.trim() !== ''
+  const canCommit = !waiting && !entryNotStaged && message.trim() !== ''
   return (
     <div className="overflow-hidden rounded-md border bg-muted/30">
       <p className="flex items-center gap-1.5 bg-git-added/15 px-3 py-1.5 text-xs font-medium text-foreground">
@@ -239,9 +246,10 @@ function StagedCard({
               className="size-3.5 shrink-0 text-warning"
             />
             <span className="min-w-0 flex-1">
-              Uses {counted(notStaged.length, 'file')}{' '}
-              {notStaged.length === 1 ? "that isn't" : "that aren't"} staged:{' '}
+              {counted(notStaged.length, 'file')} for this entry{' '}
+              {notStaged.length === 1 ? "isn't" : "aren't"} staged:{' '}
               {notStaged.map(fileName).join(', ')}
+              {entryNotStaged && '. Stage before committing.'}
             </span>
             <Button
               variant="outline"

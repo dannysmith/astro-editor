@@ -129,7 +129,16 @@ Done: #382 has a "Git tab, experimental" section. Its first item needs Danny's c
 
 ## Phase 10: Try it, then ship
 
-Tried by an agent in `blog`: Pull disabled with its reason while a file was staged and the branch ahead, then, unstaged, a pull that rebased a local commit onto the upstream's and kept an uncommitted edit; the editing pause; the relative image reference ticking its file. Still to try, by Danny: renaming an entry from the sidebar (a native menu, so agents can't drive it) with its files staged and without, deleting a "no longer used" image (a native confirmation), a refusing `pre-push` hook in `monorepo`, and everything on a real repository with a pre-release build from the Dock.
+Tried by an agent, driving the dev app on the throwaway repos:
+
+- **Pull:** disabled with its reason while a file was staged and the branch ahead; unstaged, it rebased a local commit onto the upstream's and kept an uncommitted edit. The editing pause refuses changes during it.
+- **A refusing `pre-push` hook** (`monorepo`): the hook's message shown in full, line breaks kept.
+- **Committing:** the relative image reference ticks its file; Stage focuses the message with the prefill selected, and switching tabs doesn't take focus again; an image referred to after staging gets the "not staged" note, and its Stage adds it.
+- **Renaming while staged** (Rename File from Pattern, and the sidebar's `renameFile` with its `rememberRename`): the card follows the entry. This found a bug, now fixed: the entry's new file wasn't staged, and committing would have committed the old name's removal without it. The card now names it and Commit waits; after staging it, the commit held exactly the entry and its image.
+- **Cancel** in the "staged for another entry" banner unstages them.
+- **Delete on a "no longer used" file:** enabled, disabled while files are staged, enabled again after Cancel.
+
+Still to try, by Danny: the sidebar's own right-click Rename (a native menu), the delete confirmation (a native dialog), and everything on a real repository with a pre-release build opened from the Dock, which is the only real test of the login-shell environment.
 
 **40.** Try in the test repos: the old path following an entry renamed from the sidebar; a refusing `pre-push` hook (`.block-push` in `monorepo`) and a rejected push; Pull with something staged; the rename case from item 5. Then, with a pre-release build opened from the Dock, on a real repo: SSH remotes, signing, credential prompts and the login-shell environment.
 
