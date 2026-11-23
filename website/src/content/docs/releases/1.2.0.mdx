@@ -5,6 +5,11 @@ date: 2026-11-23
 slug: 'releases/v1.2.0'
 ---
 
+import releaseVideo from '@assets/release-1.2.0.mp4'
+import releasePoster from '@assets/release-1.2.0-poster.jpg'
+
+<video src={releaseVideo} poster={releasePoster.src} controls playsinline preload="metadata" width="1920" height="1080" style="width: 100%; height: auto;"></video>
+
 Astro Editor now helps once the first draft is done. A new Copyedit panel checks your spelling, grammar and style, a Git tab commits and pushes what you've written, and editing frontmatter now changes only the field you edited.
 
 **If you're upgrading from 1.1:**
@@ -17,17 +22,25 @@ Astro Editor now helps once the first draft is done. A new Copyedit panel checks
 
 The right sidebar now has tabs, with **Frontmatter** on <kbd>⌘2</kbd> and the new **Copyedit** panel on <kbd>⌘3</kbd>. Each shortcut opens its tab, or closes the sidebar if that tab is already showing. The part-of-speech highlights now have a dropdown at the top of the panel, as well as their commands in the palette. See [Copyediting, Spelling & Grammar](https://astroeditor.danny.is/editor/copyediting/). (#381, #383)
 
+![The Copyedit tab beside a recipe, with noun and verb highlights on and the spelling, grammar and style switches below them](../../../assets/copyedit-panel.png)
+
 ### Spelling, grammar and style
 
 Switch on **Spelling**, **Grammar** and **Style** in the Copyedit panel, and issues are underlined in the editor and listed in the panel. Hover an underline or click an issue to apply a suggested fix, add the word to your dictionary, or ignore it.
 
 The checks use [Harper](https://writewithharper.com), which runs entirely on your computer, so nothing you write is sent anywhere. They only check English, and you can choose American, British, Canadian, Australian or Indian English in [Preferences](https://astroeditor.danny.is/preferences/#copyedit). They skip your frontmatter, code, URLs and component tags, and stay quiet about names, acronyms and house-style choices. See [Spelling, Grammar and Style](https://astroeditor.danny.is/editor/copyediting/#spelling-grammar-and-style). (#265)
 
+![A rough draft with spelling, grammar and style issues underlined in the editor, and the same issues listed in the Copyedit panel](../../../assets/copyedit-checks.png)
+
 ### Git tab (experimental)
 
 For writers who already use git, the Git tab commits the entry you're working on, with the images and other files it uses, and pushes it without you leaving Astro Editor. It ticks the changed files your entry refers to, and points out images you added and then took out so they don't get left behind. It runs your own `git`, so your credentials, hooks and signing work as they do in your terminal. Pull only brings in new commits when it can do so cleanly. Branches, merges and conflicts are left to your git tool.
 
+![The Git tab beside an article, showing the branch with one commit to push, the entry marked Modified, a Stage 3 files button, two images ticked and a third marked No longer used in the entry](../../../assets/git-tab.png)
+
 It's off by default. Turn on **Git panel** in [Project Settings](https://astroeditor.danny.is/project-settings/#git), then open the tab with <kbd>⌘4</kbd>. It needs git 2.31 or later, and while it's off, Astro Editor runs no git for that project. See [Git](https://astroeditor.danny.is/git/) and [How the Git Tab Works](https://astroeditor.danny.is/reference/git/). (#391)
+
+![The commit card, with three files staged, a prefilled commit message, Cancel and Commit buttons, and the list of files to be committed to main](../../../assets/git-commit-card.png)
 
 ### Frontmatter, read like Astro and edited in place
 
