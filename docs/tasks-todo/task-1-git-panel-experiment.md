@@ -63,27 +63,14 @@ Phases, all on `experiment/git-panel`: 0 setup, 1 the Rust side, 2 the switch an
 
 ## Left to do, or to revisit
 
-- **Not tried in the app:** renaming an entry from the sidebar and seeing its old path ticked (unit test only); a refusing `pre-push` hook (`.block-push` in `monorepo`) and a rejected push (Rust tests only); SSH remotes, signing and credential prompts (the test repos have none, so the first dogfood repo is the first real test). The login-shell PATH lookup should be checked once in a release build opened from the Dock, since `tauri dev` inherits the terminal's PATH.
+- **Review fixes before shipping:** `task-2-git-panel-review-fixes.md`, including what's still to try in the app.
 - **Deliberately left:** a right-click menu for the rest of the tab (everything is a button); images changed by another app while AE stays focused aren't seen until a refresh or focus (the project watcher only reports `.md`/`.mdx`); whether this entry, rather than the branch, is behind; a "Publish" prefill when the draft field was turned off.
-- **Phase 6, history:** not doing for now. The entry card shows the last commit and the strip lists unpushed ones, which may be enough. `commits()` in `git/state.rs` already reads a log if it comes back.
-- **Phase 7, dogfood and decide:** Danny uses it on `~/dev/dannyis-astro-content` with the questions below, then decides: keep it as an experiment, make it the feature, or drop it.
+- **Phase 6, history:** not doing for now. The entry card shows the last commit and the strip lists unpushed ones, which may be enough. `commits()` in `git/state.rs` already reads a log if it comes back (`task-x-git-entry-history.md`).
+- **Phase 7, dogfood and decide:** shipping in the next release behind the experimental switch rather than deciding first. Danny keeps using it, with the questions below.
 
 ## Testing
 
-**Never test in the astro-editor checkout or a real site's repo.** Its test projects sit inside this repo, so a Git tab on them would commit into astro-editor. Use the throwaway repos in `~/dev/temp-git-repos-for-ae-testing/`.
-
-Rebuild them with `bash docs/tasks-todo/temporary/git-369/make-test-repos.sh`, from the main checkout, outside the agent sandbox. It wipes the folder and starts again. It's a throwaway script in the gitignored temporary folder, so copy it across if this work moves to a worktree. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds. The original research notes (`git-integration-exploration.md`) are alongside it.
-
-| Repo | Open in AE | For |
-| --- | --- | --- |
-| `blog` | `blog` | The happy path: history by two authors (with a rename), a bare remote, a commit to push, an uncommitted change |
-| `blog-collaborator` | (not opened) | A second clone of the same remote, to play another writer: commit and push here, then pull in `blog` |
-| `monorepo` | `monorepo/docs` | A Starlight site in `docs/`, with someone's staged and unstaged work outside it and a staged `docs/astro.config.mjs`. Hooks in `.githooks/`: `pre-commit` strips trailing whitespace and re-stages; `pre-push` refuses while `.block-push` exists |
-| `ignored-site` | `ignored-site/site` | A site in a folder the parent repo ignores |
-| `no-repo` | `no-repo` | No git at all |
-| `submodule-parent` | `submodule-parent/site` | The site as a submodule; `checkout --detach` it for detached HEAD |
-
-Remotes are bare repos in `remotes/`, so pushing works offline. Play "another app" with `git -C ~/dev/temp-git-repos-for-ae-testing/<repo> …`, always with the full path, never `cd` and a bare `git`. Open one with `bun run app open-project ~/dev/temp-git-repos-for-ae-testing/blog`, and check `bun run app state` shows a project there before driving the app. The Rust tests build their own repos in a temp folder (`git::test_repos`).
+How to test, and the throwaway repositories, are in "Testing" in `docs/developer/git.md`; `scripts/make-git-test-repos.sh` builds them. Never test in the astro-editor checkout or a real site's repo. The original research notes (`git-integration-exploration.md`) are in the gitignored `docs/tasks-todo/temporary/git-369/`.
 
 When this ships or is dropped: delete `~/dev/temp-git-repos-for-ae-testing/`, and remove its entry from the sandbox's allowed write paths in `.claude/settings.local.json`, which lets agents play "another app" in the test repos without prompting.
 
@@ -102,7 +89,4 @@ When this ships or is dropped: delete `~/dev/temp-git-repos-for-ae-testing/`, an
 
 ## Ideas for later, not this experiment
 
-- A count badge on the Git tab while there are unpushed commits.
-- The entry's history, and "Open on GitHub" from it.
-- The entry's changes since its last commit, shown in the editor (`@codemirror/merge` against `HEAD:<path>`).
-- Opening a terminal at the project (the ▶ button in #360), which shares the login-shell PATH code.
+Each has its own `task-x` doc: `task-x-git-tab-unpushed-badge.md`, `task-x-git-entry-history.md` (with "Open on GitHub"), and `task-x-git-entry-changes.md` (the entry's changes since its last commit, in the editor). Opening a terminal at the project (the ▶ button in #360) would share the login-shell environment code (`shell_env.rs`).

@@ -109,7 +109,9 @@ Checked the tab in the dev app on `blog`.
 - **29.** Build relative commit dates directly, rather than with a regex over another function's wording.
 - **30.** Show git's messages in Check remote as plain text, so backticks aren't styled as code.
 
-## Phase 8: Developer docs
+## Phase 8: Developer docs ✅
+
+Done. The script is `scripts/make-git-test-repos.sh`, and the test repos table moved to `git.md`'s Testing section. The "Ideas for later" became `task-x-git-tab-unpushed-badge.md`, `task-x-git-entry-history.md` and `task-x-git-entry-changes.md`; #360 already tracks the terminal. Archiving `task-1` waits for the release.
 
 - **18.** `git.md`: `add`, `reset` and `fetch` can also run rare hooks, but they take AE's paths and need literal pathspecs, so they stay off the hook list. Correct the wording.
 - **34.** Replace history with the reason: `git.md`'s "stray `git add -A`" line, and `ui-patterns.md`'s "measuring in JS missed tabs added after mount".

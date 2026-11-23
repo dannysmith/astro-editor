@@ -2,6 +2,14 @@
 
 The Git panel is an experiment: a Git tab in the right sidebar, switched on per project with the `gitPanel` project setting. It's for technical writers who have git and a local checkout: see the open entry's state, commit it with the files it uses, and push. Project Settings shows what AE found out about git for the project. While the setting is off, AE runs no git commands for that project.
 
+## What it's for, and what it isn't
+
+AE is for writing, so git earns a place only for the moments a writer hits while writing: has this entry changed, and is it committed; commit this finished piece with its images and nothing else; bring in what's changed upstream before committing; don't forget to push. Branches, merges and conflicts are where a writer should switch to a git tool, since getting them wrong loses work or breaks a shared repository. So the tab doesn't check out, discard, stash, make merge commits, switch or create branches, push a new branch for the first time, resolve conflicts or sign in. Nothing in it is automatic, and there's no git UI outside the tab and Project Settings, apart from toasts for a finished push or pull.
+
+It's for two kinds of writer: someone with their own blog repository that deploys on push, and a contributor to a docs site in a folder of a library's monorepo, with other people's changes, hooks, signing and a protected `main`. So a project folder that isn't the repository's root is the normal case. Writers with no terminal or git setup would need AE to own sign-in and the clone, which is a different product.
+
+The commit model is Markdown Monster's: only the open document is ticked, and the writer can tick more. Obsidian Git's auto-sync is where its users meet conflicts, and Front Matter CMS's single Sync button commits everything and pulls, which is wrong for a shared repository.
+
 ## Using the system `git`
 
 AE runs the user's own `git` as a child process (`src-tauri/src/git/`), rather than a library like libgit2. Credentials (osxkeychain, `gh auth`, SSH agents), hooks, commit signing, `includeIf` configs, LFS, worktrees and submodules then behave as they do in a terminal, and AE needs no auth code. The cost is that git must be installed, which is fine for this audience. Git's config is the only source of truth: AE stores nothing about git except the setting, and when git doesn't work it shows git's own message rather than working around it.
@@ -28,13 +36,13 @@ An app opened from the Dock gets launchd's bare environment: a `PATH` without Ho
 - **`LC_ALL=C`,** so git's messages are in English whatever language the Mac is set to, since AE looks for one ("not a git repository"). Where it can, AE asks git rather than reading its messages: "nothing to commit" is `diff --cached --quiet`.
 - **`GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` removed,** since inherited they'd point every command at another repository.
 
-**Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks, `quotepath` or language settings, so a hook's messages are in the user's language. Push's check for a rejection reads git's reason for it ("non-fast-forward", "fetch first"), which git never translates. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them.
+**Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks, `quotepath` or language settings, so a hook's messages are in the user's language. Push's check for a rejection reads git's reason for it ("non-fast-forward", "fetch first"), which git never translates. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them. A few other commands can run rarely used hooks (`add` and `reset` run `post-index-change`, `fetch` runs `reference-transaction`), but they keep AE's settings: `add` and `reset` take AE's paths, which must stay literal.
 
 Success is the exit code, never an empty stderr: git prints warnings and hints when it succeeds.
 
 ## Finding the repository
 
-`git::repo::discover` runs `rev-parse` from the project folder, which looks up through parent folders, so a site in `docs/` of a monorepo is found. Then, if the project isn't the repository's root, `check-ignore` asks whether the repository ignores the project's folder. If it does, the project is treated as not being in a repository. Otherwise anything committed from a site kept in an ignored folder would land in the parent repository, which is exactly what a stray `git add -A` did once while this was being researched.
+`git::repo::discover` runs `rev-parse` from the project folder, which looks up through parent folders, so a site in `docs/` of a monorepo is found. Then, if the project isn't the repository's root, `check-ignore` asks whether the repository ignores the project's folder. If it does, the project is treated as not being in a repository. Otherwise anything committed from a site kept in an ignored folder would land in the parent repository, which may be a different project altogether.
 
 An entry that belongs to another repository can't be committed from the tab, which says so: one whose real path is outside the repository (a folder symlinked in), or one inside a submodule or other repository nested in it (a folder above it has its own `.git`). Git refuses to answer about a submodule's files from the outer repository, so those are found by looking for `.git`, not by asking git.
 
@@ -95,4 +103,17 @@ Pull doesn't offer a merge commit, or a way through conflicts. Those are for the
 
 Rust tests build throwaway repositories with the real `git` (`git::test_repos`): a temp folder git can't look above (`GIT_CEILING_DIRECTORIES`), with the global and system config ignored, so they never read the developer's config or touch their repositories.
 
-For trying it in the app, use repositories outside this checkout. This checkout is itself a git repository, and its test projects are inside it, so a Git panel opened on them would see, and could commit to, astro-editor itself.
+For trying it in the app, use repositories outside this checkout. This checkout is itself a git repository, and its test projects are inside it, so a Git panel opened on them would see, and could commit to, astro-editor itself. Never try it on a real site's repository either.
+
+`bash scripts/make-git-test-repos.sh`, from this checkout and outside the agent sandbox (it writes to `~/dev`), builds throwaway repositories in `~/dev/temp-git-repos-for-ae-testing/`, wiping any already there. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds.
+
+| Repo | Open in AE | For |
+| --- | --- | --- |
+| `blog` | `blog` | The happy path: history by two authors (with a rename), a bare remote, a commit to push, an uncommitted change |
+| `blog-collaborator` | (not opened) | A second clone of the same remote, to play another writer: commit and push here, then pull in `blog` |
+| `monorepo` | `monorepo/docs` | A Starlight site in `docs/`, with someone's staged and unstaged work outside it and a staged `docs/astro.config.mjs`. Hooks in `.githooks/`: `pre-commit` strips trailing whitespace and re-stages; `pre-push` refuses while `.block-push` exists |
+| `ignored-site` | `ignored-site/site` | A site in a folder the parent repo ignores |
+| `no-repo` | `no-repo` | No git at all |
+| `submodule-parent` | `submodule-parent/site` | The site as a submodule; `checkout --detach` it for detached HEAD |
+
+Remotes are bare repositories in `remotes/`, so pushing works offline. Play "another app" with `git -C ~/dev/temp-git-repos-for-ae-testing/<repo> …`, always with the full path, never `cd` and a bare `git`. Open one with `bun run app open-project ~/dev/temp-git-repos-for-ae-testing/blog`, and check `bun run app state` shows a project there before driving the app.

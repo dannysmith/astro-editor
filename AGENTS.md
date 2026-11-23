@@ -55,13 +55,13 @@ Breaking any of these causes bugs or wasted work. The reasons are in the archite
 - `src/components/`: UI by feature (`layout/`, `editor/`, `frontmatter/`, `copyedit/`, `preferences/`, `command-palette/`, …), shadcn in `ui/`
 - `src/hooks/`: hooks, including queries and mutations (`queries/`, `mutations/`) and actions (`editor/useEditorActions.ts`)
 - `src/store/`: Zustand stores
-- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands; `extensions/harper/` is the spelling, grammar and style checks), `commands/` (command palette), `right-sidebar.ts` (its tabs), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
+- `src/lib/`: logic without React: `editor/` (CodeMirror extensions and commands; `extensions/harper/` is the spelling, grammar and style checks), `commands/` (command palette), `right-sidebar.ts` (its tabs), `project-scan.ts` (the open project's collections and resolved settings), `files/`, `git/` (the Git tab: which files go with an entry, staging, its writes and menus), `path-menu.ts` (Reveal in Finder, Open in IDE and Copy Path, for any file's context menu), `schema.ts`, `query-keys.ts`, `dates.ts` (always use these for dates; `new Date('YYYY-MM-DD')` shifts days by timezone), `toast.ts`, `ide.ts`
 - `src/lib/bindings.ts`: generated Tauri command bindings
 - `src/App.css`: colour tokens and global styles
 - `src/styleguide/`: the component styleguide (`localhost:1420/styleguide.html`, or the dev slot's port in a worktree), dev only
-- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `frontmatter/` (splitting a content file into frontmatter, imports and body, and putting it back), `yaml.rs` (every YAML read, matching Astro), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `mdx_esm/` (finding an MDX file's import block, and planning imports to add), `agent_bridge/` (dev only)
+- `src-tauri/src/`: Rust: `commands/` (one file per area), `content_config/` (reading collections and loaders from the content config), `collections.rs` (resolving collections with their settings), `preferences.rs` (the settings files), `frontmatter/` (splitting a content file into frontmatter, imports and body, and putting it back), `yaml.rs` (every YAML read, matching Astro), `parser.rs` and `schema_merger.rs` (schemas), `mdx_components/` (reading component props for the MDX builder), `mdx_esm/` (finding an MDX file's import block, and planning imports to add), `git/` (running the user's `git` for the Git tab), `shell_env.rs` (the user's login-shell environment, for the programs AE runs), `process.rs` (running a child process with a timeout), `agent_bridge/` (dev only)
 - `test/`: Astro projects for manual and agent testing. Work in the gitignored copies: `temp-dummy-astro-project`, which `bun run reset:testdata` recreates from `test/dummy-astro-project`, and `temp-test-projects/`, which `bun run reset:testprojects` recreates from `personal-site`, `unusual-structure` and `starlight-minimal`
-- `scripts/`: the `app` CLI, release script, dev launcher, dev slots and setup
+- `scripts/`: the `app` CLI, release script, dev launcher, dev slots, setup, and the Git panel's test repositories
 
 Naming: `kebab-case` directories, `PascalCase` components, `index.ts` barrel exports.
 
@@ -125,7 +125,7 @@ In `docs/developer/`. Read the ones for the area you're working in.
 - `optimization.md`: build and bundle settings
 - `releases.md`: cutting a release, hotfixes, test builds, CI, updates and signing
 - `agent-tooling.md`: the dev identity, agent bridge, styleguide and logs
-- `git.md`: the experimental Git panel: running the user's git, finding the repository, testing
+- `git.md`: the experimental Git panel: what it's for and what it isn't, running the user's git and its environment, which files go with an entry, staging and committing, pushing and pulling safely, and the test repositories
 
 ## Tasks
 
