@@ -217,11 +217,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  // The edits below are ignored until the file has loaded, and the frontmatter
-  // ones while its frontmatter can't be read (see `isLoaded`)
+  // The edits below are ignored until the file has loaded (see `isLoaded`),
+  // while editing is paused (`editingPaused`), and the frontmatter ones while
+  // its frontmatter can't be read
 
   setEditorContent: (content: string) => {
-    if (!get().isLoaded) return
+    if (!get().isLoaded || get().editingPaused) return
     set({ editorContent: content, isDirty: true })
     get().scheduleAutoSave()
   },

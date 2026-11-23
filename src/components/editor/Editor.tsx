@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { EditorView } from '@codemirror/view'
-import { Compartment, EditorState } from '@codemirror/state'
+import { EditorState } from '@codemirror/state'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useEditorStore } from '../../store/editorStore'
 import { useUIStore } from '../../store/uiStore'
@@ -13,28 +13,18 @@ import { useImageHover } from '../../hooks/editor/useImageHover'
 import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { setCurrentEditorView } from '../../lib/editor/editor-view-ref'
 import { loadDocument } from '../../lib/editor/load-document'
+import {
+  editability,
+  editabilityCompartment,
+  isEditable,
+  type Editability,
+} from '../../lib/editor/editability'
 import { ImagePreview } from './ImagePreview'
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
 import './Editor.css'
 import '../../lib/editor/extensions/copyedit-mode/copyedit-mode.css'
-
-/**
- * The editor is read-only until the open file has loaded: until then it holds
- * an empty placeholder (see `isLoaded` in editorStore). Also while editing is
- * paused for a pull (`editingPaused`). Read-only rather than not editable, so
- * focus stays in the editor while switching files
- */
-const readOnlyCompartment = new Compartment()
-const readOnlyUnless = (editable: boolean) => EditorState.readOnly.of(!editable)
-const isEditable = ({
-  isLoaded,
-  editingPaused,
-}: {
-  isLoaded: boolean
-  editingPaused: boolean
-}) => isLoaded && !editingPaused
 
 // Extend window to include editor focus tracking
 declare global {
@@ -183,9 +173,7 @@ const EditorViewComponent: React.FC = () => {
       doc: editorContent,
       extensions: [
         ...extensions,
-        readOnlyCompartment.of(
-          readOnlyUnless(isEditable(useEditorStore.getState()))
-        ),
+        editabilityCompartment.of(editability(useEditorStore.getState())),
         EditorView.updateListener.of(update => {
           if (update.docChanged && !isProgrammaticUpdate.current) {
             const newContent = update.state.doc.toString()
@@ -322,12 +310,15 @@ const EditorViewComponent: React.FC = () => {
 
   // Follow whether the open file can be edited without re-rendering
   useEffect(() => {
+    const key = (state: Editability) =>
+      `${isEditable(state)}:${state.editingPaused}`
+    let applied = key(useEditorStore.getState())
     return useEditorStore.subscribe(state => {
       const view = viewRef.current
-      const editable = isEditable(state)
-      if (!view || view.state.readOnly === !editable) return
+      if (!view || key(state) === applied) return
+      applied = key(state)
       view.dispatch({
-        effects: readOnlyCompartment.reconfigure(readOnlyUnless(editable)),
+        effects: editabilityCompartment.reconfigure(editability(state)),
       })
     })
   }, [])

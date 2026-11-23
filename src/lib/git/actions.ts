@@ -98,15 +98,16 @@ export async function pushBranch(projectPath: string) {
 
 /**
  * Fetches and brings in the upstream's new commits, when that can be done
- * cleanly. Saves the entry first, so the check for uncommitted changes the
- * remote also changed sees the writer's latest, pauses editing while git
- * works, and reads the entry again before editing resumes, since the pull may
- * have changed it. Returns how many commits came in.
+ * cleanly. Pauses editing, then saves the entry, so the check for uncommitted
+ * changes the remote also changed sees the writer's latest and nothing typed
+ * after it is left to save over the pulled text. Reads the entry again before
+ * editing resumes, since the pull may have changed it. Returns how many
+ * commits came in.
  */
 export async function pullBranch(projectPath: string): Promise<number> {
-  await saveEntry()
   useEditorStore.setState({ editingPaused: true })
   try {
+    await saveEntry()
     const result = await commands.gitPull(projectPath)
     if (result.status === 'error') throw new Error(result.error)
     if (result.data > 0) await reloadEntry()

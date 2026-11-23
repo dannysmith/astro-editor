@@ -193,6 +193,22 @@ describe('editing a file that has not loaded', () => {
     })
   })
 
+  it('ignores edits while editing is paused', () => {
+    useEditorStore.setState({ isLoaded: true, editingPaused: true })
+    const store = useEditorStore.getState()
+    store.setEditorContent('Typed during a pull')
+    store.setImports("import A from './a'")
+    store.updateFrontmatterField('title', 'Hello')
+
+    expect(useEditorStore.getState()).toMatchObject({
+      editorContent: '',
+      imports: '',
+      frontmatter: {},
+      isDirty: false,
+    })
+    useEditorStore.setState({ editingPaused: false })
+  })
+
   it("ignores frontmatter edits when the frontmatter can't be read", () => {
     useEditorStore.setState({ isLoaded: true, frontmatterError: 'bad YAML' })
 

@@ -213,8 +213,12 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       sync={{
         pending: sync.isPending ? sync.variables : null,
         busy: write.isPending,
-        // A rebase would leave AE's staged files unstaged
-        pullBlocked: live ? 'Commit or cancel the staged files first' : null,
+        // Pulling commits of our own rebases them, which unstages whatever's
+        // staged, whoever staged it (Rust refuses it too)
+        pullBlocked:
+          tree && tree.ahead > 0 && tree.staged.length > 0
+            ? 'Commit or unstage the staged files first'
+            : null,
         error:
           sync.error && sync.variables
             ? { action: sync.variables, message: sync.error.message }

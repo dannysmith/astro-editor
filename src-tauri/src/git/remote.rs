@@ -52,12 +52,26 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
         return Ok(0);
     }
 
+    // Without renames, a file the upstream renamed is listed under its old
+    // path too, so uncommitted changes to it are caught. With them, only the
+    // new path is, and the rebase below would put the writer's changes back
+    // into the renamed file with conflict markers, and still succeed
     let theirs = paths(
         git,
         repository,
-        &["diff", "--name-only", "-z", "HEAD...@{upstream}"],
+        &[
+            "diff",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            "HEAD...@{upstream}",
+        ],
     )?;
-    let uncommitted = paths(git, repository, &["diff", "--name-only", "-z", "HEAD"])?;
+    let uncommitted = paths(
+        git,
+        repository,
+        &["diff", "--name-only", "--no-renames", "-z", "HEAD"],
+    )?;
     let both: Vec<&str> = uncommitted
         .iter()
         .filter(|path| theirs.contains(path))
@@ -77,6 +91,16 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
             WRITE_TIMEOUT,
         )?;
         return Ok(behind);
+    }
+
+    // The rebase's autostash brings staged files back unstaged, whoever staged
+    // them
+    let staged = git.run(root, &["diff", "--cached", "--quiet"], READ_TIMEOUT)?;
+    if !staged.success() {
+        return Err(
+            "Pulling would unstage the files that are staged. Commit or unstage them, then pull again. Nothing was changed."
+                .to_string(),
+        );
     }
 
     // Uncommitted changes are put aside and back again; they don't touch the
@@ -278,6 +302,62 @@ mod tests {
             fs::read_to_string(writer.join("entry.md")).unwrap(),
             "mine\n"
         );
+    }
+
+    #[test]
+    fn pull_refuses_to_rebase_while_anything_is_staged() {
+        let repos = TestRepos::new();
+        let (writer, collaborator) = shared(&repos);
+        change(&repos, &collaborator, "other.md", "two\n", true);
+        change(&repos, &writer, "entry.md", "two\n", false);
+        fs::write(writer.join("new.md"), "staged\n").unwrap();
+        repos.git_ok(&writer, &["add", "new.md"]);
+        let before = head(&repos, &writer);
+
+        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        assert!(error.contains("unstage"), "{error}");
+        assert_eq!(head(&repos, &writer), before);
+        assert_eq!(
+            repos.git_ok(&writer, &["diff", "--cached", "--name-only"]),
+            "new.md\n"
+        );
+
+        // Only behind, it fast-forwards and keeps what's staged
+        repos.git_ok(&writer, &["reset", "-q", "--hard", "origin/main~1"]);
+        fs::write(writer.join("new.md"), "staged\n").unwrap();
+        repos.git_ok(&writer, &["add", "new.md"]);
+        assert_eq!(pull(&repos.git, &open(&repos, &writer)), Ok(1));
+        assert_eq!(
+            repos.git_ok(&writer, &["diff", "--cached", "--name-only"]),
+            "new.md\n"
+        );
+    }
+
+    #[test]
+    fn pull_refuses_when_the_remote_renamed_a_file_with_uncommitted_changes() {
+        let repos = TestRepos::new();
+        let (writer, collaborator) = shared(&repos);
+        // Long enough for git to see the rename below as one
+        let lines: String = (1..=10).map(|n| format!("line {n}\n")).collect();
+        change(&repos, &collaborator, "entry.md", &lines, true);
+        let repository = open(&repos, &writer);
+        assert_eq!(pull(&repos.git, &repository), Ok(1));
+
+        // The remote renames it and changes its first line. The writer has a
+        // commit of their own, and an uncommitted change to the same line
+        repos.git_ok(&collaborator, &["mv", "entry.md", "renamed.md"]);
+        let theirs = lines.replacen("line 1", "theirs", 1);
+        change(&repos, &collaborator, "renamed.md", &theirs, true);
+        change(&repos, &writer, "other.md", "two\n", false);
+        let mine = lines.replacen("line 1", "mine", 1);
+        fs::write(writer.join("entry.md"), &mine).unwrap();
+        let before = head(&repos, &writer);
+
+        let error = pull(&repos.git, &repository).unwrap_err();
+        assert!(error.contains("entry.md"), "{error}");
+        assert_eq!(head(&repos, &writer), before);
+        assert_eq!(fs::read_to_string(writer.join("entry.md")).unwrap(), mine);
+        assert!(!writer.join("renamed.md").exists());
     }
 
     #[test]

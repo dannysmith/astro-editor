@@ -50,7 +50,9 @@ Done as below. `shell_path.rs` is now `shell_env.rs`. Push's rejection check rea
 
 **19.** Merge the branch and upstream fields that `GitRepository` and `GitWorkingTree` duplicate.
 
-## Phase 4: Pull safety
+## Phase 4: Pull safety ✅
+
+Done. 5: a test reproduced it (Pull returned success). `--no-renames` fixes it, and the check for conflicted files after the rebase was left out: with renames off, any upstream change to a file with uncommitted changes is refused before anything starts, so it couldn't fire. 3: Rust refuses the rebase while anything is staged, and the tab disables Pull then; a fast-forward keeps what's staged, so it isn't blocked. 6: the filter and the read-only switch live in `lib/editor/editability.ts`, and file loads carry a `fileLoad` annotation. Checked in the dev app: while paused, a programmatic change is refused and editing works again afterwards.
 
 **5. Renames get past Pull's pre-check.** The check that refuses when uncommitted files overlap the upstream's changes uses `git diff`, which follows renames: when upstream renames and edits `a.md` as `b.md`, uncommitted edits to `a.md` pass. The rebase exits 0, AE says "Pulled", `b.md` has conflict markers, the edits sit in a stash, and AE reloads the entry with the markers in it. Add `--no-renames` to both diffs (`git/remote.rs:53-58`), check for conflicted files after the rebase and say so plainly, and test the rename case.
 

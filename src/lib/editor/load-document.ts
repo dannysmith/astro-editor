@@ -1,9 +1,15 @@
-import { Compartment, type SelectionRange } from '@codemirror/state'
+import { Annotation, Compartment, type SelectionRange } from '@codemirror/state'
 import { history } from '@codemirror/commands'
 import type { EditorView } from '@codemirror/view'
 
 /** Undo history, in a compartment so loading a document can start it afresh */
 const historyCompartment = new Compartment()
+
+/**
+ * Marks the transaction that loads a document from disk, which goes through
+ * even while editing is paused (see `Editor.tsx`)
+ */
+export const fileLoad = Annotation.define<boolean>()
 
 /** The editor's undo history extension, which `loadDocument` resets */
 export const undoHistory = () => historyCompartment.of(history())
@@ -26,6 +32,7 @@ export function loadDocument(
     changes: { from: 0, to: view.state.doc.length, insert: content },
     selection,
     effects: historyCompartment.reconfigure([]),
+    annotations: fileLoad.of(true),
   })
   view.dispatch({ effects: historyCompartment.reconfigure(history()) })
 }
