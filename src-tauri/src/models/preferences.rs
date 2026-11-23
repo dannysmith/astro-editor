@@ -57,6 +57,8 @@ pub struct GeneralSettings {
     pub auto_save_delay: u32,
     /// For new files when a collection allows both and doesn't set one
     pub default_file_type: FileType,
+    /// Deleting a file removes it for good, instead of moving it to the Trash
+    pub permanently_delete_files: bool,
 }
 
 impl Default for GeneralSettings {
@@ -67,6 +69,7 @@ impl Default for GeneralSettings {
             highlights: Highlights::default(),
             auto_save_delay: 2,
             default_file_type: FileType::Md,
+            permanently_delete_files: false,
         }
     }
 }

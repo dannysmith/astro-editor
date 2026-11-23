@@ -16,7 +16,8 @@ export const commands = {
 	 *  schema order. Returns the new file's path, with `/` on Windows too
 	 */
 	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schema: FrontmatterSchema, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schema, projectRoot })),
-	deleteFile: (filePath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot })),
+	/**  Moves a file in the project to the Trash, or with `permanent`, removes it */
+	deleteFile: (filePath: string, projectRoot: string, permanent: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot, permanent })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
 	/**
 	 *  Copies a file into `<assets_directory>/<collection>/` (the folder relative to
@@ -449,6 +450,8 @@ export type GeneralSettings = {
 	autoSaveDelay: number,
 	/**  For new files when a collection allows both and doesn't set one */
 	defaultFileType: FileType,
+	/**  Deleting a file removes it for good, instead of moving it to the Trash */
+	permanentlyDeleteFiles: boolean,
 };
 
 /**  One changed, new or conflicted file */

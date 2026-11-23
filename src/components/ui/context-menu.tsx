@@ -7,7 +7,6 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { commands } from '@/lib/bindings'
-import { ask } from '@tauri-apps/plugin-dialog'
 import type { FileEntry } from '@/types'
 import { useProjectStore } from '../../store/projectStore'
 import { toast } from '../../lib/toast'
@@ -25,15 +24,6 @@ interface ContextMenuOptions {
 }
 
 export class FileContextMenu {
-  private static async showConfirmationDialog(
-    fileName: string
-  ): Promise<boolean> {
-    return ask(`Are you sure you want to delete "${fileName}"?`, {
-      title: 'Delete File',
-      kind: 'warning',
-    })
-  }
-
   private static generateDuplicatePath(originalPath: string): string {
     const lastSlashIndex = originalPath.lastIndexOf('/')
     const directory = originalPath.substring(0, lastSlashIndex)
@@ -136,17 +126,12 @@ export class FileContextMenu {
         action: () => {
           void (async () => {
             try {
-              const fileName = getTitle(file, titleField)
-              const confirmed =
-                await FileContextMenu.showConfirmationDialog(fileName)
-              if (confirmed) {
-                // Through Rust, which refuses paths outside the project
-                await deleteFile(file.path, projectPath)
-                // Refresh the file list if callback is provided
-                if (onRefresh) {
-                  onRefresh()
-                }
-              }
+              const deleted = await deleteFile(
+                file.path,
+                projectPath,
+                getTitle(file, titleField)
+              )
+              if (deleted && onRefresh) onRefresh()
             } catch (error) {
               void logError(`Failed to delete file: ${String(error)}`)
               toast.error("Couldn't delete the file", {
