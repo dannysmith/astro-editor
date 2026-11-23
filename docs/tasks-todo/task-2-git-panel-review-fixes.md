@@ -121,11 +121,15 @@ Done. The script is `scripts/make-git-test-repos.sh`, and the test repos table m
 - **38.** Finish `task-1-git-panel-experiment.md`: update "Left to do", split "Ideas for later" into `task-x-…` docs, and archive it to `tasks-done/` when this ships.
 - Update `git.md` for everything the phases above changed (the environment, the Pull block, submodules, the git version).
 
-## Phase 9: Website docs
+## Phase 9: Website docs ✅
+
+Done: #382 has a "Git tab, experimental" section. Its first item needs Danny's call: `getting-started/philosophy.mdx` (and `AGENTS.md`'s product principles) say AE has no way to commit, which the Git tab changes.
 
 **39.** Add a Git tab section to #382: a page for the tab; a Git section in `project-settings.mdx` with the Experimental switch; ⌘4 in `reference/keyboard-shortcuts.mdx`; Toggle Git Panel in `reference/commands.mdx`; a line in `privacy.mdx` (only Pull, Push and Check remote touch the network, through the writer's own git); screenshots; a release note.
 
 ## Phase 10: Try it, then ship
+
+Tried by an agent in `blog`: Pull disabled with its reason while a file was staged and the branch ahead, then, unstaged, a pull that rebased a local commit onto the upstream's and kept an uncommitted edit; the editing pause; the relative image reference ticking its file. Still to try, by Danny: renaming an entry from the sidebar (a native menu, so agents can't drive it) with its files staged and without, deleting a "no longer used" image (a native confirmation), a refusing `pre-push` hook in `monorepo`, and everything on a real repository with a pre-release build from the Dock.
 
 **40.** Try in the test repos: the old path following an entry renamed from the sidebar; a refusing `pre-push` hook (`.block-push` in `monorepo`) and a rejected push; Pull with something staged; the rename case from item 5. Then, with a pre-release build opened from the Dock, on a real repo: SSH remotes, signing, credential prompts and the login-shell environment.
 
