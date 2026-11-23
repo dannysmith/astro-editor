@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { screen, fireEvent } from '@testing-library/react'
+import { act, screen, fireEvent } from '@testing-library/react'
 import { ImageArrayField } from './ImageArrayField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
@@ -41,5 +41,23 @@ describe('ImageArrayField', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(gallery()).toEqual(['a.png', 'b.png', 'd.png'])
+  })
+
+  it('drops a half-typed path when another file is opened', () => {
+    fireEvent.click(screen.getAllByTitle('Edit path manually')[2]!)
+    fireEvent.change(screen.getByDisplayValue('c.png'), {
+      target: { value: 'typed-for-the-last-file.png' },
+    })
+
+    act(() =>
+      useEditorStore.setState(state => ({
+        openGeneration: state.openGeneration + 1,
+      }))
+    )
+
+    expect(
+      screen.queryByDisplayValue('typed-for-the-last-file.png')
+    ).not.toBeInTheDocument()
+    expect(screen.getAllByTitle('Edit path manually')).toHaveLength(3)
   })
 })

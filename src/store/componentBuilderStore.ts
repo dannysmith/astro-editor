@@ -273,7 +273,7 @@ export const useComponentBuilderStore = create<
       // Plan again against the file as it is now: the plan shown may not have
       // arrived yet, and the file can change on disk while the builder is open
       inserting = true
-      const fileId = useEditorStore.getState().currentFile?.id
+      const filePath = useEditorStore.getState().currentFile?.path
       const result = addImport
         ? await planImports(component, editorView, { images, entries })
         : { plan: null }
@@ -282,7 +282,7 @@ export const useComponentBuilderStore = create<
       // made for this one
       if (
         get().selectedComponent !== component ||
-        useEditorStore.getState().currentFile?.id !== fileId
+        useEditorStore.getState().currentFile?.path !== filePath
       ) {
         return
       }

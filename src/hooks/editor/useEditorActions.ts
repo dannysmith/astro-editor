@@ -89,6 +89,7 @@ async function saveCurrentFile(
     isFrontmatterDirty,
     imports,
     isLoaded,
+    openGeneration,
   } = useEditorStore.getState()
   // Until the file has loaded, the store holds an empty placeholder, which
   // must never be written over it
@@ -172,10 +173,11 @@ async function saveCurrentFile(
       throw new Error(result.error)
     }
 
-    // If another file was opened during the save (openFile saves the
-    // outgoing file), the store now holds that file's state: leave it alone
+    // If a file was opened during the save (openFile saves the outgoing file),
+    // the store now holds that file's state: leave it alone. That includes
+    // switching away and back, where it holds this file's unloaded placeholder
     const currentState = useEditorStore.getState()
-    if (currentState.currentFile?.path === path) {
+    if (currentState.openGeneration === openGeneration) {
       // Clear auto-save timeout since we just saved
       if (currentState.autoSaveTimeoutId) {
         clearTimeout(currentState.autoSaveTimeoutId)
@@ -210,7 +212,7 @@ async function saveCurrentFile(
     if (projectPath) {
       // Invalidate file content query to refresh cached content
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+        queryKey: queryKeys.fileContent(projectPath, path),
       })
 
       // The collection's folder listings (root + all subdirectories)
@@ -268,7 +270,7 @@ async function saveCurrentFile(
     // Save recovery data for the file that failed: the store's latest edits
     // if it's still open, otherwise what this save tried to write
     const state = useEditorStore.getState()
-    const stillOpen = state.currentFile?.id === currentFile.id
+    const stillOpen = state.openGeneration === openGeneration
     const recovered = await saveRecoveryData(
       stillOpen
         ? {

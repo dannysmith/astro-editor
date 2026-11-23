@@ -430,9 +430,9 @@ describe('FrontmatterPanel Component', () => {
 
     renderWithProviders(<FrontmatterPanel />)
 
-    // Should render as text inputs, not TagInput
-    expect(screen.getByDisplayValue('1,2,3')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('string,123')).toBeInTheDocument()
+    // Edited as JSON, since a text input would replace them with a string
+    expect(screen.getAllByText('Edit as JSON')).toHaveLength(2)
+    expect(screen.queryByDisplayValue('1,2,3')).not.toBeInTheDocument()
 
     // Should not have tag removal buttons
     expect(screen.queryByLabelText(/Remove.*tag/)).not.toBeInTheDocument()

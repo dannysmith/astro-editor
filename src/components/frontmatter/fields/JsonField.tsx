@@ -41,7 +41,7 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   field,
 }) => {
   const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const fileId = useEditorStore(state => state.currentFile?.id)
+  const filePath = useEditorStore(state => state.currentFile?.path)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
@@ -53,10 +53,10 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   // The stored value the draft matches, or was last written as, and its file:
   // another file starts afresh even if its value is the same
   const [draftValueJson, setDraftValueJson] = React.useState(valueJson)
-  const [draftFileId, setDraftFileId] = React.useState(fileId)
-  if (valueJson !== draftValueJson || fileId !== draftFileId) {
+  const [draftFilePath, setDraftFilePath] = React.useState(filePath)
+  if (valueJson !== draftValueJson || filePath !== draftFilePath) {
     setDraftValueJson(valueJson)
-    setDraftFileId(fileId)
+    setDraftFilePath(filePath)
     setDraft(toJson(value))
     setError(null)
   }

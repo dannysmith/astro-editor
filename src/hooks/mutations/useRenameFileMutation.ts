@@ -9,7 +9,6 @@ import { useGitPanelStore } from '@/store/gitPanelStore'
 
 interface RenameFilePayload {
   oldPath: string
-  oldFileId: string // File ID for cache invalidation
   newPath: string
   projectPath: string
   collectionName: string
@@ -47,12 +46,13 @@ export const useRenameFileMutation = () => {
         ),
       })
 
-      // Invalidate the old file content cache
-      void queryClient.invalidateQueries({
+      // Nothing is at the old path now, so its cached content can't be used
+      queryClient.removeQueries({
         queryKey: queryKeys.fileContent(
           variables.projectPath,
-          variables.oldFileId
+          variables.oldPath
         ),
+        exact: true,
       })
 
       toast.success('File renamed successfully')

@@ -146,9 +146,7 @@ export const LeftSidebar: React.FC = () => {
   const frontmatterMappings = useFieldMappings(selectedCollection || undefined)
 
   // State for rename functionality
-  const [renamingFileId, setRenamingFileId] = React.useState<string | null>(
-    null
-  )
+  const [renamingPath, setRenamingPath] = React.useState<string | null>(null)
 
   const handleCollectionClick = (collection: Collection) => {
     useProjectStore.getState().setSelectedCollection(collection.name)
@@ -188,7 +186,7 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleRename = (file: FileEntry) => {
-    setRenamingFileId(file.id)
+    setRenamingPath(file.path)
   }
 
   const handleRenameSubmit = (file: FileEntry, newName: string) => {
@@ -197,7 +195,7 @@ export const LeftSidebar: React.FC = () => {
       ? `${file.name}.${file.extension}`
       : file.name
     if (!trimmedName || trimmedName === originalFullName) {
-      setRenamingFileId(null)
+      setRenamingPath(null)
       return
     }
 
@@ -205,7 +203,7 @@ export const LeftSidebar: React.FC = () => {
     const newPath = `${directory}/${trimmedName}`
     const { projectPath, selectedCollection } = useProjectStore.getState()
     if (!projectPath || !selectedCollection) {
-      setRenamingFileId(null)
+      setRenamingPath(null)
       return
     }
 
@@ -214,7 +212,6 @@ export const LeftSidebar: React.FC = () => {
     void renameFile(file.path, newPath, projectPath, () =>
       renameMutation.mutateAsync({
         oldPath: file.path,
-        oldFileId: file.id,
         newPath,
         projectPath,
         collectionName: selectedCollection,
@@ -223,7 +220,7 @@ export const LeftSidebar: React.FC = () => {
       .then(renamed => {
         // Another file may be being renamed by now
         if (renamed) {
-          setRenamingFileId(current => (current === file.id ? null : current))
+          setRenamingPath(current => (current === file.path ? null : current))
         }
       })
       .catch((error: unknown) => {
@@ -232,7 +229,7 @@ export const LeftSidebar: React.FC = () => {
   }
 
   const handleRenameCancel = () => {
-    setRenamingFileId(null)
+    setRenamingPath(null)
   }
 
   const defaultSort = currentCollection?.settings.defaultSort.value ?? null
@@ -612,18 +609,18 @@ export const LeftSidebar: React.FC = () => {
 
                 {/* Files, in the chosen sort order */}
                 {filteredAndSortedFiles.map(file => {
-                  const isSelected = currentFile?.id === file.id
+                  const isSelected = currentFile?.path === file.path
 
                   return (
                     <FileItem
-                      key={file.id}
+                      key={file.path}
                       file={file}
                       isSelected={isSelected}
                       frontmatterMappings={frontmatterMappings}
                       onFileClick={handleFileClick}
                       onContextMenu={(e, f) => void handleContextMenu(e, f)}
                       onRenameSubmit={handleRenameSubmit}
-                      isRenaming={renamingFileId === file.id}
+                      isRenaming={renamingPath === file.path}
                       onCancelRename={handleRenameCancel}
                     />
                   )

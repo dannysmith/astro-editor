@@ -24,13 +24,12 @@ const fetchFileContent = async (
 
 export const useFileContentQuery = (
   projectPath: string | null,
-  fileId: string | null,
   filePath: string | null
 ) => {
   return useQuery({
-    queryKey: queryKeys.fileContent(projectPath || '', fileId || ''),
+    queryKey: queryKeys.fileContent(projectPath || '', filePath || ''),
     queryFn: () => fetchFileContent(filePath!, projectPath!),
-    enabled: !!projectPath && !!fileId && !!filePath,
+    enabled: !!projectPath && !!filePath,
     // Stale time: consider data fresh for 30 seconds
     staleTime: 30 * 1000,
     // Cache time: keep data in cache for 5 minutes after component unmounts

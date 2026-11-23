@@ -77,7 +77,7 @@ describe('editorStore.openFile', () => {
 })
 
 describe('reading files from disk', () => {
-  const key = (id: string) => queryKeys.fileContent('/test', id)
+  const key = (id: string) => queryKeys.fileContent('/test', fileEntry(id).path)
   const stale = { content: 'An earlier file at this path' }
 
   beforeEach(() => {
@@ -98,17 +98,41 @@ describe('reading files from disk', () => {
   })
 
   it('never follows a rename onto content cached from the new path', () => {
-    queryClient.setQueryData(key('first'), { content: 'This file' })
     queryClient.setQueryData(key('second'), stale)
 
-    // The path changes first, keeping the id, then the id follows
+    // The path changes first, keeping the id
+    const renamed = fileEntry('second')
     const { updateCurrentFileAfterRename } = useEditorStore.getState()
-    updateCurrentFileAfterRename({ ...fileEntry('first'), path: '/moved.md' })
-    expect(queryClient.getQueryData(key('first'))).toEqual({
+    updateCurrentFileAfterRename({ ...fileEntry('first'), path: renamed.path })
+    expect(queryClient.getQueryData(key('second'))).toBeUndefined()
+
+    // The id follows at the same path, keeping what's been read since
+    queryClient.setQueryData(key('second'), { content: 'This file' })
+    updateCurrentFileAfterRename(renamed)
+    expect(queryClient.getQueryData(key('second'))).toEqual({
       content: 'This file',
     })
-    updateCurrentFileAfterRename(fileEntry('second'))
-    expect(queryClient.getQueryData(key('second'))).toBeUndefined()
+  })
+})
+
+describe('editorStore.scheduleAutoSave', () => {
+  it('forces one save, not one per keystroke, while it runs', () => {
+    const save = vi.fn(() => new Promise<void>(() => {}))
+    useEditorStore.setState({
+      currentFile: fileEntry('first'),
+      isDirty: true,
+      dirtySince: Date.now() - 60_000,
+      autoSaveTimeoutId: null,
+      autoSaveCallback: save,
+    })
+
+    useEditorStore.getState().scheduleAutoSave()
+    useEditorStore.getState().scheduleAutoSave()
+
+    expect(save).toHaveBeenCalledTimes(1)
+    const { autoSaveTimeoutId } = useEditorStore.getState()
+    if (autoSaveTimeoutId) clearTimeout(autoSaveTimeoutId)
+    useEditorStore.setState({ autoSaveTimeoutId: null, autoSaveCallback: null })
   })
 })
 

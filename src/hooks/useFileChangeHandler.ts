@@ -10,7 +10,8 @@ interface FileChangeEvent {
   kind: string
 }
 
-// Events for the open file this soon after our own save are probably that save
+// Events for the open file this soon after our own save are probably that
+// save, so they don't refresh the file lists
 const OWN_SAVE_WINDOW_MS = 3000
 
 /**
@@ -19,9 +20,10 @@ const OWN_SAVE_WINDOW_MS = 3000
  * Responsibilities:
  * 1. Refresh the sidebar and entry pickers when any content file is added,
  *    removed, renamed or edited outside the app
- * 2. Reload the open file when it changes on disk
+ * 2. Re-read the open file whenever it changes on disk. An event from our own
+ *    save reads back the same data, so the query keeps its reference and
+ *    nothing updates; anything else is a real change to show
  * 3. Respect isDirty state (don't reload user's unsaved work)
- * 4. Ignore events that occur immediately after our own save (race condition protection)
  */
 export function useFileChangeHandler() {
   useEffect(() => {
@@ -52,8 +54,8 @@ export function useFileChangeHandler() {
         return
       }
 
-      // User is editing - their version is authoritative. The "ignoring" logs
-      // are dev-only: our own saves trigger them every few seconds while typing
+      // User is editing - their version is authoritative. The log is dev-only:
+      // our own saves trigger it every few seconds while typing
       if (isDirty) {
         if (import.meta.env.DEV) {
           void debug(
@@ -63,21 +65,13 @@ export function useFileChangeHandler() {
         return
       }
 
-      // The watcher can emit several events for one save, and some arrive after
-      // isDirty is cleared
-      if (isOwnSave) {
-        if (import.meta.env.DEV) {
-          void debug(
-            `Ignoring external change to ${path} - file was recently saved (${timeSinceLastSave}ms ago)`
-          )
-        }
-        return
+      // File is saved, so disk is authoritative. Logged only when it's unlikely
+      // to be our own save, which happens every few seconds while writing
+      if (!isOwnSave) {
+        void info(`External change detected on ${path} - reloading`)
       }
-
-      // File is saved and not recently modified by us - safe to reload from disk
-      void info(`External change detected on ${path} - reloading`)
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+        queryKey: queryKeys.fileContent(projectPath, currentFile.path),
       })
     }
 

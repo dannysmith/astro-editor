@@ -622,8 +622,7 @@ describe('Store ↔ Query Integration Tests', () => {
       expect(updatedStore.isDirty).toBe(false)
     })
 
-    it('should handle switching to same file idempotently', () => {
-      // Setup: File already open
+    it('should keep the open file as it is when it is opened again', () => {
       useEditorStore.setState({
         isLoaded: true,
         currentFile: mockFileEntry,
@@ -631,18 +630,44 @@ describe('Store ↔ Query Integration Tests', () => {
         frontmatter: { title: 'Title' },
         isDirty: false,
       })
+      const { openGeneration } = useEditorStore.getState()
 
-      const store = useEditorStore.getState()
+      useEditorStore.getState().openFile(mockFileEntry)
 
-      // Open same file again
-      store.openFile(mockFileEntry)
+      expect(useEditorStore.getState()).toMatchObject({
+        currentFile: mockFileEntry,
+        openGeneration,
+        editorContent: 'Content',
+        frontmatter: { title: 'Title' },
+        isLoaded: true,
+      })
+    })
 
-      // Verify: State cleared and reset (as per openFile implementation)
-      const updatedStore = useEditorStore.getState()
-      expect(updatedStore.currentFile).toEqual(mockFileEntry)
-      expect(updatedStore.editorContent).toBe('') // Cleared
-      expect(updatedStore.frontmatter).toEqual({}) // Cleared
-      expect(updatedStore.isDirty).toBe(false)
+    it('should treat files differing only by extension as different files', () => {
+      const markdown = createMockFileEntry({
+        id: 'blog/twin',
+        path: '/test/content/blog/twin.md',
+        extension: 'md',
+      })
+      const mdx = createMockFileEntry({
+        id: 'blog/twin',
+        path: '/test/content/blog/twin.mdx',
+        extension: 'mdx',
+      })
+      useEditorStore.setState({
+        isLoaded: true,
+        currentFile: markdown,
+        editorContent: 'Markdown body',
+        isDirty: true,
+      })
+
+      useEditorStore.getState().openFile(mdx)
+
+      expect(useEditorStore.getState()).toMatchObject({
+        currentFile: mdx,
+        editorContent: '',
+        isLoaded: false,
+      })
     })
 
     it('should preserve file metadata when switching', () => {

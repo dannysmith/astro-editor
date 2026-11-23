@@ -77,8 +77,9 @@ async function saveEntry() {
 
 /**
  * Reads the entry again after git may have changed it on disk (a `pre-commit`
- * hook's formatter, a pull), since the file watcher ignores changes just
- * after our own save. Unsaved edits win, as they do everywhere. Resolves once
+ * hook's formatter, a pull), rather than waiting for the file watcher, so
+ * editing only resumes on the new text. Unsaved edits win, as they do
+ * everywhere. Resolves once
  * the editor's store holds what was read, not just the query: the store takes
  * it in an effect a moment later, and an edit in between would win over it.
  */
@@ -86,7 +87,7 @@ async function reloadEntry() {
   const { currentFile, isDirty } = useEditorStore.getState()
   const { projectPath } = useProjectStore.getState()
   if (!currentFile || !projectPath || isDirty) return
-  const queryKey = queryKeys.fileContent(projectPath, currentFile.id)
+  const queryKey = queryKeys.fileContent(projectPath, currentFile.path)
   await queryClient.invalidateQueries({ queryKey })
   const read = queryClient.getQueryData<MarkdownContent>(queryKey)
   if (read) {

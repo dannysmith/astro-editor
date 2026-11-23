@@ -44,6 +44,7 @@ interface MockEditorState {
   loadError: string | null
   frontmatterError: string | null
   editingPaused: boolean
+  openGeneration: number
   openFile: Mock
   closeFile: Mock
   closeCurrentFile: Mock
@@ -79,6 +80,7 @@ describe('useEditorHandlers', () => {
       loadError: null,
       frontmatterError: null,
       editingPaused: false,
+      openGeneration: 0,
       openFile: vi.fn(),
       closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),

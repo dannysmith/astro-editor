@@ -16,10 +16,10 @@ Each fix gets a focused test that fails without it.
 
 **Fix:** use `path` as a file's identity, and keep `id` only for the Astro entry id (`lib/entry-id.ts`, `useCollectionEntriesQuery`).
 
-- [ ] Key the content query by path
-- [ ] Compare by path in `editorStore`, `useFileChangeHandler`, `useEditorFileContent`, `useEditorActions`, `lib/git/actions.ts`, `Editor.tsx`, `JsonField`, `ImagePicker`, `componentBuilderStore` and the drag-and-drop handlers
-- [ ] Use the path for the sidebar's row keys, selected row and renaming state
-- [ ] Make renames follow the new path, in `updateCurrentFile` and `useRenameFileMutation`
+- [x] Key the content query by path
+- [x] Compare by path in `editorStore`, `useFileChangeHandler`, `useEditorFileContent`, `useEditorActions`, `lib/git/actions.ts`, `Editor.tsx`, `JsonField`, `ImagePicker`, `componentBuilderStore` and the drag-and-drop handlers
+- [x] Use the path for the sidebar's row keys, selected row and renaming state
+- [x] Make renames follow the new path, in `updateCurrentFile` and `useRenameFileMutation`
 
 ### 2. Outside edits just after a save are ignored, then overwritten
 
@@ -29,10 +29,10 @@ Each fix gets a focused test that fails without it.
 
 **Fix:** when the open file is clean, always refetch on a watcher event. An echo of our own save reads back identical data, structural sharing keeps the same `data` reference, and the sync effect doesn't run.
 
-- [ ] Confirm that an echo of our own save really causes no store update or editor reload
-- [ ] Keep the time window only for skipping the file list refresh, if it's still needed
-- [ ] Remove the workaround in `lib/git/actions.ts` if this makes it redundant
-- [ ] Update the test in `useFileChangeHandler.test.ts` that pins the current behaviour
+- [x] Confirm that an echo of our own save doesn't reload the editor (undo and cursor survive it)
+- [x] Keep the time window only for skipping the file list refresh
+- [x] Keep `reloadEntry` in `lib/git/actions.ts`, which editing waits on during a pull, and correct its comment
+- [x] Update the test in `useFileChangeHandler.test.ts` that pins the current behaviour
 
 ### 3. Clicking the open file wipes undo and the cursor
 
@@ -40,8 +40,8 @@ Each fix gets a focused test that fails without it.
 
 **Fix:** return early from `openFile` when the path is already open, invalidating the query so disk changes are still picked up.
 
-- [ ] Add the early return
-- [ ] Update the "idempotently" test in `storeQueryIntegration.test.ts`, which asserts the clearing
+- [x] Add the early return
+- [x] Update the "idempotently" test in `storeQueryIntegration.test.ts`, which asserts the clearing
 
 ### 4. Typing in a field holding an unrecognised value destroys it
 
@@ -49,9 +49,9 @@ Each fix gets a focused test that fails without it.
 
 **Fix:** have `fieldControl` return `json` for these values. It chooses from the current value, so the control must stay put within a file while the JSON is cleared or edited into a scalar, the way `StringField` keeps its textarea.
 
-- [ ] Reproduce with an `seo:` object that's missing from the schema
-- [ ] Route these values to `JsonField`, sticky per file
-- [ ] Check the project settings schema view, which also reads `fieldControl`
+- [x] Reproduce with an `seo:` object that's missing from the schema
+- [x] Route these values to `JsonField`, sticky per file
+- [x] Check the project settings schema view, which also reads `fieldControl`
 
 ### 5. Stale loads can replace newer text
 
@@ -62,17 +62,17 @@ Each fix gets a focused test that fails without it.
 
 **Fix:**
 
-- [ ] For an already-loaded file, ignore query results older than the last save
-- [ ] Add an open-generation counter, and have saves compare it rather than the path
-- [ ] Don't fire forced saves while one is in flight
+- [x] For an already-loaded file, ignore query results older than the last save
+- [x] Add an open-generation counter, and have saves compare it rather than the path
+- [x] Don't fire forced saves while one is in flight
 
 ### 6. A half-edited image path can carry over to the next file
 
 **From the code, not yet reproduced.** Fields stay mounted across file switches, so `ImagePicker` keeps `isEditing` and `editValue`. If the next file has an image, its input shows the previous file's typed path, and Save writes it there.
 
-**Fix:** hold the draft as `{ fileId, text } | null` (using the path once item 1 is done), and treat it as editing only while it matches the open file. Don't key the panel on the file: a rename would remount it and drop focus as the writer tabs out of the title.
+**Fix:** hold the draft as `{ openGeneration, text } | null`, and treat it as editing only while it matches the open file. The generation survives a rename, which a path wouldn't. Don't key the panel on the file: a rename would remount it and drop focus as the writer tabs out of the title.
 
-- [ ] Scope the draft to the open file
+- [x] Scope the draft to the open file
 
 ## Phase 2: Frontmatter flicker
 

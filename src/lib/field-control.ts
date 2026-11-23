@@ -54,6 +54,8 @@ export const FIELD_CONTROL_LABELS: Record<FieldControl, string> = {
  *   those only replace plain string fields.
  * - A field with no schema is text, except a string array, which is inferred
  *   from its value.
+ * - An object or array the schema doesn't type is JSON. A text input would show
+ *   it blank or as `[object Object]`, and the first keystroke would replace it.
  */
 export function fieldControl(
   name: string,
@@ -86,6 +88,13 @@ export function fieldControl(
       value.every((item: unknown) => typeof item === 'string'))
   ) {
     return 'list'
+  }
+  if (
+    (!field || type === FieldType.Unknown) &&
+    typeof value === 'object' &&
+    value !== null
+  ) {
+    return 'json'
   }
   if (type === FieldType.Image) return 'image'
   if (type === FieldType.Email) return 'email'

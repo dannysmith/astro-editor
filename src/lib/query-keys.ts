@@ -26,8 +26,10 @@ export const queryKeys = {
   // How many files each collection has, for the sidebar's collection list
   collectionCounts: (projectPath: string) =>
     [...queryKeys.all, projectPath, 'collectionCounts'] as const,
-  fileContent: (projectPath: string, fileId: string) =>
-    [...queryKeys.all, projectPath, 'files', fileId] as const,
+  // By path: an entry's id leaves out its extension, so `post.md` and
+  // `post.mdx` share one
+  fileContent: (projectPath: string, filePath: string) =>
+    [...queryKeys.all, projectPath, 'files', filePath] as const,
   mdxComponents: (projectPath: string, mdxDirectories: string[]) =>
     [...queryKeys.all, projectPath, 'mdxComponents', mdxDirectories] as const,
   fileBasedCollection: (projectPath: string, collectionName: string) =>

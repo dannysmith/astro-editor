@@ -40,13 +40,14 @@ function holdSave(outcome: 'resolve' | 'reject') {
 
 /** Opens another file the way openFile leaves the store, without saving. */
 function switchToSecondFile() {
-  useEditorStore.setState({
+  useEditorStore.setState(state => ({
     isLoaded: true,
     currentFile: fileEntry('second'),
+    openGeneration: state.openGeneration + 1,
     editorContent: 'Second file',
     frontmatter: {},
     isDirty: false,
-  })
+  }))
 }
 
 describe('useEditorActions.saveFile when the file changes mid-save', () => {
@@ -76,6 +77,25 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     await saving
 
     expect(useEditorStore.getState().currentFile?.id).toBe('second')
+    expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+
+  it('leaves the file alone when it was reopened during its save', async () => {
+    const release = holdSave('resolve')
+    const { saveFile } = renderActions()
+
+    const saving = saveFile(false)
+    // Away and back: the same path, holding the placeholder until it loads
+    useEditorStore.setState(state => ({
+      openGeneration: state.openGeneration + 2,
+      isLoaded: false,
+      editorContent: '',
+      frontmatter: {},
+      isDirty: false,
+    }))
+    release()
+    await saving
+
     expect(useEditorStore.getState().isDirty).toBe(false)
   })
 

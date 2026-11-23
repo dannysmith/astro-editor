@@ -2,7 +2,8 @@ import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
 import { useFieldMappings } from '../../../hooks/settings'
 import { fieldControl } from '../../../lib/field-control'
-import type { SchemaField } from '../../../lib/schema'
+import { getNestedValue } from '../../../lib/object-utils'
+import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
 import { NumberField } from './NumberField'
@@ -29,12 +30,26 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   field,
   collectionName,
 }) => {
-  const fieldValue = useEditorStore(state => state.frontmatter?.[name])
+  const fieldValue = useEditorStore(state =>
+    getNestedValue(state.frontmatter, name)
+  )
+  const filePath = useEditorStore(state => state.currentFile?.path ?? null)
   const mappings = useFieldMappings(collectionName)
   const required = field?.required ?? false
   const props = { name, label, required, field }
+  const control = fieldControl(name, field, fieldValue, mappings)
 
-  switch (fieldControl(name, field, fieldValue, mappings)) {
+  // A value the schema doesn't type is JSON because of what it holds. Once it
+  // has been in a file it stays JSON, so clearing it or typing a plain value
+  // doesn't swap the control (and lose focus) mid-edit
+  const [jsonFile, setJsonFile] = React.useState<string | null | undefined>(
+    undefined
+  )
+  const isUntypedJson =
+    control === 'json' && (!field || field.type === FieldType.Unknown)
+  if (isUntypedJson && jsonFile !== filePath) setJsonFile(filePath)
+
+  switch (jsonFile === filePath ? 'json' : control) {
     case 'boolean':
       return <BooleanField name={name} label={label} field={field} />
     case 'number':
