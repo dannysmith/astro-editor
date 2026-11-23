@@ -6,7 +6,7 @@
 
 import { ask } from '@tauri-apps/plugin-dialog'
 import { error as logError } from '@tauri-apps/plugin-log'
-import { commands } from '@/lib/bindings'
+import { commands, type MarkdownContent } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { deleteFile } from '../files/delete'
@@ -77,16 +77,40 @@ async function saveEntry() {
 }
 
 /**
- * A `pre-commit` hook may have rewritten the entry on disk (a formatter), and
- * the file watcher ignores changes just after our own save, so read it again.
- * Unsaved edits made during the commit win, as they do everywhere.
+ * Reads the entry again after git may have changed it on disk (a `pre-commit`
+ * hook's formatter, a pull), since the file watcher ignores changes just
+ * after our own save. Unsaved edits win, as they do everywhere. Resolves once
+ * the editor's store holds what was read, not just the query: the store takes
+ * it in an effect a moment later, and an edit in between would win over it.
  */
 async function reloadEntry() {
   const { currentFile, isDirty } = useEditorStore.getState()
   const { projectPath } = useProjectStore.getState()
   if (!currentFile || !projectPath || isDirty) return
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+  const queryKey = queryKeys.fileContent(projectPath, currentFile.id)
+  await queryClient.invalidateQueries({ queryKey })
+  const read = queryClient.getQueryData<MarkdownContent>(queryKey)
+  if (read) await storeHolds(currentFile.path, read.content)
+}
+
+/**
+ * Resolves when the store holds `content` for the file at `path`, another
+ * file is opened, or a second passes
+ */
+function storeHolds(path: string, content: string): Promise<void> {
+  const done = (state: ReturnType<typeof useEditorStore.getState>) =>
+    state.currentFile?.path !== path || state.editorContent === content
+  if (done(useEditorStore.getState())) return Promise.resolve()
+  return new Promise(resolve => {
+    const finish = () => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve()
+    }
+    const timer = setTimeout(finish, 1000)
+    const unsubscribe = useEditorStore.subscribe(state => {
+      if (done(state)) finish()
+    })
   })
 }
 
@@ -101,16 +125,16 @@ export async function pushBranch(projectPath: string) {
  * cleanly. Pauses editing, then saves the entry, so the check for uncommitted
  * changes the remote also changed sees the writer's latest and nothing typed
  * after it is left to save over the pulled text. Reads the entry again before
- * editing resumes, since the pull may have changed it. Returns how many
- * commits came in.
+ * editing resumes, whether or not the pull worked: one that failed part way
+ * may still have changed it. Returns how many commits came in.
  */
 export async function pullBranch(projectPath: string): Promise<number> {
   useEditorStore.setState({ editingPaused: true })
   try {
     await saveEntry()
     const result = await commands.gitPull(projectPath)
+    await reloadEntry()
     if (result.status === 'error') throw new Error(result.error)
-    if (result.data > 0) await reloadEntry()
     return result.data
   } finally {
     useEditorStore.setState({ editingPaused: false })

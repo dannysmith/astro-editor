@@ -44,8 +44,11 @@ export interface GitCommitProps {
   } | null
   /** Which write failed last, and why, in git's words */
   error: { action: GitWrite['action']; message: string } | null
-  /** The hash of the commit just made for the entry */
-  committed: string | null
+  /**
+   * The commit just made for the entry: its hash (empty if it couldn't be
+   * read afterwards), and the branch it went to then
+   */
+  committed: { hash: string; branch: string | null } | null
   /** The commit message: the prefill, or what's been typed for this entry */
   message: string
   /** Whether `message` was typed, rather than the prefill */
@@ -132,8 +135,14 @@ export function CommitCard({
       {commit.committed && !commit.error && (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CircleCheck className="size-3.5 shrink-0 text-git-added" />
-          Committed <span className="font-mono">{commit.committed}</span>
-          {tree.branch && ` to ${tree.branch}`}
+          Committed
+          {commit.committed.hash && (
+            <>
+              {' '}
+              <span className="font-mono">{commit.committed.hash}</span>
+            </>
+          )}
+          {commit.committed.branch && ` to ${commit.committed.branch}`}
         </p>
       )}
     </>
@@ -210,6 +219,9 @@ function StagedCard({
             id="git-commit-message"
             value={message}
             onChange={event => onMessageChange(event.target.value)}
+            // Committing clears the message, so nothing typed meanwhile
+            // would be kept
+            disabled={pending === 'commit'}
             onKeyDown={event => {
               if (event.key === 'Enter' && event.metaKey && canCommit) {
                 event.preventDefault()

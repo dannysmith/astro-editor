@@ -158,3 +158,62 @@ Then PR #391 goes to ready, CodeRabbit runs, and its findings are worked through
 - **Rust:** timeouts and process-group kills (no zombies), credential prompts can't hang, porcelain parsing, the write lock, the mid-operation checks, aborting a conflicting rebase, staging explicit paths, the cached PATH lookup. Linux Clippy is clean.
 - **Frontend:** no house-rule violations, nothing the React Compiler skips, and saving before Stage and Commit is sound.
 - **No leftovers:** no TODOs, `console.*`, `dbg!` or debug code on the branch.
+
+## Phase 11: CodeRabbit's review of #391 ✅
+
+Done, except the skips (C22, C25, C35, C38, C39). C1, C2, C3 and C6 were reproduced by tests first; C6's backstop by real git in a throwaway repo (the rebase exits 0, leaves conflict markers and keeps the stash). The C20 test was made to fail without the fix. Tried in the app: staging, commit, the receipt with its branch, push. The Windows job object (C15) is only compiled by CI's Windows build, not here.
+
+41 comments: 16 inline (all marked Major) and 25 minor. Numbered C1–C41 here, each checked against the code, with what to do. **Fix** items get a test where there's behaviour to test. Danny decided C15, C38 and C39.
+
+### Pull and push
+
+- **C1 Fix.** Push sends whatever `git push` sends, so with `push.default=matching` it also publishes other branches with unpushed commits. Push only the current branch, to where plain `git push` would send it (`for-each-ref --format='%(push:remotename)…%(push:remoteref)'`, which respects a fork's `pushRemote`), falling back to its upstream. Test with `push.default=matching`.
+- **C2 Fix, wider than suggested.** A pull can overwrite an untracked or ignored local file that the upstream starts tracking: the fast-forward overwrites ignored files, and the rebase has no flag to stop it. Refuse up front instead, in the existing check: any upstream-changed path that exists locally but isn't tracked (`ls-files --others`) stops the pull, changing nothing. Covers both paths. Test.
+- **C3 Fix.** Rebasing drops local merge commits (and any edit made in a merge). Refuse to rebase when the commits to push include a merge (`rev-list --merges @{upstream}..HEAD`): "finish this in your git tool". Test.
+- **C4 + C5 Fix together.** A rebase that times out (a hung hook) skips the recovery, leaving it mid-rebase; and a failed rebase is aborted whenever git says a rebase is in progress, even one a terminal started in the moment between AE's check and its own rebase. Record HEAD and the upstream before rebasing, and abort only when the rebase in progress is AE's (`rebase-merge/orig-head` and `onto` match); a timeout goes through the same recovery. Otherwise leave it and say so.
+- **C6 Fix; reproduce first.** My Phase 4 conclusion that a conflict after the rebase couldn't happen was wrong. A local commit renaming `old.md` to `new.md`, an uncommitted edit to `new.md`, and an upstream edit to `old.md`: the paths don't overlap, the rebase carries the upstream edit into `new.md`, and the autostash then conflicts there while the rebase still succeeds. Two parts: the up-front check also counts files the local commits renamed from an upstream-changed path (`diff -M --name-status` over the local commits); and, as the backstop, conflicted files after the rebase are reported as an error that says the uncommitted changes are in git's stash.
+- **C7 Fix.** A multi-commit cherry-pick or revert that stops before writing `CHERRY_PICK_HEAD`/`REVERT_HEAD` isn't seen as in progress. Also check for `sequencer/`.
+- **C8 Fix.** The editing pause ends as soon as the reload's query resolves, a moment before the pulled text reaches the store; an edit in that gap would win over the pulled text. Resume only once the store holds what was read (or after a short timeout).
+- **C9 Fix.** After a failed pull, editing resumes without reloading, which matters when the abort itself failed and the rebase left files changed. Reload the entry after every pull attempt; when nothing changed it's the same text.
+
+### Running git
+
+- **C10 Fix.** With the whole shell environment, inherited `GIT_ICASE_PATHSPECS`, `GIT_GLOB_PATHSPECS` and `GIT_NOGLOB_PATHSPECS` now reach AE's commands and break staging and `check-ignore`. Remove them for the commands that take AE's paths.
+- **C11 Fix.** Also remove `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` and `GIT_ALTERNATE_OBJECT_DIRECTORIES`, which point a command at another repository's data. Covers **C30** (the Rust test repositories inheriting them) too.
+- **C12 Fix.** A relative folder in `PATH` (`./tools`) would find a `git` relative to the app's folder and run it relative to the project's. Skip relative `PATH` entries: running a relative path is never what's meant.
+- **C13 Fix.** Killing a timed-out git with `SIGKILL` stops it cleaning up its lock files, so the next commit fails on a stale `index.lock`. Send `SIGTERM` first (git removes its locks on it), give it two seconds, then `SIGKILL`.
+- **C14 Fix, smaller than suggested.** After the half-second drain, a reader thread whose pipe a daemon still holds keeps buffering what nobody will read. Stop keeping output once it's been collected (the thread still drains, so the daemon never blocks). The thread itself lives as long as the daemon holds the pipe, as before; cancelling blocked reads isn't worth the code.
+- **C15 Fix (Danny: yes, there are Windows users).** On Windows a timed-out git's hooks and helpers aren't killed with it. Put git in a Job Object that kills everything in it when closed, and close it on timeout. Kept small.
+- **C16 Fix.** `diff.ignoreSubmodules=all` hides a staged submodule pointer from the commit card and from the "anything staged" checks. Pass `--ignore-submodules=none` to those.
+- **C17 Fix.** A `git commit` that times out in a slow `post-commit` hook has already committed; AE reports a failure. Compare HEAD before and after: if it moved, it's a commit. With **C18**: a commit whose hash can't be read afterwards is still a commit (shown without its hash).
+- **C19 Fix.** `unstage` with no paths would run a whole-index `git reset`. Can't happen today; one line to make it impossible.
+- **C20 Fix.** `check-ignore` takes a path starting with `:` as pathspec magic. Pass paths as `./path`. Test with `:drafts`.
+- **C21 Fix.** Values read from git (the hooks folder) are `trim()`med, losing a trailing space in a path. Strip only the newline. Check the other `trim()`s on paths too.
+- **C22 Skip.** A repository path containing a newline would split `rev-parse`'s output. Reading each field separately costs four commands per read, for paths nobody has.
+- **C23 Fix.** An entry in a deleted folder (the folder gone too) still shows as "outside the repository". Resolve the nearest folder that exists and add the rest.
+- **C24 Fix.** The git folder watcher ignores any path with a `logs` component, so a linked worktree named `logs` never refreshes the tab. Only ignore `logs/` and `objects/` at the git folder's top level (or a worktree's).
+
+### Login-shell environment
+
+- **C25 Skip.** Refusing the environment when the shell exits non-zero after printing it whole: the exit status then comes from logout scripts, and a complete environment is better than the fallback. (I'd already chosen this when writing it.)
+- **C26 Fix.** A variable whose value contains the end marker would cut the environment short. Match the markers only as whole NUL-separated records.
+
+### Project Settings
+
+- **C27 Fix.** "Commit as" shows `user.name`/`user.email`, but git uses `GIT_AUTHOR_*` variables and `author.*` settings first. Show what git will use (`git var GIT_AUTHOR_IDENT`) and where it's set (the environment, `author.*` or `user.*`). When nothing is set but git can guess one from the Mac's account, say so as a warning; an error only when `git var` fails.
+- **C28 Fix.** The hooks list leaves out `reference-transaction`, which runs during a commit and can refuse it. Add it, in order.
+
+### The Git tab
+
+- **C29 Fix.** Ticks changed for entry A come back on returning to A after opening B, though "opening another entry starts again". Reset them when the entry changes.
+- **C31 Fix.** Two quick clicks on different files in the tab can open the first one last. Open only the latest.
+- **C32 Fix.** A root-level file named `constructor` (or `toString`) reads as ticked, since overrides are a plain object. Use a `Map`.
+- **C33 Fix.** The message can be edited while a commit runs, and success then clears the new text. Disable it while committing.
+- **C34 Fix.** "Committed abc123 to feature-b" after switching branches names the current branch, not the one committed to. Keep the branch with the commit.
+- **C35 Skip.** The note's Stage also re-adds the files already staged, picking up edits since. Commit re-stages them anyway (on purpose, so saved edits go in), so it changes nothing that's committed, and the staging record needs the whole list.
+- **C36 Fix.** `map.png` matches `map.png.backup`. Check the character after the name too.
+- **C37 Fix, differently.** Turning the Git switch off and on loses a typed commit message, and so does switching projects. Keep typed messages in `gitPanelStore` (by entry path) instead of the panel's state, rather than keeping a switched-off panel mounted.
+- **C38 Skip (Danny agreed).** The entry card's file menu has no keyboard way in (a menu button). The sidebar's file list has none either; it would add visible UI.
+- **C39 Skip (Danny agreed).** Show why Pull is disabled as text, not only on hover. Staged files blocking it means the commit card is usually open already; a line in the strip adds noise in the common case.
+- **C40 Fix.** The tests checking a killed process is gone can fail on Linux, where an unreaped process still answers `kill(pid, 0)`. Poll for a bounded time and treat a zombie as gone.
+- **C41 Fix.** `scripts/make-git-test-repos.sh` doesn't clear an inherited `GIT_DIR`/`GIT_WORK_TREE`, which would point its commits at this checkout. Unset the repository variables first.

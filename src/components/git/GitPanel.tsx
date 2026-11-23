@@ -25,6 +25,7 @@ import { GitPanelView } from './GitPanelView'
 
 /** Stands in for a missing list in selectors, so it's the same each time */
 const NONE: string[] = []
+const NO_TICKS = new Map<string, boolean>()
 
 /**
  * The right sidebar's Git tab, for projects with the experimental Git panel
@@ -99,14 +100,11 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   const subject = `“${title ?? entryName(entryPath)}”`
   const prefill =
     tree?.entry?.state === 'new' ? `Add ${subject}` : `Update ${subject}`
-  // Messages typed for each entry, kept while the project is open so closing
-  // the card or opening another entry doesn't lose them. One never edited
-  // isn't kept, so it follows the entry's title
   // Writes, messages and commits are kept by the entry's path as the editor
   // has it, which AE's renames follow
   const entryFile = currentFile?.path ?? ''
-  const [messages, setMessages] = useState<Record<string, string>>({})
-  const message = messages[entryFile] ?? prefill
+  const typed = useGitPanelStore(state => state.messages[entryFile])
+  const message = typed ?? prefill
 
   const staging = useGitPanelStore(state => state.staging)
   const { ours, elsewhere, pullBlocked } = stagingState({
@@ -115,9 +113,11 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
     entry: currentFile?.path ?? null,
     tree,
   })
+  // The last commit made here, with the branch it went to
   const [committed, setCommitted] = useState<{
     entry: string
     hash: string
+    branch: string | null
   } | null>(null)
   // The entry whose message should be focused, just after staging it
   const [focusFor, setFocusFor] = useState<string | null>(null)
@@ -137,13 +137,10 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       } else {
         setStaging(null)
       }
-      if (write.action === 'commit' && hash) {
-        setCommitted({ entry: write.entry, hash })
-        setMessages(typed =>
-          Object.fromEntries(
-            Object.entries(typed).filter(([entry]) => entry !== write.entry)
-          )
-        )
+      // A commit whose hash couldn't be read is still a commit (empty hash)
+      if (write.action === 'commit' && hash !== null) {
+        setCommitted({ entry: write.entry, hash, branch: tree?.branch ?? null })
+        useGitPanelStore.getState().setMessage(write.entry, null)
       }
       // Stays pending until the tab shows what git now has
       await refetch()
@@ -166,12 +163,16 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   })
 
   // What's been ticked or unticked by hand, for this entry. Opening another
-  // entry starts again.
+  // entry starts again, and coming back doesn't bring them back. A `Map`, so
+  // a file named like an object's own property (`constructor`) isn't one
   const [ticks, setTicks] = useState<{
     entry: string
-    overrides: Record<string, boolean>
-  }>({ entry: entryPath, overrides: {} })
-  const overrides = ticks.entry === entryPath ? ticks.overrides : {}
+    overrides: Map<string, boolean>
+  }>({ entry: entryPath, overrides: new Map() })
+  if (ticks.entry !== entryPath) {
+    setTicks({ entry: entryPath, overrides: new Map() })
+  }
+  const overrides = ticks.entry === entryPath ? ticks.overrides : NO_TICKS
 
   return (
     <GitPanelView
@@ -203,11 +204,11 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         )
       }}
       others={groups.others}
-      isTicked={path => overrides[path] ?? goesWith.includes(path)}
+      isTicked={path => overrides.get(path) ?? goesWith.includes(path)}
       onTick={(path, ticked) =>
         setTicks({
           entry: entryPath,
-          overrides: { ...overrides, [path]: ticked },
+          overrides: new Map(overrides).set(path, ticked),
         })
       }
       onOpen={change => {
@@ -242,7 +243,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         // not unticked before it
         notStaged: ours
           ? [...(groups.entry ? [groups.entry.path] : []), ...goesWith].filter(
-              path => !ours.includes(path) && (overrides[path] ?? true)
+              path => !ours.includes(path) && (overrides.get(path) ?? true)
             )
           : [],
         entryNotStaged:
@@ -268,13 +269,16 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
           (forEntry || write.variables.entry === elsewhere?.entry)
             ? { action: write.variables.action, message: write.error.message }
             : null,
-        committed: committed?.entry === entryFile ? committed.hash : null,
+        committed:
+          committed?.entry === entryFile
+            ? { hash: committed.hash, branch: committed.branch }
+            : null,
         message,
-        messageTyped: messages[entryFile] !== undefined,
+        messageTyped: typed !== undefined,
         focusMessage: focusFor === entryFile,
         onMessageFocused: () => setFocusFor(null),
         onMessageChange: text =>
-          setMessages({ ...messages, [entryFile]: text }),
+          useGitPanelStore.getState().setMessage(entryFile, text),
         onStage: paths =>
           write.mutate({ action: 'stage', entry: entryFile, paths }),
         onUnstage: () => {
@@ -302,9 +306,17 @@ function entryText(state: ReturnType<typeof useEditorStore.getState>): string {
   return JSON.stringify(state.frontmatter) + state.imports + state.editorContent
 }
 
-/** Opens a content file (an absolute path) in the editor */
+/** The latest file opened from the tab, so only it opens */
+let latestOpen = 0
+
+/**
+ * Opens a content file (an absolute path) in the editor. Of quick clicks on
+ * two files, the last one opens, whichever resolves first
+ */
 async function openFileAt(projectPath: string, path: string) {
+  const request = ++latestOpen
   const result = await commands.resolveFileEntry(path, projectPath)
+  if (request !== latestOpen) return
   if (result.status === 'ok' && result.data) {
     useEditorStore.getState().openFile(result.data)
   } else {

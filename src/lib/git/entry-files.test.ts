@@ -41,6 +41,14 @@ describe('usedFiles', () => {
     ])
   })
 
+  it('matches a name only when the reference ends with it', () => {
+    const changes = [change('notes/a.md'), change('notes/map.png', 'new')]
+    const used = (entryText: string) =>
+      usedFiles({ changes, entryPath: 'notes/a.md', entryText })
+    expect(used('![](./map.png.backup)')).toEqual([])
+    expect(used('![](./map.png?raw)')).toEqual(['notes/map.png'])
+  })
+
   it('matches a name written URL-encoded', () => {
     expect(
       usedFiles({

@@ -27,14 +27,15 @@ An app opened from the Dock gets launchd's bare environment: a `PATH` without Ho
 `git::runner::Git::run` runs every command the same way:
 
 - **In a new session (`setsid`).** The command has no controlling terminal and its own process group. When AE itself has a terminal (`tauri dev`), an interactive shell or a hook that reads the terminal was otherwise stopped by the system and hung until the timeout. Without a terminal, it fails at once.
-- **With a timeout,** which kills the whole process group, hooks included: a passphrase prompt with nowhere to show would otherwise wait forever. Output is read on its own threads. A hook that leaves something running in the background holds the output pipes open, so after git exits they get half a second, and then what's been read is used.
-- **Without a console window on Windows** (`CREATE_NO_WINDOW`), which git would otherwise flash each time it runs.
+- **With a timeout,** which stops the whole process group, hooks included: a passphrase prompt with nowhere to show would otherwise wait forever. They get `SIGTERM` first and two seconds to exit, then `SIGKILL`: git removes its lock files on `SIGTERM`, so a stopped commit doesn't leave an `index.lock` for the next one to fail on. Output is read on its own threads. A hook that leaves something running in the background holds the output pipes open, so after git exits they get half a second, then what's been read is used, and anything printed later is drained and dropped.
+- **On Windows, in a job object,** so a timed-out git is ended with the hooks and credential helpers it started, as the process group does on Unix, and without a console window (`CREATE_NO_WINDOW`), which git would otherwise flash each time it runs.
 - **Non-interactive:** stdin closed and `GIT_TERMINAL_PROMPT=0`, so a missing credential fails rather than waiting.
 - **`GIT_LITERAL_PATHSPECS=1`,** so a file named `a*.md` is that file, not a pattern. `check-ignore` refuses it, and takes plain paths anyway, so it's off for that one command.
 - **`GIT_OPTIONAL_LOCKS=0`,** so `status` doesn't write the index: it never competes with a terminal's git for `index.lock`.
 - **`-c core.quotepath=off`,** so paths come back as UTF-8, unquoted.
 - **`LC_ALL=C`,** so git's messages are in English whatever language the Mac is set to, since AE looks for one ("not a git repository"). Where it can, AE asks git rather than reading its messages: "nothing to commit" is `diff --cached --quiet`.
-- **`GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` removed,** since inherited they'd point every command at another repository.
+- **`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` and `GIT_ALTERNATE_OBJECT_DIRECTORIES` removed,** since inherited they'd point every command at another repository or its data. So are `GIT_ICASE_PATHSPECS`, `GIT_GLOB_PATHSPECS` and `GIT_NOGLOB_PATHSPECS` for commands that take AE's paths, which they would make unreadable.
+- **`git` from an absolute folder on `PATH`,** never a relative one, which would be looked in from AE's folder and run from the project's.
 
 **Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks, `quotepath` or language settings, so a hook's messages are in the user's language. Push's check for a rejection reads git's reason for it ("non-fast-forward", "fetch first"), which git never translates. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them. A few other commands can run rarely used hooks (`add` and `reset` run `post-index-change`, `fetch` runs `reference-transaction`), but they keep AE's settings: `add` and `reset` take AE's paths, which must stay literal.
 
@@ -76,7 +77,7 @@ What AE staged, and for which entry, is `gitPanelStore.staging`, worked out into
 
 Plain `commit` rather than `commit --only <paths>` is deliberate: with `--only`, a `pre-commit` hook that reformats and re-stages a file leaves the index holding the pre-hook version, and status shows the file changed straight after committing. After a commit, AE reloads the open entry from disk if it has no unsaved edits, since a hook may have rewritten it and the file watcher ignores changes just after AE's own save.
 
-Writes run one at a time across the app (`git::writing`), with a longer timeout than reads, since hooks and signing can be slow. None of them runs while git is in the middle of a merge, rebase, cherry-pick or revert (`repo::not_mid_operation`): AE would otherwise finish or abort the user's own. Only one entry can have files staged by AE at a time, since one commit takes everything staged. Git's message is shown as it is: a refusing hook's output, a missing identity, a held `index.lock`.
+Writes run one at a time across the app (`git::writing`), with a longer timeout than reads, since hooks and signing can be slow. None of them runs while git is in the middle of a merge, rebase, cherry-pick or revert (`repo::not_mid_operation`): AE would otherwise finish or abort the user's own. A cherry-pick or revert of several commits that stopped between them leaves only `sequencer/`, which counts too. Only one entry can have files staged by AE at a time, since one commit takes everything staged. Git's message is shown as it is: a refusing hook's output, a missing identity, a held `index.lock`.
 
 An entry AE renamed this session (`gitPanelStore.renamedFrom`) brings its old path along, ticked: git sees a rename as the old path deleted and the new one added, and committing only the new one would leave the deletion behind.
 
@@ -84,20 +85,23 @@ An entry AE renamed this session (`gitPanelStore.renamedFrom`) brings its old pa
 
 The repository strip at the top of the tab has Pull and Push (`git::remote`), shown when the branch has an upstream and git isn't in the middle of something. Its ↑/↓ counts open the commits to push (`@{upstream}..HEAD`) and to pull (`HEAD..@{upstream}`, as of the last fetch).
 
-**Push** is a plain `git push`, offered when the branch is ahead and not behind. A rejection because the remote has commits we don't gets its own message pointing at Pull; anything else (a `pre-push` hook refusing, credentials) shows git's message.
+**Push** pushes the branch, and only it, to where a plain `git push` would: its push remote if one's set (a fork), otherwise its upstream (`for-each-ref` with `%(push:…)` and `%(upstream:…)`, then `git push <remote> HEAD:<ref>`). A plain `git push` with `push.default=matching` would push every branch the remote has. It's offered when the branch is ahead and not behind. A rejection because the remote has commits we don't gets its own message pointing at Pull; anything else (a `pre-push` hook refusing, credentials) shows git's message.
 
 **Pull** is the only thing in the tab that fetches, so it's always offered. It only ever does what can't go wrong, so a writer is never left with a half-done merge or rebase to sort out in a tool they may not know:
 
 1. Pause editing (`editingPaused`, see "Editing pauses while git rewrites files" in `editor.md`), save the entry, then `git fetch`.
 2. Nothing new: done.
-3. If uncommitted changes touch files the upstream changed, refuse, changing nothing. (This is what would make the steps below fail part way.) Both lists are read with `--no-renames`: with rename detection, a file the upstream renamed is listed only under its new name, and the writer's changes to the old one would be put back into it with conflict markers by a rebase that still succeeds.
-4. Only behind: `merge --ff-only`, which keeps whatever's staged.
-5. Ahead too: `rebase --autostash` onto the upstream, so the writer's commits go on top, as they'd want before pushing. Uncommitted changes are put aside and back; step 3 means they come back cleanly. The autostash brings staged files back unstaged, so this is refused while anything is staged, whoever staged it, and the tab disables Pull then. If the rebase stops on a conflict, `rebase --abort` puts everything back as it was, and the tab names the files both sides changed.
-6. Read the entry again from disk if anything came in, then resume editing.
+3. If uncommitted changes touch files the upstream changed, refuse, changing nothing. (This is what would make the steps below fail part way.) Both lists are read with `--no-renames`: with rename detection, a file the upstream renamed is listed only under its new name, and the writer's changes to the old one would be put back into it with conflict markers by a rebase that still succeeds. When rebasing, the files the upstream changed include the new name of any the writer's own commits renamed, since the rebase carries the upstream's changes into it.
+4. If the upstream adds a file that's here but not tracked (or ignored), refuse: the fast-forward would overwrite an ignored one, and the rebase either.
+5. Only behind: `merge --ff-only`, which keeps whatever's staged.
+6. Ahead too: `rebase --autostash` onto the upstream, so the writer's commits go on top, as they'd want before pushing. Refused when the commits to push include a merge, which a rebase would leave out, with anything changed in it; and while anything is staged, whoever staged it, since the autostash brings staged files back unstaged (the tab disables Pull then). Uncommitted changes are put aside and back, and the checks above mean they come back cleanly. If they somehow don't, git still reports success, leaving conflict markers and the changes in its stash, so AE checks for conflicted files afterwards and says so. If the rebase stops on a conflict, or times out, `rebase --abort` puts everything back as it was, and the tab names the files both sides changed. Only AE's own rebase is aborted: AE records HEAD and the upstream before starting, and checks the rebase under way started from them (`rebase-merge/orig-head` and `onto`), so one a terminal started meanwhile is left alone.
+7. Read the entry again from disk, whether or not the pull worked (one that failed part way may have changed it), and resume editing once the editor holds what was read.
 
 Pull doesn't offer a merge commit, or a way through conflicts. Those are for the writer's git tool.
 
 **Check remote** in Project Settings runs `git ls-remote` against the branch's remote, only when pressed, since it uses the network and credentials.
+
+Project Settings shows who commits are made as the way git decides it: `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL`, then `author.*`, then `user.*` (and `EMAIL` for the email), with where each is set. With none set, git guesses one from the Mac's account (`git var GIT_AUTHOR_IDENT`) and commits with it anyway, so that's a warning; only when git won't guess is it an error. The hooks it lists are those a commit or push runs, in order, `reference-transaction` included, since it can refuse a commit.
 
 ## Testing
 

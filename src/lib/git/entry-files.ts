@@ -108,8 +108,9 @@ const NOT_RELATIVE = /^([/@~$#]|[a-z][a-z\d+.-]*:)/i
 
 /**
  * Whether `text` refers to the file at `path` (both relative to the repository
- * root): has its name whole, not as the end of a longer one (`map.png` in
- * `old-map.png`), as written or URL-encoded, in a reference that's either not
+ * root): has its name whole, not as part of a longer one (`map.png` in
+ * `old-map.png` or `map.png.backup`), as written or URL-encoded, in a
+ * reference that's either not
  * relative or resolves to it from `entryFolder`
  */
 function refersTo(text: string, path: string, entryFolder: string): boolean {
@@ -121,7 +122,10 @@ function refersTo(text: string, path: string, entryFolder: string): boolean {
       at !== -1;
       at = text.indexOf(form, at + 1)
     ) {
+      // A whole name: not the end of a longer one (`old-map.png`), nor the
+      // start (`map.png.backup`). `?` and `#` can follow (`map.png?raw`)
       if (at > 0 && /[\w.-]/.test(text.charAt(at - 1))) continue
+      if (/[\w.-]/.test(text.charAt(at + form.length))) continue
       let start = at
       while (start > 0 && !REFERENCE_BOUNDARY.test(text.charAt(start - 1))) {
         start--

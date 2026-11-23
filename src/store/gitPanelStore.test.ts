@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useGitPanelStore } from './gitPanelStore'
 
 beforeEach(() =>
-  useGitPanelStore.setState({ added: {}, renamedFrom: {}, staging: null })
+  useGitPanelStore.setState({
+    added: {},
+    renamedFrom: {},
+    staging: null,
+    messages: {},
+  })
 )
 
 describe('rememberAdded', () => {
@@ -34,6 +39,17 @@ describe('rememberRename', () => {
     expect(useGitPanelStore.getState().added).toEqual({
       '/site/trip.md': ['/site/assets/x.png'],
     })
+  })
+
+  it('moves a typed message with the entry', () => {
+    const { setMessage, rememberRename } = useGitPanelStore.getState()
+    setMessage('/site/untitled.md', 'Add the trip')
+    rememberRename('/site/untitled.md', '/site/trip.md')
+    expect(useGitPanelStore.getState().messages).toEqual({
+      '/site/trip.md': 'Add the trip',
+    })
+    setMessage('/site/trip.md', null)
+    expect(useGitPanelStore.getState().messages).toEqual({})
   })
 
   it("moves what's staged for an entry with it", () => {

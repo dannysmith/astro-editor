@@ -20,10 +20,18 @@ interface GitPanelState {
    */
   renamedFrom: Record<string, string>
   /**
-   * Also moves the files added for an entry, and what's staged for it, along
-   * with it
+   * Also moves the files added for an entry, what's staged for it and its
+   * typed message along with it
    */
   rememberRename: (from: string, to: string) => void
+  /**
+   * Commit messages typed for each entry, by its path, until it's committed
+   * or AE quits. Here rather than in the panel, so switching projects or the
+   * Git switch doesn't lose them. One never typed isn't kept, so the prefill
+   * follows the entry's title
+   */
+  messages: Record<string, string>
+  setMessage: (entry: string, message: string | null) => void
   /** What the Git tab last staged, and for which entry (see `staging.ts`) */
   staging: Staging | null
   setStaging: (staging: Staging | null) => void
@@ -41,6 +49,7 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
     set(state => {
       const { [from]: first = from, ...renamedFrom } = state.renamedFrom
       const { [from]: added, ...others } = state.added
+      const { [from]: message, ...messages } = state.messages
       return {
         renamedFrom: { ...renamedFrom, [to]: first },
         added: added ? { ...others, [to]: added } : state.added,
@@ -48,9 +57,21 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
           state.staging?.entry === from
             ? { ...state.staging, entry: to }
             : state.staging,
+        messages:
+          message === undefined
+            ? state.messages
+            : { ...messages, [to]: message },
       }
     })
   },
   staging: null,
   setStaging: staging => set({ staging }),
+  messages: {},
+  setMessage: (entry, message) =>
+    set(state => {
+      const messages = { ...state.messages }
+      if (message === null) delete messages[entry]
+      else messages[entry] = message
+      return { messages }
+    }),
 }))
