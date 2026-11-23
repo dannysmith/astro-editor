@@ -128,9 +128,38 @@ pub async fn create_file(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_file(file_path: String, project_root: String) -> Result<(), String> {
-    let validated_path = validate_project_path(&file_path, &project_root)?;
-    std::fs::remove_file(&validated_path).map_err(|e| format!("Failed to delete file: {e}"))
+/// Moves a file in the project to the Trash, or with `permanent`, removes it
+pub async fn delete_file(
+    file_path: String,
+    project_root: String,
+    permanent: bool,
+) -> Result<(), String> {
+    let path = validate_project_path(&file_path, &project_root)?;
+    if permanent {
+        std::fs::remove_file(&path).map_err(|e| format!("Failed to delete file: {e}"))?;
+        log::info!("Astro Editor [FILES] Deleted {}", path.display());
+    } else {
+        move_to_trash(&path).map_err(|e| format!("Failed to move file to the Trash: {e}"))?;
+        log::info!(
+            "Astro Editor [FILES] Moved to the Trash: {}",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+/// On macOS the `trash` crate asks Finder by default, which needs Automation
+/// permission; `NSFileManager` doesn't, and is faster
+fn move_to_trash(path: &Path) -> Result<(), trash::Error> {
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        let mut context = trash::TrashContext::new();
+        context.set_delete_method(DeleteMethod::NsFileManager);
+        context.delete(path)
+    }
+    #[cfg(not(target_os = "macos"))]
+    trash::delete(path)
 }
 
 #[tauri::command]
@@ -902,6 +931,7 @@ mod tests {
         let result = delete_file(
             test_file.to_string_lossy().to_string(),
             project_root.to_string_lossy().to_string(),
+            true,
         )
         .await;
 
@@ -930,6 +960,7 @@ mod tests {
         let result = delete_file(
             malicious_file.to_string_lossy().to_string(),
             project_root.to_string_lossy().to_string(),
+            false,
         )
         .await;
 

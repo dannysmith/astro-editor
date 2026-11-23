@@ -59,6 +59,7 @@ describe('EditorStore Integration Tests - Auto-Save', () => {
             conjunctions: false,
           },
           defaultFileType: 'md',
+          permanentlyDeleteFiles: false,
         },
         appearance: {
           headingColor: {

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Field,
   FieldLabel,
@@ -233,6 +234,28 @@ export const GeneralPane: React.FC = () => {
             <FieldDescription>
               For new files in every project. A project or collection can set
               its own in Project Settings.
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`${id}-permanent-delete`}>
+            Permanently delete files
+          </FieldLabel>
+          <FieldContent>
+            <Switch
+              id={`${id}-permanent-delete`}
+              checked={globalSettings?.general?.permanentlyDeleteFiles ?? false}
+              onCheckedChange={checked =>
+                void updateGlobal({
+                  general: { permanentlyDeleteFiles: checked },
+                })
+              }
+            />
+            <FieldDescription>
+              When this is off, deleted files go to your system's Trash, where
+              you can restore them. When it's on, they're removed for good,
+              after asking.
             </FieldDescription>
           </FieldContent>
         </Field>

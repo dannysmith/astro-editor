@@ -66,6 +66,7 @@ describe('Store ↔ Query Integration Tests', () => {
             conjunctions: false,
           },
           defaultFileType: 'md',
+          permanentlyDeleteFiles: false,
         },
         appearance: {
           headingColor: {
