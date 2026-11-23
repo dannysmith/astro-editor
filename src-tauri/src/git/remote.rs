@@ -6,11 +6,12 @@
 //! a rebase stops on a conflict it's aborted, putting everything back. So it
 //! never leaves a merge or rebase half done for the writer to sort out.
 
+use std::collections::{BTreeSet, HashSet};
 use std::time::Duration;
 
 use super::repo::{self, GitOperation, Repository};
 use super::runner::Git;
-use super::{writing, READ_TIMEOUT, WRITE_TIMEOUT};
+use super::{writing, NETWORK_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT};
 
 /// For `ls-remote`, which only has to reach the remote
 const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
@@ -38,25 +39,51 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
     };
     // The remote first (the push remote, which is the upstream's unless a
     // fork is set up), then the branch on it. Git leaves `push:remoteref`
-    // empty without a push refspec, and then pushes to the upstream's branch
-    // on the upstream's remote, or the same name on any other
+    // empty without a push refspec, and then `push.default` decides: the same
+    // name on a fork, and on the upstream's remote the upstream's branch,
+    // which the default (`simple`) allows only when it has the same name
     let remote = if push_remote.is_empty() {
         upstream_remote
     } else {
         push_remote
     };
-    let destination = if !push_ref.is_empty() {
-        push_ref
-    } else if remote == upstream_remote {
-        upstream_ref
-    } else {
-        branch
-    };
-    if remote.is_empty() || destination.is_empty() {
+    if remote.is_empty() {
         return Err("The branch has no upstream to push to.".to_string());
     }
+    let destination = if !push_ref.is_empty() {
+        push_ref
+    } else if remote != upstream_remote {
+        branch
+    } else {
+        let mode = git
+            .run(root, &["config", "--get", "push.default"], READ_TIMEOUT)?
+            .stdout_text();
+        match mode.trim() {
+            "upstream" | "tracking" => upstream_ref,
+            "current" | "matching" => branch,
+            "nothing" => {
+                return Err(
+                    "Git is set up not to push without saying where (push.default is nothing). Push in your git tool."
+                        .to_string(),
+                )
+            }
+            _ if upstream_ref == branch => branch,
+            _ => {
+                let short = |name: &str| name.trim_start_matches("refs/heads/").to_string();
+                return Err(format!(
+                    "Your branch {} tracks {} on {remote}, which has a different name, so git wouldn't push it there. Push it in your git tool.",
+                    short(branch),
+                    short(upstream_ref)
+                ));
+            }
+        }
+    };
     let refspec = format!("HEAD:{destination}");
-    let output = git.run(root, &["push", "--quiet", remote, &refspec], WRITE_TIMEOUT)?;
+    let output = git.run(
+        root,
+        &["push", "--quiet", remote, &refspec],
+        NETWORK_TIMEOUT,
+    )?;
     if output.success() {
         return Ok(());
     }
@@ -71,14 +98,22 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
     Err(output.error_message())
 }
 
-/// Fetches, then brings the upstream's new commits into the branch. Returns
-/// how many there were (0 when it was already up to date).
+/// Fetches the remote's new commits, changing nothing but remote refs. Kept
+/// apart from `pull` so the writer can go on writing while it waits on the
+/// network: only `pull` needs editing paused. Doesn't hold `writing`, since
+/// git takes its own lock on each ref it moves and never the index's.
+pub fn fetch(git: &Git, repository: &Repository) -> Result<(), String> {
+    git.read(&repository.root, &["fetch", "--quiet"], NETWORK_TIMEOUT)?;
+    Ok(())
+}
+
+/// Brings the upstream's new commits, as of the last `fetch`, into the
+/// branch. Returns how many there were (0 when it was already up to date).
 pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     let _writing = writing();
     // A merge or rebase under way is the writer's to finish
     repo::not_mid_operation(repository)?;
     let root = &repository.root;
-    git.read(root, &["fetch", "--quiet"], WRITE_TIMEOUT)?;
     let counts = git.read(
         root,
         &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
@@ -108,7 +143,7 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     // What the upstream's changes land in: their files, and, when rebasing,
     // the new name of any the writer's own commits renamed, which the rebase
     // carries the changes into
-    let mut changing = theirs.clone();
+    let mut changing: HashSet<String> = theirs.iter().cloned().collect();
     if ahead > 0 {
         changing.extend(renamed_by_own_commits(git, repository, &theirs)?);
     }
@@ -119,7 +154,7 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     )?;
     let both: Vec<&str> = uncommitted
         .iter()
-        .filter(|path| changing.contains(path))
+        .filter(|path| changing.contains(*path))
         .map(String::as_str)
         .collect();
     if !both.is_empty() {
@@ -134,7 +169,7 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     // which checks the upstream out first, either. Every file that differs
     // between HEAD and the upstream, not just those the upstream changed: a
     // file the writer's own commits deleted is checked out again too
-    let mut differ = paths(
+    let mut differ: BTreeSet<String> = paths(
         git,
         repository,
         &[
@@ -145,12 +180,14 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
             "HEAD",
             "@{upstream}",
         ],
-    )?;
+    )?
+    .into_iter()
+    .collect();
     // And, when rebasing, every file the writer's own commits touch, since
     // they're replayed one by one: one added then removed again doesn't
     // differ, but would still be written over and deleted
     if ahead > 0 {
-        for path in paths(
+        differ.extend(paths(
             git,
             repository,
             &[
@@ -161,22 +198,22 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
                 "-z",
                 "@{upstream}..HEAD",
             ],
-        )? {
-            if !differ.contains(&path) {
-                differ.push(path);
-            }
-        }
+        )?);
     }
-    if !differ.is_empty() {
+    // In batches, since a big upstream change in a monorepo can list more
+    // paths than fit on one command line
+    let differ: Vec<&str> = differ.iter().map(String::as_str).collect();
+    let mut in_the_way = Vec::new();
+    for batch in differ.chunks(1000) {
         let mut args = vec!["ls-files", "-z", "--others", "--"];
-        args.extend(differ.iter().map(String::as_str));
-        let in_the_way = paths(git, repository, &args)?;
-        if !in_the_way.is_empty() {
-            return Err(format!(
-                "The remote has files you have here but not in git: {}. Move them aside, then pull again. Nothing was changed.",
-                in_the_way.join(", ")
-            ));
-        }
+        args.extend(batch);
+        in_the_way.extend(paths(git, repository, &args)?);
+    }
+    if !in_the_way.is_empty() {
+        return Err(format!(
+            "The remote has files you have here but not in git: {}. Move them aside, then pull again. Nothing was changed.",
+            in_the_way.join(", ")
+        ));
     }
 
     if ahead == 0 {
@@ -215,8 +252,8 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     // started meanwhile, which isn't AE's to abort. Git can't say which
     // process started a rebase, and one started from these same commits in
     // the moment before AE's would look like it, so the check at the top is
-    // made again here, after the fetch, leaving that moment as short as it
-    // can be
+    // made again here, after the other checks, leaving that moment as short
+    // as it can be
     repo::not_mid_operation(repository)?;
     let head = git.read(root, &["rev-parse", "HEAD"], READ_TIMEOUT)?;
     let onto = git.read(root, &["rev-parse", "@{upstream}"], READ_TIMEOUT)?;
@@ -417,6 +454,12 @@ mod tests {
         repos.git_ok(dir, &["rev-parse", "HEAD"])
     }
 
+    /// What the tab's Pull does
+    fn fetch_and_pull(git: &Git, repository: &Repository) -> Result<u32, String> {
+        fetch(git, repository)?;
+        pull(git, repository)
+    }
+
     #[test]
     fn pushes_and_says_when_the_remote_is_ahead() {
         let repos = TestRepos::new();
@@ -437,11 +480,11 @@ mod tests {
         let repos = TestRepos::new();
         let (writer, collaborator) = shared(&repos);
         let repository = open(&repos, &writer);
-        assert_eq!(pull(&repos.git, &repository), Ok(0));
+        assert_eq!(fetch_and_pull(&repos.git, &repository), Ok(0));
 
         change(&repos, &collaborator, "other.md", "two\n", true);
         fs::write(writer.join("entry.md"), "draft\n").unwrap();
-        assert_eq!(pull(&repos.git, &repository), Ok(1));
+        assert_eq!(fetch_and_pull(&repos.git, &repository), Ok(1));
         assert_eq!(
             fs::read_to_string(writer.join("other.md")).unwrap(),
             "two\n"
@@ -460,7 +503,7 @@ mod tests {
         change(&repos, &writer, "entry.md", "two\n", false);
         fs::write(writer.join("new.md"), "untracked\n").unwrap();
 
-        assert_eq!(pull(&repos.git, &open(&repos, &writer)), Ok(1));
+        assert_eq!(fetch_and_pull(&repos.git, &open(&repos, &writer)), Ok(1));
         let log = repos.git_ok(&writer, &["log", "--format=%s"]);
         assert_eq!(log, "Change entry.md\nChange other.md\nFirst\n");
         assert!(repos
@@ -477,7 +520,7 @@ mod tests {
         fs::write(writer.join("entry.md"), "mine\n").unwrap();
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("entry.md"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(
@@ -496,7 +539,7 @@ mod tests {
         repos.git_ok(&writer, &["add", "new.md"]);
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("unstage"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(
@@ -508,7 +551,7 @@ mod tests {
         repos.git_ok(&writer, &["reset", "-q", "--hard", "origin/main~1"]);
         fs::write(writer.join("new.md"), "staged\n").unwrap();
         repos.git_ok(&writer, &["add", "new.md"]);
-        assert_eq!(pull(&repos.git, &open(&repos, &writer)), Ok(1));
+        assert_eq!(fetch_and_pull(&repos.git, &open(&repos, &writer)), Ok(1));
         assert_eq!(
             repos.git_ok(&writer, &["diff", "--cached", "--name-only"]),
             "new.md\n"
@@ -523,7 +566,7 @@ mod tests {
         let lines: String = (1..=10).map(|n| format!("line {n}\n")).collect();
         change(&repos, &collaborator, "entry.md", &lines, true);
         let repository = open(&repos, &writer);
-        assert_eq!(pull(&repos.git, &repository), Ok(1));
+        assert_eq!(fetch_and_pull(&repos.git, &repository), Ok(1));
 
         // The remote renames it and changes its first line. The writer has a
         // commit of their own, and an uncommitted change to the same line
@@ -535,7 +578,7 @@ mod tests {
         fs::write(writer.join("entry.md"), &mine).unwrap();
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &repository).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &repository).unwrap_err();
         assert!(error.contains("entry.md"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(fs::read_to_string(writer.join("entry.md")).unwrap(), mine);
@@ -552,7 +595,7 @@ mod tests {
         let before = head(&repos, &writer);
         let repository = open(&repos, &writer);
 
-        let error = pull(&repos.git, &repository).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &repository).unwrap_err();
         assert!(error.contains("both change entry.md"), "{error}");
         assert_eq!(repo::operation_in_progress(&repository), None);
         assert_eq!(head(&repos, &writer), before);
@@ -616,6 +659,32 @@ mod tests {
     }
 
     #[test]
+    fn pushes_to_an_upstream_with_another_name_only_when_git_would() {
+        let repos = TestRepos::new();
+        let (writer, _) = shared(&repos);
+        // A draft branched from the remote's main, which it then tracks
+        repos.git_ok(&writer, &["switch", "-q", "-c", "draft", "origin/main"]);
+        change(&repos, &writer, "entry.md", "draft\n", false);
+        let main_before = repos.git_ok(&writer, &["rev-parse", "origin/main"]);
+
+        let error = push(&repos.git, &open(&repos, &writer)).unwrap_err();
+        assert!(error.contains("different name"), "{error}");
+        repos.git_ok(&writer, &["fetch", "-q"]);
+        assert_eq!(
+            repos.git_ok(&writer, &["rev-parse", "origin/main"]),
+            main_before
+        );
+
+        repos.git_ok(&writer, &["config", "push.default", "upstream"]);
+        push(&repos.git, &open(&repos, &writer)).unwrap();
+        repos.git_ok(&writer, &["fetch", "-q"]);
+        assert_eq!(
+            repos.git_ok(&writer, &["rev-parse", "origin/main"]),
+            head(&repos, &writer)
+        );
+    }
+
+    #[test]
     fn pull_refuses_to_overwrite_a_local_file_git_does_not_track() {
         let repos = TestRepos::new();
         let (writer, collaborator) = shared(&repos);
@@ -627,7 +696,7 @@ mod tests {
         fs::write(writer.join("notes.md"), "mine too\n").unwrap();
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(
             error.contains("draft.md") && error.contains("notes.md"),
             "{error}"
@@ -657,7 +726,7 @@ mod tests {
         fs::write(writer.join("entry.md"), "kept\n").unwrap();
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("entry.md"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(
@@ -680,7 +749,7 @@ mod tests {
         fs::write(writer.join("scratch.md"), "kept\n").unwrap();
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("scratch.md"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(
@@ -704,7 +773,7 @@ mod tests {
         );
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("merge"), "{error}");
         assert_eq!(head(&repos, &writer), before);
     }
@@ -715,7 +784,7 @@ mod tests {
         let (writer, collaborator) = shared(&repos);
         let lines: String = (1..=10).map(|n| format!("line {n}\n")).collect();
         change(&repos, &collaborator, "entry.md", &lines, true);
-        assert_eq!(pull(&repos.git, &open(&repos, &writer)), Ok(1));
+        assert_eq!(fetch_and_pull(&repos.git, &open(&repos, &writer)), Ok(1));
 
         // The writer renames it in a commit and keeps editing it; the remote
         // changes the same line under the old name
@@ -727,7 +796,7 @@ mod tests {
         change(&repos, &collaborator, "entry.md", &theirs, true);
         let before = head(&repos, &writer);
 
-        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        let error = fetch_and_pull(&repos.git, &open(&repos, &writer)).unwrap_err();
         assert!(error.contains("renamed.md"), "{error}");
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(fs::read_to_string(writer.join("renamed.md")).unwrap(), mine);

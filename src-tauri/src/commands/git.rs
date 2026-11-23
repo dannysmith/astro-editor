@@ -90,8 +90,19 @@ pub async fn git_push(project_path: String) -> Result<(), String> {
     .await
 }
 
-/// Fetches and brings in the upstream's new commits, only when that can be
-/// done cleanly. Returns how many commits came in.
+/// Fetches the remote's new commits, without changing the working tree
+#[tauri::command]
+#[specta::specta]
+pub async fn git_fetch(project_path: String) -> Result<(), String> {
+    run_blocking(move || {
+        let (git, repository) = open(&project_path)?;
+        remote::fetch(&git, &repository)
+    })
+    .await
+}
+
+/// Brings in the upstream's new commits as of the last fetch, only when that
+/// can be done cleanly. Returns how many commits came in.
 #[tauri::command]
 #[specta::specta]
 pub async fn git_pull(project_path: String) -> Result<u32, String> {

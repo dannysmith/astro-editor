@@ -150,9 +150,11 @@ export const commands = {
 	gitCommit: (projectPath: string, paths: string[], message: string) => typedError<string, string>(__TAURI_INVOKE("git_commit", { projectPath, paths, message })),
 	/**  Pushes the branch to its upstream */
 	gitPush: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_push", { projectPath })),
+	/**  Fetches the remote's new commits, without changing the working tree */
+	gitFetch: (projectPath: string) => typedError<null, string>(__TAURI_INVOKE("git_fetch", { projectPath })),
 	/**
-	 *  Fetches and brings in the upstream's new commits, only when that can be
-	 *  done cleanly. Returns how many commits came in.
+	 *  Brings in the upstream's new commits as of the last fetch, only when that
+	 *  can be done cleanly. Returns how many commits came in.
 	 */
 	gitPull: (projectPath: string) => typedError<number, string>(__TAURI_INVOKE("git_pull", { projectPath })),
 	/**

@@ -63,6 +63,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::git::git_unstage,
             crate::commands::git::git_commit,
             crate::commands::git::git_push,
+            crate::commands::git::git_fetch,
             crate::commands::git::git_pull,
             crate::commands::git::git_check_remote,
             crate::commands::git::git_watch_start,

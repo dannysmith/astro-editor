@@ -42,6 +42,9 @@ const INSERT_AFTER = 2
 /** How many of a lint's suggestions are offered as fixes */
 const MAX_SUGGESTIONS = 3
 
+/** How many characters either side of an issue go into its id */
+const ID_CONTEXT = 16
+
 /** The latest check. They run one at a time, since the worker answers in turn */
 let checking: Promise<unknown> = Promise.resolve()
 
@@ -75,9 +78,9 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
   if (!lints) return []
 
   const diagnostics: Diagnostic[] = []
-  // An issue's id is its rule and Harper's hash of it and the text around it,
-  // which stay the same while that text does. The same issue in the same
-  // words twice is told apart by its order
+  // An issue's id is its rule and its text with a little either side, which
+  // stay the same while that text does. The same issue in the same words
+  // twice is told apart by its order
   const seen = new Map<string, number>()
   // Grouped by rule, so put them in document order
   for (const lint of lints.sort((a, b) => a.start - b.start)) {
@@ -86,7 +89,7 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
     if (!checks[check] || !shouldShow({ rule, kind, start, end }, text, doc))
       continue
 
-    const key = `${rule}:${lint.hash}`
+    const key = `${rule}:${text.slice(Math.max(0, start - ID_CONTEXT), end + ID_CONTEXT)}`
     const repeat = seen.get(key) ?? 0
     seen.set(key, repeat + 1)
 
@@ -106,7 +109,7 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
       fixes: lint.suggestions.slice(0, MAX_SUGGESTIONS).map(toFix),
       // Typos are words run together, like "isnow", so not dictionary words
       word: kind === 'Spelling' ? lint.problem : null,
-      ignore: () => ignoreLint(lint.hash),
+      ignore: () => ignoreLint(text, rule, start, end),
     })
     diagnostics.push(diagnostic)
   }

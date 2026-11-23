@@ -99,6 +99,21 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     expect(recovery.editorContent).toBe('First file edit')
     expect(useEditorStore.getState().isDirty).toBe(false)
   })
+
+  it('restarts the forced-save clock when a save fails', async () => {
+    // Long unsaved, so every keystroke would force another failing save
+    useEditorStore.setState({ dirtySince: Date.now() - 60_000 })
+    const release = holdSave('reject')
+    const { saveFile } = renderActions()
+
+    const saving = saveFile(false)
+    release()
+    await saving
+
+    const { isDirty, dirtySince } = useEditorStore.getState()
+    expect(isDirty).toBe(true)
+    expect(Date.now() - dirtySince!).toBeLessThan(1000)
+  })
 })
 
 describe('useEditorActions.saveFile when the same file changes mid-save', () => {

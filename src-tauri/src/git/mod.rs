@@ -31,6 +31,10 @@ pub const READ_TIMEOUT: Duration = Duration::from_secs(15);
 /// running a linter, a signing key that asks to be unlocked, a slow remote
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// For pushing and fetching, which may send or receive a lot: a post's
+/// full-size photos over slow wifi
+pub const NETWORK_TIMEOUT: Duration = Duration::from_secs(600);
+
 static WRITING: Mutex<()> = Mutex::new(());
 
 /// Held while a command changes the repository (staging, committing, pushing,

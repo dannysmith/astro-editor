@@ -8,7 +8,7 @@
  * `{ id, value }` or `{ id, error }`. Requests are handled one at a time.
  */
 
-import { Dialect, LocalLinter } from 'harper.js'
+import { Dialect, type Lint, LocalLinter } from 'harper.js'
 import { binary } from 'harper.js/binary'
 
 /**
@@ -83,14 +83,42 @@ export interface HarperLint {
   problem: string
   /** `kind` is harper.js's `SuggestionKind`: replace, remove or insert after */
   suggestions: { kind: number; text: string }[]
-  /** Identifies the issue and the text around it, for ignoring it */
-  hash: string
 }
 
 let linter: LocalLinter | null = null
 /** What the linter was made with and given, so it's only changed when they change */
 let dialect: DialectName | null = null
 let words: string | null = null
+
+/**
+ * The last text checked and Harper's issues in it, kept so an issue can be
+ * ignored without checking again. Ignoring hashes the issue with the whole
+ * text around it, which is too slow to do for every issue in every check on
+ * a long document.
+ */
+let checked: { text: string; lints: { rule: string; lint: Lint }[] } | null =
+  null
+
+function forgetChecked() {
+  for (const { lint } of checked?.lints ?? []) lint.free()
+  checked = null
+}
+
+async function check(text: string, regexMask: string) {
+  if (checked?.text === text) return checked
+  const byRule = await current().organizedLints(text, {
+    language: 'plaintext',
+    regex_mask: regexMask,
+  })
+  forgetChecked()
+  checked = {
+    text,
+    lints: Object.entries(byRule).flatMap(([rule, lints]) =>
+      lints.map(lint => ({ rule, lint }))
+    ),
+  }
+  return checked
+}
 
 async function makeLinter(settings: WorkerSettings): Promise<LocalLinter> {
   // A new dialect needs a new linter, which keeps the old one's ignores
@@ -118,12 +146,14 @@ const api = {
   /** Applies the settings, making the linter the first time */
   async configure(settings: WorkerSettings): Promise<void> {
     if (!linter || settings.dialect !== dialect) {
+      forgetChecked()
       linter = await makeLinter(settings)
       dialect = settings.dialect
       words = null
     }
     const all = [...ASTRO_WORDS, ...settings.dictionary]
     if (all.join('\n') !== words) {
+      forgetChecked()
       await linter.clearWords()
       await linter.importWords(all)
       words = all.join('\n')
@@ -132,44 +162,59 @@ const api = {
 
   /** The issues in prose from `proseText`, which masks with `regexMask` */
   async lint(text: string, regexMask: string): Promise<HarperLint[]> {
-    const linter = current()
-    const byRule = await linter.organizedLints(text, {
-      language: 'plaintext',
-      regex_mask: regexMask,
-    })
-    const found: HarperLint[] = []
-    for (const [rule, lints] of Object.entries(byRule)) {
-      for (const lint of lints) {
-        const span = lint.span()
-        found.push({
-          rule,
-          kind: lint.lint_kind(),
-          kindLabel: lint.lint_kind_pretty(),
-          start: span.start,
-          end: span.end,
-          message: lint.message(),
-          messageHtml: lint.message_html(),
-          problem: lint.get_problem_text(),
-          suggestions: lint.suggestions().map(suggestion => ({
-            kind: Number(suggestion.kind()),
-            text: suggestion.get_replacement_text(),
-          })),
-          hash: String(await linter.contextHash(text, lint)),
-        })
-        lint.free()
+    const { lints } = await check(text, regexMask)
+    return lints.map(({ rule, lint }) => {
+      const span = lint.span()
+      return {
+        rule,
+        kind: lint.lint_kind(),
+        kindLabel: lint.lint_kind_pretty(),
+        start: span.start,
+        end: span.end,
+        message: lint.message(),
+        messageHtml: lint.message_html(),
+        problem: lint.get_problem_text(),
+        suggestions: lint.suggestions().map(suggestion => ({
+          kind: Number(suggestion.kind()),
+          text: suggestion.get_replacement_text(),
+        })),
       }
-    }
-    return found
+    })
   },
 
-  /** Ignores an issue by its hash, returning every ignore to store */
-  async ignore(hash: string): Promise<string> {
-    const linter = current()
-    await linter.ignoreLintHash(BigInt(hash))
-    return linter.exportIgnoredLints()
+  /**
+   * Ignores the issue `rule` found at `start`–`end` in `text`, checked with
+   * `regexMask`, in this and later checks. Returns every ignore, to store.
+   */
+  async ignore(
+    text: string,
+    regexMask: string,
+    rule: string,
+    start: number,
+    end: number
+  ): Promise<string> {
+    const { lints } = await check(text, regexMask)
+    const found = lints.find(lint => {
+      const span = lint.lint.span()
+      return lint.rule === rule && span.start === start && span.end === end
+    })
+    // Not there when the settings changed since that check, and then the
+    // re-check that follows shows what's there now. Failing would restart
+    // the worker (`linter.ts`)
+    // By hash, since `ignoreLint` takes the lint, and `forgetChecked` would
+    // then free it twice
+    if (found) {
+      await current().ignoreLintHash(
+        await current().contextHash(text, found.lint)
+      )
+    }
+    // The next check of the same text leaves it out
+    forgetChecked()
+    return current().exportIgnoredLints()
   },
 
   async clearIgnored(): Promise<void> {
+    forgetChecked()
     await current().clearIgnoredLints()
   },
 }

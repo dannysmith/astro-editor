@@ -282,7 +282,9 @@ async function saveCurrentFile(
 
     const reason =
       error instanceof Error ? error.message : 'Unknown error occurred'
+    // One toast, replaced by each failure, while saving keeps failing
     toast.error('Save failed', {
+      id: 'save-failed',
       description: `Could not save file: ${reason}.${recovered ? ' Recovery data has been saved.' : ''}`,
     })
 
@@ -293,9 +295,11 @@ async function saveCurrentFile(
       action: 'save',
     })
 
-    // Keep the file marked as dirty since save failed
+    // Keep the file marked as dirty since save failed. Restarting the clock
+    // for the forced save means it's retried every 10 seconds while the
+    // writer types, not on every keystroke
     if (stillOpen) {
-      useEditorStore.setState({ isDirty: true })
+      useEditorStore.setState({ isDirty: true, dirtySince: Date.now() })
     }
   }
 }

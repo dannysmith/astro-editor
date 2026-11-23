@@ -79,6 +79,9 @@ function createPosDecorations(
   enabledPartsOfSpeech: Set<string>,
   cursorPosition: number
 ): DecorationSet {
+  // Parsing a long document is a noticeable pause, so not for nothing
+  if (enabledPartsOfSpeech.size === 0) return Decoration.none
+
   const marks: Range<Decoration>[] = []
   const processedRanges = new Set<string>()
 

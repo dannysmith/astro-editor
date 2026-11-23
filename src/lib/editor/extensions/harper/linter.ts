@@ -175,10 +175,18 @@ export function lintProse(text: string): Promise<HarperLint[]> {
 /** How many times the ignored issues have been cleared */
 let clears = 0
 
-/** Ignores an issue by its hash, in this and later checks */
-export async function ignoreLint(hash: string) {
+/**
+ * Ignores the issue `rule` found at `start`–`end` in `text` (from
+ * `proseText`), in this and later checks
+ */
+export async function ignoreLint(
+  text: string,
+  rule: string,
+  start: number,
+  end: number
+) {
   const clearsBefore = clears
-  const ignored = await run('ignore', hash)
+  const ignored = await run('ignore', text, MASK_PATTERN, rule, start, end)
   // A clear while this was waiting has emptied the list, which this would
   // otherwise put back
   if (clears === clearsBefore) localStorage.setItem(IGNORED_KEY, ignored)
