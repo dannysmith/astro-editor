@@ -410,7 +410,7 @@ mod tests {
         let setup = check_with(Ok(git), &site);
         let name = setup.repository.unwrap().user_name.unwrap();
         assert_eq!(name.value, "Pen Name");
-        assert!(name.origin.contains("GIT_AUTHOR_NAME"), "{}", name.origin);
+        assert_eq!(name.origin, "the GIT_AUTHOR_NAME environment variable");
     }
 
     #[test]
