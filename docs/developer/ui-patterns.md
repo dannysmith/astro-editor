@@ -58,7 +58,7 @@ Sidebars can be dragged to their minimum width, so a component should fit any wi
 
 ## Forms
 
-The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), which takes the field's schema and value and adds its label, required mark, description, constraints and default, so a change to any of them lands in one place. Its `horizontal` layout puts the control beside the label, with the hints below both. What the panel lists, and in what order and nesting, comes from `frontmatterTree` (`lib/frontmatter-tree.ts`). Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
 
 Project settings are laid out differently, as a readout of what AE found rather than a form to fill in, like macOS System Settings. `components/project-settings/Setting.tsx` has the pieces, shown in the styleguide's "Project settings" section:
 

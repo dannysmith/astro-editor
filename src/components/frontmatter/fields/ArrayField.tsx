@@ -1,27 +1,17 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { TagInput, type Tag } from '../../ui/tag-input'
 import { tagsToStringArray } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
 import { FieldType } from '../../../lib/schema'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 
-interface ArrayFieldProps extends FieldProps {
-  field?: SchemaField
-}
-
-export const ArrayField: React.FC<ArrayFieldProps> = ({
+export const ArrayField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
-  const value = useFrontmatterValue(name)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
 
   const id = React.useId()
 
@@ -63,34 +53,18 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
           .map(tag => Number(tag.text))
           .filter(num => !isNaN(num))
 
-        updateFrontmatterField(
-          name,
-          numberArray.length > 0 ? numberArray : undefined
-        )
+        setValue(numberArray.length > 0 ? numberArray : undefined)
       } else {
         // Keep as strings
         const stringArray = tagsToStringArray(newTags)
-        updateFrontmatterField(
-          name,
-          stringArray.length > 0 ? stringArray : undefined
-        )
+        setValue(stringArray.length > 0 ? stringArray : undefined)
       }
     },
-    [isNumberArray, name, updateFrontmatterField]
+    [isNumberArray, setValue]
   )
 
   return (
-    <FieldWrapper
-      label={label}
-      htmlFor={id}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} htmlFor={id}>
       <TagInput
         inputId={id}
         placeholder={`Enter ${label.toLowerCase()}...`}

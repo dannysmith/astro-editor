@@ -1,5 +1,4 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import {
   useCollectionEntriesQuery,
@@ -20,26 +19,17 @@ import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import { FieldWrapper } from './FieldWrapper'
 import { FieldType } from '../../../lib/schema'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 import { NONE_SENTINEL } from './constants'
 
-interface ReferenceFieldProps extends FieldProps {
-  field?: SchemaField
-}
-
-export const ReferenceField: React.FC<ReferenceFieldProps> = ({
+export const ReferenceField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
   const [open, setOpen] = React.useState(false)
   const labelId = `${React.useId()}-label`
-  const value = useFrontmatterValue(name)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference
@@ -86,7 +76,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
       ? selectedValues.filter(v => v !== optionValue)
       : [...selectedValues, optionValue]
 
-    updateFrontmatterField(name, newValues.length > 0 ? newValues : undefined)
+    setValue(newValues.length > 0 ? newValues : undefined)
   }
 
   // Handle removing a selected item in multi-select
@@ -96,21 +86,11 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   ) => {
     e.stopPropagation()
     const newValues = selectedValues.filter(v => v !== optionValue)
-    updateFrontmatterField(name, newValues.length > 0 ? newValues : undefined)
+    setValue(newValues.length > 0 ? newValues : undefined)
   }
 
   return (
-    <FieldWrapper
-      label={label}
-      labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
@@ -187,7 +167,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                   <CommandItem
                     value={NONE_SENTINEL}
                     onSelect={() => {
-                      updateFrontmatterField(name, undefined)
+                      setValue(undefined)
                       setOpen(false)
                     }}
                   >
@@ -210,7 +190,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                       if (isMultiSelect) {
                         handleMultiSelectToggle(currentValue)
                       } else {
-                        updateFrontmatterField(name, currentValue)
+                        setValue(currentValue)
                         setOpen(false)
                       }
                     }}

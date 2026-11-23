@@ -25,7 +25,7 @@ A missing file is logged at debug level only. A parse failure logs `[Schema] Fai
 
 ## Helper paths must match JSON field names
 
-`parse_field` flattens nested objects into dot paths (`coverImage.image`), keeping `parentPath` so the form can group them. The Zod parser builds the same dotted path for each helper by walking back through the braces, and the merge matches on the exact name. A mismatch fails silently: the field stays a plain string, or a reference with no target.
+`parse_field` flattens nested objects into dot paths (`coverImage.image`), keeping `parentPath` so the form can rebuild the nesting (`frontmatterTree` in `lib/frontmatter-tree.ts`). The Zod parser builds the same dotted path for each helper by walking back through the braces, and the merge matches on the exact name. A mismatch fails silently: the field stays a plain string, or a reference with no target.
 
 Arrays are never flattened. A helper directly inside `z.array(...)` is recorded against the array field itself, so `tags: z.array(reference('tags'))` enhances `tags`. A helper inside an object inside an array (`gallery: z.array(z.object({ src: image() }))`) gets the path `gallery.src`, which matches no field, so arrays of objects get no image or reference handling.
 

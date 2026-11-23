@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldConstraints } from '../../../lib/schema'
+import {
+  FieldType,
+  type FieldConstraints,
+  type SchemaField,
+} from '../../../lib/schema'
+
+const fieldWith = (overrides: Partial<SchemaField>): SchemaField => ({
+  name: 'test',
+  label: 'Test',
+  type: FieldType.String,
+  required: false,
+  ...overrides,
+})
 
 describe('FieldWrapper', () => {
   describe('vertical layout', () => {
@@ -18,7 +30,7 @@ describe('FieldWrapper', () => {
 
     it('shows required asterisk when required', () => {
       render(
-        <FieldWrapper label="Test Field" required>
+        <FieldWrapper label="Test Field" field={fieldWith({ required: true })}>
           <input />
         </FieldWrapper>
       )
@@ -62,7 +74,11 @@ describe('FieldWrapper', () => {
       const constraints: FieldConstraints = { min: 1, max: 100 }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue={50}>
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ constraints })}
+          value={50}
+        >
           <input />
         </FieldWrapper>
       )
@@ -74,7 +90,11 @@ describe('FieldWrapper', () => {
       const constraints: FieldConstraints = { min: 10 }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue={15}>
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ constraints })}
+          value={15}
+        >
           <input />
         </FieldWrapper>
       )
@@ -91,7 +111,7 @@ describe('FieldWrapper', () => {
       }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue={5}>
+        <FieldWrapper label="Test" field={fieldWith({ constraints })} value={5}>
           <input />
         </FieldWrapper>
       )
@@ -103,7 +123,11 @@ describe('FieldWrapper', () => {
       const constraints: FieldConstraints = { max: 999 }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue={50}>
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ constraints })}
+          value={50}
+        >
           <input />
         </FieldWrapper>
       )
@@ -117,8 +141,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="hello"
+          field={fieldWith({ constraints })}
+          value="hello"
         >
           <input />
         </FieldWrapper>
@@ -133,8 +157,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="hello"
+          field={fieldWith({ constraints })}
+          value="hello"
         >
           <input />
         </FieldWrapper>
@@ -153,8 +177,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue={['a']}
+          field={fieldWith({ constraints })}
+          value={['a']}
         >
           <input />
         </FieldWrapper>
@@ -169,8 +193,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="test"
+          field={fieldWith({ constraints })}
+          value="test"
         >
           <input />
         </FieldWrapper>
@@ -185,8 +209,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="test@example.com"
+          field={fieldWith({ constraints })}
+          value="test@example.com"
         >
           <input />
         </FieldWrapper>
@@ -201,8 +225,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="https://example.com"
+          field={fieldWith({ constraints })}
+          value="https://example.com"
         >
           <input />
         </FieldWrapper>
@@ -215,7 +239,11 @@ describe('FieldWrapper', () => {
       const constraints: FieldConstraints = { pattern: '^[A-Z]{3}$' }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue="ABC">
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ constraints })}
+          value="ABC"
+        >
           <input />
         </FieldWrapper>
       )
@@ -231,8 +259,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          constraints={constraints}
-          currentValue="test@example.com"
+          field={fieldWith({ constraints })}
+          value="test@example.com"
         >
           <input />
         </FieldWrapper>
@@ -249,7 +277,11 @@ describe('FieldWrapper', () => {
       }
 
       render(
-        <FieldWrapper label="Test" constraints={constraints} currentValue={50}>
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ constraints })}
+          value={50}
+        >
           <input />
         </FieldWrapper>
       )
@@ -263,8 +295,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue="default text"
-          currentValue={undefined}
+          field={fieldWith({ default: 'default text' })}
+          value={undefined}
         >
           <input />
         </FieldWrapper>
@@ -276,7 +308,11 @@ describe('FieldWrapper', () => {
     it("doesn't show an empty default", () => {
       for (const empty of ['', [], {}]) {
         const { unmount } = render(
-          <FieldWrapper label="Test" defaultValue={empty} currentValue="">
+          <FieldWrapper
+            label="Test"
+            field={fieldWith({ default: empty })}
+            value=""
+          >
             <input />
           </FieldWrapper>
         )
@@ -289,8 +325,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue="default text"
-          currentValue="actual value"
+          field={fieldWith({ default: 'default text' })}
+          value="actual value"
         >
           <input />
         </FieldWrapper>
@@ -301,7 +337,11 @@ describe('FieldWrapper', () => {
 
     it('shows default value when field is empty string', () => {
       render(
-        <FieldWrapper label="Test" defaultValue="default text" currentValue="">
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ default: 'default text' })}
+          value=""
+        >
           <input />
         </FieldWrapper>
       )
@@ -313,8 +353,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue="default text"
-          currentValue={null}
+          field={fieldWith({ default: 'default text' })}
+          value={null}
         >
           <input />
         </FieldWrapper>
@@ -325,7 +365,11 @@ describe('FieldWrapper', () => {
 
     it('formats non-string default values', () => {
       render(
-        <FieldWrapper label="Test" defaultValue={42} currentValue={undefined}>
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ default: 42 })}
+          value={undefined}
+        >
           <input />
         </FieldWrapper>
       )
@@ -337,8 +381,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue={{ key: 'value' }}
-          currentValue={undefined}
+          field={fieldWith({ default: { key: 'value' } })}
+          value={undefined}
         >
           <input />
         </FieldWrapper>
@@ -351,8 +395,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue="default text"
-          currentValue={undefined}
+          field={fieldWith({ default: 'default text' })}
+          value={undefined}
           hideDefaultValue={true}
         >
           <input />
@@ -366,8 +410,8 @@ describe('FieldWrapper', () => {
       render(
         <FieldWrapper
           label="Test"
-          defaultValue="default text"
-          currentValue={undefined}
+          field={fieldWith({ default: 'default text' })}
+          value={undefined}
           hideDefaultValue={false}
         >
           <input />

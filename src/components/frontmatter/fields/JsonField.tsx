@@ -3,12 +3,7 @@ import { shownFilePath, useEditorStore } from '../../../store/editorStore'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
-
-interface JsonFieldProps extends FieldProps {
-  field?: SchemaField
-}
+import type { FieldControlProps } from './types'
 
 /**
  * The JSON of what the store holds once `value` is written: an empty value
@@ -34,17 +29,13 @@ const toJson = (value: unknown): string =>
  * own edits, which would reformat the text under the cursor. Switching file
  * always replaces it.
  */
-export const JsonField: React.FC<JsonFieldProps> = ({
+export const JsonField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
-  const value = useFrontmatterValue(name)
+  const [value, setValue] = useFrontmatterValue(name)
   const filePath = useEditorStore(shownFilePath)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
   const [error, setError] = React.useState<string | null>(null)
   const id = React.useId()
 
@@ -68,7 +59,7 @@ export const JsonField: React.FC<JsonFieldProps> = ({
       // Empty value - clear the field
       setError(null)
       setDraftValueJson('null')
-      updateFrontmatterField(name, undefined)
+      setValue(undefined)
       return
     }
 
@@ -76,7 +67,7 @@ export const JsonField: React.FC<JsonFieldProps> = ({
       const parsed = JSON.parse(newValue) as unknown
       setError(null)
       setDraftValueJson(storedJson(parsed))
-      updateFrontmatterField(name, parsed)
+      setValue(parsed)
     } catch (err) {
       // Keep the draft and the last valid value until the JSON parses
       setError(err instanceof Error ? err.message : 'Invalid JSON')
@@ -86,14 +77,12 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      field={field}
+      value={value}
       htmlFor={id}
-      required={required}
       description={
         field && 'description' in field ? field.description : 'Edit as JSON'
       }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
     >
       <div className="space-y-2">
         <AutoExpandingTextarea

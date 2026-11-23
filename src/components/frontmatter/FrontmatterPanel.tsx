@@ -5,11 +5,14 @@ import { shownFrontmatter, useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { deserializeCompleteSchema } from '../../lib/schema'
-import { camelCaseToTitleCase } from '../../lib/utils'
 import { openInIde } from '../../lib/ide'
 import { Button } from '../ui/button'
 import { FrontmatterField } from './fields'
 import { fieldMappings } from '../../lib/project-scan'
+import {
+  frontmatterTree,
+  type FrontmatterNode,
+} from '../../lib/frontmatter-tree'
 import type { Collection } from '@/types'
 
 /**
@@ -50,10 +53,43 @@ const UnreadableFrontmatter: React.FC<{ error: string; filePath: string }> = ({
   )
 }
 
+/** The panel's fields, with each nested object as a titled, indented group */
+const FrontmatterNodes: React.FC<{
+  nodes: FrontmatterNode[]
+  collectionName: string
+}> = ({ nodes, collectionName }) =>
+  nodes.map(node =>
+    node.kind === 'field' ? (
+      <FrontmatterField
+        key={node.name}
+        name={node.name}
+        label={node.label}
+        field={node.field}
+        collectionName={collectionName}
+      />
+    ) : (
+      <div key={node.path} className="space-y-4">
+        <h3 className="pt-2 text-sm font-medium text-foreground">
+          {node.heading}
+        </h3>
+        <div className="space-y-4 border-l-2 border-border pl-4">
+          <FrontmatterNodes
+            nodes={node.children}
+            collectionName={collectionName}
+          />
+        </div>
+      </div>
+    )
+  )
+
 export const FrontmatterPanel: React.FC = () => {
   // Object subscriptions need shallow to prevent re-renders on reference changes
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
-  const frontmatter = useEditorStore(useShallow(shownFrontmatter))
+  // Only the keys: each field follows its own value, so typing in one doesn't
+  // re-render the panel
+  const frontmatterKeys = useEditorStore(
+    useShallow(state => Object.keys(shownFrontmatter(state)))
+  )
   const loadError = useEditorStore(state => state.loadError)
   const frontmatterError = useEditorStore(state => state.frontmatterError)
   const projectPath = useProjectStore(state => state.projectPath)
@@ -65,89 +101,16 @@ export const FrontmatterPanel: React.FC = () => {
     : null
 
   // Get schema from Rust backend
-  const schema = React.useMemo(() => {
-    if (!currentCollection?.completeSchema) return null
+  const completeSchema = currentCollection?.completeSchema
+  const schema = completeSchema
+    ? deserializeCompleteSchema(completeSchema)
+    : null
 
-    const parsed = deserializeCompleteSchema(currentCollection.completeSchema)
-
-    return parsed
-  }, [currentCollection])
-
-  // Get all fields to display
-  const allFields = React.useMemo(() => {
-    if (schema) {
-      // The collection's title field goes first
-      const titleFieldName = fieldMappings(currentCollection ?? undefined).title
-
-      // Start with all schema fields. Schema defaults are only shown as a hint
-      // (FieldWrapper), never put into frontmatter: anything in frontmatter gets
-      // saved, which would write values the author never set.
-      const schemaFields = schema.fields.map(field => ({
-        fieldName: field.name,
-        schemaField: field,
-        value: frontmatter[field.name],
-      }))
-
-      // Reorder: title field first, then other schema fields in order
-      const titleField = schemaFields.find(f => f.fieldName === titleFieldName)
-      const otherSchemaFields = schemaFields.filter(
-        f => f.fieldName !== titleFieldName
-      )
-      const orderedSchemaFields = titleField
-        ? [titleField, ...otherSchemaFields]
-        : schemaFields
-
-      // Add any extra frontmatter fields that aren't in the schema
-      const schemaFieldNames = new Set(schema.fields.map(f => f.name))
-
-      // Filter out parent object keys if their nested properties exist in schema
-      // e.g., exclude "metadata" if schema has "metadata.category", "metadata.priority", etc.
-      const extraFields = Object.keys(frontmatter)
-        .filter(key => {
-          // If the key is in the schema, it's not an extra field
-          if (schemaFieldNames.has(key)) return false
-
-          // Check if this key is a parent path for any schema fields
-          // e.g., if key is "metadata" and schema has "metadata.category", exclude it
-          const isParentPath = schema.fields.some(f =>
-            f.name.startsWith(`${key}.`)
-          )
-          if (isParentPath) return false
-
-          return true
-        })
-        .sort()
-        .map(fieldName => ({
-          fieldName,
-          schemaField: undefined,
-          value: frontmatter[fieldName],
-        }))
-
-      return [...orderedSchemaFields, ...extraFields]
-    } else {
-      // No schema available, just show existing frontmatter fields
-      return Object.keys(frontmatter).map(fieldName => ({
-        fieldName,
-        schemaField: undefined,
-        value: frontmatter[fieldName],
-      }))
-    }
-  }, [frontmatter, schema, currentCollection])
-
-  // Group fields by parent path for nested object rendering
-  const groupedFields = React.useMemo(() => {
-    const groups: Map<string | null, typeof allFields> = new Map()
-
-    for (const field of allFields) {
-      const parentPath = field.schemaField?.parentPath ?? null
-      if (!groups.has(parentPath)) {
-        groups.set(parentPath, [])
-      }
-      groups.get(parentPath)!.push(field)
-    }
-
-    return groups
-  }, [allFields])
+  const nodes = frontmatterTree(
+    schema,
+    frontmatterKeys,
+    fieldMappings(currentCollection ?? undefined).title
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -162,67 +125,12 @@ export const FrontmatterPanel: React.FC = () => {
             filePath={currentFile.path}
           />
         ) : currentFile ? (
-          allFields.length > 0 ? (
+          nodes.length > 0 ? (
             <div className="space-y-6">
-              {/* Render top-level SCHEMA fields only */}
-              {groupedFields
-                .get(null)
-                ?.filter(({ schemaField }) => schemaField !== undefined)
-                .map(({ fieldName, schemaField }) => (
-                  <FrontmatterField
-                    key={fieldName}
-                    name={fieldName}
-                    label={camelCaseToTitleCase(fieldName)}
-                    field={schemaField}
-                    collectionName={currentFile.collection}
-                  />
-                ))}
-
-              {/* Render nested field groups */}
-              {Array.from(groupedFields.entries())
-                .filter(([parentPath]) => parentPath !== null)
-                .map(([parentPath, fields]) => (
-                  <div key={parentPath} className="space-y-4">
-                    {/* Parent section header */}
-                    <h3 className="pt-2 text-sm font-medium text-foreground">
-                      {camelCaseToTitleCase(
-                        parentPath!.split('.').pop() || parentPath!
-                      )}
-                    </h3>
-
-                    {/* Nested fields with indentation */}
-                    <div className="space-y-4 border-l-2 border-border pl-4">
-                      {fields.map(({ fieldName, schemaField }) => (
-                        <FrontmatterField
-                          key={fieldName}
-                          name={fieldName}
-                          label={
-                            schemaField?.label ||
-                            camelCaseToTitleCase(
-                              fieldName.split('.').pop() || fieldName
-                            )
-                          }
-                          field={schemaField}
-                          collectionName={currentFile.collection}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-              {/* Render extra fields (not in schema) at the very end, alphabetically */}
-              {groupedFields
-                .get(null)
-                ?.filter(({ schemaField }) => schemaField === undefined)
-                .map(({ fieldName, schemaField }) => (
-                  <FrontmatterField
-                    key={fieldName}
-                    name={fieldName}
-                    label={camelCaseToTitleCase(fieldName)}
-                    field={schemaField}
-                    collectionName={currentFile.collection}
-                  />
-                ))}
+              <FrontmatterNodes
+                nodes={nodes}
+                collectionName={currentFile.collection}
+              />
             </div>
           ) : (
             <div className="py-8 text-center">

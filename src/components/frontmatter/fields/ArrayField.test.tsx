@@ -3,6 +3,7 @@ import { screen, fireEvent } from '@testing-library/react'
 import { ArrayField } from './ArrayField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
+import { FieldType } from '../../../lib/schema'
 
 describe('ArrayField Component', () => {
   beforeEach(() => {
@@ -34,9 +35,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', 'typescript', 'vite'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByText('react')).toBeInTheDocument()
       expect(screen.getByText('typescript')).toBeInTheDocument()
@@ -48,9 +47,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: [] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByRole('textbox')).toBeInTheDocument()
       expect(
@@ -63,9 +60,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: undefined },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByRole('textbox')).toBeInTheDocument()
       expect(
@@ -78,9 +73,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: 'not-an-array' },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByRole('textbox')).toBeInTheDocument()
       expect(
@@ -93,9 +86,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: [123, true, null, 'valid-string'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Should not render tags for mixed array types
       expect(screen.getByRole('textbox')).toBeInTheDocument()
@@ -111,9 +102,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', 123, 'typescript'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Array validation should fail, showing empty input
       expect(screen.getByRole('textbox')).toBeInTheDocument()
@@ -128,9 +117,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', 'react', 'typescript'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Should show both 'react' tags (with different indices)
       const reactTags = screen.getAllByText('react')
@@ -148,9 +135,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['React.js', 'Node.js', 'C++', 'C#'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByText('React.js')).toBeInTheDocument()
       expect(screen.getByText('Node.js')).toBeInTheDocument()
@@ -165,9 +150,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: 'typescript' } })
@@ -182,9 +165,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', 'typescript', 'vite'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const removeButton = screen.getByLabelText('Remove typescript tag')
       fireEvent.click(removeButton)
@@ -198,9 +179,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const removeButton = screen.getByLabelText('Remove react tag')
       fireEvent.click(removeButton)
@@ -214,9 +193,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', 'typescript'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: 'react' } })
@@ -231,9 +208,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: [] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: '  typescript  ' } })
@@ -248,9 +223,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: '   ' } })
@@ -264,16 +237,23 @@ describe('ArrayField Component', () => {
   describe('Required Field Indicator', () => {
     it('should show required indicator when required=true', () => {
       renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={true} />
+        <ArrayField
+          name="tags"
+          label="Tags"
+          field={{
+            name: 'tags',
+            label: 'Tags',
+            type: FieldType.Array,
+            required: true,
+          }}
+        />
       )
 
       expect(screen.getByText('*')).toBeInTheDocument()
     })
 
     it('should not show required indicator when required=false', () => {
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.queryByText('*')).not.toBeInTheDocument()
     })
@@ -286,9 +266,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: [longTag] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByText(longTag)).toBeInTheDocument()
       expect(screen.getByLabelText(`Remove ${longTag} tag`)).toBeInTheDocument()
@@ -299,9 +277,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['🚀', '测试', 'Ñiño'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       expect(screen.getByText('🚀')).toBeInTheDocument()
       expect(screen.getByText('测试')).toBeInTheDocument()
@@ -313,9 +289,7 @@ describe('ArrayField Component', () => {
         frontmatter: { tags: ['react', '', 'typescript'] },
       })
 
-      renderWithProviders(
-        <ArrayField name="tags" label="Tags" required={false} />
-      )
+      renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Should show all elements including empty strings as tags
       expect(screen.getByText('react')).toBeInTheDocument()

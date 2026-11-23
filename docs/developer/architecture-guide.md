@@ -32,7 +32,7 @@ Don't have stores fire events for hooks to poll; call the registered callback. `
 
 ### Direct Store Pattern
 
-Frontmatter fields each take a field `name`, read their value with a selector and write it with `updateFrontmatterField`. There's no form library. React Hook Form and Zustand together looped infinitely (the form watched values, store updates re-triggered the watch), and auto-save needs every change in the store immediately anyway. Don't lift field values or `onChange` up into a parent form.
+Frontmatter fields each take a field `name`, and read and write their value with `useFrontmatterValue(name)`, which selects it from the store and writes it with `updateFrontmatterField`. There's no form library. React Hook Form and Zustand together looped infinitely (the form watched values, store updates re-triggered the watch), and auto-save needs every change in the store immediately anyway. Don't lift field values or `onChange` up into a parent form.
 
 ## Directory boundaries
 

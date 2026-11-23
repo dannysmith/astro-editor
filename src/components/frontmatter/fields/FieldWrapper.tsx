@@ -5,61 +5,81 @@ import {
   FieldDescription,
   FieldContent,
 } from '@/components/ui/field'
-import type { FieldConstraints } from '../../../lib/schema'
+import type { FieldConstraints, SchemaField } from '../../../lib/schema'
 
 interface FieldWrapperProps {
   label: string
+  /** The field's schema: its required mark, description, default and constraints */
+  field?: SchemaField
+  /** The field's value. The schema's default is only shown while it's empty */
+  value?: unknown
   /** Id of a text control: clicking the label focuses it */
   htmlFor?: string
   /** Id for the label, for button controls that name themselves with aria-labelledby (htmlFor would click them) */
   labelId?: string
-  required?: boolean
+  /** Shown instead of the schema's description */
   description?: string
-  defaultValue?: unknown
-  constraints?: FieldConstraints
+  /** `horizontal` puts the control beside the label, with the hints below both */
   layout?: 'vertical' | 'horizontal'
   children: React.ReactNode
-  currentValue?: unknown
   hideDefaultValue?: boolean
 }
 
+/** A frontmatter field's label and hints, around its control */
 export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   label,
+  field,
+  value,
   htmlFor,
   labelId,
-  required,
-  description,
-  defaultValue,
-  constraints,
+  description: descriptionOverride,
   layout = 'vertical',
   children,
-  currentValue,
   hideDefaultValue = false,
 }) => {
-  const isEmpty =
-    currentValue === undefined || currentValue === null || currentValue === ''
-
-  const showDefault = !hideDefaultValue && defaultValue !== undefined && isEmpty
+  const description = descriptionOverride ?? field?.description
+  const isEmpty = value === undefined || value === null || value === ''
+  const showDefault =
+    !hideDefaultValue && field?.default !== undefined && isEmpty
 
   const metadataText = formatMetadata(
-    constraints,
-    showDefault ? defaultValue : undefined
+    field?.constraints,
+    showDefault ? field?.default : undefined
   )
 
+  const fieldLabel = (
+    <FieldLabel htmlFor={htmlFor} id={labelId}>
+      {label}
+      {field?.required && <span className="ml-1 text-required">*</span>}
+    </FieldLabel>
+  )
+  const hints = (
+    <>
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {metadataText && (
+        <FieldDescription className="text-xs">{metadataText}</FieldDescription>
+      )}
+    </>
+  )
+
+  if (layout === 'horizontal') {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Field orientation="horizontal">
+          {fieldLabel}
+          {children}
+        </Field>
+        {hints}
+      </div>
+    )
+  }
+
   return (
-    <Field orientation={layout}>
-      <FieldLabel htmlFor={htmlFor} id={labelId}>
-        {label}
-        {required && <span className="ml-1 text-required">*</span>}
-      </FieldLabel>
+    <Field orientation="vertical">
+      {fieldLabel}
       <FieldContent>
         {children}
-        {description && <FieldDescription>{description}</FieldDescription>}
-        {metadataText && (
-          <FieldDescription className="text-xs">
-            {metadataText}
-          </FieldDescription>
-        )}
+        {hints}
       </FieldContent>
     </Field>
   )

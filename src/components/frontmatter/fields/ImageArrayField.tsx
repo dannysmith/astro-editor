@@ -4,27 +4,18 @@ import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { getNestedValue } from '../../../lib/object-utils'
 import { FieldWrapper } from './FieldWrapper'
 import { ImagePicker } from './ImagePicker'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
-
-interface ImageArrayFieldProps extends FieldProps {
-  field?: SchemaField
-}
+import type { FieldControlProps } from './types'
 
 /**
  * A list of images (`z.array(image())`): a picker for each image, where
  * clearing one removes it, then an empty picker that adds another.
  */
-export const ImageArrayField: React.FC<ImageArrayFieldProps> = ({
+export const ImageArrayField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
-  const value = useFrontmatterValue(name)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
   const labelId = `${React.useId()}-label`
 
   const images = Array.isArray(value)
@@ -40,7 +31,7 @@ export const ImageArrayField: React.FC<ImageArrayFieldProps> = ({
         ? current.filter((item): item is string => typeof item === 'string')
         : []
     )
-    updateFrontmatterField(name, next.length > 0 ? next : undefined)
+    setValue(next.length > 0 ? next : undefined)
   }
 
   // Replaces or removes `oldPath`, which was at `index` when the change began.
@@ -61,17 +52,7 @@ export const ImageArrayField: React.FC<ImageArrayFieldProps> = ({
   }
 
   return (
-    <FieldWrapper
-      label={label}
-      labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
       <div className="space-y-4">
         {images.map((path, index) => (
           <ImagePicker

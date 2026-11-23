@@ -1,42 +1,22 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { FieldWrapper } from './FieldWrapper'
 import { ImagePicker } from './ImagePicker'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 
-interface ImageFieldProps extends FieldProps {
-  field?: SchemaField
-}
-
-export const ImageField: React.FC<ImageFieldProps> = ({
+export const ImageField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
-  const value = useFrontmatterValue(name)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
   const labelId = `${React.useId()}-label`
 
   return (
-    <FieldWrapper
-      label={label}
-      labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
       <ImagePicker
         value={typeof value === 'string' ? value : ''}
-        onChange={path => updateFrontmatterField(name, path)}
+        onChange={path => setValue(path)}
         labelId={labelId}
       />
     </FieldWrapper>

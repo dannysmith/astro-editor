@@ -30,11 +30,10 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   field,
   collectionName,
 }) => {
-  const fieldValue = useFrontmatterValue(name)
+  const [fieldValue] = useFrontmatterValue(name)
   const filePath = useEditorStore(shownFilePath)
   const mappings = useFieldMappings(collectionName)
-  const required = field?.required ?? false
-  const props = { name, label, required, field }
+  const props = { name, label, field }
   const control = fieldControl(name, field, fieldValue, mappings)
 
   // A value the schema doesn't type is JSON because of what it holds. Once it
@@ -49,7 +48,7 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
 
   switch (jsonFile === filePath ? 'json' : control) {
     case 'boolean':
-      return <BooleanField name={name} label={label} field={field} />
+      return <BooleanField {...props} />
     case 'number':
       return <NumberField {...props} />
     case 'date':

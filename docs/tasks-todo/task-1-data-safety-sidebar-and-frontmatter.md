@@ -118,12 +118,12 @@ Components should hold up at any sidebar width using CSS alone. Text can step do
 
 So that visual changes land in one place.
 
-- [ ] Add `useFrontmatterValue(name)`, returning the value and setter, keeping the Direct Store Pattern
-- [ ] Simplify `FieldWrapper` to take `label`, `field`, `value` and `htmlFor`, with an optional `description` override for `JsonField`
-- [ ] Move all 11 field components onto them, including `BooleanField`, which currently rebuilds its label row by hand
-- [ ] Add a pure `frontmatterSections(schema, frontmatter, titleField)` in `lib/`, returning ordered sections with heading, depth and fields, with unit tests
-- [ ] Render the panel from it in one loop, replacing the three render blocks
-- [ ] Handle real nesting: `seo.og.image` currently becomes an "Og" section beside "Seo", and nested objects always render after all top-level fields
+- [x] Add `useFrontmatterValue(name)`, returning the value and setter, keeping the Direct Store Pattern
+- [x] Simplify `FieldWrapper` to take `label`, `field`, `value` and `htmlFor`, with an optional `description` override for `JsonField`
+- [x] Move all 11 field components onto them, including `BooleanField`, which currently rebuilds its label row by hand
+- [x] Add a pure `frontmatterTree(schema, frontmatterKeys, titleField)` in `lib/`, returning the ordered fields and nested groups, with unit tests
+- [x] Render the panel from it, replacing the three render blocks
+- [x] Handle real nesting: `seo.og.image` currently becomes an "Og" section beside "Seo", and nested objects always render after all top-level fields
 
 ## Phase 5: Frontmatter panel UI
 
