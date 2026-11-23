@@ -27,7 +27,9 @@ impl TestRepos {
             .expect("tests need git")
             .with_env("GIT_CEILING_DIRECTORIES", root.to_str().unwrap())
             .with_env("GIT_CONFIG_GLOBAL", "/dev/null")
-            .with_env("GIT_CONFIG_NOSYSTEM", "1");
+            .with_env("GIT_CONFIG_NOSYSTEM", "1")
+            // Git's last resort for an email, which tests set in config
+            .with_env("EMAIL", "");
         TestRepos {
             _dir: dir,
             root,

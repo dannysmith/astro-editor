@@ -15,6 +15,9 @@ set -euo pipefail
 SRC="$(git rev-parse --show-toplevel)/test"
 ROOT="$HOME/dev/temp-git-repos-for-ae-testing"
 
+# Inherited, these would point every git command below at another repository,
+# such as this checkout
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 # Belt and braces: no git command here may climb out of ROOT into a parent repo
 export GIT_CEILING_DIRECTORIES="$HOME/dev"
 # Setup commits are never signed and never run the user's global hooks

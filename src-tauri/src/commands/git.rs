@@ -234,12 +234,14 @@ fn matters(event: &Event, folders: &[PathBuf]) -> bool {
         if path.extension().is_some_and(|e| e == "lock") {
             return false;
         }
-        // `refs/heads/logs` is a branch, so only look before any `refs`
-        !relative
-            .components()
-            .map(|c| c.as_os_str())
-            .take_while(|c| *c != "refs")
-            .any(|c| c == "objects" || c == "logs")
+        // Only at the top of a git folder, or a linked worktree's: a branch
+        // or a worktree may be called `logs` too
+        let mut parts = relative.components().map(|c| c.as_os_str());
+        let mut top = parts.next();
+        if top.is_some_and(|c| c == "worktrees") {
+            top = parts.nth(1);
+        }
+        !top.is_some_and(|c| c == "objects" || c == "logs")
     })
 }
 
@@ -263,6 +265,8 @@ mod tests {
             "/site/.git/refs/heads/logs",
             "/site/.git/MERGE_HEAD",
             "/site/.git/worktrees/other/HEAD",
+            "/site/.git/worktrees/logs/index",
+            "/site/.git/worktrees/objects/HEAD",
         ] {
             assert!(matters(&event(path), &folders), "{path}");
         }

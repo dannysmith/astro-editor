@@ -122,6 +122,9 @@ impl Git {
     /// The first `git` in the folders of `path`, a `PATH` value
     pub fn find_on(path: &str) -> Result<Git, FindError> {
         let program = std::env::split_paths(path)
+            // A relative folder would be looked in from AE's own folder, and
+            // git run from the project's: never what's meant
+            .filter(|dir| dir.is_absolute())
             .map(|dir| dir.join(if cfg!(windows) { "git.exe" } else { "git" }))
             .find(|candidate| is_executable(candidate))
             .ok_or(FindError::NotInstalled)?;
@@ -137,6 +140,17 @@ impl Git {
 
     pub fn program(&self) -> &Path {
         &self.program
+    }
+
+    /// An environment variable as git sees it: from the user's shell, or else
+    /// AE's own environment
+    pub fn env_var(&self, name: &str) -> Option<String> {
+        self.env
+            .iter()
+            .rev()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.clone())
+            .or_else(|| std::env::var(name).ok())
     }
 
     /// Adds an environment variable to every command, for tests that keep git
@@ -192,14 +206,30 @@ impl Git {
                 // Messages in English, which AE looks for ("not a git
                 // repository"), whatever language the Mac is set to
                 .env("LC_ALL", "C");
+            // From the user's shell, these change how AE's paths are read:
+            // case-insensitive pathspecs can't be literal, and `check-ignore`
+            // refuses them
+            for name in [
+                "GIT_ICASE_PATHSPECS",
+                "GIT_GLOB_PATHSPECS",
+                "GIT_NOGLOB_PATHSPECS",
+            ] {
+                command.env_remove(name);
+            }
         }
-        command
-            .current_dir(dir)
-            .env("GIT_TERMINAL_PROMPT", "0")
-            // Inherited, these would point every command at another repository
-            .env_remove("GIT_DIR")
-            .env_remove("GIT_WORK_TREE")
-            .env_remove("GIT_INDEX_FILE");
+        command.current_dir(dir).env("GIT_TERMINAL_PROMPT", "0");
+        // Inherited, these would point every command at another repository,
+        // or another repository's data
+        for name in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_COMMON_DIR",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        ] {
+            command.env_remove(name);
+        }
         match process::run(&mut command, timeout) {
             Ok(finished) => Ok(GitOutput {
                 code: finished.status.code(),
@@ -284,18 +314,37 @@ mod tests {
     }
 
     #[test]
+    fn skips_relative_folders_on_the_path() {
+        let dir = TempDir::new().unwrap();
+        let relative = dir.path().join("relative");
+        let absolute = dir.path().join("absolute");
+        fs::create_dir_all(&relative).unwrap();
+        fs::create_dir_all(&absolute).unwrap();
+        script(&relative, "git", "exit 0");
+        let git = script(&absolute, "git", "exit 0");
+        // The same folder, written relative to the tests' working folder
+        let cwd = std::env::current_dir().unwrap();
+        let written = pathdiff::diff_paths(&relative, &cwd).unwrap();
+        assert!(written.is_relative());
+        let path = format!("{}:{}", written.display(), absolute.display());
+        assert_eq!(Git::find_on(&path).unwrap().program(), git);
+    }
+
+    #[test]
     fn runs_with_the_fixed_environment_and_no_stdin() {
         let dir = TempDir::new().unwrap();
         script(
             dir.path(),
             "git",
-            "echo \"$@|$GIT_TERMINAL_PROMPT|$GIT_LITERAL_PATHSPECS|$GIT_OPTIONAL_LOCKS|$LC_ALL|${GIT_DIR:-none}|$SSH_AUTH_SOCK\"\n/bin/cat\necho err >&2\nexit 3",
+            "echo \"$@|$GIT_TERMINAL_PROMPT|$GIT_LITERAL_PATHSPECS|$GIT_OPTIONAL_LOCKS|$LC_ALL|${GIT_DIR:-none}|${GIT_COMMON_DIR:-none}|${GIT_ICASE_PATHSPECS:-none}|$SSH_AUTH_SOCK\"\n/bin/cat\necho err >&2\nexit 3",
         );
         // The user's environment, including settings AE overrides
         let git = Git::find_on(&dir.path().display().to_string())
             .unwrap()
             .with_env("SSH_AUTH_SOCK", "/agent.sock")
             .with_env("GIT_DIR", "/elsewhere/.git")
+            .with_env("GIT_COMMON_DIR", "/elsewhere/.git")
+            .with_env("GIT_ICASE_PATHSPECS", "1")
             .with_env("GIT_TERMINAL_PROMPT", "1")
             .with_env("LC_ALL", "de_DE.UTF-8");
         let output = git
@@ -305,7 +354,7 @@ mod tests {
         assert!(!output.success());
         assert_eq!(
             output.stdout_text(),
-            "-c core.quotepath=off status --short|0|1|0|C|none|/agent.sock\n"
+            "-c core.quotepath=off status --short|0|1|0|C|none|none|none|/agent.sock\n"
         );
         assert_eq!(output.error_message(), "err");
 
@@ -315,7 +364,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             output.stdout_text(),
-            "commit -q|0|||de_DE.UTF-8|none|/agent.sock\n"
+            "commit -q|0|||de_DE.UTF-8|none|none|1|/agent.sock\n"
         );
     }
 
@@ -364,7 +413,6 @@ mod tests {
             .trim()
             .parse()
             .unwrap();
-        std::thread::sleep(Duration::from_millis(200));
-        assert!(unsafe { libc::kill(pid, 0) } != 0, "sleep {pid} survived");
+        assert!(crate::process::has_gone(pid), "sleep {pid} survived");
     }
 }

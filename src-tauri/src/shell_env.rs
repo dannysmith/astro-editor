@@ -93,15 +93,18 @@ fn path_in(environment: &[(String, String)]) -> &str {
 }
 
 /// The variables the shell printed between the markers, as `env -0` prints
-/// them (each `KEY=value` ends with a NUL, so values can hold newlines).
-/// Greetings, prompts and anything else a `.zshrc` prints around them are
-/// ignored.
+/// them (each `KEY=value` ends with a NUL, so values can hold newlines). The
+/// markers end with a NUL too, so they're whole records, and a value that
+/// happens to contain one can't cut the list short. Greetings, prompts and
+/// anything else a `.zshrc` prints around them are ignored.
 #[cfg(unix)]
 fn parse_marked_environment(output: &str) -> Option<Vec<(String, String)>> {
-    let start = output.rfind(START_MARKER)? + START_MARKER.len();
-    let length = output[start..].find(END_MARKER)?;
-    let vars: Vec<(String, String)> = output[start..start + length]
-        .split('\0')
+    let records: Vec<&str> = output.split('\0').collect();
+    // Anything a `.zshrc` printed first runs into the start marker
+    let start = records.iter().rposition(|r| r.ends_with(START_MARKER))? + 1;
+    let length = records[start..].iter().position(|r| *r == END_MARKER)?;
+    let vars: Vec<(String, String)> = records[start..start + length]
+        .iter()
         .filter_map(|entry| entry.split_once('='))
         .filter(|(key, _)| !key.is_empty() && !SHELL_SESSION_VARIABLES.contains(key))
         .map(|(key, value)| (key.to_string(), value.to_string()))
@@ -119,7 +122,7 @@ fn resolve_shell_environment(shell: &Path, timeout: Duration) -> Option<Vec<(Str
         .arg("-ilc")
         // Plain commands, which fish runs as well as POSIX shells
         .arg(format!(
-            "printf '%s' '{START_MARKER}'; /usr/bin/env -0; printf '%s' '{END_MARKER}'"
+            "/usr/bin/printf '%s\\0' '{START_MARKER}'; /usr/bin/env -0; /usr/bin/printf '%s\\0' '{END_MARKER}'"
         ))
         .env(GUARD_VARIABLE, "1");
     let finished = crate::process::run(&mut command, timeout).ok()?;
@@ -160,15 +163,16 @@ mod tests {
     #[test]
     fn parses_the_environment_between_markers() {
         let output = format!(
-            "Last login: Tue\n\u{1b}[32m➜\u{1b}[0m welcome!\n{START_MARKER}PATH=/a/bin:/usr/bin\0SSH_AUTH_SOCK=/agent.sock\0NOTE=two\nlines\0EQUALS=a=b\0{END_MARKER}\n% bye\n"
+            "Last login: Tue\n\u{1b}[32m➜\u{1b}[0m welcome!\n{START_MARKER}\0PATH=/a/bin:/usr/bin\0NOTE=two\nlines, then {END_MARKER}\0EQUALS=a=b\0SSH_AUTH_SOCK=/agent.sock\0{END_MARKER}\0\n% bye\n"
         );
         assert_eq!(
             parse_marked_environment(&output),
             Some(vars(&[
                 ("PATH", "/a/bin:/usr/bin"),
-                ("SSH_AUTH_SOCK", "/agent.sock"),
-                ("NOTE", "two\nlines"),
+                // A marker inside a value doesn't end the list
+                ("NOTE", &format!("two\nlines, then {END_MARKER}")),
                 ("EQUALS", "a=b"),
+                ("SSH_AUTH_SOCK", "/agent.sock"),
             ]))
         );
     }
@@ -176,7 +180,7 @@ mod tests {
     #[test]
     fn leaves_out_the_shells_own_variables() {
         let output = format!(
-            "{START_MARKER}PWD=/x\0OLDPWD=/y\0SHLVL=2\0_=/usr/bin/env\0{GUARD_VARIABLE}=1\0HOME=/h\0{END_MARKER}"
+            "{START_MARKER}\0PWD=/x\0OLDPWD=/y\0SHLVL=2\0_=/usr/bin/env\0{GUARD_VARIABLE}=1\0HOME=/h\0{END_MARKER}\0"
         );
         assert_eq!(
             parse_marked_environment(&output),
@@ -188,11 +192,11 @@ mod tests {
     fn missing_or_empty_markers_are_none() {
         assert_eq!(parse_marked_environment("PATH=/usr/bin"), None);
         assert_eq!(
-            parse_marked_environment(&format!("{START_MARKER}PATH=/usr/bin\0")),
+            parse_marked_environment(&format!("{START_MARKER}\0PATH=/usr/bin\0")),
             None
         );
         assert_eq!(
-            parse_marked_environment(&format!("{START_MARKER}{END_MARKER}")),
+            parse_marked_environment(&format!("{START_MARKER}\0{END_MARKER}\0")),
             None
         );
     }
@@ -241,8 +245,7 @@ mod tests {
             .trim()
             .parse()
             .unwrap();
-        std::thread::sleep(Duration::from_millis(200));
-        assert!(unsafe { libc::kill(pid, 0) } != 0, "sleep {pid} survived");
+        assert!(crate::process::has_gone(pid), "sleep {pid} survived");
     }
 
     #[test]
