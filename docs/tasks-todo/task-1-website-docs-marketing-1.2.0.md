@@ -135,10 +135,10 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 
 ## Phase 8: Final review and release
 
-- [ ] Light review of all website copy for correctness.
-- [ ] `bun run check` and a production build in `website/`, then check links, images and OG tags.
-- [ ] Commit this branch's work and switch to an up-to-date `main`, since `prepare-release` refuses a dirty working tree.
-- [ ] Run `bun run prepare-release v1.2.0` (it proposes a patch otherwise) and put the notes in the draft release.
+- [x] Light review of all website copy for correctness.
+- [x] `bun run check` and a production build in `website/`, then check links, images and OG tags.
+- [ ] Push this branch, open the website PR, and deal with CodeRabbit's comments. Don't merge it yet.
+- [ ] Danny to switch to an up-to-date `main`, since `prepare-release` refuses a dirty working tree, run `bun run prepare-release v1.2.0` (it proposes a patch otherwise) and put the notes in the draft release.
 - [ ] Merge the website PR just before publishing, so links in the notes and the update dialog work.
 - [ ] Publish the release. This generates the website's release page once, so later edits to the GitHub notes don't reach it.
 - [ ] Add screenshots and the video to the generated page, as we did for 1.1.0.
