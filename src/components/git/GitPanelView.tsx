@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { gitProblem, readOnlyReason } from '../../lib/git/setup'
 import { changeStatus } from '../../lib/git/status'
-import { formatLastOpened } from '../../lib/projects/display'
+import { howLongAgo } from '../../lib/projects/display'
 import { ProblemCallout } from '../project-settings/Problems'
 import { CommitCard, type GitCommitProps } from './CommitCard'
 import { FileRow, OtherChanges } from './FileList'
@@ -16,8 +16,11 @@ export interface GitPanelViewProps {
   state?: GitState
   /** Reading git failed outright */
   error?: string
-  /** When git was last read, so the refresh button spins once each time */
-  readAt: number
+  /**
+   * When the refresh button last read git, so it spins once each time. Reads
+   * that happen by themselves (saves, other apps) don't spin it
+   */
+  refreshedAt: number
   onRefresh: () => void
   /** The open entry, or null with no file open */
   entry: {
@@ -32,6 +35,8 @@ export interface GitPanelViewProps {
   used: GitChange[]
   /** Files AE added for it this session that its text no longer names */
   unused: GitChange[]
+  /** The entry's path before AE renamed it, when that's among `used` */
+  renamedFrom: string | null
   /** Deletes one of the `unused` files, after asking */
   onDeleteUnused: (path: string) => void
   others: GitChange[]
@@ -55,12 +60,13 @@ export interface GitPanelViewProps {
 export function GitPanelView({
   state,
   error,
-  readAt,
+  refreshedAt,
   onRefresh,
   entry,
   entryChange,
   used,
   unused,
+  renamedFrom,
   onDeleteUnused,
   others,
   isTicked,
@@ -74,9 +80,19 @@ export function GitPanelView({
 }: GitPanelViewProps) {
   const tree = state?.tree
   const readOnly = tree && readOnlyReason(tree, tree.changes)
+  // The open entry as git sees it, once git has been read for it
+  const gitEntry = entry && tree?.entry ? tree.entry : null
+  // Ticks only mean something when there's a commit to put files in: an
+  // entry in this repository, not ignored, and git not in a read-only state
+  const committable =
+    gitEntry !== null &&
+    !readOnly &&
+    gitEntry.state !== 'outsideRepository' &&
+    gitEntry.state !== 'ignored'
   const rows = {
     prefix: tree?.prefix ?? '',
-    locked: commit.staging || commit.pending !== null || commit.busy,
+    locked:
+      !committable || commit.staging || commit.pending !== null || commit.busy,
     isTicked,
     onTick,
     onOpen,
@@ -84,8 +100,6 @@ export function GitPanelView({
   }
   const ticked = [...used, ...unused, ...others].filter(c => isTicked(c.path))
   const toStage = entryChange ? [entryChange, ...ticked] : ticked
-  // The open entry as git sees it, once git has been read for it
-  const gitEntry = entry && tree?.entry ? tree.entry : null
 
   return (
     <div className="flex h-full flex-col">
@@ -131,7 +145,7 @@ export function GitPanelView({
               onFileMenu={onFileMenu}
               now={now}
             />
-            {!readOnly && gitEntry.state !== 'outsideRepository' && (
+            {committable && (
               <CommitCard
                 toStage={toStage}
                 tree={tree}
@@ -147,13 +161,23 @@ export function GitPanelView({
             <h3 className="font-medium text-foreground">Files it uses</h3>
             <ul className="space-y-1">
               {used.map(change => (
-                <FileRow key={change.path} change={change} {...rows} />
+                <FileRow
+                  key={change.path}
+                  change={change}
+                  note={
+                    change.path === renamedFrom
+                      ? "The entry's old name, renamed in AE"
+                      : undefined
+                  }
+                  {...rows}
+                />
               ))}
               {unused.map(change => (
                 <FileRow
                   key={change.path}
                   change={change}
                   note="No longer used in the entry"
+                  warning
                   deleteItem={
                     // Not once it's gone, nor while AE has files staged, since
                     // it may be one of them
@@ -194,11 +218,11 @@ export function GitPanelView({
           title="Read git's status again. This doesn't fetch."
         >
           <RefreshCw
-            // A new key each read, so it spins once
-            key={readAt}
+            // A new key each refresh, so it spins once
+            key={refreshedAt}
             className={cn(
               'size-3.5',
-              readAt > 0 && 'animate-[spin_450ms_ease-out_1]'
+              refreshedAt > 0 && 'animate-[spin_450ms_ease-out_1]'
             )}
           />
         </Button>
@@ -277,11 +301,6 @@ const UNCHANGED_LABELS: Partial<Record<GitEntry['state'], string>> = {
 
 /** A commit time as "just now", "3 days ago" or "on 27 Oct", to follow a verb */
 function relativeDate(seconds: number, now?: Date): string {
-  const text = formatLastOpened(new Date(seconds * 1000).toISOString(), now)
-  // `formatLastOpened`'s relative phrases; anything else is a date, in
-  // whichever order the locale writes it
-  if (/^(Just now|Yesterday|\d+ \w+ ago)$/.test(text)) {
-    return text.charAt(0).toLowerCase() + text.slice(1)
-  }
-  return `on ${text}`
+  const ago = howLongAgo(new Date(seconds * 1000), now)
+  return 'phrase' in ago ? ago.phrase : `on ${ago.date}`
 }

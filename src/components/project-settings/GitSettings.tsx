@@ -223,11 +223,20 @@ function SetupRows({
             <InfoRow
               label="Remote"
               help={
-                remoteCheck.url
-                  ? `Reached ${path(remoteCheck.url)} with your credentials.`
-                  : remoteCheck.error
-                    ? `Couldn't reach it. Git said: ${remoteCheck.error}`
-                    : 'Checks AE can reach it, using the network and your credentials.'
+                remoteCheck.url ? (
+                  `Reached ${path(remoteCheck.url)} with your credentials.`
+                ) : remoteCheck.error ? (
+                  // Git's message as it is: backticks in it aren't code
+                  // here, and its line breaks matter
+                  <>
+                    Couldn&apos;t reach it. Git said:{' '}
+                    <span className="whitespace-pre-wrap">
+                      {remoteCheck.error}
+                    </span>
+                  </>
+                ) : (
+                  'Checks AE can reach it, using the network and your credentials.'
+                )
               }
             >
               <Button
@@ -297,7 +306,8 @@ function InfoRow({
   children,
 }: {
   label: string
-  help?: string
+  /** Backticked parts of a string are shown as code */
+  help?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -309,7 +319,7 @@ function InfoRow({
         <p className="break-words text-muted-foreground">{children}</p>
         {help && (
           <p className="text-xs text-muted-foreground">
-            <WithCode text={help} />
+            {typeof help === 'string' ? <WithCode text={help} /> : help}
           </p>
         )}
       </div>

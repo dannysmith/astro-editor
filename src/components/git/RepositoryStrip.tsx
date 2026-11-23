@@ -88,6 +88,7 @@ export function RepositoryStrip({
                       type="button"
                       onClick={() => setOpen(!open)}
                       aria-expanded={open}
+                      aria-label={`${tree.ahead} to push, ${tree.behind} to pull. ${open ? 'Hide' : 'Show'} the commits`}
                       title={open ? 'Hide the commits' : 'Show the commits'}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-sm hover:text-foreground"
                     >
@@ -103,30 +104,37 @@ export function RepositoryStrip({
             )}
           </div>
           {canSync && (
+            // The titles are on wrappers: a disabled button takes no pointer
+            // events, so its own title would never show, and that's when
+            // the reason matters
             <div className="ml-auto flex shrink-0 gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                disabled={waiting || sync.pullBlocked !== null}
-                onClick={sync.onPull}
+              <span
                 title={
                   sync.pullBlocked ??
                   `Fetch, then bring in new commits from ${upstream} if that can be done cleanly`
                 }
               >
-                {sync.pending === 'pull' ? 'Pulling…' : 'Pull'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                disabled={waiting || tree.ahead === 0 || tree.behind > 0}
-                onClick={sync.onPush}
-                title={pushTitle}
-              >
-                {sync.pending === 'push' ? 'Pushing…' : 'Push'}
-              </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  disabled={waiting || sync.pullBlocked !== null}
+                  onClick={sync.onPull}
+                >
+                  {sync.pending === 'pull' ? 'Pulling…' : 'Pull'}
+                </Button>
+              </span>
+              <span title={pushTitle}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  disabled={waiting || tree.ahead === 0 || tree.behind > 0}
+                  onClick={sync.onPush}
+                >
+                  {sync.pending === 'push' ? 'Pushing…' : 'Push'}
+                </Button>
+              </span>
             </div>
           )}
         </div>

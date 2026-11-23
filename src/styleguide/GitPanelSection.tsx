@@ -138,9 +138,10 @@ export function GitPanelSection() {
               <GitPanelView
                 {...example}
                 used={used}
-                readAt={0}
+                refreshedAt={0}
                 onRefresh={() => {}}
                 onDeleteUnused={() => {}}
+                renamedFrom={null}
                 isTicked={path => used.some(c => c.path === path)}
                 onTick={() => {}}
                 onOpen={() => {}}
@@ -164,6 +165,9 @@ export function GitPanelSection() {
                   error: null,
                   committed: null,
                   message: 'Update “Harbour at dawn”',
+                  messageTyped: false,
+                  focusMessage: false,
+                  onMessageFocused: () => {},
                   onMessageChange: () => {},
                   onStage: () => {},
                   onUnstage: () => {},

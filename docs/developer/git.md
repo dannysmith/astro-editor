@@ -45,8 +45,10 @@ Every command that changes the index takes explicit paths. Never `add -A`, `comm
 People commit from other apps while they write, often side by side, so the tab can't wait for AE to be focused again. While it's showing (`useGitRefresh`), it reads git again when:
 
 - **The git folder changes.** `git_watch_start` watches the git folder, and the shared one in a linked worktree; a submodule's is under the parent's `.git/modules/`, so neither need be in the project. It ignores `objects/`, `logs/` and `*.lock` (git writes `index.lock` and renames it to `index`, so the rename is what matters), and sends one `git-changed` after 300ms of quiet. That covers commits, staging, branch switches, and pushes and fetches, which move remote refs.
-- **AE saves the open file,** or the project watcher sees a content file change.
+- **The project watcher sees a content file change,** AE's own saves included.
 - **The window is focused again.** TanStack Query's own refetch on focus listens for `visibilitychange`, which switching apps doesn't fire in a desktop window, so the hooks listen for the window's `focus`.
+
+These often come together (a save, then the watcher's event for it), and each read runs several git commands, so they're gathered into one read 200ms after the last. Only the refresh button spins its icon; reads that happen by themselves are quiet.
 
 Our own status never writes the index (`GIT_OPTIONAL_LOCKS=0`), so reading git can't wake the watcher. Other apps' background status does refresh the index, which just means an extra read. The panel is inside `<Activity>`, so when the tab is hidden its effects are torn down and the watcher stops.
 

@@ -12,7 +12,10 @@ import { StatusLetter, fileMenu, type FileMenu } from './status-marks'
 export interface RowProps {
   /** The project folder within the repository, stripped from paths shown */
   prefix: string
-  /** Files are staged or a git command is running, so ticks can't change */
+  /**
+   * Ticks can't change: there's nothing to commit to, files are staged, or a
+   * git command is running
+   */
   locked: boolean
   isTicked: (path: string) => boolean
   onTick: (path: string, ticked: boolean) => void
@@ -79,13 +82,14 @@ export function OtherChanges({
 
 /**
  * A changed file: a tick for the commit, its name (a link for content files),
- * an optional note with a warning sign, and its status letter. With
- * `deleteItem`, the warning sign and the right-click menu offer to delete the
- * file, while it's enabled.
+ * an optional note (with a warning sign when `warning`), and its status
+ * letter. With `deleteItem`, the warning sign and the right-click menu offer
+ * to delete the file, while it's enabled.
  */
 export function FileRow({
   change,
   note,
+  warning: warns = false,
   deleteItem,
   prefix,
   locked,
@@ -93,7 +97,12 @@ export function FileRow({
   onTick,
   onOpen,
   onFileMenu,
-}: RowProps & { change: GitChange; note?: string; deleteItem?: DeleteItem }) {
+}: RowProps & {
+  change: GitChange
+  note?: string
+  warning?: boolean
+  deleteItem?: DeleteItem
+}) {
   const shown = change.path.startsWith(prefix)
     ? change.path.slice(prefix.length)
     : change.path
@@ -132,6 +141,7 @@ export function FileRow({
           </span>
         )}
         {note &&
+          warns &&
           (deleteItem ? (
             <button
               type="button"

@@ -32,6 +32,8 @@ export function StatusLetter({
 }) {
   return (
     <span
+      // A label on a plain span isn't read, so it's marked as an image
+      role="img"
       title={status.label}
       aria-label={status.label}
       className={cn(

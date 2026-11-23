@@ -86,7 +86,17 @@ Done. `GitWrite.entry`, typed messages and the staging record now use the entry'
 
 **32. Test the panel's deciding logic.** Move what's staged for which entry, the rename and the Pull block out of `GitPanel.tsx` into a pure function in `lib/git/`. Test files staged for another entry, the entry renamed while staged, the staged files committed elsewhere, files staged outside AE, and the Pull block.
 
-## Phase 7: UI and behaviour
+## Phase 7: UI and behaviour ✅
+
+Done as below, with these choices:
+- 23: the save trigger went, since the project watcher reports AE's own saves, and only the refresh button spins the icon.
+- 25: an ignored entry loses its Stage button too, since `git add` refuses it.
+- 26: entries show as `trip/index.md` rather than just the folder, so they still read as files.
+- 27: the note has no warning sign; `FileRow` takes `warning` apart from `note` for that.
+- 29: `howLongAgo` in `lib/projects/display.ts` says whether it's a phrase or a date, and `formatLastOpened` uses it.
+- 30: git's message in Check remote is plain text with its line breaks; `InfoRow`'s help takes a node.
+
+Checked the tab in the dev app on `blog`.
 
 - **21.** The commit card focuses only right after Stage is clicked, and selects only the untouched prefill, never a typed message (`CommitCard.tsx`).
 - **22.** Show the reasons on disabled Pull and Push: put the `title` on a wrapping span, since `Button` has `disabled:pointer-events-none`.

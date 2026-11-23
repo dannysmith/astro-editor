@@ -87,6 +87,19 @@ export function fileName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }
 
+/**
+ * An entry's name to show: its file name, with its folder for a
+ * `folder/index.md(x)` entry (`trip/index.md`), since every one of those is
+ * `index.md`
+ */
+export function entryName(path: string): string {
+  const name = fileName(path)
+  const slash = path.lastIndexOf('/')
+  if (slash === -1 || !/^index\.mdx?$/i.test(name)) return name
+  const folder = fileName(path.slice(0, slash))
+  return folder ? `${folder}/${name}` : name
+}
+
 /** What can't be in a reference, unquoted, in markdown, YAML, JSON or JSX */
 const REFERENCE_BOUNDARY = /[\s"'`()[\]<>{},=]/
 

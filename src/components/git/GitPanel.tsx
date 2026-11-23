@@ -17,7 +17,7 @@ import {
   type GitWrite,
 } from '../../lib/git/actions'
 import { showGitFileMenu } from '../../lib/git/context-menu'
-import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
+import { entryName, groupChanges, usedFiles } from '../../lib/git/entry-files'
 import { stagingState } from '../../lib/git/staging'
 import { counted } from '../../lib/plural'
 import { showProjectSettings } from '../../lib/project-settings/actions'
@@ -47,8 +47,11 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   useGitRefresh(projectPath)
   const currentFile = useEditorStore(state => state.currentFile)
   const isLoaded = useEditorStore(state => state.isLoaded)
-  const { data, error, dataUpdatedAt, isPlaceholderData, refetch } =
-    useGitStateQuery(projectPath, currentFile?.path ?? null)
+  const [refreshedAt, setRefreshedAt] = useState(0)
+  const { data, error, isPlaceholderData, refetch } = useGitStateQuery(
+    projectPath,
+    currentFile?.path ?? null
+  )
 
   // While another entry's state loads, the last one's is still on screen, so
   // nothing is grouped with the newly opened entry until it arrives
@@ -93,7 +96,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
     const value = titleField ? state.frontmatter[titleField] : undefined
     return typeof value === 'string' && value.trim() ? value.trim() : null
   })
-  const subject = `“${title ?? fileName(entryPath)}”`
+  const subject = `“${title ?? entryName(entryPath)}”`
   const prefill =
     tree?.entry?.state === 'new' ? `Add ${subject}` : `Update ${subject}`
   // Messages typed for each entry, kept while the project is open so closing
@@ -116,6 +119,8 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
     entry: string
     hash: string
   } | null>(null)
+  // The entry whose message should be focused, just after staging it
+  const [focusFor, setFocusFor] = useState<string | null>(null)
 
   const write = useMutation({
     mutationFn: (write: GitWrite) => runGitWrite(projectPath, write),
@@ -128,6 +133,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
           paths: write.paths,
         })
         setCommitted(null)
+        setFocusFor(write.entry)
       } else {
         setStaging(null)
       }
@@ -171,12 +177,15 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
     <GitPanelView
       state={data}
       error={error?.message}
-      readAt={dataUpdatedAt}
-      onRefresh={() => void refetch()}
+      refreshedAt={refreshedAt}
+      onRefresh={() => {
+        setRefreshedAt(Date.now())
+        void refetch()
+      }}
       entry={
         currentFile && !isPlaceholderData
           ? {
-              name: fileName(currentFile.path),
+              name: entryName(currentFile.path),
               collection: currentFile.collection,
             }
           : null
@@ -184,6 +193,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       entryChange={groups.entry}
       used={groups.used}
       unused={groups.unused}
+      renamedFrom={goesWith === used ? null : oldPath}
       onDeleteUnused={path => {
         if (!tree) return
         void deleteUnusedFile(projectPath, `${tree.root}/${path}`).then(
@@ -238,7 +248,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         // Until the editor has the entry's text, the files it uses aren't known
         busy: sync.isPending || (write.isPending && !forEntry) || !isLoaded,
         stagedElsewhere: elsewhere && {
-          name: fileName(elsewhere.entry),
+          name: entryName(elsewhere.entry),
           onOpen: () => void openFileAt(projectPath, elsewhere.entry),
           onCancel: () =>
             write.mutate({
@@ -255,6 +265,9 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
             : null,
         committed: committed?.entry === entryFile ? committed.hash : null,
         message,
+        messageTyped: messages[entryFile] !== undefined,
+        focusMessage: focusFor === entryFile,
+        onMessageFocused: () => setFocusFor(null),
         onMessageChange: text =>
           setMessages({ ...messages, [entryFile]: text }),
         onStage: paths =>

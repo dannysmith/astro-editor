@@ -42,6 +42,14 @@ export interface GitCommitProps {
   committed: string | null
   /** The commit message: the prefill, or what's been typed for this entry */
   message: string
+  /** Whether `message` was typed, rather than the prefill */
+  messageTyped: boolean
+  /**
+   * Set just after Stage, so the message is focused then, ready to type, and
+   * not each time the card is shown again (switching back to the tab)
+   */
+  focusMessage: boolean
+  onMessageFocused: () => void
   onMessageChange: (message: string) => void
   /** Stages these paths, relative to the repository root */
   onStage: (paths: string[]) => void
@@ -148,7 +156,7 @@ function WriteError({ error }: { error: GitCommitProps['error'] }) {
 
 /**
  * The open commit card: a banner saying the files are staged, the message
- * (focused and selected, ready to type over), Cancel and Commit, and exactly
+ * (focused once staged, ready to type), Cancel and Commit, and exactly
  * what the commit will hold, as git has it
  */
 function StagedCard({
@@ -159,6 +167,9 @@ function StagedCard({
   busy,
   error,
   message,
+  messageTyped,
+  focusMessage,
+  onMessageFocused,
   onMessageChange,
   onStage,
   onUnstage,
@@ -167,9 +178,12 @@ function StagedCard({
 }: GitCommitProps & { tree: GitWorkingTree; onFileMenu: FileMenu }) {
   const messageRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
+    if (!focusMessage) return
     messageRef.current?.focus()
-    messageRef.current?.select()
-  }, [])
+    // The prefill is selected, to type over; a typed message never is
+    if (!messageTyped) messageRef.current?.select()
+    onMessageFocused()
+  }, [focusMessage, messageTyped, onMessageFocused])
   const files = counted(tree.staged.length, 'file')
   const waiting = pending !== null || busy
   const canCommit = !waiting && message.trim() !== ''

@@ -21,24 +21,42 @@ export function tildePath(path: string, home: string | null): string {
  * (with the year if it isn't this one)
  */
 export function formatLastOpened(iso: string, now: Date = new Date()): string {
-  const date = new Date(iso)
+  const ago = howLongAgo(new Date(iso), now)
+  return 'phrase' in ago
+    ? ago.phrase.charAt(0).toUpperCase() + ago.phrase.slice(1)
+    : ago.date
+}
+
+/**
+ * How long before `now` a time was: a phrase within the week ("just now",
+ * "5 minutes ago", "3 hours ago", "yesterday", "4 days ago"), then a date
+ * like "28 Mar" (with the year if it isn't this one). Which it is decides how
+ * it reads in a sentence ("committed yesterday", "committed on 28 Mar").
+ */
+export function howLongAgo(
+  date: Date,
+  now: Date = new Date()
+): { phrase: string } | { date: string } {
   const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000)
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60)
-    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`
+  if (minutes < 1) return { phrase: 'just now' }
+  if (minutes < 60) {
+    return { phrase: minutes === 1 ? '1 minute ago' : `${minutes} minutes ago` }
+  }
   const hours = Math.floor(minutes / 60)
   if (hours < 24 && date.getDate() === now.getDate()) {
-    return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+    return { phrase: hours === 1 ? '1 hour ago' : `${hours} hours ago` }
   }
 
   const startOfDay = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
   const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
-  if (days <= 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  return date.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
-  })
+  if (days <= 1) return { phrase: 'yesterday' }
+  if (days < 7) return { phrase: `${days} days ago` }
+  return {
+    date: date.toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+    }),
+  }
 }

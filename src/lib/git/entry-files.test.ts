@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { GitChange, GitChangeKind } from '@/lib/bindings'
-import { groupChanges, usedFiles } from './entry-files'
+import { entryName, groupChanges, usedFiles } from './entry-files'
 import { changeStatus } from './status'
 
 function change(path: string, kind: GitChangeKind = 'modified'): GitChange {
@@ -101,6 +101,14 @@ describe('usedFiles', () => {
     expect(usedFiles({ changes, entryPath: '', entryText: 'map.png' })).toEqual(
       []
     )
+  })
+})
+
+describe('entryName', () => {
+  it("names a colocated entry with its folder, since they're all index.md", () => {
+    expect(entryName('/site/posts/trip/index.mdx')).toBe('trip/index.mdx')
+    expect(entryName('/site/posts/trip.md')).toBe('trip.md')
+    expect(entryName('index.md')).toBe('index.md')
   })
 })
 

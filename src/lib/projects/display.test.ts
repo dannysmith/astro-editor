@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatLastOpened, projectName, tildePath } from './display'
+import { formatLastOpened, howLongAgo, projectName, tildePath } from './display'
 
 describe('projectName', () => {
   it('is the folder name', () => {
@@ -43,5 +43,15 @@ describe('formatLastOpened', () => {
     expect(formatLastOpened(march, now)).toMatch(/28/)
     expect(formatLastOpened(march, now)).not.toMatch(/2026/)
     expect(formatLastOpened(lastYear, now)).toMatch(/2025/)
+  })
+})
+
+describe('howLongAgo', () => {
+  it('says whether it is a phrase or a date, to fit a sentence', () => {
+    const now = new Date(2026, 10, 5, 15, 0)
+    expect(howLongAgo(new Date(2026, 10, 4, 12), now)).toEqual({
+      phrase: 'yesterday',
+    })
+    expect(howLongAgo(new Date(2026, 2, 28, 12), now)).toHaveProperty('date')
   })
 })
