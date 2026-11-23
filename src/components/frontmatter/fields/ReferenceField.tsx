@@ -89,8 +89,31 @@ export const ReferenceField: React.FC<FieldControlProps> = ({
     setValue(newValues.length > 0 ? newValues : undefined)
   }
 
+  // Values that aren't entries in the collection, once it's known what is
+  const chosen = isMultiSelect
+    ? selectedValues
+    : selectedValue
+      ? [selectedValue]
+      : []
+  const notFound =
+    isLoading || !found
+      ? []
+      : chosen.filter(id => !options.some(opt => opt.value === id))
+  const problem =
+    notFound.length === 0
+      ? undefined
+      : isMultiSelect
+        ? `${notFound.length} not in ${referencedCollection}`
+        : `Not in ${referencedCollection}`
+
   return (
-    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
+    <FieldWrapper
+      label={label}
+      field={field}
+      value={value}
+      labelId={labelId}
+      problem={problem}
+    >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={

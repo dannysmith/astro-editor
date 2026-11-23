@@ -321,7 +321,7 @@ describe('FrontmatterField Orchestrator', () => {
         <FrontmatterField name="title" label="Title" field={requiredField} />
       )
 
-      expect(screen.getByText('*')).toBeInTheDocument()
+      expect(screen.getByText('(required)')).toBeInTheDocument()
     })
 
     it('should pass required=false for optional schema fields', () => {
@@ -340,7 +340,7 @@ describe('FrontmatterField Orchestrator', () => {
         />
       )
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
 
     it('should default to required=false when no schema field', () => {
@@ -348,7 +348,7 @@ describe('FrontmatterField Orchestrator', () => {
         <FrontmatterField name="custom" label="Custom Field" />
       )
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
   })
 

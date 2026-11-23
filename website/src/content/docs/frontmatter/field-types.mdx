@@ -25,11 +25,13 @@ A few fields get richer controls and have their own sections below: [objects](#n
 
 ## Descriptions, defaults & constraints
 
-Astro Editor surfaces the extra information in your schema as guidance beneath each field:
+Astro Editor surfaces the extra information in your schema as guidance on each field:
 
 - `.describe('…')` — shown as help text under the field
-- `.default(…)` — shown as a hint. It isn't written into new files, since Astro uses it whenever the field is left out
-- `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters", "Up to 3 items" for a list, or "Pattern: …"
+- `.default(…)` — shown in the field's footer while it's empty. It isn't written into new files, since Astro uses it whenever the field is left out
+- `.min()` / `.max()`, `.length()`, `.int()`, `.email()`, `.url()` and `.regex()` — shown in a small footer attached to the field, like `46 / 100`, `1–10`, `Whole number` or `Format: …`
+
+When a value doesn't meet a constraint, the footer says so in amber, like `8 over` or `Doesn't look like a URL`. A dropdown, date or reference holding a value that isn't valid is flagged the same way.
 
 ```ts
 title: z.string().min(3).max(100).describe('The headline for the post')
@@ -41,14 +43,14 @@ These are shown to help you, but Astro Editor does **not** stop you saving front
 
 ## Required fields
 
-A field that isn't `.optional()` (and has no `.default()`) is required, and shows a red asterisk (`*`) next to its label.
+A field that isn't `.optional()` (and has no `.default()`) is required. While it's empty, it has a red left edge, which goes once it has a value.
 
 ```ts
-title: z.string(),              // required → shows *
-summary: z.string().optional(), // optional → no *
+title: z.string(),              // required → red edge while empty
+summary: z.string().optional(), // optional → no edge
 ```
 
-As above, the asterisk is a prompt, not a gate — saving isn't blocked when a required field is empty.
+As above, the edge is a prompt, not a gate — saving isn't blocked when a required field is empty.
 
 ## Nested fields
 

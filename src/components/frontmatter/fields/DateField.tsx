@@ -22,7 +22,23 @@ export const DateField: React.FC<DateFieldProps> = ({
   const labelId = `${id}-label`
 
   return (
-    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
+    <FieldWrapper
+      label={label}
+      field={field}
+      value={value}
+      labelId={labelId}
+      after={
+        isPublishedDate && (
+          <RenameToDateLink
+            date={
+              value && typeof value === 'string'
+                ? parseIsoDate(value)
+                : undefined
+            }
+          />
+        )
+      }
+    >
       <DatePicker
         id={id}
         aria-labelledby={`${labelId} ${id}`}
@@ -38,13 +54,6 @@ export const DateField: React.FC<DateFieldProps> = ({
         }}
         placeholder="Select date..."
       />
-      {isPublishedDate && (
-        <RenameToDateLink
-          date={
-            value && typeof value === 'string' ? parseIsoDate(value) : undefined
-          }
-        />
-      )}
     </FieldWrapper>
   )
 }

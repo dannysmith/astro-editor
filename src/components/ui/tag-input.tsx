@@ -138,7 +138,11 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             onKeyDown={handleKeyDown}
             placeholder={tags.length === 0 ? placeholder : ''}
             disabled={disabled}
-            className="w-0 min-w-[min(120px,100%)] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className={cn(
+              'w-0 flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed',
+              // Room for the placeholder, or to start typing beside the tags
+              tags.length === 0 ? 'min-w-[min(120px,100%)]' : 'min-w-12'
+            )}
           />
         </div>
       </div>

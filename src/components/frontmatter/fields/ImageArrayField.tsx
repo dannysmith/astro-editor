@@ -52,7 +52,13 @@ export const ImageArrayField: React.FC<FieldControlProps> = ({
   }
 
   return (
-    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
+    <FieldWrapper
+      label={label}
+      field={field}
+      value={value}
+      labelId={labelId}
+      framed={false}
+    >
       <div className="space-y-4">
         {images.map((path, index) => (
           <ImagePicker

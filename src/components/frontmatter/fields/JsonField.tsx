@@ -83,21 +83,22 @@ export const JsonField: React.FC<FieldControlProps> = ({
       description={
         field && 'description' in field ? field.description : 'Edit as JSON'
       }
-    >
-      <div className="space-y-2">
-        <AutoExpandingTextarea
-          id={id}
-          value={draft}
-          onChange={e => handleChange(e.target.value)}
-          placeholder={`Enter ${label.toLowerCase()} as JSON...`}
-          className="font-mono text-sm"
-          minRows={3}
-          maxRows={20}
-        />
-        {error && (
+      // Red, unlike a constraint: this text isn't being saved
+      after={
+        error && (
           <p className="text-sm text-destructive">Invalid JSON: {error}</p>
-        )}
-      </div>
+        )
+      }
+    >
+      <AutoExpandingTextarea
+        id={id}
+        value={draft}
+        onChange={e => handleChange(e.target.value)}
+        placeholder={`Enter ${label.toLowerCase()} as JSON...`}
+        className="font-mono text-sm"
+        minRows={3}
+        maxRows={20}
+      />
     </FieldWrapper>
   )
 }

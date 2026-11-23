@@ -136,7 +136,15 @@ So that visual changes land in one place.
 
 ## Phase 5: Frontmatter panel UI
 
-Danny's UI changes to the panel and its components. To be added.
+Make constraints, required fields and actions feel part of each field, and flag values outside their limits without ever blocking them. Options were compared in a styleguide lab before choosing.
+
+- [x] Attach a footer to each field's box, in `FieldWrapper`
+- [x] Show every constraint the schema sets: length, range, whole numbers, list size, URL, email, pattern and default (`lib/field-guidance.ts`)
+- [x] Flag values outside their limits in amber, including dropdown values, dates and references that aren't valid
+- [x] Hold back problems on a value still being typed, except going over a limit
+- [x] Mark empty required fields with a coloured left edge instead of an asterisk
+- [x] Replace the "Copy as slug" link with an icon button floating in the title field
+- [x] Add a styleguide section for every constraint state
 
 ## Not doing
 

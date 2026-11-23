@@ -280,7 +280,7 @@ describe('FrontmatterPanel Component', () => {
     expect(screen.getByPlaceholderText('Enter tags...')).toBeInTheDocument() // Array field
 
     // Should show required indicator for title field (1 required field: title)
-    expect(screen.getAllByText('*')).toHaveLength(1)
+    expect(screen.getAllByText('(required)')).toHaveLength(1)
   })
 
   it('should show all schema fields even when not in frontmatter', () => {

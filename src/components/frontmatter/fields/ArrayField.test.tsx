@@ -249,13 +249,13 @@ describe('ArrayField Component', () => {
         />
       )
 
-      expect(screen.getByText('*')).toBeInTheDocument()
+      expect(screen.getByText('(required)')).toBeInTheDocument()
     })
 
     it('should not show required indicator when required=false', () => {
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
   })
 

@@ -13,7 +13,13 @@ export const ImageField: React.FC<FieldControlProps> = ({
   const labelId = `${React.useId()}-label`
 
   return (
-    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
+    <FieldWrapper
+      label={label}
+      field={field}
+      value={value}
+      labelId={labelId}
+      framed={false}
+    >
       <ImagePicker
         value={typeof value === 'string' ? value : ''}
         onChange={path => setValue(path)}
