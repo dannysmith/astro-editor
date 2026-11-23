@@ -13,7 +13,7 @@ mod parser;
 mod preferences;
 mod process;
 mod schema_merger;
-mod shell_path;
+mod shell_env;
 mod telemetry;
 mod utils;
 mod window_state;

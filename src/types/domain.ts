@@ -172,7 +172,7 @@ export type {
   /**
    * Why git can't be used for a project. Tagged by `kind`: `notInstalled`,
    * `commandLineToolsMissing` (macOS's `/usr/bin/git` without the command line
-   * tools), `notARepository`, `ignored` (with the ignoring repository's
+   * tools), `tooOld` (with the git's `version`), `notARepository`, `ignored` (with the ignoring repository's
    * `root`) or `failed` (with git's `message`).
    */
   GitProblem,
@@ -182,6 +182,12 @@ export type {
    * value is set, signing, and the hooks a commit or push runs.
    */
   GitRepository,
+  /**
+   * The branch HEAD is on, its upstream with the ahead and behind counts,
+   * whether there are commits yet, and any merge or rebase in progress. Part
+   * of both `GitRepository` and the Git tab's `GitWorkingTree`.
+   */
+  GitHead,
 } from '@/lib/bindings'
 
 // Re-export commands for convenience

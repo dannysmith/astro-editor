@@ -1,10 +1,15 @@
 //! Running a child process with a timeout: the git runner (`git::runner`) and
-//! the login-shell PATH lookup (`shell_path`).
+//! the login-shell environment lookup (`shell_env`).
 
 use std::io::{self, Read};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
+
+/// How long output held open by something a finished process left running
+/// in the background gets, before what's been read so far is used
+const DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// What a finished process printed
 pub struct Finished {
@@ -26,7 +31,8 @@ pub enum Failure {
 /// Runs `command` with stdin closed, in a session of its own (see
 /// `in_new_session`), reading its output on other threads so a process that
 /// prints a lot can't stall on a full pipe. After it exits, output held open
-/// by something it left running in the background gets half a second.
+/// by something it left running in the background (a hook starting a daemon)
+/// gets half a second, then what's been read is used.
 pub fn run(command: &mut Command, timeout: Duration) -> Result<Finished, Failure> {
     command
         .stdin(Stdio::null())
@@ -34,6 +40,13 @@ pub fn run(command: &mut Command, timeout: Duration) -> Result<Finished, Failure
         .stderr(Stdio::piped());
     #[cfg(unix)]
     in_new_session(command);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: git is a console program, and would otherwise
+        // flash a console window each time it runs
+        command.creation_flags(0x0800_0000);
+    }
     let mut child = command.spawn().map_err(Failure::Spawn)?;
     let stdout = read_in_background(child.stdout.take());
     let stderr = read_in_background(child.stderr.take());
@@ -53,14 +66,11 @@ pub fn run(command: &mut Command, timeout: Duration) -> Result<Finished, Failure
             }
         }
     };
-    let collect = |rx: Receiver<Vec<u8>>| {
-        rx.recv_timeout(Duration::from_millis(500))
-            .unwrap_or_default()
-    };
+    let drained_by = Instant::now() + DRAIN_TIMEOUT;
     Ok(Finished {
         status,
-        stdout: collect(stdout),
-        stderr: collect(stderr),
+        stdout: stdout.collect(drained_by),
+        stderr: stderr.collect(drained_by),
     })
 }
 
@@ -83,16 +93,47 @@ fn in_new_session(command: &mut Command) {
     }
 }
 
-fn read_in_background<R: Read + Send + 'static>(pipe: Option<R>) -> Receiver<Vec<u8>> {
-    let (tx, rx) = mpsc::channel();
+/// A pipe being read on a thread of its own
+struct Reading {
+    output: Arc<Mutex<Vec<u8>>>,
+    /// Sent to when the pipe closes
+    done: Receiver<()>,
+}
+
+impl Reading {
+    /// Everything read, once the pipe closes or `deadline` passes, whichever
+    /// is first
+    fn collect(self, deadline: Instant) -> Vec<u8> {
+        let _ = self
+            .done
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()));
+        let mut output = self.output.lock().unwrap_or_else(PoisonError::into_inner);
+        std::mem::take(&mut *output)
+    }
+}
+
+fn read_in_background<R: Read + Send + 'static>(pipe: Option<R>) -> Reading {
+    let output = Arc::new(Mutex::new(Vec::new()));
+    let (tx, done) = mpsc::channel();
+    let read = Arc::clone(&output);
     std::thread::spawn(move || {
-        let mut output = Vec::new();
         if let Some(mut pipe) = pipe {
-            let _ = pipe.read_to_end(&mut output);
+            let mut chunk = [0; 8192];
+            loop {
+                match pipe.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(n) => read
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .extend_from_slice(&chunk[..n]),
+                    Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                    Err(_) => break,
+                }
+            }
         }
-        let _ = tx.send(output);
+        let _ = tx.send(());
     });
-    rx
+    Reading { output, done }
 }
 
 /// Kills the process and everything it started. Only called before it's been
@@ -106,4 +147,22 @@ fn kill(child: &mut Child) {
     #[cfg(not(unix))]
     let _ = child.kill();
     let _ = child.wait();
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_what_was_printed_when_something_holds_the_output_open() {
+        // The background `sleep` inherits stdout and stderr, so they stay
+        // open after the shell exits
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "echo out; echo err >&2; /bin/sleep 3 & exit 0"]);
+        let started = Instant::now();
+        let finished = run(&mut command, Duration::from_secs(5)).ok().unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(finished.stdout, b"out\n");
+        assert_eq!(finished.stderr, b"err\n");
+    }
 }

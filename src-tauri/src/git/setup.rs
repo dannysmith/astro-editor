@@ -7,7 +7,7 @@ use specta::Type;
 use std::path::Path;
 
 use super::repo::{self, Discovery, GitOperation, Repository};
-use super::runner::{is_executable, FindError, Git};
+use super::runner::{is_executable, FindError, Git, MINIMUM_VERSION};
 use super::status;
 use super::READ_TIMEOUT;
 
@@ -45,6 +45,10 @@ pub enum GitProblem {
     NotInstalled,
     /// macOS's `/usr/bin/git` needs the command line tools
     CommandLineToolsMissing,
+    /// The `git` found is older than AE's commands need
+    TooOld {
+        version: String,
+    },
     NotARepository,
     /// The project is in a folder the repository at `root` ignores
     Ignored {
@@ -65,6 +69,21 @@ pub struct GitRepository {
     pub project_folder: Option<String>,
     /// The parent repository, when this one is a submodule
     pub superproject: Option<String>,
+    #[serde(flatten)]
+    pub head: GitHead,
+    pub user_name: Option<GitConfigValue>,
+    pub user_email: Option<GitConfigValue>,
+    /// The signature format (`openpgp`, `ssh`, `x509`) when commits are signed
+    pub signing: Option<String>,
+    /// The hooks a commit or push from AE runs, in the order they run
+    pub hooks: Vec<String>,
+}
+
+/// The branch HEAD is on, its upstream, and whether git is in the middle of
+/// something: shown by both Project Settings and the Git tab
+#[derive(Debug, Clone, PartialEq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHead {
     /// `None` when HEAD is detached
     pub branch: Option<String>,
     /// Like `origin/main`
@@ -74,12 +93,19 @@ pub struct GitRepository {
     /// False until the first commit
     pub has_commits: bool,
     pub operation: Option<GitOperation>,
-    pub user_name: Option<GitConfigValue>,
-    pub user_email: Option<GitConfigValue>,
-    /// The signature format (`openpgp`, `ssh`, `x509`) when commits are signed
-    pub signing: Option<String>,
-    /// The hooks a commit or push from AE runs, in the order they run
-    pub hooks: Vec<String>,
+}
+
+impl GitHead {
+    pub fn new(repository: &Repository, branch: status::BranchStatus) -> GitHead {
+        GitHead {
+            has_commits: branch.commit.is_some(),
+            branch: branch.name,
+            upstream: branch.upstream,
+            ahead: branch.ahead,
+            behind: branch.behind,
+            operation: repo::operation_in_progress(repository),
+        }
+    }
 }
 
 /// A config value and the file it comes from
@@ -93,7 +119,7 @@ pub struct GitConfigValue {
 }
 
 /// Checks git for the project at `project`. Runs the user's shell the first
-/// time it's called (see `shell_path`), so call it off the main thread.
+/// time it's called (see `shell_env`), so call it off the main thread.
 pub fn check(project: &Path) -> GitSetup {
     check_with(Git::find(), project)
 }
@@ -108,7 +134,7 @@ fn check_with(git: Result<Git, FindError>, project: &Path) -> GitSetup {
         Ok(git) => git,
         Err(error) => return unusable(None, error.into()),
     };
-    let program = match version(&git, project) {
+    let program = match git.version(project) {
         Ok(version) => GitProgram {
             path: git.program().display().to_string(),
             version,
@@ -138,6 +164,10 @@ impl GitProblem {
             GitProblem::CommandLineToolsMissing => {
                 "Git needs Apple's command line tools, which aren't installed.".to_string()
             }
+            GitProblem::TooOld { version } => {
+                let (major, minor) = MINIMUM_VERSION;
+                format!("Git {version} is too old. The Git panel needs {major}.{minor} or later.")
+            }
             GitProblem::NotARepository => "The project isn't in a git repository.".to_string(),
             GitProblem::Ignored { root } => {
                 format!("The repository at {root} ignores the project's folder.")
@@ -152,6 +182,7 @@ impl From<FindError> for GitProblem {
         match error {
             FindError::NotInstalled => GitProblem::NotInstalled,
             FindError::CommandLineToolsMissing => GitProblem::CommandLineToolsMissing,
+            FindError::TooOld { version } => GitProblem::TooOld { version },
         }
     }
 }
@@ -166,16 +197,6 @@ pub fn open(git: &Git, project: &Path) -> Result<Repository, GitProblem> {
         }),
         Err(message) => Err(GitProblem::Failed { message }),
     }
-}
-
-/// `git --version` without the `git version ` in front
-fn version(git: &Git, dir: &Path) -> Result<String, String> {
-    let text = git.read(dir, &["--version"], READ_TIMEOUT)?;
-    let text = text.trim();
-    Ok(text
-        .strip_prefix("git version ")
-        .unwrap_or(text)
-        .to_string())
 }
 
 fn report(git: &Git, repository: &Repository) -> Result<GitRepository, String> {
@@ -201,12 +222,7 @@ fn report(git: &Git, repository: &Repository) -> Result<GitRepository, String> {
             .superproject
             .as_ref()
             .map(|path| path.display().to_string()),
-        has_commits: branch.commit.is_some(),
-        branch: branch.name,
-        upstream: branch.upstream,
-        ahead: branch.ahead,
-        behind: branch.behind,
-        operation: repo::operation_in_progress(repository),
+        head: GitHead::new(repository, branch),
         user_name: config(git, root, &["user.name"])?,
         user_email: config(git, root, &["user.email"])?,
         signing,
@@ -288,12 +304,12 @@ mod tests {
         let report = report_for(&repos, &docs);
         assert_eq!(report.root, root.display().to_string());
         assert_eq!(report.project_folder.as_deref(), Some("docs"));
-        assert_eq!(report.branch.as_deref(), Some("main"));
-        assert_eq!(report.upstream.as_deref(), Some("origin/main"));
-        assert_eq!((report.ahead, report.behind), (1, 0));
-        assert!(report.has_commits);
+        assert_eq!(report.head.branch.as_deref(), Some("main"));
+        assert_eq!(report.head.upstream.as_deref(), Some("origin/main"));
+        assert_eq!((report.head.ahead, report.head.behind), (1, 0));
+        assert!(report.head.has_commits);
         assert_eq!(report.superproject, None);
-        assert_eq!(report.operation, None);
+        assert_eq!(report.head.operation, None);
     }
 
     #[test]
@@ -321,6 +337,7 @@ mod tests {
         assert_eq!((report.user_name, report.user_email), (None, None));
     }
 
+    #[cfg(unix)]
     #[test]
     fn reports_signing_and_the_hooks_that_will_run() {
         use std::os::unix::fs::PermissionsExt;
@@ -354,15 +371,15 @@ mod tests {
         let repos = TestRepos::new();
         let site = repos.init("site");
         let report = report_for(&repos, &site);
-        assert!(!report.has_commits);
-        assert_eq!(report.branch.as_deref(), Some("main"));
+        assert!(!report.head.has_commits);
+        assert_eq!(report.head.branch.as_deref(), Some("main"));
 
         repos.commit_all(&site, "Initial");
         repos.git_ok(&site, &["checkout", "-q", "--detach"]);
         let report = report_for(&repos, &site);
-        assert!(report.has_commits);
-        assert_eq!(report.branch, None);
-        assert_eq!(report.upstream, None);
+        assert!(report.head.has_commits);
+        assert_eq!(report.head.branch, None);
+        assert_eq!(report.head.upstream, None);
     }
 
     #[test]

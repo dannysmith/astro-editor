@@ -25,7 +25,9 @@ Done: reverted to `fs::write`, and the race in 1a was real. AE reloads the open 
 
 **33. `editor.md`.** Remove the contradiction about how saves are written, and don't state the empty save's cause as fact.
 
-## Phase 3: Running git
+## Phase 3: Running git ✅
+
+Done as below. `shell_path.rs` is now `shell_env.rs`. Push's rejection check reads git's reason ("non-fast-forward", "fetch first"), which git never translates, so it stays. The two shared structs became `GitHead`, flattened into both (TypeScript sees `… & GitHead`), replacing the frontend's hand-written `BranchState`. `git.md` is updated for all of it.
 
 **2. The whole login-shell environment.** `shell_path.rs` takes only `PATH` from the login shell, so `SSH_AUTH_SOCK` from `.zshrc` (a common 1Password SSH setup), `GIT_SSH_COMMAND`, `GNUPGHOME` and proxy variables are missing and push can fail with `Permission denied (publickey)`. Take the whole environment, as VS Code does, still in the one shell spawn:
 

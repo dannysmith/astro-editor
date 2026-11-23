@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use super::READ_TIMEOUT;
 use crate::process::{self, Failure};
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -21,14 +22,22 @@ pub enum FindError {
     /// dialog when the command line tools aren't installed
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     CommandLineToolsMissing,
+    /// Older than `MINIMUM_VERSION`
+    TooOld {
+        version: String,
+    },
 }
+
+/// The oldest git AE's commands work with: `rev-parse --path-format` came in
+/// 2.31
+pub const MINIMUM_VERSION: (u32, u32) = (2, 31);
 
 /// The `git` program, and the environment every command runs with
 #[derive(Debug, Clone)]
 pub struct Git {
     program: PathBuf,
-    path: String,
-    extra_env: Vec<(String, String)>,
+    /// The user's environment (see `shell_env`), set on top of the app's own
+    env: Vec<(String, String)>,
 }
 
 /// What a finished git command printed
@@ -71,8 +80,9 @@ fn runs_hooks(args: &[&str]) -> bool {
 }
 
 impl Git {
-    /// The first `git` on the user's `PATH` (see `shell_path`), the one their
-    /// terminal runs, so AE reads the same config and runs the same hooks.
+    /// The first `git` on the user's `PATH`, the one their terminal runs, run
+    /// with the environment their terminal has (see `shell_env`), so AE reads
+    /// the same config, reaches the same SSH agent and runs the same hooks.
     /// Runs the user's shell the first time, so call it off the main thread.
     /// Once found it's kept; not finding it isn't, so installing git or the
     /// command line tools while AE runs is noticed.
@@ -81,8 +91,32 @@ impl Git {
         if let Some(git) = FOUND.get() {
             return Ok(git.clone());
         }
-        let git = Git::find_on(crate::shell_path::user_path())?;
+        let mut git = Git::find_on(crate::shell_env::user_path())?;
+        git.env = crate::shell_env::user_environment().to_vec();
+        let git = git.new_enough()?;
         Ok(FOUND.get_or_init(|| git).clone())
+    }
+
+    /// This `git`, unless it reports a version older than `MINIMUM_VERSION`.
+    /// One whose version can't be read is given the benefit of the doubt.
+    fn new_enough(self) -> Result<Git, FindError> {
+        match self.version(&std::env::temp_dir()) {
+            Ok(version) if parse_version(&version).is_some_and(|v| v < MINIMUM_VERSION) => {
+                Err(FindError::TooOld { version })
+            }
+            _ => Ok(self),
+        }
+    }
+
+    /// `git --version` without the `git version ` in front, like `2.56.1` or
+    /// `2.50.1 (Apple Git-155)`
+    pub fn version(&self, dir: &Path) -> Result<String, String> {
+        let text = self.read(dir, &["--version"], READ_TIMEOUT)?;
+        let text = text.trim();
+        Ok(text
+            .strip_prefix("git version ")
+            .unwrap_or(text)
+            .to_string())
     }
 
     /// The first `git` in the folders of `path`, a `PATH` value
@@ -97,8 +131,7 @@ impl Git {
         }
         Ok(Git {
             program,
-            path: path.to_string(),
-            extra_env: Vec::new(),
+            env: vec![("PATH".to_string(), path.to_string())],
         })
     }
 
@@ -110,7 +143,7 @@ impl Git {
     /// away from the developer's own config and repositories
     #[cfg(test)]
     pub fn with_env(mut self, key: &str, value: &str) -> Git {
-        self.extra_env.push((key.to_string(), value.to_string()));
+        self.env.push((key.to_string(), value.to_string()));
         self
     }
 
@@ -129,6 +162,8 @@ impl Git {
     /// non-zero code.
     pub fn run(&self, dir: &Path, args: &[&str], timeout: Duration) -> Result<GitOutput, String> {
         let mut command = Command::new(&self.program);
+        // First, so the settings below win over the user's
+        command.envs(self.env.iter().map(|(k, v)| (k, v)));
         if runs_hooks(args) {
             // Hooks inherit git's environment, and should run as they do in a
             // terminal: a hook's `'*.md'` pathspec matching only a file named
@@ -153,17 +188,18 @@ impl Git {
                 // Status doesn't write the index, so it never competes with a
                 // git running in a terminal for `index.lock`, or wakes the git
                 // folder watcher
-                .env("GIT_OPTIONAL_LOCKS", "0");
+                .env("GIT_OPTIONAL_LOCKS", "0")
+                // Messages in English, which AE looks for ("not a git
+                // repository"), whatever language the Mac is set to
+                .env("LC_ALL", "C");
         }
         command
             .current_dir(dir)
-            .env("PATH", &self.path)
             .env("GIT_TERMINAL_PROMPT", "0")
             // Inherited, these would point every command at another repository
             .env_remove("GIT_DIR")
             .env_remove("GIT_WORK_TREE")
-            .env_remove("GIT_INDEX_FILE")
-            .envs(self.extra_env.iter().map(|(k, v)| (k, v)));
+            .env_remove("GIT_INDEX_FILE");
         match process::run(&mut command, timeout) {
             Ok(finished) => Ok(GitOutput {
                 code: finished.status.code(),
@@ -179,6 +215,13 @@ impl Git {
             )),
         }
     }
+}
+
+/// The major and minor numbers of a version like `2.50.1 (Apple Git-155)` or
+/// `2.39.3.windows.1`
+fn parse_version(version: &str) -> Option<(u32, u32)> {
+    let mut numbers = version.split(['.', ' ']).map(str::parse::<u32>);
+    Some((numbers.next()?.ok()?, numbers.next()?.ok()?))
 }
 
 /// A file that can be run
@@ -246,9 +289,15 @@ mod tests {
         script(
             dir.path(),
             "git",
-            "echo \"$@|$GIT_TERMINAL_PROMPT|$GIT_LITERAL_PATHSPECS|$GIT_OPTIONAL_LOCKS|${GIT_DIR:-none}\"\n/bin/cat\necho err >&2\nexit 3",
+            "echo \"$@|$GIT_TERMINAL_PROMPT|$GIT_LITERAL_PATHSPECS|$GIT_OPTIONAL_LOCKS|$LC_ALL|${GIT_DIR:-none}|$SSH_AUTH_SOCK\"\n/bin/cat\necho err >&2\nexit 3",
         );
-        let git = Git::find_on(&dir.path().display().to_string()).unwrap();
+        // The user's environment, including settings AE overrides
+        let git = Git::find_on(&dir.path().display().to_string())
+            .unwrap()
+            .with_env("SSH_AUTH_SOCK", "/agent.sock")
+            .with_env("GIT_DIR", "/elsewhere/.git")
+            .with_env("GIT_TERMINAL_PROMPT", "1")
+            .with_env("LC_ALL", "de_DE.UTF-8");
         let output = git
             .run(dir.path(), &["status", "--short"], Duration::from_secs(5))
             .unwrap();
@@ -256,7 +305,7 @@ mod tests {
         assert!(!output.success());
         assert_eq!(
             output.stdout_text(),
-            "-c core.quotepath=off status --short|0|1|0|none\n"
+            "-c core.quotepath=off status --short|0|1|0|C|none|/agent.sock\n"
         );
         assert_eq!(output.error_message(), "err");
 
@@ -264,7 +313,34 @@ mod tests {
         let output = git
             .run(dir.path(), &["commit", "-q"], Duration::from_secs(5))
             .unwrap();
-        assert_eq!(output.stdout_text(), "commit -q|0|||none\n");
+        assert_eq!(
+            output.stdout_text(),
+            "commit -q|0|||de_DE.UTF-8|none|/agent.sock\n"
+        );
+    }
+
+    #[test]
+    fn reads_the_version_and_refuses_a_git_too_old() {
+        assert_eq!(parse_version("2.50.1 (Apple Git-155)"), Some((2, 50)));
+        assert_eq!(parse_version("2.39.3.windows.1"), Some((2, 39)));
+        assert_eq!(parse_version("2.31"), Some((2, 31)));
+        assert_eq!(parse_version("unknown"), None);
+
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().display().to_string();
+        script(dir.path(), "git", "echo 'git version 2.30.9'");
+        let error = Git::find_on(&path).unwrap().new_enough().unwrap_err();
+        assert_eq!(
+            error,
+            FindError::TooOld {
+                version: "2.30.9".into()
+            }
+        );
+        script(dir.path(), "git", "echo 'git version 2.31.0'");
+        assert!(Git::find_on(&path).unwrap().new_enough().is_ok());
+        // Given the benefit of the doubt
+        script(dir.path(), "git", "echo 'git version unknown'");
+        assert!(Git::find_on(&path).unwrap().new_enough().is_ok());
     }
 
     #[test]

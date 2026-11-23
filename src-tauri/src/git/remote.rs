@@ -22,6 +22,8 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
     if output.success() {
         return Ok(());
     }
+    // A rejected ref's reason is printed untranslated, whatever the language.
+    // `push` runs hooks, so it keeps the user's language (see `runner`)
     let said = &output.stderr;
     if said.contains("non-fast-forward") || said.contains("fetch first") {
         return Err(

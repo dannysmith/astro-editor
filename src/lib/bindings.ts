@@ -494,12 +494,30 @@ export type GitEntryState = "new" | "modified" | "deleted" | "renamed" | "confli
 /**  Its real path (after symlinks) is outside the project's repository */
 "outsideRepository";
 
+/**
+ *  The branch HEAD is on, its upstream, and whether git is in the middle of
+ *  something: shown by both Project Settings and the Git tab
+ */
+export type GitHead = {
+	/**  `None` when HEAD is detached */
+	branch: string | null,
+	/**  Like `origin/main` */
+	upstream: string | null,
+	ahead: number,
+	behind: number,
+	/**  False until the first commit */
+	hasCommits: boolean,
+	operation: GitOperation | null,
+};
+
 /**  Something git is in the middle of, which only a git tool should finish */
 export type GitOperation = "merge" | "rebase" | "cherryPick" | "revert";
 
 export type GitProblem = { kind: "notInstalled" } | 
 /**  macOS's `/usr/bin/git` needs the command line tools */
-{ kind: "commandLineToolsMissing" } | { kind: "notARepository" } | 
+{ kind: "commandLineToolsMissing" } | 
+/**  The `git` found is older than AE's commands need */
+{ kind: "tooOld"; version: string } | { kind: "notARepository" } | 
 /**  The project is in a folder the repository at `root` ignores */
 { kind: "ignored"; root: string } | 
 /**  git failed, with its message */
@@ -520,22 +538,13 @@ export type GitRepository = {
 	projectFolder: string | null,
 	/**  The parent repository, when this one is a submodule */
 	superproject: string | null,
-	/**  `None` when HEAD is detached */
-	branch: string | null,
-	/**  Like `origin/main` */
-	upstream: string | null,
-	ahead: number,
-	behind: number,
-	/**  False until the first commit */
-	hasCommits: boolean,
-	operation: GitOperation | null,
 	userName: GitConfigValue | null,
 	userEmail: GitConfigValue | null,
 	/**  The signature format (`openpgp`, `ssh`, `x509`) when commits are signed */
 	signing: string | null,
 	/**  The hooks a commit or push from AE runs, in the order they run */
 	hooks: string[],
-};
+} & GitHead;
 
 export type GitSetup = {
 	/**  `None` when there's no `git` to run */
@@ -557,13 +566,6 @@ export type GitWorkingTree = {
 	root: string,
 	/**  The project folder within the root, like `docs/`. Empty at the root. */
 	prefix: string,
-	/**  `None` when HEAD is detached */
-	branch: string | null,
-	upstream: string | null,
-	ahead: number,
-	behind: number,
-	hasCommits: boolean,
-	operation: GitOperation | null,
 	/**  The parent repository's root, when this one is a submodule */
 	superproject: string | null,
 	/**
@@ -588,7 +590,7 @@ export type GitWorkingTree = {
 	staged: GitChange[],
 	/**  The open entry, when one was asked about */
 	entry: GitEntry | null,
-};
+} & GitHead;
 
 export type GlobalSettings = {
 	general: GeneralSettings,

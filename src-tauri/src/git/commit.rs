@@ -42,19 +42,25 @@ pub fn commit(
     let _writing = writing();
     repo::not_mid_operation(repository)?;
     add(git, repository, paths)?;
+    // Asked rather than read from `commit`'s message, which is in the
+    // user's language
+    let staged = git.run(
+        &repository.root,
+        &["diff", "--cached", "--quiet"],
+        READ_TIMEOUT,
+    )?;
+    if staged.success() {
+        return Err(
+            "There's nothing staged to commit. It may have been committed somewhere else."
+                .to_string(),
+        );
+    }
     let output = git.run(
         &repository.root,
         &["commit", "-q", &format!("--message={message}")],
         WRITE_TIMEOUT,
     )?;
     if !output.success() {
-        let said = output.stdout_text();
-        if said.contains("nothing to commit") || said.contains("nothing added to commit") {
-            return Err(
-                "There's nothing staged to commit. It may have been committed somewhere else."
-                    .to_string(),
-            );
-        }
         return Err(output.error_message());
     }
     let head = git.read(

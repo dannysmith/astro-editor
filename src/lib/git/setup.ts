@@ -1,5 +1,6 @@
 import type {
   GitChange,
+  GitHead,
   GitOperation,
   GitProblem,
   GitSetup,
@@ -12,16 +13,6 @@ const OPERATION_NAMES: Record<GitOperation, string> = {
   rebase: 'A rebase',
   cherryPick: 'A cherry-pick',
   revert: 'A revert',
-}
-
-/** The branch fields that the setup report and the Git tab's state share */
-interface BranchState {
-  branch: string | null
-  upstream: string | null
-  ahead: number
-  behind: number
-  hasCommits: boolean
-  operation: GitOperation | null
 }
 
 /**
@@ -64,6 +55,12 @@ export function gitProblem(problem: GitProblem, home: string | null): Problem {
           "Git needs Apple's command line tools, which aren't installed.",
         fix: 'Run `xcode-select --install` in Terminal, or install git with Homebrew.',
       }
+    case 'tooOld':
+      return {
+        level: 'error',
+        message: `Git ${problem.version} is too old for the Git panel, which needs 2.31 or later.`,
+        fix: "Update git with Homebrew (`brew upgrade git`), or update Apple's command line tools.",
+      }
     case 'notARepository':
       return {
         level: 'warning',
@@ -92,7 +89,7 @@ export function gitProblem(problem: GitProblem, home: string | null): Problem {
  * finished in a git tool.
  */
 export function readOnlyReason(
-  state: BranchState,
+  state: GitHead,
   changes: GitChange[] = []
 ): Problem | null {
   if (state.operation) {
@@ -120,7 +117,7 @@ export function readOnlyReason(
 }
 
 /** The branch and how it stands against its upstream, as a sentence */
-export function describeBranch(state: BranchState): string {
+export function describeBranch(state: GitHead): string {
   if (!state.branch) return 'Detached HEAD'
   const branch = `\`${state.branch}\``
   if (!state.hasCommits) return `${branch}, no commits yet`

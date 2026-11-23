@@ -5,9 +5,9 @@ use serde::Serialize;
 use specta::Type;
 use std::path::Path;
 
-use super::repo::{self, GitOperation, Repository};
+use super::repo::{self, Repository};
 use super::runner::Git;
-use super::setup::{self, GitProblem};
+use super::setup::{self, GitHead, GitProblem};
 use super::status::{self, GitChange, GitChangeKind};
 use super::READ_TIMEOUT;
 
@@ -26,13 +26,8 @@ pub struct GitWorkingTree {
     pub root: String,
     /// The project folder within the root, like `docs/`. Empty at the root.
     pub prefix: String,
-    /// `None` when HEAD is detached
-    pub branch: Option<String>,
-    pub upstream: Option<String>,
-    pub ahead: u32,
-    pub behind: u32,
-    pub has_commits: bool,
-    pub operation: Option<GitOperation>,
+    #[serde(flatten)]
+    pub head: GitHead,
     /// The parent repository's root, when this one is a submodule
     pub superproject: Option<String>,
     /// Commits on the branch that aren't on its upstream (to push), newest
@@ -146,12 +141,7 @@ fn working_tree(
     Ok(GitWorkingTree {
         root: repository.root.display().to_string(),
         prefix: repository.prefix.clone(),
-        has_commits: status.branch.commit.is_some(),
-        branch: status.branch.name,
-        upstream: status.branch.upstream,
-        ahead: status.branch.ahead,
-        behind: status.branch.behind,
-        operation: repo::operation_in_progress(repository),
+        head: GitHead::new(repository, status.branch),
         superproject: repository
             .superproject
             .as_ref()
@@ -236,6 +226,9 @@ fn commits(git: &Git, repository: &Repository, args: &[&str]) -> Result<Vec<GitC
         "log",
         "-n",
         COMMIT_LIST_LIMIT,
+        // With `log.showSignature` set, each commit's signature would be
+        // checked, running gpg for every one
+        "--no-show-signature",
         "--format=%h%x00%ct%x00%an%x00%s",
     ];
     log.extend_from_slice(args);
@@ -333,6 +326,7 @@ mod tests {
         assert_eq!(ignored.state, GitEntryState::Ignored);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_entry_symlinked_in_from_elsewhere_is_outside_the_repository() {
         let repos = TestRepos::new();
@@ -354,7 +348,7 @@ mod tests {
         fs::write(site.join("first.md"), "first\n").unwrap();
         repos.git_ok(&site, &["add", "first.md"]);
         let tree = tree(&repos, &site, Some(&site.join("first.md")));
-        assert!(!tree.has_commits);
+        assert!(!tree.head.has_commits);
         let entry = tree.entry.unwrap();
         assert_eq!(entry.state, GitEntryState::New);
         assert_eq!(entry.last_commit, None);

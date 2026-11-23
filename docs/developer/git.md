@@ -8,9 +8,9 @@ AE runs the user's own `git` as a child process (`src-tauri/src/git/`), rather t
 
 ## Finding `git`
 
-An app opened from the Dock gets a bare `PATH`, without Homebrew or the version managers whose `node` a hook may call. `shell_path::user_path()` asks the user's shell once, as an interactive login shell (`$SHELL -ilc`, printing `PATH` between markers), and keeps the answer for the app's life. It takes about half a second, so it runs the first time git is needed, off the main thread. `git` is the first one on that `PATH`, the same one the terminal runs, so AE reads the same system config (Homebrew's git and Apple's read different ones).
+An app opened from the Dock gets launchd's bare environment: a `PATH` without Homebrew or the version managers whose `node` a hook may call, and none of what the user's shell sets up, such as `SSH_AUTH_SOCK` for 1Password's SSH agent, `GIT_SSH_COMMAND`, `GNUPGHOME` or a proxy. Without those, push fails with `Permission denied (publickey)` while it works in the terminal. `shell_env::user_environment()` asks the user's shell once, as an interactive login shell (`$SHELL -ilc`, printing `env -0` between markers), and keeps the answer for the app's life, as VS Code does. It takes about half a second, so it runs the first time git is needed, off the main thread. Every git command gets it on top of the app's own environment, apart from the shell's own variables (`PWD`, `SHLVL` and the like); AE's own process never does. It may hold tokens, so only `PATH` is logged. Changes to the user's shell setup are seen after restarting AE.
 
-On macOS, `/usr/bin/git` is a stand-in that opens Apple's installer dialog when the command line tools are missing, so AE checks `xcode-select -p` before using it.
+`git` is the first one on that `PATH`, the same one the terminal runs, so AE reads the same system config (Homebrew's git and Apple's read different ones). On macOS, `/usr/bin/git` is a stand-in that opens Apple's installer dialog when the command line tools are missing, so AE checks `xcode-select -p` before using it. A git older than 2.31 (`runner::MINIMUM_VERSION`, for `rev-parse --path-format`) is reported as too old rather than failing with a confusing message.
 
 `tauri dev` starts the app with the terminal's `PATH`, so a broken lookup can hide in development, where the fallback is nearly complete. Check changes to it in a release build opened from the Dock.
 
@@ -19,14 +19,16 @@ On macOS, `/usr/bin/git` is a stand-in that opens Apple's installer dialog when 
 `git::runner::Git::run` runs every command the same way:
 
 - **In a new session (`setsid`).** The command has no controlling terminal and its own process group. When AE itself has a terminal (`tauri dev`), an interactive shell or a hook that reads the terminal was otherwise stopped by the system and hung until the timeout. Without a terminal, it fails at once.
-- **With a timeout,** which kills the whole process group, hooks included: a passphrase prompt with nowhere to show would otherwise wait forever. Output is read on its own threads, and a hook that leaves something running in the background can't hold the result up.
+- **With a timeout,** which kills the whole process group, hooks included: a passphrase prompt with nowhere to show would otherwise wait forever. Output is read on its own threads. A hook that leaves something running in the background holds the output pipes open, so after git exits they get half a second, and then what's been read is used.
+- **Without a console window on Windows** (`CREATE_NO_WINDOW`), which git would otherwise flash each time it runs.
 - **Non-interactive:** stdin closed and `GIT_TERMINAL_PROMPT=0`, so a missing credential fails rather than waiting.
 - **`GIT_LITERAL_PATHSPECS=1`,** so a file named `a*.md` is that file, not a pattern. `check-ignore` refuses it, and takes plain paths anyway, so it's off for that one command.
 - **`GIT_OPTIONAL_LOCKS=0`,** so `status` doesn't write the index: it never competes with a terminal's git for `index.lock`.
 - **`-c core.quotepath=off`,** so paths come back as UTF-8, unquoted.
+- **`LC_ALL=C`,** so git's messages are in English whatever language the Mac is set to, since AE looks for one ("not a git repository"). Where it can, AE asks git rather than reading its messages: "nothing to commit" is `diff --cached --quiet`.
 - **`GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` removed,** since inherited they'd point every command at another repository.
 
-**Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks or `quotepath` settings. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them.
+**Commands that run hooks** (`commit`, `push`, `merge`, `rebase`, `pull`) get none of the literal pathspecs, optional locks, `quotepath` or language settings, so a hook's messages are in the user's language. Push's check for a rejection reads git's reason for it ("non-fast-forward", "fetch first"), which git never translates. Hooks inherit git's environment, `-c` settings included, and a hook should run as it does in the user's terminal: with `GIT_LITERAL_PATHSPECS=1`, a lint-staged-style hook's `git diff --cached -- '*.md'` matches only a file literally named `*.md`, and quietly does nothing. These commands take no paths from AE, so they don't need them.
 
 Success is the exit code, never an empty stderr: git prints warnings and hints when it succeeds.
 
