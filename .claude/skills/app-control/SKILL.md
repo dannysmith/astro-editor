@@ -28,6 +28,7 @@ Always check light **and** dark (`shot` does both by default). Give shots descri
 | `state` | Project, file, dirty flag, panels, modes, theme, editor selection, open dialogs and toasts |
 | `tree` | Outline of the visible UI. Controls get `[n]` refs for `click @n` and `fill @n` |
 | `shot [name]` | Light and dark PNGs. `--theme=light\|dark`, `--size=WxH` |
+| `shots [name...]` | Retake the website's screenshots from `scripts/app-shots.ts`. `--list`, `--out=<dir>`, `--setup <name>` then `--restore` for native UI |
 | `open-project [path]` | Defaults to the test vault |
 | `reset` | Recreates the test vault and reloads the project |
 | `open <file>` | Relative to the project or its `src/content`. The extension is optional |

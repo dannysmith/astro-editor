@@ -8,11 +8,23 @@
 //   bun run app tree                          # outline of the visible UI, with refs to click
 //
 // Run `bun run app help` for every command.
-import { cp, rm, stat } from 'node:fs/promises'
+import { cp, mkdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import type { Scene } from '../src/lib/agent-bridge/api'
 import type { Target } from '../src/lib/agent-bridge/page'
 import { diffShots } from './app-diff'
+import {
+  DEFAULT_SCENE,
+  cropSnapshot,
+  DEMO_PROJECT,
+  frameWindow,
+  selectShots,
+  SHOT_PANEL_LAYOUT,
+  SHOTS,
+  type Shot,
+  type ShotStep,
+} from './app-shots'
 import { devIdentity } from './dev-slot'
 import { parseDuration, parseLevel, readCrashes, readLogs } from './app-logs'
 
@@ -25,6 +37,10 @@ Looking
   tree                    Outline of the visible UI. Controls get [n] refs for click/fill
   shot [name]             PNGs of the window, light then dark, in docs/tasks-todo/temporary
                           --theme=light|dark|both  --size=<W>x<H>  --out=<dir>
+  shots [name...]         Retake the website's screenshots (all by default) from the
+                          shot list in scripts/app-shots.ts, into website/src/assets
+                          --list  --out=<dir>  --setup (set up one shot and stop, to
+                          capture native UI by hand)  --restore (undo --setup)
 
 Doing
   open-project [path]     Open a project folder. Defaults to the test vault, which is
@@ -92,6 +108,7 @@ const [command, ...params] = args.filter(a => !a.startsWith('--'))
 // The flags each command takes; anything else is rejected rather than ignored
 const COMMAND_FLAGS: Record<string, string[]> = {
   shot: ['theme', 'size', 'out'],
+  shots: ['list', 'out', 'setup', 'restore'],
   styleguide: ['theme', 'size', 'out'],
   diff: ['out'],
   run: ['list'],
@@ -101,7 +118,7 @@ const COMMAND_FLAGS: Record<string, string[]> = {
   logs: ['source', 'level', 'since', 'grep', 'limit', 'full', 'crashes'],
 }
 // The only flags that can be given without a value
-const SWITCHES = ['list', 'full', 'crashes']
+const SWITCHES = ['list', 'full', 'crashes', 'setup', 'restore']
 
 function print(value: unknown) {
   console.log(
@@ -324,6 +341,176 @@ async function takeShots(name: string) {
   }
 }
 
+async function runShotStep(step: ShotStep) {
+  if ('run' in step) await callApi('run', step.run)
+  else if ('click' in step) await callApi('click', { text: step.click })
+  else if ('clickSelector' in step) {
+    await callApi('click', { selector: step.clickSelector })
+  } else if ('key' in step) await callApi('key', step.key)
+  else if ('waitForIssues' in step) await callApi('waitForIssues')
+  else if ('js' in step) {
+    await call('POST', '/eval', { js: step.js })
+    await callApi('idle')
+  } else if ('scrollTo' in step) {
+    await call('POST', '/eval', {
+      js: `const text = ${jsLiteral(step.scrollTo)}
+        const root = document.querySelector('[role="dialog"]') ?? document.body
+        const el = [...root.querySelectorAll('*')].find(
+          e => !e.children.length && e.textContent.trim() === text
+        )
+        if (!el) throw new Error('Nothing with the text ' + text)
+        el.scrollIntoView({ block: 'start' })`,
+    })
+    await callApi('idle')
+  } else if ('replaceText' in step) {
+    await call('POST', '/eval', {
+      js: `const [from, to] = ${jsLiteral(step.replaceText)}
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+        while (walker.nextNode()) {
+          const node = walker.currentNode
+          if (node.nodeValue.includes(from)) node.nodeValue = node.nodeValue.replaceAll(from, to)
+        }`,
+    })
+  } else {
+    await callApi('rememberAdded', path.join(DEMO_PROJECT, step.added))
+    await callApi('idle')
+  }
+}
+
+const PANEL_LAYOUT_KEY = 'panel-v4:astro-editor-layout'
+
+/**
+ * Sets the saved panel widths, which the app only reads when the page loads.
+ * Saves the open file first, since the reload discards unsaved edits.
+ */
+async function setPanelLayout(layout: string | null) {
+  await callApi('saveOpenFile')
+  const key = jsLiteral(PANEL_LAYOUT_KEY)
+  await call('POST', '/eval', {
+    js:
+      layout === null
+        ? `localStorage.removeItem(${key})`
+        : `localStorage.setItem(${key}, ${jsLiteral(layout)})`,
+  })
+  await navigate({ reload: true })
+}
+
+/** The logical-pixel box around `text`, in the smallest element that has `contains`. */
+async function cropBox({
+  text,
+  contains,
+}: NonNullable<Shot['cropTo']>): Promise<NonNullable<Shot['crop']>> {
+  return call('POST', '/eval', {
+    js: `const text = ${jsLiteral(text)}, contains = ${jsLiteral(contains)}
+      let el = [...document.querySelectorAll('body *')].find(
+        e => !e.children.length && e.textContent.trim() === text
+      )
+      if (!el) throw new Error('Nothing with the text ' + text)
+      while (!el.textContent.includes(contains)) el = el.parentElement
+      const r = el.getBoundingClientRect()
+      const x = Math.max(0, Math.floor(r.left) - 8), y = Math.max(0, Math.floor(r.top) - 8)
+      return [x, y,
+        Math.min(innerWidth, Math.ceil(r.right) + 8) - x,
+        Math.min(innerHeight, Math.ceil(r.bottom) + 8) - y]`,
+  })
+}
+
+/** Gets the app into a shot's state, from whatever was showing. */
+async function setUpShot(shot: Shot) {
+  if (!(await exists(DEMO_PROJECT))) {
+    throw new Error(
+      'the demo repo is missing. Build it with `bash scripts/make-git-test-repos.sh demo`'
+    )
+  }
+  await callApi('openProject', DEMO_PROJECT)
+  await callApi('setGitPanel', shot.gitPanel ?? false)
+  await call('POST', '/window', {
+    width: shot.size[0],
+    height: shot.size[1],
+  })
+  // The scene is set after the file opens, because highlights and checks only
+  // run straight away when their settings change on the open document
+  await callApi('setScene', DEFAULT_SCENE)
+  if (shot.file) {
+    await callApi('openFile', path.join(DEMO_PROJECT, 'src/content', shot.file))
+  }
+  await callApi('setScene', { ...DEFAULT_SCENE, ...shot.scene })
+  // Before the steps, because a theme change closes editor tooltips
+  await call('POST', '/window', { theme: shot.theme })
+  await callApi('setTheme', shot.theme)
+  await callApi('idle')
+  for (const step of shot.steps ?? []) await runShotStep(step)
+}
+
+/** What shots change in the dev app, to put back afterwards */
+type AppSnapshot = {
+  window: WindowInfo
+  state: AppState
+  scene: Scene
+  theme: string
+  panelLayout: string | null
+}
+
+// Where `shots --setup` keeps the app's state until `shots --restore`
+const savedAppState = Bun.file(
+  path.join(root, SHOT_DIR, 'raw', 'app-state-before-setup.json')
+)
+
+async function captureAppState(): Promise<AppSnapshot> {
+  return {
+    window: await call<WindowInfo>('GET', '/window'),
+    state: await callApi<AppState>('state'),
+    scene: await callApi<Scene>('scene'),
+    theme: await callApi<string>('getTheme'),
+    panelLayout: await call<string | null>('POST', '/eval', {
+      js: `return localStorage.getItem(${jsLiteral(PANEL_LAYOUT_KEY)})`,
+    }),
+  }
+}
+
+async function restoreAppState(before: AppSnapshot) {
+  await callApi('shotMode', false)
+  await call('POST', '/window', { theme: 'system' })
+  await callApi('setTheme', before.theme)
+  await call('POST', '/window', {
+    width: before.window.width,
+    height: before.window.height,
+  })
+  await setPanelLayout(before.panelLayout)
+  if (before.state.project) {
+    await callApi('openProject', before.state.project)
+  }
+  await callApi('setScene', before.scene)
+  if (before.state.file) await callApi('openFile', before.state.file.path)
+  if (await savedAppState.exists()) await savedAppState.delete()
+}
+
+/** Takes one shot in its theme and writes it, framed if the shot asks for it. */
+async function takeListedShot(shot: Shot, out: string) {
+  await callApi('shotMode', true)
+  await callApi('measureEditor')
+  const raw = path.resolve(root, SHOT_DIR, 'raw', `${shot.name}.png`)
+  await mkdir(path.dirname(raw), { recursive: true })
+  await call('POST', '/snapshot', { path: raw })
+  const crop = shot.cropTo ? await cropBox(shot.cropTo) : shot.crop
+  await callApi('shotMode', false)
+  for (const step of shot.after ?? []) await runShotStep(step)
+  if (shot.rawOnly) {
+    print(path.relative(root, raw))
+    return
+  }
+  const file = path.resolve(root, out, `${shot.name}.png`)
+  await mkdir(path.dirname(file), { recursive: true })
+  const snapshot = Buffer.from(await Bun.file(raw).arrayBuffer())
+  const image = crop
+    ? cropSnapshot(snapshot, crop)
+    : shot.frame
+      ? frameWindow(snapshot)
+      : snapshot
+  await Bun.write(file, image)
+  print(path.relative(root, file))
+}
+
 const commands: Record<string, () => Promise<void>> = {
   async status() {
     const health = await call<{ app: string; version: string; pid: number }>(
@@ -349,6 +536,51 @@ const commands: Record<string, () => Promise<void>> = {
 
   async shot() {
     await takeShots(params[0] ?? 'app')
+  },
+
+  async shots() {
+    if (flags.list) {
+      print(SHOTS.map(s => s.name).join('\n'))
+      return
+    }
+    if (flags.restore) {
+      if (!(await savedAppState.exists())) {
+        throw new Error('nothing to restore: no shot is set up')
+      }
+      await restoreAppState((await savedAppState.json()) as AppSnapshot)
+      print('restored the app')
+      return
+    }
+    const selected = selectShots(params)
+    if (flags.setup) {
+      if (selected.length !== 1 || !params.length) {
+        throw new Error('--setup needs exactly one shot name')
+      }
+      // Kept on disk, so a second --setup still goes back to the original state
+      if (!(await savedAppState.exists())) {
+        await Bun.write(savedAppState, JSON.stringify(await captureAppState()))
+      }
+      await setPanelLayout(JSON.stringify(SHOT_PANEL_LAYOUT))
+      await setUpShot(selected[0]!)
+      print(
+        `${selected[0]!.name} is set up. Take it on the Mac, then run \`bun run app shots --restore\``
+      )
+      return
+    }
+
+    const out = typeof flags.out === 'string' ? flags.out : 'website/src/assets'
+    const before = (await savedAppState.exists())
+      ? ((await savedAppState.json()) as AppSnapshot)
+      : await captureAppState()
+    try {
+      await setPanelLayout(JSON.stringify(SHOT_PANEL_LAYOUT))
+      for (const shot of selected) {
+        await setUpShot(shot)
+        await takeListedShot(shot, out)
+      }
+    } finally {
+      await restoreAppState(before)
+    }
   },
 
   async 'open-project'() {

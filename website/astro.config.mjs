@@ -6,6 +6,9 @@ import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightKbd from 'starlight-kbd'
 import AutoImport from 'astro-auto-import'
 import starlightPageActions from 'starlight-page-actions'
+import { BLUESKY_URL } from './src/consts.ts'
+
+const OG_IMAGE = 'https://astroeditor.danny.is/og-image.png'
 
 // https://astro.build/config
 export default defineConfig({
@@ -15,6 +18,7 @@ export default defineConfig({
   compressHTML: true,
   redirects: {
     '/reference/overrides': '/reference/settings/',
+    '/editor/copyedit-modes': '/editor/copyediting/',
   },
   integrations: [
     starlight({
@@ -52,6 +56,11 @@ export default defineConfig({
           label: 'GitHub',
           href: 'https://github.com/dannysmith/astro-editor',
         },
+        {
+          icon: 'blueSky',
+          label: 'Bluesky',
+          href: BLUESKY_URL,
+        },
       ],
       head: [
         { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
@@ -61,7 +70,15 @@ export default defineConfig({
         },
         {
           tag: 'meta',
+          attrs: { property: 'og:image', content: OG_IMAGE },
+        },
+        {
+          tag: 'meta',
           attrs: { name: 'twitter:card', content: 'summary_large_image' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:image', content: OG_IMAGE },
         },
         {
           tag: 'script',
@@ -90,7 +107,7 @@ export default defineConfig({
             { slug: 'editor/images-and-files' },
             { slug: 'editor/mdx-components' },
             { slug: 'editor/focus-and-typewriter' },
-            { slug: 'editor/copyedit-modes' },
+            { slug: 'editor/copyediting' },
           ],
         },
         {
@@ -109,6 +126,7 @@ export default defineConfig({
             { slug: 'frontmatter/special-fields' },
           ],
         },
+        { slug: 'git', badge: { text: 'Experimental', variant: 'caution' } },
         { slug: 'project-settings' },
         { slug: 'preferences' },
         {
@@ -121,6 +139,10 @@ export default defineConfig({
             { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
             { slug: 'reference/yaml' },
+            {
+              slug: 'reference/git',
+              badge: { text: 'Experimental', variant: 'caution' },
+            },
             { slug: 'reference/troubleshooting' },
           ],
         },

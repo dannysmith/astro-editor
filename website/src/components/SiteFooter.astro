@@ -1,7 +1,7 @@
 ---
 import { Image } from 'astro:assets'
 import logo from '../assets/icon.png'
-import { GITHUB_REPO } from '../consts'
+import { BLUESKY_URL, GITHUB_REPO } from '../consts'
 
 const year = new Date().getFullYear()
 const githubUrl = GITHUB_REPO
@@ -12,6 +12,7 @@ const footerLinks = [
   { label: 'Releases', href: '/releases/' },
   { label: 'Privacy', href: '/privacy/' },
   { label: 'GitHub', href: githubUrl },
+  { label: 'Bluesky', href: BLUESKY_URL },
 ]
 ---
 

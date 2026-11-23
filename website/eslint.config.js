@@ -7,7 +7,16 @@ export default [
   ...tseslint.configs.recommended,
   ...eslintPluginAstro.configs.recommended,
   {
-    ignores: ['dist/', '.astro/', 'node_modules/', 'video/out/'],
+    // The video page's scripts are classic <script> tags that share globals,
+    // which ESLint sees as undefined and unused names in each file
+    ignores: [
+      'dist/',
+      '.astro/',
+      'node_modules/',
+      'video/out/',
+      'video/*.js',
+      'video/chapters/',
+    ],
   },
   // The video pipeline scripts run in Node, and pass callbacks that run in the
   // browser page to Playwright's page.evaluate().

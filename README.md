@@ -11,13 +11,19 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 **Writing Environment**
 
 - Clean markdown/MDX editor with syntax highlighting. Frontmatter and imports are hidden while editing, shown in a dedicated sidebar.
-- Focus mode (highlights current sentence), copyedit mode (highlights parts of speech), and typewriter mode (keeps the cursor centered on screen).
+- Focus mode (highlights current sentence) and typewriter mode (keeps the cursor centered on screen).
 - Customizable heading colors with separate settings for dark and light themes.
 - Image preview on hover (Option + hover over paths).
 - Comprehensive keyboard shortcuts for formatting, headings, and navigation.
 - Auto-save: saves 2 seconds after you stop typing (configurable) with backup saves every 10 seconds while typing, and before the app quits. If a save fails, your unsaved text is kept in a recovery file.
-- Light/dark theme with system integration.
+- Light/dark theme with system integration, and custom colour themes written in CSS.
 - IDE integration (open files/projects in VSCode, Cursor, etc.).
+
+**Copyediting**
+
+- A Copyedit panel in the right sidebar highlights parts of speech (nouns, verbs, adjectives, adverbs and conjunctions).
+- Spelling, grammar and style checks in English from [Harper](https://writewithharper.com), which run on your computer and send nothing anywhere.
+- Hover an underline or click an issue in the panel to see suggested fixes, add a word to your dictionary, or ignore it.
 
 **Frontmatter & Schema Integration**
 
@@ -25,6 +31,7 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 - Supports all Zod types: strings, numbers, dates, booleans, enums, arrays, nested objects, references, and image fields.
 - Image fields provide drag-and-drop with automatic copying to your assets directory using relative paths by default (configurable per project/collection).
 - Field constraints (min/max, character limits) shown as hints under each field.
+- Editing a field changes only that field, so the rest of your frontmatter keeps its formatting and comments. Frontmatter that can't be read shows an error and is left as it was.
 
 **MDX Components**
 
@@ -37,10 +44,16 @@ https://github.com/user-attachments/assets/e7358217-d876-4b45-befb-d6cd22f52b49
 - Collections read from your `content.config.ts`, with each collection's folder and file pattern taken from its loader, so content can live anywhere in the project.
 - Full support for subdirectories within collections.
 - Files sorted by publication date (configurable field name) with draft indicators.
-- New files named by a pattern per collection: the date, the title, or both.
-- Context menu for rename, duplicate, reveal in Finder, copy path.
+- New files named by a pattern per collection, from the title, the date and time, or a number.
+- Context menu for rename, duplicate, delete, reveal in Finder, copy path. Deleted files go to the Trash by default.
 - Command palette (`Cmd + P`) for quick file switching and command access.
 - Project list (`Cmd + Shift + O`) for switching between projects and finding ones you've moved. Opening a project takes you back to the file you had open.
+
+**Git (experimental)**
+
+- An optional Git tab, switched on per project, commits the piece you're working on along with the images and files it uses.
+- Push and pull from the tab. It runs your own `git`, so your credentials, hooks and signing work as they do in your terminal.
+- Branches, merges and conflicts stay in your git tool.
 
 **Project Settings**
 
@@ -79,6 +92,7 @@ brew install --cask astro-editor
 ## Documentation
 
 - **[Documentation](https://astroeditor.danny.is/getting-started/)** - Complete feature documentation
+- **[Bluesky](https://bsky.app/profile/astroeditor.danny.is)** - Releases, updates and sneak peeks
 - **[Contributing](docs/CONTRIBUTING.md)** - Development setup and guidelines
 
 ## Disclaimer
@@ -91,8 +105,8 @@ Bug reports and feature requests are welcome. See the [issue tracker](https://gi
 
 **Project Philosophy:**
 
-- This is a tool for "writer mode", not "coder mode". Features related to git, publishing, deployment, or code editing are out of scope.
-- The UI is intentionally opinionated for simplicity. Customization options are limited to what's needed to work with different Astro project structures.
+- This is a tool for "writer mode", not "coder mode". Features related to deployment, managing a repository, or code editing are out of scope. A few features touch that territory because they solve problems you hit while writing: the Git tab commits and pushes the piece you're working on, and leaves everything else to your git tool.
+- The UI is intentionally opinionated for simplicity. Customization options are mostly limited to what's needed to work with different Astro project structures.
 
 Pull requests welcome. See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup.
 

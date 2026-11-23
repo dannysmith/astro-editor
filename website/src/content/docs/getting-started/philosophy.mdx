@@ -17,7 +17,7 @@ Because of this, it's common to **write** in tools like [iA Writer](https://ia.n
 
 Steps 1-3 are very much _writer mode_ tasks, while 4 & 5 are definitely _coder mode_ tasks.
 
-**Astro Editor is only concerned with the former**.
+**Astro Editor is mostly concerned with the former**.
 
 ## Core Principles
 
@@ -31,14 +31,16 @@ All of Astro Editor's features are designed to make **writing and editing** easy
 
 ### 3. No coder-mode stuff
 
-Astro Editor is not concerned with coder-mode stuff at all. In practice that means:
+Astro Editor is not concerned with coder-mode stuff. In practice that means:
 
 - **Code blocks are not syntax highlighted**. If you have code examples in your files you're better off authoring them in a coding tool which can properly lint, format and check them.
-- **There's no mechanism for committing or publishing** in Astro Editor. You should do that in a code editor or terminal or some other app designed for that.
+- **There's no way to build or deploy your site, or manage your repository**. The optional [Git tab](/git/) will commit the piece you're working on with its images and push it, but for branches, merges, conflicts or changes across lots of files you should use a code editor or terminal or some other app designed for that.
 - **There's no way to preview your writing**. The best way to do that is by running your Astro site locally and looking at it in a browser.
+
+A few features do touch coder-mode territory, like the Git tab and [adding MDX imports](/editor/mdx-components/#adding-imports). They're here because they solve problems you run into **while you're in writer mode**. An MDX component won't work until it's imported, and a finished post still needs committing with its images. Neither of those should mean switching to VS Code.
 
 ### 4. Simplicity
 
-Astro Editor values simplicity and is intentionally opinionated about its UI. We limit user customisation to _"making it work with your Astro project and no more"_. It's not possible to customise the colour schemes, typeface etc. If you need fine-grained customisation & extensibility we recommend using a custom profile in VSCode (or Obsidian) which you've set up for Markdown editing.
+Astro Editor values simplicity and is intentionally opinionated about its UI. We limit user customisation to _"making it work with your Astro project and not much more"_. It's not possible to change the typeface etc. If you really want different colours you can [write a colour theme](/reference/advanced-preferences/#colour-themes) in CSS, but there are no built-in themes and no theme editor. If you need fine-grained customisation & extensibility we recommend using a custom profile in VSCode (or Obsidian) which you've set up for Markdown editing.
 
 This also means we fully expect Astro Editor to become **finished software** at some point.

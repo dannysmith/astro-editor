@@ -9,6 +9,8 @@ export const collections = {
     schema: docsSchema({
       extend: z.object({
         date: z.coerce.date().optional(),
+        // false hides the page actions, for pages with no Markdown behind them
+        pageActions: z.boolean().optional(),
       }),
     }),
   }),

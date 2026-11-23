@@ -11,8 +11,8 @@ Astro Editor is a native macOS markdown editor for Astro content collections, bu
 Product principles (from `website/src/content/docs/getting-started/philosophy.mdx`), which decide what gets built:
 
 - **It's an interface for content files on disk,** like a terminal or VS Code is. It reads and writes the same files.
-- **Writer mode only.** Every feature has to make writing and editing easier. Coder-mode work (syntax-highlighted code blocks, committing, publishing, deploying, previewing the site) is out of scope.
-- **Simplicity.** The UI is opinionated; settings exist only to make it work with a project's structure, not to customise its look. It's meant to become finished software.
+- **Writer mode only.** Every feature has to make writing and editing easier. Coder-mode work (syntax-highlighted code blocks, building, deploying, previewing the site, managing a repository) is out of scope. A feature may touch it only to solve a problem a writer hits while writing: the Git tab commits and pushes the entry being worked on, and leaves branches, merges and conflicts to a git tool.
+- **Simplicity.** The UI is opinionated; settings exist mainly to make it work with a project's structure, not to customise its look. It's meant to become finished software.
 - **Native, instant, and it never loses work.** Auto-save and data safety come before features (see `docs/developer/editor.md`).
 
 `website/` is a separate project (the docs and marketing site) with its own `website/AGENTS.md`. It's not part of the app's dependency tree.

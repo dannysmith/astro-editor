@@ -4,12 +4,14 @@
 # checkout, so nothing done in them can land in this repo. What each is for is
 # in docs/developer/git.md.
 #
-#   bash scripts/make-git-test-repos.sh
+#   bash scripts/make-git-test-repos.sh        # everything
+#   bash scripts/make-git-test-repos.sh demo   # only demo-project, for screenshots
 #
 # Run it from the astro-editor checkout, outside the agent sandbox (it writes
 # to ~/dev). macOS only (BSD `date` and `sed`). Each site is a copy of a project
 # in test/, including its generated .astro/ folder, plus `bun install`.
-# Re-running wipes and recreates everything.
+# Re-running wipes and recreates everything, except that `demo` touches only
+# demo-project and its remote.
 set -euo pipefail
 
 SRC="$(git rev-parse --show-toplevel)/test"
@@ -24,8 +26,6 @@ export GIT_CEILING_DIRECTORIES="$HOME/dev"
 export GIT_CONFIG_PARAMETERS="'commit.gpgsign=false' 'core.hooksPath=/dev/null' 'init.defaultBranch=main' 'protocol.file.allow=always'"
 
 case "$ROOT" in "$HOME/dev/temp-git-repos-for-ae-testing") ;; *) exit 1 ;; esac
-rm -rf "$ROOT"
-mkdir -p "$ROOT/remotes"
 
 copy_site() { # copy_site <test project> <dest>
   # .astro/ stays committed (not gitignored) so clones and the submodule have
@@ -51,6 +51,85 @@ with_remote() { # with_remote <name>: bare remote in remotes/, push main, set up
   git remote add origin "$ROOT/remotes/$1.git"
   git push -q -u origin main
 }
+
+# --- demo-project: the site in the website's screenshots ----------------------
+# One commit to push, and the Lisbon article mid-edit with its new images. It has
+# its own identity, with no signing or hooks, because Project Settings shows them.
+build_demo() {
+  local D="$ROOT/demo-project" A=src/content/articles IMAGES=src/assets/articles
+  rm -rf "$D" "$ROOT/remotes/demo-project.git"
+  mkdir -p "$ROOT/remotes"
+  copy_site demo-project "$D"
+  cd "$D"
+  # A rough draft with mistakes for the Copyedit panel's checks to find
+  cat > "$A/lifestyle/walking-to-work.md" <<'EOF'
+---
+title: Why I Walk to Work
+description: What forty minutes on foot each morning changed
+pubDate: 2024-10-02
+tags: [lifestyle, habits]
+draft: true
+author: danny-smith
+---
+
+# Why I Walk to Work
+
+I started walking to work last spring, mostly because the bus was unreliable. It takes fourty minutes, which sounded like alot until I tried it.
+
+The first week was harder then I expected. My feet hurt, it rained twice, and I arrived at the office looking like I had swam there. But by the third week something had changed.
+
+I was noticing things I'd never seen from the the bus: a bakery on Mill Road, a heron on the canal, the same old man feeding pigeons every morning.
+
+In order to make it stick, I started leaving ten minutes earlier. Their is something very calming about having nowhere to be for a little while.
+
+## What I Changed
+
+- Better shoes, which should of been the first thing I bought
+- A small umbrella that lives in my bag
+- No headphones on the way in
+
+I still take the bus when it snows. But most days I'd rather walk, and I get to my desk with a clearer head then I ever did before.
+EOF
+  git init -q
+  git config user.name "Alex Morgan"
+  git config user.email "alex@example.com"
+  git config commit.gpgsign false
+  git config core.hooksPath .git/hooks
+  git add -A -- . ":!$A/travel" ":!$A/lifestyle/slow-mornings.md"
+  commit_as me 60 "Set up the site"
+  git add "$A/lifestyle/slow-mornings.md"
+  commit_as me 24 "Add “The Art of Slow Mornings”"
+  git add "$A/travel/scottish-highlands.mdx"
+  commit_as me 12 "Add “A Weekend in the Scottish Highlands”"
+  git add "$A/travel/weekend-in-lisbon.md"
+  commit_as me 5 "Add “A Weekend Guide to Lisbon”"
+  with_remote demo-project
+  printf '\nThe kettle goes on before the phone comes out.\n' >> "$A/lifestyle/slow-mornings.md"
+  git add "$A/lifestyle/slow-mornings.md"
+  commit_as me 1 "Update “The Art of Slow Mornings”"
+  # Uncommitted: two images the article uses, one it no longer does, and another entry
+  for image in lisbon-tram lisbon-miradouro lisbon-custard-tarts; do
+    cp "$IMAGES/styleguide-image.jpg" "$IMAGES/$image.jpg"
+  done
+  sed -i '' -e '/^Take Tram 28/i\
+![Tram 28 climbing through Alfama](../../../assets/articles/lisbon-tram.jpg)\
+\
+' -e '/^End your trip watching sunset/a\
+\
+![The view from Miradouro da Senhora do Monte](../../../assets/articles/lisbon-miradouro.jpg)
+' "$A/travel/weekend-in-lisbon.md"
+  printf '\nTry the V60 next.\n' >> src/content/notes/coffee-brewing-guide.md
+}
+
+if [ "${1:-}" = demo ]; then
+  build_demo
+  echo "Built $ROOT/demo-project: $(git -C "$ROOT/demo-project" log -1 --format='%h %s')"
+  exit 0
+fi
+
+rm -rf "$ROOT"
+mkdir -p "$ROOT/remotes"
+build_demo
 
 # --- blog: a site at the root of its own repo, with history and a remote ------
 B="$ROOT/blog"
@@ -154,6 +233,6 @@ for site in "$B" "$ROOT/blog-collaborator" "$I/site" "$ROOT/no-repo" "$P/site"; 
 done
 
 echo "Built in $ROOT:"
-for r in blog blog-collaborator monorepo ignored-site no-repo submodule-parent; do
+for r in demo-project blog blog-collaborator monorepo ignored-site no-repo submodule-parent; do
   printf '  %-18s %s\n' "$r" "$(git -C "$ROOT/$r" log -1 --format='%h %s' 2>/dev/null || echo '(no repo)')"
 done

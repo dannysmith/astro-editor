@@ -137,10 +137,14 @@ async function waitForIdle(queryClient?: QueryClient, timeoutMs = 5000) {
 
 /**
  * Turns transitions off while screenshots are taken, so colour changes from a
- * theme switch land immediately rather than mid-transition.
+ * theme switch land immediately rather than mid-transition. Also shows the
+ * traffic lights in colour, since the dev window is usually in the background.
  */
 function setShotMode(on: boolean) {
   document.getElementById('agent-bridge-shot-mode')?.remove()
+  document
+    .querySelector('.traffic-lights-group')
+    ?.classList.toggle('window-unfocused', !on && !document.hasFocus())
   if (!on) return
   const style = document.createElement('style')
   style.id = 'agent-bridge-shot-mode'
