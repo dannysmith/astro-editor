@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
 import { useCollection } from '../../../hooks/settings'
 import { stemWithDate } from '../../../lib/files/file-name-pattern'
 import { renamableStem, renameOpenFile } from '../../../lib/files/rename'
@@ -12,7 +12,9 @@ import { renamableStem, renameOpenFile } from '../../../lib/files/rename'
 export const RenameToDateLink: React.FC<{ date: Date | undefined }> = ({
   date,
 }) => {
-  const path = useEditorStore(state => state.currentFile?.path)
+  const path = useEditorStore(shownFilePath)
+  // While the previous file's values are held, this name is for that file
+  const isHeld = useEditorStore(state => state.heldFrontmatter !== null)
   const collectionName = useEditorStore(state => state.currentFile?.collection)
   const collection = useCollection(collectionName)
   if (!date || !path || !collection) return null
@@ -29,6 +31,7 @@ export const RenameToDateLink: React.FC<{ date: Date | undefined }> = ({
   return (
     <button
       type="button"
+      disabled={isHeld}
       onClick={() => void renameOpenFile(renamed)}
       className="w-fit text-xs text-muted-foreground hover:text-foreground"
     >

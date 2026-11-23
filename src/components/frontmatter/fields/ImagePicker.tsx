@@ -40,17 +40,27 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   selectLabel = 'Select Image',
 }) => {
   const [isLoading, setIsLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState('')
+  const openGeneration = useEditorStore(state => state.openGeneration)
+  // The path being typed. Fields stay mounted across files, so it's tied to
+  // the file it was started on and doesn't carry over to the next one
+  const [draft, setDraft] = useState<{
+    openGeneration: number
+    text: string
+  } | null>(null)
+  const currentDraft = draft?.openGeneration === openGeneration ? draft : null
+  const isEditing = currentDraft !== null
   const id = React.useId()
 
   // When editing, show edit value; otherwise show current value
-  const displayValue = isEditing ? editValue : value
+  const displayValue = currentDraft ? currentDraft.text : value
 
   const handleFileSelect = async (filePath: string) => {
+    // Until the file loads, the panel can be showing the previous file
+    if (!useEditorStore.getState().isLoaded) return
+
     setIsLoading(true)
     // Capture the starting file and project to detect switches during the copy
-    const startingFileId = useEditorStore.getState().currentFile?.id
+    const startingGeneration = useEditorStore.getState().openGeneration
     const startingProject = useProjectStore.getState().projectPath
 
     const result = await copyImageToAssets(filePath).catch(showAddImageError)
@@ -60,7 +70,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     // CRITICAL: Check if the user switched files during the async operation
     // If they did, DO NOT update frontmatter (would corrupt the new file)
     if (
-      useEditorStore.getState().currentFile?.id !== startingFileId ||
+      useEditorStore.getState().openGeneration !== startingGeneration ||
       useProjectStore.getState().projectPath !== startingProject
     ) {
       if (import.meta.env.DEV) {
@@ -75,21 +85,21 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   }
 
   const handleEditStart = () => {
-    setEditValue(value)
-    setIsEditing(true)
+    // Until the file loads, `value` can be the previous file's
+    if (!useEditorStore.getState().isLoaded) return
+    setDraft({ openGeneration, text: value })
   }
 
   const handleEditCancel = () => {
-    setEditValue('')
-    setIsEditing(false)
+    setDraft(null)
   }
 
   const handleEditSave = () => {
+    if (!currentDraft) return
     // Manual edit: user has full control, no validation. An empty path clears
     // the image; a missing file just fails to preview
-    onChange(editValue.trim() || undefined)
-    setIsEditing(false)
-    setEditValue('')
+    onChange(currentDraft.text.trim() || undefined)
+    setDraft(null)
   }
 
   return (
@@ -101,7 +111,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
             aria-labelledby={labelId}
             type="text"
             value={displayValue}
-            onChange={e => setEditValue(e.target.value)}
+            onChange={e => setDraft({ openGeneration, text: e.target.value })}
             placeholder="Enter image path (e.g., /src/assets/image.jpg)"
             disabled={!isEditing}
             onKeyDown={e => {

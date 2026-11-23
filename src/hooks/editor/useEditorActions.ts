@@ -21,6 +21,7 @@ import { isBackToBaseline } from '../../lib/files/frontmatter-baseline'
 import { findOwningProjectPath } from '../../lib/deep-link'
 import { showProjectList } from '../../lib/projects/actions'
 import { renameUnderWay } from '../../lib/files/rename'
+import { queueWrite } from '../../lib/files/write-queue'
 
 /**
  * Waits until the project store has the project `projectId` open, with its
@@ -60,19 +61,12 @@ function waitForProjectReady(
 }
 
 /**
- * The latest save's write, while it's under way. Saves can overlap (Cmd+S
- * during an auto-save, or the forced save while typing on a slow disk), so
- * each write waits for the one before and they land in the order they were
- * asked for. Each save still reads the store as soon as it's asked for, which
- * switching files relies on.
- */
-let writeUnderWay: Promise<void> | null = null
-
-/**
  * Saves the open file: writes its body, imports and frontmatter (edited
  * values spliced into the frontmatter's text, see below), marks it clean if
  * nothing changed meanwhile, and refreshes the queries that show it. On
  * failure, writes recovery data and a crash report and keeps the file dirty.
+ * It reads the store as soon as it's called, even if its write has to queue,
+ * which switching files relies on.
  * Plain function rather than inline in the hook so the React Compiler can
  * compile the hook (it can't handle `throw` inside `try`).
  */
@@ -89,6 +83,7 @@ async function saveCurrentFile(
     isFrontmatterDirty,
     imports,
     isLoaded,
+    openGeneration,
   } = useEditorStore.getState()
   // Until the file has loaded, the store holds an empty placeholder, which
   // must never be written over it
@@ -146,8 +141,7 @@ async function saveCurrentFile(
         ? frontmatterBaseline.raw
         : rawFrontmatter
 
-    // Waits for a write under way, so an older save can't land last
-    const save = () =>
+    const result = await queueWrite(() =>
       commands.saveMarkdownContent(
         path,
         writeValues ? (frontmatter as Record<string, JsonValue>) : null,
@@ -158,24 +152,16 @@ async function saveCurrentFile(
         reorderFrontmatter,
         projectPath
       )
-    const write = writeUnderWay ? writeUnderWay.then(save) : save()
-    const settled = write.then(
-      () => undefined,
-      () => undefined
     )
-    writeUnderWay = settled
-    void settled.then(() => {
-      if (writeUnderWay === settled) writeUnderWay = null
-    })
-    const result = await write
     if (result.status === 'error') {
       throw new Error(result.error)
     }
 
-    // If another file was opened during the save (openFile saves the
-    // outgoing file), the store now holds that file's state: leave it alone
+    // If a file was opened during the save (openFile saves the outgoing file),
+    // the store now holds that file's state: leave it alone. That includes
+    // switching away and back, where it holds this file's unloaded placeholder
     const currentState = useEditorStore.getState()
-    if (currentState.currentFile?.path === path) {
+    if (currentState.openGeneration === openGeneration) {
       // Clear auto-save timeout since we just saved
       if (currentState.autoSaveTimeoutId) {
         clearTimeout(currentState.autoSaveTimeoutId)
@@ -210,7 +196,7 @@ async function saveCurrentFile(
     if (projectPath) {
       // Invalidate file content query to refresh cached content
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.fileContent(projectPath, currentFile.id),
+        queryKey: queryKeys.fileContent(projectPath, path),
       })
 
       // The collection's folder listings (root + all subdirectories)
@@ -268,7 +254,7 @@ async function saveCurrentFile(
     // Save recovery data for the file that failed: the store's latest edits
     // if it's still open, otherwise what this save tried to write
     const state = useEditorStore.getState()
-    const stillOpen = state.currentFile?.id === currentFile.id
+    const stillOpen = state.openGeneration === openGeneration
     const recovered = await saveRecoveryData(
       stillOpen
         ? {
@@ -297,8 +283,9 @@ async function saveCurrentFile(
 
     // Keep the file marked as dirty since save failed. Restarting the clock
     // for the forced save means it's retried every 10 seconds while the
-    // writer types, not on every keystroke
-    if (stillOpen) {
+    // writer types, not on every keystroke. Another file may have opened
+    // while the recovery data was written
+    if (useEditorStore.getState().openGeneration === openGeneration) {
       useEditorStore.setState({ isDirty: true, dirtySince: Date.now() })
     }
   }

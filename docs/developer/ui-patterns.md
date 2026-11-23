@@ -47,9 +47,26 @@ Icon-only buttons, like those in the title bar, look like this:
 - **`[&_svg]:scale-100 [&_svg]:transform-gpu`** stops the icon shifting by a pixel when the button's state changes, which is visible when `disabled` toggles. Putting the SVG on its own compositing layer keeps its position stable. Apply it to every icon-only button, not just ones that can be disabled.
 - **`title`** gives the tooltip. Add `aria-label` when the title isn't a good accessible name.
 
+## Narrow containers
+
+Sidebars can be dragged to their minimum width, so a component should fit any width it's given, with CSS alone.
+
+- **Panel minimums go on the panel.** `react-resizable-panels` puts `style` on an inner div, so a `minWidth` there lays the contents out wider than the panel and they spill out. Use `minSize`, which takes pixels as `'200px'` (a bare number in a string is a percentage).
+- **Let flex children shrink.** Text in a flex row needs `min-w-0` on itself or its wrapper, then `truncate` or `[overflow-wrap:anywhere]`. `Badge` doesn't shrink, so one holding user text needs `max-w-full` and its text in a `truncate` span.
+- **Rearrange with a container query** when wrapping isn't enough. `FileItem` is an `@container`: with room, its badges stand beside the text, and in a narrow row they move to the date's line.
+- **Text doesn't scale fluidly in the UI.** Fluid type is for the editor only.
+
 ## Forms
 
-The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), which takes the field's schema and value and adds its label, required mark, description, constraints and default, so a change to any of them lands in one place. Its `horizontal` layout puts the control beside the label, with the description below both. What the panel lists, and in what order and nesting, comes from `frontmatterTree` (`lib/frontmatter-tree.ts`). Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+
+A frontmatter field's control sits in one box with a footer attached (the styleguide's "Frontmatter field constraints" section shows every state):
+
+- **Every constraint the schema sets is shown, all the time.** `fieldGuidance` (`lib/field-guidance.ts`) turns them into the footer's text and count. A new kind of constraint goes there. Dropdowns, references and dates are the exception: the control only offers valid values, so their footer only appears for a value in the file that isn't one.
+- **Constraints inform and never block.** AE is an editor, so anything can be typed and saved. A value outside its limits turns the footer amber (`--warning`). Red is for text that isn't being saved, like invalid JSON.
+- **Problems don't nag mid-word.** A value on its way to being valid (a half-typed URL, a word under its minimum) only shows as a problem once focus leaves the field. Going over a limit shows at once.
+- **A required field that's empty has a left edge** in `--required`, which goes once it's filled. Screen readers get "(required)" in the label either way.
+- **The box belongs to `FieldWrapper`.** A control inside it gives up its own border, radius and focus ring, so any shadcn control works unchanged. Controls made of several boxes (image pickers) pass `framed={false}` and get the same footer as plain text.
 
 Project settings are laid out differently, as a readout of what AE found rather than a form to fill in, like macOS System Settings. `components/project-settings/Setting.tsx` has the pieces, shown in the styleguide's "Project settings" section:
 

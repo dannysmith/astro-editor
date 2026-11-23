@@ -1,6 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import {
   Select,
   SelectContent,
@@ -9,26 +8,20 @@ import {
   SelectValue,
 } from '../../ui/select'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 import { NONE_SENTINEL } from './constants'
 
-interface EnumFieldProps extends FieldProps {
+interface EnumFieldProps extends FieldControlProps {
   options: string[]
-  field?: SchemaField
 }
 
 export const EnumField: React.FC<EnumFieldProps> = ({
   name,
   label,
   options,
-  required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
 
   const labelId = `${React.useId()}-label`
 
@@ -41,17 +34,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   ]
 
   return (
-    <FieldWrapper
-      label={label}
-      labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} labelId={labelId}>
       <Select
         items={items}
         value={value && typeof value === 'string' ? value : NONE_SENTINEL}
@@ -59,7 +42,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
           if (value === null) return
           // Special sentinel value means clear the field
           const finalValue = value === NONE_SENTINEL ? undefined : value
-          updateFrontmatterField(name, finalValue)
+          setValue(finalValue)
         }}
       >
         <SelectTrigger aria-labelledby={labelId}>

@@ -5,9 +5,9 @@
 export const LAYOUT_SIZES = {
   leftSidebar: {
     default: '20',
-    min: '15',
+    // In pixels, the narrowest its contents are designed for, at any window size
+    min: '200px',
     max: '35',
-    minWidth: '200px', // Minimum pixel width for usability
   },
   rightSidebar: {
     default: '25',

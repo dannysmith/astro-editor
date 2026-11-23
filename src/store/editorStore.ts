@@ -13,10 +13,28 @@ const MAX_AUTO_SAVE_DELAY_MS = 10000 // Maximum time between auto-saves (10 seco
 interface EditorState {
   // File state
   currentFile: FileEntry | null
+  /**
+   * Changes each time a file is opened or closed, but not when the open file
+   * is renamed. Async work compares it to tell whether the file it started on
+   * is still open, including after switching away and back
+   */
+  openGeneration: number
 
   // Content state
   editorContent: string // Content without frontmatter and imports
   frontmatter: Record<string, unknown> // Current frontmatter being edited
+  /**
+   * While a file loads, the previous file's frontmatter, for the panel to keep
+   * showing so its fields don't blank and jump. For display only: `frontmatter`
+   * stays empty until the load, so nothing can read or save these values
+   * against the new file. Only held within a collection, which has the same
+   * fields
+   */
+  heldFrontmatter: {
+    values: Record<string, unknown>
+    path: string
+    collection: string
+  } | null
   rawFrontmatter: string // The frontmatter block as written on disk, fences included
   /** The frontmatter as first loaded after opening; see `FrontmatterBaseline` */
   frontmatterBaseline: FrontmatterBaseline | null
@@ -99,16 +117,27 @@ function readFromDisk(file: FileEntry) {
   const { projectPath } = useProjectStore.getState()
   if (!projectPath) return
   void queryClient.resetQueries({
-    queryKey: queryKeys.fileContent(projectPath, file.id),
+    queryKey: queryKeys.fileContent(projectPath, file.path),
     exact: true,
   })
+}
+
+/** Moves the sidebar to `file`'s collection (Bridge Pattern) */
+function showFileCollection(file: FileEntry) {
+  window.dispatchEvent(
+    new CustomEvent('file-opened', {
+      detail: { collectionName: file.collection },
+    })
+  )
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Initial state
   currentFile: null,
+  openGeneration: 0,
   editorContent: '',
   frontmatter: {},
+  heldFrontmatter: null,
   rawFrontmatter: '',
   frontmatterBaseline: null,
   imports: '',
@@ -127,8 +156,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   openFile: (file: FileEntry) => {
     const { autoSaveTimeoutId, autoSaveCallback, currentFile, isDirty } = get()
 
-    // Re-opening the open file would reload it from disk over unsaved edits
-    if (isDirty && currentFile?.id === file.id) return
+    // Loading the open file again would lose its undo history, cursor and any
+    // unsaved edits. A clean one is just checked against disk
+    if (currentFile?.path === file.path) {
+      const { projectPath } = useProjectStore.getState()
+      if (!isDirty && projectPath) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.fileContent(projectPath, file.path),
+        })
+      }
+      showFileCollection(file)
+      return
+    }
 
     // Clear auto-save timeout if it exists to prevent race condition
     // where previous file's auto-save could fire after opening new file
@@ -146,13 +185,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // An opened file's content always comes from disk, never the cache
     readFromDisk(file)
 
+    // The values the panel is showing, to hold until the next file loads. A
+    // file whose frontmatter couldn't be read has none
+    const { isLoaded, frontmatter, frontmatterError, heldFrontmatter } = get()
+    const shown =
+      currentFile && isLoaded && !frontmatterError
+        ? {
+            values: frontmatter,
+            path: currentFile.path,
+            collection: currentFile.collection,
+          }
+        : heldFrontmatter
+
     // The outgoing file's content is cleared in the same update that sets
-    // currentFile, so Editor.tsx never reads it against the new file.
-    // lastSaveTimestamp makes useFileChangeHandler ignore changes to the file
-    // on disk for its first few seconds, as it does after a save
-    set({
+    // currentFile, so Editor.tsx never reads it against the new file
+    set(state => ({
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: shown?.collection === file.collection ? shown : null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
@@ -160,21 +210,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       loadError: null,
       frontmatterError: null,
       currentFile: file,
+      openGeneration: state.openGeneration + 1,
       isDirty: false,
       isFrontmatterDirty: false,
       autoSaveTimeoutId: null,
-      lastSaveTimestamp: Date.now(),
+      lastSaveTimestamp: null,
       dirtySince: null,
-    })
+    }))
     rememberLastEntry(file.path)
-
-    // Update the selected collection to match the opened file's collection
-    // Use custom event to communicate with project store (Bridge Pattern)
-    window.dispatchEvent(
-      new CustomEvent('file-opened', {
-        detail: { collectionName: file.collection },
-      })
-    )
+    showFileCollection(file)
 
     // useEditorFileContent loads the content
   },
@@ -186,7 +230,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Still dirty means the save failed; another file means one was opened
     // while saving, which isn't the one to close
     const after = get()
-    if (after.isDirty || after.currentFile?.id !== currentFile.id) return
+    if (after.isDirty || after.currentFile?.path !== currentFile.path) return
     after.closeCurrentFile()
   },
 
@@ -198,10 +242,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     // Clear all file-related state
-    set({
+    set(state => ({
       currentFile: null,
+      openGeneration: state.openGeneration + 1,
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
@@ -213,7 +259,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       autoSaveTimeoutId: null,
       lastSaveTimestamp: null,
       dirtySince: null,
-    })
+    }))
     if (!options?.keepLastEntry) rememberLastEntry(null)
   },
 
@@ -313,6 +359,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       store.isDirty &&
       now - store.dirtySince >= MAX_AUTO_SAVE_DELAY_MS
     ) {
+      // Restarts the clock, or every keystroke until this save finishes would
+      // fire another one
+      set({ dirtySince: now })
       const { autoSaveCallback } = store
       if (autoSaveCallback) {
         void autoSaveCallback(false) // Auto-save without toast
@@ -350,11 +399,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { currentFile } = get()
     if (!currentFile) return
     // Its new path may have content cached from a file that was there before
-    if (newFile.id !== currentFile.id) readFromDisk(newFile)
+    if (newFile.path !== currentFile.path) readFromDisk(newFile)
     set({ currentFile: newFile })
     rememberLastEntry(newFile.path)
   },
 }))
+
+/** The frontmatter the panel shows: the open file's, or what's held while it loads */
+export const shownFrontmatter = (state: EditorState) =>
+  state.heldFrontmatter?.values ?? state.frontmatter
+
+/** The path of the file whose frontmatter the panel is showing */
+export const shownFilePath = (state: EditorState) =>
+  state.heldFrontmatter?.path ?? state.currentFile?.path ?? null
 
 // Components can use direct selectors like:
 // const currentFile = useEditorStore(state => state.currentFile)

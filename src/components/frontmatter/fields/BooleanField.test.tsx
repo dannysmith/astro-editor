@@ -365,7 +365,7 @@ describe('BooleanField Component', () => {
         <BooleanField name="required" label="Required" field={requiredField} />
       )
 
-      expect(screen.getByText('*')).toBeInTheDocument()
+      expect(screen.getByText('(required)')).toBeInTheDocument()
     })
 
     it('should not show required indicator for optional field', () => {
@@ -380,13 +380,13 @@ describe('BooleanField Component', () => {
         <BooleanField name="optional" label="Optional" field={optionalField} />
       )
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
 
     it('should not show required indicator when no field schema', () => {
       renderWithProviders(<BooleanField name="noSchema" label="No Schema" />)
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
   })
 

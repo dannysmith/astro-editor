@@ -1,14 +1,9 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
-
-interface JsonFieldProps extends FieldProps {
-  field?: SchemaField
-}
+import type { FieldControlProps } from './types'
 
 /**
  * The JSON of what the store holds once `value` is written: an empty value
@@ -34,17 +29,13 @@ const toJson = (value: unknown): string =>
  * own edits, which would reformat the text under the cursor. Switching file
  * always replaces it.
  */
-export const JsonField: React.FC<JsonFieldProps> = ({
+export const JsonField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const fileId = useEditorStore(state => state.currentFile?.id)
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
+  const filePath = useEditorStore(shownFilePath)
   const [error, setError] = React.useState<string | null>(null)
   const id = React.useId()
 
@@ -53,10 +44,10 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   // The stored value the draft matches, or was last written as, and its file:
   // another file starts afresh even if its value is the same
   const [draftValueJson, setDraftValueJson] = React.useState(valueJson)
-  const [draftFileId, setDraftFileId] = React.useState(fileId)
-  if (valueJson !== draftValueJson || fileId !== draftFileId) {
+  const [draftFilePath, setDraftFilePath] = React.useState(filePath)
+  if (valueJson !== draftValueJson || filePath !== draftFilePath) {
     setDraftValueJson(valueJson)
-    setDraftFileId(fileId)
+    setDraftFilePath(filePath)
     setDraft(toJson(value))
     setError(null)
   }
@@ -68,7 +59,7 @@ export const JsonField: React.FC<JsonFieldProps> = ({
       // Empty value - clear the field
       setError(null)
       setDraftValueJson('null')
-      updateFrontmatterField(name, undefined)
+      setValue(undefined)
       return
     }
 
@@ -76,7 +67,7 @@ export const JsonField: React.FC<JsonFieldProps> = ({
       const parsed = JSON.parse(newValue) as unknown
       setError(null)
       setDraftValueJson(storedJson(parsed))
-      updateFrontmatterField(name, parsed)
+      setValue(parsed)
     } catch (err) {
       // Keep the draft and the last valid value until the JSON parses
       setError(err instanceof Error ? err.message : 'Invalid JSON')
@@ -86,29 +77,28 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   return (
     <FieldWrapper
       label={label}
+      field={field}
+      value={value}
       htmlFor={id}
-      required={required}
       description={
         field && 'description' in field ? field.description : 'Edit as JSON'
       }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
-      <div className="space-y-2">
-        <AutoExpandingTextarea
-          id={id}
-          value={draft}
-          onChange={e => handleChange(e.target.value)}
-          placeholder={`Enter ${label.toLowerCase()} as JSON...`}
-          className="font-mono text-sm"
-          minRows={3}
-          maxRows={20}
-        />
-        {error && (
+      // Red, unlike a constraint: this text isn't being saved
+      after={
+        error && (
           <p className="text-sm text-destructive">Invalid JSON: {error}</p>
-        )}
-      </div>
+        )
+      }
+    >
+      <AutoExpandingTextarea
+        id={id}
+        value={draft}
+        onChange={e => handleChange(e.target.value)}
+        placeholder={`Enter ${label.toLowerCase()} as JSON...`}
+        className="font-mono text-sm"
+        minRows={3}
+        maxRows={20}
+      />
     </FieldWrapper>
   )
 }

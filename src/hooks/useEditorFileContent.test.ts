@@ -7,11 +7,13 @@ import type { FileEntry } from '@/types'
 
 const query = vi.hoisted(() => ({
   data: undefined as unknown,
+  dataUpdatedAt: 0,
   error: null as Error | null,
 }))
 vi.mock('./queries/useFileContentQuery', () => ({
   useFileContentQuery: () => ({
     data: query.data,
+    dataUpdatedAt: query.dataUpdatedAt,
     isLoading: false,
     isError: query.error !== null,
     error: query.error,
@@ -40,11 +42,13 @@ const fromDisk = (raw: string, title: string) => ({
 describe('useEditorFileContent', () => {
   beforeEach(() => {
     query.data = undefined
+    query.dataUpdatedAt = 0
     query.error = null
     useProjectStore.setState({ projectPath: '/test' })
     useEditorStore.setState({
       currentFile: file,
       frontmatterBaseline: null,
+      lastSaveTimestamp: null,
       isDirty: false,
       isLoaded: false,
       loadError: null,
@@ -74,6 +78,34 @@ describe('useEditorFileContent', () => {
     expect(useEditorStore.getState().loadError).toBe('Failed to read file')
   })
 
+  it('stops showing the previous file once the file loads', () => {
+    useEditorStore.setState({
+      heldFrontmatter: {
+        values: { title: 'Previous' },
+        path: '/test/content/blog/previous.md',
+        collection: 'blog',
+      },
+    })
+    query.data = fromDisk('title: Hello', 'Hello')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().heldFrontmatter).toBeNull()
+  })
+
+  it("stops showing the previous file when the file can't be loaded", () => {
+    useEditorStore.setState({
+      heldFrontmatter: {
+        values: { title: 'Previous' },
+        path: '/test/content/blog/previous.md',
+        collection: 'blog',
+      },
+    })
+    query.error = new Error('Failed to read file')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().heldFrontmatter).toBeNull()
+  })
+
   it('keeps a loaded file when it fails to reload', () => {
     useEditorStore.setState({ isLoaded: true })
     query.error = new Error('Failed to read file')
@@ -97,6 +129,25 @@ describe('useEditorFileContent', () => {
       values: { title: 'Hello' },
       raw: 'title: "Hello"',
     })
+  })
+
+  it('ignores a read from before the last save, then takes the next one', () => {
+    useEditorStore.setState({
+      isLoaded: true,
+      editorContent: 'Newer text',
+      lastSaveTimestamp: 2000,
+    })
+    query.data = { ...fromDisk('title: Old', 'Old'), content: 'Older text' }
+    query.dataUpdatedAt = 1000
+    const { rerender } = renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().editorContent).toBe('Newer text')
+
+    query.data = { ...fromDisk('title: New', 'New'), content: 'Newer text' }
+    query.dataUpdatedAt = 3000
+    rerender()
+
+    expect(useEditorStore.getState().rawFrontmatter).toBe('title: New')
   })
 
   it('takes a change made outside the app as the baseline', () => {

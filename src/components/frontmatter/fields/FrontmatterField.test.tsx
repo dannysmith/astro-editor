@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import { FrontmatterField } from './FrontmatterField'
 import { useEditorStore } from '../../../store/editorStore'
 import { renderWithProviders } from '../../../test/test-utils'
@@ -10,6 +10,71 @@ describe('FrontmatterField Orchestrator', () => {
     useEditorStore.setState({
       frontmatter: {},
       updateFrontmatterField: vi.fn(),
+    })
+  })
+
+  describe('values the schema does not type', () => {
+    const file = {
+      id: 'posts/one',
+      name: 'one',
+      path: '/project/posts/one.md',
+      extension: 'md',
+      collection: 'posts',
+      last_modified: null,
+      frontmatter: null,
+      is_entry: true,
+    }
+
+    beforeEach(() => {
+      useEditorStore.setState({
+        currentFile: file,
+        frontmatter: { seo: { title: 'Hello' } },
+      })
+    })
+
+    it('edits an object with no schema as JSON', () => {
+      renderWithProviders(<FrontmatterField name="seo" label="Seo" />)
+
+      expect(screen.getByText('Edit as JSON')).toBeInTheDocument()
+      expect(screen.getByRole('textbox')).toHaveValue(
+        JSON.stringify({ title: 'Hello' }, null, 2)
+      )
+    })
+
+    it('edits an object of unknown schema type as JSON', () => {
+      const field: SchemaField = {
+        name: 'seo',
+        label: 'Seo',
+        type: FieldType.Unknown,
+        required: false,
+      }
+      renderWithProviders(
+        <FrontmatterField name="seo" label="Seo" field={field} />
+      )
+
+      expect(screen.getByText('Edit as JSON')).toBeInTheDocument()
+    })
+
+    it('stays JSON within a file when the value is cleared', () => {
+      renderWithProviders(<FrontmatterField name="seo" label="Seo" />)
+
+      act(() => useEditorStore.setState({ frontmatter: {} }))
+
+      expect(screen.getByText('Edit as JSON')).toBeInTheDocument()
+    })
+
+    it('goes back to text for a plain value in another file', () => {
+      renderWithProviders(<FrontmatterField name="seo" label="Seo" />)
+
+      act(() =>
+        useEditorStore.setState({
+          currentFile: { ...file, path: '/project/posts/two.md' },
+          frontmatter: { seo: 'Plain' },
+        })
+      )
+
+      expect(screen.queryByText('Edit as JSON')).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox')).toHaveValue('Plain')
     })
   })
 
@@ -256,7 +321,7 @@ describe('FrontmatterField Orchestrator', () => {
         <FrontmatterField name="title" label="Title" field={requiredField} />
       )
 
-      expect(screen.getByText('*')).toBeInTheDocument()
+      expect(screen.getByText('(required)')).toBeInTheDocument()
     })
 
     it('should pass required=false for optional schema fields', () => {
@@ -275,7 +340,7 @@ describe('FrontmatterField Orchestrator', () => {
         />
       )
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
 
     it('should default to required=false when no schema field', () => {
@@ -283,7 +348,7 @@ describe('FrontmatterField Orchestrator', () => {
         <FrontmatterField name="custom" label="Custom Field" />
       )
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument()
+      expect(screen.queryByText('(required)')).not.toBeInTheDocument()
     })
   })
 

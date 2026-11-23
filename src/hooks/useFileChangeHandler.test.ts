@@ -20,7 +20,7 @@ const openFile: FileEntry = {
 
 const directoryKey = queryKeys.directoryContents('/project', 'posts', 'root')
 const pickerKey = queryKeys.collectionFiles('/project', 'posts')
-const fileContentKey = queryKeys.fileContent('/project', openFile.id)
+const fileContentKey = queryKeys.fileContent('/project', openFile.path)
 
 function fileChanged(path: string) {
   window.dispatchEvent(
@@ -58,8 +58,19 @@ describe('useFileChangeHandler', () => {
     expect(invalidated()).toEqual([directoryKey, pickerKey])
   })
 
-  it("leaves everything alone for the open file's own save", () => {
+  it('re-reads a clean open file just after a save, without refreshing the lists', () => {
     useEditorStore.setState({ lastSaveTimestamp: Date.now() })
+
+    fileChanged(openFile.path)
+
+    expect(invalidated()).toEqual([fileContentKey])
+  })
+
+  it('leaves a dirty open file alone', () => {
+    useEditorStore.setState({
+      isDirty: true,
+      lastSaveTimestamp: Date.now(),
+    })
 
     fileChanged(openFile.path)
 

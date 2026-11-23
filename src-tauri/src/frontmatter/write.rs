@@ -1,6 +1,7 @@
 //! Writes frontmatter. An edit is spliced into the text the file already has:
 //! keys whose values didn't change keep their text, comments and formatting,
-//! and changed or new keys are rendered in the style of the rest of the block.
+//! at any depth of nested objects, and changed or new keys are rendered in the
+//! style of the rest of the block.
 //! Every result is read back with `crate::yaml` before it's used, so the
 //! splitting and rendering here decide how good the result looks, never
 //! whether it's right (see `write_block`).
@@ -61,22 +62,12 @@ pub(crate) fn write_block(
 
     let style = FileStyle::DEFAULT.within(&yaml_lines);
     let keys = key_order(&old, values, schema, reorder);
-    let render = |key: &str, own_text: Option<&str>, written: &str| {
-        render_entry(
-            key,
-            &values[key],
-            own_text,
-            written,
-            style,
-            &schema.date_fields,
-        )
-    };
     let reads_back = |yaml: &[String]| {
         let text: String = yaml.iter().map(|l| format!("{l}\n")).collect();
         yaml::mapping(&text).is_ok_and(|back| same_mapping(&back, values))
     };
 
-    let yaml = match splice(&yaml_lines, &old, values, &keys, render) {
+    let yaml = match splice(&yaml_lines, &old, values, &keys, "", style, schema) {
         Some(spliced) if reads_back(&spliced) => spliced,
         _ => {
             // Each key's own text isn't known, but how its values were written
@@ -90,7 +81,15 @@ pub(crate) fn write_block(
                     } else {
                         ""
                     };
-                    render(key, None, written)
+                    render_entry(
+                        key,
+                        &values[key],
+                        None,
+                        written,
+                        key,
+                        style,
+                        &schema.date_fields,
+                    )
                 })
                 .collect();
             if !reads_back(&whole) {
@@ -109,14 +108,18 @@ pub(crate) fn write_block(
 }
 
 /// The YAML with each changed or new key rendered, and every other key's
-/// lines kept as written, in `keys`' order. `None` when it can't be split
-/// into one entry for each key it had
+/// lines kept as written, in `keys`' order. A changed object is spliced the
+/// same way, so only the keys inside it that changed are rewritten. `parent`
+/// is the flattened path of the object these keys are in, empty at the top.
+/// `None` when it can't be split into one entry for each key it had
 fn splice(
     yaml_lines: &[&str],
     old: &IndexMap<String, Value>,
     values: &IndexMap<String, Value>,
     keys: &[String],
-    render: impl Fn(&str, Option<&str>, &str) -> Vec<String>,
+    parent: &str,
+    style: FileStyle,
+    schema: &FrontmatterSchema,
 ) -> Option<Vec<String>> {
     let Split {
         header,
@@ -128,8 +131,24 @@ fn splice(
     }
     let mut out: Vec<String> = header.iter().map(|l| l.to_string()).collect();
     for key in keys {
+        let path = if parent.is_empty() {
+            key.clone()
+        } else {
+            format!("{parent}.{key}")
+        };
+        let render = |own_text: Option<&str>, written: &str| {
+            render_entry(
+                key,
+                &values[key],
+                own_text,
+                written,
+                &path,
+                style,
+                &schema.date_fields,
+            )
+        };
         let Some(entry) = entries.iter().find(|e| &e.key == key) else {
-            out.extend(render(key, None, ""));
+            out.extend(render(None, ""));
             continue;
         };
         out.extend(entry.lead.iter().map(|l| l.to_string()));
@@ -137,8 +156,20 @@ fn splice(
             out.extend(entry.lines.iter().map(|l| l.to_string()));
             continue;
         }
+        if let Some(lines) = splice_object(
+            &entry.lines,
+            key,
+            &old[key],
+            &values[key],
+            &path,
+            style,
+            schema,
+        ) {
+            out.extend(lines);
+            continue;
+        }
         let text = entry.lines.join("\n");
-        let mut rendered = render(key, Some(&text), &text);
+        let mut rendered = render(Some(&text), &text);
         // A one-line value keeps the comment after it
         let blank = entry
             .lines
@@ -163,6 +194,76 @@ fn splice(
     }
     out.extend(trailer.iter().map(|l| l.to_string()));
     Some(out)
+}
+
+/// A changed object's lines with only the keys inside it that changed
+/// rewritten, so the others keep their text and the comments among them stay.
+/// `None` unless it's written as a block under its key and the result reads
+/// back as `new_value`, when the whole key is rendered instead
+fn splice_object(
+    lines: &[&str],
+    key: &str,
+    old_value: &Value,
+    new_value: &Value,
+    path: &str,
+    style: FileStyle,
+    schema: &FrontmatterSchema,
+) -> Option<Vec<String>> {
+    let (Value::Object(old), Value::Object(new)) = (old_value, new_value) else {
+        return None;
+    };
+    if old.is_empty() || new.is_empty() {
+        return None;
+    }
+    // Its keys start on the next line, unlike `key: { a: 1 }`
+    let (opening, body) = lines.split_first()?;
+    let opens_block =
+        yaml::mapping(&format!("{opening}\n")).is_ok_and(|m| m.get(key) == Some(&Value::Null));
+    if !opens_block {
+        return None;
+    }
+
+    // Its lines as if it were the top level, so they can be split the same way
+    let blank_or_comment = |l: &str| l.trim().is_empty() || l.trim_start().starts_with('#');
+    let indent = body
+        .iter()
+        .find(|l| !blank_or_comment(l))
+        .map(|l| l.len() - l.trim_start().len())?;
+    let pad = " ".repeat(indent);
+    let inner: Vec<&str> = body
+        .iter()
+        .map(|l| {
+            l.strip_prefix(pad.as_str())
+                .or_else(|| blank_or_comment(l).then(|| l.trim_start()))
+        })
+        .collect::<Option<_>>()?;
+
+    let old: IndexMap<String, Value> = old.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let new: IndexMap<String, Value> = new.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    // New keys go where the schema has them within this object
+    let prefix = format!("{path}.");
+    let own_fields = FrontmatterSchema {
+        fields: schema
+            .fields
+            .iter()
+            .filter_map(|f| f.strip_prefix(&prefix))
+            .map(String::from)
+            .collect(),
+        date_fields: vec![],
+    };
+    let keys = key_order(&old, &new, &own_fields, false);
+    let spliced = splice(&inner, &old, &new, &keys, path, style, schema)?;
+
+    let mut out = vec![opening.to_string()];
+    out.extend(
+        spliced
+            .into_iter()
+            .map(|l| if l.is_empty() { l } else { format!("{pad}{l}") }),
+    );
+    let text: String = out.iter().map(|l| format!("{l}\n")).collect();
+    yaml::mapping(&text)
+        .is_ok_and(|back| back.get(key).is_some_and(|v| same(v, new_value)))
+        .then_some(out)
 }
 
 /// The comment at the end of a one-line `key: value`, with the space before
@@ -534,15 +635,16 @@ fn held_an_unquoted_date(written: &str, key: Option<&str>) -> bool {
     })
 }
 
-/// The lines for `key` holding `value`, at the top level, given its own
-/// lines when it had them, and text showing how its values were written. A
-/// list that was written inline (`[a, b]`) stays inline, on the key's line or
-/// the next, as it was
+/// The lines for `key` holding `value`, starting at column 0, given its own
+/// lines when it had them, and text showing how its values were written.
+/// `path` is its flattened name. A list that was written inline (`[a, b]`)
+/// stays inline, on the key's line or the next, as it was
 fn render_entry(
     key: &str,
     value: &Value,
     own_text: Option<&str>,
     written: &str,
+    path: &str,
     style: FileStyle,
     date_fields: &[String],
 ) -> Vec<String> {
@@ -560,13 +662,13 @@ fn render_entry(
             .then(|| &value[..value.len() - list.len()])
     });
     if let (Some(separator), Value::Array(items)) = (inline_list_after, value) {
-        if let Some(list) = inline_list(items, key, &context) {
+        if let Some(list) = inline_list(items, path, &context) {
             let text = format!("{}:{separator}{list}", render_key(key));
             return text.lines().map(String::from).collect();
         }
     }
     let mut out = vec![];
-    entry(&mut out, 0, key, value, key, &context);
+    entry(&mut out, 0, key, value, path, &context);
     out
 }
 
@@ -867,6 +969,108 @@ mod tests {
     }
 
     #[test]
+    fn keeps_comments_inside_an_edited_object() {
+        let raw = "---\nseo:\n  # Shown in search results\n  title: 'Meta' # short\n  # Social cards\n  og:\n    image: /og.png # 1200x630\n    # Describe the image\n    alt: Old\n  noindex: true\n---";
+        let written = edit(
+            raw,
+            json!({ "seo": {
+                "title": "Meta",
+                "og": { "image": "/og.png", "alt": "New" },
+                "noindex": true,
+            }}),
+        );
+        assert_eq!(
+            written,
+            "---\nseo:\n  # Shown in search results\n  title: 'Meta' # short\n  # Social cards\n  og:\n    image: /og.png # 1200x630\n    # Describe the image\n    alt: New\n  noindex: true\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_the_comment_on_an_edited_nested_value_and_its_key() {
+        let raw = "---\nseo: # for search\n    title: \"Old\" # working title\n    robots: index\n\ndraft: true\n---";
+        let written = edit(
+            raw,
+            json!({ "seo": { "title": "New", "robots": "index" }, "draft": true }),
+        );
+        assert_eq!(
+            written,
+            "---\nseo: # for search\n    title: \"New\" # working title\n    robots: index\n\ndraft: true\n---"
+        );
+    }
+
+    #[test]
+    fn removes_a_nested_key_with_its_comment() {
+        let raw = "---\nseo:\n  title: A\n  # Goes with the image\n  image: b.png\n  # Stays\n  robots: index\n---";
+        let written = edit(raw, json!({ "seo": { "title": "A", "robots": "index" } }));
+        assert_eq!(
+            written,
+            "---\nseo:\n  title: A\n  # Stays\n  robots: index\n---"
+        );
+    }
+
+    #[test]
+    fn puts_a_new_nested_key_where_the_schema_does() {
+        let raw = "---\nseo:\n  # First\n  title: A\n  # Last\n  robots: index\n---";
+        let schema = schema(&["seo.title", "seo.image", "seo.robots"], &[]);
+        let new = values(json!({
+            "seo": { "title": "A", "robots": "index", "image": "b.png" },
+        }));
+        let written = write_block(raw, &new, &schema, false).unwrap();
+        assert_eq!(
+            written,
+            "---\nseo:\n  # First\n  title: A\n  image: b.png\n  # Last\n  robots: index\n---"
+        );
+    }
+
+    #[test]
+    fn writes_an_edited_nested_date_as_a_date() {
+        let raw = "---\nmeta:\n  # When it went out\n  published: 2024-01-15\n---";
+        let schema = schema(&["meta.published"], &["meta.published"]);
+        let new = values(json!({ "meta": { "published": "2024-02-20" } }));
+        let written = write_block(raw, &new, &schema, false).unwrap();
+        assert_eq!(
+            written,
+            "---\nmeta:\n  # When it went out\n  published: 2024-02-20\n---"
+        );
+    }
+
+    #[test]
+    fn keeps_block_scalars_and_lists_beside_an_edited_nested_key() {
+        let raw = "---\nseo:\n  summary: |\n    Line one\n\n    # not a comment\n  tags:\n    - a\n    - b\n  title: Old\n---";
+        let written = edit(
+            raw,
+            json!({ "seo": {
+                "summary": "Line one\n\n# not a comment\n",
+                "tags": ["a", "b"],
+                "title": "New",
+            }}),
+        );
+        assert_eq!(
+            written,
+            "---\nseo:\n  summary: |\n    Line one\n\n    # not a comment\n  tags:\n    - a\n    - b\n  title: New\n---"
+        );
+    }
+
+    #[test]
+    fn still_writes_an_inline_object_correctly() {
+        let raw = "---\nseo: { title: Old, robots: index } # inline\n---";
+        let new = json!({ "seo": { "title": "New", "robots": "index" } });
+        let written = edit(raw, new.clone());
+        assert_eq!(read(&written), values(new));
+    }
+
+    #[test]
+    fn still_writes_an_object_holding_an_alias_correctly() {
+        let raw = "---\nbase: &name Shared\nseo:\n  # Kept if it can be\n  title: *name\n  robots: index\n---";
+        let new = json!({
+            "base": "Shared",
+            "seo": { "title": "Shared", "robots": "noindex" },
+        });
+        let written = edit(raw, new.clone());
+        assert_eq!(read(&written), values(new));
+    }
+
+    #[test]
     fn puts_new_keys_where_the_schema_does() {
         let raw = "---\ntitle: A\ncustom: x\ndraft: false\n---";
         let schema = schema(&["title", "pubDate", "draft", "tags"], &["pubDate"]);
@@ -1071,12 +1275,12 @@ mod tests {
             json!({
                 "values": ["2024-01-01", "2024-02-01", "other"],
                 "event": { "date": "2024-02-01", "label": "2024-02-01" },
-                "launch": { "date": "2024-03-01", "label": "big party" },
+                "launch": { "date": "2024-03-02", "label": "big party" },
             }),
         );
         assert_eq!(
             written,
-            "---\nvalues: [2024-01-01, \"2024-02-01\", \"other\"]\nevent:\n  date: 2024-02-01\n  label: \"2024-02-01\"\nlaunch:\n  date: 2024-03-01\n  label: big party\n---"
+            "---\nvalues: [2024-01-01, \"2024-02-01\", \"other\"]\nevent:\n  date: 2024-02-01\n  label: \"2024-02-01\"\nlaunch:\n  date: 2024-03-02\n  label: big party\n---"
         );
     }
 

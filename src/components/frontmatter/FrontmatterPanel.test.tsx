@@ -280,7 +280,7 @@ describe('FrontmatterPanel Component', () => {
     expect(screen.getByPlaceholderText('Enter tags...')).toBeInTheDocument() // Array field
 
     // Should show required indicator for title field (1 required field: title)
-    expect(screen.getAllByText('*')).toHaveLength(1)
+    expect(screen.getAllByText('(required)')).toHaveLength(1)
   })
 
   it('should show all schema fields even when not in frontmatter', () => {
@@ -430,9 +430,9 @@ describe('FrontmatterPanel Component', () => {
 
     renderWithProviders(<FrontmatterPanel />)
 
-    // Should render as text inputs, not TagInput
-    expect(screen.getByDisplayValue('1,2,3')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('string,123')).toBeInTheDocument()
+    // Edited as JSON, since a text input would replace them with a string
+    expect(screen.getAllByText('Edit as JSON')).toHaveLength(2)
+    expect(screen.queryByDisplayValue('1,2,3')).not.toBeInTheDocument()
 
     // Should not have tag removal buttons
     expect(screen.queryByLabelText(/Remove.*tag/)).not.toBeInTheDocument()

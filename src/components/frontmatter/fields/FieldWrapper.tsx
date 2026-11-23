@@ -5,158 +5,188 @@ import {
   FieldDescription,
   FieldContent,
 } from '@/components/ui/field'
-import type { FieldConstraints } from '../../../lib/schema'
+import { fieldGuidance, isEmptyValue } from '../../../lib/field-guidance'
+import { cn } from '../../../lib/utils'
+import type { SchemaField } from '../../../lib/schema'
 
 interface FieldWrapperProps {
   label: string
+  /** The field's schema: whether it's required, its description, default and constraints */
+  field?: SchemaField
+  /** The field's value, which its constraints are checked against */
+  value?: unknown
   /** Id of a text control: clicking the label focuses it */
   htmlFor?: string
   /** Id for the label, for button controls that name themselves with aria-labelledby (htmlFor would click them) */
   labelId?: string
-  required?: boolean
+  /** Shown instead of the schema's description */
   description?: string
-  defaultValue?: unknown
-  constraints?: FieldConstraints
+  /** `horizontal` puts the control beside the label, with the description below both */
   layout?: 'vertical' | 'horizontal'
+  /**
+   * Whether the control sits in the field's box with its footer attached. Off
+   * for controls made of several boxes (image pickers)
+   */
+  framed?: boolean
+  /** A problem only the control can know about, shown in the footer */
+  problem?: string
+  /** Floats over the control, inside the box: a small action */
+  overlay?: React.ReactNode
+  /** Goes straight after the box */
+  after?: React.ReactNode
   children: React.ReactNode
-  currentValue?: unknown
   hideDefaultValue?: boolean
 }
 
-export const FieldWrapper: React.FC<FieldWrapperProps> = ({
-  label,
-  htmlFor,
-  labelId,
-  required,
-  description,
-  defaultValue,
-  constraints,
-  layout = 'vertical',
-  children,
-  currentValue,
-  hideDefaultValue = false,
-}) => {
-  const isEmpty =
-    currentValue === undefined || currentValue === null || currentValue === ''
-
-  const showDefault = !hideDefaultValue && defaultValue !== undefined && isEmpty
-
-  const metadataText = formatMetadata(
-    constraints,
-    showDefault ? defaultValue : undefined
-  )
-
+/** The footer: the field's rules or what's wrong, and how much of a limit is used */
+const GuidanceFooter: React.FC<{
+  id: string
+  text: string | null
+  count: string | null
+  isProblem: boolean
+  framed: boolean
+}> = ({ id, text, count, isProblem, framed }) => {
+  if (!text && !count) return null
   return (
-    <Field orientation={layout}>
-      <FieldLabel htmlFor={htmlFor} id={labelId}>
-        {label}
-        {required && <span className="ml-1 text-required">*</span>}
-      </FieldLabel>
-      <FieldContent>
-        {children}
-        {description && <FieldDescription>{description}</FieldDescription>}
-        {metadataText && (
-          <FieldDescription className="text-xs">
-            {metadataText}
-          </FieldDescription>
-        )}
-      </FieldContent>
-    </Field>
+    <div
+      id={id}
+      data-slot="field-footer"
+      className={cn(
+        'flex items-center justify-between gap-2 text-xs text-muted-foreground',
+        framed && 'min-h-6 border-t border-input/70 bg-muted/50 px-3 py-0.5',
+        isProblem && 'text-warning'
+      )}
+    >
+      <span
+        className="min-w-0 truncate"
+        title={text ?? undefined}
+        aria-live="polite"
+      >
+        {text}
+      </span>
+      {count && <span className="shrink-0 tabular-nums">{count}</span>}
+    </div>
   )
 }
 
-function formatMetadata(
-  constraints?: FieldConstraints,
-  defaultValue?: unknown
-): string | null {
-  const parts: string[] = []
+/**
+ * A frontmatter field: its label, its control in a box with a footer attached
+ * for its constraints, and its description. A required field that's empty has
+ * a coloured left edge. Nothing here stops a value being typed or saved.
+ */
+export const FieldWrapper: React.FC<FieldWrapperProps> = ({
+  label,
+  field,
+  value,
+  htmlFor,
+  labelId,
+  description: descriptionOverride,
+  layout = 'vertical',
+  framed = true,
+  problem: controlProblem,
+  overlay,
+  after,
+  children,
+  hideDefaultValue = false,
+}) => {
+  const [isFocused, setIsFocused] = React.useState(false)
+  const footerId = React.useId()
+  const description = descriptionOverride ?? field?.description
+  const isMissing = Boolean(field?.required) && isEmptyValue(value)
 
-  if (constraints) {
-    // Numeric constraints. Exclusive bounds (`gt`, `lt`) show as "> 0"
-    const { min, max, minExclusive, maxExclusive } = constraints
-    if (
-      min !== undefined &&
-      max !== undefined &&
-      !minExclusive &&
-      !maxExclusive
-    ) {
-      parts.push(`${min}–${max}`)
-    } else {
-      if (min !== undefined) {
-        parts.push(minExclusive ? `> ${min}` : `Min: ${min}`)
+  const guidance = fieldGuidance(field, value, {
+    hideDefault: hideDefaultValue,
+    isTyping: isFocused,
+  })
+  const problem = controlProblem
+    ? { message: controlProblem, whileTyping: true }
+    : guidance.problem
+  const shownProblem = problem?.whileTyping || !isFocused ? problem : null
+  const footerText = shownProblem?.message ?? guidance.note
+
+  const fieldLabel = (
+    <FieldLabel htmlFor={htmlFor} id={labelId}>
+      {label}
+      {field?.required && <span className="sr-only">{' (required)'}</span>}
+    </FieldLabel>
+  )
+  const descriptionText = description && (
+    <FieldDescription>{description}</FieldDescription>
+  )
+  const footer = (
+    <GuidanceFooter
+      id={footerId}
+      text={footerText}
+      count={guidance.count}
+      isProblem={Boolean(shownProblem)}
+      framed={framed}
+    />
+  )
+  const focusHandlers = {
+    onFocus: () => setIsFocused(true),
+    onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        setIsFocused(false)
       }
-      if (max !== undefined) {
-        parts.push(maxExclusive ? `< ${max}` : `Max: ${max}`)
-      }
-    }
-
-    // String length constraints
-    if (
-      constraints.minLength !== undefined &&
-      constraints.maxLength !== undefined
-    ) {
-      parts.push(`${constraints.minLength}–${constraints.maxLength} characters`)
-    } else if (constraints.minLength !== undefined) {
-      parts.push(`Min ${constraints.minLength} chars`)
-    } else if (constraints.maxLength !== undefined) {
-      parts.push(`Max ${constraints.maxLength} chars`)
-    }
-
-    // Array length constraints
-    const items = (count: number) => (count === 1 ? 'item' : 'items')
-    if (
-      constraints.minItems !== undefined &&
-      constraints.minItems === constraints.maxItems
-    ) {
-      parts.push(
-        `Exactly ${constraints.minItems} ${items(constraints.minItems)}`
-      )
-    } else if (
-      constraints.minItems !== undefined &&
-      constraints.maxItems !== undefined
-    ) {
-      parts.push(`${constraints.minItems}–${constraints.maxItems} items`)
-    } else if (constraints.minItems !== undefined) {
-      parts.push(
-        `At least ${constraints.minItems} ${items(constraints.minItems)}`
-      )
-    } else if (constraints.maxItems !== undefined) {
-      parts.push(`Up to ${constraints.maxItems} ${items(constraints.maxItems)}`)
-    }
-
-    // Format hints
-    if (constraints.format) {
-      const formatLabels: Record<string, string> = {
-        email: 'Email format',
-        uri: 'URL format',
-        'date-time': 'Date/time format',
-        date: 'Date format',
-      }
-      const label = formatLabels[constraints.format]
-      if (label) parts.push(label)
-    }
-
-    // Pattern (only if it's simple enough to show)
-    if (constraints.pattern && constraints.pattern.length < 30) {
-      parts.push(`Pattern: ${constraints.pattern}`)
-    }
+    },
   }
 
-  // Default value, unless it's empty (`''`, `[]`, `{}`), which would show a
-  // bare "Default:"
-  const emptyDefault =
-    defaultValue === '' ||
-    (Array.isArray(defaultValue) && defaultValue.length === 0) ||
-    (typeof defaultValue === 'object' &&
-      defaultValue !== null &&
-      Object.keys(defaultValue).length === 0)
-  if (defaultValue !== undefined && !emptyDefault) {
-    const defaultStr =
-      typeof defaultValue === 'string'
-        ? defaultValue
-        : JSON.stringify(defaultValue)
-    parts.push(`Default: ${defaultStr}`)
+  if (layout === 'horizontal') {
+    return (
+      <div
+        className={cn(
+          'flex flex-col gap-1.5',
+          isMissing && 'border-l-2 border-l-required pl-2.5'
+        )}
+      >
+        <Field orientation="horizontal">
+          {fieldLabel}
+          {children}
+        </Field>
+        {descriptionText}
+      </div>
+    )
   }
 
-  return parts.length > 0 ? parts.join(' • ') : null
+  return (
+    <Field
+      orientation="vertical"
+      aria-describedby={footerText || guidance.count ? footerId : undefined}
+    >
+      {fieldLabel}
+      <FieldContent>
+        {framed ? (
+          <div
+            data-slot="field-frame"
+            {...focusHandlers}
+            className={cn(
+              'relative overflow-hidden rounded-md border border-input shadow-xs transition-[color,box-shadow] dark:bg-input/30',
+              'has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+              // The control gives up its own box to the frame
+              '[&>[data-slot=field-control]>*]:w-full [&>[data-slot=field-control]>*]:rounded-none [&>[data-slot=field-control]>*]:border-0 [&>[data-slot=field-control]>*]:bg-transparent [&>[data-slot=field-control]>*]:shadow-none [&>[data-slot=field-control]>*]:ring-0!',
+              '[&>[data-slot=field-control]>button:hover]:bg-accent/50',
+              isMissing && 'border-l-2 border-l-required'
+            )}
+          >
+            <div data-slot="field-control">{children}</div>
+            {overlay}
+            {footer}
+          </div>
+        ) : (
+          <div
+            {...focusHandlers}
+            className={cn(
+              'space-y-1.5',
+              isMissing && 'border-l-2 border-l-required pl-2.5'
+            )}
+          >
+            {children}
+            {footer}
+          </div>
+        )}
+        {after}
+        {descriptionText}
+      </FieldContent>
+    </Field>
+  )
 }

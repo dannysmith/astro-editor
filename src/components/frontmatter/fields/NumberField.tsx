@@ -1,42 +1,25 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 
-interface NumberFieldProps extends FieldProps {
+interface NumberFieldProps extends FieldControlProps {
   placeholder?: string
-  field?: SchemaField
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({
   name,
   label,
   placeholder,
-  required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
   const id = React.useId()
 
   return (
-    <FieldWrapper
-      label={label}
-      htmlFor={id}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} htmlFor={id}>
       <Input
         id={id}
         type="number"
@@ -44,7 +27,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
         value={valueToString(value)}
         onChange={e => {
           const numValue = e.target.value ? Number(e.target.value) : undefined
-          updateFrontmatterField(name, numValue)
+          setValue(numValue)
         }}
       />
     </FieldWrapper>

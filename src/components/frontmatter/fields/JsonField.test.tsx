@@ -73,7 +73,7 @@ describe('JsonField', () => {
     act(() => {
       useEditorStore.setState({
         isLoaded: true,
-        currentFile: { ...file, id: 'notes/other' },
+        currentFile: { ...file, path: `${file.path}.other` },
         frontmatter: { embed: { kind: 'video' } },
       })
     })

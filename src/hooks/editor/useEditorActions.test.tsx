@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEditorActions } from './useEditorActions'
+import { useFileContentQuery } from '../queries/useFileContentQuery'
 import { useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import type { FileEntry } from '@/types'
@@ -40,13 +41,14 @@ function holdSave(outcome: 'resolve' | 'reject') {
 
 /** Opens another file the way openFile leaves the store, without saving. */
 function switchToSecondFile() {
-  useEditorStore.setState({
+  useEditorStore.setState(state => ({
     isLoaded: true,
     currentFile: fileEntry('second'),
+    openGeneration: state.openGeneration + 1,
     editorContent: 'Second file',
     frontmatter: {},
     isDirty: false,
-  })
+  }))
 }
 
 describe('useEditorActions.saveFile when the file changes mid-save', () => {
@@ -79,6 +81,25 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     expect(useEditorStore.getState().isDirty).toBe(false)
   })
 
+  it('leaves the file alone when it was reopened during its save', async () => {
+    const release = holdSave('resolve')
+    const { saveFile } = renderActions()
+
+    const saving = saveFile(false)
+    // Away and back: the same path, holding the placeholder until it loads
+    useEditorStore.setState(state => ({
+      openGeneration: state.openGeneration + 2,
+      isLoaded: false,
+      editorContent: '',
+      frontmatter: {},
+      isDirty: false,
+    }))
+    release()
+    await saving
+
+    expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+
   it('keeps recovery data for the file that failed, not the open one', async () => {
     const release = holdSave('reject')
     const { saveFile } = renderActions()
@@ -97,6 +118,22 @@ describe('useEditorActions.saveFile when the file changes mid-save', () => {
     }
     expect(recovery.originalFilePath).toBe('/test/content/blog/first.md')
     expect(recovery.editorContent).toBe('First file edit')
+    expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+
+  it('leaves a file opened while recovery data is being written', async () => {
+    globalThis.mockTauri.invoke.mockImplementation((cmd: string) => {
+      if (cmd === 'save_markdown_content') {
+        return Promise.reject(new Error('disk full'))
+      }
+      if (cmd === 'save_recovery_data') switchToSecondFile()
+      return Promise.resolve(null)
+    })
+    const { saveFile } = renderActions()
+
+    await saveFile(false)
+
+    expect(useEditorStore.getState().currentFile?.id).toBe('second')
     expect(useEditorStore.getState().isDirty).toBe(false)
   })
 
@@ -336,6 +373,31 @@ describe('useEditorActions.saveFile when saves overlap', () => {
     await Promise.all([first, second])
     expect(written).toEqual(['Older', 'Newer'])
     expect(useEditorStore.getState().isDirty).toBe(false)
+  })
+
+  it('reads the file only after a save under way has landed', async () => {
+    const release = holdSave('resolve')
+    const queryClient = new QueryClient()
+    const { saveFile } = renderActions(queryClient)
+    const reads = () =>
+      globalThis.mockTauri.invoke.mock.calls.filter(
+        ([cmd]) => cmd === 'parse_markdown_content'
+      )
+
+    const saving = saveFile(false)
+    renderHook(() => useFileContentQuery('/test', fileEntry('first').path), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      ),
+    })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(reads()).toHaveLength(0)
+
+    release()
+    await saving
+    await vi.waitFor(() => expect(reads()).toHaveLength(1))
   })
 })
 

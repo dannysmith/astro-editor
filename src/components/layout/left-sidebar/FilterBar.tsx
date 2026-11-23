@@ -1,16 +1,20 @@
 import React, { useRef, useEffect } from 'react'
 import { Search, ArrowUpDown, X, ArrowUp, ArrowDown } from 'lucide-react'
-import { Input } from '../ui/input'
-import { Button } from '../ui/button'
+import { Input } from '../../ui/input'
+import { Button } from '../../ui/button'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select'
+} from '../../ui/select'
 import { cn } from '@/lib/utils'
-import type { SortOption } from '@/lib/files'
+import { getSortOptionsForCollection, type SortOption } from '@/lib/files'
+import { deserializeCompleteSchema } from '../../../lib/schema'
+import { useCollection } from '../../../hooks/settings'
+import { useCollectionView } from '../../../hooks/useCollectionView'
+import { useUIStore } from '../../../store/uiStore'
 
 /**
  * Get a subtle type label for sort options
@@ -31,41 +35,40 @@ function getSortTypeLabel(option: SortOption): string | null {
   }
 }
 
-interface FilterBarProps {
-  searchQuery: string
-  sortMode: string
-  sortDirection: 'asc' | 'desc'
-  sortOptions: SortOption[]
-  onSearchChange: (query: string) => void
-  onSortModeChange: (mode: string) => void
-  onSortDirectionToggle: () => void
-  onClearSearch: () => void
-}
-
-export const FilterBar: React.FC<FilterBarProps> = ({
-  searchQuery,
-  sortMode,
-  sortDirection,
-  sortOptions,
-  onSearchChange,
-  onSortModeChange,
-  onSortDirectionToggle,
-  onClearSearch,
+/** Search and sort for a collection's file list */
+export const FilterBar: React.FC<{ collectionName: string }> = ({
+  collectionName,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { searchQuery, sortMode, sortDirection } =
+    useCollectionView(collectionName)
+  const completeSchema = useCollection(collectionName)?.completeSchema
+
+  // Sort options come from the collection's schema
+  const sortOptions = getSortOptionsForCollection(
+    completeSchema ? deserializeCompleteSchema(completeSchema) : null
+  )
 
   // Auto-focus search input when component mounts
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearchChange(e.target.value)
+  const setSearchQuery = (query: string) => {
+    useUIStore.getState().setSearchQuery(collectionName, query)
+  }
+
+  // Each mode starts the natural way round: dates newest first, everything
+  // else A to Z or lowest first
+  const handleSortModeChange = (mode: string) => {
+    const type = sortOptions.find(option => option.id === mode)?.type
+    const direction = type === 'date' || type === 'default' ? 'desc' : 'asc'
+    useUIStore.getState().setSortMode(collectionName, mode, direction)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
-      onClearSearch()
+      setSearchQuery('')
     }
   }
 
@@ -81,7 +84,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           type="text"
           placeholder="Search files..."
           value={searchQuery}
-          onChange={handleSearchChange}
+          onChange={e => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           className="h-7 pr-7 pl-7 text-xs"
         />
@@ -89,7 +92,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onClearSearch}
+            onClick={() => setSearchQuery('')}
             className="absolute top-1/2 right-0.5 size-6 -translate-y-1/2 p-0 hover:bg-transparent"
           >
             <X className="size-3 text-muted-foreground" />
@@ -102,14 +105,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <ArrowUpDown className="size-3 flex-shrink-0 text-muted-foreground" />
         <Select
           value={sortMode}
-          onValueChange={mode => mode && onSortModeChange(mode)}
+          onValueChange={mode => mode && handleSortModeChange(mode)}
         >
           <SelectTrigger size="sm" className="h-6 min-w-0 flex-1 px-2 text-xs">
             <SelectValue>
-              <span className="flex items-center gap-2">
-                <span>{currentSortOption?.label || 'Default'}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate">
+                  {currentSortOption?.label || 'Default'}
+                </span>
                 {currentSortOption && getSortTypeLabel(currentSortOption) && (
-                  <span className="text-[10px] font-normal text-muted-foreground/60">
+                  <span className="shrink-0 text-[10px] font-normal text-muted-foreground/60">
                     {getSortTypeLabel(currentSortOption)}
                   </span>
                 )}
@@ -144,7 +149,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onSortDirectionToggle}
+            onClick={() =>
+              useUIStore.getState().toggleSortDirection(collectionName)
+            }
             className={cn(
               'size-6 p-0 flex-shrink-0',
               'text-muted-foreground hover:text-foreground'

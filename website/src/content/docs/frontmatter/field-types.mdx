@@ -21,15 +21,17 @@ Every field in your collection [schema](/frontmatter/overview/) becomes a contro
 | Email | `z.string().email()` | A single-line input, hinted as an email |
 | URL | `z.string().url()` | A single-line input, hinted as a URL |
 
-A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), and objects without fixed fields, like a `z.record()`. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
+A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), objects without fixed fields, like a `z.record()`, and any object or list in a file that the schema doesn't describe. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
 
 ## Descriptions, defaults & constraints
 
-Astro Editor surfaces the extra information in your schema as guidance beneath each field:
+Astro Editor surfaces the extra information in your schema as guidance on each field:
 
 - `.describe('…')` — shown as help text under the field
-- `.default(…)` — shown as a hint. It isn't written into new files, since Astro uses it whenever the field is left out
-- `.min()` / `.max()`, length limits, and `.regex()` — shown as a short hint like "3–100 characters", "Up to 3 items" for a list, or "Pattern: …"
+- `.default(…)` — shown in the field's footer while it's empty. It isn't written into new files, since Astro uses it whenever the field is left out
+- `.min()` / `.max()`, `.length()`, `.int()`, `.email()`, `.url()` and `.regex()` — shown in a small footer attached to the field, like `46 / 100`, `1–10`, `Whole number` or `Format: …`
+
+When a value doesn't meet a constraint, the footer says so in amber, like `8 over` or `Doesn't look like a URL`. A dropdown, date or reference holding a value that isn't valid is flagged the same way.
 
 ```ts
 title: z.string().min(3).max(100).describe('The headline for the post')
@@ -41,14 +43,14 @@ These are shown to help you, but Astro Editor does **not** stop you saving front
 
 ## Required fields
 
-A field that isn't `.optional()` (and has no `.default()`) is required, and shows a red asterisk (`*`) next to its label.
+A field that isn't `.optional()` (and has no `.default()`) is required. While it's empty, it has a red left edge, which goes once it has a value.
 
 ```ts
-title: z.string(),              // required → shows *
-summary: z.string().optional(), // optional → no *
+title: z.string(),              // required → red edge while empty
+summary: z.string().optional(), // optional → no edge
 ```
 
-As above, the asterisk is a prompt, not a gate — saving isn't blocked when a required field is empty.
+As above, the edge is a prompt, not a gate — saving isn't blocked when a required field is empty.
 
 ## Nested fields
 
@@ -67,7 +69,7 @@ const blog = defineCollection({
 })
 ```
 
-Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would use as top-level fields.
+Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would use as top-level fields. The group sits where the object is in your schema, and an object inside an object gets its own heading, indented inside its parent.
 
 ## Image fields
 

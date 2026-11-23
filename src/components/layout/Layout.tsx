@@ -5,7 +5,7 @@ import { useUIStore } from '../../store/uiStore'
 import { useTheme } from '../../lib/theme-provider'
 import { useProjectStore } from '../../store/projectStore'
 import { UnifiedTitleBar } from './unified-title-bar'
-import { LeftSidebar } from './LeftSidebar'
+import { LeftSidebar } from './left-sidebar'
 import { MainEditor } from './MainEditor'
 import { RightSidebar } from './RightSidebar'
 import { CommandPalette } from '../command-palette'
@@ -234,11 +234,6 @@ export const Layout: React.FC = () => {
             defaultSize={LAYOUT_SIZES.leftSidebar.default}
             minSize={LAYOUT_SIZES.leftSidebar.min}
             maxSize={LAYOUT_SIZES.leftSidebar.max}
-            style={{
-              minWidth: leftSidebarVisible
-                ? LAYOUT_SIZES.leftSidebar.minWidth
-                : undefined,
-            }}
             onResize={handleLeftPanelResize}
           >
             <LeftSidebar />

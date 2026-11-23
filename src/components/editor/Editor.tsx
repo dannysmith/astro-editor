@@ -34,7 +34,6 @@ declare global {
 }
 
 const EditorViewComponent: React.FC = () => {
-  const currentFileId = useEditorStore(state => state.currentFile?.id)
   const currentFilePath = useEditorStore(state => state.currentFile?.path)
   const projectPath = useProjectStore(state => state.projectPath)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
@@ -252,7 +251,7 @@ const EditorViewComponent: React.FC = () => {
 
   // Load content when file changes (initial empty content from openFile)
   useEffect(() => {
-    if (!viewRef.current || !currentFileId) return
+    if (!viewRef.current || !currentFilePath) return
 
     // Get current content from store using getState() pattern (architecture guide: performance patterns)
     const { editorContent } = useEditorStore.getState()
@@ -269,7 +268,7 @@ const EditorViewComponent: React.FC = () => {
         isProgrammaticUpdate.current = false
       }, 0)
     }
-  }, [currentFileId]) // Only depend on file changes to avoid unnecessary re-renders
+  }, [currentFilePath]) // Only depend on file changes to avoid unnecessary re-renders
 
   // Subscribe to editorContent changes without causing re-renders
   useEffect(() => {
@@ -282,7 +281,7 @@ const EditorViewComponent: React.FC = () => {
       if (newContent !== previousContent) {
         previousContent = newContent
 
-        if (!viewRef.current || !currentFileId) return
+        if (!viewRef.current || !currentFilePath) return
 
         // Only update CodeMirror if content differs (e.g., loaded from file, not from typing)
         if (viewRef.current.state.doc.toString() !== newContent) {
@@ -306,7 +305,7 @@ const EditorViewComponent: React.FC = () => {
     })
 
     return unsubscribe
-  }, [currentFileId])
+  }, [currentFilePath])
 
   // Follow whether the open file can be edited without re-rendering
   useEffect(() => {

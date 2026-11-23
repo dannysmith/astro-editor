@@ -27,6 +27,7 @@ Saving a file whose frontmatter you haven't edited writes the frontmatter back e
 
 - **Other fields keep their text exactly:** quotes, comments, blank lines, indentation, and how lists and objects are written.
 - **A changed field keeps its style.** It's written with the same quotes as before, an inline list (`[a, b]`) stays inline, a list indented under its key stays indented, and a comment at the end of its line stays.
+- **Inside a nested object, only the field you changed is rewritten,** so the rest keep their text and comments. A list of objects, or an object written inline (`{ a: 1 }`), is rewritten as a whole when something in it changes, so comments inside it are lost.
 - **A new field goes where your schema puts it,** before the next field the schema defines after it, and in the quote style the rest of the file uses.
 - **A cleared field is removed,** with its comments. Astro Editor doesn't write empty values like `title: ''` or `tags: []`.
 - **Edits are applied to the frontmatter as it was when you opened the file,** not to what the last auto-save wrote. Clearing a field and typing it again puts it back where it was, with its comment, and changing a field back to what it was leaves the file as it was.

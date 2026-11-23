@@ -37,6 +37,7 @@ interface MockEditorState {
   isFrontmatterDirty: boolean
   editorContent: string
   frontmatter: Record<string, unknown>
+  heldFrontmatter: null
   rawFrontmatter: string
   frontmatterBaseline: null
   imports: string
@@ -44,6 +45,7 @@ interface MockEditorState {
   loadError: string | null
   frontmatterError: string | null
   editingPaused: boolean
+  openGeneration: number
   openFile: Mock
   closeFile: Mock
   closeCurrentFile: Mock
@@ -72,6 +74,7 @@ describe('useEditorHandlers', () => {
       isDirty: false,
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
@@ -79,6 +82,7 @@ describe('useEditorHandlers', () => {
       loadError: null,
       frontmatterError: null,
       editingPaused: false,
+      openGeneration: 0,
       openFile: vi.fn(),
       closeFile: vi.fn(),
       closeCurrentFile: vi.fn(),

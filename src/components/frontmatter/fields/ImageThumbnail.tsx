@@ -1,6 +1,6 @@
 import React from 'react'
 import { useProjectStore } from '../../../store/projectStore'
-import { useEditorStore } from '../../../store/editorStore'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
 import { useImageSrcQuery } from '../../../hooks/queries/useImageSrcQuery'
 
 interface ImageThumbnailProps {
@@ -10,11 +10,11 @@ interface ImageThumbnailProps {
 /** A small preview of an image path from the open file. Shows nothing if the path doesn't resolve. */
 export const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ path }) => {
   const projectPath = useProjectStore(state => state.projectPath)
-  const currentFilePath = useEditorStore(state => state.currentFile?.path)
+  const filePath = useEditorStore(shownFilePath)
   const { data: imageUrl, isError } = useImageSrcQuery(
     path,
     projectPath,
-    currentFilePath ?? null
+    filePath
   )
   // An image that fails to load is treated like a path that fails to resolve
   const [failedUrl, setFailedUrl] = React.useState<string | null>(null)

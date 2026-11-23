@@ -1,15 +1,12 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import { RenameToDateLink } from './RenameToDateLink'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 import { formatIsoDate, parseIsoDate } from '../../../lib/dates'
 
-interface DateFieldProps extends FieldProps {
-  field?: SchemaField
+interface DateFieldProps extends FieldControlProps {
   /** The collection's published date, which the file's name can follow */
   isPublishedDate?: boolean
 }
@@ -17,28 +14,30 @@ interface DateFieldProps extends FieldProps {
 export const DateField: React.FC<DateFieldProps> = ({
   name,
   label,
-  required,
   field,
   isPublishedDate = false,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
   const id = React.useId()
   const labelId = `${id}-label`
 
   return (
     <FieldWrapper
       label={label}
+      field={field}
+      value={value}
       labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
+      after={
+        isPublishedDate && (
+          <RenameToDateLink
+            date={
+              value && typeof value === 'string'
+                ? parseIsoDate(value)
+                : undefined
+            }
+          />
+        )
       }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
     >
       <DatePicker
         id={id}
@@ -51,17 +50,10 @@ export const DateField: React.FC<DateFieldProps> = ({
             date instanceof Date && !isNaN(date.getTime())
               ? formatIsoDate(date)
               : undefined
-          updateFrontmatterField(name, dateValue)
+          setValue(dateValue)
         }}
         placeholder="Select date..."
       />
-      {isPublishedDate && (
-        <RenameToDateLink
-          date={
-            value && typeof value === 'string' ? parseIsoDate(value) : undefined
-          }
-        />
-      )}
     </FieldWrapper>
   )
 }

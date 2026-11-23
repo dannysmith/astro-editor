@@ -1,6 +1,5 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import {
   useCollectionEntriesQuery,
   type EntryOption,
@@ -20,26 +19,17 @@ import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import { FieldWrapper } from './FieldWrapper'
 import { FieldType } from '../../../lib/schema'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 import { NONE_SENTINEL } from './constants'
 
-interface ReferenceFieldProps extends FieldProps {
-  field?: SchemaField
-}
-
-export const ReferenceField: React.FC<ReferenceFieldProps> = ({
+export const ReferenceField: React.FC<FieldControlProps> = ({
   name,
   label,
-  required,
   field,
 }) => {
   const [open, setOpen] = React.useState(false)
   const labelId = `${React.useId()}-label`
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
 
   // Determine if this is a multi-select (array reference) or single select
   const isMultiSelect = field?.type === FieldType.Array && !!field?.subReference
@@ -86,7 +76,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
       ? selectedValues.filter(v => v !== optionValue)
       : [...selectedValues, optionValue]
 
-    updateFrontmatterField(name, newValues.length > 0 ? newValues : undefined)
+    setValue(newValues.length > 0 ? newValues : undefined)
   }
 
   // Handle removing a selected item in multi-select
@@ -96,20 +86,33 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
   ) => {
     e.stopPropagation()
     const newValues = selectedValues.filter(v => v !== optionValue)
-    updateFrontmatterField(name, newValues.length > 0 ? newValues : undefined)
+    setValue(newValues.length > 0 ? newValues : undefined)
   }
+
+  // Values that aren't entries in the collection, once it's known what is
+  const chosen = isMultiSelect
+    ? selectedValues
+    : selectedValue
+      ? [selectedValue]
+      : []
+  const notFound =
+    isLoading || !found
+      ? []
+      : chosen.filter(id => !options.some(opt => opt.value === id))
+  const problem =
+    notFound.length === 0
+      ? undefined
+      : isMultiSelect
+        ? `${notFound.length} not in ${referencedCollection}`
+        : `Not in ${referencedCollection}`
 
   return (
     <FieldWrapper
       label={label}
+      field={field}
+      value={value}
       labelId={labelId}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
+      problem={problem}
     >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
@@ -126,16 +129,17 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
             />
           }
         >
-          <div className="flex flex-1 flex-wrap gap-1">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
             {isMultiSelect ? (
               selectedOptions.length > 0 ? (
                 selectedOptions.map(opt => (
                   <Badge
                     key={opt.value}
                     variant="secondary"
-                    className="gap-1 pr-1 has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+                    title={opt.label}
+                    className="max-w-full gap-1 pr-1 has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
                   >
-                    {opt.label}
+                    <span className="truncate">{opt.label}</span>
                     <span
                       role="button"
                       tabIndex={0}
@@ -146,7 +150,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                           handleRemoveItem(opt.value, e)
                         }
                       }}
-                      className="cursor-pointer rounded-full outline-hidden"
+                      className="shrink-0 cursor-pointer rounded-full outline-hidden"
                       aria-label="Remove"
                     >
                       <X className="h-3 w-3" />
@@ -155,14 +159,14 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                   </Badge>
                 ))
               ) : (
-                <span className="text-muted-foreground">
+                <span className="truncate text-muted-foreground">
                   Select {label.toLowerCase()}...
                 </span>
               )
             ) : selectedOption ? (
-              selectedOption.label
+              <span className="truncate">{selectedOption.label}</span>
             ) : (
-              <span className="text-muted-foreground">
+              <span className="truncate text-muted-foreground">
                 Select {label.toLowerCase()}...
               </span>
             )}
@@ -186,7 +190,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                   <CommandItem
                     value={NONE_SENTINEL}
                     onSelect={() => {
-                      updateFrontmatterField(name, undefined)
+                      setValue(undefined)
                       setOpen(false)
                     }}
                   >
@@ -209,7 +213,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                       if (isMultiSelect) {
                         handleMultiSelectToggle(currentValue)
                       } else {
-                        updateFrontmatterField(name, currentValue)
+                        setValue(currentValue)
                         setOpen(false)
                       }
                     }}

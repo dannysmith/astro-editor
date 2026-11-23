@@ -18,12 +18,8 @@ export function useEditorFileContent() {
   const projectPath = useProjectStore(state => state.projectPath)
 
   // Query fetches content based on current file
-  // Pass both id (for cache key) and path (for Rust command)
-  const { data, isLoading, isError, error } = useFileContentQuery(
-    projectPath,
-    currentFile?.id || null,
-    currentFile?.path || null
-  )
+  const { data, dataUpdatedAt, isLoading, isError, error } =
+    useFileContentQuery(projectPath, currentFile?.path || null)
 
   // Sync query data to local editing state when it arrives
   useEffect(() => {
@@ -34,9 +30,16 @@ export function useEditorFileContent() {
       isDirty: currentIsDirty,
       frontmatterBaseline,
       rawFrontmatter,
+      lastSaveTimestamp,
     } = useEditorStore.getState()
     if (currentIsDirty) {
       return // User is editing - their version is authoritative
+    }
+
+    // A read from before the last save holds older text than the editor. The
+    // save's own reload brings what's on disk now
+    if (lastSaveTimestamp !== null && dataUpdatedAt <= lastSaveTimestamp) {
+      return
     }
 
     // Safe to update - file is saved and matches disk. The first load after
@@ -48,6 +51,7 @@ export function useEditorFileContent() {
     useEditorStore.setState({
       editorContent: data.content,
       frontmatter: data.frontmatter,
+      heldFrontmatter: null,
       rawFrontmatter: data.raw_frontmatter,
       frontmatterBaseline:
         frontmatterBaseline === null || changedOutside
@@ -59,14 +63,17 @@ export function useEditorFileContent() {
       loadError: null,
       frontmatterError: data.frontmatter_error,
     })
-  }, [data, currentFile])
+  }, [data, dataUpdatedAt, currentFile])
 
   // A file that can't be loaded can't be edited, since the editor would only
   // hold an empty placeholder. A failed reload of a loaded file changes
   // nothing: what's in the editor is still the file
   useEffect(() => {
     if (!error || useEditorStore.getState().isLoaded) return
-    useEditorStore.setState({ loadError: error.message })
+    useEditorStore.setState({
+      loadError: error.message,
+      heldFrontmatter: null,
+    })
   }, [error])
 
   return { isLoading, isError, error }

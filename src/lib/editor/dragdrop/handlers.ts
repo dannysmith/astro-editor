@@ -128,7 +128,7 @@ export const handleTauriFileDrop = async (
   // Copying can take a while. If another file is opened meanwhile, the editor
   // holds that file now, and the text (relative to this one) doesn't belong
   const anotherFileOpened = (): DropResult | null =>
-    useEditorStore.getState().currentFile?.id === currentFile!.id
+    useEditorStore.getState().currentFile?.path === currentFile!.path
       ? null
       : { success: false, insertText: '', error: 'Another file was opened' }
 

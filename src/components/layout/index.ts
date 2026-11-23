@@ -1,5 +1,5 @@
 export { Layout } from './Layout'
 export { UnifiedTitleBar } from './unified-title-bar'
 export { MainEditor } from './MainEditor'
-export { LeftSidebar } from './LeftSidebar'
+export { LeftSidebar } from './left-sidebar'
 export { RightSidebar } from './RightSidebar'

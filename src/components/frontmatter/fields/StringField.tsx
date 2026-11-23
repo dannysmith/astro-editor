@@ -1,17 +1,15 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Input } from '../../ui/input'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
-import type { FieldProps } from '../../../types/common'
-import type { SchemaField } from '../../../lib/schema'
+import type { FieldControlProps } from './types'
 
-interface StringFieldProps extends FieldProps {
+interface StringFieldProps extends FieldControlProps {
   placeholder?: string
   type?: 'text' | 'email' | 'url'
-  field?: SchemaField
 }
 
 export const StringField: React.FC<StringFieldProps> = ({
@@ -19,21 +17,17 @@ export const StringField: React.FC<StringFieldProps> = ({
   label,
   placeholder,
   className,
-  required,
   type = 'text',
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const updateFrontmatterField = useEditorStore(
-    state => state.updateFrontmatterField
-  )
+  const [value, setValue] = useFrontmatterValue(name)
   const id = React.useId()
 
   // An <input> drops line breaks from its value, so editing a value that has
   // them would join its lines. Once a file's value has shown the textarea, it
   // keeps it, so deleting the last line break doesn't swap the control (and
   // lose focus) mid-edit.
-  const filePath = useEditorStore(state => state.currentFile?.path ?? null)
+  const filePath = useEditorStore(shownFilePath)
   const [multilineFile, setMultilineFile] = React.useState<
     string | null | undefined
   >(undefined)
@@ -42,24 +36,14 @@ export const StringField: React.FC<StringFieldProps> = ({
   const multiline = hasLineBreak || multilineFile === filePath
 
   return (
-    <FieldWrapper
-      label={label}
-      htmlFor={id}
-      required={required}
-      description={
-        field && 'description' in field ? field.description : undefined
-      }
-      defaultValue={field?.default}
-      constraints={field?.constraints}
-      currentValue={value}
-    >
+    <FieldWrapper label={label} field={field} value={value} htmlFor={id}>
       {multiline ? (
         <AutoExpandingTextarea
           id={id}
           name={name}
           className={className}
           value={valueToString(value)}
-          onChange={e => updateFrontmatterField(name, e.target.value)}
+          onChange={e => setValue(e.target.value)}
         />
       ) : (
         <Input
@@ -69,7 +53,7 @@ export const StringField: React.FC<StringFieldProps> = ({
           placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
           className={className}
           value={valueToString(value)}
-          onChange={e => updateFrontmatterField(name, e.target.value)}
+          onChange={e => setValue(e.target.value)}
         />
       )}
     </FieldWrapper>
