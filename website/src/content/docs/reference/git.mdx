@@ -1,0 +1,130 @@
+---
+title: 'How the Git Tab Works'
+description: 'Which git the Git tab runs, exactly what each button does, and how to fix common problems'
+---
+
+<Aside type="caution" title="This feature is experimental">
+The Git tab is newer than the rest of Astro Editor and may have more bugs. If you find one, please [report it](https://github.com/dannysmith/astro-editor/issues).
+</Aside>
+
+This page is for when something isn't working, or you want to know exactly what the [Git tab](/git/) does to your repository.
+
+## Which Git It Runs
+
+Astro Editor runs the `git` installed on your computer as a separate program. It has no git implementation of its own, and it stores nothing about git except whether the tab is switched on. [Project Settings](/project-settings/#git) shows which `git` it found and its version, which must be 2.31 or later.
+
+An app opened from the Dock doesn't get the environment your terminal has, so Astro Editor asks your login shell for it the first time it needs git. That gives it your `PATH`, and things like `SSH_AUTH_SOCK`, `GIT_SSH_COMMAND`, `GNUPGHOME` and proxy settings. It remembers the answer until it quits, so **restart Astro Editor after changing your shell setup**.
+
+While the tab is switched off for a project, Astro Editor runs no git for it.
+
+## Credentials, Hooks and Signing
+
+Because it's your own `git`, these work as they do in your terminal:
+
+- **Credentials:** the macOS keychain, `gh auth`, SSH agents such as 1Password's, and any other credential helper.
+- **Hooks:** they run when you commit or push, and Project Settings lists them. If a hook refuses, the tab shows its message.
+- **Signing:** commits are signed if your git config says so.
+- **Config:** `includeIf`, LFS, worktrees and the rest.
+
+Git runs without a terminal, so **anything that needs to ask you something in a terminal fails** instead of waiting. A password prompt fails straight away. Use a credential helper or an agent, so git doesn't need to ask.
+
+If a command hangs, it's stopped, along with any hooks it started: after 2 minutes for staging, committing and the rest of a pull, 10 minutes for pushing and fetching, and 30 seconds for **Check remote**.
+
+## Which Files Go With an Entry
+
+The tab compares git's list of changed files with what the entry refers to, in its text as the editor has it, including frontmatter, imports and component props.
+
+- **A relative reference**, like `./cover.jpg` or `../../assets/map.png`, counts only for the file it resolves to from the entry's folder, so another entry's `cover.jpg` isn't ticked.
+- **Any other reference**, like an alias (`@assets/map.png`) or a path from the root (`/src/assets/map.png`), counts for any changed file with that exact name, since resolving it would mean reading your project's config.
+- **An entry at `folder/index.md`** takes every changed file in its folder.
+- **Other content files never count**, even if the entry links to them.
+- **An entry you renamed in Astro Editor** brings its old path with it, because git sees a rename as one file deleted and another added.
+
+## What Each Button Does
+
+| Button | What it runs |
+| --- | --- |
+| **Stage** | Saves the entry, then `git add` on the entry and the ticked files, by their exact paths. Never `git add -A` |
+| **Cancel** | `git reset` on the paths Astro Editor staged |
+| **Commit** | Saves the entry, stages the same paths again so later edits are included, then runs a plain `git commit` |
+| **Push** | `git push <remote> HEAD:<branch>`, to where a plain `git push` would go |
+| **Pull** | `git fetch`, then a fast-forward or a rebase, as below |
+| **Check remote** | `git ls-remote`, only when you press it |
+| Refresh | Reads git's status again. It doesn't fetch |
+
+A plain `git commit` takes everything in the index, including anything staged outside Astro Editor. In a monorepo that can be work outside your site, so the commit card lists it, marked **staged outside AE**.
+
+### What Pull Does
+
+<Steps>
+
+1. Fetches, while you carry on writing.
+2. Pauses editing and saves the entry.
+3. Stops there if there's nothing new, or if any of the [checks below](#when-pull-refuses) fail. Nothing has changed at that point.
+4. If you have no commits to push, fast-forwards with `git merge --ff-only`.
+5. If you do, runs `git rebase --autostash` onto the upstream, so your commits go on top. If that hits a conflict, `git rebase --abort` puts everything back as it was.
+6. Reads the entry again from disk and lets you carry on editing.
+
+</Steps>
+
+## When Push Refuses
+
+| Message | What to do |
+| --- | --- |
+| The remote has commits you don't have yet | Pull, then push again. |
+| Your branch tracks a branch with a different name | With git's default `push.default`, a plain `git push` wouldn't push it there either. This stops a draft made with `git switch -c draft origin/main` being published to `main`. Push it from your git tool, for example with `git push -u origin HEAD`. |
+| `push.default` is `nothing` | Push from your git tool. |
+
+A new branch with no upstream has no **Push** button. Do its first push in your git tool.
+
+## When Pull Refuses
+
+Unless it says otherwise, nothing has been changed.
+
+| Message | What to do |
+| --- | --- |
+| The remote changed files you have uncommitted changes to | Commit them, then pull again. |
+| The remote has files you have here but not in git | Move them aside, then pull again. |
+| Your commits to push include a merge | Pull in your git tool, since a rebase would undo the merge. |
+| Pulling would unstage the files that are staged | Commit or unstage them, then pull again. |
+| Your commits and the remote's both change a file | Astro Editor undid the rebase, so everything is as it was. Combine them in your git tool. |
+| A rebase that Astro Editor didn't start is under way | Finish it in your git tool. |
+| Your uncommitted changes clash with the remote's | This should be rare. The pull worked, but git left conflict markers in the files named and kept your changes in its stash. Sort it out in your git tool. |
+| The pull stopped part way and couldn't be undone | Finish or abort the rebase in your git tool. |
+
+## When the Tab Won't Commit
+
+The tab won't commit or push, and says why, when:
+
+- Git is in the middle of a merge, rebase, cherry-pick or revert
+- HEAD is detached
+- Files have conflicts
+
+Finish in your git tool and the tab carries on. It also can't commit an entry that git ignores, or one in a different repository from the project.
+
+## Monorepos, Submodules and Ignored Folders
+
+- **A site in a folder of a bigger repository** works normally. Only your site's changes are listed, but a commit takes everything staged in the repository, which is why the commit card shows anything staged elsewhere.
+- **A project in a folder its repository ignores** is treated as not being in a repository, since anything committed from it would land in what may be a different project.
+- **A site that's a submodule** commits and pushes to the submodule's own repository. Pushing doesn't update the parent repository's pointer to it.
+- **An entry in another repository**, through a symlinked folder or a nested repository or submodule, can't be committed from the tab.
+
+## Keeping Up to Date
+
+While it's showing, the tab reads git again when git's own folder changes (commits, staging, branch switches, pushes and fetches, from any app), when a content file changes, and when you come back to the window.
+
+It won't notice an image or other non-content file changed by another app while Astro Editor stays focused. The refresh button covers that.
+
+## Common Problems
+
+**`Permission denied (publickey)`, but pushing works in the terminal.** Astro Editor probably doesn't have your SSH agent. Make sure `SSH_AUTH_SOCK` is set in your login shell's config, then restart Astro Editor.
+
+**A commit or push hangs, then fails.** Something is probably waiting for a passphrase. Use an SSH or GPG agent, or a credential helper.
+
+**Git doesn't know who you are.** Set your name and email with `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`. Project Settings shows who you'll commit as and which file sets it.
+
+**`index.lock` exists.** Another git process is running, or one crashed. If nothing else is using the repository, delete `.git/index.lock`.
+
+**A hook failed.** The tab shows the hook's own output. Fix what it's complaining about, or commit from your terminal if you need to get past it.
+
+**Changes to your shell setup aren't picked up.** Restart Astro Editor, which only asks your shell once.

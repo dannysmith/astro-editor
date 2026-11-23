@@ -72,12 +72,13 @@ Work through the checklists under **Feature notes** below, re-checking the Git n
 
 ## Phase 4: New docs pages
 
-- [ ] **Copyediting** (`editor/copyediting.mdx`, titled something like "Copyediting, Spelling & Grammar"): replaces `editor/copyedit-modes.mdx`. One page for the panel and how it fits the editing stage of writing, with the highlights (keep the existing screenshot and table) and the spelling, grammar and style checks: how to use them, what Harper is, what it checks and deliberately doesn't, and that it all runs locally.
-- [ ] Redirect `/editor/copyedit-modes` to the new URL, and update the links in `astro.config.mjs`, `reference/commands.mdx`, `reference/advanced-preferences.mdx` and `index.astro`.
-- [ ] **Git** (`git.mdx`): the best case, for a writer who wants to commit what they've just written. What it's for, switching it on, then write → stage → commit → push, and pulling. Explain why it's deliberately small and when to use another tool.
-- [ ] **How the Git tab works** (`reference/git.mdx`): for technical users troubleshooting it. Which `git` it runs and with what environment, credentials, hooks and signing, how it picks an entry's files, exactly what Stage, Commit, Push and Pull do, each case where Pull refuses and what to do, read-only states, monorepos, submodules and ignored folders, common errors. `docs/developer/git.md` is the source.
-- [ ] Mark both Git pages as experimental, with a sidebar badge and a short note at the top saying it may have more bugs than the rest of the app.
-- [ ] Add the new pages to the sidebar in `astro.config.mjs`, and link them from the editor overview, Project Settings and the philosophy page.
+- [x] **Copyediting** (`editor/copyediting.mdx`, titled something like "Copyediting, Spelling & Grammar"): replaces `editor/copyedit-modes.mdx`. One page for the panel and how it fits the editing stage of writing, with the highlights (keep the existing screenshot and table) and the spelling, grammar and style checks: how to use them, what Harper is, what it checks and deliberately doesn't, and that it all runs locally.
+- [x] Redirect `/editor/copyedit-modes` to the new URL, and update the links in `astro.config.mjs`, `reference/commands.mdx`, `reference/advanced-preferences.mdx` and `index.astro`.
+- [x] **Git** (`git.mdx`): the best case, for a writer who wants to commit what they've just written. What it's for, switching it on, then write → stage → commit → push, and pulling. Explain why it's deliberately small and when to use another tool.
+- [x] **How the Git tab works** (`reference/git.mdx`): for technical users troubleshooting it. Which `git` it runs and with what environment, credentials, hooks and signing, how it picks an entry's files, exactly what Stage, Commit, Push and Pull do, each case where Pull refuses and what to do, read-only states, monorepos, submodules and ignored folders, common errors. `docs/developer/git.md` is the source.
+- [x] Mark both Git pages as experimental, with a sidebar badge and a short note at the top saying it may have more bugs than the rest of the app.
+- [x] Add the new pages to the sidebar in `astro.config.mjs`, and link them from the editor overview, Project Settings and the philosophy page.
+- [ ] Danny to read and rewrite the three new pages.
 
 ## Phase 5: Homepage, SEO and social links
 
@@ -154,16 +155,16 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 
 - [x] `reference/keyboard-shortcuts.mdx`: ⌘1 toggles the left sidebar; ⌘2 (Frontmatter) and ⌘3 (Copyedit) open the right sidebar on their tab, or close it if that tab is showing.
 - [x] `reference/commands.mdx`: Toggle Left Sidebar, Toggle Right Sidebar, Toggle Frontmatter Panel and Toggle Copyedit Panel; the Highlights group is now called Copyedit.
-- [ ] `editor/copyediting.mdx`: the highlights can be switched on and off in the Copyedit panel, not only from the palette. In the panel they're one dropdown at the top, which names the highlights that are on and has Show All and Hide All.
+- [x] `editor/copyediting.mdx`: the highlights can be switched on and off in the Copyedit panel, not only from the palette. In the panel they're one dropdown at the top, which names the highlights that are on and has Show All and Hide All.
 - [x] Screenshots that show the right sidebar, which now has a tab bar.
 
 ### Spelling, grammar and style checks (#265)
 
-- [ ] The spelling, grammar and style part of `editor/copyediting.mdx`, linked from the editor overview:
+- [x] The spelling, grammar and style part of `editor/copyediting.mdx`, linked from the editor overview:
   - Switch Spelling, Grammar and Style on in the Copyedit panel. Issues are underlined in red, blue and green, the same colours as the highlights.
   - Hover an underline, or click an issue in the panel's list, for Harper's message and its suggested fixes. Click a suggestion to apply it; **Add to Dictionary** (spelling only) and **Ignore** are below.
   - The panel lists the open file's issues in order, with the kind of issue when it says more than the colour (Word Choice, Repetition, …).
-  - What isn't checked: code, links and URLs, images, HTML and component tags, MDX imports and `{expressions}`, paths and file names. Text inside components is checked.
+  - What isn't checked: frontmatter, code, URLs (a link's text is checked), images, HTML and component tags, MDX imports and `{expressions}`, paths and file names. Text inside components is checked.
   - It stays out of the way on purpose: acronyms and capitalised words inside a sentence (names) aren't flagged, nor are house-style choices like the Oxford comma or "config". So it misses some mistakes rather than nag.
   - An ignored issue stays hidden wherever the same words appear, in any file.
   - Checks run on your computer with [Harper](https://writewithharper.com); nothing is sent anywhere. The checker loads the first time a check runs, so there's a short "Starting checks…" pause.
@@ -205,11 +206,11 @@ The website docs are already in #384 (the token table in `project-settings.mdx#f
 
 An experimental Git tab in the right sidebar, switched on per project. It's for writers who already use git: see the open entry's state, commit it with the files it uses, and push and pull. It uses your own `git`, so your credentials, SSH agent, hooks and signing work as they do in your terminal.
 
-- [ ] The `git.mdx` page:
+- [x] The `git.mdx` page:
   - Switch it on in **Project Settings → Git** (marked Experimental). It needs git installed and the project in a git repository; a site in a folder of a bigger repository (a docs site in a monorepo) is fine. While it's off, AE runs no git at all for that project.
   - **The repository strip:** the branch, its upstream, and how many commits are to push (↑) and pull (↓); click the counts for the commits. **Push** pushes the branch, and only it, to where a plain `git push` would. With git's default settings it refuses a branch whose upstream has a different name, such as a draft made from `origin/main`, so a draft can't be published by accident. **Pull** fetches, then brings new commits in only when that can be done cleanly: it refuses, changing nothing, when your uncommitted changes touch files that changed upstream, when an untracked or ignored file would be overwritten, when it would have to rebase while files are staged, or when the commits to push include a merge; a rebase that conflicts is undone. Merges and conflicts are for your git tool.
   - **This entry:** its state in git (new, modified, committed, ignored, in another repository) and its last commit.
-  - **Files it uses:** files the entry refers to (images, imports, image fields, component props) are ticked to go with it. Images you dropped in and then took out are listed unticked, marked "No longer used in the entry"; the warning sign or the right-click menu deletes one, after asking. Anything else changed in the project is under **Other changes**, to tick if you want it.
+  - **Files it uses:** files the entry refers to (images, imports, image fields, component props) are ticked to go with it. Images you dropped in and then took out are listed unticked, marked "No longer used in the entry"; the warning sign or the right-click menu moves one to the Trash, or with **Permanently delete files** on, removes it after asking. Anything else changed in the project is under **Other changes**, to tick if you want it.
   - **Stage, then Commit:** Stage opens a card with the message (prefilled "Add “Title”" or "Update “Title”") and exactly what will be committed, including anything staged outside AE. **Cancel** unstages. Only one entry can have files staged at a time, since one commit takes everything staged.
   - **Read-only states:** in the middle of a merge or rebase, on a detached HEAD, or with conflicts, the tab won't commit or push, and says to finish in your git tool.
   - Right-click any file for Reveal in Finder, Open in IDE and Copy Path. Click a content file to open it.

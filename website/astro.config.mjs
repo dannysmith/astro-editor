@@ -15,6 +15,7 @@ export default defineConfig({
   compressHTML: true,
   redirects: {
     '/reference/overrides': '/reference/settings/',
+    '/editor/copyedit-modes': '/editor/copyediting/',
   },
   integrations: [
     starlight({
@@ -90,7 +91,7 @@ export default defineConfig({
             { slug: 'editor/images-and-files' },
             { slug: 'editor/mdx-components' },
             { slug: 'editor/focus-and-typewriter' },
-            { slug: 'editor/copyedit-modes' },
+            { slug: 'editor/copyediting' },
           ],
         },
         {
@@ -109,6 +110,7 @@ export default defineConfig({
             { slug: 'frontmatter/special-fields' },
           ],
         },
+        { slug: 'git', badge: { text: 'Experimental', variant: 'caution' } },
         { slug: 'project-settings' },
         { slug: 'preferences' },
         {
@@ -121,6 +123,10 @@ export default defineConfig({
             { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
             { slug: 'reference/yaml' },
+            {
+              slug: 'reference/git',
+              badge: { text: 'Experimental', variant: 'caution' },
+            },
             { slug: 'reference/troubleshooting' },
           ],
         },
