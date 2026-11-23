@@ -153,6 +153,6 @@ Make constraints, required fields and actions feel part of each field, and flag 
 
 ## Before finishing
 
-- [ ] Update `docs/developer/editor.md` and `architecture-guide.md` for file identity and how disk changes are handled
-- [ ] Check the UI in the app, in light and dark
-- [ ] `bun run check:all`
+- [x] Update `docs/developer/editor.md` and `architecture-guide.md` for file identity and how disk changes are handled
+- [x] Check the UI in the app, in light and dark
+- [x] `bun run check:all`
