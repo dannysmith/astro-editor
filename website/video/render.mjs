@@ -6,6 +6,7 @@
 //   node video/render.mjs --fps 30             -> lower frame rate
 //   node video/render.mjs --stills 3,12.5,40   -> out/stills/t-<time>.png for checking
 //   node video/render.mjs --from 20 --to 30    -> render a section only
+//   node video/render.mjs --clip git --out clip-git-silent.mp4  -> a square clip
 import { chromium } from 'playwright-core'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, rmSync, existsSync } from 'node:fs'
@@ -21,12 +22,18 @@ const arg = (name, def) => {
 const fps = +arg('fps', 60)
 const workers = +arg('workers', 6)
 const stills = arg('stills')
-const url = 'file://' + path.join(dir, 'index.html')
+// --clip copyedit or --clip git renders a square social clip
+const clip = arg('clip')
+const size = clip
+  ? { width: 1080, height: 1080 }
+  : { width: 1920, height: 1080 }
+const url =
+  'file://' + path.join(dir, 'index.html') + (clip ? `?clip=${clip}` : '')
 
 const browser = await chromium.launch()
 async function openPage() {
   const page = await browser.newPage({
-    viewport: { width: 1920, height: 1080 },
+    viewport: size,
     deviceScaleFactor: 1,
   })
   page.on('pageerror', (e) => console.error('page error:', e.message))
@@ -40,7 +47,13 @@ if (stills) {
   const page = await openPage()
   for (const t of stills.split(',').map(Number)) {
     await page.evaluate((t) => window.render(t), t)
-    const file = path.join(dir, 'out', 'stills', `t-${t.toFixed(2)}.png`)
+    const prefix = clip ? `${clip}-` : ''
+    const file = path.join(
+      dir,
+      'out',
+      'stills',
+      `${prefix}t-${t.toFixed(2)}.png`
+    )
     await page.screenshot({ path: file })
     console.log(file)
   }

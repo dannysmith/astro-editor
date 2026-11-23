@@ -54,11 +54,12 @@ bun run check        # Type check + lint + format check
 bun run lint         # ESLint
 bun run format       # Prettier format
 bun run video        # Re-render the homepage intro video (see video/README.md)
+bun run video:clips  # Render the square social clips from it
 ```
 
 ## Intro Video
 
-The homepage video (`public/astro-editor-intro.mp4`) is built from source in `video/`: an HTML page rendered frame by frame with Playwright and ffmpeg, plus a synthesised soundtrack. Read `video/README.md` before changing it. Don't edit the MP4 or its poster (`src/assets/intro-video-poster.jpg`) by hand; regenerate them with `bun run video`.
+The homepage video (`public/astro-editor-intro.mp4`) is built from source in `video/`: a web page, split by chapter, rendered frame by frame with Playwright and ffmpeg, plus a synthesised soundtrack. Read `video/README.md` before changing it. Don't edit the MP4 or its poster (`src/assets/intro-video-poster.jpg`) by hand; regenerate them with `bun run video`.
 
 ## Content Conventions
 

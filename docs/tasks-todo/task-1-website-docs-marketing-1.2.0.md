@@ -102,13 +102,16 @@ A longer video (two to two and a half minutes) that follows **one article from f
 6. **Commit.** Open the Git tab. It has ticked the entry and its images, and lists the removed image as no longer used. Stage, write a message, commit.
 7. **End card,** with the remaining features and where to get it.
 
-- [ ] Agree a storyboard and script before building anything.
-- [ ] Restructure the source first. Captions, camera moves, scrolling and sound cues all use absolute times, and the soundtrack ends at 60s, so adding a scene means retiming everything after it. Give each chapter its own start time and relative timings, and split `index.html` by chapter.
-- [ ] Build the Copyedit and Git scenes, recreating the UI in HTML as the current scenes do.
-- [ ] Extend the soundtrack.
-- [ ] Iterate with stills and section renders, and commit only the final MP4, since every committed render stays in the repo's history.
-- [ ] Update `website/video/README.md`.
-- [ ] Export short clips of the Copyedit and Git chapters for social posts.
+- [x] Agree a storyboard and script before building anything. It's in `docs/tasks-todo/temporary/video-storyboard.md`.
+- [x] Restructure the source: `timeline.js`, `helpers.js`, `main.js`, `styles.css` and `chapters/`, with relative timings and sound cues declared by each chapter.
+- [x] Build the Copyedit and Git scenes, recreating the UI in HTML as the current scenes do.
+- [x] Extend the soundtrack.
+- [x] Update `website/video/README.md`.
+- [x] Run the first full render: `bun run video && bun run video:clips` from `website/`, outside the sandbox.
+- [x] Check the encoded video and clips: contact sheets, tiled frames across the clip endings, file sizes and audio levels. Fixed a stray key cap, the feature wall and a leftover caption on the clips' end cards.
+- [x] Danny to watch the video and clips at full speed and judge the soundtrack by ear.
+- [x] Commit the video source, final MP4 and poster. Only the final MP4 should ever be committed, since every committed render stays in the repo's history.
+- [x] Give Danny the clips from `website/video/out/clips/` (gitignored) for Bluesky.
 
 ## Phase 7: Release notes
 

@@ -17,7 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "video": "node video/render.mjs && node video/synth.mjs && node video/publish.mjs"
+    "video": "node video/render.mjs && node video/synth.mjs && node video/publish.mjs",
+    "video:clips": "node video/clips.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.8",
