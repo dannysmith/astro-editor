@@ -240,7 +240,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         unsubscribe()
         resolve()
       }
-      const timer = setTimeout(finish, 1000)
+      // It takes a frame. If it hasn't come in a second, waiting longer won't
+      // help, and keeping editing paused would leave the entry stuck. Said
+      // in the log, so it's seen if it ever happens
+      const timer = setTimeout(() => {
+        void logWarn(
+          `Astro Editor [GIT] ${path} wasn't reloaded within a second; editing resumed anyway`
+        )
+        finish()
+      }, 1000)
       const unsubscribe = useEditorStore.subscribe(state => {
         if (loaded(state)) finish()
       })

@@ -134,7 +134,7 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     // which checks the upstream out first, either. Every file that differs
     // between HEAD and the upstream, not just those the upstream changed: a
     // file the writer's own commits deleted is checked out again too
-    let differ = paths(
+    let mut differ = paths(
         git,
         repository,
         &[
@@ -146,6 +146,27 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
             "@{upstream}",
         ],
     )?;
+    // And, when rebasing, every file the writer's own commits touch, since
+    // they're replayed one by one: one added then removed again doesn't
+    // differ, but would still be written over and deleted
+    if ahead > 0 {
+        for path in paths(
+            git,
+            repository,
+            &[
+                "log",
+                "--no-renames",
+                "--name-only",
+                "--format=",
+                "-z",
+                "@{upstream}..HEAD",
+            ],
+        )? {
+            if !differ.contains(&path) {
+                differ.push(path);
+            }
+        }
+    }
     if !differ.is_empty() {
         let mut args = vec!["ls-files", "-z", "--others", "--"];
         args.extend(differ.iter().map(String::as_str));
@@ -641,6 +662,29 @@ mod tests {
         assert_eq!(head(&repos, &writer), before);
         assert_eq!(
             fs::read_to_string(writer.join("entry.md")).unwrap(),
+            "kept\n"
+        );
+    }
+
+    #[test]
+    fn pull_refuses_when_its_own_commits_add_and_remove_a_file_kept_here_untracked() {
+        let repos = TestRepos::new();
+        let (writer, collaborator) = shared(&repos);
+        change(&repos, &collaborator, "other.md", "two\n", true);
+        // Added in one commit and removed in the next: HEAD and the upstream
+        // don't differ there, but the rebase replays both
+        change(&repos, &writer, "scratch.md", "added\n", false);
+        repos.git_ok(&writer, &["rm", "-q", "scratch.md"]);
+        repos.commit_all(&writer, "Remove scratch");
+        fs::write(writer.join(".git/info/exclude"), "scratch.md\n").unwrap();
+        fs::write(writer.join("scratch.md"), "kept\n").unwrap();
+        let before = head(&repos, &writer);
+
+        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        assert!(error.contains("scratch.md"), "{error}");
+        assert_eq!(head(&repos, &writer), before);
+        assert_eq!(
+            fs::read_to_string(writer.join("scratch.md")).unwrap(),
             "kept\n"
         );
     }

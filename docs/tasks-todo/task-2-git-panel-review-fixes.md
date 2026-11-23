@@ -233,3 +233,10 @@ Done. D2 and D3 were reproduced by tests first (the push went to the project ins
 - **D7 Fix.** After a pull, editing resumes once the store holds the body that was read, but a pull that changed only the frontmatter can resume before the store has the new frontmatter. Wait for the frontmatter (`rawFrontmatter`) too.
 - **D8 Fix.** `map.png+backup` still matches `map.png`, since only letters, digits, `.`, `-` and `_` are checked after the name. Accept only what can end a reference (the end, quotes, brackets, spaces and so on) or `?`/`#`. Test.
 - **D9 Fix (nitpick).** `storeHolds` subscribes to the editor store from `lib/`, which the house rules keep to CodeMirror extensions. Move the wait into the editor store as an action, and call it with `getState()`.
+
+## Phase 13: CodeRabbit's third review (of `57cdab76`) ✅
+
+- **E1 Fixed.** The writer's own commits adding a file and removing it again don't make it differ from the upstream, but the rebase replays both, writing over an ignored file there and deleting it. The check now also covers every file those commits touch (`log --name-only @{upstream}..HEAD`). Reproduced by a test first.
+- **E2 Kept, with a warning logged (Danny agreed).** CodeRabbit asked for editing to stay paused until the pulled text reaches the store, with no time limit. It arrives within a frame; the second-long limit only matters where waiting longer can't help, and staying paused would leave the entry read-only. Hitting the limit is now logged.
+
+Each round finds narrower cases in Pull's handling of unusual local states. Later rounds are optional, not blocking the merge.
