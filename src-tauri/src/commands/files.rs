@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use tauri::{path::BaseDirectory, Manager};
 
+use crate::commands::run_blocking;
 use crate::frontmatter::{
     assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
 };
@@ -135,17 +136,21 @@ pub async fn delete_file(
     permanent: bool,
 ) -> Result<(), String> {
     let path = validate_project_path(&file_path, &project_root)?;
-    if permanent {
-        std::fs::remove_file(&path).map_err(|e| format!("Failed to delete file: {e}"))?;
-        log::info!("Astro Editor [FILES] Deleted {}", path.display());
-    } else {
-        move_to_trash(&path).map_err(|e| format!("Failed to move file to the Trash: {e}"))?;
-        log::info!(
-            "Astro Editor [FILES] Moved to the Trash: {}",
-            path.display()
-        );
-    }
-    Ok(())
+    // Trashing can be slow, on a slow volume say, so it's kept off the async workers
+    run_blocking(move || {
+        if permanent {
+            std::fs::remove_file(&path).map_err(|e| format!("Failed to delete file: {e}"))?;
+            log::info!("Astro Editor [FILES] Deleted {}", path.display());
+        } else {
+            move_to_trash(&path).map_err(|e| format!("Failed to move file to the Trash: {e}"))?;
+            log::info!(
+                "Astro Editor [FILES] Moved to the Trash: {}",
+                path.display()
+            );
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// On macOS the `trash` crate asks Finder by default, which needs Automation
