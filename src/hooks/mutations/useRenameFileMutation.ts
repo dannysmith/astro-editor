@@ -46,15 +46,6 @@ export const useRenameFileMutation = () => {
         ),
       })
 
-      // Nothing is at the old path now, so its cached content can't be used
-      queryClient.removeQueries({
-        queryKey: queryKeys.fileContent(
-          variables.projectPath,
-          variables.oldPath
-        ),
-        exact: true,
-      })
-
       toast.success('File renamed successfully')
     },
     onError: error => {

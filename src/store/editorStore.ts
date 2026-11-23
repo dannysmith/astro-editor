@@ -185,7 +185,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // An opened file's content always comes from disk, never the cache
     readFromDisk(file)
 
-    // What the panel shows now, unless it's an error rather than fields
+    // The values the panel is showing, to hold until the next file loads. A
+    // file whose frontmatter couldn't be read has none
     const { isLoaded, frontmatter, frontmatterError, heldFrontmatter } = get()
     const shown =
       currentFile && isLoaded && !frontmatterError

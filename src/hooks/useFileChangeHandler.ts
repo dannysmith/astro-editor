@@ -21,8 +21,8 @@ const OWN_SAVE_WINDOW_MS = 3000
  * 1. Refresh the sidebar and entry pickers when any content file is added,
  *    removed, renamed or edited outside the app
  * 2. Re-read the open file whenever it changes on disk. An event from our own
- *    save reads back the same data, so the query keeps its reference and
- *    nothing updates; anything else is a real change to show
+ *    save reads back the same text, so the editor isn't touched; anything else
+ *    is a real change to show
  * 3. Respect isDirty state (don't reload user's unsaved work)
  */
 export function useFileChangeHandler() {

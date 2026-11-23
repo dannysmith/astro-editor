@@ -47,12 +47,12 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     openGeneration: number
     text: string
   } | null>(null)
-  const openDraft = draft?.openGeneration === openGeneration ? draft : null
-  const isEditing = openDraft !== null
+  const currentDraft = draft?.openGeneration === openGeneration ? draft : null
+  const isEditing = currentDraft !== null
   const id = React.useId()
 
   // When editing, show edit value; otherwise show current value
-  const displayValue = openDraft ? openDraft.text : value
+  const displayValue = currentDraft ? currentDraft.text : value
 
   const handleFileSelect = async (filePath: string) => {
     setIsLoading(true)
@@ -92,10 +92,10 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   }
 
   const handleEditSave = () => {
-    if (!openDraft) return
+    if (!currentDraft) return
     // Manual edit: user has full control, no validation. An empty path clears
     // the image; a missing file just fails to preview
-    onChange(openDraft.text.trim() || undefined)
+    onChange(currentDraft.text.trim() || undefined)
     setDraft(null)
   }
 

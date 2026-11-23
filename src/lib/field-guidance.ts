@@ -134,8 +134,7 @@ function numberProblem(
   constraints: FieldConstraints
 ): FieldProblem | null {
   const { min, max, minExclusive, maxExclusive } = constraints
-  const range = numberRange(constraints)
-  const should = `Should be ${range?.replace('At', 'at')}`
+  const should = `Should be ${numberRange(constraints)?.toLowerCase()}`
   if (max !== undefined && (maxExclusive ? value >= max : value > max)) {
     return { message: should, whileTyping: true }
   }
