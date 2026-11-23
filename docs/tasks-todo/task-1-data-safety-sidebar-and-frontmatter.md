@@ -74,6 +74,15 @@ Each fix gets a focused test that fails without it.
 
 - [x] Scope the draft to the open file
 
+### 7. Editing a nested value deleted the comments in its object
+
+**Reproduced.** The writer only kept text per top-level key, so changing `seo.og.alt` rewrote all of `seo` and dropped any comments inside it.
+
+**Fix:** splice changed block objects the same way as the top level, at any depth. Inline objects, and anything that doesn't read back correctly, are still rendered whole. Comments inside a changed list of objects are still lost.
+
+- [x] Splice nested block objects in `write_block`
+- [x] Keep new nested keys at their schema position
+
 ## Phase 2: Frontmatter flicker
 
 `openFile` clears `frontmatter` and forces a disk read, so the mounted fields show empty values until it lands. Measured at 27–112ms per switch, with the panel's height dropping by up to 290px and growing back.
