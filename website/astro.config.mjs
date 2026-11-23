@@ -16,6 +16,9 @@ export default defineConfig({
   redirects: {
     '/reference/overrides': '/reference/settings/',
     '/editor/copyedit-modes': '/editor/copyediting/',
+    // The page actions menu links every page to its Markdown, and this list
+    // page has none
+    '/releases.md': '/releases/',
   },
   integrations: [
     starlight({
