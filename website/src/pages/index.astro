@@ -8,9 +8,8 @@ import HeroDownload from '../components/HeroDownload.astro'
 import FeatureSection from '../components/FeatureSection.astro'
 import Screenshot from '../components/Screenshot.astro'
 import ThemeCompareSlider from '../components/ThemeCompareSlider.astro'
-import YouTubeFacade from '../components/YouTubeFacade.astro'
 import Lightbox from '../components/Lightbox.astro'
-import { DOWNLOADS } from '../consts'
+import { BLUESKY_URL, DOWNLOADS, GITHUB_REPO } from '../consts'
 import vscodeShot from '../assets/main-demo-image-vscode.png'
 import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
@@ -19,7 +18,9 @@ import aeFocusDark from '../assets/main-demo-image-distractionless-dark.png'
 import frontmatterShot from '../assets/frontmatter-sidebar-overview.png'
 import mdxShot from '../assets/mdx-builder-1.png'
 import imagePreviewShot from '../assets/image-preview-demo.png'
-import copyeditShot from '../assets/copyedit-highlights.png'
+import copyeditShot from '../assets/copyedit-checks.png'
+import gitShot from '../assets/git-tab.png'
+import contentFinderShot from '../assets/content-linker.png'
 import commandPaletteShot from '../assets/command-palette.png'
 import draftsShot from '../assets/file-manager-drafts-filter.png'
 import introPoster from '../assets/intro-video-poster.jpg'
@@ -50,12 +51,21 @@ const structuredData = {
   },
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   downloadUrl: 'https://astroeditor.danny.is/',
+  featureList: [
+    'Frontmatter forms built from Astro content collection schemas',
+    'Distraction-free writing with focus and typewriter modes',
+    'MDX component builder',
+    'Spelling, grammar and style checks that run locally',
+    'Part-of-speech highlighting for copyediting',
+    'Commit, push and pull from a Git tab',
+  ],
+  sameAs: [GITHUB_REPO, BLUESKY_URL],
 }
 ---
 
 <Layout
   title="Astro Editor — A focused markdown editor for Astro content collections"
-  description="Astro Editor is a native, distraction-free markdown editor that reads your Astro content collection schemas and turns frontmatter into clean, schema-aware forms. For writer mode, not coder mode."
+  description="Astro Editor is a native, distraction-free markdown editor that turns your Astro content collection schemas into clean frontmatter forms, checks your spelling and grammar, and commits your work. For writer mode, not coder mode."
   image="/og-image.png"
 >
   <script
@@ -91,7 +101,7 @@ const structuredData = {
             preload="metadata"
             width="1920"
             height="1080"
-            aria-label="A one-minute tour of Astro Editor: schema-aware frontmatter forms, distraction-free writing, focus mode, image drag and drop, and inserting an MDX component by filling in a form for its props."
+            aria-label="A tour of Astro Editor: schema-aware frontmatter forms, distraction-free writing, focus mode, image drag and drop, and inserting an MDX component by filling in a form for its props."
           ></video>
         </div>
 
@@ -284,6 +294,60 @@ const structuredData = {
       </div>
     </FeatureSection>
 
+    <FeatureSection
+      id="copyedit"
+      eyebrow="Copyediting"
+      title="Find what needs fixing when you edit"
+    >
+      <p>
+        When you've finished writing, open the
+        <a href="/editor/copyediting/">Copyedit panel</a>. Spelling, grammar and
+        style checks from <a href="https://writewithharper.com">Harper</a> run
+        entirely on your computer, so your words never leave it. They skip your
+        code, URLs and component tags, and they won't nag you about names or
+        house style.
+      </p>
+      <p>
+        You can also colour-code nouns, verbs, adjectives, adverbs and
+        conjunctions to see how your sentences are built and spot the adverbs
+        you don't need.
+      </p>
+      <Screenshot
+        slot="media"
+        bare
+        src={copyeditShot}
+        alt="A rough draft in Astro Editor with spelling, grammar and style issues underlined, and the same issues listed in the Copyedit panel with switches for each kind of check."
+        caption="Issues are underlined in the editor and listed in the panel."
+      />
+    </FeatureSection>
+
+    <FeatureSection
+      id="git"
+      eyebrow="Git"
+      title="Commit the post and the images that go with it"
+      reverse
+    >
+      <p>
+        When a piece is ready, the <a href="/git/">Git tab</a> already knows
+        which files belong to it. The entry and the images it uses are ticked,
+        and an image you dropped in and then took out is flagged so it doesn't
+        get left behind.
+      </p>
+      <p>
+        Stage, write a message, commit and push without leaving writer mode. It
+        uses your own <code>git</code>, so your credentials, hooks and signing
+        work as they always do. Branches, merges and conflicts stay in the tools
+        built for them.
+      </p>
+      <Screenshot
+        slot="media"
+        bare
+        src={gitShot}
+        alt="The Git tab beside an article in Astro Editor, showing the branch with one commit to push, the entry marked Modified, a Stage 3 files button, two images ticked and one marked as no longer used."
+        caption="The entry and the files it uses, ready to commit."
+      />
+    </FeatureSection>
+
     <section class="section">
       <div class="container">
         <h2 class="section-heading">And plenty more besides...</h2>
@@ -306,16 +370,16 @@ const structuredData = {
           </article>
           <article class="card">
             <Screenshot
-              src={copyeditShot}
-              alt="Prose in the editor with words colour-coded by part of speech — nouns, verbs, adjectives, adverbs and conjunctions in different colours."
+              src={contentFinderShot}
+              alt="The Content Finder open over an article, with a search box and a list of articles and notes from across the project's collections."
               sizes="(max-width: 860px) 92vw, 340px"
               widths={[340, 510, 680]}
             />
-            <h3>Copyedit modes</h3>
+            <h3>Content Finder</h3>
             <p>
-              Colour-code <a href="/editor/copyediting/">parts of speech</a>
-              like nouns, verbs, adjectives, adverbs and conjunctions to help
-              with editing & rewriting.
+              Search all your collections to open anything, or
+              <a href="/editor/links/#internal-links">insert a link to it</a>
+              without leaving the keyboard.
             </p>
           </article>
           <article class="card">
@@ -362,18 +426,6 @@ const structuredData = {
               <a href={DOWNLOADS.linuxRpm}>.rpm</a> package.
             </p>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="video" class="section">
-      <div class="container video-section">
-        <h2 class="section-heading">See it in action</h2>
-        <div class="video-frame">
-          <YouTubeFacade
-            id="SJkXD59gQ5U"
-            title="Astro Editor — a walkthrough"
-          />
         </div>
       </div>
     </section>
@@ -528,11 +580,6 @@ const structuredData = {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-  }
-
-  .video-frame {
-    max-width: 820px;
-    margin-inline: auto;
   }
 
   /* ---- "And more" cards ---- */

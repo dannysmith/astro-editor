@@ -1,6 +1,7 @@
 /** Shared external URLs for the marketing site. */
 
 export const GITHUB_REPO = 'https://github.com/dannysmith/astro-editor'
+export const BLUESKY_URL = 'https://bsky.app/profile/astroeditor.danny.is'
 
 const RELEASE_BASE = `${GITHUB_REPO}/releases/latest/download`
 

@@ -92,6 +92,7 @@ brew install --cask astro-editor
 ## Documentation
 
 - **[Documentation](https://astroeditor.danny.is/getting-started/)** - Complete feature documentation
+- **[Bluesky](https://bsky.app/profile/astroeditor.danny.is)** - Releases, updates and sneak peeks
 - **[Contributing](docs/CONTRIBUTING.md)** - Development setup and guidelines
 
 ## Disclaimer

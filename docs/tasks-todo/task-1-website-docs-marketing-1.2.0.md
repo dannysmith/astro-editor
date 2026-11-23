@@ -82,13 +82,13 @@ Work through the checklists under **Feature notes** below, re-checking the Git n
 
 ## Phase 5: Homepage, SEO and social links
 
-- [ ] Add feature sections for Copyedit and Git, in the same format as the existing ones. Copyedit moves up from the "plenty more" cards, so that row needs a new third card (the Content Finder is the obvious one).
-- [ ] Small edits to the hero copy if it needs to mention editing and committing. Danny's call.
-- [ ] Remove the "See it in action" YouTube section, along with `YouTubeFacade.astro`, `video-poster.jpg` and their styles.
-- [ ] Update the intro video's `aria-label`, which says "one-minute tour".
-- [ ] **OG image on every page.** Docs pages currently declare `summary_large_image` with no image at all. Add `og:image` and `twitter:image` to Starlight's `head` config, and change the default in `Layout.astro` from the favicon to `/og-image.png`.
-- [ ] Review the site description, homepage title and description, and the JSON-LD for the new features. Add `sameAs` with GitHub and Bluesky.
-- [ ] Bluesky links to `https://bsky.app/profile/astroeditor.danny.is`: Starlight's `social` config, `SiteHeader`, `SiteFooter`, the root README. Keep the URL in `consts.ts`.
+- [x] Add feature sections for Copyedit and Git, in the same format as the existing ones. Copyedit moves up from the "plenty more" cards, so that row needs a new third card (the Content Finder is the obvious one).
+- [x] Hero copy: stays as it is, without mentioning editing or committing (Danny's call).
+- [x] Remove the "See it in action" YouTube section, along with `YouTubeFacade.astro`, `video-poster.jpg` and their styles.
+- [x] Update the intro video's `aria-label`, which says "one-minute tour".
+- [x] **OG image on every page.** Docs pages currently declare `summary_large_image` with no image at all. Add `og:image` and `twitter:image` to Starlight's `head` config, and change the default in `Layout.astro` from the favicon to `/og-image.png`.
+- [x] Review the site description, homepage title and description, and the JSON-LD for the new features. Add `sameAs` with GitHub and Bluesky.
+- [x] Bluesky links to `https://bsky.app/profile/astroeditor.danny.is`: Starlight's `social` config, `SiteHeader`, `SiteFooter`, the root README. Keep the URL in `consts.ts`.
 
 ## Phase 6: Marketing video
 
