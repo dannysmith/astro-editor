@@ -2,14 +2,34 @@ use chrono::Local;
 use indexmap::IndexMap;
 use pathdiff::diff_paths;
 use serde_json::Value;
+use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 use tauri::{path::BaseDirectory, Manager};
 
 use crate::frontmatter::{
     assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
 };
-use crate::utils::fs::write_atomically;
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
+
+/// Held while AE reads an entry for the editor or saves one, so a read never
+/// lands in the middle of a save. `fs::write` empties a file before writing
+/// it, and AE reloads the open entry after each save, which can overlap the
+/// next save (Cmd+S during an auto-save): the reload would read an empty or
+/// half-written entry into the editor, and the next save would write it back.
+/// Other apps' writes aren't covered; they're theirs to make safe.
+static ENTRY_IO: Mutex<()> = Mutex::new(());
+
+fn read_entry(path: &Path) -> io::Result<String> {
+    let _held = ENTRY_IO.lock().unwrap_or_else(PoisonError::into_inner);
+    std::fs::read_to_string(path)
+}
+
+/// Writes the entry in place, so it keeps its inode (see `editor.md`)
+fn write_entry(path: &Path, text: &str) -> io::Result<()> {
+    let _held = ENTRY_IO.lock().unwrap_or_else(PoisonError::into_inner);
+    std::fs::write(path, text)
+}
 
 /// Calculates the relative path from the current file to an asset
 ///
@@ -310,8 +330,7 @@ pub async fn parse_markdown_content(
     project_root: String,
 ) -> Result<MarkdownContent, String> {
     let validated_path = validate_project_path(&file_path, &project_root)?;
-    let content = std::fs::read_to_string(&validated_path)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
+    let content = read_entry(&validated_path).map_err(|e| format!("Failed to read file: {e}"))?;
 
     Ok(parse_frontmatter(&content))
 }
@@ -344,7 +363,7 @@ pub async fn save_markdown_content(
         None => raw_frontmatter,
     };
 
-    write_atomically(&validated_path, &assemble(&block, &imports, &content))
+    write_entry(&validated_path, &assemble(&block, &imports, &content))
         .map_err(|e| format!("Failed to write file: {e}"))?;
     Ok(block)
 }
@@ -532,6 +551,25 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::Path;
+
+    #[test]
+    fn reading_an_entry_never_sees_a_save_half_done() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("entry.md");
+        let texts = ["a".repeat(1 << 20), "b".repeat(1 << 20)];
+        fs::write(&path, &texts[0]).unwrap();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                for i in 0..50 {
+                    write_entry(&path, &texts[i % 2]).unwrap();
+                }
+            });
+            for _ in 0..200 {
+                let read = read_entry(&path).unwrap();
+                assert!(texts.contains(&read), "read {} bytes", read.len());
+            }
+        });
+    }
 
     #[test]
     fn test_validate_project_path_valid() {

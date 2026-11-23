@@ -59,7 +59,7 @@ Updates as git changes                   ↻
 Phases, all on `experiment/git-panel`: 0 setup, 1 the Rust side, 2 the switch and an empty tab, 3 the read-only tab, 3a the layout with Danny, 4 committing, 5 pushing, 5a pulling, 5b context menus. Along the way:
 
 - **The tab bar's labels** now hide with CSS (each label wraps out of a one-line clipped box when its tab is too narrow), replacing a `ResizeObserver` that missed tabs added after mount. A container query keyed on the tab count is the alternative if labels going one at a time ever looks wrong.
-- **Saves are atomic** (temp file renamed over the entry). An entry was once saved empty during testing, most likely a reload reading the file while `fs::write` had it emptied. Never reproduced; watch for it.
+- **AE never reads an entry while saving one.** An entry was once saved empty during testing. The likely cause, a reload after one save reading the file while the next save's `fs::write` had emptied it, reproduces in a Rust test, and a lock shared by AE's entry reads and saves closes it. Saves are still written in place.
 
 ## Left to do, or to revisit
 
