@@ -28,8 +28,13 @@ impl TestRepos {
             .with_env("GIT_CEILING_DIRECTORIES", root.to_str().unwrap())
             .with_env("GIT_CONFIG_GLOBAL", "/dev/null")
             .with_env("GIT_CONFIG_NOSYSTEM", "1")
-            // Git's last resort for an email, which tests set in config
-            .with_env("EMAIL", "");
+            // Identity the developer's shell may set, which would win over
+            // the config the tests set (`EMAIL` is git's last resort)
+            .without_env("GIT_AUTHOR_NAME")
+            .without_env("GIT_AUTHOR_EMAIL")
+            .without_env("GIT_COMMITTER_NAME")
+            .without_env("GIT_COMMITTER_EMAIL")
+            .without_env("EMAIL");
         TestRepos {
             _dir: dir,
             root,

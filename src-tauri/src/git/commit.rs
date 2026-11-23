@@ -52,7 +52,7 @@ pub fn commit(
                 .to_string(),
         );
     }
-    let head = || {
+    let short_head = || {
         git.read(
             &repository.root,
             &["rev-parse", "--short", "HEAD"],
@@ -61,7 +61,7 @@ pub fn commit(
         .ok()
         .map(|hash| hash.trim().to_string())
     };
-    let before = head();
+    let before = read_head(git, repository);
     match git.run(
         &repository.root,
         &["commit", "-q", &format!("--message={message}")],
@@ -70,14 +70,39 @@ pub fn commit(
         Ok(output) if output.success() => {}
         Ok(output) => return Err(output.error_message()),
         // Stopped after it committed (in a slow `post-commit` hook, say): it's
-        // a commit, so it's reported as one
-        Err(error) => match head() {
-            Some(after) if Some(&after) != before.as_ref() => return Ok(after),
+        // a commit, so it's reported as one. Only when HEAD was known before,
+        // so an unchanged HEAD can't pass for a new one
+        Err(error) => match (before, read_head(git, repository)) {
+            (Head::Known(before), Head::Known(Some(after))) if before.as_ref() != Some(&after) => {
+                return Ok(short_head().unwrap_or_default())
+            }
             _ => return Err(error),
         },
     }
     // The commit is made, whether or not its hash can be read
-    Ok(head().unwrap_or_default())
+    Ok(short_head().unwrap_or_default())
+}
+
+/// What HEAD is: a commit's hash, `None` before the first commit, or
+/// `Unknown` if git couldn't say
+enum Head {
+    Known(Option<String>),
+    Unknown,
+}
+
+fn read_head(git: &Git, repository: &Repository) -> Head {
+    match git.run(
+        &repository.root,
+        &["rev-parse", "--verify", "-q", "HEAD"],
+        READ_TIMEOUT,
+    ) {
+        Ok(output) if output.success() => {
+            Head::Known(Some(output.stdout_text().trim().to_string()))
+        }
+        // `--verify -q` exits 1, quietly, when there's no commit yet
+        Ok(output) if output.code == Some(1) => Head::Known(None),
+        _ => Head::Unknown,
+    }
 }
 
 /// Whether anything is staged, asked rather than read from `commit`'s

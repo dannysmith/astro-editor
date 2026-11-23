@@ -90,28 +90,11 @@ async function reloadEntry() {
   const queryKey = queryKeys.fileContent(projectPath, currentFile.id)
   await queryClient.invalidateQueries({ queryKey })
   const read = queryClient.getQueryData<MarkdownContent>(queryKey)
-  if (read) await storeHolds(currentFile.path, read.content)
-}
-
-/**
- * Resolves when the store holds `content` for the file at `path`, another
- * file is opened, or a second passes
- */
-function storeHolds(path: string, content: string): Promise<void> {
-  const done = (state: ReturnType<typeof useEditorStore.getState>) =>
-    state.currentFile?.path !== path || state.editorContent === content
-  if (done(useEditorStore.getState())) return Promise.resolve()
-  return new Promise(resolve => {
-    const finish = () => {
-      clearTimeout(timer)
-      unsubscribe()
-      resolve()
-    }
-    const timer = setTimeout(finish, 1000)
-    const unsubscribe = useEditorStore.subscribe(state => {
-      if (done(state)) finish()
-    })
-  })
+  if (read) {
+    await useEditorStore
+      .getState()
+      .untilLoaded(currentFile.path, read.content, read.raw_frontmatter)
+  }
 }
 
 /** Pushes the branch to its upstream */

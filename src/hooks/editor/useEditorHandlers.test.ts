@@ -32,6 +32,7 @@ interface MockEditorState {
   setImports: Mock
   currentFile: FileEntry | null
   saveFile: Mock
+  untilLoaded: Mock
   isDirty: boolean
   isFrontmatterDirty: boolean
   editorContent: string
@@ -67,6 +68,7 @@ describe('useEditorHandlers', () => {
       setImports: vi.fn(),
       currentFile: createMockFile(),
       saveFile: vi.fn(),
+      untilLoaded: vi.fn(),
       isDirty: false,
       editorContent: '',
       frontmatter: {},

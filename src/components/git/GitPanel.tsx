@@ -140,7 +140,12 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       // A commit whose hash couldn't be read is still a commit (empty hash)
       if (write.action === 'commit' && hash !== null) {
         setCommitted({ entry: write.entry, hash, branch: tree?.branch ?? null })
-        useGitPanelStore.getState().setMessage(write.entry, null)
+        // Only the message committed: one typed since (after switching
+        // projects mid-commit, say) is kept
+        const { messages, setMessage } = useGitPanelStore.getState()
+        if (messages[write.entry]?.trim() === write.message) {
+          setMessage(write.entry, null)
+        }
       }
       // Stays pending until the tab shows what git now has
       await refetch()

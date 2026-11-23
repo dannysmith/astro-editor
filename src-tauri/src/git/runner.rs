@@ -38,6 +38,9 @@ pub struct Git {
     program: PathBuf,
     /// The user's environment (see `shell_env`), set on top of the app's own
     env: Vec<(String, String)>,
+    /// Variables removed from the app's own environment, for tests that keep
+    /// the developer's environment out
+    unset: Vec<String>,
 }
 
 /// What a finished git command printed
@@ -135,6 +138,7 @@ impl Git {
         Ok(Git {
             program,
             env: vec![("PATH".to_string(), path.to_string())],
+            unset: Vec::new(),
         })
     }
 
@@ -145,12 +149,12 @@ impl Git {
     /// An environment variable as git sees it: from the user's shell, or else
     /// AE's own environment
     pub fn env_var(&self, name: &str) -> Option<String> {
-        self.env
-            .iter()
-            .rev()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.clone())
-            .or_else(|| std::env::var(name).ok())
+        let own = self.env.iter().rev().find(|(key, _)| key == name);
+        match own {
+            Some((_, value)) => Some(value.clone()),
+            None if self.unset.iter().any(|key| key == name) => None,
+            None => std::env::var(name).ok(),
+        }
     }
 
     /// Adds an environment variable to every command, for tests that keep git
@@ -158,6 +162,15 @@ impl Git {
     #[cfg(test)]
     pub fn with_env(mut self, key: &str, value: &str) -> Git {
         self.env.push((key.to_string(), value.to_string()));
+        self
+    }
+
+    /// Removes a variable the tests inherited from the developer's
+    /// environment, such as `GIT_AUTHOR_NAME`, from every command
+    #[cfg(test)]
+    pub fn without_env(mut self, key: &str) -> Git {
+        self.env.retain(|(k, _)| k != key);
+        self.unset.push(key.to_string());
         self
     }
 
@@ -176,6 +189,9 @@ impl Git {
     /// non-zero code.
     pub fn run(&self, dir: &Path, args: &[&str], timeout: Duration) -> Result<GitOutput, String> {
         let mut command = Command::new(&self.program);
+        for key in &self.unset {
+            command.env_remove(key);
+        }
         // First, so the settings below win over the user's
         command.envs(self.env.iter().map(|(k, v)| (k, v)));
         if runs_hooks(args) {
@@ -341,6 +357,9 @@ mod tests {
         // The user's environment, including settings AE overrides
         let git = Git::find_on(&dir.path().display().to_string())
             .unwrap()
+            // Hook commands leave these as the developer's shell has them
+            .without_env("GIT_LITERAL_PATHSPECS")
+            .without_env("GIT_OPTIONAL_LOCKS")
             .with_env("SSH_AUTH_SOCK", "/agent.sock")
             .with_env("GIT_DIR", "/elsewhere/.git")
             .with_env("GIT_COMMON_DIR", "/elsewhere/.git")

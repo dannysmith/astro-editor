@@ -67,6 +67,17 @@ interface EditorState {
    */
   closeCurrentFile: (options?: { keepLastEntry?: boolean }) => void
   saveFile: (showToast?: boolean) => Promise<void>
+  /**
+   * Resolves once the store holds `content` and `rawFrontmatter` for the
+   * file at `path`, as read from disk (`useEditorFileContent` puts them in
+   * the store in an effect, a moment after the query has them), or another
+   * file is opened, or a second passes
+   */
+  untilLoaded: (
+    path: string,
+    content: string,
+    rawFrontmatter: string
+  ) => Promise<void>
   setEditorContent: (content: string) => void
   setImports: (imports: string) => void
   updateFrontmatterField: (key: string, value: unknown) => void
@@ -215,6 +226,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } else {
       void logWarn('saveFile called but no callback registered')
     }
+  },
+
+  untilLoaded: (path, content, rawFrontmatter) => {
+    const loaded = (state: EditorState) =>
+      state.currentFile?.path !== path ||
+      (state.editorContent === content &&
+        state.rawFrontmatter === rawFrontmatter)
+    if (loaded(get())) return Promise.resolve()
+    return new Promise(resolve => {
+      const finish = () => {
+        clearTimeout(timer)
+        unsubscribe()
+        resolve()
+      }
+      const timer = setTimeout(finish, 1000)
+      const unsubscribe = useEditorStore.subscribe(state => {
+        if (loaded(state)) finish()
+      })
+    })
   },
 
   // The edits below are ignored until the file has loaded (see `isLoaded`),

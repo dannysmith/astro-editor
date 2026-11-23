@@ -122,10 +122,14 @@ function refersTo(text: string, path: string, entryFolder: string): boolean {
       at !== -1;
       at = text.indexOf(form, at + 1)
     ) {
-      // A whole name: not the end of a longer one (`old-map.png`), nor the
-      // start (`map.png.backup`). `?` and `#` can follow (`map.png?raw`)
+      // A whole name: not the end of a longer one (`old-map.png`), and
+      // followed by the end of the reference, or `?` or `#` (`map.png?raw`),
+      // not more name (`map.png.backup`, `map.png+old`)
       if (at > 0 && /[\w.-]/.test(text.charAt(at - 1))) continue
-      if (/[\w.-]/.test(text.charAt(at + form.length))) continue
+      const after = text.charAt(at + form.length)
+      if (after && !REFERENCE_BOUNDARY.test(after) && !/[?#]/.test(after)) {
+        continue
+      }
       let start = at
       while (start > 0 && !REFERENCE_BOUNDARY.test(text.charAt(start - 1))) {
         start--

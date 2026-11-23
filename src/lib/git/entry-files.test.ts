@@ -46,6 +46,7 @@ describe('usedFiles', () => {
     const used = (entryText: string) =>
       usedFiles({ changes, entryPath: 'notes/a.md', entryText })
     expect(used('![](./map.png.backup)')).toEqual([])
+    expect(used('![](./map.png+old)')).toEqual([])
     expect(used('![](./map.png?raw)')).toEqual(['notes/map.png'])
   })
 

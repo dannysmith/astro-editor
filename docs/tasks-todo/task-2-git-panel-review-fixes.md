@@ -217,3 +217,19 @@ Done, except the skips (C22, C25, C35, C38, C39). C1, C2, C3 and C6 were reprodu
 - **C39 Skip (Danny agreed).** Show why Pull is disabled as text, not only on hover. Staged files blocking it means the commit card is usually open already; a line in the strip adds noise in the common case.
 - **C40 Fix.** The tests checking a killed process is gone can fail on Linux, where an unreaped process still answers `kill(pid, 0)`. Poll for a bounded time and treat a zombie as gone.
 - **C41 Fix.** `scripts/make-git-test-repos.sh` doesn't clear an inherited `GIT_DIR`/`GIT_WORK_TREE`, which would point its commits at this checkout. Unset the repository variables first.
+
+## Phase 12: CodeRabbit's second review (of `cec5ec56`) ✅
+
+Done. D2 and D3 were reproduced by tests first (the push went to the project instead of the fork; the pull went ahead over the ignored file). D5 checked by running the tests with the leaking variables set.
+
+8 comments and a nitpick, numbered D1–D9, each checked against the code.
+
+- **D1 Fix.** A commit that times out is counted as made when HEAD moved, but if reading HEAD beforehand failed (not because the branch has no commits yet, but for any other reason), an unchanged HEAD afterwards also looks like a commit. Tell "no commits yet" (`rev-parse --verify -q HEAD` exits 1) apart from a failed read, and only count a commit from a known starting point.
+- **D2 Fix; my C1 got it wrong.** With a fork set up the usual way (`branch.main.pushRemote=fork`, no push refspec), git leaves `%(push:remoteref)` empty, so Push fell back to the upstream remote, which is the project, not the fork. Choose the remote first (the push remote if set, else the upstream's), then the branch on it: the push refspec's if there is one, the upstream's when pushing to the upstream's remote, otherwise the same name. Test with a fork setup.
+- **D3 Fix.** The check for local files git doesn't track looks only at files the upstream changed. A rebase first checks out the upstream as it is, so a file the writer's own commits deleted, recreated locally as an ignored file, is overwritten and then deleted again. Check every file that differs between HEAD and the upstream (`diff HEAD @{upstream}`) instead. Test.
+- **D4 Fix, smaller than suggested.** A rebase a terminal starts from exactly the same commits, in the moment between AE's check and its own rebase, looks like AE's and would be aborted. There's no reliable way to prove which process created a rebase, but the window is mostly the fetch (seconds): check for a rebase under way again right before AE's own starts, which leaves milliseconds. Note the rest in `git.md`.
+- **D5 Fix.** Tests can be thrown by the developer's own environment: `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL` (identity tests), and `GIT_LITERAL_PATHSPECS`/`GIT_OPTIONAL_LOCKS` (the runner's environment test). Add a test-only way to remove variables from a `Git`, and use it in `TestRepos` and that test, replacing the `EMAIL=""` workaround.
+- **D6 Fix.** A commit's success clears the entry's message, even text typed after the commit started (possible after switching projects mid-commit, which remounts the panel). Clear it only if it's still the message that was committed.
+- **D7 Fix.** After a pull, editing resumes once the store holds the body that was read, but a pull that changed only the frontmatter can resume before the store has the new frontmatter. Wait for the frontmatter (`rawFrontmatter`) too.
+- **D8 Fix.** `map.png+backup` still matches `map.png`, since only letters, digits, `.`, `-` and `_` are checked after the name. Accept only what can end a reference (the end, quotes, brackets, spaces and so on) or `?`/`#`. Test.
+- **D9 Fix (nitpick).** `storeHolds` subscribes to the editor store from `lib/`, which the house rules keep to CodeMirror extensions. Move the wait into the editor store as an action, and call it with `getState()`.

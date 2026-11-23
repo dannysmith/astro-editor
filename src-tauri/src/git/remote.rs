@@ -22,12 +22,13 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
     let _writing = writing();
     let root = &repository.root;
     let branch = git.read(root, &["symbolic-ref", "-q", "HEAD"], READ_TIMEOUT)?;
+    let branch = branch.trim_end_matches('\n');
     let target = git.read(
         root,
         &[
             "for-each-ref",
             "--format=%(push:remotename)%00%(push:remoteref)%00%(upstream:remotename)%00%(upstream:remoteref)",
-            branch.trim_end_matches('\n'),
+            branch,
         ],
         READ_TIMEOUT,
     )?;
@@ -35,10 +36,21 @@ pub fn push(git: &Git, repository: &Repository) -> Result<(), String> {
     let [push_remote, push_ref, upstream_remote, upstream_ref] = fields[..] else {
         return Err(format!("Unexpected output from git for-each-ref: {target}"));
     };
-    let (remote, destination) = if !push_remote.is_empty() && !push_ref.is_empty() {
-        (push_remote, push_ref)
+    // The remote first (the push remote, which is the upstream's unless a
+    // fork is set up), then the branch on it. Git leaves `push:remoteref`
+    // empty without a push refspec, and then pushes to the upstream's branch
+    // on the upstream's remote, or the same name on any other
+    let remote = if push_remote.is_empty() {
+        upstream_remote
     } else {
-        (upstream_remote, upstream_ref)
+        push_remote
+    };
+    let destination = if !push_ref.is_empty() {
+        push_ref
+    } else if remote == upstream_remote {
+        upstream_ref
+    } else {
+        branch
     };
     if remote.is_empty() || destination.is_empty() {
         return Err("The branch has no upstream to push to.".to_string());
@@ -117,16 +129,30 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
         ));
     }
 
-    // Files here that git doesn't track (or ignores), which the upstream
-    // starts tracking: the fast-forward would overwrite ignored ones, and
-    // the rebase would overwrite either
-    if !theirs.is_empty() {
+    // Files here that git doesn't track (or ignores) where the upstream has
+    // one: the fast-forward would overwrite ignored ones, and the rebase,
+    // which checks the upstream out first, either. Every file that differs
+    // between HEAD and the upstream, not just those the upstream changed: a
+    // file the writer's own commits deleted is checked out again too
+    let differ = paths(
+        git,
+        repository,
+        &[
+            "diff",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            "HEAD",
+            "@{upstream}",
+        ],
+    )?;
+    if !differ.is_empty() {
         let mut args = vec!["ls-files", "-z", "--others", "--"];
-        args.extend(theirs.iter().map(String::as_str));
+        args.extend(differ.iter().map(String::as_str));
         let in_the_way = paths(git, repository, &args)?;
         if !in_the_way.is_empty() {
             return Err(format!(
-                "The remote adds files you have here but not in git: {}. Move them aside, then pull again. Nothing was changed.",
+                "The remote has files you have here but not in git: {}. Move them aside, then pull again. Nothing was changed.",
                 in_the_way.join(", ")
             ));
         }
@@ -165,7 +191,12 @@ pub fn pull(git: &Git, repository: &Repository) -> Result<u32, String> {
     }
 
     // So a rebase left under way can be told apart from one a terminal
-    // started meanwhile, which isn't AE's to abort
+    // started meanwhile, which isn't AE's to abort. Git can't say which
+    // process started a rebase, and one started from these same commits in
+    // the moment before AE's would look like it, so the check at the top is
+    // made again here, after the fetch, leaving that moment as short as it
+    // can be
+    repo::not_mid_operation(repository)?;
     let head = git.read(root, &["rev-parse", "HEAD"], READ_TIMEOUT)?;
     let onto = git.read(root, &["rev-parse", "@{upstream}"], READ_TIMEOUT)?;
     let (head, onto) = (head.trim(), onto.trim());
@@ -540,6 +571,30 @@ mod tests {
     }
 
     #[test]
+    fn pushes_to_a_fork_when_one_is_set_up() {
+        let repos = TestRepos::new();
+        let (writer, _) = shared(&repos);
+        let fork = repos.dir("fork.git");
+        repos.git_ok(&fork, &["init", "-q", "--bare", "-b", "main"]);
+        repos.git_ok(&writer, &["remote", "add", "fork", fork.to_str().unwrap()]);
+        // The usual contributor set-up: pull from the project, push to a fork
+        repos.git_ok(&writer, &["config", "branch.main.pushRemote", "fork"]);
+        change(&repos, &writer, "entry.md", "two\n", false);
+        let upstream_before = repos.git_ok(&writer, &["rev-parse", "origin/main"]);
+
+        push(&repos.git, &open(&repos, &writer)).unwrap();
+        assert_eq!(
+            repos.git_ok(&fork, &["rev-parse", "main"]),
+            head(&repos, &writer)
+        );
+        repos.git_ok(&writer, &["fetch", "-q", "origin"]);
+        assert_eq!(
+            repos.git_ok(&writer, &["rev-parse", "origin/main"]),
+            upstream_before
+        );
+    }
+
+    #[test]
     fn pull_refuses_to_overwrite_a_local_file_git_does_not_track() {
         let repos = TestRepos::new();
         let (writer, collaborator) = shared(&repos);
@@ -564,6 +619,29 @@ mod tests {
         assert_eq!(
             fs::read_to_string(writer.join("notes.md")).unwrap(),
             "mine too\n"
+        );
+    }
+
+    #[test]
+    fn pull_refuses_when_the_rebase_would_restore_a_file_kept_here_untracked() {
+        let repos = TestRepos::new();
+        let (writer, collaborator) = shared(&repos);
+        change(&repos, &collaborator, "other.md", "two\n", true);
+        // The writer's own commit deletes entry.md, which they then keep
+        // locally as an ignored file. The upstream still has it, and the
+        // rebase checks the upstream out first
+        repos.git_ok(&writer, &["rm", "-q", "entry.md"]);
+        repos.commit_all(&writer, "Remove entry");
+        fs::write(writer.join(".git/info/exclude"), "entry.md\n").unwrap();
+        fs::write(writer.join("entry.md"), "kept\n").unwrap();
+        let before = head(&repos, &writer);
+
+        let error = pull(&repos.git, &open(&repos, &writer)).unwrap_err();
+        assert!(error.contains("entry.md"), "{error}");
+        assert_eq!(head(&repos, &writer), before);
+        assert_eq!(
+            fs::read_to_string(writer.join("entry.md")).unwrap(),
+            "kept\n"
         );
     }
 
