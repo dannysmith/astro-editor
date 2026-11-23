@@ -51,6 +51,7 @@ export function useEditorFileContent() {
     useEditorStore.setState({
       editorContent: data.content,
       frontmatter: data.frontmatter,
+      heldFrontmatter: null,
       rawFrontmatter: data.raw_frontmatter,
       frontmatterBaseline:
         frontmatterBaseline === null || changedOutside
@@ -69,7 +70,10 @@ export function useEditorFileContent() {
   // nothing: what's in the editor is still the file
   useEffect(() => {
     if (!error || useEditorStore.getState().isLoaded) return
-    useEditorStore.setState({ loadError: error.message })
+    useEditorStore.setState({
+      loadError: error.message,
+      heldFrontmatter: null,
+    })
   }, [error])
 
   return { isLoading, isError, error }

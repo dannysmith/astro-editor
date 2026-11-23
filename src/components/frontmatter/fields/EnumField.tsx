@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import {
   Select,
   SelectContent,
@@ -25,7 +25,7 @@ export const EnumField: React.FC<EnumFieldProps> = ({
   required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

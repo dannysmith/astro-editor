@@ -1,6 +1,6 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldProps } from '../../../types/common'
@@ -40,8 +40,8 @@ export const JsonField: React.FC<JsonFieldProps> = ({
   required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
-  const filePath = useEditorStore(state => state.currentFile?.path)
+  const value = useFrontmatterValue(name)
+  const filePath = useEditorStore(shownFilePath)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

@@ -23,6 +23,18 @@ interface EditorState {
   // Content state
   editorContent: string // Content without frontmatter and imports
   frontmatter: Record<string, unknown> // Current frontmatter being edited
+  /**
+   * While a file loads, the previous file's frontmatter, for the panel to keep
+   * showing so its fields don't blank and jump. For display only: `frontmatter`
+   * stays empty until the load, so nothing can read or save these values
+   * against the new file. Only held within a collection, which has the same
+   * fields
+   */
+  heldFrontmatter: {
+    values: Record<string, unknown>
+    path: string
+    collection: string
+  } | null
   rawFrontmatter: string // The frontmatter block as written on disk, fences included
   /** The frontmatter as first loaded after opening; see `FrontmatterBaseline` */
   frontmatterBaseline: FrontmatterBaseline | null
@@ -125,6 +137,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   openGeneration: 0,
   editorContent: '',
   frontmatter: {},
+  heldFrontmatter: null,
   rawFrontmatter: '',
   frontmatterBaseline: null,
   imports: '',
@@ -172,11 +185,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // An opened file's content always comes from disk, never the cache
     readFromDisk(file)
 
+    // What the panel shows now, unless it's an error rather than fields
+    const { isLoaded, frontmatter, frontmatterError, heldFrontmatter } = get()
+    const shown =
+      currentFile && isLoaded && !frontmatterError
+        ? {
+            values: frontmatter,
+            path: currentFile.path,
+            collection: currentFile.collection,
+          }
+        : heldFrontmatter
+
     // The outgoing file's content is cleared in the same update that sets
     // currentFile, so Editor.tsx never reads it against the new file
     set(state => ({
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: shown?.collection === file.collection ? shown : null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
@@ -221,6 +246,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       openGeneration: state.openGeneration + 1,
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',
@@ -377,6 +403,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     rememberLastEntry(newFile.path)
   },
 }))
+
+/** The frontmatter the panel shows: the open file's, or what's held while it loads */
+export const shownFrontmatter = (state: EditorState) =>
+  state.heldFrontmatter?.values ?? state.frontmatter
+
+/** The path of the file whose frontmatter the panel is showing */
+export const shownFilePath = (state: EditorState) =>
+  state.heldFrontmatter?.path ?? state.currentFile?.path ?? null
 
 // Components can use direct selectors like:
 // const currentFile = useEditorStore(state => state.currentFile)

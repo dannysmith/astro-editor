@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { AlertTriangle, ExternalLink } from 'lucide-react'
-import { useEditorStore } from '../../store/editorStore'
+import { shownFrontmatter, useEditorStore } from '../../store/editorStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useCollectionsQuery } from '../../hooks/queries/useCollectionsQuery'
 import { deserializeCompleteSchema } from '../../lib/schema'
@@ -53,7 +53,7 @@ const UnreadableFrontmatter: React.FC<{ error: string; filePath: string }> = ({
 export const FrontmatterPanel: React.FC = () => {
   // Object subscriptions need shallow to prevent re-renders on reference changes
   const currentFile = useEditorStore(useShallow(state => state.currentFile))
-  const frontmatter = useEditorStore(useShallow(state => state.frontmatter))
+  const frontmatter = useEditorStore(useShallow(shownFrontmatter))
   const loadError = useEditorStore(state => state.loadError)
   const frontmatterError = useEditorStore(state => state.frontmatterError)
   const projectPath = useProjectStore(state => state.projectPath)

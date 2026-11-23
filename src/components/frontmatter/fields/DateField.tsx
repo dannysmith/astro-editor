@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { DatePicker } from '../../ui/date-picker'
 import { FieldWrapper } from './FieldWrapper'
 import { RenameToDateLink } from './RenameToDateLink'
@@ -21,7 +21,7 @@ export const DateField: React.FC<DateFieldProps> = ({
   field,
   isPublishedDate = false,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

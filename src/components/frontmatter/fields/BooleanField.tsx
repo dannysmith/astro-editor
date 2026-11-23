@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Switch } from '../../ui/switch'
 import { FieldLabel, FieldDescription } from '../../ui/field'
 import type { FieldProps } from '../../../types/common'
@@ -15,7 +15,7 @@ export const BooleanField: React.FC<BooleanFieldProps> = ({
   label,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

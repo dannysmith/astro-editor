@@ -37,6 +37,7 @@ interface MockEditorState {
   isFrontmatterDirty: boolean
   editorContent: string
   frontmatter: Record<string, unknown>
+  heldFrontmatter: null
   rawFrontmatter: string
   frontmatterBaseline: null
   imports: string
@@ -73,6 +74,7 @@ describe('useEditorHandlers', () => {
       isDirty: false,
       editorContent: '',
       frontmatter: {},
+      heldFrontmatter: null,
       rawFrontmatter: '',
       frontmatterBaseline: null,
       imports: '',

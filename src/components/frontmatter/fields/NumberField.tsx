@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Input } from '../../ui/input'
 import { valueToString } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
@@ -19,7 +19,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

@@ -80,10 +80,10 @@ Each fix gets a focused test that fails without it.
 
 **Fix:** keep the outgoing values on screen until the new ones arrive. `updateFrontmatterField` already refuses edits while `isLoaded` is false.
 
-- [ ] Check that nothing can save or read the outgoing `frontmatter` against the new file while loading
-- [ ] Clear immediately when the new file is in a different collection, since old values shouldn't render under another schema
-- [ ] Handle a load that fails, so the old file's values don't stay on screen
-- [ ] Confirm in the app that switching within a collection no longer changes the panel's height until the new values land
+- [x] Check that nothing can save or read the outgoing `frontmatter` against the new file while loading
+- [x] Clear immediately when the new file is in a different collection, since old values shouldn't render under another schema
+- [x] Handle a load that fails, so the old file's values don't stay on screen
+- [x] Confirm in the app that switching within a collection no longer changes the panel's height until the new values land
 
 ## Phase 3: Left sidebar
 

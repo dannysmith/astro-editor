@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
 import { CopyAsSlugLink } from './CopyAsSlugLink'
@@ -32,7 +32,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   field,
   isTitle = false,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { FieldWrapper } from './FieldWrapper'
 import { ImagePicker } from './ImagePicker'
 import type { FieldProps } from '../../../types/common'
@@ -16,7 +16,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
   required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

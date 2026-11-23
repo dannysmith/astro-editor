@@ -82,6 +82,8 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   }
 
   const handleEditStart = () => {
+    // Until the file loads, `value` can be the previous file's
+    if (!useEditorStore.getState().isLoaded) return
     setDraft({ openGeneration, text: value })
   }
 

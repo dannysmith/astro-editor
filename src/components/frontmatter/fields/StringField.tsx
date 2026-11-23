@@ -1,6 +1,6 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Input } from '../../ui/input'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { valueToString } from '../utils'
@@ -23,7 +23,7 @@ export const StringField: React.FC<StringFieldProps> = ({
   type = 'text',
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )
@@ -33,7 +33,7 @@ export const StringField: React.FC<StringFieldProps> = ({
   // them would join its lines. Once a file's value has shown the textarea, it
   // keeps it, so deleting the last line break doesn't swap the control (and
   // lose focus) mid-edit.
-  const filePath = useEditorStore(state => state.currentFile?.path ?? null)
+  const filePath = useEditorStore(shownFilePath)
   const [multilineFile, setMultilineFile] = React.useState<
     string | null | undefined
   >(undefined)

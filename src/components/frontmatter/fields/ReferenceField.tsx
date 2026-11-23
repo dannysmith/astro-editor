@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import {
   useCollectionEntriesQuery,
   type EntryOption,
@@ -36,7 +36,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
 }) => {
   const [open, setOpen] = React.useState(false)
   const labelId = `${React.useId()}-label`
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

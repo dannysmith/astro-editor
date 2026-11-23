@@ -78,6 +78,34 @@ describe('useEditorFileContent', () => {
     expect(useEditorStore.getState().loadError).toBe('Failed to read file')
   })
 
+  it('stops showing the previous file once the file loads', () => {
+    useEditorStore.setState({
+      heldFrontmatter: {
+        values: { title: 'Previous' },
+        path: '/test/content/blog/previous.md',
+        collection: 'blog',
+      },
+    })
+    query.data = fromDisk('title: Hello', 'Hello')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().heldFrontmatter).toBeNull()
+  })
+
+  it("stops showing the previous file when the file can't be loaded", () => {
+    useEditorStore.setState({
+      heldFrontmatter: {
+        values: { title: 'Previous' },
+        path: '/test/content/blog/previous.md',
+        collection: 'blog',
+      },
+    })
+    query.error = new Error('Failed to read file')
+    renderHook(() => useEditorFileContent())
+
+    expect(useEditorStore.getState().heldFrontmatter).toBeNull()
+  })
+
   it('keeps a loaded file when it fails to reload', () => {
     useEditorStore.setState({ isLoaded: true })
     query.error = new Error('Failed to read file')

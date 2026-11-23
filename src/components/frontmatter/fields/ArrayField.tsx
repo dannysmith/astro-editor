@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditorStore } from '../../../store/editorStore'
-import { getNestedValue } from '../../../lib/object-utils'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { TagInput, type Tag } from '../../ui/tag-input'
 import { tagsToStringArray } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
@@ -18,7 +18,7 @@ export const ArrayField: React.FC<ArrayFieldProps> = ({
   required,
   field,
 }) => {
-  const value = useEditorStore(state => getNestedValue(state.frontmatter, name))
+  const value = useFrontmatterValue(name)
   const updateFrontmatterField = useEditorStore(
     state => state.updateFrontmatterField
   )

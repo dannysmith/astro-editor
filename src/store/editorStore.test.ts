@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useEditorStore } from './editorStore'
+import { shownFilePath, shownFrontmatter, useEditorStore } from './editorStore'
 import type { FileEntry } from '@/types'
 import { queryClient } from '../lib/query-client'
 import { queryKeys } from '../lib/query-keys'
@@ -73,6 +73,40 @@ describe('editorStore.openFile', () => {
     useEditorStore.getState().openFile(fileEntry('second'))
 
     expect(useEditorStore.getState().frontmatterBaseline).toBeNull()
+  })
+
+  it("shows the outgoing file's frontmatter while the next one loads, without holding it as data", () => {
+    useEditorStore.setState({ isDirty: false, isLoaded: true })
+
+    useEditorStore.getState().openFile(fileEntry('second'))
+
+    const state = useEditorStore.getState()
+    expect(state.frontmatter).toEqual({})
+    expect(shownFrontmatter(state)).toEqual({ title: 'First' })
+    expect(shownFilePath(state)).toBe(fileEntry('first').path)
+  })
+
+  it('keeps showing the same values through a quick second switch', () => {
+    useEditorStore.setState({ isDirty: false, isLoaded: true })
+
+    useEditorStore.getState().openFile(fileEntry('second'))
+    useEditorStore.getState().openFile(fileEntry('third'))
+
+    expect(shownFrontmatter(useEditorStore.getState())).toEqual({
+      title: 'First',
+    })
+  })
+
+  it("doesn't show one collection's values under another's fields", () => {
+    useEditorStore.setState({ isDirty: false, isLoaded: true })
+
+    useEditorStore
+      .getState()
+      .openFile({ ...fileEntry('second'), collection: 'notes' })
+
+    const state = useEditorStore.getState()
+    expect(state.heldFrontmatter).toBeNull()
+    expect(shownFrontmatter(state)).toEqual({})
   })
 })
 

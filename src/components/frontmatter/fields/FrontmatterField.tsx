@@ -1,8 +1,8 @@
 import React from 'react'
-import { useEditorStore } from '../../../store/editorStore'
+import { shownFilePath, useEditorStore } from '../../../store/editorStore'
 import { useFieldMappings } from '../../../hooks/settings'
+import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { fieldControl } from '../../../lib/field-control'
-import { getNestedValue } from '../../../lib/object-utils'
 import { FieldType, type SchemaField } from '../../../lib/schema'
 import { StringField } from './StringField'
 import { TextareaField } from './TextareaField'
@@ -30,10 +30,8 @@ export const FrontmatterField: React.FC<FrontmatterFieldProps> = ({
   field,
   collectionName,
 }) => {
-  const fieldValue = useEditorStore(state =>
-    getNestedValue(state.frontmatter, name)
-  )
-  const filePath = useEditorStore(state => state.currentFile?.path ?? null)
+  const fieldValue = useFrontmatterValue(name)
+  const filePath = useEditorStore(shownFilePath)
   const mappings = useFieldMappings(collectionName)
   const required = field?.required ?? false
   const props = { name, label, required, field }
