@@ -22,6 +22,8 @@ Danny wrote most of the site's copy by hand. Keep edits to existing copy small. 
 - **Git docs:** a top-level `git` page for the best-case workflow, and `reference/git` for how it works in detail.
 - **YouTube walkthrough:** removed from the site. Danny may record a new walkthrough and add it later.
 - **Bluesky handle:** `astroeditor.danny.is`.
+- **Screenshot headings:** stay pink, from the dev app's heading colour, even though the app's default is now the text colour.
+- **Harper's `BoundaryError` label:** stays as it is for 1.2.0, including in the `copyedit-checks` and `copyedit-issue-popover` screenshots.
 
 ## Phase 1: Positioning
 
@@ -36,24 +38,24 @@ Settle how we describe the "coder-mode-ish" features first, since the docs, home
 
 `bun run app shot` already captures the whole window at retina, including our custom traffic lights. What's missing is a repeatable way to get the app into the right state at the right size.
 
-- [ ] A shot list: each entry has an output file, project, open file, window size, theme and the app commands that set it up. `bun run app shots [name...]` runs them and writes to `website/src/assets/` under the existing filenames, so pages don't change and we can retake everything after future UI changes.
-- [ ] A setup-only mode that gets the app into a shot's state and stops, so Danny can take it on the Mac. Needed for anything the bridge can't capture: native menus, native dialogs and vibrancy.
-- [ ] Use `test/demo-project` for content. Git shots need a throwaway repository outside this checkout, or the panel sees astro-editor's own repo, so add a demo repo to `scripts/make-git-test-repos.sh` with a believable history, a remote and an entry with changed images.
-- [ ] Check nothing dev-only shows in the window before shooting the batch.
+- [x] A shot list: each entry has an output file, project, open file, window size, theme and the app commands that set it up. `bun run app shots [name...]` runs them and writes to `website/src/assets/` under the existing filenames, so pages don't change and we can retake everything after future UI changes.
+- [x] A setup-only mode that gets the app into a shot's state and stops, so Danny can take it on the Mac (`--setup <name>`, then `--restore`). Needed for anything the bridge can't capture: native menus, native dialogs and vibrancy.
+- [x] Use `test/demo-project` for content, through a throwaway `demo-project` repo built by `bash scripts/make-git-test-repos.sh demo`, with a believable history, a remote and an entry with changed images.
+- [x] Check nothing dev-only shows in the window before shooting the batch.
 
 Screenshots known to be out of date:
 
-- [ ] Right sidebar without tabs: `ai-intro-screenshot`, `pane-overview`, `frontmatter-sidebar-overview`, `main-demo-image-light`, `main-demo-image-dark`
-- [ ] Old draft badge: `file-manager-3`, `file-manager-drafts-filter`
-- [ ] Old command names: `command-palette`
-- [ ] Preferences and Project Settings: `prefs-general`, `project-settings-project`, `project-settings-collection`, `project-settings-frontmatter`
-- [ ] `public/og-image.png`: old UI, with `temp-dummy-astro-project` in the title bar
-- [ ] Check the remaining shots against the current UI
+- [x] Right sidebar without tabs: `ai-intro-screenshot`, `pane-overview`, `frontmatter-sidebar-overview`, `main-demo-image-light`, `main-demo-image-dark`
+- [x] Old draft badge: `file-manager-3`, `file-manager-drafts-filter`, `file-manager-sort`
+- [x] Old command names: `command-palette`
+- [x] Preferences and Project Settings: `prefs-general`, `project-settings-project`, `project-settings-collection`, `project-settings-frontmatter`
+- [x] `public/og-image.png`: old UI, with `temp-dummy-astro-project` in the title bar
+- [x] Check the remaining shots against the current UI, at thumbnail size. Look closer in the Phase 8 review.
 
 New screenshots:
 
-- [ ] Copyedit panel with highlights on, with checks on, an issue's popover, the Copyedit preferences pane
-- [ ] Git tab with an entry and its images, an image no longer used, the commit card, the repository strip, Project Settings → Git
+- [x] Copyedit panel with highlights on, with checks on, an issue's popover, the Copyedit preferences pane
+- [x] Git tab with an entry and its images, an image no longer used, the commit card, the repository strip, Project Settings → Git
 
 ## Phase 3: Correct the existing docs
 
@@ -139,15 +141,12 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 
 ## Separate task: Bluesky account
 
-Running in its own session, which keeps its drafts in the gitignored `docs/tasks-todo/temporary/bluesky/`.
-
 [The account](https://bsky.app/profile/astroeditor.danny.is) is somewhere to mention Astro Editor from and to share releases, updates and sneak peeks. It has a name, avatar, bio and its custom domain handle, and no posts yet.
 
 - [x] Switch the handle to `astroeditor.danny.is` with a DNS record.
 - [x] Change the bio's link from `http://` to `https://`.
-- [ ] Make a banner: 1500×500 (or 3000×1000), under 1 MB, with the important part central because the avatar covers the bottom left and mobile crops the sides.
-- [ ] Research a follow list for Danny to pick from: Astro and Starlight people, Harper, Tauri, and writers publishing with Astro.
-- [ ] Plan the first posts: an intro, sneak peeks of Copyedit and Git before the release, then the release with the video pinned.
+- [x] Make a banner: 1500×500 (or 3000×1000), under 1 MB, with the important part central because the avatar covers the bottom left and mobile crops the sides.
+- [x] Research a follow list for Danny to pick from: Astro and Starlight people, Harper, Tauri, and writers publishing with Astro.
 
 ## Feature notes
 
@@ -156,7 +155,7 @@ Running in its own session, which keeps its drafts in the gitignored `docs/tasks
 - [ ] `reference/keyboard-shortcuts.mdx`: ⌘1 toggles the left sidebar; ⌘2 (Frontmatter) and ⌘3 (Copyedit) open the right sidebar on their tab, or close it if that tab is showing.
 - [ ] `reference/commands.mdx`: Toggle Left Sidebar, Toggle Right Sidebar, Toggle Frontmatter Panel and Toggle Copyedit Panel; the Highlights group is now called Copyedit.
 - [ ] `editor/copyediting.mdx`: the highlights can be switched on and off in the Copyedit panel, not only from the palette. In the panel they're one dropdown at the top, which names the highlights that are on and has Show All and Hide All.
-- [ ] Screenshots that show the right sidebar, which now has a tab bar.
+- [x] Screenshots that show the right sidebar, which now has a tab bar.
 
 ### Spelling, grammar and style checks (#265)
 
@@ -172,7 +171,7 @@ Running in its own session, which keeps its drafts in the gitignored `docs/tasks
 - [ ] `preferences.mdx`: a new **Copyedit** pane: the English dialect for spelling and grammar (American, British, Canadian, Australian, Indian), the dictionary of added words, and **Clear Ignored Issues**.
 - [ ] `reference/advanced-preferences.mdx`: `global-settings.json` also holds which checks are on, the dialect and the dictionary; ignored issues are kept in the app's own storage, and **Reset All Preferences** clears them too.
 - [ ] `privacy.mdx`, The Desktop App: spelling and grammar checks run locally and send nothing.
-- [ ] Screenshots of the Copyedit panel with checks on, an issue's popover, and the Copyedit preferences pane.
+- [x] Screenshots of the Copyedit panel with checks on, an issue's popover, and the Copyedit preferences pane.
 
 ### Colour themes (#387)
 
@@ -221,7 +220,7 @@ An experimental Git tab in the right sidebar, switched on per project. It's for 
 - [ ] `reference/keyboard-shortcuts.mdx`: ⌘4 opens the right sidebar on the Git tab, or closes it if that tab is showing (only when the Git tab is switched on).
 - [ ] `reference/commands.mdx`: Toggle Git Panel (only when the Git tab is switched on).
 - [ ] `privacy.mdx`, The Desktop App: the Git tab sends nothing to us. Only Pull, Push and Check remote use the network, through your own git, to your own remote.
-- [ ] Screenshots: the tab with an entry and its images, the commit card, and Project Settings → Git.
+- [x] Screenshots: the tab with an entry and its images, the commit card, and Project Settings → Git.
 - [ ] Release notes: the Git tab, off by default, with how to switch it on and a link to its page.
 - [ ] Release notes, under the hood: AE no longer reloads an entry while it's saving it. Rarely, a save straight after another could load the entry into the editor empty, and the next save would write that back.
 

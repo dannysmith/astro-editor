@@ -54,6 +54,15 @@ To add an app action, add a method to `createAgentApi` (or `createPageApi` if it
 - Base UI waits for an animation frame before opening a popup from a click, moving focus into it and unmounting it after it closes, so the CLI runs every API call inside `withFrames()`: during the call, frame requests also fire from a short timeout. Outside bridge calls nothing changes.
 - `tree`, `click` and `fill` wait for idle first, because an overlay that has just opened sits at opacity 0 until its animation is finished.
 
+## Website screenshots
+
+`bun run app shots` retakes the website's screenshots from the list in `scripts/app-shots.ts`, under their existing file names in `website/src/assets`, so pages don't change. Each entry gives the window size, theme, open file, panels and the steps that set it up. Name shots to take only those, and use `--out=<dir>` to look at them before replacing anything. Afterwards the app goes back to the project, file, window, panels and settings it had.
+
+- **Content comes from a throwaway repo,** `demo-project`, built with `bash scripts/make-git-test-repos.sh demo`. It has its own git identity with no signing or hooks, because Project Settings shows them and these images are public. Rebuild it if a shot fails part way through staging.
+- **The window frame is added afterwards.** Snapshots have square corners and no shadow, so `frameWindow` adds both, using values measured from native macOS captures.
+- **Native UI can't be captured.** For menus, native dialogs and vibrancy, `bun run app shots --setup <name>` gets the app into a shot's state and stops so you can take it on the Mac. `bun run app shots --restore` then puts the app back.
+- **The OG image is built on top of a shot:** `bun run app shots og-window`, then `bun scripts/compose-og-image.ts` in `website/`.
+
 ## Styleguide
 
 `styleguide.html` and `src/styleguide/` make up a second Vite entry. Vite only builds `index.html`, so it never ships. It shows every UI component the app uses, in each state. One section per page (`?section=<id>`) fits the dev window, so each can be screenshotted whole; overlays are rendered open on their own pages. `bun run app styleguide` shoots every section in both themes. The styleguide runs inside the dev app's webview, so Tauri calls work; it also opens in a browser at `localhost:1420/styleguide.html` (or the slot's port in a worktree).

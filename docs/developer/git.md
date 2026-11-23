@@ -109,10 +109,11 @@ Rust tests build throwaway repositories with the real `git` (`git::test_repos`):
 
 For trying it in the app, use repositories outside this checkout. This checkout is itself a git repository, and its test projects are inside it, so a Git panel opened on them would see, and could commit to, astro-editor itself. Never try it on a real site's repository either.
 
-`bash scripts/make-git-test-repos.sh`, from this checkout and outside the agent sandbox (it writes to `~/dev`), builds throwaway repositories in `~/dev/temp-git-repos-for-ae-testing/`, wiping any already there. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds.
+`bash scripts/make-git-test-repos.sh`, from this checkout and outside the agent sandbox (it writes to `~/dev`), builds throwaway repositories in `~/dev/temp-git-repos-for-ae-testing/`, wiping any already there. Add `demo` to rebuild only `demo-project` and leave the others alone. Each site is a copy of a `test/` project with its `.astro/` committed and `bun install` run, so AE reads it and it builds (`demo-project` skips the install, since screenshots don't need it).
 
 | Repo | Open in AE | For |
 | --- | --- | --- |
+| `demo-project` | `demo-project` | The website's screenshots (see `agent-tooling.md`): its own git identity, a commit to push, an article mid-edit with its images, and a draft with mistakes for the Copyedit checks |
 | `blog` | `blog` | The happy path: history by two authors (with a rename), a bare remote, a commit to push, an uncommitted change |
 | `blog-collaborator` | (not opened) | A second clone of the same remote, to play another writer: commit and push here, then pull in `blog` |
 | `monorepo` | `monorepo/docs` | A Starlight site in `docs/`, with someone's staged and unstaged work outside it and a staged `docs/astro.config.mjs`. Hooks in `.githooks/`: `pre-commit` strips trailing whitespace and re-stages; `pre-push` refuses while `.block-push` exists |
