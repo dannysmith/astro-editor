@@ -126,16 +126,17 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
             />
           }
         >
-          <div className="flex flex-1 flex-wrap gap-1">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
             {isMultiSelect ? (
               selectedOptions.length > 0 ? (
                 selectedOptions.map(opt => (
                   <Badge
                     key={opt.value}
                     variant="secondary"
-                    className="gap-1 pr-1 has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+                    title={opt.label}
+                    className="max-w-full gap-1 pr-1 has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
                   >
-                    {opt.label}
+                    <span className="truncate">{opt.label}</span>
                     <span
                       role="button"
                       tabIndex={0}
@@ -146,7 +147,7 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                           handleRemoveItem(opt.value, e)
                         }
                       }}
-                      className="cursor-pointer rounded-full outline-hidden"
+                      className="shrink-0 cursor-pointer rounded-full outline-hidden"
                       aria-label="Remove"
                     >
                       <X className="h-3 w-3" />
@@ -155,14 +156,14 @@ export const ReferenceField: React.FC<ReferenceFieldProps> = ({
                   </Badge>
                 ))
               ) : (
-                <span className="text-muted-foreground">
+                <span className="truncate text-muted-foreground">
                   Select {label.toLowerCase()}...
                 </span>
               )
             ) : selectedOption ? (
-              selectedOption.label
+              <span className="truncate">{selectedOption.label}</span>
             ) : (
-              <span className="text-muted-foreground">
+              <span className="truncate text-muted-foreground">
                 Select {label.toLowerCase()}...
               </span>
             )}

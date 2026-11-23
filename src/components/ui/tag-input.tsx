@@ -105,14 +105,15 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
         onClick={handleContainerClick}
         {...props}
       >
-        <div className="flex flex-1 flex-wrap items-center gap-1 py-1">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 py-1">
           {tags.map(tag => (
             <Badge
               key={tag.id}
               variant="secondary"
-              className="px-2 py-0.5 text-xs has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+              title={tag.text}
+              className="max-w-full px-2 py-0.5 text-xs has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
             >
-              {tag.text}
+              <span className="truncate">{tag.text}</span>
               {!disabled && (
                 <button
                   type="button"
@@ -120,7 +121,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
                     e.stopPropagation()
                     removeTag(tag.id)
                   }}
-                  className="ml-1 rounded-sm p-0.5 transition-colors outline-none hover:bg-destructive/20"
+                  className="ml-1 shrink-0 rounded-sm p-0.5 transition-colors outline-none hover:bg-destructive/20"
                   aria-label={`Remove ${tag.text} tag`}
                 >
                   <X className="size-3" />
@@ -137,7 +138,7 @@ const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>(
             onKeyDown={handleKeyDown}
             placeholder={tags.length === 0 ? placeholder : ''}
             disabled={disabled}
-            className="min-w-[120px] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className="w-0 min-w-[min(120px,100%)] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
         </div>
       </div>

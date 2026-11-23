@@ -47,6 +47,15 @@ Icon-only buttons, like those in the title bar, look like this:
 - **`[&_svg]:scale-100 [&_svg]:transform-gpu`** stops the icon shifting by a pixel when the button's state changes, which is visible when `disabled` toggles. Putting the SVG on its own compositing layer keeps its position stable. Apply it to every icon-only button, not just ones that can be disabled.
 - **`title`** gives the tooltip. Add `aria-label` when the title isn't a good accessible name.
 
+## Narrow containers
+
+Sidebars can be dragged to their minimum width, so a component should fit any width it's given, with CSS alone.
+
+- **Panel minimums go on the panel.** `react-resizable-panels` puts `style` on an inner div, so a `minWidth` there lays the contents out wider than the panel and they spill out. Use `minSize`, which takes pixels as `'200px'` (a bare number in a string is a percentage).
+- **Let flex children shrink.** Text in a flex row needs `min-w-0` on itself or its wrapper, then `truncate` or `[overflow-wrap:anywhere]`. `Badge` doesn't shrink, so one holding user text needs `max-w-full` and its text in a `truncate` span.
+- **Rearrange with a container query** when wrapping isn't enough. `FileItem` is an `@container`: with room, its badges stand beside the text, and in a narrow row they move to the date's line.
+- **Text doesn't scale fluidly in the UI.** Fluid type is for the editor only.
+
 ## Forms
 
 The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), whose `layout` prop becomes `Field`'s `orientation`. Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.

@@ -91,28 +91,28 @@ Each fix gets a focused test that fails without it.
 
 The 200px minimum is passed as `style`, which `react-resizable-panels` puts on an inner div. At a 1000px window the panel is 150px wide while its contents lay out at 200px and spill out.
 
-- [ ] Set `minSize: '200px'` on the panel and remove the inline style and `minWidth` constant
-- [ ] Check that collapsing, restoring a saved layout and the minimum window size still behave
+- [x] Set `minSize: '200px'` on the panel and remove the inline style and `minWidth` constant
+- [x] Check that collapsing, restoring a saved layout and the minimum window size still behave
 
 ### Thin out `LeftSidebar`
 
 It's 687 lines doing about six jobs, and the responsive work below touches most of them, so split it first.
 
-- [ ] Extract `SidebarHeader`, `CollectionList` and `CollectionFiles`, each reading the stores directly
-- [ ] Move the filter and sort pipeline into a plain function in `lib/files`
-- [ ] Move the rename flow into `useFileRename`
-- [ ] Extract a `RenameInput` that mounts only while renaming, replacing the refs and effects in `FileItem`
-- [ ] Stop sorting cached query data in place during render (use `toSorted`)
+- [x] Extract `SidebarHeader`, `CollectionList` and `CollectionFiles`, each reading the stores directly
+- [x] Move the filter and sort pipeline into a plain function in `lib/files`
+- [x] Move the rename flow into `useFileRename`
+- [x] Extract a `RenameInput` that mounts only while renaming, replacing the refs and effects in `FileItem`
+- [x] Stop sorting cached query data in place during render
 
 ### Rows that adapt to their container
 
 Components should hold up at any sidebar width using CSS alone. Text can step down slightly when very constrained, but no fluid type.
 
-- [ ] Collection rows: let the name truncate and keep the count badge inside the row
-- [ ] File rows: find the badges a better place when tight, with a container query if stacking is needed
-- [ ] Header: breadcrumbs, status badges and buttons at minimum width
-- [ ] Filter bar and the Project Settings footer
-- [ ] Check the right sidebar's panels at their minimum width, especially the Git panel's repository strip and the frontmatter fields
+- [x] Collection rows: let the name truncate and keep the count badge inside the row
+- [x] File rows: find the badges a better place when tight, with a container query if stacking is needed
+- [x] Header: breadcrumbs, status badges and buttons at minimum width
+- [x] Filter bar and the Project Settings footer
+- [x] Check the right sidebar's panels at their minimum width, especially the Git panel's repository strip and the frontmatter fields
 
 ## Phase 4: Frontmatter panel structure
 

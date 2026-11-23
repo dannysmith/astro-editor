@@ -24,3 +24,4 @@ export {
 } from './sorting'
 export type { FieldMappings, SortOption, SortConfig } from './sorting'
 export { filterFilesBySearch } from './search'
+export { visibleFiles } from './visible-files'
