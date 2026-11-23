@@ -1,5 +1,7 @@
 # Task: Git panel review fixes before shipping
 
+**Done.** All the review's phases and three rounds of CodeRabbit on #391 (Phases 11–13). Left for Danny when trying a release build: the sidebar's own right-click Rename, the delete confirmation, and a real repository from a build opened from the Dock (Phase 10).
+
 A review of everything on `experiment/git-panel` before it merges to `main` and ships in the next release, still behind the experimental per-project `gitPanel` switch. Three reviewers covered the shared code, gating and docs; the frontend; and the Rust side. Danny has been through the findings; this is the agreed work, in phases. Items keep their review numbers, so they can be referred to by number.
 
 Each phase ends with `bun run check:all` passing and a commit. Each bug gets a test. When every phase is done, PR #391 goes from draft to ready and CodeRabbit runs (Danny's step).
@@ -118,7 +120,7 @@ Done. The script is `scripts/make-git-test-repos.sh`, and the test repos table m
 - **35.** `AGENTS.md`: add `src-tauri/src/git/`, the login-shell module, `process.rs`, `src/lib/git/` and `path-menu.ts` to "Where things live", and describe `git.md` fully.
 - **36.** Move the reasons for the tab's scope into `git.md`: writer moments only; no branches, merges, conflicts or auto-sync; why there's no Sync button.
 - **37.** Commit `make-test-repos.sh` from `docs/tasks-todo/temporary/git-369/` to `scripts/`, and point `git.md` at it.
-- **38.** Finish `task-1-git-panel-experiment.md`: update "Left to do", split "Ideas for later" into `task-x-…` docs, and archive it to `tasks-done/` when this ships.
+- **38.** Finish `task-2026-11-23-1-git-panel-experiment.md`: update "Left to do", split "Ideas for later" into `task-x-…` docs, and archive it to `tasks-done/` when this ships.
 - Update `git.md` for everything the phases above changed (the environment, the Pull block, submodules, the git version).
 
 ## Phase 9: Website docs ✅

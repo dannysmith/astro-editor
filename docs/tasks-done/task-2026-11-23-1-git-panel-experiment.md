@@ -2,6 +2,8 @@
 
 Issue #369. An experimental Git tab in the right sidebar for technical writers who have git and a local checkout: see the state of the open entry, commit it together with the files it uses, and push and pull. It's switched on per project and everything lives in that one tab. This branch may stay an experiment or become the feature branch; that's decided by dogfooding it. How it works, and why, is in `docs/developer/git.md`.
 
+**Outcome:** shipping in the next release, still behind the experimental switch, after a review and three rounds of CodeRabbit (`task-2026-11-23-2-git-panel-review-fixes.md`). PR #391; website docs in #382.
+
 ## Why, and for whom
 
 AE is for writer mode, so git earns a place only for the moments a writer hits while writing: "have I changed this, is it committed?", "this piece is finished, commit it with its images and nothing else", "bring in what's changed upstream before I commit", "don't let me forget to push". Branches, merges and conflicts are where a writer should switch to a git tool, because getting them wrong loses work or breaks a shared repo.
@@ -61,16 +63,16 @@ Phases, all on `experiment/git-panel`: 0 setup, 1 the Rust side, 2 the switch an
 - **The tab bar's labels** now hide with CSS (each label wraps out of a one-line clipped box when its tab is too narrow), replacing a `ResizeObserver` that missed tabs added after mount. A container query keyed on the tab count is the alternative if labels going one at a time ever looks wrong.
 - **AE never reads an entry while saving one.** An entry was once saved empty during testing. The likely cause, a reload after one save reading the file while the next save's `fs::write` had emptied it, reproduces in a Rust test, and a lock shared by AE's entry reads and saves closes it. Saves are still written in place.
 
-## Left to do, or to revisit
+## Where it was left
 
-- **Review fixes before shipping:** `task-2-git-panel-review-fixes.md`, including what's still to try in the app.
+- **Review fixes before shipping:** done, in `task-2026-11-23-2-git-panel-review-fixes.md`, including what was tried in the app.
 - **Deliberately left:** a right-click menu for the rest of the tab (everything is a button); images changed by another app while AE stays focused aren't seen until a refresh or focus (the project watcher only reports `.md`/`.mdx`); whether this entry, rather than the branch, is behind; a "Publish" prefill when the draft field was turned off.
-- **Phase 6, history:** not doing for now. The entry card shows the last commit and the strip lists unpushed ones, which may be enough. `commits()` in `git/state.rs` already reads a log if it comes back (`task-x-git-entry-history.md`).
+- **Phase 6, history:** not doing for now. The entry card shows the last commit and the strip lists unpushed ones, which may be enough. `commits()` in `git/state.rs` already reads a log if it comes back.
 - **Phase 7, dogfood and decide:** shipping in the next release behind the experimental switch rather than deciding first. Danny keeps using it, with the questions below.
 
 ## Testing
 
-How to test, and the throwaway repositories, are in "Testing" in `docs/developer/git.md`; `scripts/make-git-test-repos.sh` builds them. Never test in the astro-editor checkout or a real site's repo. The original research notes (`git-integration-exploration.md`) are in the gitignored `docs/tasks-todo/temporary/git-369/`.
+How to test, and the throwaway repositories, are in "Testing" in `docs/developer/git.md`; `scripts/make-git-test-repos.sh` builds them. Never test in the astro-editor checkout or a real site's repo. The original research notes (`git-integration-exploration.md`) lived in the gitignored temporary folder, and were cleared out with it when this was done.
 
 When this ships or is dropped: delete `~/dev/temp-git-repos-for-ae-testing/`, and remove its entry from the sandbox's allowed write paths in `.claude/settings.local.json`, which lets agents play "another app" in the test repos without prompting.
 
@@ -87,6 +89,6 @@ When this ships or is dropped: delete `~/dev/temp-git-repos-for-ae-testing/`, an
 - Do I miss a history of the entry's commits?
 - What did git do that the tab didn't explain well?
 
-## Ideas for later, not this experiment
+## Ideas decided against
 
-Each has its own `task-x` doc: `task-x-git-tab-unpushed-badge.md`, `task-x-git-entry-history.md` (with "Open on GitHub"), and `task-x-git-entry-changes.md` (the entry's changes since its last commit, in the editor). Opening a terminal at the project (the ▶ button in #360) would share the login-shell environment code (`shell_env.rs`).
+Not planned: a count badge on the Git tab while there are unpushed commits; the entry's commit history, with "Open on GitHub"; and the entry's changes since its last commit, shown in the editor (`@codemirror/merge`). Opening a terminal at the project (the ▶ button in #360) is tracked there, and would share the login-shell environment code (`shell_env.rs`).
