@@ -21,9 +21,9 @@ export const commands = {
 	/**
 	 *  Copies a file into `<assets_directory>/<collection>/` (the folder relative to
 	 *  the project, as the collection's settings resolve it), named after the date
-	 *  and the file, and returns the path to write in the file
+	 *  and the file
 	 */
-	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<string, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
+	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<CopiedAsset, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
 	/**
 	 *  Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
@@ -347,6 +347,20 @@ export type ColourTheme = {
 };
 
 export type ComponentFramework = "astro" | "react" | "vue" | "svelte";
+
+/**  A file copied into the project for an entry */
+export type CopiedAsset = {
+	/**
+	 *  The path to write in the entry: relative to it, or from the project
+	 *  root with a leading `/`, as the project's settings say
+	 */
+	reference: string,
+	/**
+	 *  Where it was copied, absolute, with symlinks resolved (as git reports
+	 *  paths)
+	 */
+	path: string,
+};
 
 /**  Which of Harper's checks are on */
 export type CopyeditChecks = {

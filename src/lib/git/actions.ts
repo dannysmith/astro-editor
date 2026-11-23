@@ -15,7 +15,7 @@ import { queryKeys } from '../query-keys'
 import { toast } from '../toast'
 import { fileName } from './entry-files'
 
-/** One of the tab's writes, for the entry at `entry` (repository-relative) */
+/** One of the tab's writes, for the entry at `entry` (its absolute path, as the editor has it) */
 export type GitWrite =
   | { action: 'stage'; entry: string; paths: string[] }
   | { action: 'unstage'; entry: string; paths: string[] }

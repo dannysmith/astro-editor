@@ -33,7 +33,10 @@ describe('processFileToAssets', () => {
     it('should copy file to default assets directory', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
+        data: {
+          reference: 'src/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -59,7 +62,10 @@ describe('processFileToAssets', () => {
     it('should copy file to override assets directory', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'custom/assets/2024-01-15-image.png',
+        data: {
+          reference: 'custom/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -87,7 +93,10 @@ describe('processFileToAssets', () => {
       // With 'always' strategy, we never check if file is in project
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-existing.png',
+        data: {
+          reference: 'src/assets/2024-01-15-existing.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -115,7 +124,10 @@ describe('processFileToAssets', () => {
       vi.mocked(commands.isPathInProject).mockResolvedValue(false)
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
+        data: {
+          reference: 'src/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -177,7 +189,10 @@ describe('processFileToAssets', () => {
       vi.mocked(commands.isPathInProject).mockResolvedValue(false)
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'custom/assets/2024-01-15-image.png',
+        data: {
+          reference: 'custom/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -202,7 +217,10 @@ describe('processFileToAssets', () => {
     it('should return path in format provided by Rust (relative)', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: '../../assets/2024-01-15-image.png',
+        data: {
+          reference: '../../assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -217,7 +235,10 @@ describe('processFileToAssets', () => {
     it('should return path in format provided by Rust (absolute)', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: '/src/assets/2024-01-15-image.png',
+        data: {
+          reference: '/src/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -234,7 +255,10 @@ describe('processFileToAssets', () => {
     it('should extract filename from Unix path', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-image.png',
+        data: {
+          reference: 'src/assets/2024-01-15-image.png',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -249,7 +273,10 @@ describe('processFileToAssets', () => {
     it('should extract filename from Windows path', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-document.pdf',
+        data: {
+          reference: 'src/assets/2024-01-15-document.pdf',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -264,7 +291,10 @@ describe('processFileToAssets', () => {
     it('should handle path with no directory separators', async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: 'src/assets/2024-01-15-file.txt',
+        data: {
+          reference: 'src/assets/2024-01-15-file.txt',
+          path: '/real/project/copied.png',
+        },
       })
 
       const result = await processFileToAssets({
@@ -327,17 +357,18 @@ describe('processFileToAssets', () => {
     it("records where a copy landed, against the entry it's for", async () => {
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({
         status: 'ok',
-        data: '../../../assets/blog/2024-01-15-image-1.png',
+        data: {
+          reference: '../../../assets/blog/2024-01-15-image-1.png',
+          path: '/real/project/src/assets/blog/2024-01-15-image-1.png',
+        },
       })
 
-      await processFileToAssets({
-        ...baseOptions,
-        assetsDirectory: './src/content/../assets/',
-      })
+      await processFileToAssets(baseOptions)
 
+      // Where Rust says it went, not worked out from the settings
       expect(useGitPanelStore.getState().added).toEqual({
         '/Users/test/project/src/content/blog/post.md': [
-          '/Users/test/project/src/assets/blog/2024-01-15-image-1.png',
+          '/real/project/src/assets/blog/2024-01-15-image-1.png',
         ],
       })
     })

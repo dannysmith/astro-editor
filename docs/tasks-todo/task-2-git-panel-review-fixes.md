@@ -72,7 +72,9 @@ Done, both reproduced by tests first. An entry in a submodule (or any nested rep
 
 **16. A deleted entry shows as "outside the repository".** Canonicalising a deleted file fails. Canonicalise its parent folder and add the file name, so the Deleted state appears.
 
-## Phase 6: Committing the right files
+## Phase 6: Committing the right files ✅
+
+Done. `GitWrite.entry`, typed messages and the staging record now use the entry's absolute path (as the editor has it), which AE's renames follow; `stagingState` in `lib/git/staging.ts` holds what was inline in `GitPanel.tsx`. The "not staged" note respects files unticked before staging. `FileRow` takes a `DeleteItem` (the context menu's type) instead of `onDelete`, so delete can be disabled apart from the ticks. Checked in the styleguide in both themes; not yet tried end to end in the app (see Phase 10).
 
 **8** and **9** as agreed in Phase 1.
 

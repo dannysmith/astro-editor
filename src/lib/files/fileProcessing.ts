@@ -55,18 +55,12 @@ export async function processFileToAssets(
     if (result.status === 'error') {
       throw new Error(result.error)
     }
-    relativePath = result.data
+    relativePath = result.data.reference
     wasCopied = true
 
-    // Where Rust put it, so the Git tab can offer it with the entry even after
-    // it's taken out of the text
-    const name = extractFilename(relativePath)
-    useGitPanelStore
-      .getState()
-      .rememberAdded(
-        currentFilePath,
-        joinPath(projectPath, assetsDirectory, collection, name)
-      )
+    // So the Git tab can offer it with the entry even after it's taken out of
+    // the text
+    useGitPanelStore.getState().rememberAdded(currentFilePath, result.data.path)
   } else {
     // File is already in project - reuse existing path
     const result = await commands.getRelativePath(
@@ -99,18 +93,4 @@ function extractFilename(filePath: string): string {
   const parts = filePath.split(/[/\\]/)
   const filename = parts[parts.length - 1]
   return filename || filePath
-}
-
-/**
- * Joins path parts, resolving `.` and `..` without touching the disk, as Rust
- * resolves the assets folder (`content_config::normalize`)
- */
-function joinPath(...parts: string[]): string {
-  const joined = parts.join('/')
-  const segments: string[] = []
-  for (const segment of joined.split('/')) {
-    if (segment === '..') segments.pop()
-    else if (segment && segment !== '.') segments.push(segment)
-  }
-  return `${joined.startsWith('/') ? '/' : ''}${segments.join('/')}`
 }

@@ -18,6 +18,7 @@ import {
 } from '../../lib/git/actions'
 import { showGitFileMenu } from '../../lib/git/context-menu'
 import { fileName, groupChanges, usedFiles } from '../../lib/git/entry-files'
+import { stagingState } from '../../lib/git/staging'
 import { counted } from '../../lib/plural'
 import { showProjectSettings } from '../../lib/project-settings/actions'
 import { GitPanelView } from './GitPanelView'
@@ -45,6 +46,7 @@ export const GitPanel = () => {
 function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   useGitRefresh(projectPath)
   const currentFile = useEditorStore(state => state.currentFile)
+  const isLoaded = useEditorStore(state => state.isLoaded)
   const { data, error, dataUpdatedAt, isPlaceholderData, refetch } =
     useGitStateQuery(projectPath, currentFile?.path ?? null)
 
@@ -97,24 +99,19 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   // Messages typed for each entry, kept while the project is open so closing
   // the card or opening another entry doesn't lose them. One never edited
   // isn't kept, so it follows the entry's title
+  // Writes, messages and commits are kept by the entry's path as the editor
+  // has it, which AE's renames follow
+  const entryFile = currentFile?.path ?? ''
   const [messages, setMessages] = useState<Record<string, string>>({})
-  const message = messages[entryPath] ?? prefill
+  const message = messages[entryFile] ?? prefill
 
-  // The files AE staged, and for which entry. They count only while git
-  // still has some of them staged, so committing or unstaging them in
-  // another app folds the card, and it can't reopen when something else is
-  // staged later
-  const [stagedFor, setStagedFor] = useState<{
-    entry: string
-    paths: string[]
-  } | null>(null)
-  const live =
-    stagedFor &&
-    tree?.staged.some(change => stagedFor.paths.includes(change.path))
-      ? stagedFor
-      : null
-  const staging = live !== null && live.entry === entryPath
-  const ours = staging ? live.paths : null
+  const staging = useGitPanelStore(state => state.staging)
+  const { ours, elsewhere, pullBlocked } = stagingState({
+    staging,
+    project: projectPath,
+    entry: currentFile?.path ?? null,
+    tree,
+  })
   const [committed, setCommitted] = useState<{
     entry: string
     hash: string
@@ -123,11 +120,16 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
   const write = useMutation({
     mutationFn: (write: GitWrite) => runGitWrite(projectPath, write),
     onSuccess: async (hash, write) => {
+      const { setStaging } = useGitPanelStore.getState()
       if (write.action === 'stage') {
-        setStagedFor({ entry: write.entry, paths: write.paths })
+        setStaging({
+          project: projectPath,
+          entry: write.entry,
+          paths: write.paths,
+        })
         setCommitted(null)
       } else {
-        setStagedFor(null)
+        setStaging(null)
       }
       if (write.action === 'commit' && hash) {
         setCommitted({ entry: write.entry, hash })
@@ -141,7 +143,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       await refetch()
     },
   })
-  const forEntry = write.variables?.entry === entryPath
+  const forEntry = write.variables?.entry === entryFile
 
   const sync = useMutation({
     mutationFn: async (action: 'push' | 'pull') =>
@@ -198,7 +200,9 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
           overrides: { ...overrides, [path]: ticked },
         })
       }
-      onOpen={change => void openChange(projectPath, tree?.root, change.path)}
+      onOpen={change => {
+        if (tree) void openFileAt(projectPath, `${tree.root}/${change.path}`)
+      }}
       onFileMenu={(path, exists, position, deleteItem) => {
         if (tree) {
           void showGitFileMenu(
@@ -213,12 +217,7 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
       sync={{
         pending: sync.isPending ? sync.variables : null,
         busy: write.isPending,
-        // Pulling commits of our own rebases them, which unstages whatever's
-        // staged, whoever staged it (Rust refuses it too)
-        pullBlocked:
-          tree && tree.ahead > 0 && tree.staged.length > 0
-            ? 'Commit or unstage the staged files first'
-            : null,
+        pullBlocked,
         error:
           sync.error && sync.variables
             ? { action: sync.variables, message: sync.error.message }
@@ -227,38 +226,49 @@ function ProjectGitPanel({ projectPath }: { projectPath: string }) {
         onPull: () => sync.mutate('pull'),
       }}
       commit={{
-        staging,
+        staging: ours !== null,
         ourPaths: ours ?? [],
+        // Used since staging, and not unticked before it
+        notStaged: ours
+          ? goesWith.filter(
+              path => !ours.includes(path) && (overrides[path] ?? true)
+            )
+          : [],
         pending: write.isPending && forEntry ? write.variables.action : null,
-        busy: sync.isPending || (write.isPending && !forEntry),
-        stagedElsewhere:
-          live && live.entry !== entryPath
-            ? {
-                name: fileName(live.entry),
-                onOpen: () =>
-                  void openChange(projectPath, tree?.root, live.entry),
-              }
-            : null,
+        // Until the editor has the entry's text, the files it uses aren't known
+        busy: sync.isPending || (write.isPending && !forEntry) || !isLoaded,
+        stagedElsewhere: elsewhere && {
+          name: fileName(elsewhere.entry),
+          onOpen: () => void openFileAt(projectPath, elsewhere.entry),
+          onCancel: () =>
+            write.mutate({
+              action: 'unstage',
+              entry: elsewhere.entry,
+              paths: elsewhere.paths,
+            }),
+        },
+        // Cancelling another entry's staging fails here too
         error:
-          write.error && forEntry
+          write.error &&
+          (forEntry || write.variables.entry === elsewhere?.entry)
             ? { action: write.variables.action, message: write.error.message }
             : null,
-        committed: committed?.entry === entryPath ? committed.hash : null,
+        committed: committed?.entry === entryFile ? committed.hash : null,
         message,
         onMessageChange: text =>
-          setMessages({ ...messages, [entryPath]: text }),
+          setMessages({ ...messages, [entryFile]: text }),
         onStage: paths =>
-          write.mutate({ action: 'stage', entry: entryPath, paths }),
+          write.mutate({ action: 'stage', entry: entryFile, paths }),
         onUnstage: () => {
           if (ours) {
-            write.mutate({ action: 'unstage', entry: entryPath, paths: ours })
+            write.mutate({ action: 'unstage', entry: entryFile, paths: ours })
           }
         },
         onCommit: () => {
           if (ours) {
             write.mutate({
               action: 'commit',
-              entry: entryPath,
+              entry: entryFile,
               paths: ours,
               message: message.trim(),
             })
@@ -274,14 +284,9 @@ function entryText(state: ReturnType<typeof useEditorStore.getState>): string {
   return JSON.stringify(state.frontmatter) + state.imports + state.editorContent
 }
 
-/** Opens a content file (relative to the repository root) in the editor */
-async function openChange(
-  projectPath: string,
-  root: string | undefined,
-  path: string
-) {
-  if (!root) return
-  const result = await commands.resolveFileEntry(`${root}/${path}`, projectPath)
+/** Opens a content file (an absolute path) in the editor */
+async function openFileAt(projectPath: string, path: string) {
+  const result = await commands.resolveFileEntry(path, projectPath)
   if (result.status === 'ok' && result.data) {
     useEditorStore.getState().openFile(result.data)
   } else {

@@ -3,6 +3,7 @@ import { ChevronRight, TriangleAlert } from 'lucide-react'
 import type { GitChange } from '@/lib/bindings'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
+import type { DeleteItem } from '../../lib/git/context-menu'
 import { fileName } from '../../lib/git/entry-files'
 import { changeStatus } from '../../lib/git/status'
 import { StatusLetter, fileMenu, type FileMenu } from './status-marks'
@@ -79,20 +80,20 @@ export function OtherChanges({
 /**
  * A changed file: a tick for the commit, its name (a link for content files),
  * an optional note with a warning sign, and its status letter. With
- * `onDelete`, the warning sign and the right-click menu offer to delete the
- * file, except while ticks are locked.
+ * `deleteItem`, the warning sign and the right-click menu offer to delete the
+ * file, while it's enabled.
  */
 export function FileRow({
   change,
   note,
-  onDelete,
+  deleteItem,
   prefix,
   locked,
   isTicked,
   onTick,
   onOpen,
   onFileMenu,
-}: RowProps & { change: GitChange; note?: string; onDelete?: () => void }) {
+}: RowProps & { change: GitChange; note?: string; deleteItem?: DeleteItem }) {
   const shown = change.path.startsWith(prefix)
     ? change.path.slice(prefix.length)
     : change.path
@@ -106,7 +107,7 @@ export function FileRow({
         onFileMenu,
         change.path,
         change.kind !== 'deleted',
-        onDelete && { enabled: !locked, onDelete }
+        deleteItem
       )}
     >
       <div className="flex items-center gap-2">
@@ -131,13 +132,13 @@ export function FileRow({
           </span>
         )}
         {note &&
-          (onDelete ? (
+          (deleteItem ? (
             <button
               type="button"
               title={`${note}. Click to delete it.`}
               aria-label={`Delete ${shown}`}
-              disabled={locked}
-              onClick={onDelete}
+              disabled={!deleteItem.enabled}
+              onClick={deleteItem.onDelete}
               className="shrink-0 disabled:opacity-50"
             >
               {warning}

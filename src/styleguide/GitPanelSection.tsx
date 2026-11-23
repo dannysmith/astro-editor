@@ -25,6 +25,7 @@ const IMAGE = change('docs/src/assets/docs/2026-11-16-harbour.jpg', 'new')
 const OLD_IMAGE = change('docs/src/assets/docs/2026-11-16-old-map.png', 'new')
 const CONFIG = change('docs/astro.config.mjs', 'modified', true)
 const OTHER_ENTRY = change('docs/src/content/docs/guides/tides.md', 'modified')
+const OTHER_IMAGE = change('docs/src/assets/docs/2026-11-16-pier.jpg', 'new')
 
 const staged = (c: GitChange): GitChange => ({
   ...c,
@@ -76,7 +77,7 @@ const ENTRY_INFO = { name: 'harbour.md', collection: 'docs' }
 type Example = Pick<
   GitPanelViewProps,
   'state' | 'entry' | 'entryChange' | 'used' | 'unused' | 'others'
-> & { name: string; staging?: boolean }
+> & { name: string; staging?: boolean; notStaged?: string[] }
 
 const EXAMPLES: Example[] = [
   {
@@ -89,7 +90,7 @@ const EXAMPLES: Example[] = [
     others: [CONFIG, OTHER_ENTRY],
   },
   {
-    name: 'Staged, with the commit card open',
+    name: 'Staged, with an image used since',
     entry: ENTRY_INFO,
     entryChange: ENTRY,
     used: [IMAGE],
@@ -100,6 +101,7 @@ const EXAMPLES: Example[] = [
       tree: { ...TREE, staged: [staged(ENTRY), staged(IMAGE), CONFIG] },
     },
     staging: true,
+    notStaged: [OTHER_IMAGE.path],
   },
   {
     name: 'A merge in progress, no file open',
@@ -128,48 +130,51 @@ const EXAMPLES: Example[] = [
 export function GitPanelSection() {
   return (
     <div className="flex flex-wrap gap-6">
-      {EXAMPLES.map(({ name, used, staging = false, ...example }) => (
-        <div key={name} className="w-80 space-y-2">
-          <p className="text-xs text-muted-foreground">{name}</p>
-          <div className="h-[34rem] rounded-lg border">
-            <GitPanelView
-              {...example}
-              used={used}
-              readAt={0}
-              onRefresh={() => {}}
-              onDeleteUnused={() => {}}
-              isTicked={path => used.some(c => c.path === path)}
-              onTick={() => {}}
-              onOpen={() => {}}
-              onFileMenu={() => {}}
-              onOpenSettings={() => {}}
-              sync={{
-                pending: null,
-                busy: false,
-                pullBlocked: null,
-                error: null,
-                onPush: () => {},
-                onPull: () => {},
-              }}
-              commit={{
-                staging,
-                ourPaths: [ENTRY.path, IMAGE.path],
-                pending: null,
-                busy: false,
-                stagedElsewhere: null,
-                error: null,
-                committed: null,
-                message: 'Update “Harbour at dawn”',
-                onMessageChange: () => {},
-                onStage: () => {},
-                onUnstage: () => {},
-                onCommit: () => {},
-              }}
-              now={NOW}
-            />
+      {EXAMPLES.map(
+        ({ name, used, staging = false, notStaged = [], ...example }) => (
+          <div key={name} className="w-80 space-y-2">
+            <p className="text-xs text-muted-foreground">{name}</p>
+            <div className="h-[34rem] rounded-lg border">
+              <GitPanelView
+                {...example}
+                used={used}
+                readAt={0}
+                onRefresh={() => {}}
+                onDeleteUnused={() => {}}
+                isTicked={path => used.some(c => c.path === path)}
+                onTick={() => {}}
+                onOpen={() => {}}
+                onFileMenu={() => {}}
+                onOpenSettings={() => {}}
+                sync={{
+                  pending: null,
+                  busy: false,
+                  pullBlocked: null,
+                  error: null,
+                  onPush: () => {},
+                  onPull: () => {},
+                }}
+                commit={{
+                  staging,
+                  ourPaths: [ENTRY.path, IMAGE.path],
+                  notStaged,
+                  pending: null,
+                  busy: false,
+                  stagedElsewhere: null,
+                  error: null,
+                  committed: null,
+                  message: 'Update “Harbour at dawn”',
+                  onMessageChange: () => {},
+                  onStage: () => {},
+                  onUnstage: () => {},
+                  onCommit: () => {},
+                }}
+                now={NOW}
+              />
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      )}
     </div>
   )
 }

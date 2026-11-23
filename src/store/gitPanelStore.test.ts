@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGitPanelStore } from './gitPanelStore'
 
-beforeEach(() => useGitPanelStore.setState({ added: {}, renamedFrom: {} }))
+beforeEach(() =>
+  useGitPanelStore.setState({ added: {}, renamedFrom: {}, staging: null })
+)
 
 describe('rememberAdded', () => {
   it('keeps each file once', () => {
@@ -32,5 +34,19 @@ describe('rememberRename', () => {
     expect(useGitPanelStore.getState().added).toEqual({
       '/site/trip.md': ['/site/assets/x.png'],
     })
+  })
+
+  it("moves what's staged for an entry with it", () => {
+    const { setStaging, rememberRename } = useGitPanelStore.getState()
+    setStaging({
+      project: '/site',
+      entry: '/site/untitled.md',
+      paths: ['untitled.md'],
+    })
+    rememberRename('/site/untitled.md', '/site/trip.md')
+    expect(useGitPanelStore.getState().staging?.entry).toBe('/site/trip.md')
+
+    rememberRename('/site/other.md', '/site/elsewhere.md')
+    expect(useGitPanelStore.getState().staging?.entry).toBe('/site/trip.md')
   })
 })

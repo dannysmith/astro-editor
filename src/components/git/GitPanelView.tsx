@@ -154,7 +154,17 @@ export function GitPanelView({
                   key={change.path}
                   change={change}
                   note="No longer used in the entry"
-                  onDelete={() => onDeleteUnused(change.path)}
+                  deleteItem={
+                    // Not once it's gone, nor while AE has files staged, since
+                    // it may be one of them
+                    change.kind === 'deleted'
+                      ? undefined
+                      : {
+                          enabled:
+                            !rows.locked && commit.stagedElsewhere === null,
+                          onDelete: () => onDeleteUnused(change.path),
+                        }
+                  }
                   {...rows}
                 />
               ))}

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { Staging } from '../lib/git/staging'
 
 interface GitPanelState {
   /**
@@ -18,8 +19,14 @@ interface GitPanelState {
    * when AE quits.
    */
   renamedFrom: Record<string, string>
-  /** Also moves the files added for an entry along with it */
+  /**
+   * Also moves the files added for an entry, and what's staged for it, along
+   * with it
+   */
   rememberRename: (from: string, to: string) => void
+  /** What the Git tab last staged, and for which entry (see `staging.ts`) */
+  staging: Staging | null
+  setStaging: (staging: Staging | null) => void
 }
 
 export const useGitPanelStore = create<GitPanelState>((set, get) => ({
@@ -37,7 +44,13 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
       return {
         renamedFrom: { ...renamedFrom, [to]: first },
         added: added ? { ...others, [to]: added } : state.added,
+        staging:
+          state.staging?.entry === from
+            ? { ...state.staging, entry: to }
+            : state.staging,
       }
     })
   },
+  staging: null,
+  setStaging: staging => set({ staging }),
 }))

@@ -66,6 +66,37 @@ describe('usedFiles', () => {
     ).toEqual(['posts/trip/cover.jpg'])
   })
 
+  it("doesn't take another entry's file of the same name", () => {
+    const changes = [
+      change('posts/trip/index.md'),
+      change('posts/other/cover.jpg', 'new'),
+    ]
+    const used = (entryText: string) =>
+      usedFiles({ changes, entryPath: 'posts/trip/index.md', entryText })
+    expect(used('![](./cover.jpg)')).toEqual([])
+    expect(used('---\nimage: cover.jpg\n---\n')).toEqual([])
+    // Unless the reference leads there
+    expect(used('![](../other/cover.jpg)')).toEqual(['posts/other/cover.jpg'])
+  })
+
+  it('takes a file of the name for references that are not relative', () => {
+    const changes = [
+      change('src/content/blog/post.md'),
+      change('src/assets/blog/map.png', 'new'),
+      change('public/images/photo.jpg', 'new'),
+    ]
+    expect(
+      usedFiles({
+        changes,
+        entryPath: 'src/content/blog/post.md',
+        // An alias, and a path from the site's root, as written in frontmatter
+        // (JSON, as the panel reads it) and MDX
+        entryText:
+          '{"cover":"@assets/blog/map.png"}import P from "x"\n<Image src="/images/photo.jpg" />',
+      })
+    ).toEqual(['src/assets/blog/map.png', 'public/images/photo.jpg'])
+  })
+
   it('finds nothing without an entry', () => {
     expect(usedFiles({ changes, entryPath: '', entryText: 'map.png' })).toEqual(
       []

@@ -193,9 +193,21 @@ fn to_kebab_case(name_without_ext: &str) -> String {
         .join("-")
 }
 
+/// A file copied into the project for an entry
+#[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CopiedAsset {
+    /// The path to write in the entry: relative to it, or from the project
+    /// root with a leading `/`, as the project's settings say
+    pub reference: String,
+    /// Where it was copied, absolute, with symlinks resolved (as git reports
+    /// paths)
+    pub path: String,
+}
+
 /// Copies a file into `<assets_directory>/<collection>/` (the folder relative to
 /// the project, as the collection's settings resolve it), named after the date
-/// and the file, and returns the path to write in the file
+/// and the file
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_file_to_assets(
@@ -205,7 +217,7 @@ pub async fn copy_file_to_assets(
     assets_directory: String,
     current_file_path: String,
     use_relative_paths: bool,
-) -> Result<String, String> {
+) -> Result<CopiedAsset, String> {
     use std::fs;
 
     // Validate project path
@@ -313,14 +325,17 @@ pub async fn copy_file_to_assets(
         .to_string();
 
     // Convert to appropriate path style based on setting
-    let final_path = if use_relative_paths {
+    let reference = if use_relative_paths {
         calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
     } else {
         // From the project root, starting with `/` (the absolute image paths setting)
         format!("/{}", project_relative_path.replace('\\', "/"))
     };
 
-    Ok(final_path)
+    Ok(CopiedAsset {
+        reference,
+        path: normalize_path_for_serialization(&validated_final_path),
+    })
 }
 
 #[tauri::command]
@@ -1045,7 +1060,8 @@ mod tests {
             false,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .reference;
 
         // Every dot, space and underscore before the extension becomes a hyphen
         assert!(
@@ -1084,11 +1100,21 @@ mod tests {
         .await;
 
         assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-        let relative_path = result.unwrap();
+        let copied = result.unwrap();
+        let relative_path = copied.reference;
 
         // Check the returned path format (absolute from project root with leading /)
         assert!(relative_path.starts_with("/src/assets/blog/"));
         assert!(relative_path.contains("-test-image.png"));
+
+        // Its real path: macOS's temp folder is behind a symlink
+        let real_project = dunce::canonicalize(project_dir.path()).unwrap();
+        assert_eq!(
+            copied.path,
+            normalize_path_for_serialization(
+                &real_project.join(relative_path.trim_start_matches('/'))
+            )
+        );
 
         // Check file was actually copied (strip leading / for path construction)
         let dest_path = project_dir
@@ -1140,7 +1166,7 @@ mod tests {
         .await;
 
         assert!(result.is_ok(), "Failed with error: {:?}", result.err());
-        let relative_path = result.unwrap();
+        let relative_path = result.unwrap().reference;
 
         // Should have -1 suffix
         assert!(relative_path.contains(&format!("{date_prefix}-test-file-1.md")));
@@ -1214,7 +1240,7 @@ mod tests {
         assert!(assets_dir.exists());
 
         // File should be copied (strip leading / for path construction)
-        let relative_path = result.unwrap();
+        let relative_path = result.unwrap().reference;
         let dest_path = project_dir
             .path()
             .join(relative_path.trim_start_matches('/'));

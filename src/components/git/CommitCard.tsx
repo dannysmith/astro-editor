@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { CircleCheck } from 'lucide-react'
+import { CircleCheck, TriangleAlert } from 'lucide-react'
 import type { GitChange, GitWorkingTree } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -17,6 +17,11 @@ export interface GitCommitProps {
   staging: boolean
   /** The paths AE staged, so others in the index are marked */
   ourPaths: string[]
+  /**
+   * Files the entry uses that aren't staged, such as an image dropped in
+   * since. The commit is exactly what's staged, so they're offered, not added
+   */
+  notStaged: string[]
   /** The write under way for this entry, if any */
   pending: GitWrite['action'] | null
   /** Another git command is under way (for another entry, or a pull) */
@@ -25,7 +30,12 @@ export interface GitCommitProps {
    * AE staged files for another entry, which must be committed or cancelled
    * before this one can stage: one commit takes everything staged
    */
-  stagedElsewhere: { name: string; onOpen: () => void } | null
+  stagedElsewhere: {
+    name: string
+    onOpen: () => void
+    /** Unstages them, from here */
+    onCancel: () => void
+  } | null
   /** Which write failed last, and why, in git's words */
   error: { action: GitWrite['action']; message: string } | null
   /** The hash of the commit just made for the entry */
@@ -60,20 +70,32 @@ export function CommitCard({
   }
   if (commit.stagedElsewhere) {
     return (
-      <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-muted-foreground">
-        <span className="min-w-0 flex-1">
-          Files are staged for {commit.stagedElsewhere.name}. Commit or cancel
-          them there first.
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-6 px-2 text-xs"
-          onClick={commit.stagedElsewhere.onOpen}
-        >
-          Open
-        </Button>
-      </div>
+      <>
+        <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1">
+            Files are staged for {commit.stagedElsewhere.name}. Commit or cancel
+            them first.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            disabled={commit.busy}
+            onClick={commit.stagedElsewhere.onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={commit.stagedElsewhere.onOpen}
+          >
+            Open
+          </Button>
+        </div>
+        <WriteError error={commit.error} />
+      </>
     )
   }
   const count = toStage.length
@@ -132,11 +154,13 @@ function WriteError({ error }: { error: GitCommitProps['error'] }) {
 function StagedCard({
   tree,
   ourPaths,
+  notStaged,
   pending,
   busy,
   error,
   message,
   onMessageChange,
+  onStage,
   onUnstage,
   onCommit,
   onFileMenu,
@@ -194,6 +218,28 @@ function StagedCard({
           </Button>
         </div>
         <WriteError error={error} />
+        {notStaged.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <TriangleAlert
+              aria-hidden
+              className="size-3.5 shrink-0 text-warning"
+            />
+            <span className="min-w-0 flex-1">
+              Uses {counted(notStaged.length, 'file')}{' '}
+              {notStaged.length === 1 ? "that isn't" : "that aren't"} staged:{' '}
+              {notStaged.map(fileName).join(', ')}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              disabled={waiting}
+              onClick={() => onStage([...ourPaths, ...notStaged])}
+            >
+              {pending === 'stage' ? 'Staging…' : 'Stage'}
+            </Button>
+          </div>
+        )}
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>To be committed to {tree.branch ?? 'this commit'}:</p>
           <ul className="space-y-0.5">

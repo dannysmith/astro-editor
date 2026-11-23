@@ -4,12 +4,19 @@ import type { GitChange } from '@/lib/bindings'
 const CONTENT_FILE = /\.mdx?$/i
 
 /**
- * The changed files the open entry uses, as paths: files whose name appears in
- * its text (from the editor, not disk), and for a `folder/index.md(x)` entry,
- * the files in its folder (the colocated layout). Markdown images, image
- * fields, MDX imports and component props all hold the name. AE names dropped
- * files `YYYY-MM-DD-name.ext`, so chance matches are rare, and a name only
- * matches whole, not as the end of a longer name.
+ * The changed files the open entry uses, as paths: files its text (from the
+ * editor, not disk) refers to, and for a `folder/index.md(x)` entry, the files
+ * in its folder (the colocated layout). Markdown images, image fields, MDX
+ * imports and component props all hold a reference.
+ *
+ * A relative reference (`./cover.jpg`, `../../assets/map.png`, a bare
+ * `cover.jpg`) counts only for the file it resolves to from the entry's
+ * folder, so another entry's `cover.jpg` isn't taken. Anything else (an alias
+ * like `@assets/…`, a path from the project root or `public/`) counts for
+ * any changed file of that name, since resolving it would mean reading the
+ * project's config. A name only matches whole, not as the end of a longer
+ * name, and AE names the files it copies in `YYYY-MM-DD-name.ext`, so chance
+ * matches are rare.
  *
  * Other content files never count, even when linked: committing another
  * article because this one links to it would be a surprise.
@@ -27,16 +34,15 @@ export function usedFiles({
   entryText: string
 }): string[] {
   if (!entryPath) return []
-  const folder = /(^|\/)index\.mdx?$/i.test(entryPath)
-    ? entryPath.slice(0, entryPath.lastIndexOf('/') + 1)
-    : null
+  const entryFolder = entryPath.slice(0, entryPath.lastIndexOf('/') + 1)
+  const colocated = /(^|\/)index\.mdx?$/i.test(entryPath)
   return changes
     .filter(
       change =>
         change.path !== entryPath &&
         !CONTENT_FILE.test(change.path) &&
-        ((folder !== null && change.path.startsWith(folder)) ||
-          mentions(entryText, fileName(change.path)))
+        ((colocated && change.path.startsWith(entryFolder)) ||
+          refersTo(entryText, change.path, entryFolder))
     )
     .map(change => change.path)
 }
@@ -81,18 +87,58 @@ export function fileName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }
 
+/** What can't be in a reference, unquoted, in markdown, YAML, JSON or JSX */
+const REFERENCE_BOUNDARY = /[\s"'`()[\]<>{},=]/
+
+/** A reference that isn't relative to the entry: from a root, an alias, a URL */
+const NOT_RELATIVE = /^([/@~$#]|[a-z][a-z\d+.-]*:)/i
+
 /**
- * Whether `text` has `name` as a whole name: not the end of a longer one
- * (`map.png` in `old-map.png`), and as written or URL-encoded
+ * Whether `text` refers to the file at `path` (both relative to the repository
+ * root): has its name whole, not as the end of a longer one (`map.png` in
+ * `old-map.png`), as written or URL-encoded, in a reference that's either not
+ * relative or resolves to it from `entryFolder`
  */
-function mentions(text: string, name: string): boolean {
+function refersTo(text: string, path: string, entryFolder: string): boolean {
+  const name = fileName(path)
   if (!name) return false
   return [name, encodeURI(name)].some(form => {
-    let at = text.indexOf(form)
-    while (at !== -1) {
-      if (at === 0 || !/[\w.-]/.test(text.charAt(at - 1))) return true
+    for (
+      let at = text.indexOf(form);
+      at !== -1;
       at = text.indexOf(form, at + 1)
+    ) {
+      if (at > 0 && /[\w.-]/.test(text.charAt(at - 1))) continue
+      let start = at
+      while (start > 0 && !REFERENCE_BOUNDARY.test(text.charAt(start - 1))) {
+        start--
+      }
+      const reference = decoded(text.slice(start, at + form.length))
+      if (
+        NOT_RELATIVE.test(reference) ||
+        resolve(entryFolder, reference) === path
+      ) {
+        return true
+      }
     }
     return false
   })
+}
+
+function decoded(reference: string): string {
+  try {
+    return decodeURI(reference)
+  } catch {
+    return reference
+  }
+}
+
+/** `reference` resolved from `folder` (which ends with `/`, or is empty) */
+function resolve(folder: string, reference: string): string {
+  const segments: string[] = []
+  for (const segment of `${folder}${reference}`.split('/')) {
+    if (segment === '..') segments.pop()
+    else if (segment && segment !== '.') segments.push(segment)
+  }
+  return segments.join('/')
 }
