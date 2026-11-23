@@ -67,6 +67,35 @@ These are the defaults for every collection, and each collection can change them
 
 **Reorder frontmatter**: off by default, so editing a file's frontmatter leaves its fields where they are. When it's on, editing a file puts its fields in the order your schema defines them, then any others alphabetically, each with its comments. It only reorders in collections whose generated schema Astro Editor has read. See [How YAML is Handled](/reference/yaml/#reordering).
 
+### Git
+
+![The Git section of Project Settings, with the Git panel switched on, then the git program and version, the repository, branch, a Check remote button, who commits are made as, and the hooks](../../assets/project-settings-git.png)
+
+**Git panel** (experimental): off by default. When it's on, the right sidebar gets a [Git tab](/git/) for committing the open file with its images, and pushing. While it's off, Astro Editor runs no git at all for the project.
+
+With the panel on, this section shows what Astro Editor found. **Check again** reads it all again.
+
+| Row | What it shows |
+| --- | --- |
+| **Git** | The `git` program Astro Editor runs, and its version |
+| **Repository** | The repository's folder, and where the project is inside it if it isn't at the root |
+| **Branch** | The branch, its upstream, and how many commits there are to push and pull |
+| **Remote** | **Check remote** tries to reach the remote with your credentials |
+| **Commit as** | The name and email on your commits, and the git config file that sets them |
+| **Signing** | How your commits are signed, if they are |
+| **Hooks** | The git hooks that run when you commit or push |
+
+If something stops the Git tab working, it's shown here with what to do:
+
+| Problem | What to do |
+| --- | --- |
+| Git isn't installed | Install it with Homebrew (`brew install git`) or Apple's command line tools (`xcode-select --install`). |
+| Git is older than 2.31 | Update it with Homebrew (`brew upgrade git`), or update Apple's command line tools. |
+| The project isn't in a git repository | Run `git init` in the project folder, or turn the Git panel off. |
+| The repository ignores the project's folder | Give the project its own repository, or stop ignoring its folder. |
+| Git doesn't know who you are | Set `user.name` and `user.email`, for example with `git config --global user.email "you@example.com"`. |
+| A merge, rebase, cherry-pick or revert is in progress, HEAD is detached, or files have conflicts | Finish in your git tool. The Git tab won't commit or push until then. |
+
 ### Removed collections
 
 If you have settings saved for collections your content config no longer has, they're listed at the bottom of the page with a **Clear** button.

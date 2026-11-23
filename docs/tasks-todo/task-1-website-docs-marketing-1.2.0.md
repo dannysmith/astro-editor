@@ -61,14 +61,14 @@ New screenshots:
 
 Work through the checklists under **Feature notes** below, re-checking the Git notes against the merged code. These aren't in those notes:
 
-- [ ] `file-management/overview.mdx`: "It isn't moved to the Bin" becomes wrong with #392.
-- [ ] `preferences.mdx`: add the delete setting from #392, and its description ("General and Advanced") needs the Copyedit pane.
-- [ ] `privacy.mdx`: "works entirely offline" and "no internet connection is needed" need squaring with Git's push, pull and Check remote. Update the "Last updated" date.
-- [ ] `getting-started/introduction.mdx`: the Right Sidebar card and the interface section describe frontmatter only.
-- [ ] `frontmatter/overview.mdx`: its description calls it the overview of the right sidebar.
-- [ ] `reference/troubleshooting.mdx`: add the Git log tag and link to `reference/git`.
-- [ ] The notes say checks run "on your Mac". The app also ships for Windows and Linux, so say "on your computer".
-- [ ] Light read of every docs page for anything else these features made wrong.
+- [x] `file-management/overview.mdx`: the Delete row already describes the Trash, from #394.
+- [x] `preferences.mdx`: the delete setting is already there from #394. Its description now includes the Copyedit pane.
+- [x] `privacy.mdx`: squared "works entirely offline" with Git's push, pull and Check remote, and updated the "Last updated" date. Danny to read, since it's the privacy policy.
+- [x] `getting-started/introduction.mdx`: the Right Sidebar card and the interface section cover all its tabs.
+- [x] `frontmatter/overview.mdx`: its description no longer calls it the overview of the right sidebar.
+- [x] `reference/troubleshooting.mdx`: added the `[HARPER]` tag and a link to `reference/git`. The Git code has no log tag, because it shows git's messages in the app.
+- [x] The notes say checks run "on your computer", since the app also ships for Windows and Linux.
+- [x] Light read of every docs page for anything else these features made wrong.
 
 ## Phase 4: New docs pages
 
@@ -152,8 +152,8 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 
 ### Right sidebar tabs (#381) and the Copyedit panel
 
-- [ ] `reference/keyboard-shortcuts.mdx`: ⌘1 toggles the left sidebar; ⌘2 (Frontmatter) and ⌘3 (Copyedit) open the right sidebar on their tab, or close it if that tab is showing.
-- [ ] `reference/commands.mdx`: Toggle Left Sidebar, Toggle Right Sidebar, Toggle Frontmatter Panel and Toggle Copyedit Panel; the Highlights group is now called Copyedit.
+- [x] `reference/keyboard-shortcuts.mdx`: ⌘1 toggles the left sidebar; ⌘2 (Frontmatter) and ⌘3 (Copyedit) open the right sidebar on their tab, or close it if that tab is showing.
+- [x] `reference/commands.mdx`: Toggle Left Sidebar, Toggle Right Sidebar, Toggle Frontmatter Panel and Toggle Copyedit Panel; the Highlights group is now called Copyedit.
 - [ ] `editor/copyediting.mdx`: the highlights can be switched on and off in the Copyedit panel, not only from the palette. In the panel they're one dropdown at the top, which names the highlights that are on and has Show All and Hide All.
 - [x] Screenshots that show the right sidebar, which now has a tab bar.
 
@@ -166,11 +166,11 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
   - What isn't checked: code, links and URLs, images, HTML and component tags, MDX imports and `{expressions}`, paths and file names. Text inside components is checked.
   - It stays out of the way on purpose: acronyms and capitalised words inside a sentence (names) aren't flagged, nor are house-style choices like the Oxford comma or "config". So it misses some mistakes rather than nag.
   - An ignored issue stays hidden wherever the same words appear, in any file.
-  - Checks run on your Mac with [Harper](https://writewithharper.com); nothing is sent anywhere. The checker loads the first time a check runs, so there's a short "Starting checks…" pause.
+  - Checks run on your computer with [Harper](https://writewithharper.com); nothing is sent anywhere. The checker loads the first time a check runs, so there's a short "Starting checks…" pause.
   - English only.
-- [ ] `preferences.mdx`: a new **Copyedit** pane: the English dialect for spelling and grammar (American, British, Canadian, Australian, Indian), the dictionary of added words, and **Clear Ignored Issues**.
-- [ ] `reference/advanced-preferences.mdx`: `global-settings.json` also holds which checks are on, the dialect and the dictionary; ignored issues are kept in the app's own storage, and **Reset All Preferences** clears them too.
-- [ ] `privacy.mdx`, The Desktop App: spelling and grammar checks run locally and send nothing.
+- [x] `preferences.mdx`: a new **Copyedit** pane: the English dialect for spelling and grammar (American, British, Canadian, Australian, Indian), the dictionary of added words, and **Clear Ignored Issues**.
+- [x] `reference/advanced-preferences.mdx`: `global-settings.json` also holds which checks are on, the dialect and the dictionary; ignored issues are kept in the app's own storage, and **Reset All Preferences** clears them too.
+- [x] `privacy.mdx`, The Desktop App: spelling and grammar checks run locally and send nothing.
 - [x] Screenshots of the Copyedit panel with checks on, an issue's popover, and the Copyedit preferences pane.
 
 ### Colour themes (#387)
@@ -215,11 +215,11 @@ An experimental Git tab in the right sidebar, switched on per project. It's for 
   - Right-click any file for Reveal in Finder, Open in IDE and Copy Path. Click a content file to open it.
   - It updates as git changes, including commits from other apps; the refresh button re-reads without fetching.
   - What it doesn't do: branches, checkout, discard, stash, merge commits, the first push of a new branch, conflicts, signing in. Nothing is automatic.
-- [ ] `project-settings.mdx`: a **Git** section: the Experimental switch, and what it shows: the `git` found and its version, the repository, branch, who you commit as and where that's set, signing, the hooks that will run, **Check remote**, and problems with fixes (git not installed, too old (2.31 or later is needed), not a repository, the project in a folder the repository ignores).
-- [ ] `reference/settings.mdx`: the Git panel switch in the project settings table.
-- [ ] `reference/keyboard-shortcuts.mdx`: ⌘4 opens the right sidebar on the Git tab, or closes it if that tab is showing (only when the Git tab is switched on).
-- [ ] `reference/commands.mdx`: Toggle Git Panel (only when the Git tab is switched on).
-- [ ] `privacy.mdx`, The Desktop App: the Git tab sends nothing to us. Only Pull, Push and Check remote use the network, through your own git, to your own remote.
+- [x] `project-settings.mdx`: a **Git** section: the Experimental switch, and what it shows: the `git` found and its version, the repository, branch, who you commit as and where that's set, signing, the hooks that will run, **Check remote**, and problems with fixes (git not installed, too old (2.31 or later is needed), not a repository, the project in a folder the repository ignores).
+- [x] `reference/settings.mdx`: the Git panel switch in the project settings table.
+- [x] `reference/keyboard-shortcuts.mdx`: ⌘4 opens the right sidebar on the Git tab, or closes it if that tab is showing (only when the Git tab is switched on).
+- [x] `reference/commands.mdx`: Toggle Git Panel (only when the Git tab is switched on).
+- [x] `privacy.mdx`, The Desktop App: the Git tab sends nothing to us. Only Pull, Push and Check remote use the network, through your own git, to your own remote.
 - [x] Screenshots: the tab with an entry and its images, the commit card, and Project Settings → Git.
 - [ ] Release notes: the Git tab, off by default, with how to switch it on and a link to its page.
 - [ ] Release notes, under the hood: AE no longer reloads an entry while it's saving it. Rarely, a save straight after another could load the entry into the editor empty, and the next save would write that back.
