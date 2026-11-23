@@ -21,7 +21,7 @@ Every field in your collection [schema](/frontmatter/overview/) becomes a contro
 | Email | `z.string().email()` | A single-line input, hinted as an email |
 | URL | `z.string().url()` | A single-line input, hinted as a URL |
 
-A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), and objects without fixed fields, like a `z.record()`. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
+A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), objects without fixed fields, like a `z.record()`, and any object or list in a file that the schema doesn't describe. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
 
 ## Descriptions, defaults & constraints
 
@@ -69,7 +69,7 @@ const blog = defineCollection({
 })
 ```
 
-Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would use as top-level fields.
+Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using the same controls they would use as top-level fields. The group sits where the object is in your schema, and an object inside an object gets its own heading, indented inside its parent.
 
 ## Image fields
 

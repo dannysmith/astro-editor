@@ -34,7 +34,7 @@ See [Field Types](/frontmatter/field-types/) for the control each field gets.
 
 ### When there's no JSON schema
 
-If the generated JSON schema is missing or can't be read, Astro Editor only knows the `image()` and `reference()` fields it found in your config, and treats them as optional. Every other field in a file is shown as plain text, without its type, default or required marker. A schema imported from another file, like Starlight's, gives nothing without the JSON schema.
+If the generated JSON schema is missing or can't be read, Astro Editor only knows the `image()` and `reference()` fields it found in your config, and treats them as optional. Every other field in a file is shown without its type, default or required marker, as plain text, a tag field for a list of text, or JSON for an object or other list. A schema imported from another file, like Starlight's, gives nothing without the JSON schema.
 
 To fix it, run `astro sync` (or start your dev server) in your project. Astro Editor picks up the new schema on its own. The **Schema** section of the collection's page in [Project Settings](/project-settings/#schema) shows exactly what was read, and the top of the page says if the schema is missing or couldn't be read.
 
@@ -56,4 +56,4 @@ Astro Editor reads frontmatter the way Astro does, so if your site builds, its f
 
 ## Fields not in your schema
 
-Frontmatter fields that aren't part of the schema are never discarded. They're still shown in the sidebar — below the schema fields and sorted alphabetically — and they're kept when you save. Because there's no schema to describe them, they're shown as plain text inputs (a list of text values becomes a tag field), rather than as typed controls like date pickers or toggles.
+Frontmatter fields that aren't part of the schema are never discarded. They're still shown in the sidebar — below the schema fields and sorted alphabetically — and they're kept when you save. Because there's no schema to describe them, they're shown as plain text inputs (a list of text values becomes a tag field, and an object or any other list is edited as JSON), rather than as typed controls like date pickers or toggles.
