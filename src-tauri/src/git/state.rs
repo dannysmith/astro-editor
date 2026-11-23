@@ -67,7 +67,8 @@ pub enum GitEntryState {
     /// Committed, with no changes since
     Unchanged,
     Ignored,
-    /// Its real path (after symlinks) is outside the project's repository
+    /// It belongs to another repository: its real path (after symlinks) is
+    /// outside the project's, or it's in a submodule
     OutsideRepository,
 }
 
@@ -190,10 +191,21 @@ fn entry_state(
 }
 
 /// `entry`'s path relative to the repository root, with `/` separators, or
-/// `None` when its real path is outside the repository (content symlinked in)
+/// `None` when it belongs to another repository: its real path is outside
+/// this one (content symlinked in), or it's in a submodule
 fn path_in_repository(repository: &Repository, entry: &Path) -> Option<String> {
-    let real = dunce::canonicalize(entry).ok()?;
+    // A deleted entry can't be resolved, but its folder can
+    let real = dunce::canonicalize(entry).ok().or_else(|| {
+        Some(
+            dunce::canonicalize(entry.parent()?)
+                .ok()?
+                .join(entry.file_name()?),
+        )
+    })?;
     let relative = real.strip_prefix(&repository.root).ok()?;
+    if in_submodule(&repository.root, relative) {
+        return None;
+    }
     Some(
         relative
             .components()
@@ -201,6 +213,16 @@ fn path_in_repository(repository: &Repository, entry: &Path) -> Option<String> {
             .collect::<Vec<_>>()
             .join("/"),
     )
+}
+
+/// Whether `path` (relative to `root`) is inside a submodule, or another
+/// repository nested in this one: a folder above it has its own `.git`. Git
+/// refuses to answer about such paths from the outer repository.
+fn in_submodule(root: &Path, path: &Path) -> bool {
+    path.ancestors()
+        .skip(1)
+        .filter(|folder| !folder.as_os_str().is_empty())
+        .any(|folder| root.join(folder).join(".git").exists())
 }
 
 /// The last commit that changed `path`. `None` before the repository's first
@@ -335,6 +357,48 @@ mod tests {
         fs::write(vault.join("note.md"), "note\n").unwrap();
         std::os::unix::fs::symlink(&vault, site.join("notes")).unwrap();
         let entry = tree(&repos, &site, Some(&site.join("notes/note.md")))
+            .entry
+            .unwrap();
+        assert_eq!(entry.state, GitEntryState::OutsideRepository);
+        assert_eq!(entry.path, "");
+    }
+
+    #[test]
+    fn a_deleted_entry_is_deleted() {
+        let repos = TestRepos::new();
+        let site = repos.init("site");
+        fs::write(site.join("gone.md"), "gone\n").unwrap();
+        repos.commit_all(&site, "Initial");
+        fs::remove_file(site.join("gone.md")).unwrap();
+        let entry = tree(&repos, &site, Some(&site.join("gone.md")))
+            .entry
+            .unwrap();
+        assert_eq!(entry.state, GitEntryState::Deleted);
+        assert_eq!(entry.path, "gone.md");
+    }
+
+    #[test]
+    fn an_entry_in_a_submodule_is_in_another_repository() {
+        let repos = TestRepos::new();
+        let content = repos.init("content");
+        fs::write(content.join("post.md"), "post\n").unwrap();
+        repos.commit_all(&content, "Initial");
+        let site = repos.init("site");
+        repos.git_ok(
+            &site,
+            &[
+                "-c",
+                "protocol.file.allow=always",
+                "submodule",
+                "add",
+                "-q",
+                content.to_str().unwrap(),
+                "posts",
+            ],
+        );
+        repos.commit_all(&site, "Add posts");
+
+        let entry = tree(&repos, &site, Some(&site.join("posts/post.md")))
             .entry
             .unwrap();
         assert_eq!(entry.state, GitEntryState::OutsideRepository);

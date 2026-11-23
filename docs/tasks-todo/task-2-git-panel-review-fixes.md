@@ -64,7 +64,9 @@ Done. 5: a test reproduced it (Pull returned success). `--no-renames` fixes it, 
 - Read-only blocks only typing: formatting shortcuts, drops, pastes, Harper fixes and `setEditorContent` still change the text. Reject them while paused with a CodeMirror `changeFilter`, except file loads.
 - Keep it free while not paused: put the filter in a compartment that's reconfigured only when the pause starts and ends, so ordinary typing never runs it. Gate `setEditorContent` with a plain check.
 
-## Phase 5: Repository edge cases
+## Phase 5: Repository edge cases ✅
+
+Done, both reproduced by tests first. An entry in a submodule (or any nested repository, found by a `.git` in a folder above it) uses the existing "Another repository" state rather than a new one: it is one, and the card's message already says it can't be committed here.
 
 **13. An entry inside a submodule breaks the tab.** `check-ignore` fails fatally on a path inside a submodule, and the tab shows only "Failed". Show the entry as read-only, "in submodule X".
 

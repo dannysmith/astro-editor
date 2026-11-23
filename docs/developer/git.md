@@ -36,6 +36,8 @@ Success is the exit code, never an empty stderr: git prints warnings and hints w
 
 `git::repo::discover` runs `rev-parse` from the project folder, which looks up through parent folders, so a site in `docs/` of a monorepo is found. Then, if the project isn't the repository's root, `check-ignore` asks whether the repository ignores the project's folder. If it does, the project is treated as not being in a repository. Otherwise anything committed from a site kept in an ignored folder would land in the parent repository, which is exactly what a stray `git add -A` did once while this was being researched.
 
+An entry that belongs to another repository can't be committed from the tab, which says so: one whose real path is outside the repository (a folder symlinked in), or one inside a submodule or other repository nested in it (a folder above it has its own `.git`). Git refuses to answer about a submodule's files from the outer repository, so those are found by looking for `.git`, not by asking git.
+
 Every command that changes the index takes explicit paths. Never `add -A`, `commit -a`, or anything else repository-wide.
 
 ## Keeping the Git tab current

@@ -491,7 +491,10 @@ export type GitEntry = {
 export type GitEntryState = "new" | "modified" | "deleted" | "renamed" | "conflicted" | 
 /**  Committed, with no changes since */
 "unchanged" | "ignored" | 
-/**  Its real path (after symlinks) is outside the project's repository */
+/**
+ *  It belongs to another repository: its real path (after symlinks) is
+ *  outside the project's, or it's in a submodule
+ */
 "outsideRepository";
 
 /**
