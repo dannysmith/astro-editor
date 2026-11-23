@@ -15,6 +15,7 @@ const REPOSITORY: GitRepository = {
   operation: null,
   userName: { value: 'Sam Writer', origin: `${HOME}/.gitconfig` },
   userEmail: { value: 'sam@example.com', origin: '.git/config' },
+  guessedIdentity: null,
   signing: 'ssh',
   hooks: ['pre-commit', 'pre-push'],
 }

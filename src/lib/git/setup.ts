@@ -28,11 +28,21 @@ export function gitSetupProblems(
   if (!repository) return []
   const problems: Problem[] = []
   if (!repository.userName || !repository.userEmail) {
-    problems.push({
-      level: 'error',
-      message: "Git doesn't know who you are, so committing will fail.",
-      fix: 'Set `user.name` and `user.email`, for example with `git config --global user.email "you@example.com"`.',
-    })
+    const fix =
+      'Set `user.name` and `user.email`, for example with `git config --global user.email "you@example.com"`.'
+    problems.push(
+      repository.guessedIdentity
+        ? {
+            level: 'warning',
+            message: `Git hasn't been told who you are, so it will commit as \`${repository.guessedIdentity}\`, guessed from your Mac's account.`,
+            fix,
+          }
+        : {
+            level: 'error',
+            message: "Git doesn't know who you are, so committing will fail.",
+            fix,
+          }
+    )
   }
   const readOnly = readOnlyReason(repository)
   if (readOnly) problems.push(readOnly)

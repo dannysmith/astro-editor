@@ -555,8 +555,23 @@ export type GitRepository = {
 	projectFolder: string | null,
 	/**  The parent repository, when this one is a submodule */
 	superproject: string | null,
+	/**
+	 *  The name commits are made with, and where it's set: the
+	 *  `GIT_AUTHOR_NAME` environment variable, `author.name` or `user.name`,
+	 *  as git looks
+	 */
 	userName: GitConfigValue | null,
+	/**
+	 *  Likewise the email: `GIT_AUTHOR_EMAIL`, `author.email`, `user.email`
+	 *  or `EMAIL`
+	 */
 	userEmail: GitConfigValue | null,
+	/**
+	 *  When neither is set, the identity git would guess from the computer's
+	 *  account and commit with anyway. `None` if git won't guess, and refuses
+	 *  to commit
+	 */
+	guessedIdentity: string | null,
 	/**  The signature format (`openpgp`, `ssh`, `x509`) when commits are signed */
 	signing: string | null,
 	/**  The hooks a commit or push from AE runs, in the order they run */

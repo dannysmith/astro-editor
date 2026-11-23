@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 use specta::Type;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::repo::{self, Repository};
 use super::runner::Git;
@@ -194,14 +194,7 @@ fn entry_state(
 /// `None` when it belongs to another repository: its real path is outside
 /// this one (content symlinked in), or it's in a submodule
 fn path_in_repository(repository: &Repository, entry: &Path) -> Option<String> {
-    // A deleted entry can't be resolved, but its folder can
-    let real = dunce::canonicalize(entry).ok().or_else(|| {
-        Some(
-            dunce::canonicalize(entry.parent()?)
-                .ok()?
-                .join(entry.file_name()?),
-        )
-    })?;
+    let real = real_path(entry)?;
     let relative = real.strip_prefix(&repository.root).ok()?;
     if in_submodule(&repository.root, relative) {
         return None;
@@ -213,6 +206,15 @@ fn path_in_repository(repository: &Repository, entry: &Path) -> Option<String> {
             .collect::<Vec<_>>()
             .join("/"),
     )
+}
+
+/// `path` with symlinks resolved. A deleted entry can't be resolved, nor can
+/// a deleted folder it was in, so the nearest folder that still exists is,
+/// with the rest added back.
+fn real_path(path: &Path) -> Option<PathBuf> {
+    let existing = path.ancestors().find(|folder| folder.exists())?;
+    let rest = path.strip_prefix(existing).ok()?;
+    Some(dunce::canonicalize(existing).ok()?.join(rest))
 }
 
 /// Whether `path` (relative to `root`) is inside a submodule, or another
@@ -375,6 +377,17 @@ mod tests {
             .unwrap();
         assert_eq!(entry.state, GitEntryState::Deleted);
         assert_eq!(entry.path, "gone.md");
+
+        // With the folder it was in gone too
+        fs::create_dir_all(site.join("posts/2025")).unwrap();
+        fs::write(site.join("posts/2025/old.md"), "old\n").unwrap();
+        repos.commit_all(&site, "Add old");
+        fs::remove_dir_all(site.join("posts")).unwrap();
+        let entry = tree(&repos, &site, Some(&site.join("posts/2025/old.md")))
+            .entry
+            .unwrap();
+        assert_eq!(entry.state, GitEntryState::Deleted);
+        assert_eq!(entry.path, "posts/2025/old.md");
     }
 
     #[test]

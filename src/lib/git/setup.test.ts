@@ -17,6 +17,7 @@ function repository(overrides: Partial<GitRepository> = {}): GitRepository {
     operation: null,
     userName: { value: 'Writer', origin: `${HOME}/.gitconfig` },
     userEmail: { value: 'writer@example.com', origin: `${HOME}/.gitconfig` },
+    guessedIdentity: null,
     signing: null,
     hooks: [],
     ...overrides,
@@ -86,6 +87,21 @@ describe('gitSetupProblems', () => {
       "Git doesn't know who you are, so committing will fail.",
       'A rebase is in progress.',
     ])
+  })
+
+  it('warns, rather than errs, when git will guess who you are', () => {
+    const problems = gitSetupProblems(
+      setup({
+        repository: repository({
+          userEmail: null,
+          guessedIdentity: 'Writer <writer@macbook.local>',
+        }),
+      }),
+      HOME
+    )
+    expect(problems).toHaveLength(1)
+    expect(problems[0]?.level).toBe('warning')
+    expect(problems[0]?.message).toContain('writer@macbook.local')
   })
 
   it('flags a detached HEAD, but not a repository with no commits yet', () => {

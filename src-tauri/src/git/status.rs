@@ -45,7 +45,16 @@ pub fn read(git: &Git, repository: &Repository, untracked: bool) -> Result<Statu
 pub fn read_staged(git: &Git, repository: &Repository) -> Result<Vec<GitChange>, String> {
     let output = git.read(
         &repository.root,
-        &["diff", "--cached", "--name-status", "-z", "-M"],
+        // Submodule pointers too, whatever `diff.ignoreSubmodules` says:
+        // the commit takes them
+        &[
+            "diff",
+            "--cached",
+            "--name-status",
+            "-z",
+            "-M",
+            "--ignore-submodules=none",
+        ],
         READ_TIMEOUT,
     )?;
     Ok(parse_staged(output.as_bytes()))

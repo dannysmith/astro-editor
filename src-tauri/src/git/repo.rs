@@ -106,7 +106,10 @@ pub fn discover(git: &Git, project: &Path) -> Result<Discovery, String> {
 
 /// Whether the repository at `root` ignores `path` (relative to it)
 pub fn is_ignored(git: &Git, root: &Path, path: &str) -> Result<bool, String> {
-    let output = git.run(root, &["check-ignore", "-q", "--", path], READ_TIMEOUT)?;
+    // `check-ignore` can't take literal pathspecs, and a leading `:` is
+    // pathspec magic, so a folder named `:drafts` is passed as `./:drafts`
+    let path = format!("./{path}");
+    let output = git.run(root, &["check-ignore", "-q", "--", &path], READ_TIMEOUT)?;
     match output.code {
         Some(0) => Ok(true),
         Some(1) => Ok(false),
@@ -142,6 +145,16 @@ pub fn operation_in_progress(repository: &Repository) -> Option<GitOperation> {
         Some(GitOperation::CherryPick)
     } else if exists("REVERT_HEAD") {
         Some(GitOperation::Revert)
+    } else if exists("sequencer") {
+        // A cherry-pick or revert of several commits that stopped before its
+        // next one started (on uncommitted changes, say) has only its list
+        let todo =
+            std::fs::read_to_string(repository.git_dir.join("sequencer/todo")).unwrap_or_default();
+        Some(if todo.starts_with("revert") {
+            GitOperation::Revert
+        } else {
+            GitOperation::CherryPick
+        })
     } else {
         None
     }
@@ -275,5 +288,47 @@ mod tests {
             operation_in_progress(&repository),
             Some(GitOperation::Rebase)
         );
+    }
+
+    #[test]
+    fn notices_a_cherry_pick_or_revert_of_several_commits_between_them() {
+        let repos = TestRepos::new();
+        let site = repos.init("site");
+        let Discovery::Found(repository) = discover(&repos.git, &site).unwrap() else {
+            panic!("not found");
+        };
+        // Only the list of what's left, no CHERRY_PICK_HEAD or REVERT_HEAD
+        let sequencer = site.join(".git/sequencer");
+        fs::create_dir_all(&sequencer).unwrap();
+        fs::write(sequencer.join("todo"), "pick abc First\n").unwrap();
+        assert_eq!(
+            operation_in_progress(&repository),
+            Some(GitOperation::CherryPick)
+        );
+        fs::write(sequencer.join("todo"), "revert abc First\n").unwrap();
+        assert_eq!(
+            operation_in_progress(&repository),
+            Some(GitOperation::Revert)
+        );
+    }
+
+    #[test]
+    fn a_folder_named_with_a_colon_is_checked_as_itself() {
+        let repos = TestRepos::new();
+        let root = repos.init("parent");
+        // `:drafts` read as pathspec magic would be `drafts`, which is ignored
+        fs::write(root.join(".gitignore"), "/drafts\n").unwrap();
+        let site = root.join(":drafts");
+        fs::create_dir_all(&site).unwrap();
+        assert!(matches!(
+            discover(&repos.git, &site).unwrap(),
+            Discovery::Found(_)
+        ));
+        let drafts = root.join("drafts");
+        fs::create_dir_all(&drafts).unwrap();
+        assert!(matches!(
+            discover(&repos.git, &drafts).unwrap(),
+            Discovery::Ignored { .. }
+        ));
     }
 }

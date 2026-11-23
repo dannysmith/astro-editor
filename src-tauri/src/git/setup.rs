@@ -11,11 +11,13 @@ use super::runner::{is_executable, FindError, Git, MINIMUM_VERSION};
 use super::status;
 use super::READ_TIMEOUT;
 
-/// The hooks that a commit or push from AE runs
-const HOOKS_AE_RUNS: [&str; 5] = [
+/// The hooks that a commit or push from AE runs. `reference-transaction`
+/// runs whenever a ref moves, and can refuse a commit
+const HOOKS_AE_RUNS: [&str; 6] = [
     "pre-commit",
     "prepare-commit-msg",
     "commit-msg",
+    "reference-transaction",
     "post-commit",
     "pre-push",
 ];
@@ -71,8 +73,17 @@ pub struct GitRepository {
     pub superproject: Option<String>,
     #[serde(flatten)]
     pub head: GitHead,
+    /// The name commits are made with, and where it's set: the
+    /// `GIT_AUTHOR_NAME` environment variable, `author.name` or `user.name`,
+    /// as git looks
     pub user_name: Option<GitConfigValue>,
+    /// Likewise the email: `GIT_AUTHOR_EMAIL`, `author.email`, `user.email`
+    /// or `EMAIL`
     pub user_email: Option<GitConfigValue>,
+    /// When neither is set, the identity git would guess from the computer's
+    /// account and commit with anyway. `None` if git won't guess, and refuses
+    /// to commit
+    pub guessed_identity: Option<String>,
     /// The signature format (`openpgp`, `ssh`, `x509`) when commits are signed
     pub signing: Option<String>,
     /// The hooks a commit or push from AE runs, in the order they run
@@ -213,6 +224,17 @@ fn report(git: &Git, repository: &Repository) -> Result<GitRepository, String> {
         _ => None,
     };
 
+    let user_name = identity(git, root, "GIT_AUTHOR_NAME", &["author.name", "user.name"])?;
+    let user_email = match identity(
+        git,
+        root,
+        "GIT_AUTHOR_EMAIL",
+        &["author.email", "user.email"],
+    )? {
+        Some(email) => Some(email),
+        None => from_environment(git, "EMAIL"),
+    };
+
     Ok(GitRepository {
         root: root.display().to_string(),
         project_folder: Some(repository.prefix.trim_end_matches('/'))
@@ -223,11 +245,57 @@ fn report(git: &Git, repository: &Repository) -> Result<GitRepository, String> {
             .as_ref()
             .map(|path| path.display().to_string()),
         head: GitHead::new(repository, branch),
-        user_name: config(git, root, &["user.name"])?,
-        user_email: config(git, root, &["user.email"])?,
+        guessed_identity: if user_name.is_none() || user_email.is_none() {
+            guessed_identity(git, root)
+        } else {
+            None
+        },
+        user_name,
+        user_email,
         signing,
         hooks: hooks(git, root)?,
     })
+}
+
+/// Part of the identity commits are made with, and where it's set, in the
+/// order git looks: the environment variable, then each config key
+fn identity(
+    git: &Git,
+    root: &Path,
+    variable: &str,
+    keys: &[&str],
+) -> Result<Option<GitConfigValue>, String> {
+    if let Some(value) = from_environment(git, variable) {
+        return Ok(Some(value));
+    }
+    for key in keys {
+        if let Some(value) = config(git, root, &[key])? {
+            return Ok(Some(value));
+        }
+    }
+    Ok(None)
+}
+
+fn from_environment(git: &Git, variable: &str) -> Option<GitConfigValue> {
+    git.env_var(variable)
+        .filter(|value| !value.is_empty())
+        .map(|value| GitConfigValue {
+            value,
+            origin: format!("the {variable} environment variable"),
+        })
+}
+
+/// The identity git would commit with when none is set, guessed from the
+/// computer's account (`Name <user@host>`). `None` when one is set, or git
+/// won't guess (it then refuses to commit).
+fn guessed_identity(git: &Git, root: &Path) -> Option<String> {
+    let ident = git
+        .read(root, &["var", "GIT_AUTHOR_IDENT"], READ_TIMEOUT)
+        .ok()?;
+    // `Name <email> 1700000000 +0000`, without the time
+    let ident = ident.trim_end_matches('\n');
+    let end = ident.rfind('>')?;
+    Some(ident[..=end].to_string())
 }
 
 /// A config value and where it's set. `None` when it isn't set.
@@ -260,7 +328,8 @@ fn hooks(git: &Git, root: &Path) -> Result<Vec<String>, String> {
         &["rev-parse", "--path-format=absolute", "--git-path", "hooks"],
         READ_TIMEOUT,
     )?;
-    let folder = std::path::PathBuf::from(folder.trim());
+    // Only the newline: a folder's name can end with a space
+    let folder = std::path::PathBuf::from(folder.trim_end_matches('\n'));
     Ok(HOOKS_AE_RUNS
         .iter()
         .filter(|name| is_executable(&folder.join(name)))
@@ -325,6 +394,23 @@ mod tests {
             })
         );
         assert_eq!(report.user_email.unwrap().value, "writer@example.com");
+        assert_eq!(report.guessed_identity, None);
+    }
+
+    #[test]
+    fn reports_the_identity_git_uses_before_user_settings() {
+        let repos = TestRepos::new();
+        let site = repos.init("site");
+        repos.git_ok(&site, &["config", "author.email", "work@example.com"]);
+        let report = report_for(&repos, &site);
+        assert_eq!(report.user_email.unwrap().value, "work@example.com");
+
+        // The environment wins over both
+        let git = repos.git.clone().with_env("GIT_AUTHOR_NAME", "Pen Name");
+        let setup = check_with(Ok(git), &site);
+        let name = setup.repository.unwrap().user_name.unwrap();
+        assert_eq!(name.value, "Pen Name");
+        assert!(name.origin.contains("GIT_AUTHOR_NAME"), "{}", name.origin);
     }
 
     #[test]
@@ -335,6 +421,10 @@ mod tests {
         repos.git_ok(&site, &["config", "--unset", "user.email"]);
         let report = report_for(&repos, &site);
         assert_eq!((report.user_name, report.user_email), (None, None));
+        // Git may guess one from this computer's account, or refuse to
+        if let Some(guess) = report.guessed_identity {
+            assert!(guess.ends_with('>'), "{guess}");
+        }
     }
 
     #[cfg(unix)]

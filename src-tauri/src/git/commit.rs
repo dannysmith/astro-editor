@@ -22,6 +22,10 @@ pub fn stage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(),
 pub fn unstage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(), String> {
     let _writing = writing();
     repo::not_mid_operation(repository)?;
+    // With no paths, `reset` would unstage everything
+    if paths.is_empty() {
+        return Ok(());
+    }
     git.read(
         &repository.root,
         &with_paths(&["reset", "-q", "--"], paths),
@@ -32,7 +36,7 @@ pub fn unstage(git: &Git, repository: &Repository, paths: &[String]) -> Result<(
 
 /// Stages `paths` again, so edits saved since they were first staged go in,
 /// then commits everything staged with `message`. Returns the new commit's
-/// abbreviated hash.
+/// abbreviated hash, or an empty string if it couldn't be read afterwards.
 pub fn commit(
     git: &Git,
     repository: &Repository,
@@ -42,33 +46,50 @@ pub fn commit(
     let _writing = writing();
     repo::not_mid_operation(repository)?;
     add(git, repository, paths)?;
-    // Asked rather than read from `commit`'s message, which is in the
-    // user's language
-    let staged = git.run(
-        &repository.root,
-        &["diff", "--cached", "--quiet"],
-        READ_TIMEOUT,
-    )?;
-    if staged.success() {
+    if !anything_staged(git, repository)? {
         return Err(
             "There's nothing staged to commit. It may have been committed somewhere else."
                 .to_string(),
         );
     }
-    let output = git.run(
+    let head = || {
+        git.read(
+            &repository.root,
+            &["rev-parse", "--short", "HEAD"],
+            READ_TIMEOUT,
+        )
+        .ok()
+        .map(|hash| hash.trim().to_string())
+    };
+    let before = head();
+    match git.run(
         &repository.root,
         &["commit", "-q", &format!("--message={message}")],
         WRITE_TIMEOUT,
-    )?;
-    if !output.success() {
-        return Err(output.error_message());
+    ) {
+        Ok(output) if output.success() => {}
+        Ok(output) => return Err(output.error_message()),
+        // Stopped after it committed (in a slow `post-commit` hook, say): it's
+        // a commit, so it's reported as one
+        Err(error) => match head() {
+            Some(after) if Some(&after) != before.as_ref() => return Ok(after),
+            _ => return Err(error),
+        },
     }
-    let head = git.read(
+    // The commit is made, whether or not its hash can be read
+    Ok(head().unwrap_or_default())
+}
+
+/// Whether anything is staged, asked rather than read from `commit`'s
+/// message, which is in the user's language. Submodule pointers count, even
+/// with `diff.ignoreSubmodules` set: a commit takes them.
+pub fn anything_staged(git: &Git, repository: &Repository) -> Result<bool, String> {
+    let output = git.run(
         &repository.root,
-        &["rev-parse", "--short", "HEAD"],
+        &["diff", "--cached", "--quiet", "--ignore-submodules=none"],
         READ_TIMEOUT,
     )?;
-    Ok(head.trim().to_string())
+    Ok(!output.success())
 }
 
 /// Stages `paths`: changes, new files, and deletions (`add` stages a deleted
