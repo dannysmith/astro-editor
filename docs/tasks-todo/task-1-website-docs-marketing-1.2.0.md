@@ -129,8 +129,9 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 - **Bug fixes.** Don't list the Screen Time crash (#390), which is still open.
 - **Under the hood:** speed in large collections, telemetry from official builds only, never reading an entry mid-save, dependency updates
 
-- [ ] Go through every commit since `v1.1.0` for anything these notes miss.
-- [ ] Use absolute links to the new docs pages.
+- [x] Go through every commit since `v1.1.0` for anything these notes miss.
+- [x] Use absolute links to the new docs pages.
+- [x] Danny to read and edit the notes in [Release notes for v1.2.0](#release-notes-for-v120), at the end of this doc.
 
 ## Phase 8: Final review and release
 
@@ -181,29 +182,29 @@ Written for the GitHub release, so they cover everything since 1.1.0 and not onl
 
 The website docs are already in #387 (`reference/advanced-preferences.mdx#colour-themes` and `preferences.mdx`), so they go live when it merges. Nothing to do here but the release notes:
 
-- [ ] Mention colour themes in the release notes, linking to the docs.
-- [ ] Heading colours now follow the text colour until you pick one. Anyone with a theme whose headings don't match it can click **Reset** next to the heading colours in Preferences.
+- [x] Mention colour themes in the release notes, linking to the docs.
+- [x] Heading colours now follow the text colour until you pick one. Anyone with a theme whose headings don't match it can click **Reset** next to the heading colours in Preferences.
 
 ### Frontmatter read like Astro, and edited in place (#389)
 
 The website docs are already in #389 (`frontmatter/overview.mdx`, `project-settings.mdx`, `reference/settings.mdx` and `reference/yaml.mdx`). Nothing to do here but the release notes:
 
-- [ ] Editing a field changes only that field. Other fields keep their text and comments, an edited field keeps its quotes, list style and trailing comment, and a new field goes where the schema puts it. Before, one edit rewrote the whole block. (#370)
-- [ ] Frontmatter is read as Astro reads it. The YAML parser is now serde-saphyr, set up to match Astro's own `yaml` package, and finding and editing the frontmatter block is our own code rather than a parse and rewrite. Checked with 12,416 edits across eight real Astro sites, each read back by Astro's parser.
-- [ ] Frontmatter that can't be read (invalid YAML, a field twice) shows the error and its line number in the frontmatter panel. The body is still editable, and saving leaves the frontmatter as it was. Before, the file opened blank and typing in it overwrote the file. (#388)
-- [ ] A new project setting, **Reorder frontmatter** (off by default), puts an edited file's fields in schema order, then the rest alphabetically. Link to `project-settings/` and `reference/yaml/#reordering`.
+- [x] Editing a field changes only that field. Other fields keep their text and comments, an edited field keeps its quotes, list style and trailing comment, and a new field goes where the schema puts it. Before, one edit rewrote the whole block. (#370)
+- [x] Frontmatter is read as Astro reads it. The YAML parser is now serde-saphyr, set up to match Astro's own `yaml` package, and finding and editing the frontmatter block is our own code rather than a parse and rewrite. Checked with 12,416 edits across eight real Astro sites, each read back by Astro's parser.
+- [x] Frontmatter that can't be read (invalid YAML, a field twice) shows the error and its line number in the frontmatter panel. The body is still editable, and saving leaves the frontmatter as it was. Before, the file opened blank and typing in it overwrote the file. (#388)
+- [x] A new project setting, **Reorder frontmatter** (off by default), puts an edited file's fields in schema order, then the rest alphabetically. Link to `project-settings/` and `reference/yaml/#reordering`.
 
 ### File name patterns (#384)
 
 The website docs are already in #384 (the token table in `project-settings.mdx#file-names`). Nothing to do here but the release notes:
 
-- [ ] `{slug}` is now the full title slug, `{shortSlug}` the shortened one. Saved patterns using `{title}` keep working.
-- [ ] Date and time tokens (`YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`, `X` and so on) for timestamp IDs, and `{index}` / `{index:2}` for numbered files like `01-welcome.md`.
-- [ ] Renaming a file from its pattern keeps the time and number already in its name.
+- [x] `{slug}` is now the full title slug, `{shortSlug}` the shortened one. Saved patterns using `{title}` keep working.
+- [x] Date and time tokens (`YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`, `X` and so on) for timestamp IDs, and `{index}` / `{index:2}` for numbered files like `01-welcome.md`.
+- [x] Renaming a file from its pattern keeps the time and number already in its name.
 
 ### Speed (#386)
 
-- [ ] Release notes, under the hood: file lists and new file names in large collections are faster, long scans no longer hold up saves, and saving an edit to the body no longer re-reads the sidebar's folder.
+- [x] Release notes, under the hood: file lists and new file names in large collections are faster, long scans no longer hold up saves, and saving an edit to the body no longer re-reads the sidebar's folder.
 
 ### Git tab, experimental (#391)
 
@@ -225,7 +226,67 @@ An experimental Git tab in the right sidebar, switched on per project. It's for 
 - [x] `reference/commands.mdx`: Toggle Git Panel (only when the Git tab is switched on).
 - [x] `privacy.mdx`, The Desktop App: the Git tab sends nothing to us. Only Pull, Push and Check remote use the network, through your own git, to your own remote.
 - [x] Screenshots: the tab with an entry and its images, the commit card, and Project Settings → Git.
-- [ ] Release notes: the Git tab, off by default, with how to switch it on and a link to its page.
-- [ ] Release notes, under the hood: AE no longer reloads an entry while it's saving it. Rarely, a save straight after another could load the entry into the editor empty, and the next save would write that back.
+- [x] Release notes: the Git tab, off by default, with how to switch it on and a link to its page.
+- [x] Release notes, under the hood: AE no longer reloads an entry while it's saving it. Rarely, a save straight after another could load the entry into the editor empty, and the next save would write that back.
+
+## Release notes for v1.2.0
+
+Paste everything inside the code block into the GitHub release.
+
+````markdown
+Astro Editor now helps once the first draft is done. A new Copyedit panel checks your spelling, grammar and style, a Git tab commits and pushes what you've written, and editing frontmatter now changes only the field you edited.
+
+**If you're upgrading from 1.1:**
+
+- **Deleting a file now moves it to the Trash**, without asking, as Finder does. To delete files for good, after a confirmation, turn on **Permanently delete files** in [Preferences](https://astroeditor.danny.is/preferences/#general). (#392)
+- **`{title}` in file name patterns now uses every word of the title.** "My Trip to the Lake" used to give `trip-lake`, and now gives `my-trip-to-the-lake`. Your existing files keep their names unless you rename them from the pattern. To keep the shorter style, change `{title}` to `{shortSlug}` in [Project Settings](https://astroeditor.danny.is/project-settings/#file-names).
+- **Frontmatter fields now stay in the order you wrote them.** Editing a file used to sort them into schema order. To keep doing that, turn on **Reorder frontmatter** in [Project Settings](https://astroeditor.danny.is/project-settings/#content).
+
+### Copyedit panel
+
+The right sidebar now has tabs, with **Frontmatter** on <kbd>⌘2</kbd> and the new **Copyedit** panel on <kbd>⌘3</kbd>. Each shortcut opens its tab, or closes the sidebar if that tab is already showing. The part-of-speech highlights now have a dropdown at the top of the panel, as well as their commands in the palette. See [Copyediting, Spelling & Grammar](https://astroeditor.danny.is/editor/copyediting/). (#381, #383)
+
+### Spelling, grammar and style
+
+Switch on **Spelling**, **Grammar** and **Style** in the Copyedit panel, and issues are underlined in the editor and listed in the panel. Hover an underline or click an issue to apply a suggested fix, add the word to your dictionary, or ignore it.
+
+The checks use [Harper](https://writewithharper.com), which runs entirely on your computer, so nothing you write is sent anywhere. They only check English, and you can choose American, British, Canadian, Australian or Indian English in [Preferences](https://astroeditor.danny.is/preferences/#copyedit). They skip your frontmatter, code, URLs and component tags, and stay quiet about names, acronyms and house-style choices. See [Spelling, Grammar and Style](https://astroeditor.danny.is/editor/copyediting/#spelling-grammar-and-style). (#265)
+
+### Git tab (experimental)
+
+For writers who already use git, the Git tab commits the entry you're working on, with the images and other files it uses, and pushes it without you leaving Astro Editor. It ticks the changed files your entry refers to, and points out images you added and then took out so they don't get left behind. It runs your own `git`, so your credentials, hooks and signing work as they do in your terminal. Pull only brings in new commits when it can do so cleanly. Branches, merges and conflicts are left to your git tool.
+
+It's off by default. Turn on **Git panel** in [Project Settings](https://astroeditor.danny.is/project-settings/#git), then open the tab with <kbd>⌘4</kbd>. It needs git 2.31 or later, and while it's off, Astro Editor runs no git for that project. See [Git](https://astroeditor.danny.is/git/) and [How the Git Tab Works](https://astroeditor.danny.is/reference/git/). (#391)
+
+### Frontmatter, read like Astro and edited in place
+
+Editing a field now changes only that field. Other fields keep their text and comments, the edited field keeps its quotes, list style and trailing comment, and a new field goes where your schema puts it. Before, one edit rewrote the whole block. (#370)
+
+Frontmatter is also read the way Astro reads it, with a YAML parser set up to match Astro's. This was checked with more than 12,000 edits to 1,900 files from real Astro sites, each read back with Astro's own parser.
+
+Frontmatter that can't be read, like invalid YAML or a field written twice, now shows the error and its line number in the frontmatter panel. You can still edit the body, and saving leaves the frontmatter as it was. Before, the file opened blank and typing in it overwrote the file. See [How YAML is Handled](https://astroeditor.danny.is/reference/yaml/). (#388)
+
+### File name patterns
+
+Patterns can now use `{slug}`, `{shortSlug}`, time tokens like `HH`, `mm` and `ss`, `X` for timestamp IDs, and `{index}` or `{index:2}` for numbered files like `01-welcome.md`. Renaming a file from its pattern keeps the time and number already in its name. See [File names](https://astroeditor.danny.is/project-settings/#file-names). (#379)
+
+### Colour themes
+
+A colour theme is a CSS file of colour overrides. Add one to a `themes` folder in the app's data directory and pick it under **Custom colour theme** in Preferences. There are no built-in themes, so this is for people happy to write a little CSS. Headings now follow the text colour until you pick one, so if a theme's headings don't match, click **Reset** next to the heading colours in Preferences. See [Colour themes](https://astroeditor.danny.is/reference/advanced-preferences/#colour-themes). (#197)
+
+### Bug fixes
+
+- **Typing before a file had loaded** – Anything typed before a file finished loading could be saved over it. (#388)
+- **Edits during a save** – Text typed while a save was running wasn't auto-saved until you next edited the file.
+- **Failed saves** – Each failed save added another error message. There's now one, which updates.
+- **Working offline** – Collections and files could get stuck loading while your computer had no internet connection.
+
+### Under the hood
+
+- **Large collections** – File lists and new file names are faster, long scans no longer hold up saves, and saving an edit to the body no longer re-reads the sidebar's folder. (#386)
+- **Reading during a save** – Astro Editor no longer reads an entry while it's saving it. Rarely, a save straight after another could load the entry into the editor empty, and the next save would write that back.
+- **Telemetry** – Only official release builds send it. Forks, local builds and CI builds never do. (#380)
+- Dependency updates.
+````
 
 
