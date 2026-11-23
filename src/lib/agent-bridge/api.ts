@@ -19,7 +19,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { useGitPanelStore } from '@/store/gitPanelStore'
 import { useHarperStore } from '@/store/harperStore'
 import { useProjectStore } from '@/store/projectStore'
-import { useUIStore } from '@/store/uiStore'
+import { useUIStore, type CollectionViewState } from '@/store/uiStore'
 import { createPageApi, waitFor } from './page'
 import { labelOf } from './ui-tree'
 
@@ -41,6 +41,9 @@ export interface Scene {
   highlights: Highlights
   checks: CopyeditChecks
   dialect: Dialect
+  /** Each collection's draft filter and sorting. Cleared when left out */
+  draftFilters?: Record<string, boolean>
+  collectionViews?: Record<string, CollectionViewState>
 }
 
 export function createAgentApi(deps: AgentApiDeps) {
@@ -185,6 +188,8 @@ export function createAgentApi(deps: AgentApiDeps) {
         highlights: readHighlights(globalSettings),
         checks,
         dialect,
+        draftFilters: ui.draftFilterByCollection,
+        collectionViews: ui.collectionViewState,
       }
     },
 
@@ -199,13 +204,23 @@ export function createAgentApi(deps: AgentApiDeps) {
         distractionFreeBarsHidden: false,
         projectListOpen: false,
         projectSettingsOpen: false,
-        draftFilterByCollection: {},
-        collectionViewState: {},
+        draftFilterByCollection: scene.draftFilters ?? {},
+        collectionViewState: scene.collectionViews ?? {},
       })
       await useProjectStore.getState().updateGlobalSettings({
         general: { highlights: scene.highlights },
         copyedit: { checks: scene.checks, dialect: scene.dialect },
       })
+      await idle()
+    },
+
+    /** Saves the open file's edits, and throws if any are still unsaved. */
+    async saveOpenFile() {
+      const { isDirty, saveFile } = useEditorStore.getState()
+      if (isDirty) await saveFile(false)
+      if (useEditorStore.getState().isDirty) {
+        throw new Error("The open file has edits that couldn't be saved")
+      }
       await idle()
     },
 

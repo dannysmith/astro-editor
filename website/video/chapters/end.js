@@ -129,8 +129,7 @@ function sceneH(t) {
   const caretOn = t - hTyper.last(t) < 0.4 || t % 1 < 0.55
   html(
     $('h-line'),
-    esc(hTyper.at(t)).replaceAll('&amp;', '&amp;') +
-      (t > CARD + 1.2 && caretOn ? CARET : '')
+    esc(hTyper.at(t)) + (t > CARD + 1.2 && caretOn ? CARET : '')
   )
   const cp = E.outBack(seg(t, CARD + 3.5, CARD + 4.1))
   S($('h-cta'), {

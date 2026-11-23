@@ -620,10 +620,6 @@ img {
   border-radius: 4px;
   flex: none;
 }
-.badge.draft {
-  background: #5c1f1f;
-  color: #f28b8b;
-}
 .badge.mdx {
   border: 1px solid #3a3a3a;
   color: var(--app-ui);

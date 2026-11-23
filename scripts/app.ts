@@ -379,8 +379,12 @@ async function runShotStep(step: ShotStep) {
 
 const PANEL_LAYOUT_KEY = 'panel-v4:astro-editor-layout'
 
-/** Sets the saved panel widths, which the app only reads when the page loads. */
+/**
+ * Sets the saved panel widths, which the app only reads when the page loads.
+ * Saves the open file first, since the reload discards unsaved edits.
+ */
 async function setPanelLayout(layout: string | null) {
+  await callApi('saveOpenFile')
   const key = jsLiteral(PANEL_LAYOUT_KEY)
   await call('POST', '/eval', {
     js:

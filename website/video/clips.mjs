@@ -32,7 +32,7 @@ for (const name of names) {
   const { from, length } = clips[name]
   const silent = `clip-${name}-silent.mp4`
   run('node', [path.join(dir, 'render.mjs'), '--clip', name, '--out', silent])
-  // The sound fades as the end frame arrives, before the next chapter's cues
+  // The sound is gone by the end frame, before the next chapter's cues
   run('ffmpeg', [
     '-y', '-loglevel', 'error',
     '-i', out(silent),
@@ -40,7 +40,7 @@ for (const name of names) {
     '-map', '0:v', '-map', '1:a',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-tune', 'animation',
     '-pix_fmt', 'yuv420p',
-    '-af', `afade=t=in:st=0:d=0.3,afade=t=out:st=${length - 0.2}:d=1.4,loudnorm=I=-16:TP=-1.5:LRA=11`,
+    '-af', `afade=t=in:st=0:d=0.3,afade=t=out:st=${length - 1}:d=1,loudnorm=I=-16:TP=-1.5:LRA=11`,
     '-ar', '48000', '-c:a', 'aac', '-b:a', '128k',
     '-movflags', '+faststart',
     out(`clips/astro-editor-${name}.mp4`),
