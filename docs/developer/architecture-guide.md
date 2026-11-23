@@ -59,7 +59,7 @@ Something that's hidden but keeps working (a panel in a background tab) goes in 
 
 ## Right sidebar
 
-The right sidebar holds a panel per tab: Frontmatter, Copyedit (the part-of-speech highlights and Harper's spelling, grammar and style checks), and later ones such as git. `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) lists the tabs, and the tab bar, the ⌘2/⌘3… shortcuts and the palette commands are built from it. A panel doesn't assume a file is open; it shows its own empty state.
+The right sidebar holds a panel per tab: Frontmatter, Copyedit (the part-of-speech highlights and Harper's spelling, grammar and style checks), and Git, an experiment each project switches on (see `git.md`). `RIGHT_SIDEBAR_TABS` (`lib/right-sidebar.ts`) lists the tabs, and the tab bar, the ⌘2/⌘3… shortcuts and the palette commands are built from it, keeping the tabs `isRightSidebarTabAvailable` allows for the open project. When the shown tab isn't available (switching to a project without Git), the sidebar shows Frontmatter. A panel doesn't assume a file is open; it shows its own empty state.
 
 `uiStore` holds `rightSidebarVisible` and `rightSidebarTab`, with three actions:
 
@@ -67,7 +67,7 @@ The right sidebar holds a panel per tab: Frontmatter, Copyedit (the part-of-spee
 - **`toggleRightSidebarTab(tab)`** closes it if it's open on that tab, and otherwise opens it there: the tab's shortcut, menu item and palette command.
 - **`showRightSidebarTab(tab)`** only opens: for code that reveals a panel, like creating a file with a title field.
 
-To add a tab, add it to `RIGHT_SIDEBAR_TABS`, map its id to the panel in `RightSidebar.tsx` (a typed `Record`, so a tab can't lack one), and add its View menu item in `lib.rs` (`toggle_right_sidebar_tab_<id>`, with its shortcut).
+To add a tab, add it to `RIGHT_SIDEBAR_TABS`, map its id to the panel in `RightSidebar.tsx` (a typed `Record`, so a tab can't lack one), and add its View menu item in `lib.rs` (`toggle_right_sidebar_tab_<id>`, with its shortcut). The Git tab has no menu item while it's an experiment, since the native menu can't follow a project setting without more work.
 
 **Each panel is shown from the sidebar's real width, not `rightSidebarVisible`.** The store flag changes a render before Layout expands the panel, and a panel shown then would measure itself at zero width (textarea heights, scrolling to an item). So Layout sets `rightSidebarExpanded` from the panel's `onResize`, inside `flushSync` so a reopened panel catches up with the stores before it's painted. While collapsed, the sidebar is `inert`, and focus in a panel that's about to be hidden moves to the editor.
 

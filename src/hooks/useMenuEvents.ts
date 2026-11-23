@@ -9,7 +9,10 @@ import { globalCommandRegistry } from '../lib/editor/commands'
 import { showProjectList } from '../lib/projects/actions'
 import { showProjectSettings } from '../lib/project-settings/actions'
 import { DOCS_URLS } from '../lib/docs-urls'
-import { RIGHT_SIDEBAR_TABS } from '../lib/right-sidebar'
+import {
+  RIGHT_SIDEBAR_TABS,
+  isRightSidebarTabAvailableNow,
+} from '../lib/right-sidebar'
 import type { HeadingLevel } from '../lib/editor/markdown/types'
 
 /**
@@ -94,7 +97,9 @@ export function useMenuEvents(
         listen<string>('menu-toggle-right-sidebar-tab', event => {
           const tab = RIGHT_SIDEBAR_TABS.find(({ id }) => id === event.payload)
           if (tab) {
-            useUIStore.getState().toggleRightSidebarTab(tab.id)
+            if (isRightSidebarTabAvailableNow(tab.id)) {
+              useUIStore.getState().toggleRightSidebarTab(tab.id)
+            }
           } else {
             void logWarn(
               `Astro Editor [MENU] No right sidebar tab "${event.payload}"`

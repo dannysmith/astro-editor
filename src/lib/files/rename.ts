@@ -8,6 +8,7 @@
 
 import { commands, type Collection, type FileEntry } from '@/lib/bindings'
 import { useEditorStore } from '../../store/editorStore'
+import { useGitPanelStore } from '../../store/gitPanelStore'
 import { useProjectStore } from '../../store/projectStore'
 import { fieldMappings, getCollection } from '../project-scan'
 import { queryClient } from '../query-client'
@@ -234,6 +235,7 @@ async function renameOnDisk(
   if (to === null) return 'no-match'
   if (to !== file.path) {
     newFiles.delete(file.path)
+    useGitPanelStore.getState().rememberRename(file.path, to)
     await followRenamedFile(file.path, to, projectPath)
   }
   return { from: file.path, to }

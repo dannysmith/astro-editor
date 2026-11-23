@@ -76,7 +76,8 @@ export function ProblemCallout({
           </p>
         )}
         {problem.detail && (
-          <p className="font-mono text-xs break-words text-muted-foreground">
+          // Pre-wrapped: it's often git's or a hook's output, line by line
+          <p className="font-mono text-xs break-words whitespace-pre-wrap text-muted-foreground">
             {problem.detail}
           </p>
         )}

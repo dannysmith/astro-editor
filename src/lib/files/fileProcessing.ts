@@ -1,4 +1,5 @@
 import { commands } from '@/lib/bindings'
+import { useGitPanelStore } from '../../store/gitPanelStore'
 import type {
   ProcessFileToAssetsOptions,
   ProcessFileToAssetsResult,
@@ -54,9 +55,12 @@ export async function processFileToAssets(
     if (result.status === 'error') {
       throw new Error(result.error)
     }
-    relativePath = result.data
-
+    relativePath = result.data.reference
     wasCopied = true
+
+    // So the Git tab can offer it with the entry even after it's taken out of
+    // the text
+    useGitPanelStore.getState().rememberAdded(currentFilePath, result.data.path)
   } else {
     // File is already in project - reuse existing path
     const result = await commands.getRelativePath(

@@ -35,6 +35,12 @@ interface EditorState {
    * `rawFrontmatter` back unchanged
    */
   frontmatterError: string | null
+  /**
+   * While git rewrites files on disk (a pull), nothing may be edited: an edit
+   * not saved before the pull ends would keep the old text, and its save would
+   * undo the pulled changes. The editor is read-only and edits are ignored
+   */
+  editingPaused: boolean
 
   // Status state
   isDirty: boolean // True if ANY changes need to be saved
@@ -61,6 +67,17 @@ interface EditorState {
    */
   closeCurrentFile: (options?: { keepLastEntry?: boolean }) => void
   saveFile: (showToast?: boolean) => Promise<void>
+  /**
+   * Resolves once the store holds `content` and `rawFrontmatter` for the
+   * file at `path`, as read from disk (`useEditorFileContent` puts them in
+   * the store in an effect, a moment after the query has them), or another
+   * file is opened, or a second passes
+   */
+  untilLoaded: (
+    path: string,
+    content: string,
+    rawFrontmatter: string
+  ) => Promise<void>
   setEditorContent: (content: string) => void
   setImports: (imports: string) => void
   updateFrontmatterField: (key: string, value: unknown) => void
@@ -98,6 +115,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isLoaded: false,
   loadError: null,
   frontmatterError: null,
+  editingPaused: false,
   isDirty: false,
   isFrontmatterDirty: false,
   autoSaveTimeoutId: null,
@@ -210,11 +228,39 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  // The edits below are ignored until the file has loaded, and the frontmatter
-  // ones while its frontmatter can't be read (see `isLoaded`)
+  untilLoaded: (path, content, rawFrontmatter) => {
+    const loaded = (state: EditorState) =>
+      state.currentFile?.path !== path ||
+      (state.editorContent === content &&
+        state.rawFrontmatter === rawFrontmatter)
+    if (loaded(get())) return Promise.resolve()
+    return new Promise(resolve => {
+      const finish = () => {
+        clearTimeout(timer)
+        unsubscribe()
+        resolve()
+      }
+      // It takes a frame. If it hasn't come in a second, waiting longer won't
+      // help, and keeping editing paused would leave the entry stuck. Said
+      // in the log, so it's seen if it ever happens
+      const timer = setTimeout(() => {
+        void logWarn(
+          `Astro Editor [GIT] ${path} wasn't reloaded within a second; editing resumed anyway`
+        )
+        finish()
+      }, 1000)
+      const unsubscribe = useEditorStore.subscribe(state => {
+        if (loaded(state)) finish()
+      })
+    })
+  },
+
+  // The edits below are ignored until the file has loaded (see `isLoaded`),
+  // while editing is paused (`editingPaused`), and the frontmatter ones while
+  // its frontmatter can't be read
 
   setEditorContent: (content: string) => {
-    if (!get().isLoaded) return
+    if (!get().isLoaded || get().editingPaused) return
     set({ editorContent: content, isDirty: true })
     get().scheduleAutoSave()
   },
@@ -222,14 +268,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Marks the file dirty in the same update: until then, useEditorFileContent
   // would put back the imports from disk
   setImports: (imports: string) => {
-    if (!get().isLoaded) return
+    if (!get().isLoaded || get().editingPaused) return
     set({ imports, isDirty: true })
     get().scheduleAutoSave()
   },
 
   updateFrontmatterField: (key: string, value: unknown) => {
-    const { frontmatter, isLoaded, frontmatterError } = get()
-    if (!isLoaded || frontmatterError) return
+    const { frontmatter, isLoaded, frontmatterError, editingPaused } = get()
+    if (!isLoaded || frontmatterError || editingPaused) return
 
     // Clearing a field removes its key (and any parent objects left empty)
     // rather than writing `title: ''` or `tags: []` into the file

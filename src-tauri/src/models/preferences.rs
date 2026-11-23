@@ -232,6 +232,10 @@ pub struct ProjectSettings {
     /// rest alphabetically
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reorder_frontmatter: Option<bool>,
+    /// Experimental: the Git tab in the right sidebar, and its report in
+    /// Project Settings. Off, AE runs no git commands for the project.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_panel: Option<bool>,
 }
 
 /// Settings for one collection. Paths are relative to the project root.

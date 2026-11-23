@@ -30,7 +30,10 @@ import { renameOpenFileFromPattern } from '../files/rename'
 import { DOCS_URLS } from '../docs-urls'
 import { useContentLinkerStore } from '@/store/contentLinkerStore'
 import { useUIStore } from '@/store/uiStore'
-import { RIGHT_SIDEBAR_TABS } from '../right-sidebar'
+import {
+  RIGHT_SIDEBAR_TABS,
+  isRightSidebarTabAvailableNow,
+} from '../right-sidebar'
 import {
   POS_CONFIGS,
   readHighlights,
@@ -119,7 +122,7 @@ export const navigationCommands: AppCommand[] = [
     execute: () => {
       useUIStore.getState().toggleRightSidebarTab(tab.id)
     },
-    isAvailable: () => true,
+    isAvailable: () => isRightSidebarTabAvailableNow(tab.id),
   })),
   {
     id: 'content-linker',

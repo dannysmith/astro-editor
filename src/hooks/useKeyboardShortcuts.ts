@@ -6,7 +6,10 @@ import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
 import { focusEditor } from '../lib/focus-utils'
-import { RIGHT_SIDEBAR_TABS } from '../lib/right-sidebar'
+import {
+  RIGHT_SIDEBAR_TABS,
+  isRightSidebarTabAvailableNow,
+} from '../lib/right-sidebar'
 import { showProjectList } from '../lib/projects/actions'
 import { toast } from '../lib/toast'
 import { useEditorActions } from './editor/useEditorActions'
@@ -70,7 +73,9 @@ export function useKeyboardShortcuts(
       const tab = RIGHT_SIDEBAR_TABS.find(({ shortcutDigit }) =>
         keys?.includes(String(shortcutDigit))
       )
-      if (tab) useUIStore.getState().toggleRightSidebarTab(tab.id)
+      if (tab && isRightSidebarTabAvailableNow(tab.id)) {
+        useUIStore.getState().toggleRightSidebarTab(tab.id)
+      }
     },
     DEFAULT_HOTKEY_OPTS
   )
