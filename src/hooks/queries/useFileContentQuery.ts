@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { commands, type MarkdownContent } from '@/types'
 import { queryKeys } from '@/lib/query-keys'
+import { writesFinished } from '@/lib/files/write-queue'
 
 const fetchFileContent = async (
   filePath: string,
@@ -14,6 +15,8 @@ const fetchFileContent = async (
   if (!projectPath) {
     throw new Error('Project path is required to fetch content.')
   }
+  // A read that overtakes a queued save would bring back the older text
+  await writesFinished()
   // Note: filePath must be absolute path for Rust command
   const result = await commands.parseMarkdownContent(filePath, projectPath)
   if (result.status === 'error') {

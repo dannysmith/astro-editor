@@ -55,6 +55,9 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   const displayValue = currentDraft ? currentDraft.text : value
 
   const handleFileSelect = async (filePath: string) => {
+    // Until the file loads, the panel can be showing the previous file
+    if (!useEditorStore.getState().isLoaded) return
+
     setIsLoading(true)
     // Capture the starting file and project to detect switches during the copy
     const startingGeneration = useEditorStore.getState().openGeneration

@@ -168,6 +168,14 @@ describe('fieldGuidance', () => {
       )
     })
 
+    it('leaves format checks until the writer stops typing', () => {
+      const field = text({ pattern: '^[A-Z]+$' })
+      expect(fieldGuidance(field, 'abc', { isTyping: true }).problem).toBeNull()
+      expect(fieldGuidance(field, 'abc').problem?.message).toBe(
+        "Doesn't match the format"
+      )
+    })
+
     it("doesn't flag a value against a pattern it can't read", () => {
       expect(
         fieldGuidance(text({ pattern: '(?<bad' }), 'anything').problem

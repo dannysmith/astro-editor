@@ -150,7 +150,8 @@ function numberProblem(
 function textProblem(
   value: string,
   field: SchemaField,
-  constraints: FieldConstraints
+  constraints: FieldConstraints,
+  isTyping: boolean
 ): FieldProblem | null {
   const length = countProblem(
     value.length,
@@ -158,7 +159,9 @@ function textProblem(
     constraints.maxLength
   )
   if (length) return length
-  if (value === '') return null
+  // Format problems wait until the writer leaves the field, so they're only
+  // checked then. A schema's pattern can be slow to run
+  if (value === '' || isTyping) return null
 
   const format = formatName(field)
   if (format === 'URL' && !isUrl(value)) {
@@ -173,7 +176,11 @@ function textProblem(
   return null
 }
 
-function valueProblem(value: unknown, field: SchemaField): FieldProblem | null {
+function valueProblem(
+  value: unknown,
+  field: SchemaField,
+  isTyping: boolean
+): FieldProblem | null {
   if (isEmptyValue(value)) return null
   const constraints = field.constraints ?? {}
 
@@ -199,7 +206,7 @@ function valueProblem(value: unknown, field: SchemaField): FieldProblem | null {
     return numberProblem(value, field, constraints)
   }
   if (typeof value === 'string') {
-    return textProblem(value, field, constraints)
+    return textProblem(value, field, constraints, isTyping)
   }
   return null
 }
@@ -212,7 +219,10 @@ function valueProblem(value: unknown, field: SchemaField): FieldProblem | null {
 export function fieldGuidance(
   field: SchemaField | undefined,
   value: unknown,
-  { hideDefault = false }: { hideDefault?: boolean } = {}
+  {
+    hideDefault = false,
+    isTyping = false,
+  }: { hideDefault?: boolean; isTyping?: boolean } = {}
 ): FieldGuidance {
   if (!field) return { note: null, count: null, problem: null }
   const constraints = field.constraints ?? {}
@@ -238,6 +248,6 @@ export function fieldGuidance(
   return {
     note: notes.length > 0 ? notes.join(' • ') : null,
     count,
-    problem: valueProblem(value, field),
+    problem: valueProblem(value, field, isTyping),
   }
 }

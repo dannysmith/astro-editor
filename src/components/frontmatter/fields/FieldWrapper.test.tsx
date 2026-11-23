@@ -168,6 +168,30 @@ describe('FieldWrapper', () => {
       )
       expect(screen.getByText('Not in authors')).toBeInTheDocument()
     })
+
+    it('describes the field to screen readers', () => {
+      render(
+        <FieldWrapper
+          label="Test"
+          field={fieldWith({ type: FieldType.URL })}
+          value="not a url"
+        >
+          <input />
+        </FieldWrapper>
+      )
+      expect(screen.getByRole('group')).toHaveAccessibleDescription(
+        "Doesn't look like a URL"
+      )
+    })
+
+    it('has no description without a footer', () => {
+      render(
+        <FieldWrapper label="Test" field={fieldWith({})} value="Text">
+          <input />
+        </FieldWrapper>
+      )
+      expect(screen.getByRole('group')).not.toHaveAttribute('aria-describedby')
+    })
   })
 
   describe('horizontal layout', () => {

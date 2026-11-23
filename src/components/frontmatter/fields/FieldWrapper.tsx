@@ -40,14 +40,16 @@ interface FieldWrapperProps {
 
 /** The footer: the field's rules or what's wrong, and how much of a limit is used */
 const GuidanceFooter: React.FC<{
+  id: string
   text: string | null
   count: string | null
   isProblem: boolean
   framed: boolean
-}> = ({ text, count, isProblem, framed }) => {
+}> = ({ id, text, count, isProblem, framed }) => {
   if (!text && !count) return null
   return (
     <div
+      id={id}
       data-slot="field-footer"
       className={cn(
         'flex items-center justify-between gap-2 text-xs text-muted-foreground',
@@ -88,16 +90,19 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   hideDefaultValue = false,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false)
+  const footerId = React.useId()
   const description = descriptionOverride ?? field?.description
   const isMissing = Boolean(field?.required) && isEmptyValue(value)
 
   const guidance = fieldGuidance(field, value, {
     hideDefault: hideDefaultValue,
+    isTyping: isFocused,
   })
   const problem = controlProblem
     ? { message: controlProblem, whileTyping: true }
     : guidance.problem
   const shownProblem = problem?.whileTyping || !isFocused ? problem : null
+  const footerText = shownProblem?.message ?? guidance.note
 
   const fieldLabel = (
     <FieldLabel htmlFor={htmlFor} id={labelId}>
@@ -110,7 +115,8 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   )
   const footer = (
     <GuidanceFooter
-      text={shownProblem?.message ?? guidance.note}
+      id={footerId}
+      text={footerText}
       count={guidance.count}
       isProblem={Boolean(shownProblem)}
       framed={framed}
@@ -143,7 +149,10 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   }
 
   return (
-    <Field orientation="vertical">
+    <Field
+      orientation="vertical"
+      aria-describedby={footerText || guidance.count ? footerId : undefined}
+    >
       {fieldLabel}
       <FieldContent>
         {framed ? (
