@@ -49,7 +49,9 @@ In projects whose `package.json` depends on `@astrojs/starlight`, the builder ad
 
 Instead `scripts/starlight-components/generate.ts` reads them at our build time with TypeScript 6's compiler API and writes `src-tauri/src/mdx_components/starlight-components.json`, which the app bundles. `scripts/starlight-components/overrides.ts` adds what types can't say: descriptions, the content inserted inside `Tabs`, `Steps` and friends, value order, and props to hide.
 
-To update for a new Starlight release, run `bun scripts/starlight-components/generate.ts latest` and commit the JSON. With no argument it regenerates for the version already in the JSON. It fails if Starlight adds, removes or changes a component the overrides describe, so changes get looked at rather than shipped blind.
+The script also writes Starlight's general icons to `src/components/component-builder/starlight-icons.json`, so the lists for Starlight's icon props show each icon beside its name. The `seti:` file icons are left out.
+
+To update for a new Starlight release, run `bun scripts/starlight-components/generate.ts latest` and commit both JSON files. With no argument it regenerates for the version already in the JSON. It fails if Starlight adds, removes or changes a component the overrides describe, so changes get looked at rather than shipped blind.
 
 ## Testing against real components
 

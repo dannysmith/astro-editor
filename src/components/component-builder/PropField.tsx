@@ -31,6 +31,7 @@ import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useEditorStore } from '../../store/editorStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
 import { ImagePropField } from './ImagePropField'
+import { StarlightIcon } from './StarlightIcon'
 import { canImportImages } from '../../lib/project-scan'
 import { useCollection, useResolvedProjectSettings } from '../../hooks/settings'
 import { EntryPropField } from './EntryPropField'
@@ -62,6 +63,11 @@ export function PropField({ prop }: { prop: PropInfo }) {
   const id = React.useId()
   const labelId = `${id}-label`
   const platform = usePlatform()
+  // Starlight's icon props list its icons, which can be drawn beside their names
+  const isStarlight = useComponentBuilderStore(
+    state =>
+      state.selectedComponent?.import_source === '@astrojs/starlight/components'
+  )
 
   const { name, kind } = prop
   const required = !prop.is_optional
@@ -180,6 +186,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
             <ComboboxList>
               {(option: string) => (
                 <ComboboxItem key={option} value={option}>
+                  {isStarlight && <StarlightIcon name={option} />}
                   {option}
                 </ComboboxItem>
               )}

@@ -64,6 +64,8 @@ Make the builder's form look and behave like the frontmatter panel (#399).
 - **Layout.** The dialog is `sm:max-w-lg`. Once the above is in, try a wider dialog with two columns when a component has many props, or another two-column arrangement. Danny decides from screenshots.
 - Update the styleguide section for the builder, `ui-patterns.md` if the shared frame changes a pattern, and the website's component builder page and screenshot if they no longer match.
 
-## Phase 5: Exploration (maybe never)
+## Phase 5: Exploration (maybe never) ✅
+
+**Done for Starlight only:** the Starlight generator also writes Starlight's 131 general icons (`starlight-icons.json`), and `StarlightIcon` draws each beside its name in the lists for Starlight's icon props. The `seti:` file icons have no artwork. Other sites' icons depend on how each is built, so they're out of reach.
 
 Richer pickers for props, such as showing the icons behind an `icon` enum. This depends on how each site is built, so it's probably only feasible for Starlight's built-in icons. Note what we learn; don't build without agreeing first.
