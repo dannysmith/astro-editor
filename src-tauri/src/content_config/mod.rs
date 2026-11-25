@@ -386,23 +386,13 @@ impl<'a> Scope<'a> {
         let first_arg = call.args.first().and_then(|arg| self.resolve(&arg.expr));
 
         match self.callee_name(call).as_deref() {
-            Some("glob") => {
-                let Some(Expr::Object(options)) = first_arg else {
-                    return Loader::Glob {
-                        base: GlobBase::Unreadable,
-                        patterns: None,
-                    };
-                };
-                let base = match self.option(options, "base") {
-                    None => GlobBase::Root,
-                    Some(base) => self
-                        .read_base(base)
-                        .map_or(GlobBase::Unreadable, GlobBase::Path),
-                };
-                let patterns = self
-                    .option(options, "pattern")
-                    .and_then(|pattern| self.read_patterns(pattern));
-                Loader::Glob { base, patterns }
+            Some("glob") => self.read_glob(first_arg),
+            // astro-loader-i18n's loaders wrap `glob()` and take its options.
+            // Starlight's `i18nLoader()` takes none, and loads UI strings.
+            Some("i18nLoader" | "i18nContentLoader")
+                if matches!(first_arg, Some(Expr::Object(_))) =>
+            {
+                self.read_glob(first_arg)
             }
             Some("docsLoader") => Loader::Glob {
                 base: GlobBase::Path(PathBuf::from(STARLIGHT_DOCS_BASE)),
@@ -418,6 +408,26 @@ impl<'a> Scope<'a> {
                 name: other.map(str::to_string),
             },
         }
+    }
+
+    /// A loader that takes `glob()`'s options: `base` and `pattern`
+    fn read_glob(&self, options: Option<&'a Expr>) -> Loader {
+        let Some(Expr::Object(options)) = options else {
+            return Loader::Glob {
+                base: GlobBase::Unreadable,
+                patterns: None,
+            };
+        };
+        let base = match self.option(options, "base") {
+            None => GlobBase::Root,
+            Some(base) => self
+                .read_base(base)
+                .map_or(GlobBase::Unreadable, GlobBase::Path),
+        };
+        let patterns = self
+            .option(options, "pattern")
+            .and_then(|pattern| self.read_patterns(pattern));
+        Loader::Glob { base, patterns }
     }
 
     /// A glob `base`: a string relative to the project root, or a URL. A relative
@@ -712,6 +722,27 @@ mod tests {
                 Loader::Inline,
                 Loader::Unknown { name: None },
             ]
+        );
+    }
+
+    #[test]
+    fn reads_astro_loader_i18n_as_glob() {
+        let collections = parse(
+            r#"
+            import { i18nContentLoader, i18nLoader } from 'astro-loader-i18n';
+            export const collections = {
+                pages: defineCollection({ loader: i18nLoader({ pattern: '**/[^_]*.{md,mdx}', base: './src/pages-content' }) }),
+                navigation: defineCollection({ loader: i18nContentLoader({ pattern: '**/*.yml', base: './src/navigation' }) }),
+            };
+            "#,
+        );
+        assert_eq!(
+            collections[0].loader,
+            glob(path("./src/pages-content"), &["**/[^_]*.{md,mdx}"])
+        );
+        assert_eq!(
+            collections[1].loader,
+            glob(path("./src/navigation"), &["**/*.yml"])
         );
     }
 

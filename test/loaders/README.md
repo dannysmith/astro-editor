@@ -20,7 +20,7 @@ Three warnings are expected:
 | `bookmarks` | Custom loader that stores nothing | None | Unknown. Absent from the store, like a loader that failed |
 | `recipes` | `markdownFolder()` from `src/loaders`, wraps `glob()` | `src/content/recipes` | Unknown, but the `src/content/<name>` guess is right |
 | `talks` | `markdownFolder()` | `talks/`, with year subfolders and MDX | Unknown: looks in `src/content/talks` |
-| `pages` | `i18nLoader()` from `astro-loader-i18n`, wraps `glob()` | `src/i18n-pages/{en,de}` | Data, since Starlight's `i18nLoader` has the same name |
+| `pages` | `i18nLoader()` from `astro-loader-i18n`, wraps `glob()` | `src/i18n-pages/{en,de}` | Read from the config, as a glob. Starlight's `i18nLoader()` has the same name, but takes no options |
 | `garden` | `ObsidianMdLoader()` from `astro-loader-obsidian` | `vault/`, file names with spaces | Unknown. Astro can't generate its JSON schema (zod 3), and its ids are slugs, not file names |
 | `podcasts` | `glob()`, imported from `src/collections/podcasts.ts` | `src/podcasts` | Unknown. Its `host` references `team` |
 | `team` | `jsonRecords()` from `src/loaders`, wraps `file()` | `src/data/team.json` | Unknown |
