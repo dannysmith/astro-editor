@@ -11,7 +11,7 @@ How the app fits together, and why it's built the way it is. AGENTS.md states th
 
 State lives in one of three places, chosen by where the data comes from:
 
-- **TanStack Query** for anything read from disk: collections and their schemas, directory listings, file content. Keys come from `src/lib/query-keys.ts` and are hierarchical, so invalidating a prefix (a project, or a collection's directories) refreshes everything under it.
+- **TanStack Query** for anything read from disk: collections and their schemas, directory listings, file content. Keys come from `src/lib/query-keys.ts` and are hierarchical, so invalidating a prefix (a project, or a collection's directories) refreshes everything under it. A collection's full listing (`useCollectionFilesQuery`) reads every file in it and goes out of date on each save that changes frontmatter, so UI that stays mounted beside the open file only enables it while in use (the tag input's suggestions, while it has focus) and otherwise reads what's cached.
 - **Zustand** for app state that several components share. The stores are split by how often they change: `editorStore` on every keystroke, `projectStore` (project, settings, watcher) rarely, `uiStore` (panels, modes) occasionally, plus small stores for single features. Splitting them is what stops typing from re-rendering the sidebar.
 - **`useState`** for state one component owns: hover, open/closed, a draft value.
 

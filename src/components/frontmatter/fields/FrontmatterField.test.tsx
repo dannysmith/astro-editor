@@ -175,7 +175,7 @@ describe('FrontmatterField Orchestrator', () => {
         <FrontmatterField name="tags" label="Tags" field={arrayField} />
       )
 
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
     })
 
     it('should edit objects without fixed fields as JSON', () => {
@@ -370,7 +370,7 @@ describe('FrontmatterField Orchestrator', () => {
       )
 
       // Should render ArrayField because schema says Array
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
     })
 
     it('should prioritize Boolean schema type over input type detection', () => {
@@ -449,7 +449,7 @@ describe('FrontmatterField Orchestrator', () => {
       [FieldType.String, 'textbox', 'Subtitle'],
       [FieldType.Number, 'spinbutton', 'Subtitle'],
       [FieldType.Boolean, 'switch', 'Subtitle'],
-      [FieldType.Array, 'textbox', 'Subtitle'],
+      [FieldType.Array, 'combobox', 'Subtitle'],
       [FieldType.Date, 'button', 'Subtitle Select date...'],
       [FieldType.Enum, 'combobox', 'Subtitle'],
     ])('names the %s field control after its label', (type, role, name) => {
@@ -504,7 +504,7 @@ describe('FrontmatterField Orchestrator', () => {
       )
 
       // Empty array should still trigger ArrayField
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
     })
   })
 })

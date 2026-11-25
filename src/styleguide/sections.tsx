@@ -32,6 +32,7 @@ import {
   InputGroupText,
 } from '../components/ui/input-group'
 import { TagInput, type Tag } from '../components/ui/tag-input'
+import type { TagSuggestion } from '../lib/tag-suggestions'
 import {
   Field,
   FieldContent,
@@ -241,8 +242,17 @@ const TAGS: Tag[] = [
   { id: '3', text: 'writing' },
 ]
 
+const TAG_SUGGESTIONS: TagSuggestion[] = [
+  { value: 'JavaScript', count: 14 },
+  { value: 'Astro', count: 9 },
+  { value: 'TypeScript', count: 6 },
+  { value: 'javascript', count: 2 },
+  { value: 'CSS', count: 1 },
+]
+
 export function InputsSection() {
   const [tags, setTags] = useState(TAGS)
+  const [suggestedTags, setSuggestedTags] = useState<Tag[]>([])
   return (
     <div className="grid max-w-5xl grid-cols-2 gap-x-10 gap-y-5">
       <Field>
@@ -300,6 +310,12 @@ export function InputsSection() {
           tags={tags}
           onTagsChange={setTags}
           placeholder="Add a tag..."
+        />
+        <TagInput
+          tags={suggestedTags}
+          onTagsChange={setSuggestedTags}
+          placeholder="Type or press ↓ for suggestions"
+          suggestions={TAG_SUGGESTIONS}
         />
         <TagInput
           tags={[]}

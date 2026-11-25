@@ -1,5 +1,6 @@
 import React from 'react'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
+import { useTagSuggestions } from '../../../hooks/useTagSuggestions'
 import { TagInput, type Tag } from '../../ui/tag-input'
 import { tagsToStringArray } from '../utils'
 import { FieldWrapper } from './FieldWrapper'
@@ -12,12 +13,16 @@ export const ArrayField: React.FC<FieldControlProps> = ({
   field,
 }) => {
   const [value, setValue] = useFrontmatterValue(name)
+  const [focused, setFocused] = React.useState(false)
 
   const id = React.useId()
 
   // Check if this is a number array
   const isNumberArray =
     field?.subType === FieldType.Number || field?.subType === FieldType.Integer
+
+  // Lists of strings suggest the values the collection already uses
+  const suggestions = useTagSuggestions(name, focused && !isNumberArray)
 
   // Convert frontmatter array to tags
   const currentValue = value
@@ -70,6 +75,9 @@ export const ArrayField: React.FC<FieldControlProps> = ({
         placeholder={`Enter ${label.toLowerCase()}...`}
         tags={tags}
         onTagsChange={handleTagsChange}
+        suggestions={isNumberArray ? undefined : suggestions}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
     </FieldWrapper>
   )
