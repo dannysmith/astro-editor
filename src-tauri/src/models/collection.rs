@@ -119,6 +119,8 @@ pub enum SettingSource {
     Config,
     /// Detected in the schema
     Schema,
+    /// Where Astro's data store says it last loaded a collection's entries from
+    DataStore,
     /// Astro's or AE's convention
     Convention,
     /// Nothing to go on

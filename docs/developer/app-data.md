@@ -45,8 +45,14 @@ Rust combines them: `collections::scan_project` reads the content config (`conte
   - **Starlight's `docsLoader()`** is a glob on `src/content/docs`; its `i18nLoader()` is data.
   - **astro-loader-i18n's `i18nLoader()` and `i18nContentLoader()`** wrap `glob()` and take its options, so they're read as globs. Starlight's `i18nLoader()` takes no options, which tells the two apart.
   - **Data:** `file()`, Starlight's `i18nLoader()`, legacy `type: 'data'`, and globs whose pattern can only match data files. In the scan, but not the sidebar. `file()` JSON and YAML, as an array or an object keyed by id, is still read as a reference target (`load_file_based_collection`).
-  - **Unknown:** anything else: a custom loader called by name, a loader written in place as a function or an object with `load` (`inlineLoader`), or a collection whose definition couldn't be followed, like one imported from another file (neither). AE looks for it in `<content folder>/<name>`.
+  - **Unknown:** anything else: a custom loader called by name, a loader written in place as a function or an object with `load` (`inlineLoader`), or a collection whose definition couldn't be followed, like one imported from another file (neither). AE looks for it where the data store says Astro last loaded it from (below), else in `<content folder>/<name>`.
   - **`loaderName`** is the loader function's name whenever the loader is called by name, whether AE can read it or not (`glob`, `docsLoader`, `file`, `atprotoLoader`), so Project Settings can say which loader a collection uses.
+- **Data store** (`data_store.rs`): where Astro last loaded each collection's entries from, for the collections AE can't follow in the config. `astro dev` writes `.astro/data-store.json`, and `astro sync` and `astro build` write `node_modules/.astro/data-store.json` (the default `cacheDir`; a custom one isn't read). Each collection comes from the newer store that has it. It's devalue-serialized, and each entry from a file has a `filePath` relative to the root. For an unknown loader:
+  - **Every entry from a `.md` or `.mdx` file:** the deepest folder holding them all is its folder (source `dataStore`), with the legacy pattern. Not when that's the project root.
+  - **Every entry from a JSON, YAML or TOML file:** it's data, at that file, or the folder holding them all. A single JSON or YAML file is also read as a reference target.
+  - **Anything else** (entries without files, like an API loader's, or a mix of file types), or **not in the store** (no entries, a failed loader, or Astro hasn't run): `<content folder>/<name>`.
+  - **Collections spread into the export** (`{ blog, ...extra }`) aren't in the config AE reads, so when there's a spread, every store collection the config doesn't name is added as an unknown loader. Only then: Astro clears the store when the content config changes, but a store it hasn't rewritten since can still hold a renamed or removed collection.
+  - The scan reads the store whenever it runs. The watcher doesn't watch it: `astro dev` rewrites it on every content change, and where a collection's files are rarely changes.
 - **Schema option:** any `schema` counts, even one AE can't follow (imported from another file), so its status says when `astro sync` hasn't run. Only a schema written in the config has `image()` and `reference()` helpers AE can read.
 - **Collection folder** (`Collection.path`): what the sidebar browses, `base` plus the pattern's fixed prefix (`blog/**/*.md` on `src/content` is `src/content/blog`). Entry ids and pattern matching stay relative to `base` (`Collection.base`), so `FileEntry.id` is `<collection>/<path from base>` and `astroEntryId` gives Astro's id.
 - **Schema:** see `schema-system.md`. Its status is complete, helpers only (no JSON, usually because `astro sync` hasn't run), unreadable (with the error), or none.
@@ -68,7 +74,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 
 | Setting | Home | When unset |
 | --- | --- | --- |
-| Collection folder | Collection | From the loader; else `<content folder>/<name>` |
+| Collection folder | Collection | From the loader; else from the data store; else `<content folder>/<name>` |
 | Show files Astro skips (`skippedFiles`) | Collection | Hide |
 | Title, description fields | Collection | A string field named `title` / `description` in the schema |
 | Published date field | Collection | The first date field named `pubDate`, `date` or `publishedDate` |
@@ -90,7 +96,7 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 - **The content folder** is only used where the loader doesn't say: for unknown loaders and the folder fallback.
 - **Default sort** is what the sidebar's Default sort mode does (`sortFiles`). The sort the writer picks in the sidebar stays per session.
 
-Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, convention or missing.
+Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, data store, convention or missing.
 
 ### The project settings dialog
 

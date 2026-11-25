@@ -111,6 +111,15 @@ pub enum GlobBase {
     Unreadable,
 }
 
+/// What a content config's `collections` export says
+#[derive(Debug)]
+pub struct ContentConfig {
+    pub collections: Vec<ConfigCollection>,
+    /// It spreads in other objects (`...imported`), whose collections aren't
+    /// read
+    pub has_spread: bool,
+}
+
 /// Reads the collections from a content config's source. `config_path` is where
 /// it lives, for resolving `new URL(…, import.meta.url)`. Errors when the file
 /// doesn't parse or has no `collections` export AE can read.
@@ -118,7 +127,7 @@ pub fn parse_config(
     source: &str,
     config_path: &Path,
     project: &Path,
-) -> Result<Vec<ConfigCollection>, String> {
+) -> Result<ContentConfig, String> {
     let cm = Lrc::new(SourceMap::default());
     let fm = cm.new_source_file(Rc::new(FileName::Anon), source.to_string());
     let syntax = Syntax::Typescript(TsSyntax::default());
@@ -136,7 +145,11 @@ pub fn parse_config(
         return Err("The content config's `collections` isn't an object".to_string());
     };
 
-    Ok(collections
+    let has_spread = collections
+        .props
+        .iter()
+        .any(|prop| matches!(prop, PropOrSpread::Spread(_)));
+    let collections = collections
         .props
         .iter()
         .filter_map(|prop| match prop {
@@ -153,7 +166,11 @@ pub fn parse_config(
             _ => None,
         })
         .map(|(name, definition)| scope.read_collection(name, definition))
-        .collect())
+        .collect();
+    Ok(ContentConfig {
+        collections,
+        has_spread,
+    })
 }
 
 /// The module's top-level variables and imports, for following names
@@ -529,7 +546,9 @@ mod tests {
 
     fn parse(source: &str) -> Vec<ConfigCollection> {
         let project = Path::new("/site");
-        parse_config(source, &project.join("src/content.config.ts"), project).unwrap()
+        parse_config(source, &project.join("src/content.config.ts"), project)
+            .unwrap()
+            .collections
     }
 
     fn loader(source: &str) -> Loader {
@@ -810,5 +829,24 @@ mod tests {
         )
         .is_err());
         assert!(parse_config("export const collections = {", &config, project).is_err());
+    }
+
+    #[test]
+    fn notes_collections_spread_in_from_elsewhere() {
+        let project = Path::new("/site");
+        let config = project.join("src/content.config.ts");
+        let spread = parse_config(
+            "import { extra } from './extra';
+            const blog = defineCollection({ loader: glob({ pattern: '*.md' }) });
+            export const collections = { blog, ...extra };",
+            &config,
+            project,
+        )
+        .unwrap();
+        assert!(spread.has_spread);
+        assert_eq!(spread.collections.len(), 1);
+
+        let plain = parse_config("export const collections = {};", &config, project).unwrap();
+        assert!(!plain.has_spread);
     }
 }

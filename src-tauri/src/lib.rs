@@ -4,6 +4,7 @@ mod bindings;
 mod collections;
 mod commands;
 mod content_config;
+mod data_store;
 mod frontmatter;
 mod git;
 mod mdx_components;

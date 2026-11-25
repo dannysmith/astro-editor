@@ -150,6 +150,21 @@ describe('describeOrigin', () => {
     )
   })
 
+  it('says when the folder is where Astro last loaded the entries from', () => {
+    const talks = makeCollection({
+      name: 'talks',
+      kind: 'unknown',
+      loaderName: 'markdownFolder',
+      folderSource: 'dataStore',
+    })
+    expect(describeOrigin(talks, scan)).toBe(
+      'From `markdownFolder()` in `src/content.config.ts`. Its folder is where Astro last loaded its entries from.'
+    )
+    expect(describeOrigin({ ...talks, loaderName: null }, scan)).toBe(
+      "Its definition in `src/content.config.ts` couldn't be read, perhaps because it's in another file, so its folder is where Astro last loaded its entries from."
+    )
+  })
+
   it('says when a loader probably doesn’t read files', () => {
     const books = makeCollection({
       name: 'books',

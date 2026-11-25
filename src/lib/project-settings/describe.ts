@@ -47,10 +47,16 @@ export function describeOrigin(
       return `From ${named ?? `\`glob()\`${config}`}.`
     case 'legacy':
       return `A legacy collection${config}, without a loader.`
-    case 'unknown':
+    case 'unknown': {
+      // A folder from the data store, or else the convention
+      const folder =
+        collection.folderSource === 'dataStore'
+          ? 'where Astro last loaded its entries from'
+          : 'assumed to be the one named after it'
       return loader
-        ? `${loader}. Its folder is assumed to be the one named after it.`
-        : `${unreadDefinition}, so its folder is assumed to be the one named after it.`
+        ? `${loader}. Its folder is ${folder}.`
+        : `${unreadDefinition}, so its folder is ${folder}.`
+    }
     case 'folder':
       return `A folder in \`${scan.projectSettings.contentDirectory.value}\`.`
     case 'data':
