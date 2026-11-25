@@ -1,0 +1,18 @@
+{
+  "name": "loaders",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^8.1.6",
+    "astro": "^7.4.13",
+    "astro-loader-i18n": "^1.1.0",
+    "astro-loader-obsidian": "^0.10.0",
+    "hast-util-from-html": "^2.1.0"
+  }
+}
