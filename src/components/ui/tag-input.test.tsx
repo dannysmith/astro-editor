@@ -75,10 +75,24 @@ describe('TagInput suggestions', () => {
     expect(added()).toBe('java')
   })
 
+  it('stays closed after adding a tag nothing matched', async () => {
+    const { user, input } = setup()
+    await user.type(input, 'new{Enter}')
+    expect(added()).toBe('new')
+    expect(options()).toEqual([])
+  })
+
   it("adds the collection's spelling of a tag typed in another case", async () => {
     const { user, input } = setup()
     await user.type(input, 'javascript{Enter}')
     expect(added()).toBe('JavaScript')
+  })
+
+  it("doesn't add a tag the field already has in another case", async () => {
+    const { user, input } = setup(['javascript'])
+    await user.type(input, 'javascript{Enter}')
+    expect(added()).toBe('javascript')
+    expect(input).toHaveValue('')
   })
 
   it('closes the list on Escape, then clears the input', async () => {

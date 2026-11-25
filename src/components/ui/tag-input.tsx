@@ -66,6 +66,13 @@ function TagInput({
   // Open but empty would show an empty popup, and Escape would only close it
   const showSuggestions = suggestionsOpen && matches.length > 0
 
+  // Closes the list too: typing with no matches leaves it open but hidden,
+  // and an empty input matches every suggestion
+  const clearInput = () => {
+    setInputValue('')
+    setSuggestionsOpen(false)
+  }
+
   const addTag = (value: string) => {
     const trimmedValue = value.trim()
     if (!trimmedValue) return
@@ -73,15 +80,20 @@ function TagInput({
       ? existingSpelling(suggestions, trimmedValue)
       : trimmedValue
 
-    // Check for duplicates if not allowed
-    if (!allowDuplicates && tags.some(tag => tag.text === text)) {
-      setInputValue('')
+    // Check for duplicates if not allowed. With suggestions, a tag in another
+    // case is the same tag, as the suggestions treat it
+    const sameTag = (tag: Tag) =>
+      suggestions
+        ? tag.text.toLowerCase() === text.toLowerCase()
+        : tag.text === text
+    if (!allowDuplicates && tags.some(sameTag)) {
+      clearInput()
       return
     }
 
     // Check max tags limit
     if (maxTags && tags.length >= maxTags) {
-      setInputValue('')
+      clearInput()
       return
     }
 
@@ -91,7 +103,7 @@ function TagInput({
     }
 
     onTagsChange([...tags, newTag])
-    setInputValue('')
+    clearInput()
   }
 
   const removeTag = (tagId: string) => {
@@ -114,7 +126,7 @@ function TagInput({
         removeTag(lastTag.id)
       }
     } else if (e.key === 'Escape' && !showSuggestions) {
-      setInputValue('')
+      clearInput()
       inputRef.current?.blur()
     }
   }
