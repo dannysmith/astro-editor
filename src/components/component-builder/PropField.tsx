@@ -3,7 +3,7 @@ import type { PropInfo } from '@/types'
 import { Input } from '../ui/input'
 import { AutoExpandingTextarea } from '../ui/auto-expanding-textarea'
 import { Switch } from '../ui/switch'
-import { FieldLabel, FieldDescription } from '../ui/field'
+import { FormField } from '../ui/form-field'
 import { DatePicker } from '../ui/date-picker'
 import { TagInput, type Tag } from '../ui/tag-input'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
@@ -26,11 +26,10 @@ import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { EmojiButton } from '../frontmatter/fields/EmojiButton'
 import { isEmojiField } from '../frontmatter/utils'
 import { usePlatform } from '../../hooks/usePlatform'
-import { cn } from '../../lib/utils'
+import { camelCaseToTitleCase, cn } from '../../lib/utils'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useEditorStore } from '../../store/editorStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
-import { FormField } from './FormField'
 import { ImagePropField } from './ImagePropField'
 import { canImportImages } from '../../lib/project-scan'
 import { useCollection, useResolvedProjectSettings } from '../../hooks/settings'
@@ -80,29 +79,32 @@ export function PropField({ prop }: { prop: PropInfo }) {
     prop.default_value && !['null', 'undefined'].includes(prop.default_value)
       ? prop.default_value
       : undefined
+  const isEmpty =
+    value === undefined || (Array.isArray(value) && value.length === 0)
+
+  const fieldProps = {
+    label: camelCaseToTitleCase(name),
+    labelPosition: 'side' as const,
+    required,
+    missing: required && isEmpty,
+    description,
+    // The default shows while the prop has no value, as in the frontmatter panel
+    footer: {
+      text: defaultValue && isEmpty ? `Default: ${defaultValue}` : null,
+    },
+  }
 
   if (kind.kind === 'boolean' && required) {
     return (
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-3">
-          <FieldLabel htmlFor={id}>
-            {name}
-            <span className="ml-1 text-required">*</span>
-          </FieldLabel>
-          <Switch
-            id={id}
-            checked={value === true}
-            onCheckedChange={checked => setValue(name, checked)}
-          />
-        </div>
-        {description && (
-          <FieldDescription className="text-xs">{description}</FieldDescription>
-        )}
-      </div>
+      <FormField {...fieldProps} htmlFor={id} layout="horizontal">
+        <Switch
+          id={id}
+          checked={value === true}
+          onCheckedChange={checked => setValue(name, checked)}
+        />
+      </FormField>
     )
   }
-
-  const fieldProps = { label: name, required, description, defaultValue }
 
   // Numbers, imported bindings, and types we can only take as text
   const textField = (
@@ -127,7 +129,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
   if (kind.kind === 'boolean') {
     const current = typeof value === 'boolean' ? String(value) : 'default'
     return (
-      <FormField {...fieldProps} labelId={labelId}>
+      <FormField {...fieldProps} labelId={labelId} framed={false}>
         <ToggleGroup
           aria-labelledby={labelId}
           variant="outline"
@@ -307,18 +309,19 @@ export function PropField({ prop }: { prop: PropInfo }) {
   // Strings grow to fit, so props like `code` can take several lines
   if (kind.kind === 'string') {
     return (
-      <FormField {...fieldProps} htmlFor={id}>
-        <div className="relative">
-          <AutoExpandingTextarea
-            id={id}
-            minRows={1}
-            maxRows={10}
-            className={cn(hasEmojiButton && 'pr-9')}
-            value={typeof value === 'string' ? value : ''}
-            onChange={e => setValue(name, e.target.value || undefined)}
-          />
-          {hasEmojiButton && <EmojiButton inputId={id} />}
-        </div>
+      <FormField
+        {...fieldProps}
+        htmlFor={id}
+        overlay={hasEmojiButton ? <EmojiButton inputId={id} /> : undefined}
+      >
+        <AutoExpandingTextarea
+          id={id}
+          minRows={1}
+          maxRows={10}
+          className={cn(hasEmojiButton && 'pr-9')}
+          value={typeof value === 'string' ? value : ''}
+          onChange={e => setValue(name, e.target.value || undefined)}
+        />
       </FormField>
     )
   }

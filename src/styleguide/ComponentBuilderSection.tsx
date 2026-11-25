@@ -19,7 +19,10 @@ function prop(
   }
 }
 
-/** A component with one prop of each kind the form has a control for */
+/**
+ * A component with one prop of each kind the form has a control for, and an
+ * empty required one
+ */
 const COMPONENT: MdxComponent = {
   name: 'Event',
   file_path: 'src/components/mdx/Event.astro',
@@ -45,6 +48,13 @@ const COMPONENT: MdxComponent = {
     prop('free', { kind: 'boolean' }, { default_value: 'true' }),
     prop('featured', { kind: 'boolean' }, { is_optional: false }),
     prop('speakers', { kind: 'array', items: { kind: 'string' } }),
+    prop('venue', { kind: 'string' }, { is_optional: false }),
+    prop(
+      'track',
+      { kind: 'literals', values: ['design', 'engineering', 'product'] },
+      { description: 'Which track the talk is in' }
+    ),
+    prop('emoji', { kind: 'string' }),
   ],
 }
 
@@ -63,7 +73,7 @@ useComponentBuilderStore.setState({
 export function ComponentBuilderSection() {
   return (
     <Dialog open>
-      <DialogContent className="overflow-hidden p-0">
+      <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
         <DialogTitle className="sr-only">Insert MDX Component</DialogTitle>
         <ComponentForm component={COMPONENT} />
       </DialogContent>

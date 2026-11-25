@@ -51,7 +51,9 @@ In MDX, a component's children are Markdown, but the editor parses `<Callout>` o
 - Tests for the parser: a single-line tag, a multi-line self-closing tag, nested components, Markdown directly inside, expressions containing `>`, and that `.md` is unchanged.
 - Update `editor.md`.
 
-## Phase 4: Component builder
+## Phase 4: Component builder ✅
+
+**Done, awaiting Danny's review:** a pure UI `FormField` (`ui/form-field.tsx`) with `labelPosition="side"`; `FieldWrapper` wraps it for the frontmatter panel (pixel-identical in the styleguide), and the builder's fields use it directly with their own footer (the default while empty), so nothing in the builder knows about schemas. Danny chose labels beside their fields from four mocked layouts; the dialog is `sm:max-w-2xl`. Previews are highlighted by `lib/editor/syntax/highlightJsx.ts`. Type hints weren't added: a number field already says it's a number. Left for Danny: the website's builder screenshots (`mdx-builder-*.png`) came from a project that isn't in the repo, so they still show the old form, and the website checks weren't run (no `node_modules` in this worktree).
 
 Make the builder's form look and behave like the frontmatter panel (#399).
 

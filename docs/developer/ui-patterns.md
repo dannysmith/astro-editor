@@ -58,7 +58,7 @@ Sidebars can be dragged to their minimum width, so a component should fit any wi
 
 ## Forms
 
-The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), which takes the field's schema and value and adds its label, required mark, description, constraints and default, so a change to any of them lands in one place. Its `horizontal` layout puts the control beside the label, with the description below both. What the panel lists, and in what order and nesting, comes from `frontmatterTree` (`lib/frontmatter-tree.ts`). Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
+The frontmatter panel and the preferences and project settings dialogs are built from shadcn's `Field` parts. A field in a form that's filled in (the frontmatter panel, the component builder) uses `FormField` (`ui/form-field.tsx`): its label, the control in a box with a footer attached, the required edge and the description. It only shows what it's given, so each form works out its own footer. Frontmatter fields go through `FieldWrapper` (`src/components/frontmatter/fields/`), which turns the field's schema and value into the footer's constraints, default and problems, so a change to any of them lands in one place. The component builder's `PropField` passes a prop's default. `FormField`'s `horizontal` layout puts the control beside the label, with the description below both; `labelPosition="side"` puts every label in a column to the left, which the builder uses so a component with many props reads as a list. What the panel lists, and in what order and nesting, comes from `frontmatterTree` (`lib/frontmatter-tree.ts`). Preference rows use `Field`, `FieldLabel`, `FieldContent` and `FieldDescription` directly inside `SettingsSection`, which supplies the `FieldGroup`.
 
 A frontmatter field's control sits in one box with a footer attached (the styleguide's "Frontmatter field constraints" section shows every state):
 
@@ -66,7 +66,7 @@ A frontmatter field's control sits in one box with a footer attached (the styleg
 - **Constraints inform and never block.** AE is an editor, so anything can be typed and saved. A value outside its limits turns the footer amber (`--warning`). Red is for text that isn't being saved, like invalid JSON.
 - **Problems don't nag mid-word.** A value on its way to being valid (a half-typed URL, a word under its minimum) only shows as a problem once focus leaves the field. Going over a limit shows at once.
 - **A required field that's empty has a left edge** in `--required`, which goes once it's filled. Screen readers get "(required)" in the label either way.
-- **The box belongs to `FieldWrapper`.** A control inside it gives up its own border, radius and focus ring, so any shadcn control works unchanged. Controls made of several boxes (image pickers) pass `framed={false}` and get the same footer as plain text.
+- **The box belongs to `FormField`.** A control inside it gives up its own border, radius and focus ring, so any shadcn control works unchanged. Controls made of several boxes (image pickers) pass `framed={false}` and get the same footer as plain text.
 
 Project settings are laid out differently, as a readout of what AE found rather than a form to fill in, like macOS System Settings. `components/project-settings/Setting.tsx` has the pieces, shown in the styleguide's "Project settings" section:
 

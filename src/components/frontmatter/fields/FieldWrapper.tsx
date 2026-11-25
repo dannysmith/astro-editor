@@ -1,12 +1,6 @@
 import React from 'react'
-import {
-  Field,
-  FieldLabel,
-  FieldDescription,
-  FieldContent,
-} from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { fieldGuidance, isEmptyValue } from '../../../lib/field-guidance'
-import { cn } from '../../../lib/utils'
 import type { SchemaField } from '../../../lib/schema'
 
 interface FieldWrapperProps {
@@ -38,41 +32,11 @@ interface FieldWrapperProps {
   hideDefaultValue?: boolean
 }
 
-/** The footer: the field's rules or what's wrong, and how much of a limit is used */
-const GuidanceFooter: React.FC<{
-  id: string
-  text: string | null
-  count: string | null
-  isProblem: boolean
-  framed: boolean
-}> = ({ id, text, count, isProblem, framed }) => {
-  if (!text && !count) return null
-  return (
-    <div
-      id={id}
-      data-slot="field-footer"
-      className={cn(
-        'flex items-center justify-between gap-2 text-xs text-muted-foreground',
-        framed && 'min-h-6 border-t border-input/70 bg-muted/50 px-3 py-0.5',
-        isProblem && 'text-warning'
-      )}
-    >
-      <span
-        className="min-w-0 truncate"
-        title={text ?? undefined}
-        aria-live="polite"
-      >
-        {text}
-      </span>
-      {count && <span className="shrink-0 tabular-nums">{count}</span>}
-    </div>
-  )
-}
-
 /**
- * A frontmatter field: its label, its control in a box with a footer attached
- * for its constraints, and its description. A required field that's empty has
- * a coloured left edge. Nothing here stops a value being typed or saved.
+ * A frontmatter field: a `FormField` whose footer states the schema's
+ * constraints for the field and whether the value meets them. A required
+ * field that's empty has a coloured left edge. Nothing here stops a value
+ * being typed or saved.
  */
 export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   label,
@@ -80,7 +44,7 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   value,
   htmlFor,
   labelId,
-  description: descriptionOverride,
+  description,
   layout = 'vertical',
   framed = true,
   problem: controlProblem,
@@ -90,9 +54,6 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   hideDefaultValue = false,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false)
-  const footerId = React.useId()
-  const description = descriptionOverride ?? field?.description
-  const isMissing = Boolean(field?.required) && isEmptyValue(value)
 
   const guidance = fieldGuidance(field, value, {
     hideDefault: hideDefaultValue,
@@ -102,91 +63,27 @@ export const FieldWrapper: React.FC<FieldWrapperProps> = ({
     ? { message: controlProblem, whileTyping: true }
     : guidance.problem
   const shownProblem = problem?.whileTyping || !isFocused ? problem : null
-  const footerText = shownProblem?.message ?? guidance.note
-
-  const fieldLabel = (
-    <FieldLabel htmlFor={htmlFor} id={labelId}>
-      {label}
-      {field?.required && <span className="sr-only">{' (required)'}</span>}
-    </FieldLabel>
-  )
-  const descriptionText = description && (
-    <FieldDescription>{description}</FieldDescription>
-  )
-  const footer = (
-    <GuidanceFooter
-      id={footerId}
-      text={footerText}
-      count={guidance.count}
-      isProblem={Boolean(shownProblem)}
-      framed={framed}
-    />
-  )
-  const focusHandlers = {
-    onFocus: () => setIsFocused(true),
-    onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) {
-        setIsFocused(false)
-      }
-    },
-  }
-
-  if (layout === 'horizontal') {
-    return (
-      <div
-        className={cn(
-          'flex flex-col gap-1.5',
-          isMissing && 'border-l-2 border-l-required pl-2.5'
-        )}
-      >
-        <Field orientation="horizontal">
-          {fieldLabel}
-          {children}
-        </Field>
-        {descriptionText}
-      </div>
-    )
-  }
 
   return (
-    <Field
-      orientation="vertical"
-      aria-describedby={footerText || guidance.count ? footerId : undefined}
+    <FormField
+      label={label}
+      htmlFor={htmlFor}
+      labelId={labelId}
+      required={field?.required}
+      missing={Boolean(field?.required) && isEmptyValue(value)}
+      description={description ?? field?.description}
+      footer={{
+        text: shownProblem?.message ?? guidance.note,
+        count: guidance.count,
+        isProblem: Boolean(shownProblem),
+      }}
+      layout={layout}
+      framed={framed}
+      overlay={overlay}
+      after={after}
+      onFocusChange={setIsFocused}
     >
-      {fieldLabel}
-      <FieldContent>
-        {framed ? (
-          <div
-            data-slot="field-frame"
-            {...focusHandlers}
-            className={cn(
-              'relative overflow-hidden rounded-md border border-input shadow-xs transition-[color,box-shadow] dark:bg-input/30',
-              'has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
-              // The control gives up its own box to the frame
-              '[&>[data-slot=field-control]>*]:w-full [&>[data-slot=field-control]>*]:rounded-none [&>[data-slot=field-control]>*]:border-0 [&>[data-slot=field-control]>*]:bg-transparent [&>[data-slot=field-control]>*]:shadow-none [&>[data-slot=field-control]>*]:ring-0!',
-              '[&>[data-slot=field-control]>button:hover]:bg-accent/50',
-              isMissing && 'border-l-2 border-l-required'
-            )}
-          >
-            <div data-slot="field-control">{children}</div>
-            {overlay}
-            {footer}
-          </div>
-        ) : (
-          <div
-            {...focusHandlers}
-            className={cn(
-              'space-y-1.5',
-              isMissing && 'border-l-2 border-l-required pl-2.5'
-            )}
-          >
-            {children}
-            {footer}
-          </div>
-        )}
-        {after}
-        {descriptionText}
-      </FieldContent>
-    </Field>
+      {children}
+    </FormField>
   )
 }

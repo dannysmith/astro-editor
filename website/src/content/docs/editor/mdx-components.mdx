@@ -84,9 +84,9 @@ And here's the form the builder shows for it.
 
 A few things to notice:
 
-- **Required props are marked with an asterisk.** A prop is required unless it's optional (`format?:`). Leave a required prop empty and the builder inserts it with your cursor in it, ready to fill in.
+- **Required props have a coloured edge while they're empty.** A prop is required unless it's optional (`format?:`). Leave a required prop empty and the builder inserts it with your cursor in it, ready to fill in.
 - **Optional props are left out unless you give them a value**, so the component's own defaults apply.
-- **Defaults are shown beside the prop's name.** They come from destructuring `Astro.props` (`format = 'paperback'`). React parameters, Vue's `withDefaults` and Svelte's `$props()` work the same way.
+- **Defaults are shown under a prop's field while it's empty.** They come from destructuring `Astro.props` (`format = 'paperback'`). React parameters, Vue's `withDefaults` and Svelte's `$props()` work the same way.
 - **Doc comments become help text.** A comment on a prop appears under its field, and one at the top of the component is its description in the list and the form.
 - **A component with a `<slot />` wraps content.** Inserted on an empty line, it goes in on lines of its own, with blank lines around the content so you can write markdown inside it.
 - **`cover` and `review` get pickers** here because [Adding Imports](#adding-imports) is turned on for this project. Without it, they're text boxes for the name of something you've imported or loaded yourself.

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
-import { FormField } from './FormField'
+import { FormField } from '../ui/form-field'
 import {
   useComponentBuilderStore,
   type ClientDirective,
@@ -29,12 +29,26 @@ import {
   withPicks,
 } from '../../lib/editor/snippet-builder'
 import { isOnEmptyLine } from '../../lib/editor/commands/insertSnippet'
+import { highlightJsx } from '../../lib/editor/syntax/highlightJsx'
 import { FrameworkBadge } from './FrameworkBadge'
 import { PropField } from './PropField'
 
 /** The tag preview and the import line */
 const codeBoxClassName =
   'block rounded bg-muted px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap'
+
+/** Code in a box, highlighted with the editor's colours */
+function HighlightedCode({ code }: { code: string }) {
+  return (
+    <code className={codeBoxClassName}>
+      {highlightJsx(code).map((segment, index) => (
+        <span key={index} className={segment.className}>
+          {segment.text}
+        </span>
+      ))}
+    </code>
+  )
+}
 
 const clientDirectiveOptions: { value: ClientDirective; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -138,8 +152,9 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
         ))}
         {isFrameworkComponent && (
           <FormField
-            label="Client directive"
+            label="Client Directive"
             labelId={directiveLabelId}
+            labelPosition="side"
             description="When the component's JavaScript loads in the browser"
           >
             <Select
@@ -166,9 +181,9 @@ export function ComponentForm({ component }: { component: MdxComponent }) {
       </div>
 
       <div className="border-t px-4 py-3">
-        <code className={codeBoxClassName}>
-          {buildPreview(tag.component, tag.values, clientDirective, block)}
-        </code>
+        <HighlightedCode
+          code={buildPreview(tag.component, tag.values, clientDirective, block)}
+        />
       </div>
 
       <ImportRow />
@@ -237,16 +252,14 @@ function ImportRow() {
         )}
       </div>
       <CollapsibleContent className="flex flex-col gap-1.5 py-1">
-        {adds && (
-          <code
-            className={cn(
-              codeBoxClassName,
-              !addImport && 'text-muted-foreground'
-            )}
-          >
-            {plan.added.join('\n')}
-          </code>
-        )}
+        {adds &&
+          (addImport ? (
+            <HighlightedCode code={plan.added.join('\n')} />
+          ) : (
+            <code className={cn(codeBoxClassName, 'text-muted-foreground')}>
+              {plan.added.join('\n')}
+            </code>
+          ))}
         {/* The import that already has the component's name, labelled when
             there are imports to add above it */}
         {plan.existing && (
