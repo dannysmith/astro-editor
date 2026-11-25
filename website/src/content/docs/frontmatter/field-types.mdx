@@ -23,6 +23,10 @@ Every field in your collection [schema](/frontmatter/overview/) becomes a contro
 
 A few fields get richer controls and have their own sections below: [objects](#nested-fields), [images](#image-fields), and [references](#reference-fields). A list of images gets an image picker for each. Fields Astro Editor can't give a proper control are edited as JSON, in a text box: lists of anything but text, numbers, images and references (dates or objects, say), objects without fixed fields, like a `z.record()`, and any object or list in a file that the schema doesn't describe. [Project Settings](/project-settings/#schema) marks these **Edited as JSON**.
 
+A list of text, like `tags`, suggests the values the collection's other entries already use for it as you type, most used first, with how many entries use each. Press <Kbd mac="↓" windows="↓" /> in the empty field to see the most used. A tag typed in another case, like `javascript` when the collection uses `JavaScript`, is added in the collection's spelling, so tags don't drift apart.
+
+On macOS, a text field named `emoji` has a button that opens the emoji picker.
+
 ## Descriptions, defaults & constraints
 
 Astro Editor surfaces the extra information in your schema as guidance on each field:
@@ -73,7 +77,7 @@ Here `ogTitle` and `noIndex` appear together under a **Seo** heading, each using
 
 ## Image fields
 
-<Figure src={nestedImageField} alt="An image field in the frontmatter sidebar showing a thumbnail preview above the image path, with edit and clear buttons" caption="An image field: a thumbnail preview with controls to edit the path or clear the image. This one happens to also be a nested field." />
+<Figure src={nestedImageField} alt="An image field in the frontmatter sidebar showing the image path with edit and clear buttons, a Change Image button and a thumbnail preview" caption="An image field: a thumbnail preview with controls to edit the path or clear the image. This one happens to also be a nested field." />
 
 A field using Astro's `image()` helper becomes an image control with a thumbnail preview, rather than a plain path input.
 

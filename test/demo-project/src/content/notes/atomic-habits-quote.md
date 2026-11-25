@@ -5,6 +5,9 @@ pubDate: 2024-09-30
 tags:
 - quotes
 - habits
+coverImage:
+  image: ../../assets/books/2026-06-28-atomic-habits.jpg
+  alt: The cover of Atomic Habits
 ---
 
 # Quote from Atomic Habits

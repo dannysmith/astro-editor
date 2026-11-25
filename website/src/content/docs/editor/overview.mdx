@@ -9,6 +9,8 @@ import editorDarkFull from '../../../assets/editor-dark-full.png'
 
 The editor window shows the entire contents of your markdown or MDX files with the exception of the YAML [frontmatter](/frontmatter/overview/) and any JSX `import` lines immediately following the frontmatter. It's designed to provide an extremely clean writing interface, especially when both sidebars are closed. It provides markdown syntax highlighting and editing features.
 
+Code in a fenced code block is shown plain, and highlighted in its language while your cursor is in the block. In MDX files, Markdown inside a component is highlighted as Markdown, as MDX renders it, and JSX attributes like `date={new Date()}` are highlighted too.
+
 ## Typography
 
 The editor might look simple at first glance, but a lot of thought has gone into its design and typography. It uses the wonderful [iA Writer Duo](https://ia.net/topics/in-search-of-the-perfect-writing-font/) variable font, which is better suited to prose than fully monospaced fonts, and the font size and line height adjust automatically to the size of the editor. The typography and colours also adjust appropriately for dark mode, and when there's enough room the leading `##` characters of headings "hang" in the margin.

@@ -16,6 +16,8 @@ export type ShotStep =
   | { click: string }
   | { clickSelector: string }
   | { key: string }
+  /** Sets the value of the input or textarea with this label, as `click` finds it */
+  | { fill: [label: string, value: string] }
   /** A file in the project to record as copied in for the open entry */
   | { added: string }
   | { waitForIssues: true }
@@ -35,14 +37,18 @@ export interface Shot {
   frame: boolean
   /** Keeps only this part of the window, in logical pixels, instead of a frame */
   crop?: [x: number, y: number, width: number, height: number]
-  /** Crops to the smallest element around `text` that also contains `contains` */
-  cropTo?: { text: string; contains: string }
+  /**
+   * Crops to the smallest element around `text` that also contains `contains`,
+   * plus `margin` logical pixels around it (8 by default)
+   */
+  cropTo?: { text: string; contains: string; margin?: number }
   /** Writes only the raw snapshot, for another script to build on */
   rawOnly?: boolean
   /** Relative to the project's `src/content` */
   file?: string
   scene?: Partial<Scene>
   gitPanel?: boolean
+  addComponentImports?: boolean
   steps?: ShotStep[]
   /** Undoes anything the steps changed in the demo repo */
   after?: ShotStep[]
@@ -71,6 +77,8 @@ const PODCAST = 'notes/habit-formation-podcast.md'
 const PASTA = 'notes/one-pot-pasta-recipe.mdx'
 const HABITS = 'books/atomic-habits.mdx'
 const DRAFT = 'articles/lifestyle/walking-to-work.md'
+const QUOTE = 'notes/atomic-habits-quote.md'
+const COOKBOOKS = 'articles/lifestyle/favorite-cookbooks-2024.mdx'
 const UNUSED_IMAGE = 'src/assets/articles/lisbon-custard-tarts.jpg'
 const ALL_CHECKS = { spelling: true, grammar: true, style: true }
 
@@ -102,6 +110,66 @@ const checksShot = (name: string, steps: ShotStep[] = []): Shot => ({
   file: DRAFT,
   scene: { left: false, tab: 'copyedit', checks: ALL_CHECKS },
   steps: [{ waitForIssues: true }, ...steps],
+})
+
+// Crops the frontmatter panel to one object's group of fields
+const nestedFieldShot = (
+  name: string,
+  file: string,
+  cropTo: NonNullable<Shot['cropTo']>
+): Shot => ({
+  name,
+  theme: 'light',
+  size: [1432, 900],
+  frame: false,
+  file,
+  scene: { left: false },
+  steps: [{ scrollTo: cropTo.text }],
+  cropTo,
+})
+
+// Clicking a control scrolls it into view, which can leave a dialog scrolled
+const SCROLL_DIALOG_TO_TOP = `document.querySelectorAll('[role="dialog"] *').forEach(el => { el.scrollTop = 0 })`
+
+// Picks BookCard's cover and review in the builder. The cover picker opens a
+// native file dialog, so this sets what picking the demo's copy would.
+const PICK_BOOK = `
+  const { useComponentBuilderStore } = await import('/src/store/componentBuilderStore.ts')
+  const builder = useComponentBuilderStore.getState()
+  await builder.setImage('cover', {
+    file_name: '2026-10-31-atomic-habits-cover.jpg',
+    specifier: '../../../assets/articles/2026-10-31-atomic-habits-cover.jpg',
+  })
+  await builder.setEntry('review', { collection: 'books', id: 'atomic-habits' })`
+
+// Opens BookCard in the builder and fills its form in for Atomic Habits
+const FILL_BOOK_CARD: ShotStep[] = [
+  { fill: ['Search components...', 'BookCard'] },
+  { key: 'enter' },
+  { fill: ['Title (required)', 'Atomic Habits'] },
+  { fill: ['Author (required)', 'James Clear'] },
+  { js: PICK_BOOK },
+  { fill: ['Rating', '5'] },
+  { click: 'Favourite (required)' },
+]
+
+const builderShot = (name: string, extra: Partial<Shot> = {}): Shot => ({
+  name,
+  theme: 'light',
+  size: [1124, 700],
+  frame: true,
+  file: COOKBOOKS,
+  scene: { left: false, right: false },
+  ...extra,
+  steps: [
+    // Clicking would scroll the editor; the builder only needs it focused
+    {
+      js: `document.querySelector('.cm-content').focus({ preventScroll: true })`,
+    },
+    { key: 'mod+/' },
+    ...(extra.steps ?? []),
+  ],
+  after: [{ key: 'escape' }, { key: 'escape' }],
 })
 
 const projectSettingsShot = (name: string, steps: ShotStep[]): Shot => ({
@@ -167,6 +235,26 @@ export const SHOTS: Shot[] = [
     steps: [{ js: LABEL_PANES }],
     after: [{ js: `document.getElementById('shot-pane-labels').remove()` }],
   },
+  // Opening an entry shows the top of its collection, articles. Closing it
+  // leaves that showing, and going back shows the list of collections.
+  {
+    name: 'file-manager-1',
+    theme: 'light',
+    size: [1185, 700],
+    frame: true,
+    file: LISBON,
+    scene: { right: false },
+    steps: [{ run: 'close-file' }, { click: 'Back' }],
+  },
+  {
+    name: 'file-manager-2',
+    theme: 'light',
+    size: [1185, 700],
+    frame: true,
+    file: LISBON,
+    scene: { right: false },
+    steps: [{ run: 'close-file' }],
+  },
   {
     name: 'file-manager-3',
     theme: 'light',
@@ -183,6 +271,16 @@ export const SHOTS: Shot[] = [
     file: PODCAST,
     scene: { right: false },
     steps: [{ click: 'Show Drafts Only' }],
+  },
+  {
+    name: 'file-manager-filter',
+    theme: 'light',
+    size: [1185, 700],
+    frame: false,
+    crop: [0, 44, 506, 370],
+    file: PODCAST,
+    scene: { right: false },
+    steps: [{ click: 'Show Filters' }, { fill: ['Search files...', 'rec'] }],
   },
   {
     name: 'file-manager-sort',
@@ -230,9 +328,7 @@ export const SHOTS: Shot[] = [
   projectSettingsShot('project-settings-collection', [
     { click: 'articles' },
     { click: 'Date and title' },
-    {
-      js: `document.querySelectorAll('[role="dialog"] *').forEach(el => { el.scrollTop = 0 })`,
-    },
+    { js: SCROLL_DIALOG_TO_TOP },
   ]),
   projectSettingsShot('project-settings-frontmatter', [
     { click: 'articles' },
@@ -272,6 +368,54 @@ export const SHOTS: Shot[] = [
   },
   checksShot('copyedit-checks'),
   checksShot('copyedit-issue-popover', [{ click: 'fourty' }]),
+  nestedFieldShot('nested-field-example', PODCAST, {
+    text: 'Metadata',
+    contains: 'Deadline',
+  }),
+  nestedFieldShot('nested-image-field', QUOTE, {
+    text: 'Cover Image',
+    contains: 'Alt',
+  }),
+  builderShot('mdx-builder-1'),
+  builderShot('mdx-builder-fields', {
+    size: [1124, 1064],
+    addComponentImports: true,
+    steps: [{ fill: ['Search components...', 'BookCard'] }, { key: 'enter' }],
+  }),
+  builderShot('mdx-builder-imports', {
+    size: [1124, 1250],
+    addComponentImports: true,
+    steps: [...FILL_BOOK_CARD, { click: 'Add imports' }],
+  }),
+  // The homepage's feature sections show these at about 640px wide, so they're
+  // cropped to the right sidebar and a slice of the editor beside it
+  {
+    name: 'home-frontmatter',
+    theme: 'light',
+    size: [1200, 760],
+    frame: false,
+    crop: [330, 0, 870, 760],
+    file: HABITS,
+    scene: { left: false },
+  },
+  {
+    ...checksShot('home-copyedit'),
+    size: [1200, 760],
+    frame: false,
+    crop: [330, 0, 870, 760],
+  },
+  gitShot('home-git', {
+    size: [1200, 760],
+    frame: false,
+    crop: [330, 0, 870, 560],
+  }),
+  builderShot('home-mdx-builder', {
+    size: [1124, 1300],
+    addComponentImports: true,
+    frame: false,
+    cropTo: { text: '<BookCard>', contains: 'Insert', margin: 40 },
+    steps: [...FILL_BOOK_CARD, { js: SCROLL_DIALOG_TO_TOP }],
+  }),
   gitShot('git-tab'),
   gitShot('git-commit-card', {
     steps: [{ click: 'Stage 3 files' }],

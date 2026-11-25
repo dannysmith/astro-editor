@@ -362,6 +362,8 @@ async function runShotStep(step: ShotStep) {
         el.scrollIntoView({ block: 'start' })`,
     })
     await callApi('idle')
+  } else if ('fill' in step) {
+    await callApi('fill', { text: step.fill[0] }, step.fill[1])
   } else if ('replaceText' in step) {
     await call('POST', '/eval', {
       js: `const [from, to] = ${jsLiteral(step.replaceText)}
@@ -399,19 +401,20 @@ async function setPanelLayout(layout: string | null) {
 async function cropBox({
   text,
   contains,
+  margin = 8,
 }: NonNullable<Shot['cropTo']>): Promise<NonNullable<Shot['crop']>> {
   return call('POST', '/eval', {
-    js: `const text = ${jsLiteral(text)}, contains = ${jsLiteral(contains)}
+    js: `const text = ${jsLiteral(text)}, contains = ${jsLiteral(contains)}, margin = ${margin}
       let el = [...document.querySelectorAll('body *')].find(
         e => !e.children.length && e.textContent.trim() === text
       )
       if (!el) throw new Error('Nothing with the text ' + text)
       while (!el.textContent.includes(contains)) el = el.parentElement
       const r = el.getBoundingClientRect()
-      const x = Math.max(0, Math.floor(r.left) - 8), y = Math.max(0, Math.floor(r.top) - 8)
+      const x = Math.max(0, Math.floor(r.left) - margin), y = Math.max(0, Math.floor(r.top) - margin)
       return [x, y,
-        Math.min(innerWidth, Math.ceil(r.right) + 8) - x,
-        Math.min(innerHeight, Math.ceil(r.bottom) + 8) - y]`,
+        Math.min(innerWidth, Math.ceil(r.right) + margin) - x,
+        Math.min(innerHeight, Math.ceil(r.bottom) + margin) - y]`,
   })
 }
 
@@ -423,7 +426,10 @@ async function setUpShot(shot: Shot) {
     )
   }
   await callApi('openProject', DEMO_PROJECT)
-  await callApi('setGitPanel', shot.gitPanel ?? false)
+  await callApi('setExperiments', {
+    gitPanel: shot.gitPanel ?? false,
+    addComponentImports: shot.addComponentImports ?? false,
+  })
   await call('POST', '/window', {
     width: shot.size[0],
     height: shot.size[1],

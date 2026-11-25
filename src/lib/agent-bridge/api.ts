@@ -246,14 +246,17 @@ export function createAgentApi(deps: AgentApiDeps) {
       await idle()
     },
 
-    /** Turns the open project's Git tab on or off. */
-    async setGitPanel(on: boolean) {
+    /** Turns the open project's experimental Git tab and component imports on or off. */
+    async setExperiments(experiments: {
+      gitPanel: boolean
+      addComponentImports: boolean
+    }) {
       const { projectSettings, updateProjectSettings } =
         useProjectStore.getState()
       if (!projectSettings) throw new Error('No project is open')
       await updateProjectSettings({
         ...projectSettings,
-        project: { ...projectSettings.project, gitPanel: on },
+        project: { ...projectSettings.project, ...experiments },
       })
       await idle()
     },

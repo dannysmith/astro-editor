@@ -15,11 +15,11 @@ import aeLight from '../assets/main-demo-image-light.png'
 import aeDark from '../assets/main-demo-image-dark.png'
 import aeFocusLight from '../assets/main-demo-image-distractionless-light.png'
 import aeFocusDark from '../assets/main-demo-image-distractionless-dark.png'
-import frontmatterShot from '../assets/frontmatter-sidebar-overview.png'
-import mdxShot from '../assets/mdx-builder-1.png'
+import frontmatterShot from '../assets/home-frontmatter.png'
+import mdxShot from '../assets/home-mdx-builder.png'
 import imagePreviewShot from '../assets/image-preview-demo.png'
-import copyeditShot from '../assets/copyedit-checks.png'
-import gitShot from '../assets/git-tab.png'
+import copyeditShot from '../assets/home-copyedit.png'
+import gitShot from '../assets/home-git.png'
 import contentFinderShot from '../assets/content-linker.png'
 import commandPaletteShot from '../assets/command-palette.png'
 import draftsShot from '../assets/file-manager-drafts-filter.png'
@@ -197,7 +197,7 @@ const structuredData = {
       <Screenshot
         slot="media"
         src={frontmatterShot}
-        alt="Astro Editor with the markdown editor on the left and a frontmatter panel on the right showing Title, Source URL, Slug, Draft, Description, Pub Date, Tags and Category fields generated from the schema."
+        alt="The frontmatter panel beside a book review, with fields generated from the schema: the title with its length limit, the author, the ISBN, and a cover image field with a preview."
         caption="Fields generated from the collection schema, right beside the editor."
       />
     </FeatureSection>
@@ -258,8 +258,8 @@ const structuredData = {
       <Screenshot
         slot="media"
         src={mdxShot}
-        alt="Astro Editor's component inserter open over an MDX file, listing components including InfoBox (Vue), Callout (Astro), Card (Vue), BookmarkCard (Astro) and Alert (React)."
-        caption="Search and insert components from across your project's frameworks."
+        alt="The component inserter's form for a BookCard component, filled in for Atomic Habits: title, author, a cover image with a preview, a rating, a favourite switch and a review picked from the books collection, with a preview of the tag it will insert."
+        caption="A form for each component's props, built from its code."
       />
     </FeatureSection>
 
@@ -314,7 +314,6 @@ const structuredData = {
       </p>
       <Screenshot
         slot="media"
-        bare
         src={copyeditShot}
         alt="A rough draft in Astro Editor with spelling, grammar and style issues underlined, and the same issues listed in the Copyedit panel with switches for each kind of check."
         caption="Issues are underlined in the editor and listed in the panel."
@@ -341,7 +340,6 @@ const structuredData = {
       </p>
       <Screenshot
         slot="media"
-        bare
         src={gitShot}
         alt="The Git tab beside an article in Astro Editor, showing the branch with one commit to push, the entry marked Modified, a Stage 3 files button, two images ticked and one marked as no longer used."
         caption="The entry and the files it uses, ready to commit."

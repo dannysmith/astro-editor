@@ -61,6 +61,7 @@ To add an app action, add a method to `createAgentApi` (or `createPageApi` if it
 - **Content comes from a throwaway repo,** `demo-project`, built with `bash scripts/make-git-test-repos.sh demo`. It has its own git identity with no signing or hooks, because Project Settings shows them and these images are public. Rebuild it if a shot fails part way through staging.
 - **The window frame is added afterwards.** Snapshots have square corners and no shadow, so `frameWindow` adds both, using values measured from native macOS captures.
 - **Native UI can't be captured.** For menus, native dialogs and vibrancy, `bun run app shots --setup <name>` gets the app into a shot's state and stops so you can take it on the Mac. `bun run app shots --restore` then puts the app back.
+- **Steps can't use a native file picker.** A `js` step sets what picking the file would instead, as `PICK_BOOK` does for the component builder, with the file already in the demo project where the picker would have copied it.
 - **The OG image is built on top of a shot:** `bun run app shots og-window`, then `bun scripts/compose-og-image.ts` in `website/`.
 
 ## Styleguide

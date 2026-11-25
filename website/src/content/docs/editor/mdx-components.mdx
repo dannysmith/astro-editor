@@ -107,7 +107,7 @@ A few things to notice:
 | `CollectionEntry<'books'>` | A text box for the name of a loaded entry, or an [entry picker](#collection-entries) | `review={atomicHabits}` |
 | Anything else | A text box | The text, as a string |
 
-Text containing quotes or line breaks is written as a template literal (``note={`Say "hi"`}``) so it survives MDX.
+Text containing quotes or line breaks is written as a template literal (``note={`Say "hi"`}``) so it survives MDX. On macOS, a prop named `emoji` has a button that opens the emoji picker.
 
 For components written in a framework (React, Vue or Svelte), the form also has a [client directive](https://docs.astro.build/en/reference/directives-reference/#client-directives) — `client:load`, `client:idle`, `client:visible`, `client:media` or `client:only`. This controls when (and whether) Astro hydrates the component in the browser, and gets added to the inserted tag. `client:idle` is a good choice for most cases. Astro components don't need one, so the option only appears for framework components.
 
@@ -165,8 +165,8 @@ With it on, the form has an **Add import** row under the preview. The switch lea
 
 After inserting that BookCard, the top of the file looks like this:
 
-```mdx title="books-that-stuck.mdx"
-import { Callout } from '@/components/mdx'
+```mdx title="favorite-cookbooks-2024.mdx"
+import { BookmarkCard, Callout } from '@/components/mdx'
 import BookCard from '../../../components/mdx/BookCard.astro'
 import atomicHabitsCover from '../../../assets/articles/2026-10-31-atomic-habits-cover.jpg'
 import { getEntry } from 'astro:content'
