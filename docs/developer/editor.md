@@ -30,6 +30,8 @@ Highlighting runs through custom tags rather than `@lezer/highlight`'s built-in 
 
 `styleTags` also only applies to the exact node, not its children, which is why whole-blockquote styling is a line decoration (`blockquote-style.ts`).
 
+**Code in fenced blocks** is parsed in the fence's language (`syntax/codeLanguages.ts`: `@codemirror/language-data`, loaded lazily, plus Astro as TSX and Svelte as HTML), and coloured by the standard `tags.*` rules in `highlightStyle.ts`. It's only shown highlighted in the block holding the cursor: `code-block-background.ts` adds `cm-codeblock-active` to that block's lines, and `theme.ts` resets the colour and weight of code spans in every other block. lang-markdown mounts code (and HTML) as overlay trees, which `Tree.iterate` doesn't enter, so extensions that walk the tree for Markdown nodes never see a heading or emphasis inside a ```` ```markdown ```` fence. Only the parser of a nested language is used, not its extensions, so no completions or auto-closing tags come with it.
+
 Colours and type come from `editor-styles.md` and the `--editor-color-*` tokens in `App.css` (see `color-system.md`).
 
 ## Spelling, grammar and style checks

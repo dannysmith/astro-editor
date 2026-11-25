@@ -12,7 +12,9 @@ Each phase ends with `bun run check:all` passing, a check in the app in light an
 - **Extensions that walk the tree** (`harper/prose.ts`, `syntax-mark-decorations.ts`, `code-block-background.ts`, focus and copyedit modes) will see nested trees inside code blocks and, after Phase 3, a different shape for MDX components. `tree.iterate` enters mounted trees by default.
 - **"Markdown inside HTML tags"** was researched in the very first build, with no notes kept on the result.
 
-## Phase 1: Emoji button
+## Phase 1: Emoji button ✅
+
+**Done:** the native palette works (`commands/emoji.rs`, `EmojiButton`). The button shows on macOS only, so Windows and Linux are unchanged; no picker package was needed. The notes collection and the `Callout` component in the test project have an `emoji` field.
 
 A string frontmatter field or component prop named `emoji` gets a button on the right of its input that inserts the chosen emoji. It stays an ordinary text field. Not documented on the website.
 
@@ -23,7 +25,9 @@ Where it goes: `StringField` (`components/frontmatter/fields/`), chosen in `Fron
    - Native works: show the button only on macOS. Windows users still have Win+.
    - Native doesn't work, or we want one picker everywhere: an in-app picker. shadcn has no emoji picker of its own; the likely small option is [frimousse](https://github.com/liveblocks/frimousse), which is unstyled, renders emoji as text (no images) and takes an `emojibaseUrl`. By default it fetches its data from jsDelivr, so ship the `emojibase-data` JSON with the app and point it there. Nothing may load from a CDN.
 
-## Phase 2: Highlighting code blocks
+## Phase 2: Highlighting code blocks ✅
+
+**Done, awaiting Danny's review:** `syntax/codeLanguages.ts` (language-data, plus Astro as TSX and Svelte as HTML), the active block in `code-block-background.ts` with a test, the reset in `theme.ts`, and `editor.md`. The tree-walking extensions were never at risk: code is mounted as an overlay, which `Tree.iterate` doesn't enter. The main bundle didn't grow; each language is its own lazy chunk.
 
 Code in fenced blocks is highlighted only while the cursor is inside that block; elsewhere it stays as it is now.
 

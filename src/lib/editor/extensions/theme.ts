@@ -142,5 +142,15 @@ export const createEditorTheme = () => {
     '.cm-codeblock-only': {
       borderRadius: '2px',
     },
+    // Code is highlighted only in the block holding the cursor. Elsewhere its
+    // highlight spans take the line's text style. The fence lines keep their
+    // mark colours, and opacity (focus mode) is left alone
+    '.cm-codeblock-line:not(.cm-codeblock-active, .cm-codeblock-first, .cm-codeblock-last, .cm-codeblock-only) span':
+      {
+        color: 'inherit',
+        fontWeight: 'inherit',
+        fontStyle: 'inherit',
+        textDecoration: 'none',
+      },
   })
 }

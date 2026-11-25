@@ -9,10 +9,18 @@ import { syntaxTree } from '@codemirror/language'
  * Adds a background color to fenced code blocks (``` syntax).
  * Applies line decorations to each line within the code block,
  * including the opening and closing fence markers.
+ *
+ * The block holding the cursor also gets `cm-codeblock-active`. Code is parsed
+ * in its fence's language everywhere, but `theme.ts` only shows that
+ * highlighting in the active block, so code stays calm while writing around it.
  */
+
+/** Nodes that can't contain a fenced code block */
+const LEAF_BLOCKS = new Set(['Paragraph', 'FencedCode', 'CodeBlock', 'Table'])
 
 function buildCodeBlockDecorations(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = []
+  const cursor = state.selection.main.head
 
   syntaxTree(state).iterate({
     enter(node) {
@@ -21,6 +29,7 @@ function buildCodeBlockDecorations(state: EditorState): DecorationSet {
         const startLine = state.doc.lineAt(node.from)
         const endLine = state.doc.lineAt(node.to)
         const isSingleLine = startLine.number === endLine.number
+        const isActive = cursor >= node.from && cursor <= node.to
 
         // Apply decoration to each line in the code block
         for (
@@ -41,12 +50,15 @@ function buildCodeBlockDecorations(state: EditorState): DecorationSet {
           } else if (isLast) {
             className += ' cm-codeblock-last'
           }
+          if (isActive) className += ' cm-codeblock-active'
 
           decorations.push(
             Decoration.line({ class: className }).range(line.from)
           )
         }
       }
+      // This runs on every cursor move, so skip what can't hold a code block
+      return !LEAF_BLOCKS.has(node.name)
     },
   })
 
@@ -59,7 +71,7 @@ export const codeBlockBackgroundExtension = StateField.define<DecorationSet>({
   },
 
   update(decorations, tr) {
-    if (tr.docChanged) {
+    if (tr.docChanged || tr.selection) {
       return buildCodeBlockDecorations(tr.state)
     }
     return decorations.map(tr.changes)

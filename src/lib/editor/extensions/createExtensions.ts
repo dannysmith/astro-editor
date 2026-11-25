@@ -45,7 +45,11 @@ import { syntaxHighlighting } from '@codemirror/language'
 import { undoHistory } from '../load-document'
 import { closeBrackets } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
-import { markdownStyleExtension, comprehensiveHighlightStyle } from '../syntax'
+import {
+  markdownStyleExtension,
+  comprehensiveHighlightStyle,
+  codeLanguages,
+} from '../syntax'
 import { altKeyState, urlHoverPlugin, handleUrlClick } from '../urls'
 import { handlePaste } from '../paste'
 import { createKeymapExtensions, type KeymapHandlers } from './keymap'
@@ -91,8 +95,11 @@ export const createExtensions = (config: ExtensionConfig) => {
     // We add the GFM bundle rather than switching to `base: markdownLanguage`
     // so we get GFM only, without subscript/superscript/emoji (single `~x~`
     // would otherwise become subscript, which is hostile to prose writing).
+    // Fenced code is parsed in its language, but only highlighted in the block
+    // holding the cursor (code-block-background.ts)
     markdown({
       extensions: [markdownStyleExtension, GFM],
+      codeLanguages,
     }),
     syntaxHighlighting(comprehensiveHighlightStyle),
     undoHistory(),

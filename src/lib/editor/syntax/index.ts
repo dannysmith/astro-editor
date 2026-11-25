@@ -22,3 +22,4 @@
 export { markdownTags } from './markdownTags'
 export { markdownStyleExtension } from './styleExtension'
 export { comprehensiveHighlightStyle } from './highlightStyle'
+export { codeLanguages } from './codeLanguages'
