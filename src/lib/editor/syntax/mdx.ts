@@ -70,20 +70,16 @@ function scanLine(text: string, from: number, state: ScanState): ScanResult {
 }
 
 /** Whether `line` starts with a tag and holds nothing but tags */
-function startsTags(line: Line): ScanResult | null {
+function isTagLine(line: Line): boolean {
   if (line.next !== LT || !TAG_START.test(line.text.slice(line.pos))) {
-    return null
+    return false
   }
-  const result = scanLine(line.text, line.pos, {
-    inTag: false,
-    quote: null,
-    braces: 0,
-  })
-  return result === 'text' ? null : result
+  const state: ScanState = { inTag: false, quote: null, braces: 0 }
+  return scanLine(line.text, line.pos, state) !== 'text'
 }
 
 function parseJsxFlow(cx: BlockContext, line: Line): boolean {
-  if (!startsTags(line)) return false
+  if (!isTagLine(line)) return false
 
   const from = cx.lineStart + line.pos
   const state: ScanState = { inTag: false, quote: null, braces: 0 }
@@ -107,7 +103,7 @@ export const mdxJsxFlow: MarkdownConfig = {
       parse: parseJsxFlow,
       // In MDX a tag on its own line ends the paragraph before it, so a
       // component's closing tag isn't read as part of its last paragraph
-      endLeaf: (_, line) => startsTags(line) !== null,
+      endLeaf: (_, line) => isTagLine(line),
     },
   ],
   // CommonMark's HTML blocks would swallow a component's contents; HTML

@@ -22,6 +22,5 @@
  */
 
 export { markdownTags } from './markdownTags'
-export { markdownStyleExtension } from './styleExtension'
 export { comprehensiveHighlightStyle } from './highlightStyle'
 export { editorLanguage, setEditorLanguage } from './language'

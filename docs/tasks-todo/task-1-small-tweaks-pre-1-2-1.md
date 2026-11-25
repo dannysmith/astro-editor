@@ -27,7 +27,7 @@ Where it goes: `StringField` (`components/frontmatter/fields/`), chosen in `Fron
 
 ## Phase 2: Highlighting code blocks ✅
 
-**Done, awaiting Danny's review:** `syntax/codeLanguages.ts` (language-data, plus Astro as TSX and Svelte as HTML), the active block in `code-block-background.ts` with a test, the reset in `theme.ts`, and `editor.md`. The tree-walking extensions were never at risk: code is mounted as an overlay, which `Tree.iterate` doesn't enter. The main bundle didn't grow; each language is its own lazy chunk.
+**Done:** `syntax/codeLanguages.ts` (language-data, plus Astro as TSX and Svelte as HTML), the active block in `code-block-background.ts` with a test, the reset in `theme.ts`, and `editor.md`. The tree-walking extensions were never at risk: code is mounted as an overlay, which `Tree.iterate` doesn't enter. The main bundle didn't grow; each language is its own lazy chunk.
 
 Code in fenced blocks is highlighted only while the cursor is inside that block; elsewhere it stays as it is now.
 
@@ -39,7 +39,7 @@ Code in fenced blocks is highlighted only while the cursor is inside that block;
 
 ## Phase 3: Markdown inside MDX components ✅
 
-**Done, awaiting Danny's review:** `syntax/mdx.ts` (the block parser, emitting `HTMLBlock` for tag lines and dropping indented code) and `syntax/language.ts` (the compartment, switched in `Editor.tsx` when a file opens, since `loadDocument` doesn't run when the content is unchanged). Tags are JSX, except lone closing tags, which go to HTML. `prose.ts` needed only a comment: its patterns are still what masks HTML blocks in `.md` files. Harper now checks prose inside components through the tree. Test files: `expressions-test.mdx`, `harper-test.mdx` and `html-test.md` in the notes collection.
+**Done:** `syntax/mdx.ts` (the block parser, emitting `HTMLBlock` for tag lines and dropping indented code) and `syntax/language.ts` (the compartment, switched in `Editor.tsx` when a file opens, since `loadDocument` doesn't run when the content is unchanged). Tags are JSX, except lone closing tags, which go to HTML. `prose.ts` needed only a comment: its patterns are still what masks HTML blocks in `.md` files. Harper now checks prose inside components through the tree. Test files: `expressions-test.mdx`, `harper-test.mdx` and `html-test.md` in the notes collection.
 
 In MDX, a component's children are Markdown, but the editor parses `<Callout>` on its own line as a CommonMark HTML block, which runs to the next blank line, so the Markdown in it isn't highlighted. With blank lines around the content it already works. In `.md` files, the current behaviour is right: Astro doesn't render Markdown inside raw HTML either.
 
@@ -53,7 +53,7 @@ In MDX, a component's children are Markdown, but the editor parses `<Callout>` o
 
 ## Phase 4: Component builder ✅
 
-**Done, awaiting Danny's review:** a pure UI `FormField` (`ui/form-field.tsx`) with `labelPosition="side"`; `FieldWrapper` wraps it for the frontmatter panel (pixel-identical in the styleguide), and the builder's fields use it directly with their own footer (the default while empty), so nothing in the builder knows about schemas. Danny chose labels beside their fields from four mocked layouts; the dialog is `sm:max-w-2xl`. Previews are highlighted by `lib/editor/syntax/highlightJsx.ts`. Type hints weren't added: a number field already says it's a number. Left for Danny: the website's builder screenshots (`mdx-builder-*.png`) came from a project that isn't in the repo, so they still show the old form, and the website checks weren't run (no `node_modules` in this worktree).
+**Done:** a pure UI `FormField` (`ui/form-field.tsx`) with `labelPosition="side"`; `FieldWrapper` wraps it for the frontmatter panel (pixel-identical in the styleguide), and the builder's fields use it directly with their own footer (the default while empty), so nothing in the builder knows about schemas. Danny chose labels beside their fields from four mocked layouts; the dialog is `sm:max-w-2xl`. Previews are highlighted by `lib/editor/syntax/highlightJsx.ts`. Type hints weren't added: a number field already says it's a number. Left for Danny: the website's builder screenshots (`mdx-builder-*.png`) came from a project that isn't in the repo, so they still show the old form, and the website checks weren't run (no `node_modules` in this worktree).
 
 Make the builder's form look and behave like the frontmatter panel (#399).
 

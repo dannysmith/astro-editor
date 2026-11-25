@@ -24,7 +24,7 @@ import {
 } from '../ui/combobox'
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
 import { EmojiButton } from '../frontmatter/fields/EmojiButton'
-import { isEmojiField } from '../frontmatter/utils'
+import { showsEmojiButton } from '../frontmatter/utils'
 import { usePlatform } from '../../hooks/usePlatform'
 import { camelCaseToTitleCase, cn } from '../../lib/utils'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
@@ -65,7 +65,7 @@ export function PropField({ prop }: { prop: PropInfo }) {
 
   const { name, kind } = prop
   const required = !prop.is_optional
-  const hasEmojiButton = isEmojiField(name, platform)
+  const hasEmojiButton = showsEmojiButton(name, platform)
 
   if (kind.kind === 'image' && canImportImages(addsImports, collection)) {
     return <ImagePropField prop={prop} />

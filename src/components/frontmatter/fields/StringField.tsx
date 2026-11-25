@@ -5,7 +5,7 @@ import { Input } from '../../ui/input'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
 import { usePlatform } from '../../../hooks/usePlatform'
 import { cn } from '../../../lib/utils'
-import { isEmojiField, valueToString } from '../utils'
+import { showsEmojiButton, valueToString } from '../utils'
 import { EmojiButton } from './EmojiButton'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldControlProps } from './types'
@@ -37,7 +37,7 @@ export const StringField: React.FC<StringFieldProps> = ({
   const hasLineBreak = valueToString(value).includes('\n')
   if (hasLineBreak && multilineFile !== filePath) setMultilineFile(filePath)
   const multiline = hasLineBreak || multilineFile === filePath
-  const hasEmojiButton = isEmojiField(name, usePlatform())
+  const hasEmojiButton = showsEmojiButton(name, usePlatform())
 
   return (
     <FieldWrapper

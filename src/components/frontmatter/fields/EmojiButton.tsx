@@ -6,7 +6,7 @@ import { Button } from '../../ui/button'
 /**
  * An icon button floating in a text field that opens the system emoji
  * palette. It selects the field's text first, so the chosen emoji replaces
- * it. Shown in fields named `emoji` on macOS (see `isEmojiField`).
+ * it. Shown in fields named `emoji` on macOS (see `showsEmojiButton`).
  */
 export const EmojiButton: React.FC<{ inputId: string }> = ({ inputId }) => {
   const handleClick = () => {

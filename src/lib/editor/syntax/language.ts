@@ -19,7 +19,7 @@ import { codeLanguages } from './codeLanguages'
 import { mdxJsxFlow } from './mdx'
 import { markdownStyleExtension } from './styleExtension'
 
-// GFM enables tables, task lists, strikethrough, and autolinks (issue #266).
+// GFM enables tables, task lists, strikethrough, and autolinks.
 // We add the GFM bundle rather than switching to `base: markdownLanguage`
 // so we get GFM only, without subscript/superscript/emoji (single `~x~`
 // would otherwise become subscript, which is hostile to prose writing).

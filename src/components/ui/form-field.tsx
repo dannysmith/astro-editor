@@ -138,7 +138,14 @@ export const FormField: React.FC<FormFieldProps> = ({
       <Field orientation="vertical" className={SIDE_LABEL_GRID}>
         {fieldLabel}
         <FieldContent>
-          <div className="flex">{children}</div>
+          <div
+            className={cn(
+              'flex',
+              missing && 'border-l-2 border-l-required pl-2.5'
+            )}
+          >
+            {children}
+          </div>
           {descriptionText}
         </FieldContent>
       </Field>
