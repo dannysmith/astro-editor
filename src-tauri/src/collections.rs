@@ -272,6 +272,13 @@ fn resolve_collection(
     if kind == CollectionKind::Glob && patterns.is_some() && !pattern.can_match_markdown() {
         kind = CollectionKind::Data;
     }
+    // A folder the user chose beats the data store's guess that it's data
+    if kind == CollectionKind::Data
+        && found.base_source == SettingSource::DataStore
+        && set.folder.is_some()
+    {
+        kind = CollectionKind::Unknown;
+    }
 
     // A folder override replaces `base`, and the pattern's prefix with it, so the
     // pattern applies inside the folder
@@ -743,6 +750,23 @@ mod tests {
         let feed = named(&scan, "feed");
         assert_eq!(feed.path, site.root().join("elsewhere"));
         assert_eq!(feed.folder_source, SettingSource::Set);
+
+        // Even when the store says its entries are data
+        let site = site.file(
+            ".astro/data-store.json",
+            &crate::data_store::serialize(&[("feed", &[Some("src/feed.json")])]),
+        );
+        let scan = site.scan_with(&with_collection(
+            "feed",
+            CollectionSettings {
+                folder: Some("elsewhere".to_string()),
+                ..Default::default()
+            },
+        ));
+        let feed = named(&scan, "feed");
+        assert_eq!(feed.kind, CollectionKind::Unknown);
+        assert!(feed.is_browsable());
+        assert_eq!(site.scan().collections[0].kind, CollectionKind::Data);
     }
 
     #[test]

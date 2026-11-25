@@ -18,7 +18,7 @@ use crate::content_config::normalize;
 use crate::content_config::pattern::MARKDOWN_EXTENSIONS;
 use log::debug;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -111,9 +111,9 @@ fn map_pairs(map: &Value) -> Option<Vec<(&Value, &Value)>> {
 }
 
 /// Where a collection's entries came from, if every one came from a file in
-/// the project and they're all Markdown or MDX, or all data. The Markdown
-/// files' folder is the deepest one holding them all, and never the project
-/// root.
+/// the project and they're all Markdown or MDX, each in its own file, or all
+/// data. The Markdown files' folder is the deepest one holding them all, and
+/// never the project root.
 pub fn location(file_paths: &[Option<String>], project: &Path) -> Option<StoredLocation> {
     let paths: Vec<PathBuf> = file_paths
         .iter()
@@ -143,7 +143,10 @@ pub fn location(file_paths: &[Option<String>], project: &Path) -> Option<StoredL
         })?;
 
     if all_of(&MARKDOWN_EXTENSIONS) {
-        (folder != project).then_some(StoredLocation::Folder(folder))
+        // Entries that share a file (a loader that splits one into several)
+        // can't each be edited as a file
+        let one_file_each = paths.iter().collect::<HashSet<_>>().len() == paths.len();
+        (one_file_each && folder != project).then_some(StoredLocation::Folder(folder))
     } else if all_of(&DATA) {
         let single = paths.iter().all(|path| *path == paths[0]);
         Some(StoredLocation::Data(if single {
@@ -322,5 +325,10 @@ mod tests {
             None
         );
         assert_eq!(location(&paths(&["notes/a.mdoc"]), project), None);
+        // One Markdown file split into several entries
+        assert_eq!(
+            location(&paths(&["notes/all.md", "notes/all.md"]), project),
+            None
+        );
     }
 }
