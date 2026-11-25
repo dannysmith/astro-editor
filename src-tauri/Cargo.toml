@@ -1,6 +1,6 @@
 [package]
 name = "astro-editor"
-version = "1.2.0"
+version = "1.2.1"
 description = "A markdown editor for Astro content collections"
 authors = ["Danny Smith"]
 edition = "2021"
