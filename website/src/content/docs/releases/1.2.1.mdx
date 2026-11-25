@@ -1,0 +1,41 @@
+---
+title: 'v1.2.1'
+description: 'Astro Editor v1.2.1'
+date: 2026-11-25
+slug: 'releases/v1.2.1'
+---
+
+The frontmatter panel now shows your schema's limits on each field, tag fields suggest the tags you've already used, code and MDX are highlighted, and several ways to lose work when syncing with disk are fixed.
+
+### Frontmatter panel
+
+Fields show your schema's limits in a footer attached to the field, like `46 / 100` or `1–5`, and point out when a value is outside them. Empty required fields have a red edge instead of an asterisk, and the **Copy as slug** button is now an icon in the title field. See [Field Types](https://astroeditor.danny.is/frontmatter/field-types/#descriptions-defaults--constraints). (#399)
+
+### Tag suggestions
+
+Tag fields suggest the tags the collection's other entries use. Press <kbd>↓</kbd> in an empty field to see them all. A tag typed in another case is added in the spelling the collection already uses, so `javascript` and `JavaScript` don't drift apart. See [Field Types](https://astroeditor.danny.is/frontmatter/field-types/#basic-fields). (#411)
+
+### Code and MDX highlighting
+
+Code in a fenced code block is highlighted in its language while your cursor is in the block. In `.mdx` files, Markdown inside a component is now read properly as Markdown, as MDX renders it, and JSX attributes like `date={new Date()}` are highlighted. (#412)
+
+### Other improvements
+
+- **Word count** – The [Copyedit panel](https://astroeditor.danny.is/editor/copyediting/) shows the word count and estimated reading time.
+- **Emoji fields** – A frontmatter field or component prop named `emoji` gets a button that opens the OS emoji picker (macOS only).
+- **Custom loaders** – Collections with custom, inline or third-party loaders attempt to find their content directory from what Astro recorded the last time it ran, and Project Settings names each collection's loader. See [Project Settings](https://astroeditor.danny.is/project-settings/). (#401)
+- **Component builder** – Its form has been redesigned and now matches the frontmatter panel, and Starlight's icon props show each icon beside its name. (#412)
+- **Left sidebar** – Works better on narrow widths.
+
+### Bug fixes
+
+- **`post.md` and `post.mdx`** – With both in a collection, they could overwrite each other. (#399)
+- **Outside edits** – An edit made in another app just after Astro Editor saved could be overwritten.
+- **Comments in objects** – Editing a value inside an object deleted the comments in that object.
+- **Objects the schema doesn't describe** – These are now edited as JSON. Before, typing in one could replace it with text.
+- **Reopening the open file** – Undo history and the cursor position are now kept.
+- **Switching files** – The frontmatter panel no longer flickers.
+
+---
+
+[View on GitHub](https://github.com/dannysmith/astro-editor/releases/tag/v1.2.1)
