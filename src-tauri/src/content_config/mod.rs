@@ -69,6 +69,9 @@ pub struct ConfigCollection {
     /// Its key in the `collections` export
     pub name: String,
     pub loader: Loader,
+    /// The loader function's name, when it's called by name, as in `glob(...)`
+    /// or `atprotoLoader(...)`
+    pub loader_name: Option<String>,
     /// Whether it has a `loader` option. Astro only makes collections from
     /// undefined `src/content` folders when none does.
     pub has_loader: bool,
@@ -91,9 +94,8 @@ pub enum Loader {
     /// relative to the project root.
     Data { file: Option<String> },
     /// A loader AE doesn't know, or a collection it can't follow (imported from
-    /// another file, say). `name` is the loader function's, when it's called by
-    /// name, as in `atprotoLoader(...)`.
-    Unknown { name: Option<String> },
+    /// another file, say)
+    Unknown,
     /// A loader written in place: a function, or an object with `load`, which
     /// is read as unknown but isn't one AE failed to follow
     Inline,
@@ -309,7 +311,8 @@ impl<'a> Scope<'a> {
         let Some(options) = options else {
             return ConfigCollection {
                 name,
-                loader: Loader::Unknown { name: None },
+                loader: Loader::Unknown,
+                loader_name: None,
                 has_loader: true,
                 schema_source: None,
             };
@@ -335,9 +338,15 @@ impl<'a> Scope<'a> {
                 .map(|span| self.snippet(span)),
         };
 
+        let loader_name = match loader_option {
+            Some(Expr::Call(call)) => self.callee_name(call),
+            _ => None,
+        };
+
         ConfigCollection {
             name,
             loader,
+            loader_name,
             has_loader: loader_option.is_some(),
             schema_source,
         }
@@ -381,7 +390,7 @@ impl<'a> Scope<'a> {
         let call = match loader {
             Expr::Call(call) => call,
             Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => return Loader::Inline,
-            _ => return Loader::Unknown { name: None },
+            _ => return Loader::Unknown,
         };
         let first_arg = call.args.first().and_then(|arg| self.resolve(&arg.expr));
 
@@ -404,9 +413,7 @@ impl<'a> Scope<'a> {
                     .map(|path| path.trim_start_matches("./").to_string()),
             },
             Some("i18nLoader") => Loader::Data { file: None },
-            other => Loader::Unknown {
-                name: other.map(str::to_string),
-            },
+            _ => Loader::Unknown,
         }
     }
 
@@ -702,7 +709,11 @@ mod tests {
             };
             "#,
         );
-        let loaders: Vec<_> = collections.into_iter().map(|c| c.loader).collect();
+        let names: Vec<_> = collections
+            .iter()
+            .map(|c| c.loader_name.as_deref())
+            .collect();
+        let loaders: Vec<_> = collections.iter().map(|c| c.loader.clone()).collect();
         assert_eq!(
             loaders,
             [
@@ -715,12 +726,27 @@ mod tests {
                 },
                 glob(path(STARLIGHT_DOCS_BASE), &[STARLIGHT_DOCS_PATTERN]),
                 Loader::Data { file: None },
-                Loader::Unknown {
-                    name: Some("rssLoader".to_string())
-                },
+                Loader::Unknown,
                 Loader::Inline,
                 Loader::Inline,
-                Loader::Unknown { name: None },
+                Loader::Unknown,
+            ]
+        );
+        // Named whenever the loader is a call, whether or not AE can read it
+        assert_eq!(
+            names,
+            [
+                None,
+                None,
+                None,
+                None,
+                Some("file"),
+                Some("docsLoader"),
+                Some("i18nLoader"),
+                Some("rssLoader"),
+                None,
+                None,
+                None,
             ]
         );
     }

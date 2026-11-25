@@ -127,6 +127,29 @@ describe('describeOrigin', () => {
     )
   })
 
+  it('names loaders that wrap glob() or load data', () => {
+    expect(
+      describeOrigin(
+        makeCollection({ name: 'docs', loaderName: 'docsLoader' }),
+        scan
+      )
+    ).toBe('From `docsLoader()` in `src/content.config.ts`.')
+    expect(
+      describeOrigin(
+        makeCollection({ name: 'authors', kind: 'data', loaderName: 'file' }),
+        scan
+      )
+    ).toBe(
+      "JSON or YAML data from `file()` in `src/content.config.ts`. Data collections aren't edited here."
+    )
+    // A legacy `type: 'data'` collection has no loader
+    expect(
+      describeOrigin(makeCollection({ name: 'authors', kind: 'data' }), scan)
+    ).toBe(
+      "JSON or YAML data from `src/content.config.ts`. Data collections aren't edited here."
+    )
+  })
+
   it('says when a loader probably doesn’t read files', () => {
     const books = makeCollection({
       name: 'books',

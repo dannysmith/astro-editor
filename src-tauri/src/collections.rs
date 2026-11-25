@@ -146,10 +146,7 @@ impl Found {
     ) -> Self {
         let name = collection.name;
         let by_convention = |dir: &Path| (dir.join(&name), SettingSource::Convention);
-        let loader_name = match &collection.loader {
-            Loader::Unknown { name } => name.clone(),
-            _ => None,
-        };
+        let loader_name = collection.loader_name;
         let inline_loader = matches!(collection.loader, Loader::Inline);
 
         let (kind, (base, base_source), patterns) = match collection.loader {
@@ -173,7 +170,7 @@ impl Found {
                 );
                 (CollectionKind::Data, base, None)
             }
-            Loader::Unknown { .. } | Loader::Inline => {
+            Loader::Unknown | Loader::Inline => {
                 (CollectionKind::Unknown, by_convention(content_dir), None)
             }
         };

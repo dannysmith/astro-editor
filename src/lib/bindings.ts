@@ -284,7 +284,10 @@ export type Collection = {
 	/**  Its key in the content config's `collections` export, or its folder's name */
 	name: string,
 	kind: CollectionKind,
-	/**  For a loader AE can't read, its function's name, when it's called by name */
+	/**
+	 *  Its loader function's name, when it's called by name, as in `glob()` or
+	 *  `atprotoLoader()`
+	 */
 	loaderName: string | null,
 	/**
 	 *  Its loader is written in place in the config (a function, or an object
