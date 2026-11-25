@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
+import { ensureSyntaxTree } from '@codemirror/language'
 import { codeBlockBackgroundExtension } from './code-block-background'
 
 const doc = [
@@ -27,12 +28,19 @@ function lineClasses(state: EditorState): Map<number, string> {
   return classes
 }
 
-const create = (cursor: number) =>
-  EditorState.create({
+/**
+ * A state with the cursor at `cursor`. The parser's first pass has a time
+ * budget a busy test run can exceed, so the parse is finished and the field
+ * rebuilt from the whole tree
+ */
+const create = (cursor: number) => {
+  const state = EditorState.create({
     doc,
-    selection: { anchor: cursor },
     extensions: [markdown(), codeBlockBackgroundExtension],
   })
+  ensureSyntaxTree(state, doc.length, 5000)
+  return state.update({ selection: { anchor: cursor } }).state
+}
 
 describe('codeBlockBackgroundExtension', () => {
   it('marks every line of each fenced block, including ones in a quote', () => {

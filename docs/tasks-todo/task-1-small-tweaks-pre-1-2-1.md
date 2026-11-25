@@ -37,7 +37,9 @@ Code in fenced blocks is highlighted only while the cursor is inside that block;
 - Check Harper still skips code, and that the other tree-walking extensions ignore nested nodes.
 - Update `editor.md` (Highlighting) with how nested languages and the active block work.
 
-## Phase 3: Markdown inside MDX components
+## Phase 3: Markdown inside MDX components ✅
+
+**Done, awaiting Danny's review:** `syntax/mdx.ts` (the block parser, emitting `HTMLBlock` for tag lines and dropping indented code) and `syntax/language.ts` (the compartment, switched in `Editor.tsx` when a file opens, since `loadDocument` doesn't run when the content is unchanged). Tags are JSX, except lone closing tags, which go to HTML. `prose.ts` needed only a comment: its patterns are still what masks HTML blocks in `.md` files. Harper now checks prose inside components through the tree. Test files: `expressions-test.mdx`, `harper-test.mdx` and `html-test.md` in the notes collection.
 
 In MDX, a component's children are Markdown, but the editor parses `<Callout>` on its own line as a CommonMark HTML block, which runs to the next blank line, so the Markdown in it isn't highlighted. With blank lines around the content it already works. In `.md` files, the current behaviour is right: Astro doesn't render Markdown inside raw HTML either.
 

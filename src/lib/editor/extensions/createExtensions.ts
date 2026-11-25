@@ -39,17 +39,11 @@
  */
 
 import { EditorView, dropCursor, drawSelection } from '@codemirror/view'
-import { markdown } from '@codemirror/lang-markdown'
-import { GFM } from '@lezer/markdown'
 import { syntaxHighlighting } from '@codemirror/language'
 import { undoHistory } from '../load-document'
 import { closeBrackets } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
-import {
-  markdownStyleExtension,
-  comprehensiveHighlightStyle,
-  codeLanguages,
-} from '../syntax'
+import { comprehensiveHighlightStyle, editorLanguage } from '../syntax'
 import { altKeyState, urlHoverPlugin, handleUrlClick } from '../urls'
 import { handlePaste } from '../paste'
 import { createKeymapExtensions, type KeymapHandlers } from './keymap'
@@ -90,17 +84,9 @@ export const createExtensions = (config: ExtensionConfig) => {
       event => event.metaKey || event.ctrlKey
     ),
 
-    // Language support
-    // GFM enables tables, task lists, strikethrough, and autolinks (issue #266).
-    // We add the GFM bundle rather than switching to `base: markdownLanguage`
-    // so we get GFM only, without subscript/superscript/emoji (single `~x~`
-    // would otherwise become subscript, which is hostile to prose writing).
-    // Fenced code is parsed in its language, but only highlighted in the block
-    // holding the cursor (code-block-background.ts)
-    markdown({
-      extensions: [markdownStyleExtension, GFM],
-      codeLanguages,
-    }),
+    // Language support: Markdown, or MDX once an .mdx file is opened
+    // (syntax/language.ts)
+    editorLanguage(),
     syntaxHighlighting(comprehensiveHighlightStyle),
     undoHistory(),
 
