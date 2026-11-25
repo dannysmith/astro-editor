@@ -49,7 +49,10 @@ function scanLine(text: string, from: number, state: ScanState): ScanResult {
     const ch = text[i]
     if (state.inTag) {
       if (state.quote) {
-        if (ch === state.quote) state.quote = null
+        // A JavaScript string in an expression can escape its quote; an
+        // attribute's string (`title="…"`) can't
+        if (ch === '\\' && state.braces > 0) i++
+        else if (ch === state.quote) state.quote = null
       } else if (ch === '"' || ch === "'" || ch === '`') {
         state.quote = ch
       } else if (ch === '{') {
@@ -85,7 +88,10 @@ function parseJsxFlow(cx: BlockContext, line: Line): boolean {
   const state: ScanState = { inTag: false, quote: null, braces: 0 }
   const markers: Element[] = []
   let result = scanLine(line.text, line.pos, state)
-  while (result === 'open' && cx.nextLine()) {
+  // A tag stops at a blank line, as an HTML block does, so one that's half
+  // typed, or that the scan misreads (a quote in a regex), can't swallow the
+  // rest of the document
+  while (result === 'open' && cx.peekLine().trim() !== '' && cx.nextLine()) {
     markers.push(...line.markers)
     result = scanLine(line.text, line.pos, state)
   }

@@ -103,6 +103,24 @@ describe('mdxJsxFlow', () => {
     ])
   })
 
+  it('reads escaped quotes in an expression', () => {
+    expect(blocks("<Card title={'It\\'s fine'}>\ntext\n</Card>")).toEqual([
+      "HTMLBlock: <Card title={'It\\'s fine'}>",
+      'Paragraph: text',
+      'HTMLBlock: </Card>',
+    ])
+  })
+
+  it('stops a tag the scan loses track of at a blank line', () => {
+    // Half typed, and a quote in a regex that reads as a string
+    for (const tag of ['<Card title="', '<Card pattern={/"/} />']) {
+      expect(blocks(`${tag}\nmore\n\n**After**`)).toEqual([
+        `HTMLBlock: ${tag}\nmore`,
+        'Paragraph: **After**',
+      ])
+    }
+  })
+
   it("doesn't change .md files", () => {
     expect(blocks('<Callout>\nSome **bold**\n</Callout>', md)).toEqual([
       'HTMLBlock: <Callout>\nSome **bold**\n</Callout>',
