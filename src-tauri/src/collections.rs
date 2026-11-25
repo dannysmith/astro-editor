@@ -5,7 +5,8 @@
 //! See `docs/developer/app-data.md`.
 
 use crate::content_config::pattern::EntryPattern;
-use crate::content_config::{self, normalize, GlobBase, Loader};
+use crate::content_config::{self, normalize, ConfigCollection, GlobBase, Loader};
+use crate::data_store::{self, DataStore, StoredLocation};
 use crate::models::collection::{
     Collection, CollectionKind, FolderStatus, ProjectScan, Resolved, ResolvedCollectionSettings,
     ResolvedProjectSettings, SchemaStatus, SettingSource,
@@ -44,12 +45,51 @@ pub fn scan_project(
             .and_then(|source| content_config::parse_config(&source, path, project))
     });
 
+    // Only read when something needs it: with rendered HTML, a store can run
+    // to megabytes
+    let store = match &config {
+        Some(Ok(config))
+            if config.has_spread
+                || config
+                    .collections
+                    .iter()
+                    .any(|c| matches!(c.loader, Loader::Unknown | Loader::Inline)) =>
+        {
+            data_store::read(project)
+        }
+        _ => DataStore::new(),
+    };
+
     let (defined, config_error) = match config {
-        Some(Ok(collections)) if !collections.is_empty() => (Some(collections), None),
-        Some(Ok(_)) => (
-            None,
-            Some("The content config has no collections".to_string()),
-        ),
+        Some(Ok(config)) => {
+            let mut collections = config.collections;
+            // Collections spread in from another file can't be read, but the
+            // data store has them if Astro has loaded them. Only then, since a
+            // store Astro hasn't rewritten since the config changed can still
+            // have collections that are gone.
+            if config.has_spread {
+                let spread: Vec<String> = store
+                    .keys()
+                    .filter(|name| !collections.iter().any(|c| &c.name == *name))
+                    .cloned()
+                    .collect();
+                collections.extend(spread.into_iter().map(|name| ConfigCollection {
+                    name,
+                    loader: Loader::Unknown,
+                    loader_name: None,
+                    has_loader: true,
+                    schema_source: None,
+                }));
+            }
+            if collections.is_empty() {
+                (
+                    None,
+                    Some("The content config has no collections".to_string()),
+                )
+            } else {
+                (Some(collections), None)
+            }
+        }
         Some(Err(e)) => (None, Some(e)),
         None => (None, None),
     };
@@ -73,7 +113,7 @@ pub fn scan_project(
             };
             defined
                 .into_iter()
-                .map(|c| Found::from_config(c, project, &content_dir))
+                .map(|c| Found::from_config(c, project, &content_dir, &store))
                 .chain(legacy_folders.into_iter().map(|name| Found {
                     base: project.join(CONTENT_DIR).join(&name),
                     name,
@@ -140,16 +180,14 @@ struct Found {
 
 impl Found {
     fn from_config(
-        collection: content_config::ConfigCollection,
+        collection: ConfigCollection,
         project: &Path,
         content_dir: &Path,
+        store: &DataStore,
     ) -> Self {
         let name = collection.name;
         let by_convention = |dir: &Path| (dir.join(&name), SettingSource::Convention);
-        let loader_name = match &collection.loader {
-            Loader::Unknown { name } => name.clone(),
-            _ => None,
-        };
+        let loader_name = collection.loader_name;
         let inline_loader = matches!(collection.loader, Loader::Inline);
 
         let (kind, (base, base_source), patterns) = match collection.loader {
@@ -173,9 +211,21 @@ impl Found {
                 );
                 (CollectionKind::Data, base, None)
             }
-            Loader::Unknown { .. } | Loader::Inline => {
-                (CollectionKind::Unknown, by_convention(content_dir), None)
-            }
+            // Where Astro last loaded its entries from, or else the convention
+            Loader::Unknown | Loader::Inline => match store
+                .get(&name)
+                .and_then(|entries| data_store::location(entries, project))
+            {
+                Some(StoredLocation::Folder(folder)) => (
+                    CollectionKind::Unknown,
+                    (folder, SettingSource::DataStore),
+                    None,
+                ),
+                Some(StoredLocation::Data(path)) => {
+                    (CollectionKind::Data, (path, SettingSource::DataStore), None)
+                }
+                None => (CollectionKind::Unknown, by_convention(content_dir), None),
+            },
         };
 
         Self {
@@ -221,6 +271,13 @@ fn resolve_collection(
     let mut kind = found.kind;
     if kind == CollectionKind::Glob && patterns.is_some() && !pattern.can_match_markdown() {
         kind = CollectionKind::Data;
+    }
+    // A folder the user chose beats the data store's guess that it's data
+    if kind == CollectionKind::Data
+        && found.base_source == SettingSource::DataStore
+        && set.folder.is_some()
+    {
+        kind = CollectionKind::Unknown;
     }
 
     // A folder override replaces `base`, and the pattern's prefix with it, so the
@@ -593,6 +650,123 @@ mod tests {
         assert_eq!(feed.path, site.root().join("content/feed"));
         assert_eq!(feed.folder_source, SettingSource::Convention);
         assert!(feed.is_browsable());
+    }
+
+    #[test]
+    fn finds_unreadable_loaders_files_in_the_data_store() {
+        let project =
+            dunce::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/loaders"))
+                .unwrap();
+        let scan = scan_project(
+            &project,
+            &ProjectSettingsData::default(),
+            &GlobalSettings::default(),
+        );
+        let folder = |name: &str| {
+            let collection = named(&scan, name);
+            (
+                collection.kind,
+                collection.path.clone(),
+                collection.folder_source,
+            )
+        };
+        let unknown_in = |path: &str| {
+            (
+                CollectionKind::Unknown,
+                project.join(path),
+                SettingSource::DataStore,
+            )
+        };
+
+        assert_eq!(folder("talks"), unknown_in("talks"));
+        assert_eq!(folder("journal"), unknown_in("writing/journal"));
+        assert_eq!(folder("recipes"), unknown_in("src/content/recipes"));
+        assert_eq!(folder("podcasts"), unknown_in("src/podcasts"));
+        assert_eq!(
+            folder("team"),
+            (
+                CollectionKind::Data,
+                project.join("src/data/team.json"),
+                SettingSource::DataStore
+            )
+        );
+        // Spread into the export from another file
+        assert_eq!(folder("guides"), unknown_in("src/guides"));
+        assert!(named(&scan, "guides").is_browsable());
+        // No files, or not in the store, so the convention
+        for name in ["scrobbles", "bookmarks"] {
+            assert_eq!(named(&scan, name).folder_source, SettingSource::Convention);
+        }
+    }
+
+    #[test]
+    fn adds_collections_from_the_data_store_only_when_the_config_spreads_some_in() {
+        let store = crate::data_store::serialize(&[
+            ("blog", &[Some("src/content/blog/a.md")]),
+            ("renamed", &[Some("src/renamed/a.md")]),
+        ]);
+        let config = |collections: &str| {
+            format!(
+                "const blog = defineCollection({{ loader: glob({{ pattern: '*.md', base: 'src/content/blog' }}) }});
+                export const collections = {{ {collections} }};"
+            )
+        };
+        let names = |site: Site| -> Vec<String> {
+            site.file(".astro/data-store.json", &store)
+                .dir("src/renamed")
+                .scan()
+                .collections
+                .into_iter()
+                .map(|c| c.name)
+                .collect()
+        };
+        assert_eq!(names(Site::new(&config("blog"))), ["blog"]);
+        assert_eq!(
+            names(Site::new(&config("blog, ...more"))),
+            ["blog", "renamed"]
+        );
+    }
+
+    #[test]
+    fn a_chosen_folder_beats_the_data_store() {
+        let site = Site::new(
+            r#"export const collections = {
+                feed: defineCollection({ loader: customLoader() }),
+            };"#,
+        )
+        .file(
+            ".astro/data-store.json",
+            &crate::data_store::serialize(&[("feed", &[Some("src/feed/a.md")])]),
+        )
+        .dir("src/feed")
+        .dir("elsewhere");
+        let scan = site.scan_with(&with_collection(
+            "feed",
+            CollectionSettings {
+                folder: Some("elsewhere".to_string()),
+                ..Default::default()
+            },
+        ));
+        let feed = named(&scan, "feed");
+        assert_eq!(feed.path, site.root().join("elsewhere"));
+        assert_eq!(feed.folder_source, SettingSource::Set);
+
+        // Even when the store says its entries are data
+        let site = site.file(
+            ".astro/data-store.json",
+            &crate::data_store::serialize(&[("feed", &[Some("src/feed.json")])]),
+        );
+        let scan = site.scan_with(&with_collection(
+            "feed",
+            CollectionSettings {
+                folder: Some("elsewhere".to_string()),
+                ..Default::default()
+            },
+        ));
+        let feed = named(&scan, "feed");
+        assert_eq!(feed.kind, CollectionKind::Unknown);
+        assert!(feed.is_browsable());
+        assert_eq!(site.scan().collections[0].kind, CollectionKind::Data);
     }
 
     #[test]

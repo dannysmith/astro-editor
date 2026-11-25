@@ -1,0 +1,56 @@
+---
+// Every collection and its entries, so a missing or broken loader shows up here
+import { getCollection } from 'astro:content'
+import Layout from '../layouts/Layout.astro'
+import { allCollections, label, references, renderable } from '../lib/collections'
+
+const collections = await Promise.all(
+  allCollections.map(async name => {
+    const entries = await getCollection(name)
+    return {
+      name,
+      entries: await Promise.all(
+        entries.map(async entry => ({
+          id: entry.id,
+          label: label(entry),
+          filePath: entry.filePath,
+          references: await references(entry),
+        })),
+      ),
+    }
+  }),
+)
+---
+
+<Layout title="Loaders">
+  <h1>Loaders</h1>
+  <p>Each collection with its entries. Linked entries render as pages.</p>
+  {
+    collections.map(({ name, entries }) => (
+      <section>
+        <h2>
+          {name} ({entries.length})
+        </h2>
+        {entries.length === 0 ? (
+          <p>No entries.</p>
+        ) : (
+          <ul>
+            {entries.map(entry => (
+              <li>
+                {renderable.includes(name) ? <a href={`/${name}/${entry.id}/`}>{entry.label}</a> : entry.label}{' '}
+                <code>{entry.id}</code>
+                {entry.filePath && (
+                  <>
+                    {' '}
+                    from <code>{entry.filePath}</code>
+                  </>
+                )}
+                {entry.references.length > 0 && <> ({entry.references.join(', ')})</>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ))
+  }
+</Layout>

@@ -4,7 +4,7 @@ slug: "comprehensive-markdown-test"
 description: "A comprehensive test document showcasing all GitHub Flavored Markdown features for editor testing"
 pubDate: 2024-01-15
 updatedDate: 2024-01-20
-tags: ["testing", "markdown", "gfm", "formatting", "documentation"]
+tags: ["testing", "markdown", "gfm", "formatting", "documentation", "JavaScript", "astro"]
 author: jane-doe
 relatedArticles: [first-article]
 ---

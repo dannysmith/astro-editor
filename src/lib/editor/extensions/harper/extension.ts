@@ -9,7 +9,6 @@
  * holds what each issue is and how it's fixed.
  */
 
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { linter, setDiagnosticsEffect, type Diagnostic } from '@codemirror/lint'
 import type { EditorState } from '@codemirror/state'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
@@ -31,7 +30,7 @@ import {
   type Issue,
 } from './issues'
 import { clearIgnoredLints, ignoreLint, lintProse } from './linter'
-import { proseText } from './prose'
+import { docProse } from './prose'
 import { currentCopyedit } from './settings'
 import { issueTooltip, showIssueTooltip, tooltipTheme } from './tooltip'
 
@@ -67,12 +66,8 @@ async function checkDocument(state: EditorState): Promise<Diagnostic[]> {
   const { checks } = currentCopyedit()
   if (!Object.values(checks).some(Boolean)) return []
 
-  // The whole document's tree, giving up after a second on a huge document
-  // and using what's been parsed so far
-  const tree =
-    ensureSyntaxTree(state, state.doc.length, 1000) ?? syntaxTree(state)
   const doc = state.doc.toString()
-  const text = proseText(doc, tree)
+  const text = docProse(state)
   // A failed check has reset the worker and set Harper's status
   const lints = await lintProse(text).catch(() => null)
   if (!lints) return []

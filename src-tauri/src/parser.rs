@@ -449,7 +449,8 @@ mod tests {
             &project.join("src/content.config.ts"),
             project,
         )
-        .unwrap();
+        .unwrap()
+        .collections;
         let source = collections[0].schema_source.as_deref().unwrap();
         serde_json::from_str(&extract_helpers(source).unwrap()).unwrap()
     }

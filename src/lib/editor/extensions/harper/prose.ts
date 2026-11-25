@@ -9,9 +9,13 @@
  * (`this</em>.` reads as `this.`). It checks the result as plain text, which
  * also stops it reading text indented inside an MDX component as a code
  * block, as its Markdown parser would.
+ *
+ * The word count (`word-count.ts`) counts the same prose, sharing it through
+ * `docProse` so a document is only worked through once for both.
  */
 
-import type { syntaxTree } from '@codemirror/language'
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import type { EditorState, Text } from '@codemirror/state'
 
 /** A Lezer syntax tree, typed through CodeMirror, which the app depends on */
 type Tree = ReturnType<typeof syntaxTree>
@@ -96,6 +100,37 @@ const TEXT_PATTERNS = [
   // prose like `a < b` is left alone
   /<\/?[A-Za-z][^<>]*>/g,
 ]
+
+/** The prose of each document `docProse` has seen, which edits replace */
+const proseCache = new WeakMap<Text, string>()
+
+/** An editor document's prose, worked out once per version of it */
+export function docProse(state: EditorState): string {
+  const cached = proseCache.get(state.doc)
+  if (cached !== undefined) return cached
+  // The whole document's tree, giving up after a second on a huge document
+  // and using what's been parsed so far
+  const tree =
+    ensureSyntaxTree(state, state.doc.length, 1000) ?? syntaxTree(state)
+  const text = proseText(state.doc.toString(), tree)
+  proseCache.set(state.doc, text)
+  return text
+}
+
+/**
+ * A letter or digit up to the next space: one per word, so a token of
+ * punctuation alone, like a dash, isn't one
+ */
+const WORD = /[\p{L}\p{N}]\S*/gu
+
+/**
+ * The words in some prose. Masked characters are dropped rather than read as
+ * spaces, as Harper reads them, so a word with markup in it (`un*real*`,
+ * `a\_b`) is still one word.
+ */
+export function countWords(prose: string): number {
+  return prose.replaceAll(MASK, '').match(WORD)?.length ?? 0
+}
 
 /** The document's prose, as described above */
 export function proseText(doc: string, tree: Tree): string {

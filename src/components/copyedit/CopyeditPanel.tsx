@@ -2,10 +2,11 @@ import React from 'react'
 import { HarperChecks } from './HarperChecks'
 import { HarperIssues } from './HarperIssues'
 import { HighlightsMenu } from './HighlightsMenu'
+import { WordCount } from './WordCount'
 
 /**
  * The right sidebar's Copyedit tab: the part-of-speech highlights, Harper's
- * checks, and the issues Harper found.
+ * checks, and the issues Harper found, with the word count kept below them.
  */
 export const CopyeditPanel: React.FC = () => (
   <div className="flex h-full flex-col">
@@ -14,5 +15,6 @@ export const CopyeditPanel: React.FC = () => (
       <HarperChecks />
       <HarperIssues />
     </div>
+    <WordCount />
   </div>
 )

@@ -69,6 +69,9 @@ pub struct ConfigCollection {
     /// Its key in the `collections` export
     pub name: String,
     pub loader: Loader,
+    /// The loader function's name, when it's called by name, as in `glob(...)`
+    /// or `atprotoLoader(...)`
+    pub loader_name: Option<String>,
     /// Whether it has a `loader` option. Astro only makes collections from
     /// undefined `src/content` folders when none does.
     pub has_loader: bool,
@@ -91,9 +94,8 @@ pub enum Loader {
     /// relative to the project root.
     Data { file: Option<String> },
     /// A loader AE doesn't know, or a collection it can't follow (imported from
-    /// another file, say). `name` is the loader function's, when it's called by
-    /// name, as in `atprotoLoader(...)`.
-    Unknown { name: Option<String> },
+    /// another file, say)
+    Unknown,
     /// A loader written in place: a function, or an object with `load`, which
     /// is read as unknown but isn't one AE failed to follow
     Inline,
@@ -109,6 +111,15 @@ pub enum GlobBase {
     Unreadable,
 }
 
+/// What a content config's `collections` export says
+#[derive(Debug)]
+pub struct ContentConfig {
+    pub collections: Vec<ConfigCollection>,
+    /// It spreads in other objects (`...imported`), whose collections aren't
+    /// read
+    pub has_spread: bool,
+}
+
 /// Reads the collections from a content config's source. `config_path` is where
 /// it lives, for resolving `new URL(…, import.meta.url)`. Errors when the file
 /// doesn't parse or has no `collections` export AE can read.
@@ -116,7 +127,7 @@ pub fn parse_config(
     source: &str,
     config_path: &Path,
     project: &Path,
-) -> Result<Vec<ConfigCollection>, String> {
+) -> Result<ContentConfig, String> {
     let cm = Lrc::new(SourceMap::default());
     let fm = cm.new_source_file(Rc::new(FileName::Anon), source.to_string());
     let syntax = Syntax::Typescript(TsSyntax::default());
@@ -134,7 +145,11 @@ pub fn parse_config(
         return Err("The content config's `collections` isn't an object".to_string());
     };
 
-    Ok(collections
+    let has_spread = collections
+        .props
+        .iter()
+        .any(|prop| matches!(prop, PropOrSpread::Spread(_)));
+    let collections = collections
         .props
         .iter()
         .filter_map(|prop| match prop {
@@ -151,7 +166,11 @@ pub fn parse_config(
             _ => None,
         })
         .map(|(name, definition)| scope.read_collection(name, definition))
-        .collect())
+        .collect();
+    Ok(ContentConfig {
+        collections,
+        has_spread,
+    })
 }
 
 /// The module's top-level variables and imports, for following names
@@ -309,7 +328,8 @@ impl<'a> Scope<'a> {
         let Some(options) = options else {
             return ConfigCollection {
                 name,
-                loader: Loader::Unknown { name: None },
+                loader: Loader::Unknown,
+                loader_name: None,
                 has_loader: true,
                 schema_source: None,
             };
@@ -335,9 +355,15 @@ impl<'a> Scope<'a> {
                 .map(|span| self.snippet(span)),
         };
 
+        let loader_name = match loader_option {
+            Some(Expr::Call(call)) => self.callee_name(call),
+            _ => None,
+        };
+
         ConfigCollection {
             name,
             loader,
+            loader_name,
             has_loader: loader_option.is_some(),
             schema_source,
         }
@@ -381,28 +407,18 @@ impl<'a> Scope<'a> {
         let call = match loader {
             Expr::Call(call) => call,
             Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => return Loader::Inline,
-            _ => return Loader::Unknown { name: None },
+            _ => return Loader::Unknown,
         };
         let first_arg = call.args.first().and_then(|arg| self.resolve(&arg.expr));
 
         match self.callee_name(call).as_deref() {
-            Some("glob") => {
-                let Some(Expr::Object(options)) = first_arg else {
-                    return Loader::Glob {
-                        base: GlobBase::Unreadable,
-                        patterns: None,
-                    };
-                };
-                let base = match self.option(options, "base") {
-                    None => GlobBase::Root,
-                    Some(base) => self
-                        .read_base(base)
-                        .map_or(GlobBase::Unreadable, GlobBase::Path),
-                };
-                let patterns = self
-                    .option(options, "pattern")
-                    .and_then(|pattern| self.read_patterns(pattern));
-                Loader::Glob { base, patterns }
+            Some("glob") => self.read_glob(first_arg),
+            // astro-loader-i18n's loaders wrap `glob()` and take its options.
+            // Starlight's `i18nLoader()` takes none, and loads UI strings.
+            Some("i18nLoader" | "i18nContentLoader")
+                if matches!(first_arg, Some(Expr::Object(_))) =>
+            {
+                self.read_glob(first_arg)
             }
             Some("docsLoader") => Loader::Glob {
                 base: GlobBase::Path(PathBuf::from(STARLIGHT_DOCS_BASE)),
@@ -414,10 +430,28 @@ impl<'a> Scope<'a> {
                     .map(|path| path.trim_start_matches("./").to_string()),
             },
             Some("i18nLoader") => Loader::Data { file: None },
-            other => Loader::Unknown {
-                name: other.map(str::to_string),
-            },
+            _ => Loader::Unknown,
         }
+    }
+
+    /// A loader that takes `glob()`'s options: `base` and `pattern`
+    fn read_glob(&self, options: Option<&'a Expr>) -> Loader {
+        let Some(Expr::Object(options)) = options else {
+            return Loader::Glob {
+                base: GlobBase::Unreadable,
+                patterns: None,
+            };
+        };
+        let base = match self.option(options, "base") {
+            None => GlobBase::Root,
+            Some(base) => self
+                .read_base(base)
+                .map_or(GlobBase::Unreadable, GlobBase::Path),
+        };
+        let patterns = self
+            .option(options, "pattern")
+            .and_then(|pattern| self.read_patterns(pattern));
+        Loader::Glob { base, patterns }
     }
 
     /// A glob `base`: a string relative to the project root, or a URL. A relative
@@ -512,7 +546,9 @@ mod tests {
 
     fn parse(source: &str) -> Vec<ConfigCollection> {
         let project = Path::new("/site");
-        parse_config(source, &project.join("src/content.config.ts"), project).unwrap()
+        parse_config(source, &project.join("src/content.config.ts"), project)
+            .unwrap()
+            .collections
     }
 
     fn loader(source: &str) -> Loader {
@@ -692,7 +728,11 @@ mod tests {
             };
             "#,
         );
-        let loaders: Vec<_> = collections.into_iter().map(|c| c.loader).collect();
+        let names: Vec<_> = collections
+            .iter()
+            .map(|c| c.loader_name.as_deref())
+            .collect();
+        let loaders: Vec<_> = collections.iter().map(|c| c.loader.clone()).collect();
         assert_eq!(
             loaders,
             [
@@ -705,13 +745,49 @@ mod tests {
                 },
                 glob(path(STARLIGHT_DOCS_BASE), &[STARLIGHT_DOCS_PATTERN]),
                 Loader::Data { file: None },
-                Loader::Unknown {
-                    name: Some("rssLoader".to_string())
-                },
+                Loader::Unknown,
                 Loader::Inline,
                 Loader::Inline,
-                Loader::Unknown { name: None },
+                Loader::Unknown,
             ]
+        );
+        // Named whenever the loader is a call, whether or not AE can read it
+        assert_eq!(
+            names,
+            [
+                None,
+                None,
+                None,
+                None,
+                Some("file"),
+                Some("docsLoader"),
+                Some("i18nLoader"),
+                Some("rssLoader"),
+                None,
+                None,
+                None,
+            ]
+        );
+    }
+
+    #[test]
+    fn reads_astro_loader_i18n_as_glob() {
+        let collections = parse(
+            r#"
+            import { i18nContentLoader, i18nLoader } from 'astro-loader-i18n';
+            export const collections = {
+                pages: defineCollection({ loader: i18nLoader({ pattern: '**/[^_]*.{md,mdx}', base: './src/pages-content' }) }),
+                navigation: defineCollection({ loader: i18nContentLoader({ pattern: '**/*.yml', base: './src/navigation' }) }),
+            };
+            "#,
+        );
+        assert_eq!(
+            collections[0].loader,
+            glob(path("./src/pages-content"), &["**/[^_]*.{md,mdx}"])
+        );
+        assert_eq!(
+            collections[1].loader,
+            glob(path("./src/navigation"), &["**/*.yml"])
         );
     }
 
@@ -753,5 +829,24 @@ mod tests {
         )
         .is_err());
         assert!(parse_config("export const collections = {", &config, project).is_err());
+    }
+
+    #[test]
+    fn notes_collections_spread_in_from_elsewhere() {
+        let project = Path::new("/site");
+        let config = project.join("src/content.config.ts");
+        let spread = parse_config(
+            "import { extra } from './extra';
+            const blog = defineCollection({ loader: glob({ pattern: '*.md' }) });
+            export const collections = { blog, ...extra };",
+            &config,
+            project,
+        )
+        .unwrap();
+        assert!(spread.has_spread);
+        assert_eq!(spread.collections.len(), 1);
+
+        let plain = parse_config("export const collections = {};", &config, project).unwrap();
+        assert!(!plain.has_spread);
     }
 }

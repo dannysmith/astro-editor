@@ -30,7 +30,8 @@ pub struct Collection {
     /// Its key in the content config's `collections` export, or its folder's name
     pub name: String,
     pub kind: CollectionKind,
-    /// For a loader AE can't read, its function's name, when it's called by name
+    /// Its loader function's name, when it's called by name, as in `glob()` or
+    /// `atprotoLoader()`
     pub loader_name: Option<String>,
     /// Its loader is written in place in the config (a function, or an object
     /// with `load`), so the definition was read but the loader can't be
@@ -118,6 +119,8 @@ pub enum SettingSource {
     Config,
     /// Detected in the schema
     Schema,
+    /// Where Astro's data store says it last loaded a collection's entries from
+    DataStore,
     /// Astro's or AE's convention
     Convention,
     /// Nothing to go on

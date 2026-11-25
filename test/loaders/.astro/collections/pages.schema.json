@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "translationId": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string"
+    },
+    "contentPath": {
+      "type": "string"
+    },
+    "basePath": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "translationId",
+    "locale",
+    "contentPath",
+    "basePath",
+    "title"
+  ]
+}

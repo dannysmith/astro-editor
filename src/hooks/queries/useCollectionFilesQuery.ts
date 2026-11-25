@@ -29,9 +29,14 @@ export const fetchCollectionFiles = async (
   return result.data
 }
 
+/**
+ * `enabled: false` reads only what's cached, and isn't re-read when a save
+ * marks it out of date
+ */
 export const useCollectionFilesQuery = (
   projectPath: string | null,
-  collection: Collection | undefined
+  collection: Collection | undefined,
+  { enabled = true }: { enabled?: boolean } = {}
 ) => {
   return useQuery({
     queryKey: queryKeys.collectionFiles(
@@ -39,6 +44,6 @@ export const useCollectionFilesQuery = (
       collection?.name || ''
     ),
     queryFn: () => fetchCollectionFiles(collection!, projectPath!),
-    enabled: !!projectPath && !!collection,
+    enabled: enabled && !!projectPath && !!collection,
   })
 }

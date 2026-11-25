@@ -23,11 +23,14 @@ export function describeOrigin(
   scan: ProjectScan
 ): string {
   const config = scan.configPath ? ` in \`${scan.configPath}\`` : ''
-  // A named loader, or one written in place in the config. Neither says what
-  // it reads. With neither, the definition couldn't be followed, often
-  // because it's imported from another file
-  const loader = collection.loaderName
-    ? `From \`${collection.loaderName}()\`${config}`
+  const named = collection.loaderName
+    ? `\`${collection.loaderName}()\`${config}`
+    : null
+  // For a loader AE can't read: a named one, or one written in place in the
+  // config. Neither says what it reads. With neither, the definition couldn't
+  // be followed, often because it's imported from another file
+  const loader = named
+    ? `From ${named}`
     : collection.inlineLoader
       ? `From a loader written in${config ? ` \`${scan.configPath}\`` : ' the content config'}`
       : null
@@ -39,18 +42,25 @@ export function describeOrigin(
       : `${unreadDefinition}.`
   }
   switch (collection.kind) {
+    // `glob()`, or a loader that wraps it, like Starlight's `docsLoader()`
     case 'glob':
-      return `From \`glob()\`${config}.`
+      return `From ${named ?? `\`glob()\`${config}`}.`
     case 'legacy':
       return `A legacy collection${config}, without a loader.`
-    case 'unknown':
+    case 'unknown': {
+      // A folder from the data store, or else the convention
+      const folder =
+        collection.folderSource === 'dataStore'
+          ? 'where Astro last loaded its entries from'
+          : 'assumed to be the one named after it'
       return loader
-        ? `${loader}. Its folder is assumed to be the one named after it.`
-        : `${unreadDefinition}, so its folder is assumed to be the one named after it.`
+        ? `${loader}. Its folder is ${folder}.`
+        : `${unreadDefinition}, so its folder is ${folder}.`
+    }
     case 'folder':
       return `A folder in \`${scan.projectSettings.contentDirectory.value}\`.`
     case 'data':
-      return `JSON or YAML data${config ? ` from \`${scan.configPath}\`` : ''}. Data collections aren't edited here.`
+      return `JSON or YAML data${named ? ` from ${named}` : config ? ` from \`${scan.configPath}\`` : ''}. Data collections aren't edited here.`
   }
 }
 
