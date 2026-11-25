@@ -3,7 +3,10 @@ import { shownFilePath, useEditorStore } from '../../../store/editorStore'
 import { useFrontmatterValue } from '../../../hooks/useFrontmatterValue'
 import { Input } from '../../ui/input'
 import { AutoExpandingTextarea } from '../../ui/auto-expanding-textarea'
-import { valueToString } from '../utils'
+import { usePlatform } from '../../../hooks/usePlatform'
+import { cn } from '../../../lib/utils'
+import { isEmojiField, valueToString } from '../utils'
+import { EmojiButton } from './EmojiButton'
 import { FieldWrapper } from './FieldWrapper'
 import type { FieldControlProps } from './types'
 
@@ -34,14 +37,21 @@ export const StringField: React.FC<StringFieldProps> = ({
   const hasLineBreak = valueToString(value).includes('\n')
   if (hasLineBreak && multilineFile !== filePath) setMultilineFile(filePath)
   const multiline = hasLineBreak || multilineFile === filePath
+  const hasEmojiButton = isEmojiField(name, usePlatform())
 
   return (
-    <FieldWrapper label={label} field={field} value={value} htmlFor={id}>
+    <FieldWrapper
+      label={label}
+      field={field}
+      value={value}
+      htmlFor={id}
+      overlay={hasEmojiButton ? <EmojiButton inputId={id} /> : undefined}
+    >
       {multiline ? (
         <AutoExpandingTextarea
           id={id}
           name={name}
-          className={className}
+          className={cn(className, hasEmojiButton && 'pr-9')}
           value={valueToString(value)}
           onChange={e => setValue(e.target.value)}
         />
@@ -51,7 +61,7 @@ export const StringField: React.FC<StringFieldProps> = ({
           type={type}
           name={name}
           placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
-          className={className}
+          className={cn(className, hasEmojiButton && 'pr-9')}
           value={valueToString(value)}
           onChange={e => setValue(e.target.value)}
         />

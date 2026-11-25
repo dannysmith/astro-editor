@@ -23,6 +23,10 @@ import {
   ComboboxList,
 } from '../ui/combobox'
 import { NONE_SENTINEL } from '../frontmatter/fields/constants'
+import { EmojiButton } from '../frontmatter/fields/EmojiButton'
+import { isEmojiField } from '../frontmatter/utils'
+import { usePlatform } from '../../hooks/usePlatform'
+import { cn } from '../../lib/utils'
 import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import { useEditorStore } from '../../store/editorStore'
 import { formatIsoDate, parseIsoDate } from '../../lib/dates'
@@ -58,9 +62,11 @@ export function PropField({ prop }: { prop: PropInfo }) {
   )
   const id = React.useId()
   const labelId = `${id}-label`
+  const platform = usePlatform()
 
   const { name, kind } = prop
   const required = !prop.is_optional
+  const hasEmojiButton = isEmojiField(name, platform)
 
   if (kind.kind === 'image' && canImportImages(addsImports, collection)) {
     return <ImagePropField prop={prop} />
@@ -302,13 +308,17 @@ export function PropField({ prop }: { prop: PropInfo }) {
   if (kind.kind === 'string') {
     return (
       <FormField {...fieldProps} htmlFor={id}>
-        <AutoExpandingTextarea
-          id={id}
-          minRows={1}
-          maxRows={10}
-          value={typeof value === 'string' ? value : ''}
-          onChange={e => setValue(name, e.target.value || undefined)}
-        />
+        <div className="relative">
+          <AutoExpandingTextarea
+            id={id}
+            minRows={1}
+            maxRows={10}
+            className={cn(hasEmojiButton && 'pr-9')}
+            value={typeof value === 'string' ? value : ''}
+            onChange={e => setValue(name, e.target.value || undefined)}
+          />
+          {hasEmojiButton && <EmojiButton inputId={id} />}
+        </div>
       </FormField>
     )
   }

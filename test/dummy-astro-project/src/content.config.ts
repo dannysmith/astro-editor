@@ -40,6 +40,7 @@ const notes = defineCollection({
   schema: ({ image }) =>
     z.object({
       title: z.string().min(1).max(100).describe('The title of the note'),
+      emoji: z.string().optional(),
       sourceURL: z.string().url().optional(),
       slug: z.string().optional(),
       draft: z.boolean().default(false),

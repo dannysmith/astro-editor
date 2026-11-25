@@ -256,6 +256,12 @@ export const commands = {
 	projectDependencies: (projectPath: string) => typedError<string[], string>(__TAURI_INVOKE("project_dependencies", { projectPath })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
+	 *  Opens macOS's Emoji & Symbols palette. It inserts the chosen emoji into the
+	 *  focused text input, so the caller focuses one first. Other platforms have
+	 *  no palette that can be opened from code, so this does nothing there.
+	 */
+	openEmojiPalette: () => __TAURI_INVOKE<void>("open_emoji_palette"),
+	/**
 	 *  Fetch release notes from GitHub Releases API for all versions between
 	 *  current_version (exclusive) and new_version (inclusive).
 	 *  Returns combined markdown bodies in reverse chronological order.
