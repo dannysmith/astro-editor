@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parser } from '@lezer/markdown'
 import { GFM } from '@lezer/markdown'
-import { MASK, proseText } from './prose'
+import { countWords, MASK, proseText } from './prose'
 
 const gfmParser = parser.configure(GFM)
 
@@ -125,5 +125,36 @@ describe('proseText', () => {
 
   it('keeps the escaped character', () => {
     expect(prose('Not \\*emphasis\\*.')).toBe('Not *emphasis*.')
+  })
+})
+
+describe('countWords', () => {
+  const words = (doc: string) =>
+    countWords(proseText(doc, gfmParser.parse(doc)))
+
+  it('counts words, not punctuation', () => {
+    expect(words("Don't stop — it's well-known, e.g. 1,234 times.")).toBe(7)
+  })
+
+  it('counts link text, not code or URLs', () => {
+    expect(
+      words(
+        'Read [the docs](https://example.com) and `bun install`.\n\n```ts\nconst a = 1\n```\n'
+      )
+    ).toBe(4)
+  })
+
+  it('counts the prose inside an MDX component, not its tags or props', () => {
+    const doc =
+      'import Callout from "./Callout.astro"\n\nBefore.\n\n<Callout type="tip" title={title}>\n  Inside the callout.\n</Callout>\n'
+    expect(words(doc)).toBe(4)
+  })
+
+  it('counts a word with markup inside it once', () => {
+    expect(words('Truly un*real* and snake\\_case.')).toBe(4)
+  })
+
+  it('keeps headings and list items apart', () => {
+    expect(words('# Heading\n- one\n- two')).toBe(3)
   })
 })

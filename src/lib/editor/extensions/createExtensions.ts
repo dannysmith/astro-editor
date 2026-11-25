@@ -27,6 +27,7 @@
  *    - Focus mode (sentence-based dimming)
  *    - Copyedit mode (parts of speech highlighting)
  *    - Harper (spelling, grammar and style checks)
+ *    - Word count, for the Copyedit panel
  *
  * 6. Visual Enhancements
  *    - Hanging headers (# in margin)
@@ -54,6 +55,7 @@ import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
 import { createHarperExtension } from './harper'
 import { createTypewriterModeExtension } from './typewriter-mode'
+import { wordCountExtension } from './word-count'
 import { hangingHeadersExtension } from './hanging-headers'
 import { syntaxMarkDecorationsExtension } from './syntax-mark-decorations'
 import { codeBlockBackgroundExtension } from './code-block-background'
@@ -125,6 +127,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     ...createCopyeditModeExtension(),
     ...createHarperExtension(),
     ...createTypewriterModeExtension(),
+    wordCountExtension,
 
     // Visual enhancements
     hangingHeadersExtension,
