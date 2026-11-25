@@ -119,7 +119,9 @@ A loader's `base` and `pattern` can be plain strings, or template literals and `
 
 A collection without a schema isn't a problem, but its page says so at the top, since its fields can only be edited as plain text.
 
-If Astro Editor can't read a collection's loader, or its definition (such as one imported from another file), it looks for a folder named after the collection in the content folder. When there is one, it uses that, and the page says so. When there isn't, the collection is listed under Other Collections.
+If Astro Editor can't read a collection's loader, or its definition (such as one imported from another file), it looks at where Astro last loaded the collection's entries from, which Astro records each time it runs. When those are Markdown or MDX files, it uses their folder. When they all come from JSON or YAML files, it's listed as a data collection. When Astro hasn't loaded it, it looks for a folder named after the collection in the content folder. Either way, the page says where the folder came from. When there's no folder, the collection is listed under Other Collections.
+
+Collections spread into the content config from another file, as in `{ blog, ...moreCollections }`, are found the same way, once Astro has loaded them.
 
 ### Files
 

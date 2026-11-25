@@ -218,7 +218,9 @@ export function CollectionPage({
           resetTo={
             collection.kind === 'glob'
               ? "the content config's folder"
-              : `${collection.kind === 'legacy' ? 'src/content' : scan.projectSettings.contentDirectory.value}/${collection.name}`
+              : collection.kind === 'legacy'
+                ? `src/content/${collection.name}`
+                : `${collection.kind === 'unknown' ? 'the folder Astro last loaded it from, or ' : ''}${scan.projectSettings.contentDirectory.value}/${collection.name}`
           }
         >
           {({ id }) => (

@@ -3,6 +3,7 @@ use crate::commands::files::rename_without_replacing;
 use crate::commands::run_blocking;
 use crate::content_config::pattern::{EntryPattern, MARKDOWN_EXTENSIONS};
 use crate::content_config::{self, Loader};
+use crate::data_store::{self, StoredLocation};
 use crate::models::collection::ProjectScan;
 use crate::models::preferences::{FileType, SkippedFiles};
 use crate::models::{Collection, DirectoryInfo, FileEntry};
@@ -214,7 +215,8 @@ fn canonical_project(project_path: &str) -> Result<PathBuf, String> {
 }
 
 /// A `file()` collection's entries, read from its JSON or YAML file as
-/// reference targets
+/// reference targets. A collection with another loader works too when Astro's
+/// data store says all its entries came from one such file.
 #[tauri::command]
 #[specta::specta]
 pub async fn load_file_based_collection(
@@ -231,12 +233,21 @@ pub async fn load_file_based_collection(
     let collections = content_config::parse_config(&source, &config_path, &project)?;
 
     let file_path = collections
+        .collections
         .into_iter()
         .find_map(|collection| match collection.loader {
             Loader::Data { file: Some(file) } if collection.name == collection_name => {
                 Some(project.join(file))
             }
             _ => None,
+        })
+        // A loader AE can't read whose entries all came from one data file
+        .or_else(|| {
+            let store = data_store::read(&project);
+            match data_store::location(store.get(&collection_name)?, &project)? {
+                StoredLocation::Data(path) if path.is_file() => Some(path),
+                _ => None,
+            }
         })
         .ok_or_else(|| {
             format!("File-based collection '{collection_name}' not found in content.config")

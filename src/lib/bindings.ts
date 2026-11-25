@@ -92,7 +92,8 @@ export const commands = {
 	resolveFileEntry: (filePath: string, projectPath: string) => typedError<FileEntry | null, string>(__TAURI_INVOKE("resolve_file_entry", { filePath, projectPath })),
 	/**
 	 *  A `file()` collection's entries, read from its JSON or YAML file as
-	 *  reference targets
+	 *  reference targets. A collection with another loader works too when Astro's
+	 *  data store says all its entries came from one such file.
 	 */
 	loadFileBasedCollection: (projectPath: string, collectionName: string) => typedError<FileEntry[], string>(__TAURI_INVOKE("load_file_based_collection", { projectPath, collectionName })),
 	/**
@@ -284,7 +285,10 @@ export type Collection = {
 	/**  Its key in the content config's `collections` export, or its folder's name */
 	name: string,
 	kind: CollectionKind,
-	/**  For a loader AE can't read, its function's name, when it's called by name */
+	/**
+	 *  Its loader function's name, when it's called by name, as in `glob()` or
+	 *  `atprotoLoader()`
+	 */
 	loaderName: string | null,
 	/**
 	 *  Its loader is written in place in the config (a function, or an object
@@ -917,6 +921,8 @@ export type SettingSource =
 "config" | 
 /**  Detected in the schema */
 "schema" | 
+/**  Where Astro's data store says it last loaded a collection's entries from */
+"dataStore" | 
 /**  Astro's or AE's convention */
 "convention" | 
 /**  Nothing to go on */
