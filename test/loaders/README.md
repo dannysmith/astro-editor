@@ -27,4 +27,6 @@ Three warnings are expected:
 | `scrobbles` | `apiRecords()`, a stand-in for an AT Protocol or Notion loader | None | Unknown. In the store with ids and data, no files |
 | `guides` | `glob()`, spread in from `src/collections/extra.ts` | `src/guides` | Missing entirely |
 
+AE then looks in the data store for the unknown ones and finds every collection's files, except `bookmarks` and `scrobbles`, which have none. It adds `guides`, and `team` becomes a data collection. The Rust tests check this against the committed store.
+
 `astro-loader-obsidian` 0.10.0 needs `hast-util-from-html` installed alongside it on Astro 7. The MDX files use their components without importing them, so the entry page passes them to `<Content components>`.

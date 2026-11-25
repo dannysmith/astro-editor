@@ -45,7 +45,20 @@ pub fn scan_project(
             .and_then(|source| content_config::parse_config(&source, path, project))
     });
 
-    let store = data_store::read(project);
+    // Only read when something needs it: with rendered HTML, a store can run
+    // to megabytes
+    let store = match &config {
+        Some(Ok(config))
+            if config.has_spread
+                || config
+                    .collections
+                    .iter()
+                    .any(|c| matches!(c.loader, Loader::Unknown | Loader::Inline)) =>
+        {
+            data_store::read(project)
+        }
+        _ => DataStore::new(),
+    };
 
     let (defined, config_error) = match config {
         Some(Ok(config)) => {
