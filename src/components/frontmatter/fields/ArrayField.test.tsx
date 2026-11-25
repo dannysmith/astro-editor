@@ -49,7 +49,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
       expect(
         screen.queryByRole('button', { name: /remove.*tag/i })
       ).not.toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
       expect(
         screen.queryByRole('button', { name: /remove.*tag/i })
       ).not.toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
       expect(
         screen.queryByRole('button', { name: /remove.*tag/i })
       ).not.toBeInTheDocument()
@@ -89,7 +89,7 @@ describe('ArrayField Component', () => {
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Should not render tags for mixed array types
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
       expect(screen.queryByText('123')).not.toBeInTheDocument()
       expect(screen.queryByText('valid-string')).not.toBeInTheDocument()
       expect(
@@ -105,7 +105,7 @@ describe('ArrayField Component', () => {
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
       // Array validation should fail, showing empty input
-      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
       expect(screen.queryByText('react')).not.toBeInTheDocument()
       expect(screen.queryByText('typescript')).not.toBeInTheDocument()
     })
@@ -152,7 +152,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      const input = screen.getByRole('textbox')
+      const input = screen.getByRole('combobox')
       fireEvent.change(input, { target: { value: 'typescript' } })
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
@@ -195,7 +195,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      const input = screen.getByRole('textbox')
+      const input = screen.getByRole('combobox')
       fireEvent.change(input, { target: { value: 'react' } })
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
@@ -210,7 +210,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      const input = screen.getByRole('textbox')
+      const input = screen.getByRole('combobox')
       fireEvent.change(input, { target: { value: '  typescript  ' } })
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
@@ -225,7 +225,7 @@ describe('ArrayField Component', () => {
 
       renderWithProviders(<ArrayField name="tags" label="Tags" />)
 
-      const input = screen.getByRole('textbox')
+      const input = screen.getByRole('combobox')
       fireEvent.change(input, { target: { value: '   ' } })
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
