@@ -403,7 +403,9 @@ body {
   width: 100%;
   height: 100%;
   min-height: 100vh;
-  overflow: hidden;
+  /* Not `hidden`, which scripts can still scroll: scrollIntoView on anything
+     taller than the window would shift the whole app up */
+  overflow: clip;
   position: relative;
 }
 

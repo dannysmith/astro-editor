@@ -15,7 +15,8 @@ import {
   showAddImageError,
   IMAGE_EXTENSIONS,
 } from '../../lib/files'
-import { FormField } from './FormField'
+import { FormField } from '../ui/form-field'
+import { camelCaseToTitleCase } from '../../lib/utils'
 
 /**
  * An image prop: pick a file, which is copied into the assets directory as
@@ -44,10 +45,13 @@ export function ImagePropField({ prop }: { prop: PropInfo }) {
 
   return (
     <FormField
-      label={prop.name}
+      label={camelCaseToTitleCase(prop.name)}
+      labelPosition="side"
       labelId={labelId}
       required={!prop.is_optional}
-      description={prop.description ?? ''}
+      missing={!prop.is_optional && !image}
+      description={prop.description}
+      framed={false}
     >
       <div className="flex flex-col gap-2">
         {image && (

@@ -165,6 +165,7 @@ All Markdown not otherwise coloured: --color-text
 - Inline code block background: --color-codeblock-background
 - Fenced code block background: --color-codeblock-background
 - Backtick Markers: --color-mdtag
+- Code inside a fenced block: --color-text, except in the block holding the cursor, which is syntax highlighted in its language
 
 ### Caret and Selection
 

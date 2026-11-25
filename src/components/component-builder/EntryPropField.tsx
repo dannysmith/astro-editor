@@ -13,7 +13,8 @@ import {
   useCollectionEntriesQuery,
   type EntryOption,
 } from '../../hooks/queries/useCollectionEntriesQuery'
-import { FormField } from './FormField'
+import { FormField } from '../ui/form-field'
+import { camelCaseToTitleCase } from '../../lib/utils'
 
 /**
  * A collection-entry prop: pick an entry, which the file loads with
@@ -39,10 +40,12 @@ export function EntryPropField({
   const selected = options.find(option => option.value === entry?.id) ?? null
   return (
     <FormField
-      label={prop.name}
+      label={camelCaseToTitleCase(prop.name)}
+      labelPosition="side"
       htmlFor={id}
       required={!prop.is_optional}
-      description={prop.description ?? ''}
+      missing={!prop.is_optional && !entry}
+      description={prop.description}
     >
       <Combobox
         items={options}

@@ -1,5 +1,6 @@
 pub mod clipboard;
 pub mod diagnostics;
+pub mod emoji;
 pub mod files;
 pub mod fonts;
 pub mod git;

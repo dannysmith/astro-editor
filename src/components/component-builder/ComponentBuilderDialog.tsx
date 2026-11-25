@@ -80,7 +80,8 @@ export function ComponentBuilderDialog() {
         close()
       }}
     >
-      <DialogContent className="overflow-hidden p-0">
+      {/* Wide enough for the form's label column beside its fields */}
+      <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>Insert MDX Component</DialogTitle>
           <DialogDescription>

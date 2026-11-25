@@ -64,9 +64,11 @@ const BLOCK_MARKS = new Set(['ListMark', 'TableDelimiter', 'HeaderMark'])
 const MDX_STATEMENT = /^(?:import|export)\s/
 
 /**
- * Patterns masked across the whole text once the tree has been walked. The
- * tree reads an HTML or MDX component as one HTML block, so the Markdown
- * inside one (code, links, images) is only masked by these.
+ * Patterns masked across the whole text once the tree has been walked. In a
+ * `.md` file the tree reads HTML as one HTML block, so the Markdown inside one
+ * (code, links, images) is only masked by these. In MDX the tree reads a
+ * component's contents as Markdown (`syntax/mdx.ts`), and these mask the tags
+ * and expressions.
  */
 const TEXT_PATTERNS = [
   // Anything too long to be a word, like a pasted hash or base64, first:

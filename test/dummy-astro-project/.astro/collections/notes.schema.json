@@ -8,6 +8,9 @@
       "maxLength": 100,
       "description": "The title of the note"
     },
+    "emoji": {
+      "type": "string"
+    },
     "sourceURL": {
       "type": "string",
       "format": "uri"

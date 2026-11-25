@@ -13,6 +13,7 @@ import { useImageHover } from '../../hooks/editor/useImageHover'
 import { handleTauriFileDrop } from '../../lib/editor/dragdrop'
 import { setCurrentEditorView } from '../../lib/editor/editor-view-ref'
 import { loadDocument } from '../../lib/editor/load-document'
+import { setEditorLanguage } from '../../lib/editor/syntax'
 import {
   editability,
   editabilityCompartment,
@@ -252,6 +253,8 @@ const EditorViewComponent: React.FC = () => {
   // Load content when file changes (initial empty content from openFile)
   useEffect(() => {
     if (!viewRef.current || !currentFilePath) return
+
+    setEditorLanguage(viewRef.current, currentFilePath)
 
     // Get current content from store using getState() pattern (architecture guide: performance patterns)
     const { editorContent } = useEditorStore.getState()

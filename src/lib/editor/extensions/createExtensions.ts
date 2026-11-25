@@ -40,13 +40,11 @@
  */
 
 import { EditorView, dropCursor, drawSelection } from '@codemirror/view'
-import { markdown } from '@codemirror/lang-markdown'
-import { GFM } from '@lezer/markdown'
 import { syntaxHighlighting } from '@codemirror/language'
 import { undoHistory } from '../load-document'
 import { closeBrackets } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
-import { markdownStyleExtension, comprehensiveHighlightStyle } from '../syntax'
+import { comprehensiveHighlightStyle, editorLanguage } from '../syntax'
 import { altKeyState, urlHoverPlugin, handleUrlClick } from '../urls'
 import { handlePaste } from '../paste'
 import { createKeymapExtensions, type KeymapHandlers } from './keymap'
@@ -88,14 +86,9 @@ export const createExtensions = (config: ExtensionConfig) => {
       event => event.metaKey || event.ctrlKey
     ),
 
-    // Language support
-    // GFM enables tables, task lists, strikethrough, and autolinks (issue #266).
-    // We add the GFM bundle rather than switching to `base: markdownLanguage`
-    // so we get GFM only, without subscript/superscript/emoji (single `~x~`
-    // would otherwise become subscript, which is hostile to prose writing).
-    markdown({
-      extensions: [markdownStyleExtension, GFM],
-    }),
+    // Language support: Markdown, or MDX once an .mdx file is opened
+    // (syntax/language.ts)
+    editorLanguage(),
     syntaxHighlighting(comprehensiveHighlightStyle),
     undoHistory(),
 

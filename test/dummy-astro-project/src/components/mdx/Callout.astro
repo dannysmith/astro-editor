@@ -2,17 +2,17 @@
 export interface Props {
   title?: string;
   type?: 'default' | 'red' | 'blue' | 'green' | 'orange' | 'yellow' | 'purple';
-  icon?: string;
+  emoji?: string;
 }
 
-const { title, icon, type = 'default' } = Astro.props;
+const { title, emoji, type = 'default' } = Astro.props;
 ---
 
 <aside aria-label={title} class="callout" data-callout-color={type}>
   {
-    icon && (
+    emoji && (
       <div class="icon-wrapper">
-        <div class="icon">{icon}</div>
+        <div class="icon">{emoji}</div>
       </div>
     )
   }

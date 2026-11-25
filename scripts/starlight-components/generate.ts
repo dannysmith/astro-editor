@@ -11,7 +11,8 @@
  * `latest` (or a version) to upgrade. Starlight and TypeScript 6 (the last
  * version with a JavaScript API) are installed into node_modules/.cache.
  *
- * Output: src-tauri/src/mdx_components/starlight-components.json
+ * Output: src-tauri/src/mdx_components/starlight-components.json, and
+ * Starlight's icons in src/components/component-builder/starlight-icons.json
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -23,6 +24,11 @@ const repoRoot = path.resolve(import.meta.dir, '../..')
 const outPath = path.join(
   repoRoot,
   'src-tauri/src/mdx_components/starlight-components.json'
+)
+/** Starlight's icons as SVG contents, for the builder's icon lists */
+const iconsPath = path.join(
+  repoRoot,
+  'src/components/component-builder/starlight-icons.json'
 )
 const cacheDir = path.join(repoRoot, 'node_modules/.cache/starlight-components')
 
@@ -524,6 +530,15 @@ const starlightVersion = JSON.parse(
 ).version
 const manifest = { starlight_version: starlightVersion, components }
 writeFileSync(outPath, JSON.stringify(manifest, null, 2) + '\n')
+
+// --- 6. Icons ---
+// The builder draws Starlight's general icons beside their names. The file
+// type icons (`seti:…`) are left out: there are more of them, and writers
+// rarely pick them.
+const { BuiltInIcons } = (await import(
+  path.join(starlightDir, 'dist/components-internals/Icons.js')
+)) as { BuiltInIcons: Record<string, string> }
+writeFileSync(iconsPath, JSON.stringify(BuiltInIcons, null, 2) + '\n')
 
 console.log(
   `Starlight ${starlightVersion}: wrote ${components.length} components to ${path.relative(repoRoot, outPath)}`
