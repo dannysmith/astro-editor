@@ -4,7 +4,7 @@ import { useEditorStore } from '../../../store/editorStore'
 import { useProjectStore } from '../../../store/projectStore'
 import { processDroppedFiles } from './fileProcessing'
 import { validateDropContext, buildFallbackMarkdownForPaths } from './edgeCases'
-import { FileDropPayload, DropResult } from './types'
+import { FileDropPayload, DropResult, ProcessedFile } from './types'
 
 /**
  * Parse file drop payload from Tauri event
@@ -58,6 +58,26 @@ export const isDropWithinElement = (
     position.y <= rect.bottom &&
     (!topmost || element.contains(topmost))
   )
+}
+
+/**
+ * Where the selection goes once files are inserted at `from`. A single image
+ * has its alt text (the file name) selected, so typing replaces it. Otherwise
+ * the cursor goes after the insert: with several images, selecting every alt
+ * text would type the same alt into all of them.
+ */
+export const selectionAfterInsert = (
+  from: number,
+  insertText: string,
+  files: ProcessedFile[]
+): { anchor: number; head?: number } => {
+  const [only] = files
+  if (files.length === 1 && only?.isImage) {
+    // `![` comes before the alt text, which formatAsMarkdown takes from the
+    // file name
+    return { anchor: from + 2, head: from + 2 + only.filename.length }
+  }
+  return { anchor: from + insertText.length }
 }
 
 /**
@@ -150,7 +170,7 @@ export const handleTauriFileDrop = async (
 
     editorView.dispatch({
       changes: { from, insert: insertText },
-      selection: { anchor: from + insertText.length },
+      selection: selectionAfterInsert(from, insertText, processedFiles),
     })
 
     return { success: true, insertText }
