@@ -1,16 +1,21 @@
 import { ProcessedFile } from './types'
 import { useEditorStore } from '../../../store/editorStore'
-import { processFileToAssets, IMAGE_EXTENSIONS_WITH_DOTS } from '../../files'
+import { processFileToAssets, ADDABLE_IMAGE_EXTENSIONS } from '../../files'
 import { assetSettings } from '../../project-scan'
+import { toast } from '../../toast'
 
 /**
- * Check if a file is an image based on its extension
+ * Check if a file is an image based on its extension, counting the ones
+ * converted as they're added (HEIC)
  * @param filename - Name of the file
  * @returns true if the file is an image
  */
 export const isImageFile = (filename: string): boolean => {
-  const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
-  return IMAGE_EXTENSIONS_WITH_DOTS.includes(extension)
+  const dot = filename.lastIndexOf('.')
+  if (dot === -1) return false
+  return ADDABLE_IMAGE_EXTENSIONS.includes(
+    filename.slice(dot + 1).toLowerCase()
+  )
 }
 
 /**
@@ -96,8 +101,12 @@ export const processDroppedFile = async (
       isImage,
       markdownText,
     }
-  } catch {
-    // Fallback to original path if processing fails (preserve existing behavior)
+  } catch (error) {
+    // Say why (a HEIC that can't be converted, say), and fall back to the
+    // original path
+    toast.error(`Couldn't add ${filename}`, {
+      description: error instanceof Error ? error.message : String(error),
+    })
     const markdownText = formatAsMarkdown(filename, filePath, isImage)
 
     return {

@@ -13,7 +13,7 @@ import {
 import {
   copyImageToAssets,
   showAddImageError,
-  IMAGE_EXTENSIONS,
+  ADDABLE_IMAGE_EXTENSIONS,
 } from '../../../lib/files'
 import { X, Loader2, Edit3, Check } from 'lucide-react'
 
@@ -169,7 +169,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
       <FileUploadButton
         id={id}
         aria-labelledby={`${labelId} ${id}`}
-        accept={[...IMAGE_EXTENSIONS]}
+        accept={[...ADDABLE_IMAGE_EXTENSIONS]}
         onFileSelect={handleFileSelect}
         disabled={isLoading}
       >

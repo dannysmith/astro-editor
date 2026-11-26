@@ -10,6 +10,8 @@ export type {
 export {
   IMAGE_EXTENSIONS,
   IMAGE_EXTENSIONS_WITH_DOTS,
+  ADDABLE_IMAGE_EXTENSIONS,
+  isConvertedImage,
   type ImageExtension,
 } from './constants'
 

@@ -22,7 +22,7 @@ export const commands = {
 	/**
 	 *  Copies a file into `<assets_directory>/<collection>/` (the folder relative to
 	 *  the project, as the collection's settings resolve it), named after the date
-	 *  and the file
+	 *  and the file. A HEIC photo is converted to JPEG on the way (see `heic`).
 	 */
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<CopiedAsset, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),

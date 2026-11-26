@@ -185,6 +185,25 @@ describe('processFileToAssets', () => {
       })
     })
 
+    it('copies a HEIC already in the project, which is converted', async () => {
+      vi.mocked(commands.copyFileToAssets).mockResolvedValue({
+        status: 'ok',
+        data: {
+          reference: 'src/assets/2024-01-15-img-1234.jpg',
+          path: '/real/project/copied.jpg',
+        },
+      })
+
+      const result = await processFileToAssets({
+        ...baseOptions,
+        sourcePath: '/Users/test/project/photos/IMG_1234.HEIC',
+        copyStrategy: 'only-if-outside-project',
+      })
+
+      expect(commands.isPathInProject).not.toHaveBeenCalled()
+      expect(result.relativePath).toBe('src/assets/2024-01-15-img-1234.jpg')
+    })
+
     it('should use override assets directory when copying from outside project', async () => {
       vi.mocked(commands.isPathInProject).mockResolvedValue(false)
       vi.mocked(commands.copyFileToAssets).mockResolvedValue({

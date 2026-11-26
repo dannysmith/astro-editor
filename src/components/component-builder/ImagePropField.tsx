@@ -13,7 +13,7 @@ import { useComponentBuilderStore } from '../../store/componentBuilderStore'
 import {
   copyImageToAssets,
   showAddImageError,
-  IMAGE_EXTENSIONS,
+  ADDABLE_IMAGE_EXTENSIONS,
 } from '../../lib/files'
 import { FormField } from '../ui/form-field'
 import { camelCaseToTitleCase } from '../../lib/utils'
@@ -75,7 +75,7 @@ export function ImagePropField({ prop }: { prop: PropInfo }) {
         <FileUploadButton
           id={id}
           aria-labelledby={`${labelId} ${id}`}
-          accept={[...IMAGE_EXTENSIONS]}
+          accept={[...ADDABLE_IMAGE_EXTENSIONS]}
           onFileSelect={handleFileSelect}
           disabled={isLoading}
         >
