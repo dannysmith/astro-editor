@@ -1,12 +1,16 @@
 import { EditorView } from '@codemirror/view'
-import { EditorSelection } from '@codemirror/state'
+import { EditorSelection, type EditorState } from '@codemirror/state'
+import { syntaxTree } from '@codemirror/language'
+import type { SyntaxNode } from '@lezer/common'
+import { commands } from '@/lib/bindings'
 import { isValidUrl } from '../urls/detection'
+import { htmlToMarkdown } from './html-to-markdown'
 import { imagesToPaste, pasteImages } from './images'
 
 /**
- * Handles a paste: a URL over selected text makes a link, and images are
- * saved into the collection's assets and inserted. Anything else is left to
- * CodeMirror.
+ * Handles a paste: a URL over selected text makes a link, images are saved
+ * into the collection's assets and inserted, and copied rich text is pasted
+ * as Markdown. Anything else is left to CodeMirror.
  * @param view - CodeMirror editor view
  * @param event - ClipboardEvent from paste
  * @returns true if the event was handled, false to allow default behavior
@@ -23,7 +27,54 @@ export const handlePaste = (
     void pasteImages(view, images)
     return true
   }
+
+  const markdown = markdownToPaste(view.state, event.clipboardData)
+  if (markdown) {
+    event.preventDefault()
+    const { from, to } = view.state.selection.main
+    view.dispatch({
+      changes: { from, to, insert: markdown },
+      selection: { anchor: from + markdown.length },
+      scrollIntoView: true,
+      userEvent: 'input.paste',
+    })
+    return true
+  }
   return false
+}
+
+/** Syntax nodes the cursor can be in where copied text is pasted as it is */
+const CODE = new Set(['FencedCode', 'CodeBlock', 'InlineCode'])
+
+/**
+ * Copied rich text as Markdown, or null to paste its plain text: when
+ * there's no HTML, when it's from VS Code (which copies highlighted code as
+ * HTML), when the cursor is in code, or when the HTML has no formatting to
+ * keep.
+ */
+export const markdownToPaste = (
+  state: EditorState,
+  clipboard: DataTransfer | null
+): string | null => {
+  const html = clipboard?.getData('text/html')
+  if (!html || clipboard?.types.includes('vscode-editor-data')) return null
+
+  for (
+    let node: SyntaxNode | null = syntaxTree(state).resolveInner(
+      state.selection.main.from,
+      -1
+    );
+    node;
+    node = node.parent
+  ) {
+    if (CODE.has(node.name)) return null
+  }
+
+  const markdown = htmlToMarkdown(html)
+  const plain = clipboard?.getData('text/plain') ?? ''
+  const words = (text: string) => text.replace(/\s+/g, ' ').trim()
+  const unescaped = markdown.replace(/\\(.)/g, '$1')
+  return markdown && words(unescaped) !== words(plain) ? markdown : null
 }
 
 /** Makes a Markdown link when a URL is pasted over selected text */
@@ -65,4 +116,23 @@ const pasteUrlOverSelection = (
 export const isClipboardUrl = (clipboardText: string | null): boolean => {
   if (clipboardText === null || clipboardText === undefined) return false
   return isValidUrl(clipboardText.trim())
+}
+
+/**
+ * Pastes the clipboard's text as it is, with no conversion (Mod-Shift-v).
+ * WebKit gives no paste event for it, so the text is read through Rust
+ */
+export const pasteAsPlainText = (view: EditorView): boolean => {
+  void commands.readTextFromClipboard().then(result => {
+    if (result.status === 'error' || !result.data) return
+    const text = result.data
+    const { from, to } = view.state.selection.main
+    view.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      scrollIntoView: true,
+      userEvent: 'input.paste',
+    })
+  })
+  return true
 }

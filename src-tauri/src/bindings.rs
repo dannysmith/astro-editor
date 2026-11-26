@@ -98,6 +98,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::mdx_components::project_dependencies,
             // clipboard.rs commands
             crate::commands::clipboard::copy_text_to_clipboard,
+            crate::commands::clipboard::read_text_from_clipboard,
             // emoji.rs commands
             crate::commands::emoji::open_emoji_palette,
             // updater.rs commands

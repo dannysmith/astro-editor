@@ -16,7 +16,7 @@ Shrinking large images is out: resizing is Astro's job, not the editor's.
 `docs/tasks-todo/temporary/paste-testing/` (gitignored) holds the sample article (HTML, `.docx`, `.rtf`) with what it should paste as, a photo in every image format, awkward file names, and some files that aren't images. Its README lists what Danny is preparing: the same content in Google Docs, Word, Pages, Notes, Notion, Gmail, Apple Mail, Slack, Obsidian and an AI chat; real iPhone HEICs (one portrait); and the clipboard sources to try.
 
 - [x] Sample content, images and files
-- [ ] Danny's sources and photos
+- [x] Danny's captures: image sources, and the sample article from Safari, Chrome, TextEdit and Word. The other rich-text sources were dropped to keep phase 4 simple.
 
 ## Phase 1: Select the alt text after inserting an image
 
@@ -66,47 +66,31 @@ What WebKit gives, from the captures in `paste-testing/captured/images-*.json`:
 
 ## Phase 4: Paste rich text as Markdown
 
-Keep it small and predictable. Convert only what's clearly meant; everything else is plain text.
+Kept deliberately simple: the converter reads the HTML's structure and nothing else, with no special handling for Word, Google Docs or Notion. If those paste badly, that's acceptable.
 
-**Approach: a small DOMParser walker in `src/lib/editor/paste/`, no new dependency.** The libraries don't buy much here. Turndown (4 KB) and the unified pipeline (28–80 KB) both read only tags, not inline styles, so both get Google Docs wrong (it wraps everything in `<b style="font-weight:normal">` and marks real bold with styled spans), and neither understands Word's lists, which are paragraphs with `mso-list` styles. We'd be patching around either one for the sources that matter most.
+What the captures showed (`paste-testing/captured/`, and the fixtures in `src/lib/editor/paste/fixtures/`):
 
-What it keeps:
+- **Safari and Chrome** give clean structural HTML (with inline computed styles): real headings, lists, links. Safari inlines a local image as a `data:` URL; Chrome gives its relative path.
+- **TextEdit** (RTF, converted by WebKit) has real lists and links, and headings that are only big bold text.
+- **Word**: WebKit strips its list markup, so lists are paragraphs starting with a typed `•`/`◦`/`1` and an indent, headings are big bold paragraphs, and (from a `.docx` textutil made) links had no URL.
 
-- [ ] Headings (`h1`–`h6`) and paragraphs, with a blank line between blocks. A Word or Pages document whose plain text has single line breaks comes out as proper paragraphs.
-- [ ] Bold and italic: `b`/`strong`/`i`/`em`, and spans styled `font-weight` 600 or more or `font-style: italic`. A `b` styled `font-weight: normal` (Google Docs' wrapper) is only a wrapper.
-- [ ] Links with an `href`. Relative and `javascript:` links become their text.
-- [ ] Lists, bulleted and numbered, nested by indenting. Word's `MsoListParagraph` paragraphs with `mso-list: lN levelN` become list items, with the bullet spans (`mso-list: Ignore`) dropped.
-- [ ] Blockquotes.
-- [ ] `br` as a line break inside a paragraph; a `div` with no block children as a line (Gmail and Apple Mail use one per line).
-- [ ] Everything else (tables, code, colours, fonts) becomes its text.
+- [x] `html-to-markdown.ts`, no new dependency: headings (`h1`–`h6` only), paragraphs, `br`, bold and italic (tags and `font-weight`/`font-style` styles; a `<b>` styled not bold is only a wrapper), links to web and email addresses, nested lists (including WebKit's list-inside-list from RTF), quotes, inline code as backticks, code blocks fenced, `hr`, and images with a web address as `![alt](https://…)`. Embedded images (`blob:`, `data:`) and relative links and images are dropped to their text. Tables become a paragraph per cell.
+- [x] Escapes `\`, `` ` ``, `*`, `[`, `]`, `_` at word edges, and `#`, `>`, `-`, `+` and `1.` at the start of a line, only in text that came from HTML.
+- [x] Pastes plain text instead when there's no HTML, when it's from VS Code (`vscode-editor-data`), when the cursor is in code, or when the conversion keeps no formatting.
+- [x] **⇧⌘V** (Ctrl+Shift+V) pastes plain text, read through a Rust command (`read_text_from_clipboard`), since WebKit gives no paste event for it. An editor keymap only, not a menu item.
+- [x] A URL pasted over a selection, and images, are handled first.
+- [x] Tests: the four real pastes as file snapshots (`fixtures/*.md`), plus unit tests.
+- [x] Checked in the app: a synthetic rich-text paste, and ⇧⌘V.
+- [x] Docs: "Pasting formatted text" in `editor/markdown-formatting.mdx`, the shortcut in `reference/keyboard-shortcuts.mdx`, and "Pasting and dropping" in `docs/developer/editor.md`.
+- [x] The temporary paste recorder is removed.
+- [ ] Danny to try pastes from the browser and TextEdit.
 
-Images inside copied text: WebKit reads a copied document's web archive or RTFD (Pages, Notes, TextEdit, Word) and replaces each image's source with a `blob:` URL, partly so pasted content can't reveal local file paths ([WebKit r223440](https://trac.webkit.org/r223440), [bug 49141](https://bugs.webkit.org/show_bug.cgi?id=49141)). A `blob:` URL belongs to the page, so the paste handler can `fetch()` it and get the bytes. So:
-
-- [ ] An `<img>` with a `blob:` or `data:` source is saved like a pasted image (phase 3) and inserted as `![alt](path)`, with the image's `alt` if it has one. The fixtures will show whether these images also arrive in `clipboardData.files`.
-- [ ] An `<img>` with an `http(s):` source (web pages, Google Docs, Notion) is left out for now. Google Docs' and Notion's image URLs are signed and expire, so keeping the URL leaves a broken image later, and downloading them is a bigger feature.
-
-When to use the plain text instead:
-
-- [ ] The clipboard has `vscode-editor-data`, or the HTML is mostly `pre`/monospace (copying from a code editor or Terminal, which put highlighted HTML on the clipboard).
-- [ ] The cursor is in a code block, frontmatter, or a JSX/HTML tag.
-- [ ] The conversion has no formatting and only one paragraph: then the plain text is the same and safer.
-- [ ] The paste is a single paragraph going into the middle of a line: insert it inline, without blank lines around it.
-
-Escaping: only escape Markdown characters in text that came from HTML, and only where they'd change the meaning (`*`, `_`, `` ` ``, `[`, `]`, and `#`, `>`, `-`, `+` or `1.` at the start of a line). Plain-text pastes are never escaped.
-
-- [ ] **Paste as Plain Text: ⇧⌘V** (Ctrl+Shift+V elsewhere), in the Edit menu and the command palette. Obsidian, Typora, Chrome and Google Docs all use ⇧⌘V; macOS's own Paste and Match Style is ⌥⇧⌘V, which suits rich-text apps rather than Markdown editors. It reads the text through the clipboard plugin we already have (Rust), since `navigator.clipboard.readText()` shows a permission bubble in WKWebView.
-- [ ] No setting to turn conversion off. ⇧⌘V covers the times you don't want it.
-- [ ] URL pasted over a selection keeps working as it does, and runs first.
-- [ ] Docs: a short "Pasting" section in `editor/overview.mdx` (or its own page), and the shortcut and command in the reference pages.
-
-### Fixtures
-
-Fixtures are the clipboard exactly as the webview receives it. A temporary dev-only log in the paste handler records `clipboardData.types`, the `text/html` and `text/plain`, any files and every `<img>` source. Danny pastes from each source in `paste-testing/README.md` into the dev app, the output is saved in `paste-testing/captured/`, and trimmed copies become the unit tests' fixtures. Then the logging comes out.
-
-## Decisions for Danny
+## Decisions
 
 - HEIC: always convert, no setting, macOS only (refuse elsewhere).
 - Plain paste on ⇧⌘V rather than the issue's ⌥⇧⌘V.
 - Rich text: no setting to turn it off.
 - Pasting non-image files: not now.
-- Images inside copied text: save the ones the clipboard carries (`blob:`/`data:`), leave out remote ones.
+- Images inside copied text: remote ones as `![alt](https://…)`, embedded ones dropped.
+- Code in copied text: backticks and fenced blocks.
+- Rich text sources: structural HTML only; no special handling for Word, Google Docs or Notion.

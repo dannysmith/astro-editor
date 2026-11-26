@@ -263,6 +263,11 @@ export const commands = {
 	projectDependencies: (projectPath: string) => typedError<string[], string>(__TAURI_INVOKE("project_dependencies", { projectPath })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
+	 *  The clipboard's text, for Paste as Plain Text. Read here because the
+	 *  webview's own `navigator.clipboard.readText()` asks for permission first
+	 */
+	readTextFromClipboard: () => typedError<string, string>(__TAURI_INVOKE("read_text_from_clipboard")),
+	/**
 	 *  Opens macOS's Emoji & Symbols palette. It inserts the chosen emoji into the
 	 *  focused text input, so the caller focuses one first. Other platforms have
 	 *  no palette that can be opened from code, so this does nothing there.
