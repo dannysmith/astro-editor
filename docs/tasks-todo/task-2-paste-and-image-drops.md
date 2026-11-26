@@ -44,14 +44,25 @@ Worth knowing: dragging from Photos usually gives a JPEG already. HEIC mostly ar
 
 ## Phase 3: Paste images
 
-WebKit turns whatever image is on the pasteboard into a file in the `paste` event's `clipboardData.files`: a screenshot (PNG), an image copied in Preview or Photos (TIFF, which WebKit converts to PNG), Safari's and Chrome's Copy Image, and real files copied in Finder (⌘C). That's more reliable than Tauri's `readImage()`, which only reads TIFF on macOS and re-encodes to raw RGBA.
+What WebKit gives, from the captures in `paste-testing/captured/images-*.json`:
 
-- [ ] In the paste handler, if `clipboardData.files` has images, handle them as a drop: save into the collection's assets folder, insert the Markdown, select the alt (phase 1). A file copied in Finder keeps its name; a screenshot or copied image (WebKit calls it `image.png`) becomes `YYYY-MM-DD-pasted-image.png`.
-- [ ] A new Rust command that writes the bytes through the same naming, unique-name and HEIC logic as `copy_file_to_assets`, sharing its code rather than copying it. Passing the bytes as `Vec<u8>` through tauri-specta sends them as a JSON array of numbers. Try that first with a full-screen retina screenshot; if it's noticeably slow, use a raw-body command (`tauri::ipc::Request`) for this one.
-- [ ] Not an image (a copied PDF in Finder): leave it to the default paste for now. Drops already handle other files; paste can follow if anyone asks.
-- [ ] The same fallbacks as drops: no project or file open, or an `.astro`/other file that isn't in a collection.
+| Source                                  | Clipboard                                                        |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| Screenshot to clipboard, Preview        | One file, `image.png` (Preview's image converted to PNG)          |
+| Photos                                  | One file, a JPEG named with a UUID (`89A58956-…_1_105_c.jpeg`)    |
+| Copy Image in Safari or Chrome          | A PNG `image.png`, and HTML that's only the `<img>`, with its alt |
+| Finder, one or several images, or HEIC  | The files with their own names; HEIC as `image/heic`              |
+| A web page selection with images        | HTML and text, no files; the images are remote URLs               |
+
+- [x] `paste/images.ts`: when every file is an image and there's no text, or the HTML is only an `<img>` (Copy Image), the images are saved and inserted over the selection, and a single image has its alt selected. Copy Image's alt text is used. Anything else goes to the text handling. The URL-over-selection case runs first.
+- [x] Names WebKit and Photos make up (`image.png`, UUIDs) become `pasted-image`; Finder's names are kept.
+- [x] `save_image_to_assets` shares `add_to_assets` with `copy_file_to_assets`. A pasted HEIC is written as it came and converted in place. The bytes cross as base64: 12 MB took 0.2s, against 2.9s as a `Vec<u8>` (a JSON array of numbers). A raw-body command (`tauri::ipc::Request`) isn't possible with tauri-specta. `base64` was already in the dependency tree.
+- [x] Not an image (a PDF copied in Finder): left to the default paste.
+- [x] No project, or a file that isn't in a collection: a toast, nothing inserted.
+- [x] Checked in the app with a synthetic Copy Image paste: saved, inserted, alt selected, one undo removes it.
+- [x] Docs: "Pasting images" in `editor/images-and-files.mdx`.
+- [ ] Danny to try real pastes of each source.
 - [ ] Windows (WebView2) should work the same way. WebKitGTK's image paste has been unreliable and may not; that's acceptable for an unsupported platform.
-- [ ] Docs: `editor/images-and-files.mdx`.
 
 ## Phase 4: Paste rich text as Markdown
 

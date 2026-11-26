@@ -162,6 +162,7 @@ dependencies = [
 name = "astro-editor"
 version = "1.2.1"
 dependencies = [
+ "base64 0.23.1",
  "block2",
  "chrono",
  "dispatch2",

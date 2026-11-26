@@ -284,8 +284,42 @@ pub async fn copy_file_to_assets(
     .await
 }
 
+/// Saves a pasted image, given its bytes (as base64) and the name it came with,
+/// into the collection's assets as `copy_file_to_assets` copies a file,
+/// converting a HEIC to JPEG
+#[tauri::command]
+#[specta::specta]
+pub async fn save_image_to_assets(
+    base64_data: String,
+    file_name: String,
+    destination: AssetDestination,
+) -> Result<CopiedAsset, String> {
+    use base64::Engine;
+
+    run_blocking(move || {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&base64_data)
+            .map_err(|e| format!("Couldn't read the pasted image: {e}"))?;
+        let write = |dest: &Path| {
+            std::fs::write(dest, &bytes).map_err(|e| format!("Failed to save the image: {e}"))
+        };
+        if heic::is_heic(Path::new(&file_name)) {
+            let jpeg_name = Path::new(&file_name).with_extension("jpg");
+            // Written as it came, then converted where it is
+            return add_to_assets(&destination, &jpeg_name.to_string_lossy(), |dest| {
+                write(dest)?;
+                heic::convert_to_jpeg(dest, dest)
+            });
+        }
+        add_to_assets(&destination, &file_name, write)
+    })
+    .await
+}
+
 /// Where a file added for an entry goes, and how the entry refers to it
-struct AssetDestination {
+#[derive(Debug, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetDestination {
     project_path: String,
     collection: String,
     /// The collection's assets folder, relative to the project
@@ -1344,6 +1378,67 @@ mod tests {
             copied.reference
         );
         assert_eq!(fs::read(&copied.path).unwrap()[..3], [0xFF, 0xD8, 0xFF]);
+    }
+
+    fn destination_in(project: &Path) -> AssetDestination {
+        AssetDestination {
+            project_path: project.to_string_lossy().to_string(),
+            collection: "blog".to_string(),
+            assets_directory: "src/assets".to_string(),
+            current_file_path: project
+                .join("src/content/blog/post.md")
+                .to_string_lossy()
+                .to_string(),
+            use_relative_paths: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn saves_a_pasted_image_as_a_file_would_be_copied() {
+        let project_dir = tempfile::TempDir::new().unwrap();
+        let saved = save_image_to_assets(
+            "cG5nIGJ5dGVz".to_string(), // "png bytes"
+            "Screenshot 2026-11-26 at 20.15.02.png".to_string(),
+            destination_in(project_dir.path()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            saved.reference.starts_with("../../assets/blog/")
+                && saved
+                    .reference
+                    .ends_with("-screenshot-2026-11-26-at-20-15-02.png"),
+            "{}",
+            saved.reference
+        );
+        assert_eq!(fs::read(&saved.path).unwrap(), b"png bytes");
+    }
+
+    // See `heic::tests::converts_a_heic_photo`
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    #[ignore = "needs macOS's HEVC decoder"]
+    async fn a_pasted_heic_is_saved_as_a_jpeg() {
+        let project_dir = tempfile::TempDir::new().unwrap();
+        use base64::Engine;
+        let heic =
+            fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/images/photo.heic"))
+                .unwrap();
+        let saved = save_image_to_assets(
+            base64::engine::general_purpose::STANDARD.encode(heic),
+            "Photo From iPhone.HEIC".to_string(),
+            destination_in(project_dir.path()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            saved.reference.ends_with("-photo-from-iphone.jpg"),
+            "{}",
+            saved.reference
+        );
+        assert_eq!(fs::read(&saved.path).unwrap()[..3], [0xFF, 0xD8, 0xFF]);
     }
 
     #[tokio::test]

@@ -1,5 +1,5 @@
 // File processing exports
-export { processFileToAssets } from './fileProcessing'
+export { processFileToAssets, savePastedImage } from './fileProcessing'
 export { copyImageToAssets, resolveImageSrc, showAddImageError } from './images'
 export type {
   ProcessFileToAssetsOptions,

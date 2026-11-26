@@ -89,6 +89,46 @@ export async function processFileToAssets(
 }
 
 /**
+ * Saves a pasted image into the collection's assets, named after `fileName`
+ * as a copied file would be, and returns the path to write in the entry
+ * @throws Error if it can't be saved
+ */
+export async function savePastedImage(
+  image: Blob,
+  fileName: string,
+  options: Omit<ProcessFileToAssetsOptions, 'sourcePath' | 'copyStrategy'>
+): Promise<string> {
+  const { projectPath, collection, assetsDirectory, currentFilePath } = options
+  const result = await commands.saveImageToAssets(
+    await toBase64(image),
+    fileName,
+    {
+      projectPath,
+      collection,
+      assetsDirectory,
+      currentFilePath,
+      useRelativePaths: options.useRelativePaths,
+    }
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  useGitPanelStore.getState().rememberAdded(currentFilePath, result.data.path)
+  return result.data.reference
+}
+
+/** A blob's bytes as base64, which crosses to Rust far faster than an array */
+async function toBase64(blob: Blob): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error('Unreadable'))
+    reader.readAsDataURL(blob)
+  })
+  return dataUrl.slice(dataUrl.indexOf(',') + 1)
+}
+
+/**
  * Extract filename from a file path
  * @param filePath - Full file path
  * @returns Just the filename portion

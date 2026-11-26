@@ -39,6 +39,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::files::delete_file,
             crate::commands::files::rename_file,
             crate::commands::files::copy_file_to_assets,
+            crate::commands::files::save_image_to_assets,
             crate::commands::files::parse_markdown_content,
             crate::commands::files::save_markdown_content,
             crate::commands::files::save_recovery_data,

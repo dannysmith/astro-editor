@@ -22,6 +22,7 @@ export {
   handleTauriFileDrop,
   parseFileDropPayload,
   isDropWithinElement,
+  selectionAfterInsert,
 } from './handlers'
 export {
   processDroppedFile,
