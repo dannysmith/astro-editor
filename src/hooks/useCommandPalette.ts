@@ -52,8 +52,8 @@ export function useCommandPalette() {
     }
   }
 
-  // A search starting with `#` lists the open file's headings. They're read
-  // once as it starts, since the document can't change while the palette is open
+  // A search starting with `#` lists the open file's headings, read once as it
+  // starts
   const headingMode = isHeadingSearch(search)
   const setSearch = (value: string) => {
     if (isHeadingSearch(value) && !headingMode) {

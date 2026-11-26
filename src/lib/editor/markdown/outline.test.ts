@@ -85,4 +85,13 @@ describe('goToHeading', () => {
     goToHeading(view, deeper)
     expect(view.state.selection.main.head).toBe(view.state.doc.length)
   })
+
+  it('does nothing if the document changed since the heading was read', () => {
+    const view = new EditorView({ state: state() })
+    views.push(view)
+    const deeper = getDocumentHeadings(view.state).at(-1)!
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length } })
+    goToHeading(view, deeper)
+    expect(view.state.selection.main.head).toBe(0)
+  })
 })

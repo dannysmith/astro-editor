@@ -68,9 +68,14 @@ export function filterHeadings(
 /**
  * Puts the cursor at the end of a heading and scrolls it to the top of the
  * editor. In typewriter mode its own scroll comes after this one and centres
- * the heading instead.
+ * the heading instead. Does nothing if the heading isn't where it was read,
+ * as when the file is reloaded from disk while the palette lists its headings.
  */
 export function goToHeading(view: EditorView, heading: DocumentHeading) {
+  const current = getDocumentHeadings(view.state)
+  if (!current.some(h => h.to === heading.to && h.text === heading.text)) {
+    return
+  }
   view.dispatch({
     selection: EditorSelection.cursor(heading.to),
     effects: EditorView.scrollIntoView(heading.to, { y: 'start', yMargin: 48 }),
