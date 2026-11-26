@@ -18,6 +18,7 @@
  * | Mod+Shift+F      | Toggle focus mode               |
  * | Mod+Shift+T      | Toggle typewriter mode          |
  * | Mod+Shift+L      | Add cursors to line ends        |
+ * | Mod+Shift+V      | Paste as plain text             |
  * | Tab              | Insert tab or next snippet field |
  * | Shift+Tab        | Previous snippet field          |
  *
@@ -46,6 +47,7 @@ import { toggleMarkdown, createMarkdownLink } from '../markdown/formatting'
 import { transformLineToHeading } from '../markdown/headings'
 import { addCursorsToLineEnds } from '../selection'
 import { globalCommandRegistry } from '../commands'
+import { pasteAsPlainText } from '../paste'
 
 /**
  * Keymap handler callbacks passed from the editor component
@@ -82,6 +84,11 @@ export const createMarkdownKeymap = (handlers?: KeymapHandlers) => {
           }
           return toggleComment(view)
         },
+      },
+      // Paste without converting rich text to Markdown
+      {
+        key: 'Mod-Shift-v',
+        run: pasteAsPlainText,
       },
       // Content linker
       {

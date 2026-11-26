@@ -75,6 +75,13 @@ describe('File Processing', () => {
       expect(isImageFile('graphic.svg')).toBe(true)
       expect(isImageFile('bitmap.bmp')).toBe(true)
       expect(isImageFile('favicon.ico')).toBe(true)
+      expect(isImageFile('photo.avif')).toBe(true)
+      expect(isImageFile('scan.tiff')).toBe(true)
+    })
+
+    it('counts HEIC, which is converted as it is added', () => {
+      expect(isImageFile('IMG_1234.HEIC')).toBe(true)
+      expect(isImageFile('photo.heif')).toBe(true)
     })
 
     it('should return false for non-image files', () => {

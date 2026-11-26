@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorState, EditorSelection } from '@codemirror/state'
-import { handlePaste, isClipboardUrl } from './handlers'
+import { markdown } from '@codemirror/lang-markdown'
+import { handlePaste, isClipboardUrl, markdownToPaste } from './handlers'
 
 // Mock URL detection
 vi.mock('../urls/detection', () => ({
@@ -30,10 +31,12 @@ const createMockView = (
   } as unknown as EditorView
 }
 
+/** A paste of plain text, as a real clipboard gives it */
 const createMockClipboardEvent = (text: string): ClipboardEvent => {
   return {
     clipboardData: {
-      getData: vi.fn().mockReturnValue(text),
+      types: ['text/plain'],
+      getData: vi.fn((type: string) => (type === 'text/plain' ? text : '')),
     },
   } as unknown as ClipboardEvent
 }
@@ -321,5 +324,49 @@ describe('Paste Handlers', () => {
       expect(result).toBe(false)
       expect(mockDispatch).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('markdownToPaste', () => {
+  const state = (doc: string, cursor: number) =>
+    EditorState.create({
+      doc,
+      selection: EditorSelection.cursor(cursor),
+      extensions: markdown(),
+    })
+  const clipboard = (data: Record<string, string>) =>
+    ({
+      types: Object.keys(data),
+      getData: (type: string) => data[type] ?? '',
+    }) as unknown as DataTransfer
+
+  const rich = {
+    'text/html': '<p>Some <b>bold</b> text</p>',
+    'text/plain': 'Some bold text',
+  }
+
+  it('converts copied rich text', () => {
+    expect(markdownToPaste(state('', 0), clipboard(rich))).toBe(
+      'Some **bold** text'
+    )
+  })
+
+  it('pastes the plain text when there is no formatting to keep', () => {
+    const html = { 'text/html': '<p>5 * 3</p>', 'text/plain': '5 * 3' }
+    expect(markdownToPaste(state('', 0), clipboard(html))).toBeNull()
+    expect(
+      markdownToPaste(state('', 0), clipboard({ 'text/plain': 'Text' }))
+    ).toBeNull()
+  })
+
+  it('pastes the plain text of code copied from VS Code', () => {
+    const vscode = { ...rich, 'vscode-editor-data': '{"mode":"typescript"}' }
+    expect(markdownToPaste(state('', 0), clipboard(vscode))).toBeNull()
+  })
+
+  it('pastes the plain text into code', () => {
+    const doc = 'Text\n\n```js\nconst a = 1\n```\n'
+    expect(markdownToPaste(state(doc, 12), clipboard(rich))).toBeNull()
+    expect(markdownToPaste(state(doc, 2), clipboard(rich))).not.toBeNull()
   })
 })

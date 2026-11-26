@@ -19,4 +19,4 @@
  * ```
  */
 
-export { handlePaste, isClipboardUrl } from './handlers'
+export { handlePaste, isClipboardUrl, pasteAsPlainText } from './handlers'

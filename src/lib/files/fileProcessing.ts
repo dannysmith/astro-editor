@@ -1,5 +1,6 @@
 import { commands } from '@/lib/bindings'
 import { useGitPanelStore } from '../../store/gitPanelStore'
+import { isConvertedImage } from './constants'
 import type {
   ProcessFileToAssetsOptions,
   ProcessFileToAssetsResult,
@@ -11,6 +12,8 @@ import type {
  * Handles file copying with two strategies:
  * 1. 'always': Always copy to assets directory (for article-specific images)
  * 2. 'only-if-outside-project': Only copy if outside project (for reusable assets)
+ *
+ * Images Astro can't use (HEIC) are converted to JPEG as they're copied.
  *
  * @param options - Processing options
  * @returns Processing result with relative path and metadata
@@ -32,10 +35,11 @@ export async function processFileToAssets(
   // Extract filename for result
   const filename = extractFilename(sourcePath)
 
-  // Determine if we need to copy the file
-  let shouldCopy = copyStrategy === 'always'
+  // Determine if we need to copy the file. One that has to be converted (a
+  // HEIC photo) is always copied, as a JPEG, even from inside the project
+  let shouldCopy = copyStrategy === 'always' || isConvertedImage(sourcePath)
 
-  if (copyStrategy === 'only-if-outside-project') {
+  if (!shouldCopy) {
     const isInProject = await commands.isPathInProject(sourcePath, projectPath)
     shouldCopy = !isInProject
   }
@@ -82,6 +86,46 @@ export async function processFileToAssets(
     wasCopied,
     filename,
   }
+}
+
+/**
+ * Saves a pasted image into the collection's assets, named after `fileName`
+ * as a copied file would be, and returns the path to write in the entry
+ * @throws Error if it can't be saved
+ */
+export async function savePastedImage(
+  image: Blob,
+  fileName: string,
+  options: Omit<ProcessFileToAssetsOptions, 'sourcePath' | 'copyStrategy'>
+): Promise<string> {
+  const { projectPath, collection, assetsDirectory, currentFilePath } = options
+  const result = await commands.saveImageToAssets(
+    await toBase64(image),
+    fileName,
+    {
+      projectPath,
+      collection,
+      assetsDirectory,
+      currentFilePath,
+      useRelativePaths: options.useRelativePaths,
+    }
+  )
+  if (result.status === 'error') {
+    throw new Error(result.error)
+  }
+  useGitPanelStore.getState().rememberAdded(currentFilePath, result.data.path)
+  return result.data.reference
+}
+
+/** A blob's bytes as base64, which crosses to Rust far faster than an array */
+async function toBase64(blob: Blob): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error('Unreadable'))
+    reader.readAsDataURL(blob)
+  })
+  return dataUrl.slice(dataUrl.indexOf(',') + 1)
 }
 
 /**

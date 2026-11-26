@@ -45,6 +45,15 @@ The Copyedit panel's checks run [Harper](https://writewithharper.com) through `@
 - **A fix only applies while the issue covers the text it was raised on** (`issues.ts`). Checks are a second or more behind typing, so anything that edits the document from an issue has to go through `applyFix`.
 - **Harper's tooltip is the editor's only hover tooltip,** so `tooltip.ts` styles `.cm-tooltip-hover` itself. The lint package's own tooltip is emptied with `tooltipFilter` but still adds an empty section, which is hidden. A new hover tooltip needs those styles scoped to Harper's section first.
 
+## Pasting and dropping
+
+`lib/editor/paste/` and `lib/editor/dragdrop/`. Drops come from Tauri's drag-drop event as file paths; pastes come from WebKit's `paste` event. Both save into the collection's assets through `add_to_assets` in `commands/files.rs`, which converts HEIC to JPEG (`heic.rs`), because Astro can't use it.
+
+- **Images on the clipboard arrive as files** in `clipboardData.files`: screenshots and images from Preview as `image.png`, Photos' as a UUID-named JPEG, Finder's with their names. Copy Image in a browser also gives HTML that's only the `<img>`, which is where the alt text comes from. Their bytes cross to Rust as base64: a byte array goes through JSON as a list of numbers, about fifteen times slower, and tauri-specta can't type a raw-body command.
+- **Copied rich text is converted from its HTML structure only** (`html-to-markdown.ts`). WebKit strips Word's list markup before the page sees it, so Word's lists and headings, which are only bullets, indents and fonts, paste as paragraphs. That's deliberate: guessing structure from styling is where converters grow. The test fixtures are real pastes from Safari, Chrome, TextEdit and Word.
+- **⇧⌘V (paste as plain text) gets no paste event** from WebKit, so it reads the clipboard through the clipboard plugin in Rust; `navigator.clipboard.readText()` would show a permission prompt.
+- **`sips` exits 0 when it can't reach the HEVC decoder** (in a sandbox, like an AI agent's), having written a JPEG with no pixels, so the result is checked. The tests that convert a real HEIC are `#[ignore]`d for that reason; run them with `cargo test heic -- --ignored`.
+
 ## Auto-save and data safety
 
 Never losing work is a product principle, and each of these rules guards against a way of losing it.

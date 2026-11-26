@@ -22,9 +22,15 @@ export const commands = {
 	/**
 	 *  Copies a file into `<assets_directory>/<collection>/` (the folder relative to
 	 *  the project, as the collection's settings resolve it), named after the date
-	 *  and the file
+	 *  and the file. A HEIC photo is converted to JPEG on the way (see `heic`).
 	 */
 	copyFileToAssets: (sourcePath: string, projectPath: string, collection: string, assetsDirectory: string, currentFilePath: string, useRelativePaths: boolean) => typedError<CopiedAsset, string>(__TAURI_INVOKE("copy_file_to_assets", { sourcePath, projectPath, collection, assetsDirectory, currentFilePath, useRelativePaths })),
+	/**
+	 *  Saves a pasted image, given its bytes (as base64) and the name it came with,
+	 *  into the collection's assets as `copy_file_to_assets` copies a file,
+	 *  converting a HEIC to JPEG
+	 */
+	saveImageToAssets: (base64Data: string, fileName: string, destination: AssetDestination) => typedError<CopiedAsset, string>(__TAURI_INVOKE("save_image_to_assets", { base64Data, fileName, destination })),
 	parseMarkdownContent: (filePath: string, projectRoot: string) => typedError<MarkdownContent, string>(__TAURI_INVOKE("parse_markdown_content", { filePath, projectRoot })),
 	/**
 	 *  Saves a file from its parts. `raw_frontmatter` is a frontmatter block as
@@ -257,6 +263,11 @@ export const commands = {
 	projectDependencies: (projectPath: string) => typedError<string[], string>(__TAURI_INVOKE("project_dependencies", { projectPath })),
 	copyTextToClipboard: (text: string) => typedError<null, string>(__TAURI_INVOKE("copy_text_to_clipboard", { text })),
 	/**
+	 *  The clipboard's text, for Paste as Plain Text. Read here because the
+	 *  webview's own `navigator.clipboard.readText()` asks for permission first
+	 */
+	readTextFromClipboard: () => typedError<string, string>(__TAURI_INVOKE("read_text_from_clipboard")),
+	/**
 	 *  Opens macOS's Emoji & Symbols palette. It inserts the chosen emoji into the
 	 *  focused text input, so the caller focuses one first. Other platforms have
 	 *  no palette that can be opened from code, so this does nothing there.
@@ -285,6 +296,18 @@ export type AppearanceSettings = {
 	editorBaseFontSize?: number | null,
 	/**  The name of a colour theme in the `themes/` folder. Default when unset */
 	colorTheme?: string | null,
+};
+
+/**  Where a file added for an entry goes, and how the entry refers to it */
+export type AssetDestination = {
+	projectPath: string,
+	collection: string,
+	/**  The collection's assets folder, relative to the project */
+	assetsDirectory: string,
+	/**  The entry it's for */
+	currentFilePath: string,
+	/**  Refer to it relative to the entry, or from the project root */
+	useRelativePaths: boolean,
 };
 
 export type Collection = {

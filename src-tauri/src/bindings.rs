@@ -39,6 +39,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::files::delete_file,
             crate::commands::files::rename_file,
             crate::commands::files::copy_file_to_assets,
+            crate::commands::files::save_image_to_assets,
             crate::commands::files::parse_markdown_content,
             crate::commands::files::save_markdown_content,
             crate::commands::files::save_recovery_data,
@@ -97,6 +98,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::mdx_components::project_dependencies,
             // clipboard.rs commands
             crate::commands::clipboard::copy_text_to_clipboard,
+            crate::commands::clipboard::read_text_from_clipboard,
             // emoji.rs commands
             crate::commands::emoji::open_emoji_palette,
             // updater.rs commands

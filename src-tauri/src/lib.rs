@@ -7,6 +7,7 @@ mod content_config;
 mod data_store;
 mod frontmatter;
 mod git;
+mod heic;
 mod mdx_components;
 mod mdx_esm;
 mod models;

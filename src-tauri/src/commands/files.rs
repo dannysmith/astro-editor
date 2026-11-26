@@ -11,6 +11,7 @@ use crate::commands::run_blocking;
 use crate::frontmatter::{
     assemble, parse_frontmatter, write_block, FrontmatterSchema, MarkdownContent,
 };
+use crate::heic;
 use crate::utils::{normalize_path_for_serialization, validate_project_path};
 
 /// Held while AE reads an entry for the editor or saves one, so a read never
@@ -241,7 +242,7 @@ pub struct CopiedAsset {
 
 /// Copies a file into `<assets_directory>/<collection>/` (the folder relative to
 /// the project, as the collection's settings resolve it), named after the date
-/// and the file
+/// and the file. A HEIC photo is converted to JPEG on the way (see `heic`).
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_file_to_assets(
@@ -252,11 +253,105 @@ pub async fn copy_file_to_assets(
     current_file_path: String,
     use_relative_paths: bool,
 ) -> Result<CopiedAsset, String> {
+    let source = PathBuf::from(&source_path);
+    let file_name = source
+        .file_name()
+        .ok_or("Invalid source file path")?
+        .to_string_lossy()
+        .to_string();
+    let destination = AssetDestination {
+        project_path,
+        collection,
+        assets_directory,
+        current_file_path,
+        use_relative_paths,
+    };
+
+    // Copying a large file, or converting a photo, can take a while
+    run_blocking(move || {
+        if heic::is_heic(&source) {
+            let jpeg_name = Path::new(&file_name).with_extension("jpg");
+            return add_to_assets(&destination, &jpeg_name.to_string_lossy(), |dest| {
+                heic::convert_to_jpeg(&source, dest)
+            });
+        }
+        add_to_assets(&destination, &file_name, |dest| {
+            std::fs::copy(&source, dest)
+                .map(|_| ())
+                .map_err(|e| format!("Failed to copy file content: {e}"))
+        })
+    })
+    .await
+}
+
+/// Saves a pasted image, given its bytes (as base64) and the name it came with,
+/// into the collection's assets as `copy_file_to_assets` copies a file,
+/// converting a HEIC to JPEG
+#[tauri::command]
+#[specta::specta]
+pub async fn save_image_to_assets(
+    base64_data: String,
+    file_name: String,
+    destination: AssetDestination,
+) -> Result<CopiedAsset, String> {
+    use base64::Engine;
+
+    run_blocking(move || {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&base64_data)
+            .map_err(|e| format!("Couldn't read the pasted image: {e}"))?;
+        let write = |dest: &Path| {
+            std::fs::write(dest, &bytes).map_err(|e| format!("Failed to save the image: {e}"))
+        };
+        if heic::is_heic(Path::new(&file_name)) {
+            let jpeg_name = Path::new(&file_name).with_extension("jpg");
+            // Written as it came, then converted where it is
+            return add_to_assets(&destination, &jpeg_name.to_string_lossy(), |dest| {
+                write(dest)?;
+                heic::convert_to_jpeg(dest, dest)
+            });
+        }
+        add_to_assets(&destination, &file_name, write)
+    })
+    .await
+}
+
+/// Where a file added for an entry goes, and how the entry refers to it
+#[derive(Debug, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetDestination {
+    project_path: String,
+    collection: String,
+    /// The collection's assets folder, relative to the project
+    assets_directory: String,
+    /// The entry it's for
+    current_file_path: String,
+    /// Refer to it relative to the entry, or from the project root
+    use_relative_paths: bool,
+}
+
+/// Adds a file named after `file_name` to the collection's assets folder:
+/// `YYYY-MM-DD-<kebab-case name>.<ext>`, with `-1`, `-2`… if that's taken.
+/// The name is claimed by creating the file empty, then `fill` writes it; if
+/// that fails, the empty file is removed again.
+fn add_to_assets(
+    destination: &AssetDestination,
+    file_name: &str,
+    fill: impl Fn(&Path) -> Result<(), String>,
+) -> Result<CopiedAsset, String> {
     use std::fs;
+
+    let AssetDestination {
+        project_path,
+        collection,
+        assets_directory,
+        current_file_path,
+        use_relative_paths,
+    } = destination;
 
     // Validate project path
     let validated_project_root =
-        dunce::canonicalize(&project_path).map_err(|_| "Invalid project root".to_string())?;
+        dunce::canonicalize(project_path).map_err(|_| "Invalid project root".to_string())?;
 
     // Checked before it's created, so an assets setting like `../shared`
     // can't create folders outside the project. It may not exist yet, so
@@ -264,7 +359,7 @@ pub async fn copy_file_to_assets(
     let assets_dir = crate::content_config::normalize(
         &validated_project_root
             .join(assets_directory)
-            .join(&collection),
+            .join(collection),
     );
     if !assets_dir.starts_with(&validated_project_root) {
         return Err("File outside project directory".to_string());
@@ -273,15 +368,8 @@ pub async fn copy_file_to_assets(
     fs::create_dir_all(&assets_dir)
         .map_err(|e| format!("Failed to create assets directory: {e}"))?;
 
-    // Get the source file info
-    let source = PathBuf::from(&source_path);
-    let file_name = source
-        .file_name()
-        .ok_or("Invalid source file path")?
-        .to_string_lossy();
-
     // Extract extension
-    let original_extension = source
+    let original_extension = Path::new(file_name)
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("");
@@ -309,7 +397,7 @@ pub async fn copy_file_to_assets(
     let validated_final_path = loop {
         // Validate the candidate path is within project bounds
         let final_path_str = final_path.to_string_lossy().to_string();
-        let validated_path = validate_project_path(&final_path_str, &project_path)?;
+        let validated_path = validate_project_path(&final_path_str, project_path)?;
 
         // Try to create the destination file atomically using create_new()
         // This fails if the file already exists, preventing race conditions
@@ -319,12 +407,11 @@ pub async fn copy_file_to_assets(
             .open(&validated_path)
         {
             Ok(_) => {
-                // File created successfully, now copy the content
-                // Note: We created an empty file, so we need to copy over it,
-                // and remove it again if the copy fails
-                if let Err(e) = fs::copy(&source_path, &validated_path) {
+                // The name is ours; write over the empty file, and remove it
+                // again if that fails
+                if let Err(e) = fill(&validated_path) {
                     let _ = fs::remove_file(&validated_path);
-                    return Err(format!("Failed to copy file content: {e}"));
+                    return Err(e);
                 }
                 break validated_path;
             }
@@ -359,8 +446,8 @@ pub async fn copy_file_to_assets(
         .to_string();
 
     // Convert to appropriate path style based on setting
-    let reference = if use_relative_paths {
-        calculate_relative_path(&current_file_path, &project_path, &project_relative_path)?
+    let reference = if *use_relative_paths {
+        calculate_relative_path(current_file_path, project_path, &project_relative_path)?
     } else {
         // From the project root, starting with `/` (the absolute image paths setting)
         format!("/{}", project_relative_path.replace('\\', "/"))
@@ -1235,6 +1322,123 @@ mod tests {
 
         assert!(result.is_err());
         assert!(!root.path().join("shared").exists());
+    }
+
+    /// Copies `source` into a new project's `blog` assets, referred to from
+    /// the project root
+    async fn copy_to_new_project(source: &Path, project: &Path) -> Result<CopiedAsset, String> {
+        copy_file_to_assets(
+            source.to_string_lossy().to_string(),
+            project.to_string_lossy().to_string(),
+            "blog".to_string(),
+            "src/assets".to_string(),
+            project
+                .join("src/content/blog/post.md")
+                .to_string_lossy()
+                .to_string(),
+            false,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn a_heic_that_cant_be_converted_leaves_nothing_behind() {
+        let source_dir = tempfile::TempDir::new().unwrap();
+        let project_dir = tempfile::TempDir::new().unwrap();
+        let source = source_dir.path().join("IMG_1234.HEIC");
+        fs::write(&source, b"not an image").unwrap();
+
+        assert!(copy_to_new_project(&source, project_dir.path())
+            .await
+            .is_err());
+        let assets = project_dir.path().join("src/assets/blog");
+        assert_eq!(fs::read_dir(assets).unwrap().count(), 0);
+    }
+
+    // See `heic::tests::converts_a_heic_photo`
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    #[ignore = "needs macOS's HEVC decoder"]
+    async fn a_heic_photo_is_added_as_a_jpeg() {
+        let source_dir = tempfile::TempDir::new().unwrap();
+        let project_dir = tempfile::TempDir::new().unwrap();
+        let source = source_dir.path().join("IMG_1234.HEIC");
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/images/photo.heic"),
+            &source,
+        )
+        .unwrap();
+
+        let copied = copy_to_new_project(&source, project_dir.path())
+            .await
+            .unwrap();
+        assert!(
+            copied.reference.ends_with("-img-1234.jpg"),
+            "{}",
+            copied.reference
+        );
+        assert_eq!(fs::read(&copied.path).unwrap()[..3], [0xFF, 0xD8, 0xFF]);
+    }
+
+    fn destination_in(project: &Path) -> AssetDestination {
+        AssetDestination {
+            project_path: project.to_string_lossy().to_string(),
+            collection: "blog".to_string(),
+            assets_directory: "src/assets".to_string(),
+            current_file_path: project
+                .join("src/content/blog/post.md")
+                .to_string_lossy()
+                .to_string(),
+            use_relative_paths: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn saves_a_pasted_image_as_a_file_would_be_copied() {
+        let project_dir = tempfile::TempDir::new().unwrap();
+        let saved = save_image_to_assets(
+            "cG5nIGJ5dGVz".to_string(), // "png bytes"
+            "Screenshot 2026-11-26 at 20.15.02.png".to_string(),
+            destination_in(project_dir.path()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            saved.reference.starts_with("../../assets/blog/")
+                && saved
+                    .reference
+                    .ends_with("-screenshot-2026-11-26-at-20-15-02.png"),
+            "{}",
+            saved.reference
+        );
+        assert_eq!(fs::read(&saved.path).unwrap(), b"png bytes");
+    }
+
+    // See `heic::tests::converts_a_heic_photo`
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    #[ignore = "needs macOS's HEVC decoder"]
+    async fn a_pasted_heic_is_saved_as_a_jpeg() {
+        let project_dir = tempfile::TempDir::new().unwrap();
+        use base64::Engine;
+        let heic =
+            fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/images/photo.heic"))
+                .unwrap();
+        let saved = save_image_to_assets(
+            base64::engine::general_purpose::STANDARD.encode(heic),
+            "Photo From iPhone.HEIC".to_string(),
+            destination_in(project_dir.path()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            saved.reference.ends_with("-photo-from-iphone.jpg"),
+            "{}",
+            saved.reference
+        );
+        assert_eq!(fs::read(&saved.path).unwrap()[..3], [0xFF, 0xD8, 0xFF]);
     }
 
     #[tokio::test]

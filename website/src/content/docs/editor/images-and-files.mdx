@@ -28,13 +28,25 @@ Astro Editor helps with this by allowing you to drag images and files into the e
    ```markdown
    ![My Nice Photo (1).png](../../../assets/mycollection/2026-06-23-my-nice-photo-1.png)
    ```
+
+   The alt text (the file name) is selected, so you can type a description straight away.
 </Steps>
 
 Dragging other files (PDFs etc) works identically, except that a markdown **link** is inserted instead of an image tag.
 
+### HEIC photos
+
+Photos from an iPhone are often HEIC files, which Astro can't use. On macOS, Astro Editor converts a HEIC to JPEG as it copies it, so `IMG_1234.HEIC` becomes `2026-06-23-img-1234.jpg`. This happens however you add the photo, including through an image field. On Windows and Linux, convert it to JPEG first.
+
 <Aside>
 By default, these images use paths relative to the current file, matching Astro's conventions. If you'd rather use absolute paths from the project root instead (e.g. `/src/assets/thing/image.png`), you can enable this in the [Project Settings](/project-settings/#images).
 </Aside>
+
+## Pasting images
+
+Pasting an image works the same way as dragging one in. This covers a screenshot taken to the clipboard (<Kbd mac="Ctrl+Shift+Cmd+4" windows="Win+Shift+S" />), an image copied in Preview or Photos, **Copy Image** in a browser, and image files copied in Finder.
+
+A file copied in Finder keeps its name. Anything else is saved as `pasted-image`, for example `2026-06-23-pasted-image.png`. When you copy an image from a web page, its alt text comes with it.
 
 ## Previewing images
 
