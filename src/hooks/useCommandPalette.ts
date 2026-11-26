@@ -5,6 +5,13 @@ import { getAllCommands } from '../lib/commands/app-commands'
 import { AppCommand, CommandGroup } from '../lib/commands/types'
 import { useUIStore } from '../store/uiStore'
 import { focusEditorDelayed } from '../lib/focus-utils'
+import { getCurrentEditorView } from '../lib/editor/editor-view-ref'
+import {
+  filterHeadings,
+  getDocumentHeadings,
+  goToHeading,
+  type DocumentHeading,
+} from '../lib/editor/markdown/outline'
 
 // The palette's groups, in order. A command whose group isn't here isn't shown
 const GROUP_ORDER: Array<{ key: AppCommand['group']; heading: string }> = [
@@ -26,20 +33,34 @@ const GROUP_ORDER: Array<{ key: AppCommand['group']; heading: string }> = [
  */
 export function useCommandPalette() {
   const [open, setOpenState] = useState(false)
+  const [search, setSearchState] = useState('')
+  const [headings, setHeadings] = useState<DocumentHeading[]>([])
   const context = useCommandContext()
   const setDistractionFreeBarsHidden = useUIStore(
     state => state.setDistractionFreeBarsHidden
   )
 
-  // Opening shows the bars hidden by distraction-free mode; closing returns
-  // focus to the editor
+  // Opening shows the bars hidden by distraction-free mode; closing clears the
+  // search and returns focus to the editor
   const setOpen = (value: boolean) => {
     setOpenState(value)
     if (value) {
       setDistractionFreeBarsHidden(false)
     } else {
+      setSearchState('')
       focusEditorDelayed()
     }
+  }
+
+  // A search starting with `#` lists the open file's headings, read once as it
+  // starts
+  const headingMode = isHeadingSearch(search)
+  const setSearch = (value: string) => {
+    if (isHeadingSearch(value) && !headingMode) {
+      const view = getCurrentEditorView()
+      setHeadings(view ? getDocumentHeadings(view.state) : [])
+    }
+    setSearchState(value)
   }
 
   // Cmd+P (macOS) / Ctrl+P (Windows and Linux). react-hotkeys-hook keeps the
@@ -67,11 +88,26 @@ export function useCommandPalette() {
     await command.execute(context)
   }
 
+  const selectHeading = (heading: DocumentHeading) => {
+    setOpen(false) // Returns focus to the editor
+    const view = getCurrentEditorView()
+    if (view) goToHeading(view, heading)
+  }
+
   return {
     open,
     setOpen,
+    search,
+    setSearch,
+    headingMode,
+    headings: filterHeadings(headings, search),
     commands,
     commandGroups,
     executeCommand,
+    selectHeading,
   }
+}
+
+function isHeadingSearch(search: string): boolean {
+  return search.startsWith('#')
 }

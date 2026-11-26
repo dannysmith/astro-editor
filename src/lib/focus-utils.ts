@@ -15,8 +15,10 @@ export function focusEditor(): boolean {
       '.cm-editor .cm-content'
     ) as HTMLElement
 
+    // Without preventScroll, WebKit scrolls the editor to the top of its content
+    // whenever focusing it, losing the reader's place
     if (cmEditor) {
-      cmEditor.focus()
+      cmEditor.focus({ preventScroll: true })
       return true
     }
 
