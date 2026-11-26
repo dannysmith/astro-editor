@@ -7,6 +7,11 @@ vi.mock('../../hooks/useCommandPalette', () => ({
   useCommandPalette: vi.fn(() => ({
     open: false,
     setOpen: vi.fn(),
+    search: '',
+    setSearch: vi.fn(),
+    headingMode: false,
+    headings: [],
+    selectHeading: vi.fn(),
     commandGroups: [
       {
         heading: 'File',
