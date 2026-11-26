@@ -76,7 +76,7 @@ export const pastedImageName = (file: File): string => {
 /** An `<img>`'s alt text, made safe to put between `![` and `]` */
 const altText = (img: HTMLImageElement | null): string | null => {
   const alt = img?.getAttribute('alt')?.replace(/\s+/g, ' ').trim()
-  return alt ? alt.replace(/[[\]]/g, '\\$&') : null
+  return alt ? alt.replace(/[\\[\]]/g, '\\$&') : null
 }
 
 /**
@@ -89,7 +89,7 @@ export const pasteImages = async (
   { files, alt }: PastedImages
 ): Promise<void> => {
   const { projectPath } = useProjectStore.getState()
-  const { currentFile } = useEditorStore.getState()
+  const { currentFile, openGeneration } = useEditorStore.getState()
   if (!validateDropContext(projectPath, currentFile).canProceed) {
     toast.error("Images can only be pasted into a collection's entries")
     return
@@ -123,9 +123,9 @@ export const pasteImages = async (
     return
   }
 
-  // Saving can take a while; if another file was opened meanwhile, the paths
-  // (relative to this one) don't belong in it
-  if (useEditorStore.getState().currentFile?.path !== currentFile!.path) return
+  // Saving can take a while; if another file was opened meanwhile (or this
+  // one reopened), the images don't belong where the cursor is now
+  if (useEditorStore.getState().openGeneration !== openGeneration) return
 
   const insertText = pasted.map(file => file.markdownText).join('\n')
   const { from, to } = view.state.selection.main

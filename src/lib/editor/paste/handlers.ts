@@ -3,6 +3,7 @@ import { EditorSelection, type EditorState } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { commands } from '@/lib/bindings'
+import { useEditorStore } from '../../../store/editorStore'
 import { isValidUrl } from '../urls/detection'
 import { htmlToMarkdown } from './html-to-markdown'
 import { imagesToPaste, pasteImages } from './images'
@@ -123,8 +124,11 @@ export const isClipboardUrl = (clipboardText: string | null): boolean => {
  * WebKit gives no paste event for it, so the text is read through Rust
  */
 export const pasteAsPlainText = (view: EditorView): boolean => {
+  const { openGeneration } = useEditorStore.getState()
   void commands.readTextFromClipboard().then(result => {
     if (result.status === 'error' || !result.data) return
+    // The view is reused for the next file opened
+    if (useEditorStore.getState().openGeneration !== openGeneration) return
     const text = result.data
     const { from, to } = view.state.selection.main
     view.dispatch({

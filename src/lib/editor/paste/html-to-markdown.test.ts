@@ -87,6 +87,23 @@ describe('htmlToMarkdown', () => {
     ).toBe('Run `a_b *c*`\n\n```\nx = 1\ny = 2\n```')
   })
 
+  it('makes code fences longer than the backticks in the code', () => {
+    expect(
+      htmlToMarkdown(
+        '<p><code>a`b</code> <code>`x`</code></p><pre>```\nfenced\n```</pre>'
+      )
+    ).toBe('``a`b`` `` `x` ``\n\n````\n```\nfenced\n```\n````')
+  })
+
+  it('escapes text that reads as HTML or an entity', () => {
+    // In an MDX file, an unescaped <div> would be read as JSX
+    expect(
+      htmlToMarkdown(
+        '<p>Use &lt;div&gt; and write &amp;lt; for <b>it</b>, fish &amp; chips</p>'
+      )
+    ).toBe('Use \\<div> and write \\&lt; for **it**, fish & chips')
+  })
+
   it('escapes text that would otherwise be Markdown', () => {
     expect(
       htmlToMarkdown(

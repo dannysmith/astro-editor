@@ -57,11 +57,11 @@ describe('imagesToPaste', () => {
     })
   })
 
-  it('escapes brackets in the alt text', () => {
-    const html = '<img alt="A [draft] cover" src="https://example.com/a.jpg">'
+  it('escapes brackets and backslashes in the alt text', () => {
+    const html = '<img alt="A [draft] cover\\" src="https://example.com/a.jpg">'
     expect(
       imagesToPaste(clipboard([screenshot()], { 'text/html': html }))?.alt
-    ).toBe('A \\[draft\\] cover')
+    ).toBe('A \\[draft\\] cover\\\\')
   })
 
   it('leaves copied text with images in it to the text handling', () => {

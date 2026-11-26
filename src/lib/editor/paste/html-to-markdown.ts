@@ -90,8 +90,11 @@ const blockOf = (element: Element): string => {
     return heading ? `${'#'.repeat(Number(tag[1]))} ${heading}` : ''
   }
   if (tag === 'UL' || tag === 'OL') return list(element)
-  if (tag === 'PRE')
-    return `\`\`\`\n${element.textContent?.replace(/\n$/, '')}\n\`\`\``
+  if (tag === 'PRE') {
+    const code = element.textContent?.replace(/\n$/, '') ?? ''
+    const fence = backticks(code, 3)
+    return `${fence}\n${code}\n${fence}`
+  }
   if (tag === 'HR') return '---'
   if (tag === 'BLOCKQUOTE') {
     return blocks(element)
@@ -155,7 +158,11 @@ const inlineOf = (node: Node, marks: Marks): string => {
   }
   if (tag === 'CODE') {
     const code = (node.textContent ?? '').replace(/\s+/g, ' ')
-    return code.trim() ? `\`${code}\`` : code
+    if (!code.trim()) return code
+    // A space keeps backticks at the ends from joining the delimiters
+    const padded = /^`|`$/.test(code) ? ` ${code} ` : code
+    const ticks = backticks(code, 1)
+    return `${ticks}${padded}${ticks}`
   }
   // A block inside inline content (a list in a span, say) is read as text
   if (BLOCKS.has(tag)) return ` ${blocks(node).join(' ')} `
@@ -206,7 +213,20 @@ const wrap = (text: string, open: string, close = open): string => {
 
 /** Escapes characters that would otherwise make Markdown of copied text */
 const escape = (text: string): string =>
-  text.replace(/[\\`*[\]]/g, '\\$&').replace(/(?<!\w)_|_(?!\w)/g, '\\_')
+  text
+    .replace(/[\\`*[\]<]/g, '\\$&')
+    .replace(/(?<!\w)_|_(?!\w)/g, '\\_')
+    // Text that reads as an entity (`&lt;`) would be decoded a second time
+    .replace(/&(?=#?\w+;)/g, '\\&')
+
+/** Backticks for a code span or block: longer than any run in the code */
+const backticks = (code: string, least: number): string => {
+  const longest = Math.max(
+    0,
+    ...(code.match(/`+/g) ?? []).map(run => run.length)
+  )
+  return '`'.repeat(Math.max(least, longest + 1))
+}
 
 /** Escapes what would start a heading, quote or list at the start of a line */
 const escapeLineStarts = (text: string): string =>
