@@ -174,6 +174,9 @@ async function createFileIn(
         if (titleField) {
           titleField.focus()
           titleField.select()
+          // WebKit doesn't scroll a field it focuses into view, and the panel
+          // may still be scrolled down from the last file
+          titleField.scrollIntoView({ block: 'center' })
         }
       } else {
         focusEditor()
