@@ -458,6 +458,9 @@ pub async fn new_file_name(
 ) -> Result<Option<String>, String> {
     validate_project_path(&directory, &project_path)?;
     let directory = PathBuf::from(directory);
+    if !directory.is_dir() {
+        return Err(format!("There's no folder at {}", directory.display()));
+    }
     let extension = match collection.settings.new_file_type.value {
         FileType::Md => "md",
         FileType::Mdx => "mdx",

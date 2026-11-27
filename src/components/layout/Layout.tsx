@@ -133,7 +133,8 @@ export const Layout: React.FC = () => {
 
   // Get editor actions (Hybrid Action Hooks pattern)
   const { saveFile, openFileByPath } = useEditorActions()
-  const { createNewFile: createNewFileWithQuery } = useCreateFile()
+  const { createNewFile: createNewFileWithQuery, createFileFromLink } =
+    useCreateFile()
 
   // Register auto-save callback with store
   useEffect(() => {
@@ -152,7 +153,7 @@ export const Layout: React.FC = () => {
   useMenuEvents(createNewFileWithQuery, handleSetPreferencesOpen)
   useSquareCornersEffect()
   useDOMEventListeners(createNewFileWithQuery, handleSetPreferencesOpen)
-  useDeepLink(openFileByPath)
+  useDeepLink({ openFileByPath, createFileFromLink })
   useExternalLinkHandler()
 
   // Enable query-based file loading

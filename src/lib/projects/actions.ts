@@ -6,6 +6,7 @@ import { queryClient } from '../query-client'
 import { queryKeys } from '../query-keys'
 import { toast } from '../toast'
 import { projectName } from './display'
+import { findOwningProjectPath } from '../deep-link'
 
 /** Shows the project list, which every way of opening a project goes to */
 export function showProjectList(): void {
@@ -95,4 +96,83 @@ export async function locateProject(project: ProjectMetadata): Promise<void> {
   // settings
   useUIStore.getState().setProjectListOpen(false)
   useProjectStore.getState().setProject(path)
+}
+
+/**
+ * Waits until the project store has the project `projectId` open, with its
+ * settings loaded. Resolves `false` if that doesn't happen within `timeoutMs`.
+ * `setProject` is fire-and-forget, so links must wait for the switch before
+ * working in the project.
+ */
+function waitForProjectReady(
+  projectId: string,
+  timeoutMs = 8000
+): Promise<boolean> {
+  const state = useProjectStore.getState()
+  if (state.currentProjectId === projectId && state.projectSettings) {
+    return Promise.resolve(true)
+  }
+
+  return new Promise<boolean>(resolve => {
+    const handles: {
+      unsubscribe?: () => void
+      timer?: ReturnType<typeof setTimeout>
+    } = {}
+
+    handles.timer = setTimeout(() => {
+      handles.unsubscribe?.()
+      resolve(false)
+    }, timeoutMs)
+
+    handles.unsubscribe = useProjectStore.subscribe(current => {
+      if (current.currentProjectId === projectId && current.projectSettings) {
+        clearTimeout(handles.timer)
+        handles.unsubscribe?.()
+        resolve(true)
+      }
+    })
+  })
+}
+
+/**
+ * For `astro-editor://` links: switches to the registered project that `path`
+ * is in (or is), and waits until it's ready. Returns the project's path, or
+ * null after telling the writer why it couldn't.
+ */
+export async function openProjectForLink(path: string): Promise<string | null> {
+  // Read fresh, since on a cold start this can run before preferences have loaded
+  const preferences = await commands.loadPreferences()
+  if (preferences.status === 'error') {
+    toast.error("Couldn't open that link", { description: preferences.error })
+    return null
+  }
+  // Reading them sets aside settings files that can't be read, as at startup
+  for (const problem of preferences.data.problems) {
+    toast.warning('Settings were reset', { description: problem })
+  }
+
+  const knownProjects = Object.values(preferences.data.registry.projects)
+  const owningPath = findOwningProjectPath(
+    knownProjects.map(p => p.path),
+    path
+  )
+  const project = knownProjects.find(p => p.path === owningPath)
+  if (!project) {
+    toast.error("That link is for a project Astro Editor doesn't know", {
+      description:
+        'If the project has moved, locate it in the project list. Otherwise open it once, then links to it will work.',
+      action: { label: 'Show Projects', onClick: showProjectList },
+      duration: 10_000,
+    })
+    return null
+  }
+
+  if (useProjectStore.getState().currentProjectId !== project.id) {
+    useProjectStore.getState().setProject(project.path)
+    if (!(await waitForProjectReady(project.id))) {
+      toast.error('Failed to open the project for that link')
+      return null
+    }
+  }
+  return project.path
 }

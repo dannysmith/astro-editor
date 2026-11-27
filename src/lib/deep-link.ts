@@ -1,5 +1,6 @@
 /**
- * Deep-link helpers for the `astro-editor://open?path=...` URL scheme.
+ * Deep-link helpers for the `astro-editor://` URL scheme (see the website's
+ * URL scheme reference).
  *
  * Pure parsing/matching logic lives here (testable, no Tauri/store deps). The
  * cold-start coordination below lets an incoming launch URL take precedence over
@@ -9,29 +10,70 @@
 /** The custom URL scheme this app registers (matches tauri.conf.json). */
 const SCHEME = 'astro-editor:'
 
-/** The only supported action/host for now. */
-const OPEN_ACTION = 'open'
+/** What a link asks for */
+export type DeepLink =
+  /** `open?path=`: open the entry at an absolute path */
+  | { action: 'open'; path: string }
+  /**
+   * `new?project=&collection=`: create an entry in a collection of the project
+   * at an absolute path, optionally in a `folder` of the collection, with a
+   * `title` and a `body` after the template's
+   */
+  | {
+      action: 'new'
+      project: string
+      collection: string
+      folder?: string
+      title?: string
+      body?: string
+    }
 
 /**
- * Parses an `astro-editor://open?path=<encoded-path>` URL and returns the decoded
- * absolute file path, or `null` if the URL isn't a valid open-file deep link.
+ * What an `astro-editor://` URL asks for, or `null` if it isn't one this app
+ * understands or leaves out a required parameter. Other parameters are ignored.
  */
-export function parseDeepLinkPath(url: string): string | null {
+export function parseDeepLink(url: string): DeepLink | null {
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
     return null
   }
-
   if (parsed.protocol !== SCHEME) return null
-  if (parsed.host !== OPEN_ACTION) return null
 
-  // searchParams already percent-decodes the value.
-  const path = parsed.searchParams.get('path')
-  if (!path || path.trim() === '') return null
+  // searchParams already percent-decodes values. Empty ones count as missing
+  const param = (name: string) =>
+    parsed.searchParams.get(name)?.trim() || undefined
 
-  return path
+  switch (parsed.host) {
+    case 'open': {
+      const path = param('path')
+      return path ? { action: 'open', path } : null
+    }
+    case 'new': {
+      const project = param('project')
+      const collection = param('collection')
+      // A folder inside the collection, without leading or trailing slashes
+      const folder = param('folder')?.replace(/^\/+|\/+$/g, '')
+      const leavesCollection =
+        !!folder &&
+        folder
+          .split(/[/\\]/)
+          .some(part => part === '..' || part === '.' || part === '')
+      if (!project || !collection || leavesCollection) return null
+      return {
+        action: 'new',
+        project,
+        collection,
+        folder: folder || undefined,
+        title: param('title'),
+        // Not trimmed, since leading spaces can be Markdown
+        body: parsed.searchParams.get('body') || undefined,
+      }
+    }
+    default:
+      return null
+  }
 }
 
 function normalizeForCompare(p: string): string {
