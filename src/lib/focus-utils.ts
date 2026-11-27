@@ -2,41 +2,14 @@
  * Focus management utilities
  */
 
-import { warn as logWarn } from '@tauri-apps/plugin-log'
+import { getCurrentEditorView } from './editor/editor-view-ref'
 
 /**
- * Focuses the main editor if it's visible and available
- * Returns true if focus was successfully set, false otherwise
+ * Focuses the editor, if a file is open. `view.focus()` keeps the scroll
+ * position, which focusing the content element directly doesn't in WebKit
  */
-export function focusEditor(): boolean {
-  try {
-    // Look for CodeMirror editor content area
-    const cmEditor = document.querySelector(
-      '.cm-editor .cm-content'
-    ) as HTMLElement
-
-    // Without preventScroll, WebKit scrolls the editor to the top of its content
-    // whenever focusing it, losing the reader's place
-    if (cmEditor) {
-      cmEditor.focus({ preventScroll: true })
-      return true
-    }
-
-    // Fallback: try to find the editor container
-    const editorContainer = document.querySelector(
-      '[data-editor-container]'
-    ) as HTMLElement
-
-    if (editorContainer) {
-      editorContainer.focus()
-      return true
-    }
-
-    return false
-  } catch (error) {
-    void logWarn(`Failed to focus editor: ${String(error)}`)
-    return false
-  }
+export function focusEditor(): void {
+  getCurrentEditorView()?.focus()
 }
 
 /**

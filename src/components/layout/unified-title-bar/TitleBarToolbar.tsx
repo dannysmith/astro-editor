@@ -84,6 +84,13 @@ export const TitleBarToolbar: React.FC<TitleBarToolbarProps> = ({
       )}
       data-tauri-drag-region
       onMouseEnter={showBars}
+      // Clicking a button leaves focus where it was, as toolbar buttons do in
+      // native Mac apps, so you can keep typing after toggling a mode
+      onMouseDown={event => {
+        if ((event.target as HTMLElement).closest('button')) {
+          event.preventDefault()
+        }
+      }}
     >
       <div className="flex flex-1 items-center gap-2" data-tauri-drag-region>
         {leftSlot}
