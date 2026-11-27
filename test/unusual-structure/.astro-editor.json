@@ -1,0 +1,20 @@
+{
+  "$schema": "https://astroeditor.danny.is/astro-editor-config.schema.json",
+  "project": {
+    "assetsDirectory": "src/images",
+    "reorderFrontmatter": true
+  },
+  "collections": {
+    "field-notes": {
+      "fileNamePattern": "{slug}",
+      "skippedFiles": "dim"
+    },
+    "guides": {
+      "urlPattern": "/guides/{slug}",
+      "defaultSort": { "mode": "title", "direction": "asc" }
+    },
+    "recipes": {
+      "fileNamePattern": "{slug}"
+    }
+  }
+}

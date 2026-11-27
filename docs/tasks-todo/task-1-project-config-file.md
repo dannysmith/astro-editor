@@ -19,18 +19,18 @@ Project settings live only in AE's app data, so on a site several people edit wi
 
 ## Phase 1: Reading and resolving
 
-- [ ] Read `.astro-editor.json` during the scan (`collections::scan_project`), into the same `ProjectSettingsData` types, ignoring unknown keys.
-- [ ] Merge it under the stored settings key by key in `resolve_project_settings` and `resolve_collection_settings`, with the new source. Check `collection_or_project` and the new file type's order.
-- [ ] Report problems (unreadable file, wrong types, unknown collections) in the scan, where Project Settings' status can show them.
-- [ ] Watch the file and rescan when it changes.
-- [ ] Tests: precedence for each kind of setting, a broken file ignored with its error, unknown keys ignored, unknown collections reported.
-- [ ] A test project with a `.astro-editor.json` in `test/`.
+- [x] `project_file.rs` reads `.astro-editor.json` (a lenient wrapper, so either section can be left out) during `collections::scan_project`. Unknown keys are ignored.
+- [x] `layered` merges it under the stored settings key by key, with `SettingSource::ProjectFile`. At each level of `collection_or_project` the writer beats the file, so a collection value from the file beats a project value the writer set. The new file type: the pattern, then the writer, then the file, then the global preference.
+- [x] `ProjectScan.projectFile` gives its path, its settings (for the UI), its error and collections the config doesn't have. `projectProblems` shows them as warnings.
+- [x] The watcher watches the project root (not recursively) and treats the file like the content config, so changes apply as soon as it's saved.
+- [x] Tests: precedence for each kind of setting, a broken file ignored with its error, unknown keys ignored, unknown collections reported.
+- [x] `test/unusual-structure/.astro-editor.json`, described in its README.
 
 ## Phase 2: Project Settings
 
-- [ ] Values from the file show as detected values do: a dropdown's first choice reads "From .astro-editor.json: …", and resetting the writer's setting goes back to the file's value.
-- [ ] The Project page says when the file is in use, with Copy Path and Open in IDE (as the Template row does), and shows its problems.
-- [ ] Check each setting's control, since text settings show their resolved values differently from dropdowns.
+- [x] Values from the file are labelled "From .astro-editor.json", except where a dropdown's first choice already says so (`controlNamesFile`). Reset tooltips name the file when it gives the setting (`resetTarget`). Sort now shows the writer's choice rather than the resolved one, so a sort from the file isn't shown as chosen.
+- [x] A Shared Settings group on the Project page, with Copy Path and Open in IDE (`FileButtons`, shared with the Template row), and its problems at the top.
+- [x] Check each setting's control, since text settings show their resolved values differently from dropdowns.
 
 ## Phase 3: The JSON Schema
 

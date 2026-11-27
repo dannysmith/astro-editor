@@ -15,6 +15,9 @@
 
 import type { Collection, ProjectScan } from '@/lib/bindings'
 
+/** The project's own settings file, at its root (`project_file.rs`) */
+export const PROJECT_FILE = '.astro-editor.json'
+
 export type StatusLevel = 'ok' | 'warning' | 'error'
 
 export interface Problem {
@@ -151,6 +154,24 @@ export function projectProblems(scan: ProjectScan): Problem[] {
     problems.push({
       level: 'warning',
       message: 'There are no collections to edit.',
+    })
+  }
+
+  const file = scan.projectFile
+  if (file?.error) {
+    problems.push({
+      level: 'warning',
+      message: `\`${PROJECT_FILE}\` couldn't be read, so none of its settings are used.`,
+      fix: 'Fix it in your editor, and it applies as soon as you save it.',
+      detail: file.error,
+    })
+  }
+  if (file && file.unknownCollections.length > 0) {
+    const names = file.unknownCollections.map(name => `\`${name}\``)
+    const many = names.length > 1
+    problems.push({
+      level: 'warning',
+      message: `\`${PROJECT_FILE}\` has settings for ${names.join(', ')}, which ${many ? "aren't collections" : "isn't a collection"} in the content config.`,
     })
   }
 

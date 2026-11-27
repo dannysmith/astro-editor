@@ -201,7 +201,8 @@ pub struct ProjectSettingsFile {
     pub settings: ProjectSettingsData,
 }
 
-/// A project's stored settings, as the frontend reads and edits them
+/// A project's settings: what the writer stored, as the frontend reads and
+/// edits them, or what the project's `.astro-editor.json` says
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSettingsData {

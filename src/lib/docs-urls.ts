@@ -15,6 +15,7 @@ export const DOCS_URLS = {
   specialFields: `${DOCS_BASE}/frontmatter/special-fields/`,
   fileNamePatterns: `${DOCS_BASE}/project-settings/#file-names`,
   templates: `${DOCS_BASE}/file-management/templates/`,
+  projectFile: `${DOCS_BASE}/reference/astro-editor-json/`,
   ideIntegration: `${DOCS_BASE}/file-management/ide-integration/`,
   advancedPreferences: `${DOCS_BASE}/reference/advanced-preferences/`,
   colourThemes: `${DOCS_BASE}/reference/advanced-preferences/#colour-themes`,

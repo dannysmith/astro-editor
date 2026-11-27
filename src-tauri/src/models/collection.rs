@@ -22,6 +22,25 @@ pub struct ProjectScan {
     pub favicon: Option<String>,
     pub project_settings: ResolvedProjectSettings,
     pub collections: Vec<Collection>,
+    /// The project's `.astro-editor.json`, if it has one
+    pub project_file: Option<ProjectFileStatus>,
+}
+
+/// What came of reading a project's `.astro-editor.json`
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFileStatus {
+    /// Its absolute path
+    pub path: String,
+    /// The settings it gives, which apply where the writer's don't. Empty
+    /// when there's an error
+    pub settings: crate::models::preferences::ProjectSettingsData,
+    /// Why none of it is used: it couldn't be read, isn't JSON, or has a value
+    /// of the wrong type
+    pub error: Option<String>,
+    /// Collections it has settings for that the content config doesn't have.
+    /// Empty without a readable config, when the collections aren't known
+    pub unknown_collections: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -113,6 +132,8 @@ pub enum SettingSource {
     Set,
     /// Set on the project, for a collection setting
     Project,
+    /// The project's own `.astro-editor.json`, at either level
+    ProjectFile,
     /// The global preference
     Global,
     /// Read from the content config

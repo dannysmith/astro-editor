@@ -784,6 +784,27 @@ export type OpenedProject = {
 	newSettings: boolean,
 };
 
+/**  What came of reading a project's `.astro-editor.json` */
+export type ProjectFileStatus = {
+	/**  Its absolute path */
+	path: string,
+	/**
+	 *  The settings it gives, which apply where the writer's don't. Empty
+	 *  when there's an error
+	 */
+	settings: ProjectSettingsData,
+	/**
+	 *  Why none of it is used: it couldn't be read, isn't JSON, or has a value
+	 *  of the wrong type
+	 */
+	error: string | null,
+	/**
+	 *  Collections it has settings for that the content config doesn't have.
+	 *  Empty without a readable config, when the collections aren't known
+	 */
+	unknownCollections: string[],
+};
+
 export type ProjectMetadata = {
 	/**  Names the project's settings file. Never changes, even if the project moves. */
 	id: string,
@@ -819,6 +840,8 @@ export type ProjectScan = {
 	favicon: string | null,
 	projectSettings: ResolvedProjectSettings,
 	collections: Collection[],
+	/**  The project's `.astro-editor.json`, if it has one */
+	projectFile: ProjectFileStatus | null,
 };
 
 /**  Settings for the whole project. Paths are relative to the project root. */
@@ -851,7 +874,10 @@ export type ProjectSettings = {
 	gitPanel?: boolean | null,
 };
 
-/**  A project's stored settings, as the frontend reads and edits them */
+/**
+ *  A project's settings: what the writer stored, as the frontend reads and
+ *  edits them, or what the project's `.astro-editor.json` says
+ */
 export type ProjectSettingsData = {
 	project: ProjectSettings,
 	/**  Keyed by the collection's name in the content config */
@@ -953,6 +979,8 @@ export type SettingSource =
 "set" | 
 /**  Set on the project, for a collection setting */
 "project" | 
+/**  The project's own `.astro-editor.json`, at either level */
+"projectFile" | 
 /**  The global preference */
 "global" | 
 /**  Read from the content config */

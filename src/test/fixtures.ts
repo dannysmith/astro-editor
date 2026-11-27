@@ -69,5 +69,6 @@ export function makeScan(
       ...projectSettings,
     },
     collections,
+    projectFile: null,
   }
 }

@@ -80,10 +80,12 @@ fn create_project_watcher(
     }
 
     // The content config: `src/` and `src/content/`, where every candidate file
-    // lives, so a config that's created or renamed later is seen too
+    // lives, so a config that's created or renamed later is seen too. And the
+    // root, for the project's `.astro-editor.json`
     for config_dir in [
         project_root.join("src"),
         project_root.join("src").join("content"),
+        project_root.clone(),
     ] {
         if config_dir.is_dir() && !watched.iter().any(|w| config_dir.starts_with(w)) {
             watcher
@@ -365,6 +367,11 @@ fn is_schema_file(path: &std::path::Path) -> bool {
 
     // Any of the files Astro reads the content config from
     if crate::content_config::is_config_path(&path_str) {
+        return true;
+    }
+
+    // The project's own settings
+    if path.file_name() == Some(std::ffi::OsStr::new(crate::project_file::FILE_NAME)) {
         return true;
     }
 

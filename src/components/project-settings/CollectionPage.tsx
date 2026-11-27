@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, Files } from 'lucide-react'
-import {
-  commands,
-  type Collection,
-  type CollectionSettings,
-  type FileType,
-  type ProjectScan,
-  type Resolved,
+import type { ReactNode } from 'react'
+import { Files } from 'lucide-react'
+import type {
+  Collection,
+  CollectionSettings,
+  DefaultSort,
+  FileType,
+  ProjectScan,
+  Resolved,
 } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -16,23 +16,24 @@ import { getSortOptionsForCollection } from '../../lib/files/sorting'
 import { FieldType, type CompleteSchema } from '../../lib/schema'
 import { useCollectionFilesQuery } from '../../hooks/queries/useCollectionFilesQuery'
 import { useNewFileTemplateQuery } from '../../hooks/queries/useNewFileTemplateQuery'
-import { openInIde } from '../../lib/ide'
-import { toast } from '../../lib/toast'
 import {
   defaultSortChoices,
   describeOrigin,
   exampleImagePath,
   frontmatterKeysOfType,
+  resetTarget,
 } from '../../lib/project-settings/describe'
 import { chooseProjectFolder } from '../../lib/project-settings/actions'
 import {
   collectionProblems,
+  PROJECT_FILE,
   relativePath,
 } from '../../lib/project-settings/status'
 import { PreferencesTextInput } from '../preferences/PreferencesTextInput'
 import { DocsLink } from '../preferences/DocsLink'
 import { NoteCallout, ProblemCallout, WithCode } from './Problems'
 import {
+  FileButtons,
   FolderInput,
   FoundValue,
   PageHeader,
@@ -60,41 +61,10 @@ const IMAGE_PATHS = {
   absolute: 'From the project root',
 }
 
-const COPIED_MS = 1500
-
-/** An icon button that copies `path`, showing a tick once it has */
-function CopyPathButton({ path }: { path: string }) {
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), COPIED_MS)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  const copy = () => {
-    void commands.copyTextToClipboard(path).then(result => {
-      if (result.status === 'error') {
-        toast.error("Couldn't copy the path", { description: result.error })
-      } else {
-        setCopied(true)
-      }
-    })
-  }
-
-  const Icon = copied ? Check : Copy
-  return (
-    <Button
-      variant="outline"
-      size="icon-sm"
-      onClick={copy}
-      title={copied ? 'Copied' : 'Copy Path'}
-      aria-label="Copy Path"
-    >
-      <Icon />
-    </Button>
-  )
-}
+/** A dropdown's first choice when the project's .astro-editor.json gives it */
+const fromFile = (value: ReactNode) => (
+  <FoundValue source={`From ${PROJECT_FILE}`} value={value} />
+)
 
 /**
  * A collection of Markdown files: where it comes from and anything wrong,
@@ -114,10 +84,11 @@ export function CollectionPage({
   const { projectSettings, updateCollectionSettings, globalSettings } =
     usePreferences()
   const stored = projectSettings?.collections[collection.name] ?? {}
+  // What the project's .astro-editor.json gives, under what the writer set
+  const shared = scan.projectFile?.settings.collections[collection.name] ?? {}
   const resolved = collection.settings
   const folder = relativePath(collection.path, projectPath)
 
-  const ideCommand = globalSettings?.general.ideCommand
   const { data: template } = useNewFileTemplateQuery(collection, projectPath)
 
   const update = (settings: Partial<CollectionSettings>) =>
@@ -162,20 +133,22 @@ export function CollectionPage({
     // Without a generated schema, the usual names (`title`; `pubDate`, `date`
     // or `publishedDate`) are read from the files, so say which they use
     const inFiles = [value.value].flat().find(name => fileKeys.includes(name!))
-    const automatic =
-      value.source === 'schema' ? (
-        <FoundValue source="Detected" value={[value.value].flat().join(', ')} />
-      ) : value.source === 'convention' && filesQuery.isSuccess ? (
-        inFiles ? (
-          <FoundValue source="Found in files" value={inFiles} />
-        ) : (
-          none
-        )
-      ) : value.source === 'missing' ? (
-        none
+    const sharedField = shared[key]
+    const automatic = sharedField ? (
+      fromFile(sharedField)
+    ) : value.source === 'schema' ? (
+      <FoundValue source="Detected" value={[value.value].flat().join(', ')} />
+    ) : value.source === 'convention' && filesQuery.isSuccess ? (
+      inFiles ? (
+        <FoundValue source="Found in files" value={inFiles} />
       ) : (
-        <span className="text-muted-foreground">Automatic</span>
+        none
       )
+    ) : value.source === 'missing' ? (
+      none
+    ) : (
+      <span className="text-muted-foreground">Automatic</span>
+    )
     return (
       <SettingSelect
         labelId={labelId}
@@ -208,10 +181,13 @@ export function CollectionPage({
   )
 
   const sortChoices = defaultSortChoices(getSortOptionsForCollection(schema))
-  const defaultSort = resolved.defaultSort.value
-  const sortValue = defaultSort
-    ? `${defaultSort.mode}:${defaultSort.direction}`
-    : AUTOMATIC
+  const sortKey = (sort: DefaultSort) => `${sort.mode}:${sort.direction}`
+  const sortValue = stored.defaultSort ? sortKey(stored.defaultSort) : AUTOMATIC
+  const fileSort = shared.defaultSort
+  const fileSortLabel =
+    fileSort &&
+    (sortChoices.find(c => c.value === sortKey(fileSort))?.label ??
+      sortKey(fileSort))
 
   const globalFileType = globalSettings?.general.defaultFileType ?? 'md'
   const projectAbsolute = scan.projectSettings.useAbsoluteAssetPaths.value
@@ -222,6 +198,11 @@ export function CollectionPage({
         ? 'absolute'
         : 'relative'
   const assets = resolved.assetsDirectory
+  // Neither the writer nor the project file gives the collection its own
+  const assetsFromProject =
+    stored.assetsDirectory === undefined &&
+    shared.assetsDirectory === undefined &&
+    assets.source !== 'convention'
 
   return (
     <div className="space-y-6">
@@ -259,13 +240,14 @@ export function CollectionPage({
           label="Folder"
           source={collection.folderSource}
           onReset={reset('folder')}
-          resetTo={
+          resetTo={resetTarget(
+            shared.folder,
             collection.kind === 'glob'
               ? "the content config's folder"
               : collection.kind === 'legacy'
                 ? `src/content/${collection.name}`
                 : `${collection.kind === 'unknown' ? 'the folder Astro last loaded it from, or ' : ''}${scan.projectSettings.contentDirectory.value}/${collection.name}`
-          }
+          )}
         >
           {({ id }) => (
             <FolderInput
@@ -287,7 +269,7 @@ export function CollectionPage({
           }
           source={resolved.skippedFiles.source}
           onReset={reset('skippedFiles')}
-          resetTo="off"
+          resetTo={resetTarget(shared.skippedFiles, 'off')}
         >
           {({ id }) => (
             <Switch
@@ -304,8 +286,9 @@ export function CollectionPage({
           label="Sort"
           help="The file list's order, until you change it there."
           source={resolved.defaultSort.source}
+          controlNamesFile
           onReset={reset('defaultSort')}
-          resetTo="newest first"
+          resetTo={resetTarget(fileSort, 'newest first')}
         >
           {({ labelId }) => (
             <SettingSelect
@@ -319,7 +302,11 @@ export function CollectionPage({
               choices={[
                 {
                   value: AUTOMATIC,
-                  label: <FoundValue source="Default" value="newest first" />,
+                  label: fileSortLabel ? (
+                    fromFile(fileSortLabel)
+                  ) : (
+                    <FoundValue source="Default" value="newest first" />
+                  ),
                 },
                 ...sortChoices,
               ]}
@@ -336,8 +323,9 @@ export function CollectionPage({
             'The only type its pattern includes.'
           }
           source={resolved.newFileType.source}
+          controlNamesFile
           onReset={reset('defaultFileType')}
-          resetTo="the global preference"
+          resetTo={resetTarget(shared.defaultFileType, 'the global preference')}
         >
           {({ labelId }) =>
             resolved.newFileType.source === 'config' ? (
@@ -357,7 +345,9 @@ export function CollectionPage({
                 choices={[
                   {
                     value: AUTOMATIC,
-                    label: (
+                    label: shared.defaultFileType ? (
+                      fromFile(FILE_TYPES[shared.defaultFileType])
+                    ) : (
                       <FoundValue
                         source="Global preference"
                         value={FILE_TYPES[globalFileType]}
@@ -381,7 +371,7 @@ export function CollectionPage({
           }
           source={resolved.fileNamePattern.source}
           onReset={reset('fileNamePattern')}
-          resetTo="{YYYY-MM-DD}"
+          resetTo={resetTarget(shared.fileNamePattern, '{YYYY-MM-DD}')}
           wide
         >
           {({ id }) => (
@@ -411,20 +401,7 @@ export function CollectionPage({
             }
             source="convention"
           >
-            {() => (
-              <div className="flex gap-2">
-                <CopyPathButton path={template} />
-                {ideCommand && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void openInIde(template, ideCommand)}
-                  >
-                    <ExternalLink /> Open in IDE
-                  </Button>
-                )}
-              </div>
-            )}
+            {() => <FileButtons path={template} />}
           </Setting>
         )}
       </SettingsGroup>
@@ -437,8 +414,9 @@ export function CollectionPage({
           label="Title"
           help="Shown as each file's name in the file list, and as the title in the frontmatter panel."
           source={resolved.titleField.source}
+          controlNamesFile
           onReset={reset('titleField')}
-          resetTo="automatic"
+          resetTo={resetTarget(shared.titleField, 'automatic')}
         >
           {({ labelId }) =>
             fieldSelect('titleField', FieldType.String, labelId)
@@ -448,8 +426,9 @@ export function CollectionPage({
           label="Description"
           help="Gets a larger text box in the frontmatter panel."
           source={resolved.descriptionField.source}
+          controlNamesFile
           onReset={reset('descriptionField')}
-          resetTo="automatic"
+          resetTo={resetTarget(shared.descriptionField, 'automatic')}
         >
           {({ labelId }) =>
             fieldSelect('descriptionField', FieldType.String, labelId)
@@ -459,8 +438,9 @@ export function CollectionPage({
           label="Published date"
           help="Shown beside each file in the file list, and used to sort it."
           source={resolved.publishedDateField.source}
+          controlNamesFile
           onReset={reset('publishedDateField')}
-          resetTo="automatic"
+          resetTo={resetTarget(shared.publishedDateField, 'automatic')}
         >
           {({ labelId }) =>
             fieldSelect('publishedDateField', FieldType.Date, labelId)
@@ -470,8 +450,9 @@ export function CollectionPage({
           label="Draft"
           help="Shows a Draft badge, and lets you filter drafts."
           source={resolved.draftField.source}
+          controlNamesFile
           onReset={reset('draftField')}
-          resetTo="automatic"
+          resetTo={resetTarget(shared.draftField, 'automatic')}
         >
           {({ labelId }) =>
             fieldSelect('draftField', FieldType.Boolean, labelId)
@@ -484,12 +465,15 @@ export function CollectionPage({
           label="Image folder"
           help={
             <WithCode
-              text={`${assets.source === 'project' ? "The project's folder. " : ''}Images go in \`${assets.value}/${collection.name}\`.`}
+              text={`${assetsFromProject ? "The project's folder. " : ''}Images go in \`${assets.value}/${collection.name}\`.`}
             />
           }
           source={assets.source}
           onReset={reset('assetsDirectory')}
-          resetTo={scan.projectSettings.assetsDirectory.value}
+          resetTo={resetTarget(
+            shared.assetsDirectory,
+            scan.projectSettings.assetsDirectory.value
+          )}
         >
           {({ id }) => (
             <FolderInput
@@ -510,8 +494,12 @@ export function CollectionPage({
             />
           }
           source={resolved.useAbsoluteAssetPaths.source}
+          controlNamesFile
           onReset={reset('useAbsoluteAssetPaths')}
-          resetTo="the project's setting"
+          resetTo={resetTarget(
+            shared.useAbsoluteAssetPaths,
+            "the project's setting"
+          )}
         >
           {({ labelId }) => (
             <SettingSelect
@@ -526,16 +514,23 @@ export function CollectionPage({
               choices={[
                 {
                   value: AUTOMATIC,
-                  label: (
-                    <FoundValue
-                      source="Project setting"
-                      value={
-                        projectAbsolute
+                  label:
+                    shared.useAbsoluteAssetPaths === undefined ? (
+                      <FoundValue
+                        source="Project setting"
+                        value={
+                          projectAbsolute
+                            ? IMAGE_PATHS.absolute
+                            : IMAGE_PATHS.relative
+                        }
+                      />
+                    ) : (
+                      fromFile(
+                        shared.useAbsoluteAssetPaths
                           ? IMAGE_PATHS.absolute
                           : IMAGE_PATHS.relative
-                      }
-                    />
-                  ),
+                      )
+                    ),
                 },
                 { value: 'relative', label: IMAGE_PATHS.relative },
                 { value: 'absolute', label: IMAGE_PATHS.absolute },
@@ -551,13 +546,13 @@ export function CollectionPage({
           }
           source={resolved.urlPattern.source}
           onReset={reset('urlPattern')}
-          resetTo="none"
+          resetTo={resetTarget(shared.urlPattern, 'none')}
         >
           {({ id }) => (
             <PreferencesTextInput
               id={id}
               value={stored.urlPattern ?? ''}
-              placeholder="None"
+              placeholder={shared.urlPattern ?? 'None'}
               onCommit={value => update({ urlPattern: value })}
               className="font-mono text-xs"
             />

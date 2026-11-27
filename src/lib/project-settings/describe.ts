@@ -12,7 +12,7 @@ import type {
 } from '@/lib/bindings'
 import { FieldType, type SchemaField } from '../schema'
 import type { SortOption } from '../files/sorting'
-import { isUnreadLoader } from './status'
+import { isUnreadLoader, PROJECT_FILE } from './status'
 
 /**
  * Where a collection comes from, as a sentence for the top of its page, like
@@ -211,4 +211,12 @@ export function frontmatterKeysOfType(
   return [...counts.entries()]
     .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
     .map(([key]) => key)
+}
+
+/**
+ * What resetting a setting goes back to, for its tooltip: the project's
+ * `.astro-editor.json` when it gives the setting (`fileValue`), else `fallback`
+ */
+export function resetTarget(fileValue: unknown, fallback: string): string {
+  return fileValue === undefined ? fallback : `the value in ${PROJECT_FILE}`
 }
