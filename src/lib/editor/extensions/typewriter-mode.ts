@@ -111,6 +111,10 @@ const typewriterPlugin = ViewPlugin.fromClass(
 
     constructor(private view: EditorView) {
       this.syncClass()
+      // Scrolling by hand during the pause means the reader has moved on
+      for (const type of ['wheel', 'touchstart']) {
+        view.scrollDOM.addEventListener(type, this.cancel, { passive: true })
+      }
     }
 
     update(update: ViewUpdate) {
@@ -120,7 +124,10 @@ const typewriterPlugin = ViewPlugin.fromClass(
       if (wasEnabled !== isEnabled) {
         this.syncClass()
       }
-      if (!isEnabled) return
+      if (!isEnabled) {
+        this.cancel()
+        return
+      }
 
       const pointer = update.transactions.some(tr =>
         tr.isUserEvent('select.pointer')
@@ -151,7 +158,7 @@ const typewriterPlugin = ViewPlugin.fromClass(
       }
     }
 
-    private cancel() {
+    private cancel = () => {
       this.cancelPending?.()
       this.cancelPending = null
     }
@@ -174,6 +181,9 @@ const typewriterPlugin = ViewPlugin.fromClass(
 
     destroy() {
       this.cancel()
+      for (const type of ['wheel', 'touchstart']) {
+        this.view.scrollDOM.removeEventListener(type, this.cancel)
+      }
       this.view.scrollDOM.classList.remove('cm-typewriter-active')
     }
   }

@@ -59,7 +59,16 @@ class SmoothScroller {
   /** Set by a file load, whose scroll shouldn't animate from the last file's */
   instant = false
 
-  constructor(private view: EditorView) {}
+  // Scrolling by hand takes over from an animation. Listened for on the
+  // scroller, not through CodeMirror's event handlers, which only see the
+  // content: the margins and the scrollbar are outside it
+  private static readonly takeoverEvents = ['wheel', 'touchstart', 'mousedown']
+
+  constructor(private view: EditorView) {
+    for (const type of SmoothScroller.takeoverEvents) {
+      view.scrollDOM.addEventListener(type, this.cancel, { passive: true })
+    }
+  }
 
   update(update: ViewUpdate) {
     if (update.transactions.some(tr => tr.annotation(fileLoad))) {
@@ -122,7 +131,7 @@ class SmoothScroller {
     else this.animation = null
   }
 
-  cancel() {
+  cancel = () => {
     this.animation = null
     if (this.frame !== null) cancelAnimationFrame(this.frame)
     this.frame = null
@@ -130,23 +139,13 @@ class SmoothScroller {
 
   destroy() {
     this.cancel()
+    for (const type of SmoothScroller.takeoverEvents) {
+      this.view.scrollDOM.removeEventListener(type, this.cancel)
+    }
   }
 }
 
-const smoothScroller = ViewPlugin.fromClass(SmoothScroller, {
-  eventHandlers: {
-    // Scrolling by hand takes over from an animation
-    wheel() {
-      this.cancel()
-    },
-    touchstart() {
-      this.cancel()
-    },
-    mousedown() {
-      this.cancel()
-    },
-  },
-})
+const smoothScroller = ViewPlugin.fromClass(SmoothScroller)
 
 /** Where a position is on screen: exact if it's drawn, else estimated */
 function positionRect(view: EditorView, pos: number, side: -1 | 1) {
