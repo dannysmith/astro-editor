@@ -10,8 +10,10 @@
  *    works WITH CM6's scroll system rather than fighting it.
  * 2. A ViewPlugin toggles a CSS class on .cm-scroller that applies 50vh padding
  *    to .cm-content via CSS. Using vh units avoids JS calculation feedback loops
- *    and automatically responds to viewport changes. For pointer clicks, it waits
- *    for mouseup before scrolling to avoid the scroll causing a drag selection.
+ *    and automatically responds to viewport changes. It scrolls by however much
+ *    the padding changes, so toggling the mode doesn't move the text by itself.
+ *    For pointer clicks, it waits for mouseup before scrolling to avoid the
+ *    scroll causing a drag selection.
  * 3. State is toggled via the `toggleTypewriterMode` effect.
  *
  * USAGE:
@@ -134,9 +136,21 @@ const typewriterPlugin = ViewPlugin.fromClass(
       }
     }
 
+    // Toggling the padding would move the text by its height, so turning the
+    // mode off would leave the centred line at the top. Scrolling by the same
+    // amount keeps the text where it is
     syncClass() {
       const enabled = this.view.state.field(typewriterModeState).enabled
-      this.view.scrollDOM.classList.toggle('cm-typewriter-active', enabled)
+      const { contentDOM, scrollDOM } = this.view
+      const container = scrollContainer(scrollDOM)
+      // Read before toggling: removing the padding shrinks the container, which
+      // clamps its scroll position
+      const scrollTop = container?.scrollTop ?? 0
+      const paddingBefore = parseFloat(getComputedStyle(contentDOM).paddingTop)
+      scrollDOM.classList.toggle('cm-typewriter-active', enabled)
+      const shift =
+        parseFloat(getComputedStyle(contentDOM).paddingTop) - paddingBefore
+      if (shift && container) container.scrollTop = scrollTop + shift
     }
 
     private cancelPendingMouseup() {
@@ -153,6 +167,19 @@ const typewriterPlugin = ViewPlugin.fromClass(
     }
   }
 )
+
+/**
+ * The element the editor scrolls in: CodeMirror's scroller, or the app's
+ * container around it when the editor grows to fit its content
+ */
+function scrollContainer(element: HTMLElement): HTMLElement | null {
+  for (let el: HTMLElement | null = element; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el)
+    const scrolls = overflowY === 'auto' || overflowY === 'scroll'
+    if (scrolls && el.scrollHeight > el.clientHeight) return el
+  }
+  return null
+}
 
 /** Creates the combined typewriter mode extension. */
 export function createTypewriterModeExtension() {
