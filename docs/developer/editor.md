@@ -1,6 +1,6 @@
 # Editor
 
-The writing surface is vanilla CodeMirror 6 (no React wrapper), parsed by Lezer's markdown grammar. This doc covers the rules for touching `Editor.tsx`, how highlighting works and where it doesn't, and how edits get to disk without losing anything. Each extension in `src/lib/editor/extensions/` has a header comment explaining what it does and why; read those for detail.
+The writing surface is vanilla CodeMirror 6 (no React wrapper), parsed by Lezer's markdown grammar. This doc covers the rules for touching `Editor.tsx`, how the editor scrolls and takes focus, how highlighting works and where it doesn't, and how edits get to disk without losing anything. Each extension in `src/lib/editor/extensions/` has a header comment explaining what it does and why; read those for detail.
 
 ## One Lezer, one CodeMirror
 
@@ -17,6 +17,14 @@ Only one copy of `@lezer/common` and of each `@codemirror/*` package may be inst
 - **A store write that differs from the document replaces the whole document.** That loses the scroll position (and typewriter mode re-centres on any `docChanged`), so it should only happen when a file is opened or changed on disk. See the round trip below.
 - **Loading a document starts the undo history afresh** (`loadDocument` in `lib/editor/load-document.ts`). Undo can't reach the previous file, or back across a reload from disk, where undoing an earlier edit could insert stale text.
 - **Modes** (focus, typewriter, the Alt key for URL and image hover) are toggled with state effects, not by recreating extensions.
+
+## Scrolling and focus
+
+The editor scrolls itself: `.cm-scroller` (`view.scrollDOM`) is the scrolling element, and `MainEditor`'s container doesn't scroll. That lets CodeMirror's scroll handling work fully. It keeps the text still when lines above the view change height as they're measured, which it only does for an outer scroll container while the editor has focus. The 24px side margins are padding on `.cm-scroller`, so the scrollbar sits at the pane's edge and the margins scroll the text too.
+
+- **Scroll with CodeMirror, not the DOM.** To scroll something into view, dispatch `EditorView.scrollIntoView` (or `scrollIntoView: true` on a transaction). Setting `scrollTop` directly is for keeping the text still when the layout changes under it, as typewriter mode does when its padding comes and goes.
+- **Focus the editor with `view.focus()`** (or `focusEditor()` from `lib/focus-utils.ts`), never by focusing `.cm-content`. WebKit 26 ignores `focus({ preventScroll: true })` and scrolls to the editor's old selection, often the top of the document. CodeMirror works around it by recording the scroll positions around the focus and restoring them, but only when it knows it's in Safari 26, which is why the macOS window's user agent says so (see `cross-platform.md`).
+- **Toolbar buttons don't take focus** (`TitleBarToolbar` cancels mousedown on its buttons), so clicking one leaves the cursor where it was.
 
 ## Highlighting
 

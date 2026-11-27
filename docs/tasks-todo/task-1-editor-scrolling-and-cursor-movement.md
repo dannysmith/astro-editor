@@ -131,8 +131,10 @@ Specific to typewriter mode:
 ### Phase 2: which element scrolls
 
 - [x] Try making `.cm-scroller` the scroller and run the tests before and after
-- [ ] Danny: try it in the real app (scrolling with the trackpad and the scrollbar, the margins beside the text, typewriter mode) and decide
-- [ ] If adopted: simplify `scrollContainer()` in `typewriter-mode.ts` to `view.scrollDOM`, and remove the generic scroller lookup from the test scripts
+- [x] Danny: try it in the real app. Adopted: nothing broken, and mouse selection (in typewriter mode too) feels less janky
+- [x] Simplify typewriter mode's padding compensation to `view.scrollDOM`. It's still needed: CodeMirror doesn't correct for the padding changing (toggling the class by hand moves the line from 426px to 49px), since its scroll anchor is measured within the content
+- [x] The test scripts use `view.scrollDOM`
+- [x] "Scrolling and focus" section in `docs/developer/editor.md`
 
 What the experiment changes: `MainEditor`'s container no longer scrolls (`min-h-0 flex-1 overflow-hidden`); `.editor-view`, `.editor-codemirror` and `.cm-editor` fill it; the 24px side padding moved from `.editor-view` onto `.cm-scroller`, so the scrollbar stays at the pane's edge and the margins still scroll the text; `.cm-content`'s minimum height is `100%` of the editor instead of `calc(100vh - 44px)`; typewriter mode hides the scrollbar on `.cm-scroller` instead of the container.
 
@@ -157,4 +159,4 @@ Results, with the same scripts on both layouts:
 
 ### Phase 5: docs
 
-- [ ] A section on scrolling and focus in `docs/developer/editor.md`: which element scrolls and why, the Safari focus issue, and the scroll handler
+- [ ] Add the scroll handler and the mouse delay to the "Scrolling and focus" section in `docs/developer/editor.md`

@@ -142,15 +142,14 @@ const typewriterPlugin = ViewPlugin.fromClass(
     syncClass() {
       const enabled = this.view.state.field(typewriterModeState).enabled
       const { contentDOM, scrollDOM } = this.view
-      const container = scrollContainer(scrollDOM)
-      // Read before toggling: removing the padding shrinks the container, which
-      // clamps its scroll position
-      const scrollTop = container?.scrollTop ?? 0
+      // Read before toggling: removing the padding shrinks the content, which
+      // clamps the scroll position
+      const scrollTop = scrollDOM.scrollTop
       const paddingBefore = parseFloat(getComputedStyle(contentDOM).paddingTop)
       scrollDOM.classList.toggle('cm-typewriter-active', enabled)
       const shift =
         parseFloat(getComputedStyle(contentDOM).paddingTop) - paddingBefore
-      if (shift && container) container.scrollTop = scrollTop + shift
+      if (shift) scrollDOM.scrollTop = scrollTop + shift
     }
 
     private cancelPendingMouseup() {
@@ -167,19 +166,6 @@ const typewriterPlugin = ViewPlugin.fromClass(
     }
   }
 )
-
-/**
- * The element the editor scrolls in: CodeMirror's scroller, or the app's
- * container around it when the editor grows to fit its content
- */
-function scrollContainer(element: HTMLElement): HTMLElement | null {
-  for (let el: HTMLElement | null = element; el; el = el.parentElement) {
-    const { overflowY } = getComputedStyle(el)
-    const scrolls = overflowY === 'auto' || overflowY === 'scroll'
-    if (scrolls && el.scrollHeight > el.clientHeight) return el
-  }
-  return null
-}
 
 /** Creates the combined typewriter mode extension. */
 export function createTypewriterModeExtension() {
