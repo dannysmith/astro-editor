@@ -157,25 +157,35 @@ export function projectProblems(scan: ProjectScan): Problem[] {
     })
   }
 
+  return problems
+}
+
+/**
+ * What's wrong with the project's `.astro-editor.json`, for the project page
+ * only. Without it AE still reads the site fully, so these don't count
+ * towards the project's status or the review toast.
+ */
+export function projectFileProblems(scan: ProjectScan): Problem[] {
   const file = scan.projectFile
-  if (file?.error) {
-    problems.push({
-      level: 'warning',
-      message: `\`${PROJECT_FILE}\` couldn't be read, so none of its settings are used.`,
-      fix: 'Fix it in your editor, and it applies as soon as you save it.',
-      detail: file.error,
-    })
+  if (!file) return []
+  if (file.error) {
+    return [
+      {
+        level: 'warning',
+        message: `This project has a \`${PROJECT_FILE}\` file, but it isn't used because of this problem:`,
+        detail: file.error,
+      },
+    ]
   }
-  if (file && file.unknownCollections.length > 0) {
-    const names = file.unknownCollections.map(name => `\`${name}\``)
-    const many = names.length > 1
-    problems.push({
+  if (file.unknownCollections.length === 0) return []
+  const names = file.unknownCollections.map(name => `\`${name}\``)
+  const many = names.length > 1
+  return [
+    {
       level: 'warning',
       message: `\`${PROJECT_FILE}\` has settings for ${names.join(', ')}, which ${many ? "aren't collections" : "isn't a collection"} in the content config.`,
-    })
-  }
-
-  return problems
+    },
+  ]
 }
 
 export function statusLevel(problems: Problem[]): StatusLevel {

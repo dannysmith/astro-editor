@@ -10,8 +10,6 @@ An Astro site whose collections are laid out in ways Astro Editor has to work ou
 | `projects` | `content/projects` | A folder per entry (`**/index.md`); new files are `<date>/index.md` |
 | `feed` | `src/content/feed` | A loader Astro Editor can't read, so it looks in the content folder by name |
 
-`.astro-editor.json` sets some settings for everyone who edits the site: the project's assets folder and frontmatter reordering, `field-notes`' file names and skipped files, and `guides`' link URLs and sort. It also has settings for `recipes`, which the content config doesn't have, so Project Settings warns about it. `posts`' draft field is left for you to set.
-
 The site icon is `public/favicon.ico`, to check the project icon reads ICO files. (`personal-site` has an SVG, `dummy-astro-project` a PNG, and `starlight-minimal` none.)
 
 After changing `src/content.config.ts`, run `bun install` and `bun run astro sync` here and commit the regenerated `.astro/collections/`.

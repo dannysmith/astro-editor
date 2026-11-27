@@ -11,14 +11,14 @@ import { resetTarget } from '../../lib/project-settings/describe'
 import {
   isUnreadLoader,
   PROJECT_FILE,
+  projectFileProblems,
   projectProblems,
 } from '../../lib/project-settings/status'
 import { DocsLink } from '../preferences/DocsLink'
 import { GitSettings } from './GitSettings'
 import { ProjectIcon } from '../project-list'
-import { ProblemCallout, WithCode } from './Problems'
+import { NoteCallout, ProblemCallout, WithCode } from './Problems'
 import {
-  FileButtons,
   FolderInput,
   FolderList,
   PageHeader,
@@ -92,27 +92,18 @@ export function ProjectPage({
         {config && <WithCode text={config} />}
       </PageHeader>
 
-      {projectProblems(scan).map(problem => (
+      {/* A file with an error says so in its problem instead */}
+      {projectFile && !projectFile.error && (
+        <NoteCallout
+          message={`This project contains an \`${PROJECT_FILE}\` config file.`}
+          fix="Its settings take precedence over the default project settings, but don't affect anything you set here."
+          link={<DocsLink href={DOCS_URLS.projectFile}>Learn more</DocsLink>}
+        />
+      )}
+
+      {[...projectFileProblems(scan), ...projectProblems(scan)].map(problem => (
         <ProblemCallout key={problem.message} problem={problem} />
       ))}
-
-      {projectFile && (
-        <SettingsGroup title="Shared Settings">
-          <Setting
-            label={<WithCode text={`\`${PROJECT_FILE}\``} />}
-            help={
-              <>
-                The project's settings for everyone who edits it. Anything you
-                set here wins.{' '}
-                <DocsLink href={DOCS_URLS.projectFile}>Learn more</DocsLink>
-              </>
-            }
-            source="convention"
-          >
-            {() => <FileButtons path={projectFile.path} />}
-          </Setting>
-        </SettingsGroup>
-      )}
 
       <SettingsGroup title="MDX Components">
         <Setting

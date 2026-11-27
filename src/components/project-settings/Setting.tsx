@@ -1,19 +1,7 @@
-import React, { useEffect, useId, useState } from 'react'
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  FolderOpen,
-  Plus,
-  RotateCcw,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
-import { commands, type SettingSource } from '@/lib/bindings'
+import React, { useId } from 'react'
+import { FolderOpen, Plus, RotateCcw, X, type LucideIcon } from 'lucide-react'
+import type { SettingSource } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
-import { useProjectStore } from '../../store/projectStore'
-import { openInIde } from '../../lib/ide'
-import { toast } from '../../lib/toast'
 import { PROJECT_FILE } from '../../lib/project-settings/status'
 import {
   Select,
@@ -146,66 +134,6 @@ export function Setting({
         )}
       </div>
       {wide && <div className="mt-3">{control}</div>}
-    </div>
-  )
-}
-
-const COPIED_MS = 1500
-
-/** An icon button that copies `path`, showing a tick once it has */
-function CopyPathButton({ path }: { path: string }) {
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), COPIED_MS)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  const copy = () => {
-    void commands.copyTextToClipboard(path).then(result => {
-      if (result.status === 'error') {
-        toast.error("Couldn't copy the path", { description: result.error })
-      } else {
-        setCopied(true)
-      }
-    })
-  }
-
-  const Icon = copied ? Check : Copy
-  return (
-    <Button
-      variant="outline"
-      size="icon-sm"
-      onClick={copy}
-      title={copied ? 'Copied' : 'Copy Path'}
-      aria-label="Copy Path"
-    >
-      <Icon />
-    </Button>
-  )
-}
-
-/**
- * Copy Path, and Open in IDE when one is set, for a file in the project that
- * AE doesn't edit itself, like a collection's template
- */
-export function FileButtons({ path }: { path: string }) {
-  const ideCommand = useProjectStore(
-    state => state.globalSettings?.general.ideCommand
-  )
-  return (
-    <div className="flex gap-2">
-      <CopyPathButton path={path} />
-      {ideCommand && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void openInIde(path, ideCommand)}
-        >
-          <ExternalLink /> Open in IDE
-        </Button>
-      )}
     </div>
   )
 }

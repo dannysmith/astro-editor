@@ -95,9 +95,12 @@ export function ProblemCallout({
 export function NoteCallout({
   message,
   fix,
+  link,
 }: {
   message: string
   fix?: string
+  /** A docs link after `fix` */
+  link?: React.ReactNode
 }) {
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
@@ -108,7 +111,7 @@ export function NoteCallout({
         </p>
         {fix && (
           <p className="text-muted-foreground">
-            <WithCode text={fix} />
+            <WithCode text={fix} /> {link}
           </p>
         )}
       </div>

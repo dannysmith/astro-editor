@@ -1,12 +1,13 @@
-import type { ReactNode } from 'react'
-import { Files } from 'lucide-react'
-import type {
-  Collection,
-  CollectionSettings,
-  DefaultSort,
-  FileType,
-  ProjectScan,
-  Resolved,
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, Copy, ExternalLink, Files } from 'lucide-react'
+import {
+  commands,
+  type Collection,
+  type CollectionSettings,
+  type DefaultSort,
+  type FileType,
+  type ProjectScan,
+  type Resolved,
 } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -16,6 +17,8 @@ import { getSortOptionsForCollection } from '../../lib/files/sorting'
 import { FieldType, type CompleteSchema } from '../../lib/schema'
 import { useCollectionFilesQuery } from '../../hooks/queries/useCollectionFilesQuery'
 import { useNewFileTemplateQuery } from '../../hooks/queries/useNewFileTemplateQuery'
+import { openInIde } from '../../lib/ide'
+import { toast } from '../../lib/toast'
 import {
   defaultSortChoices,
   describeOrigin,
@@ -33,7 +36,6 @@ import { PreferencesTextInput } from '../preferences/PreferencesTextInput'
 import { DocsLink } from '../preferences/DocsLink'
 import { NoteCallout, ProblemCallout, WithCode } from './Problems'
 import {
-  FileButtons,
   FolderInput,
   FoundValue,
   PageHeader,
@@ -59,6 +61,42 @@ const FILE_TYPES: Record<FileType, string> = { md: 'Markdown', mdx: 'MDX' }
 const IMAGE_PATHS = {
   relative: 'Relative to the file',
   absolute: 'From the project root',
+}
+
+const COPIED_MS = 1500
+
+/** An icon button that copies `path`, showing a tick once it has */
+function CopyPathButton({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), COPIED_MS)
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  const copy = () => {
+    void commands.copyTextToClipboard(path).then(result => {
+      if (result.status === 'error') {
+        toast.error("Couldn't copy the path", { description: result.error })
+      } else {
+        setCopied(true)
+      }
+    })
+  }
+
+  const Icon = copied ? Check : Copy
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      onClick={copy}
+      title={copied ? 'Copied' : 'Copy Path'}
+      aria-label="Copy Path"
+    >
+      <Icon />
+    </Button>
+  )
 }
 
 /** A dropdown's first choice when the project's .astro-editor.json gives it */
@@ -89,6 +127,7 @@ export function CollectionPage({
   const resolved = collection.settings
   const folder = relativePath(collection.path, projectPath)
 
+  const ideCommand = globalSettings?.general.ideCommand
   const { data: template } = useNewFileTemplateQuery(collection, projectPath)
 
   const update = (settings: Partial<CollectionSettings>) =>
@@ -401,7 +440,20 @@ export function CollectionPage({
             }
             source="convention"
           >
-            {() => <FileButtons path={template} />}
+            {() => (
+              <div className="flex gap-2">
+                <CopyPathButton path={template} />
+                {ideCommand && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void openInIde(template, ideCommand)}
+                  >
+                    <ExternalLink /> Open in IDE
+                  </Button>
+                )}
+              </div>
+            )}
           </Setting>
         )}
       </SettingsGroup>
