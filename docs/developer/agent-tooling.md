@@ -14,6 +14,8 @@ The installed app and the dev build can run side by side without touching each o
 
 The identity comes from the overlay; the agent bridge and window title depend on it being a debug build. `tauri:dev` gives you both. Debug builds skip the automatic update check, and title the window with the slot and branch, e.g. "Astro Editor (Dev · main)". They never send telemetry, which only official release builds have compiled in (see `releases.md`). The branch is the one checked out when `tauri:dev` started.
 
+Dev builds don't register the `astro-editor://` URL scheme: macOS hands links to the installed app. To try a link in the dev app, call `window.__openUrl(url)`, from `bun run app eval` or the Web Inspector. It runs the same handler as a real link (`useDeepLink`); only the OS's part, including launching the app from a link, needs a signed build.
+
 ### Worktrees and dev slots
 
 Each git worktree of the repo can run its own dev app alongside the others. `scripts/dev-slot.ts` works out which one a checkout owns, so `tauri:dev` and `bun run app` need no flags or setup beyond `bun run setup`, and it doesn't matter what created the worktree.

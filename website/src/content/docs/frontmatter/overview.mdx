@@ -42,7 +42,7 @@ To fix it, run `astro sync` (or start your dev server) in your project. Astro Ed
 
 Fields appear in the sidebar in the order they're defined in your schema, except the title field, which is always shown first.
 
-A new file gets a placeholder title and today's date for its published date. A required switch, date or list gets off, today or an empty list. Other required fields, like text, numbers, choices and images, are left for you to fill in: they're marked required in the panel, and Astro's build names any that are still missing.
+A new file gets a placeholder title and today's date for its published date. A required switch, date or list gets off, today or an empty list. Other required fields, like text, numbers, choices and images, are left for you to fill in: they're marked required in the panel, and Astro's build names any that are still missing. If the collection has a [template](/file-management/templates/), the file starts with the template's frontmatter, and only its published date and the required fields it leaves out are filled in.
 
 ## How Edits Are Saved
 

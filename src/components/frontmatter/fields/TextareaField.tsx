@@ -5,6 +5,7 @@ import { valueToString } from '../utils'
 import { CopySlugButton } from './CopySlugButton'
 import { FieldWrapper } from './FieldWrapper'
 import { renameNewFileFromTitle } from '../../../lib/files/rename'
+import { focusEditor } from '../../../lib/focus-utils'
 import { cn } from '../../../lib/utils'
 import type { FieldControlProps } from './types'
 
@@ -52,6 +53,17 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
         value={valueToString(value)}
         onChange={e => setValue(e.target.value)}
         onBlur={isTitle ? () => void renameNewFileFromTitle() : undefined}
+        // Cmd+Enter in the title moves on to the body, as Cmd+0 does
+        onKeyDown={
+          isTitle
+            ? e => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  focusEditor()
+                }
+              }
+            : undefined
+        }
       />
     </FieldWrapper>
   )

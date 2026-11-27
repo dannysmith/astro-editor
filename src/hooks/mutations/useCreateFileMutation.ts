@@ -4,23 +4,31 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import { isFileListing } from '@/lib/query-keys'
 import { toast } from '@/lib/toast'
-import type { FrontmatterSchema, JsonValue } from '@/types'
+import type { FrontmatterSchema, JsonValue, MarkdownContent } from '@/types'
 
 export interface CreateFilePayload {
   directory: string
   filename: string
-  /** Written by Rust as YAML above an empty body, in schema order */
+  /** Written by Rust as YAML, in schema order unless there's a template */
   frontmatter: Record<string, JsonValue>
+  /** The template the file starts from, split as `parseMarkdownContent` splits it */
+  template: Pick<
+    MarkdownContent,
+    'raw_frontmatter' | 'imports' | 'content'
+  > | null
   schema: FrontmatterSchema
   projectPath: string
 }
 
 const createFile = async (payload: CreateFilePayload) => {
+  const { template } = payload
   const result = await commands.createFile(
     payload.directory,
     payload.filename,
-    '',
     payload.frontmatter,
+    template?.raw_frontmatter ?? '',
+    template?.content ?? '',
+    template?.imports ?? '',
     payload.schema,
     payload.projectPath
   )

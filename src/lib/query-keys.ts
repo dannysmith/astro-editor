@@ -10,6 +10,22 @@ export const queryKeys = {
   // Every file in a collection, with its frontmatter, for entry pickers
   collectionFiles: (projectPath: string, collectionName: string) =>
     [...queryKeys.collections(projectPath), collectionName, 'files'] as const,
+  // The path of the template new files in a collection start from, or null.
+  // It's in the collection's folder, and the new file type decides which of
+  // two templates is used
+  newFileTemplate: (
+    projectPath: string,
+    collectionName: string,
+    collectionPath: string,
+    newFileType: string
+  ) =>
+    [
+      ...queryKeys.collections(projectPath),
+      collectionName,
+      'template',
+      collectionPath,
+      newFileType,
+    ] as const,
   // The files and folders in one folder of a collection, for the sidebar
   directoryContents: (
     projectPath: string,

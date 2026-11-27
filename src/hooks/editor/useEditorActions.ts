@@ -18,47 +18,9 @@ import {
   type SchemaField,
 } from '../../lib/schema'
 import { isBackToBaseline } from '../../lib/files/frontmatter-baseline'
-import { findOwningProjectPath } from '../../lib/deep-link'
-import { showProjectList } from '../../lib/projects/actions'
+import { openProjectForLink } from '../../lib/projects/actions'
 import { renameUnderWay } from '../../lib/files/rename'
 import { queueWrite } from '../../lib/files/write-queue'
-
-/**
- * Waits until the project store has the project `projectId` open, with its
- * settings loaded. Resolves `false` if that doesn't happen within `timeoutMs`.
- *
- * `setProject` is fire-and-forget, so deep-link handling must wait for the switch
- * to complete before resolving/opening a file in the new project.
- */
-function waitForProjectReady(
-  projectId: string,
-  timeoutMs = 8000
-): Promise<boolean> {
-  const state = useProjectStore.getState()
-  if (state.currentProjectId === projectId && state.projectSettings) {
-    return Promise.resolve(true)
-  }
-
-  return new Promise<boolean>(resolve => {
-    const handles: {
-      unsubscribe?: () => void
-      timer?: ReturnType<typeof setTimeout>
-    } = {}
-
-    handles.timer = setTimeout(() => {
-      handles.unsubscribe?.()
-      resolve(false)
-    }, timeoutMs)
-
-    handles.unsubscribe = useProjectStore.subscribe(current => {
-      if (current.currentProjectId === projectId && current.projectSettings) {
-        clearTimeout(handles.timer)
-        handles.unsubscribe?.()
-        resolve(true)
-      }
-    })
-  })
-}
 
 /**
  * Saves the open file: writes its body, imports and frontmatter (edited
@@ -323,47 +285,11 @@ export function useEditorActions() {
       return
     }
 
-    // Find the known project that owns this file. The registry is read fresh,
-    // since on a cold start this can run before preferences have loaded.
-    const preferences = await commands.loadPreferences()
-    if (preferences.status === 'error') {
-      toast.error("Couldn't open that file", { description: preferences.error })
-      return
-    }
-    // Reading them sets aside settings files that can't be read, as at startup
-    for (const problem of preferences.data.problems) {
-      toast.warning('Settings were reset', { description: problem })
-    }
-    const knownProjects = Object.values(preferences.data.registry.projects)
-    const owningProjectPath = findOwningProjectPath(
-      knownProjects.map(p => p.path),
-      filePath
-    )
-    const owningProject = knownProjects.find(p => p.path === owningProjectPath)
-    if (!owningProject) {
-      toast.error("That file isn't in a project Astro Editor knows about", {
-        description:
-          'If its project has moved, locate it in the project list. Otherwise open the project once, then links to its files will work.',
-        action: { label: 'Show Projects', onClick: showProjectList },
-        duration: 10_000,
-      })
-      return
-    }
-
-    // Switch to the owning project if it isn't already active, then wait for it.
-    const isCurrentProject =
-      useProjectStore.getState().currentProjectId === owningProject.id
-    if (!isCurrentProject) {
-      useProjectStore.getState().setProject(owningProject.path)
-      const ready = await waitForProjectReady(owningProject.id)
-      if (!ready) {
-        toast.error('Failed to open the project for that link')
-        return
-      }
-    }
+    const projectPath = await openProjectForLink(filePath)
+    if (!projectPath) return
 
     // Resolve the file to a FileEntry within the project (reuses the Rust scan).
-    const result = await commands.resolveFileEntry(filePath, owningProject.path)
+    const result = await commands.resolveFileEntry(filePath, projectPath)
 
     if (result.status === 'error') {
       toast.error("Couldn't open that file", { description: result.error })

@@ -1,36 +1,80 @@
 import { describe, it, expect } from 'vitest'
-import { parseDeepLinkPath, findOwningProjectPath } from './deep-link'
+import { parseDeepLink, findOwningProjectPath } from './deep-link'
 
-describe('parseDeepLinkPath', () => {
+describe('parseDeepLink', () => {
   it('extracts and decodes the path from a valid open URL', () => {
     const url =
       'astro-editor://open?path=/Users/danny/dev/blog/src/content/blog/post.md'
-    expect(parseDeepLinkPath(url)).toBe(
-      '/Users/danny/dev/blog/src/content/blog/post.md'
-    )
+    expect(parseDeepLink(url)).toEqual({
+      action: 'open',
+      path: '/Users/danny/dev/blog/src/content/blog/post.md',
+    })
   })
 
   it('decodes percent-encoded paths (spaces and special chars)', () => {
     const url =
       'astro-editor://open?path=%2FUsers%2Fdanny%2Fmy%20blog%2Fa%20post.md'
-    expect(parseDeepLinkPath(url)).toBe('/Users/danny/my blog/a post.md')
+    expect(parseDeepLink(url)).toEqual({
+      action: 'open',
+      path: '/Users/danny/my blog/a post.md',
+    })
   })
 
   it('returns null for a different scheme', () => {
-    expect(parseDeepLinkPath('other-app://open?path=/x.md')).toBeNull()
+    expect(parseDeepLink('other-app://open?path=/x.md')).toBeNull()
   })
 
   it('returns null for an unknown action/host', () => {
-    expect(parseDeepLinkPath('astro-editor://close?path=/x.md')).toBeNull()
+    expect(parseDeepLink('astro-editor://close?path=/x.md')).toBeNull()
   })
 
   it('returns null when path is missing or empty', () => {
-    expect(parseDeepLinkPath('astro-editor://open')).toBeNull()
-    expect(parseDeepLinkPath('astro-editor://open?path=')).toBeNull()
+    expect(parseDeepLink('astro-editor://open')).toBeNull()
+    expect(parseDeepLink('astro-editor://open?path=')).toBeNull()
   })
 
   it('returns null for malformed URLs', () => {
-    expect(parseDeepLinkPath('not a url')).toBeNull()
+    expect(parseDeepLink('not a url')).toBeNull()
+  })
+
+  it('reads a new link, ignoring parameters it doesn’t know', () => {
+    const url =
+      'astro-editor://new?project=%2FUsers%2Fme%2Fmy%20site&collection=notes&folder=%2F2024%2Fjan%2F&title=A%20%26%20B&body=%20%20indented%0A&tags=x'
+    expect(parseDeepLink(url)).toEqual({
+      action: 'new',
+      project: '/Users/me/my site',
+      collection: 'notes',
+      folder: '2024/jan',
+      title: 'A & B',
+      body: '  indented\n',
+    })
+  })
+
+  it('leaves out optional parameters that are missing or empty', () => {
+    expect(
+      parseDeepLink(
+        'astro-editor://new?project=/site&collection=notes&folder=/&title='
+      )
+    ).toEqual({
+      action: 'new',
+      project: '/site',
+      collection: 'notes',
+      folder: undefined,
+      title: undefined,
+      body: undefined,
+    })
+  })
+
+  it('needs a project and a collection for a new link', () => {
+    expect(parseDeepLink('astro-editor://new?collection=notes')).toBeNull()
+    expect(parseDeepLink('astro-editor://new?project=/site')).toBeNull()
+  })
+
+  it('refuses a folder outside the collection', () => {
+    for (const folder of ['..', 'a/../../b', './a', 'a//b', 'a\\..\\b']) {
+      const url = `astro-editor://new?project=/site&collection=notes&folder=${encodeURIComponent(folder)}`
+      expect(parseDeepLink(url)).toBeNull()
+    }
   })
 })
 

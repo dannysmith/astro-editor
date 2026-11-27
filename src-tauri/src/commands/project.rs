@@ -458,6 +458,9 @@ pub async fn new_file_name(
 ) -> Result<Option<String>, String> {
     validate_project_path(&directory, &project_path)?;
     let directory = PathBuf::from(directory);
+    if !directory.is_dir() {
+        return Err(format!("There's no folder at {}", directory.display()));
+    }
     let extension = match collection.settings.new_file_type.value {
         FileType::Md => "md",
         FileType::Mdx => "mdx",
@@ -476,6 +479,27 @@ pub async fn new_file_name(
         }))
     })
     .await
+}
+
+/// The template new files in the collection start from, if it has one:
+/// `.template.md` or `.template.mdx` in its folder, preferring the one in its
+/// new file type. Astro's loaders skip dotfiles, so it's never an entry.
+#[tauri::command]
+#[specta::specta]
+pub async fn new_file_template(
+    collection: Collection,
+    project_path: String,
+) -> Result<Option<String>, String> {
+    let folder = validate_project_path(&collection.path, &project_path)?;
+    let extensions = match collection.settings.new_file_type.value {
+        FileType::Md => ["md", "mdx"],
+        FileType::Mdx => ["mdx", "md"],
+    };
+    Ok(extensions
+        .iter()
+        .map(|extension| folder.join(format!(".template.{extension}")))
+        .find(|path| path.is_file())
+        .map(|path| normalize_path_for_serialization(&path)))
 }
 
 /// Renames an entry's file to `stem`, or the first free name after it (`-1`,
@@ -1391,6 +1415,32 @@ mod tests {
         assert_eq!(new_name(&blog, "", "today").as_deref(), Some("today.md"));
         assert_eq!(new_name(&blog, "", "POST").as_deref(), Some("POST-1.md"));
         assert_eq!(new_name(&blog, "2024", "old").as_deref(), Some("old-1.md"));
+    }
+
+    #[test]
+    fn new_file_templates_prefer_the_new_file_type() {
+        let (_temp, mut blog) = blog_collection("'**/*.md'", SkippedFiles::Hide);
+        let template = |blog: &Collection| {
+            tauri::async_runtime::block_on(new_file_template(blog.clone(), project(blog)))
+                .unwrap()
+                .map(|path| path.rsplit('/').next().unwrap().to_string())
+        };
+        assert_eq!(template(&blog), None);
+
+        // Either type is used when it's the only one
+        std::fs::write(blog.path.join(".template.mdx"), "").unwrap();
+        assert_eq!(template(&blog).as_deref(), Some(".template.mdx"));
+
+        std::fs::write(blog.path.join(".template.md"), "").unwrap();
+        assert_eq!(template(&blog).as_deref(), Some(".template.md"));
+        blog.settings.new_file_type.value = FileType::Mdx;
+        assert_eq!(template(&blog).as_deref(), Some(".template.mdx"));
+
+        // Only the collection's folder has one
+        std::fs::remove_file(blog.path.join(".template.md")).unwrap();
+        std::fs::remove_file(blog.path.join(".template.mdx")).unwrap();
+        std::fs::write(blog.path.join("2024/.template.md"), "").unwrap();
+        assert_eq!(template(&blog), None);
     }
 
     #[test]
