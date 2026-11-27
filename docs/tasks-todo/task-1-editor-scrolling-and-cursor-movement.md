@@ -64,6 +64,15 @@ Switching would mean: the outer div stops scrolling and the editor fills it with
 
 Since the click jump isn't caused by this, it's a separate decision. Make it by trying it: switch on a scratch commit and run the same tests (the click matrix, typewriter on and off, jump to heading, focus mode toggles, wrapped long paragraphs) before and after.
 
+### Focus mode moved the view when its dimming appeared or went (fixed)
+
+With the cursor mid-document, turning focus mode on (at the first cursor move, which is when the dimming was first drawn) or off scrolled the view so the cursor line sat at the bottom. Typewriter mode seemed involved only because it moves the cursor. Two causes:
+
+- Focus mode dimmed by wrapping the whole document in marks, so the dimming appearing or going changed every visible line. CodeMirror rebuilt them all, and while it did the content was briefly short enough for WebKit to clamp the scroll position (a temporary `padding-bottom: 20000px` on `.cm-content` made the jumps vanish). Now a `cm-focus-mode` class on the content dims every line, and only the cursor's line is decorated: kept bright, with marks dimming the text either side of the sentence. This also fixed focus mode not dimming anything until the cursor moved.
+- Its decorations were provided directly, which CodeMirror treats as able to change heights, so it re-estimated every line they changed on and "corrected" the scroll for it. Focus mode and copyedit mode's highlights are now provided as functions.
+
+The opacity transition went: a line fading while its marks changed instantly flashed the dimmed text bright.
+
 ### Turning typewriter mode off moved the text (fixed)
 
 Removing typewriter mode's 50vh padding moved the text up by the padding's height, so the centred line jumped to the top. Fixed on main (`a9273cd9`): the typewriter plugin scrolls the container by however much the padding changes. Near the start or end of a document the text still moves, because the space it was centred in goes away.

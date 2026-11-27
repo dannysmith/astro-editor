@@ -43,10 +43,12 @@
   display: none;
 }
 
-/* Focus Mode Styling */
+/* Focus Mode Styling: every line dimmed but the one holding the current
+   sentence, and that line's text outside the sentence (see focus-mode.ts).
+   No transition: a line fading while its marks change at once would flash */
+.cm-focus-mode .cm-line:not(.cm-focus-line),
 .cm-focus-dimmed {
   opacity: 0.3;
-  transition: opacity 0.2s ease-in-out;
 }
 
 /* Optional: Add subtle fade transition */

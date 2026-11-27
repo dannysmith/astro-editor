@@ -2,20 +2,20 @@
  * Focus Mode Extension
  *
  * Provides a distraction-free writing mode that dims all text except the
- * current sentence. As the cursor moves, the "focused" sentence updates
- * and surrounding text is visually dimmed via the `.cm-focus-dimmed` class.
+ * current sentence. As the cursor moves, the "focused" sentence updates.
  *
  * HOW IT WORKS:
  * - Tracks cursor position and uses sentence detection to find boundaries
- * - Applies mark decorations to dim text before and after the current sentence
+ * - A `cm-focus-mode` class on the content dims every line. The line holding
+ *   the current sentence gets `cm-focus-line`, which keeps it bright, and marks
+ *   (`cm-focus-dimmed`) dim the rest of that line outside the sentence
  * - State is toggled via the `toggleFocusMode` effect
  *
  * USAGE:
  * Toggle via Cmd+Shift+F or the 'toggleFocusMode' command.
  *
  * STYLING:
- * The `.cm-focus-dimmed` class is defined in the editor's global CSS
- * (see src/components/editor/editor.css).
+ * The classes are styled in src/components/editor/Editor.css.
  */
 
 import { StateField, StateEffect, Transaction } from '@codemirror/state'
@@ -72,59 +72,51 @@ export const focusModeState = StateField.define<{
   },
 })
 
-/** State field that provides decorations to dim text outside the current sentence. */
+const focusLine = Decoration.line({ class: 'cm-focus-line' })
+const dimmed = Decoration.mark({ class: 'cm-focus-dimmed' })
+
+/**
+ * Decorations for the line holding the current sentence: it's kept bright,
+ * while every other line is dimmed by the `cm-focus-mode` class on the
+ * content, and the rest of it outside the sentence is dimmed with marks.
+ *
+ * Only this line is ever decorated. Marks across the whole document made
+ * CodeMirror redraw every visible line whenever the dimming appeared or went,
+ * and while it did, the content was briefly short enough for the browser to
+ * clamp the scroll position, so the view jumped.
+ */
 export const focusModeDecorations = StateField.define<DecorationSet>({
   create() {
     return Decoration.none
   },
 
   update(decorations: DecorationSet, tr: Transaction) {
-    const focusState = tr.state.field(focusModeState)
-
-    if (!focusState.enabled || !focusState.currentSentence) {
-      return Decoration.none
-    }
-
-    // Performance: Only update if selection changed or document changed
-    if (!tr.selection && !tr.docChanged) {
+    const focus = tr.state.field(focusModeState)
+    if (!focus.enabled || !focus.currentSentence) return Decoration.none
+    if (focus === tr.startState.field(focusModeState)) {
       return decorations.map(tr.changes)
     }
 
-    const marks: Range<Decoration>[] = []
-    const doc = tr.state.doc
-    const currentSentence = focusState.currentSentence
-
-    // Create decorations for all text except the current sentence
-    // We need to handle three cases:
-    // 1. Text before the sentence
-    // 2. Text after the sentence
-    // 3. Text on the same line but outside the sentence
-
-    // Dim everything before the current sentence
-    if (currentSentence.from > 0) {
-      marks.push(
-        Decoration.mark({ class: 'cm-focus-dimmed' }).range(
-          0,
-          currentSentence.from
-        )
-      )
-    }
-
-    // Dim everything after the current sentence
-    if (currentSentence.to < doc.length) {
-      marks.push(
-        Decoration.mark({ class: 'cm-focus-dimmed' }).range(
-          currentSentence.to,
-          doc.length
-        )
-      )
-    }
-
-    return Decoration.set(marks, true)
+    // A sentence is always within one line
+    const { from, to } = focus.currentSentence
+    const line = tr.state.doc.lineAt(from)
+    const ranges: Range<Decoration>[] = [focusLine.range(line.from)]
+    if (from > line.from) ranges.push(dimmed.range(line.from, from))
+    if (to < line.to) ranges.push(dimmed.range(to, line.to))
+    return Decoration.set(ranges, true)
   },
 
-  provide: f => EditorView.decorations.from(f),
+  // Provided as a function, which CodeMirror treats as styling only. Provided
+  // directly, it re-estimates the heights of the lines it changes on
+  provide: f => EditorView.decorations.of(view => view.state.field(f)),
 })
+
+/** Dims every line while focus mode is on (see `focusModeDecorations`) */
+const focusModeClass = EditorView.contentAttributes.from(
+  focusModeState,
+  (focus): Record<string, string> =>
+    focus.enabled ? { class: 'cm-focus-mode' } : {}
+)
 
 /** ViewPlugin that coordinates focus mode updates. State changes are handled by the state fields. */
 export const focusModePlugin = ViewPlugin.fromClass(
@@ -140,5 +132,5 @@ export const focusModePlugin = ViewPlugin.fromClass(
 
 /** Creates the combined focus mode extension. Include this in your editor's extensions array. */
 export function createFocusModeExtension() {
-  return [focusModeState, focusModeDecorations, focusModePlugin]
+  return [focusModeState, focusModeDecorations, focusModeClass, focusModePlugin]
 }
