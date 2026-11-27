@@ -147,6 +147,22 @@ Results, with the same scripts on both layouts:
 
 ### Phase 3: smooth scrolling
 
+Research:
+
+- CodeMirror won't animate scrolling. Its author: "Smooth scrolling isn't something the library will do for you", run your own timed process on `view.scrollDOM`. `scrollHandler` (6.26) exists for taking over scroll-into-view, and nobody has published an animated one. A target's position can be an estimate until it's drawn (`view.lineBlockAt`), so it has to be read again as the animation goes.
+- The Obsidian typewriter plugin doesn't animate either, and ignores mouse selections rather than delaying them.
+- **CSS `scroll-behavior: smooth` on `.cm-scroller` doesn't work for us.** WebKit then animates CodeMirror's own height corrections too, and a correction mid-animation cuts it short: with it on, `scroll-up-drift.js` showed jumps of 38px and 132px in two of four runs, against none without it. It also can't do "long jumps almost instant", since WebKit chooses the duration.
+
+What's in the experiment (`extensions/smooth-scroll.ts`, uncommitted):
+
+- A `scrollHandler` takes every scroll target and animates `.cm-scroller` towards it in a `requestAnimationFrame` loop that only runs while it's moving. Each frame reads the target afresh (exact if drawn, else `lineBlockAt`'s estimate) and covers the share of the remaining distance the easing curve gives it, so it absorbs estimates changing and CodeMirror's corrections, and arrives exactly on time. Duration `min(250, 50 + 4√px)`: about 80ms for a line. A jump longer than two screens moves instantly to one screen away first.
+- Stops on wheel, touch and mousedown, and on any edit. A file load scrolls instantly. Reduce Motion turns it off.
+- Two things that didn't work: reading layout in the handler itself (CodeMirror calls it while writing to the DOM, where `coordsAtPos` throws), and moving the scroll position inside CodeMirror's measure cycle (its loop keeps using the position it read at the start, and long jumps went wrong). The loop runs in its own frame callback instead.
+- Typewriter mode centres `selection.main` (so a multi-line selection is centred as a block), and centres a mouse selection 500ms after mouseup, cancelled by any keyboard movement. `pointer-delay.js`: the clicked line stays put for 600ms, then is centred.
+- Measured in the hidden dev window: jumps of a few screens land exactly (top normally, centred in typewriter mode). **Open question:** jumps of hundreds of thousands of pixels forward in the 3000-line test document land wrong, because WebKit puts the scroll position back to where the jump started, with no script writing it. CodeMirror's single instant write survives this and a write per frame doesn't. That fits WebKit keeping the scroll position in the UI process, which a hidden window never syncs. Check in the visible window before going further.
+
+- [ ] Danny: feel it in the real app, and try long jumps in `schemaless/long-scroll-test.md` (jump to heading from Section 2 to Section 37)
+
 - [ ] Research `scrollHandler` use and smooth scrolling in CodeMirror
 - [ ] A scroll handler that animates every scroll into view, with duration proportional to distance and cancelled by the user scrolling
 - [ ] The half-second delay after mouse selections

@@ -53,6 +53,7 @@ import { createFocusModeExtension } from './focus-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
 import { createHarperExtension } from './harper'
 import { createTypewriterModeExtension } from './typewriter-mode'
+import { createSmoothScrollExtension } from './smooth-scroll'
 import { wordCountExtension } from './word-count'
 import { hangingHeadersExtension } from './hanging-headers'
 import { syntaxMarkDecorationsExtension } from './syntax-mark-decorations'
@@ -120,6 +121,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     ...createCopyeditModeExtension(),
     ...createHarperExtension(),
     ...createTypewriterModeExtension(),
+    createSmoothScrollExtension(),
     wordCountExtension,
 
     // Visual enhancements
