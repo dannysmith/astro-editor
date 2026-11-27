@@ -1,19 +1,20 @@
 /**
  * Typewriter Mode Extension
  *
- * Keeps the cursor line vertically centred in the editor viewport at all times,
- * mimicking the behaviour of iA Writer's typewriter mode.
+ * Keeps the cursor line, or a selection spanning several lines, vertically
+ * centred in the editor, as iA Writer's typewriter mode does. The scrolling
+ * itself is animated by the smooth scroll extension.
  *
  * HOW IT WORKS:
- * 1. Transaction extender adds EditorView.scrollIntoView(pos, { y: 'center' })
- *    to every transaction that moves the cursor or changes the document. This
+ * 1. Transaction extender adds EditorView.scrollIntoView(selection, { y: 'center' })
+ *    to every transaction that moves the selection or changes the document. This
  *    works WITH CM6's scroll system rather than fighting it.
  * 2. A ViewPlugin toggles a CSS class on .cm-scroller that applies 50vh padding
  *    to .cm-content via CSS. Using vh units avoids JS calculation feedback loops
  *    and automatically responds to viewport changes. It scrolls by however much
  *    the padding changes, so toggling the mode doesn't move the text by itself.
- *    For pointer clicks, it waits for mouseup before scrolling to avoid the
- *    scroll causing a drag selection.
+ *    Mouse selections are centred half a second after mouseup, so the scroll
+ *    never turns a click into a drag or disturbs a double-click.
  * 3. State is toggled via the `toggleTypewriterMode` effect.
  *
  * USAGE:
@@ -28,7 +29,12 @@
  * - Obsidian Typewriter Mode plugin (production reference)
  */
 
-import { StateField, StateEffect, EditorState } from '@codemirror/state'
+import {
+  StateField,
+  StateEffect,
+  EditorState,
+  type SelectionRange,
+} from '@codemirror/state'
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view'
 
 /** State effect to toggle typewriter mode on or off. */
@@ -49,6 +55,16 @@ export const typewriterModeState = StateField.define<{ enabled: boolean }>({
     return value
   },
 })
+
+/**
+ * Centres the selection: the cursor's line, or a selection spanning several
+ * lines as a block (its head, if it's taller than the editor)
+ */
+const centreSelection = (range: SelectionRange) =>
+  EditorView.scrollIntoView(range, { y: 'center' })
+
+/** How long to wait after a mouse selection ends before centring it */
+const POINTER_DELAY = 500
 
 /**
  * Transaction extender: intercepts every non-pointer transaction that changes
@@ -75,11 +91,7 @@ const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
   )
 
   if (tr.selection || tr.docChanged || justEnabled) {
-    return {
-      effects: EditorView.scrollIntoView(tr.state.selection.main.head, {
-        y: 'center',
-      }),
-    }
+    return { effects: centreSelection(tr.state.selection.main) }
   }
 
   return null
@@ -88,16 +100,21 @@ const typewriterScrollExtender = EditorState.transactionExtender.of(tr => {
 /**
  * ViewPlugin that:
  * 1. Toggles a CSS class on .cm-scroller for the 50vh padding
- * 2. Handles deferred centering for pointer clicks (must wait until after
- *    the click sequence completes to avoid the mousedown/mouseup scroll bug)
+ * 2. Centres a mouse selection once it's done: after mouseup, then a short
+ *    pause, so a double-click or a drag isn't disturbed by the scroll, and a
+ *    click doesn't move the text from under the pointer straight away
  */
 const typewriterPlugin = ViewPlugin.fromClass(
   class {
-    private pendingMouseup: (() => void) | null = null
-    private _destroyed = false
+    /** Cancels the wait for a mouse selection to finish, if there is one */
+    private cancelPending: (() => void) | null = null
 
     constructor(private view: EditorView) {
       this.syncClass()
+      // Scrolling by hand during the pause means the reader has moved on
+      for (const type of ['wheel', 'touchstart']) {
+        view.scrollDOM.addEventListener(type, this.cancel, { passive: true })
+      }
     }
 
     update(update: ViewUpdate) {
@@ -107,33 +124,43 @@ const typewriterPlugin = ViewPlugin.fromClass(
       if (wasEnabled !== isEnabled) {
         this.syncClass()
       }
-
-      // Deferred centering for pointer clicks - must wait for mouseup to avoid
-      // scroll between mousedown/mouseup causing CM6 to interpret click as drag
-      if (
-        isEnabled &&
-        update.transactions.some(tr => tr.isUserEvent('select.pointer'))
-      ) {
-        this.cancelPendingMouseup()
-
-        const handler = () => {
-          this.pendingMouseup = null
-          // rAF after mouseup ensures CM6 has finished processing the click
-          requestAnimationFrame(() => {
-            if (this._destroyed) return
-            this.view.dispatch({
-              effects: EditorView.scrollIntoView(
-                this.view.state.selection.main.head,
-                { y: 'center' }
-              ),
-            })
-          })
-        }
-
-        this.pendingMouseup = () =>
-          document.removeEventListener('mouseup', handler)
-        document.addEventListener('mouseup', handler, { once: true })
+      if (!isEnabled) {
+        this.cancel()
+        return
       }
+
+      const pointer = update.transactions.some(tr =>
+        tr.isUserEvent('select.pointer')
+      )
+      if (pointer) {
+        this.centreAfterPointer()
+      } else if (update.selectionSet || update.docChanged) {
+        // The keyboard moved on, and the extender centres that straight away
+        this.cancel()
+      }
+    }
+
+    private centreAfterPointer() {
+      this.cancel()
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const onMouseup = () => {
+        timer = setTimeout(() => {
+          this.cancelPending = null
+          this.view.dispatch({
+            effects: centreSelection(this.view.state.selection.main),
+          })
+        }, POINTER_DELAY)
+      }
+      document.addEventListener('mouseup', onMouseup, { once: true })
+      this.cancelPending = () => {
+        document.removeEventListener('mouseup', onMouseup)
+        clearTimeout(timer)
+      }
+    }
+
+    private cancel = () => {
+      this.cancelPending?.()
+      this.cancelPending = null
     }
 
     // Toggling the padding would move the text by its height, so turning the
@@ -142,44 +169,25 @@ const typewriterPlugin = ViewPlugin.fromClass(
     syncClass() {
       const enabled = this.view.state.field(typewriterModeState).enabled
       const { contentDOM, scrollDOM } = this.view
-      const container = scrollContainer(scrollDOM)
-      // Read before toggling: removing the padding shrinks the container, which
-      // clamps its scroll position
-      const scrollTop = container?.scrollTop ?? 0
+      // Read before toggling: removing the padding shrinks the content, which
+      // clamps the scroll position
+      const scrollTop = scrollDOM.scrollTop
       const paddingBefore = parseFloat(getComputedStyle(contentDOM).paddingTop)
       scrollDOM.classList.toggle('cm-typewriter-active', enabled)
       const shift =
         parseFloat(getComputedStyle(contentDOM).paddingTop) - paddingBefore
-      if (shift && container) container.scrollTop = scrollTop + shift
-    }
-
-    private cancelPendingMouseup() {
-      if (this.pendingMouseup) {
-        this.pendingMouseup()
-        this.pendingMouseup = null
-      }
+      if (shift) scrollDOM.scrollTop = scrollTop + shift
     }
 
     destroy() {
-      this._destroyed = true
-      this.cancelPendingMouseup()
+      this.cancel()
+      for (const type of ['wheel', 'touchstart']) {
+        this.view.scrollDOM.removeEventListener(type, this.cancel)
+      }
       this.view.scrollDOM.classList.remove('cm-typewriter-active')
     }
   }
 )
-
-/**
- * The element the editor scrolls in: CodeMirror's scroller, or the app's
- * container around it when the editor grows to fit its content
- */
-function scrollContainer(element: HTMLElement): HTMLElement | null {
-  for (let el: HTMLElement | null = element; el; el = el.parentElement) {
-    const { overflowY } = getComputedStyle(el)
-    const scrolls = overflowY === 'auto' || overflowY === 'scroll'
-    if (scrolls && el.scrollHeight > el.clientHeight) return el
-  }
-  return null
-}
 
 /** Creates the combined typewriter mode extension. */
 export function createTypewriterModeExtension() {

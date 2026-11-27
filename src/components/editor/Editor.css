@@ -1,6 +1,6 @@
 /* Minimal container for CodeMirror */
 .editor-view {
-  min-height: 100%;
+  height: 100%;
   width: 100%;
   container-type: inline-size;
   container-name: editor;
@@ -35,10 +35,20 @@
   padding-bottom: 50vh !important;
 }
 
-/* Focus Mode Styling */
+/* Typewriter mode hides the scrollbar, since it scrolls on every keystroke */
+.cm-typewriter-active {
+  scrollbar-width: none;
+}
+.cm-typewriter-active::-webkit-scrollbar {
+  display: none;
+}
+
+/* Focus Mode Styling: every line dimmed but the one holding the current
+   sentence, and that line's text outside the sentence (see focus-mode.ts).
+   No transition: a line fading while its marks change at once would flash */
+.cm-focus-mode .cm-line:not(.cm-focus-line),
 .cm-focus-dimmed {
   opacity: 0.3;
-  transition: opacity 0.2s ease-in-out;
 }
 
 /* Optional: Add subtle fade transition */

@@ -46,7 +46,10 @@ export const highlightDecorations = StateField.define<DecorationSet>({
     return decorations.map(tr.changes)
   },
 
-  provide: f => EditorView.decorations.from(f),
+  // Provided as a function, so CodeMirror treats the highlights as styling
+  // only (see focus-mode.ts): toggling them across the whole document would
+  // otherwise make the view jump
+  provide: f => EditorView.decorations.of(view => view.state.field(f)),
 })
 
 /**

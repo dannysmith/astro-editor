@@ -333,10 +333,10 @@ const EditorViewComponent: React.FC = () => {
   }, [cleanupCommands])
 
   return (
-    <div className="editor-view" style={{ padding: '0 24px' }}>
+    <div className="editor-view">
       <div
         ref={editorRef}
-        className={`editor-codemirror ${isAltPressed ? 'alt-pressed' : ''}`}
+        className={`editor-codemirror h-full ${isAltPressed ? 'alt-pressed' : ''}`}
         data-editor-container
       />
       {projectPath && (

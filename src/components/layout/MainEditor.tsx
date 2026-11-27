@@ -1,6 +1,5 @@
 import React from 'react'
 import { useEditorStore } from '../../store/editorStore'
-import { useUIStore } from '../../store/uiStore'
 import { Editor } from '../editor'
 import { showProjectList } from '../../lib/projects/actions'
 import { Button } from '../ui/button'
@@ -50,13 +49,12 @@ export const MainEditor: React.FC = () => {
   // A boolean, not currentFile, so changes to the file object don't re-render this
   const hasCurrentFile = useEditorStore(state => !!state.currentFile)
   const loadError = useEditorStore(state => state.loadError)
-  const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
 
   return (
     <div className="flex h-full flex-col">
-      <div
-        className={`flex-1 overflow-x-hidden overflow-y-auto bg-editor-background${typewriterModeEnabled ? ' no-scrollbar' : ''}`}
-      >
+      {/* The editor scrolls itself (.cm-scroller), so CodeMirror's scroll
+          handling applies; see docs/developer/editor.md */}
+      <div className="min-h-0 flex-1 overflow-hidden bg-editor-background">
         {hasCurrentFile ? (
           <>
             {loadError && <LoadError message={loadError} />}

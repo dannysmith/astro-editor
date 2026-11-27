@@ -38,6 +38,7 @@ export const createEditorTheme = () => {
       color: 'var(--editor-color-text)',
       containerType: 'inline-size',
       containerName: 'editor',
+      height: '100%',
     },
     '.cm-editor': {
       backgroundColor: 'var(--editor-color-background)',
@@ -53,7 +54,8 @@ export const createEditorTheme = () => {
       WebkitFontSmoothing: 'antialiased',
       fontSmoothing: 'antialiased',
       lineHeight: 'var(--editor-line-height)',
-      minHeight: 'calc(100vh - 44px)', // Subtract titlebar (44px)
+      // Fills the editor, so a click below the last line still lands in it
+      minHeight: '100%',
       maxWidth: 'var(--editor-content-max-width)',
       margin: '0 auto',
       padding: '40px 0',
@@ -61,6 +63,9 @@ export const createEditorTheme = () => {
     '.cm-scroller': {
       fontVariantLigatures: 'none', // Disable ligatures to fix cursor positioning with iA Writer Duo
       backgroundColor: 'var(--editor-color-background)',
+      // Inside the scroller, so the scrollbar sits at the pane's edge and the
+      // margins scroll the text too
+      paddingInline: '24px',
     },
     '.cm-focused': {
       outline: 'none',

@@ -10,6 +10,7 @@ import {
 import { deserializeCompleteSchema, frontmatterSchema } from '../lib/schema'
 import { newFileFrontmatter } from '../lib/files/new-file'
 import { toast } from '../lib/toast'
+import { focusEditor } from '../lib/focus-utils'
 import { todayIsoDate } from '../lib/dates'
 import { fieldMappings, getCollection } from '../lib/project-scan'
 import { fileNameStem } from '../lib/files/file-name-pattern'
@@ -149,13 +150,7 @@ async function createFileInCurrentFolder(
           titleField.select()
         }
       } else {
-        // No title field, focus the main editor
-        const cmEditor = document.querySelector(
-          '.cm-editor .cm-content'
-        ) as HTMLElement
-        if (cmEditor) {
-          cmEditor.focus()
-        }
+        focusEditor()
       }
     }, 200)
   }
