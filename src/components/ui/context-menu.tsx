@@ -81,8 +81,10 @@ export class FileContextMenu {
               const createResult = await commands.createFile(
                 directory,
                 filename,
-                readResult.data,
                 null,
+                '',
+                readResult.data,
+                '',
                 frontmatterSchema([]),
                 projectPath
               )

@@ -11,15 +11,21 @@ import type { FieldMappings } from './sorting'
  * the writer didn't choose: the panel marks them required, and the site's
  * build names them until they're filled in. Fields inside an object are left
  * out too, because the schema doesn't say whether the object is required.
+ *
+ * With a `template`'s values, the file starts from them: the title and
+ * published date replace the template's (a date in a template is always
+ * stale), and required fields are only filled where the template leaves them
+ * out.
  */
 export function newFileFrontmatter(
   fields: SchemaField[],
   mappings: Pick<FieldMappings, 'title' | 'publishedDate'>,
   title: string,
-  today: string
+  today: string,
+  template: Record<string, unknown> = {}
 ): Record<string, unknown> {
   const publishedDates = [mappings.publishedDate].flat()
-  let frontmatter: Record<string, unknown> = {}
+  let frontmatter: Record<string, unknown> = { ...template }
 
   for (const field of fields) {
     const value = newFieldValue(field)
@@ -34,7 +40,9 @@ export function newFileFrontmatter(
     if (field.type === FieldType.Date && publishedDates.includes(field.name)) {
       return today
     }
-    if (!field.required || field.name.includes('.')) return undefined
+    if (!field.required || field.name.includes('.') || field.name in template) {
+      return undefined
+    }
     switch (field.type) {
       case FieldType.Boolean:
         return false

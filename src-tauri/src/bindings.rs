@@ -56,6 +56,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
             crate::commands::project::count_collection_files_recursive,
             crate::commands::project::scan_collection_files_recursive,
             crate::commands::project::new_file_name,
+            crate::commands::project::new_file_template,
             crate::commands::project::rename_entry,
             // git.rs commands
             crate::commands::git::git_setup,

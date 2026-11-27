@@ -11,11 +11,14 @@ export const commands = {
 	updateFormatMenuState: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("update_format_menu_state", { enabled })),
 	readFile: (filePath: string, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("read_file", { filePath, projectRoot })),
 	/**
-	 *  Creates a file holding `content`, under `frontmatter` if it's given, which
-	 *  is written as saving writes it (so date fields come out unquoted), in
-	 *  schema order. Returns the new file's path, with `/` on Windows too
+	 *  Creates a file from its parts, as `save_markdown_content` saves one.
+	 *  `raw_frontmatter` is a template's frontmatter block, or empty: the
+	 *  `frontmatter` values are spliced into it, keeping its keys' order and
+	 *  text, or written in schema order when it's empty. Without `frontmatter`,
+	 *  `raw_frontmatter` is written as it is. Returns the new file's path, with
+	 *  `/` on Windows too
 	 */
-	createFile: (directory: string, filename: string, content: string, frontmatter: { [key in string]: Value } | null, schema: FrontmatterSchema, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, content, frontmatter, schema, projectRoot })),
+	createFile: (directory: string, filename: string, frontmatter: { [key in string]: Value } | null, rawFrontmatter: string, content: string, imports: string, schema: FrontmatterSchema, projectRoot: string) => typedError<string, string>(__TAURI_INVOKE("create_file", { directory, filename, frontmatter, rawFrontmatter, content, imports, schema, projectRoot })),
 	/**  Moves a file in the project to the Trash, or with `permanent`, removes it */
 	deleteFile: (filePath: string, projectRoot: string, permanent: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_file", { filePath, projectRoot, permanent })),
 	renameFile: (oldPath: string, newPath: string, projectRoot: string) => typedError<null, string>(__TAURI_INVOKE("rename_file", { oldPath, newPath, projectRoot })),
@@ -124,6 +127,12 @@ export const commands = {
 	 *  collection.
 	 */
 	newFileName: (directory: string, collection: Collection, stem: string, projectPath: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_name", { directory, collection, stem, projectPath })),
+	/**
+	 *  The template new files in the collection start from, if it has one:
+	 *  `.template.md` or `.template.mdx` in its folder, preferring the one in its
+	 *  new file type. Astro's loaders skip dotfiles, so it's never an entry.
+	 */
+	newFileTemplate: (collection: Collection, projectPath: string) => typedError<string | null, string>(__TAURI_INVOKE("new_file_template", { collection, projectPath })),
 	/**
 	 *  Renames an entry's file to `stem`, or the first free name after it (`-1`,
 	 *  `-2`…, as for new files), in the same folder and keeping its extension. Only

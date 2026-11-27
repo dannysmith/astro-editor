@@ -86,6 +86,30 @@ describe('newFileFrontmatter', () => {
     ).toEqual({})
   })
 
+  it('starts from a template, replacing its title and published date', () => {
+    const fields = [
+      field('title', FieldType.String, true),
+      field('pubDate', FieldType.Date, true),
+      field('featured', FieldType.Boolean, true),
+      field('tags', FieldType.Array, true),
+    ]
+    const template = {
+      title: 'Book Title',
+      pubDate: '2024-01-01',
+      tags: ['books'],
+      rating: 3,
+    }
+    expect(
+      newFileFrontmatter(fields, mappings, 'New Note', TODAY, template)
+    ).toEqual({
+      title: 'New Note',
+      pubDate: TODAY,
+      tags: ['books'],
+      rating: 3,
+      featured: false,
+    })
+  })
+
   it('nests a title or published date that lives in an object', () => {
     expect(
       build(

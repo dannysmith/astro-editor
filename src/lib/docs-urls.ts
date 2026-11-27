@@ -14,6 +14,7 @@ export const DOCS_URLS = {
   mdxComponents: `${DOCS_BASE}/editor/mdx-components/`,
   specialFields: `${DOCS_BASE}/frontmatter/special-fields/`,
   fileNamePatterns: `${DOCS_BASE}/project-settings/#file-names`,
+  templates: `${DOCS_BASE}/file-management/templates/`,
   ideIntegration: `${DOCS_BASE}/file-management/ide-integration/`,
   advancedPreferences: `${DOCS_BASE}/reference/advanced-preferences/`,
   colourThemes: `${DOCS_BASE}/reference/advanced-preferences/#colour-themes`,

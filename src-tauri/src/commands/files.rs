@@ -78,16 +78,24 @@ pub async fn read_file(file_path: String, project_root: String) -> Result<String
     std::fs::read_to_string(&validated_path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
-/// Creates a file holding `content`, under `frontmatter` if it's given, which
-/// is written as saving writes it (so date fields come out unquoted), in
-/// schema order. Returns the new file's path, with `/` on Windows too
+/// Creates a file from its parts, as `save_markdown_content` saves one.
+/// `raw_frontmatter` is a template's frontmatter block, or empty: the
+/// `frontmatter` values are spliced into it, keeping its keys' order and
+/// text, or written in schema order when it's empty. Without `frontmatter`,
+/// `raw_frontmatter` is written as it is. Returns the new file's path, with
+/// `/` on Windows too
+// A command's arguments are its IPC payload, so there's no struct to gather
+// them in that wouldn't just be this list
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 #[specta::specta]
 pub async fn create_file(
     directory: String,
     filename: String,
-    content: String,
     frontmatter: Option<IndexMap<String, Value>>,
+    raw_frontmatter: String,
+    content: String,
+    imports: String,
     schema: FrontmatterSchema,
     project_root: String,
 ) -> Result<String, String> {
@@ -118,11 +126,14 @@ pub async fn create_file(
         return Err("File already exists".to_string());
     }
 
-    let content = match frontmatter {
-        Some(values) => assemble(&write_block("", &values, &schema, true)?, "", &content),
-        None => content,
+    let block = match frontmatter {
+        Some(values) => {
+            let reorder = raw_frontmatter.is_empty();
+            write_block(&raw_frontmatter, &values, &schema, reorder)?
+        }
+        None => raw_frontmatter,
     };
-    std::fs::write(&validated_final_path, content)
+    std::fs::write(&validated_final_path, assemble(&block, &imports, &content))
         .map_err(|e| format!("Failed to create file: {e}"))?;
 
     Ok(normalize_path_for_serialization(&validated_final_path))
@@ -864,8 +875,10 @@ mod tests {
         let result = create_file(
             content_dir.to_string_lossy().to_string(),
             "test_create.md".to_string(),
-            test_content.to_string(),
             None,
+            String::new(),
+            test_content.to_string(),
+            String::new(),
             FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )
@@ -907,8 +920,10 @@ mod tests {
         let path = create_file(
             project_root.clone(),
             "new.md".to_string(),
-            String::new(),
             Some(frontmatter.clone()),
+            String::new(),
+            String::new(),
+            String::new(),
             schema,
             project_root,
         )
@@ -926,6 +941,67 @@ mod tests {
         assert_eq!(parsed.content, "");
         let expected = dunce::canonicalize(dir.path()).unwrap().join("new.md");
         assert_eq!(path, normalize_path_for_serialization(&expected));
+    }
+
+    /// Creates `new.mdx` from `template`, split as the frontend gets it, with
+    /// its values changed by `edit`
+    async fn create_from_template(
+        template: &str,
+        edit: impl FnOnce(&mut IndexMap<String, Value>),
+    ) -> String {
+        let dir = tempfile::tempdir().unwrap();
+        let project_root = dir.path().to_string_lossy().to_string();
+        let parts = parse_frontmatter(template);
+        let mut values = parts.frontmatter.clone();
+        edit(&mut values);
+        let schema = FrontmatterSchema {
+            fields: ["title", "pubDate", "draft", "rating"]
+                .map(String::from)
+                .to_vec(),
+            date_fields: vec!["pubDate".to_string()],
+        };
+        let path = create_file(
+            project_root.clone(),
+            "new.mdx".to_string(),
+            Some(values),
+            parts.raw_frontmatter,
+            parts.content,
+            parts.imports,
+            schema,
+            project_root,
+        )
+        .await
+        .unwrap();
+        fs::read_to_string(path).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_create_file_from_template() {
+        let template = "---\n# A book review\ntitle: Book Title\npubDate: 2024-01-01\nrating: 3 # out of 5\nextra: kept\n---\n\nimport Callout from '../Callout.astro'\n\n## Summary\n\n## What I thought\n";
+        let written = create_from_template(template, |values| {
+            values.insert("title".into(), "New Review".into());
+            values.insert("pubDate".into(), "2026-11-27".into());
+            values.insert("draft".into(), false.into());
+        })
+        .await;
+
+        // The template's comments, order, unknown keys, imports and body are
+        // kept, and a new key goes where the schema puts it
+        assert_eq!(
+            written,
+            "---\n# A book review\ntitle: New Review\npubDate: 2026-11-27\ndraft: false\nrating: 3 # out of 5\nextra: kept\n---\n\nimport Callout from '../Callout.astro'\n\n## Summary\n\n## What I thought\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_file_from_template_that_cant_be_read() {
+        // Its values aren't known, so it's copied as it is
+        let template = "---\ntitle: [oops\n---\n\nBody\n";
+        let written = create_from_template(template, |values| {
+            values.insert("title".into(), "New Review".into());
+        })
+        .await;
+        assert_eq!(written, template);
     }
 
     #[cfg(unix)]
@@ -949,8 +1025,10 @@ mod tests {
             create_file(
                 content_dir.to_string_lossy().to_string(),
                 filename.to_string(),
-                String::new(),
                 None,
+                String::new(),
+                String::new(),
+                String::new(),
                 FrontmatterSchema::default(),
                 project_root.to_string_lossy().to_string(),
             )
@@ -986,8 +1064,10 @@ mod tests {
         let result = create_file(
             malicious_dir.to_string_lossy().to_string(),
             "malicious.md".to_string(),
-            "malicious content".to_string(),
             None,
+            String::new(),
+            "malicious content".to_string(),
+            String::new(),
             FrontmatterSchema::default(),
             project_root.to_string_lossy().to_string(),
         )

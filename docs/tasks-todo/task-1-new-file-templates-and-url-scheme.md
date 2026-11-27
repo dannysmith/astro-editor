@@ -20,7 +20,7 @@ This is an advanced feature few people will use, so each part is the simplest ve
   4. The title from the URL
 - **Frontmatter that can't be read** is copied as it is, with nothing added.
 - **File type always follows the collection's new file type**, whatever the template's extension. A `.template.md` with just headings and frontmatter is the common case even in MDX collections. An MDX template used for `.md` files carries its imports and components over as they are, and the writer fixes them. If both exist, the one matching the new file type is used. The file is named by the collection's pattern, as now.
-- **Key order:** the template's keys keep their order. New keys (defaults the template doesn't set) are placed as the project's reorder setting places them when saving.
+- **Key order:** the template's keys keep their order, and new keys (defaults the template doesn't set) go where the schema puts them among them. The project's reorder setting doesn't apply, since the template's author chose its order.
 - **Project Settings**, on the collection's page: when a template exists, a line saying new files start from it, with Open in IDE (when one is set) or Copy Path. When there isn't one, a short hint saying how to add one, linking to the docs.
 
 ### URL scheme
@@ -59,11 +59,11 @@ astro-editor://new?collection=notes&title=Great%20article&body=...
 
 ## Phase 1: Templates
 
-- [ ] Rust: find the collection's template (`.template.md` or `.template.mdx` in its root, preferring the one matching the new file type). `new_file_name` (`src-tauri/src/commands/project.rs`) already knows the collection, so it could return the template's path too, rather than a separate command.
-- [ ] Rust: let `create_file` (`src-tauri/src/commands/files.rs`) start from a template's text. Parse it with `parse_frontmatter`, splice the values into its raw frontmatter with `write_block`, and `assemble` with its imports and body. Tests for: comments and unknown keys kept, template values winning over defaults, title and date overriding the template, key order kept, MDX imports kept, unreadable frontmatter copied unchanged.
-- [ ] Frontend: replace `createFileInCurrentFolder` (`src/hooks/useCreateFile.ts`) with one function taking a collection, a folder and optional values (`title`, `body`). ⌘N calls it with the sidebar's collection and folder and no values. Merge the frontmatter as described above, and use the template's title as the placeholder when it has one.
-- [ ] Project Settings line on `CollectionPage.tsx`, reusing what `path-menu.ts` does for Open in IDE and Copy Path.
-- [ ] Add templates to `test/dummy-astro-project` (a `.template.md` in an MDX collection, a `.template.mdx` in another) and try both in the app.
+- [x] Rust: `new_file_template` (`src-tauri/src/commands/project.rs`) finds the collection's template in `Collection.path`, preferring the new file type. A separate command because Project Settings needs it too.
+- [x] Rust: `create_file` (`src-tauri/src/commands/files.rs`) takes the same parts as `save_markdown_content` (values, raw frontmatter, body, imports). The frontend reads the template with `parse_markdown_content` and passes its parts; the values are spliced into its raw block with `reorder` off. Tests for keeping comments, order, unknown keys, imports and body, and copying unreadable frontmatter unchanged.
+- [x] Frontend: `createFileIn(createFile, collectionName, subdirectory)` in `src/hooks/useCreateFile.ts`; ⌘N calls it with the sidebar's collection and folder. `newFileFrontmatter` takes the template's values and layers the defaults, title and date over them. The template's title is the placeholder when it has one. Phase 2 adds `title` and `body` to it.
+- [x] Project Settings: a Template row under New Files on `CollectionPage.tsx`, with a button opening the shared file menu (`pathMenuItems`), or a hint with a docs link (`DOCS_URLS.templates`, the page Phase 3 writes).
+- [x] Templates in `test/dummy-astro-project`: `notes/.template.md` and `articles/.template.mdx` (in a Markdown collection). Both tried in the app.
 
 ## Phase 2: URL scheme
 

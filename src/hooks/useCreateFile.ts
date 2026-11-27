@@ -1,5 +1,10 @@
 import { useRef } from 'react'
-import { commands, type JsonValue } from '@/types'
+import {
+  commands,
+  type Collection,
+  type JsonValue,
+  type MarkdownContent,
+} from '@/types'
 import { useEditorStore } from '../store/editorStore'
 import { useProjectStore } from '../store/projectStore'
 import { useUIStore } from '../store/uiStore'
@@ -15,6 +20,7 @@ import { todayIsoDate } from '../lib/dates'
 import { fieldMappings, getCollection } from '../lib/project-scan'
 import { fileNameStem } from '../lib/files/file-name-pattern'
 import { nextIndexIn, rememberNewFile } from '../lib/files/rename'
+import { getNestedValue } from '../lib/object-utils'
 
 // Helper function to singularize collection name
 const singularize = (word: string): string => {
@@ -32,36 +38,48 @@ const singularize = (word: string): string => {
   return word
 }
 
+/** The collection's template, split for writing, or null if it has none */
+async function readTemplate(
+  collection: Collection,
+  projectPath: string
+): Promise<MarkdownContent | null> {
+  const pathResult = await commands.newFileTemplate(collection, projectPath)
+  if (pathResult.status === 'error') throw new Error(pathResult.error)
+  if (!pathResult.data) return null
+
+  const result = await commands.parseMarkdownContent(
+    pathResult.data,
+    projectPath
+  )
+  if (result.status === 'error') throw new Error(result.error)
+  return result.data
+}
+
 /**
  * Creates a file named by the collection's pattern (without a title yet) in
- * the folder open in the sidebar, with frontmatter from the collection's
- * schema (a placeholder title, today's date, see `newFileFrontmatter`),
- * then opens it and focuses its title or the editor. A file whose pattern uses
- * the title is renamed once the title is written (`renameNewFileFromTitle`).
+ * `subdirectory` of the collection (its folder when null), from the
+ * collection's template if it has one, with frontmatter from its schema (a
+ * placeholder title, today's date, see `newFileFrontmatter`), then opens it
+ * and focuses its title or the editor. A file whose pattern uses the title is
+ * renamed once the title is written (`renameNewFileFromTitle`).
  * Plain function rather than inline in the hook so the React Compiler can
  * compile the hook (it can't handle `throw` inside `try`).
  */
-async function createFileInCurrentFolder(
-  createFile: (payload: CreateFilePayload) => Promise<unknown>
+async function createFileIn(
+  createFile: (payload: CreateFilePayload) => Promise<unknown>,
+  collectionName: string,
+  subdirectory: string | null
 ): Promise<void> {
-  // Get current values from store state
-  const { selectedCollection, currentSubdirectory } = useProjectStore.getState()
   const currentProjectPath = useProjectStore.getState().projectPath
-
-  if (!selectedCollection || !currentProjectPath) {
-    toast.error('No collection selected')
-    return
-  }
-
-  const collection = getCollection(selectedCollection)
-  if (!collection) {
+  const collection = getCollection(collectionName)
+  if (!collection || !currentProjectPath) {
     toast.error('Collection not found')
     return
   }
 
   // Calculate target directory (collection root or subdirectory)
-  const targetDirectory = currentSubdirectory
-    ? `${collection.path}/${currentSubdirectory}`
+  const targetDirectory = subdirectory
+    ? `${collection.path}/${subdirectory}`
     : collection.path
 
   // The collection's pattern with no title yet, which may leave just the date,
@@ -100,10 +118,16 @@ async function createFileInCurrentFolder(
   const mappings = fieldMappings(collection)
   const hasTitleField = fields.some(f => f.name === mappings.title)
 
-  const singularName = singularize(selectedCollection)
-  const defaultTitle = `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
+  // The template's title is the placeholder, if it has one
+  const template = await readTemplate(collection, currentProjectPath)
+  const templateTitle =
+    template && getNestedValue(template.frontmatter, mappings.title)
+  const singularName = singularize(collectionName)
+  const defaultTitle =
+    typeof templateTitle === 'string' && templateTitle.trim()
+      ? templateTitle
+      : `New ${singularName.charAt(0).toUpperCase() + singularName.slice(1)}`
 
-  // Create the file in target directory (respects current subdirectory)
   await createFile({
     directory: targetDirectory,
     filename,
@@ -111,8 +135,10 @@ async function createFileInCurrentFolder(
       fields,
       mappings,
       defaultTitle,
-      today
+      today,
+      template?.frontmatter
     ) as Record<string, JsonValue>,
+    template,
     schema: frontmatterSchema(fields),
     projectPath: currentProjectPath,
   })
@@ -167,13 +193,24 @@ export const useCreateFile = () => {
       return // Silently ignore concurrent calls
     }
 
+    // In the folder open in the sidebar
+    const { selectedCollection, currentSubdirectory } =
+      useProjectStore.getState()
+    if (!selectedCollection) {
+      toast.error('No collection selected')
+      return
+    }
+
     isCreatingRef.current = true
-    await createFileInCurrentFolder(createFileMutation.mutateAsync).catch(
-      error =>
-        toast.error('Failed to create new file', {
-          description:
-            error instanceof Error ? error.message : 'Unknown error occurred',
-        })
+    await createFileIn(
+      createFileMutation.mutateAsync,
+      selectedCollection,
+      currentSubdirectory
+    ).catch(error =>
+      toast.error('Failed to create new file', {
+        description:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      })
     )
     isCreatingRef.current = false
   }
