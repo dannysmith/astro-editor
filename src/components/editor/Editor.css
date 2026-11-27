@@ -1,6 +1,6 @@
 /* Minimal container for CodeMirror */
 .editor-view {
-  min-height: 100%;
+  height: 100%;
   width: 100%;
   container-type: inline-size;
   container-name: editor;
@@ -33,6 +33,14 @@
 .cm-typewriter-active .cm-content {
   padding-top: 50vh !important;
   padding-bottom: 50vh !important;
+}
+
+/* Typewriter mode hides the scrollbar, since it scrolls on every keystroke */
+.cm-typewriter-active {
+  scrollbar-width: none;
+}
+.cm-typewriter-active::-webkit-scrollbar {
+  display: none;
 }
 
 /* Focus Mode Styling */

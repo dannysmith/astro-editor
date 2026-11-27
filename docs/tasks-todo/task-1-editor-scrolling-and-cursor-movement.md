@@ -130,7 +130,18 @@ Specific to typewriter mode:
 
 ### Phase 2: which element scrolls
 
-- [ ] Try making `.cm-scroller` the scroller on a scratch commit, run the tests before and after, and decide with Danny
+- [x] Try making `.cm-scroller` the scroller and run the tests before and after
+- [ ] Danny: try it in the real app (scrolling with the trackpad and the scrollbar, the margins beside the text, typewriter mode) and decide
+- [ ] If adopted: simplify `scrollContainer()` in `typewriter-mode.ts` to `view.scrollDOM`, and remove the generic scroller lookup from the test scripts
+
+What the experiment changes: `MainEditor`'s container no longer scrolls (`min-h-0 flex-1 overflow-hidden`); `.editor-view`, `.editor-codemirror` and `.cm-editor` fill it; the 24px side padding moved from `.editor-view` onto `.cm-scroller`, so the scrollbar stays at the pane's edge and the margins still scroll the text; `.cm-content`'s minimum height is `100%` of the editor instead of `calc(100vh - 44px)`; typewriter mode hides the scrollbar on `.cm-scroller` instead of the container.
+
+Results, with the same scripts on both layouts:
+
+- **Height stabilisation** (`scroll-up-drift.js` on a 3000-line document of unevenly wrapped paragraphs, `schemaless/long-scroll-test.md` in the test vault, generated): scrolling up in 300px steps without wheel events and with focus outside the editor, the line at the top of the view should move exactly 300px per step. Old layout, three runs: two jumps per eight steps each time, of 63 to 125px (`394`, `425`, `363`). New layout, three runs: every step 300px (±1px rounding). This is the gap CodeMirror leaves for an outer scroller, and it's what dragging the scrollbar with focus elsewhere would show.
+- Unchanged: the click test (all four cases keep 4000px and leave a cursor), typewriter on and off (the line stays at 362px), jump to heading (top normally, centred in typewriter mode), focus mode toggles (no drift), the palette, Cmd+0 and closing the sidebar from a field (scroll and cursor kept, focus in the editor).
+- Layout: looks the same in both themes; the editor fills the pane exactly at 1000×700 and 1319×787; a click below the last line of a short document lands in the editor and puts the cursor at the end; the welcome screen is unchanged. Clicks in the margins beside the text don't move the cursor, as before (CodeMirror only handles clicks on its scroller below the content).
+- Seen once, not reproduced: CodeMirror logged "Measure loop restarted more than 5 times" a couple of minutes after switching, while the dev server was reloading files. Rerunning every test didn't bring it back. Watch for it.
 
 ### Phase 3: smooth scrolling
 
