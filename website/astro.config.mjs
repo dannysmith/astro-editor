@@ -114,6 +114,7 @@ export default defineConfig({
           label: 'File Management',
           items: [
             { slug: 'file-management/overview' },
+            { slug: 'file-management/templates' },
             { slug: 'file-management/drafts-filtering-and-sorting' },
             { slug: 'file-management/ide-integration' },
           ],

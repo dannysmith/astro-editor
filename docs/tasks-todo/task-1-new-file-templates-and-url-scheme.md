@@ -76,8 +76,8 @@ astro-editor://new?project=%2FUsers%2Fyou%2Fsite&collection=notes&title=Great%20
 
 ## Phase 3: Review, docs and cleanup
 
-- [ ] Review the whole diff against `docs/developer/architecture-guide.md`; remove leftovers and debug code.
-- [ ] Website: a docs page for templates (probably under `file-management/`), and a `new` section in `reference/url-scheme.mdx`. Check `file-management/overview.mdx` and `reference/settings.mdx` for anything about new files that should mention templates. Add Cmd+Enter in the title field (focuses the editor) to `reference/keyboard-shortcuts.mdx`.
-- [ ] Developer docs: update any doc in `docs/developer/` the change affects (file creation, deep links).
-- [ ] `bun run check:all` passes.
+- [x] Reviewed the whole diff. The template query now re-checks whenever Project Settings shows it, and its key includes the new file type, which decides between two templates.
+- [x] Website: `file-management/templates.mdx` (in the sidebar), a `new` section in `reference/url-scheme.mdx`, mentions in `file-management/overview.mdx`, `frontmatter/overview.mdx` and `project-settings.mdx`, and Cmd+Enter in `reference/keyboard-shortcuts.mdx`. `reference/settings.mdx` lists settings, and a template isn't one.
+- [x] Developer docs: `agent-tooling.md` explains `window.__openUrl`. Nothing else described file creation or links in a way that changed.
+- [x] `bun run check:all` passes.
 - [ ] Open a PR that closes #408, noting where it differs from the issue (`.template.md`, root only, file type always from the collection, minimal URL parameters).

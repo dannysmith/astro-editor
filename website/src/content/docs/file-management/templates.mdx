@@ -1,0 +1,61 @@
+---
+title: 'Templates'
+description: 'Start new files in a collection from a template'
+---
+
+If a collection's files share a shape, like the same headings in every book review, or tags that are nearly always set, a template saves typing it each time. New files in the collection start as a copy of it.
+
+## Adding a template
+
+Create a file called `.template.md` in the collection's folder, the one you browse in the sidebar:
+
+<FileTree>
+- src/content/
+  - reviews/
+    - .template.md
+    - 2026-11-02.md
+    - 2026-11-09.md
+</FileTree>
+
+Write it as you'd write any file in the collection:
+
+```md title="src/content/reviews/.template.md"
+---
+# Fill in the rating once you've finished it
+title: Book Title
+pubDate: 2024-01-01
+rating: 3
+tags:
+  - books
+---
+
+## Summary
+
+## What I thought
+```
+
+Astro skips files whose names start with a dot, whatever the collection's pattern, so the template is never part of your site. Astro Editor doesn't list it either, so you edit it in your IDE or another editor. On a Mac, Finder hides it too, until you press <kbd>Cmd+Shift+.</kbd> in Finder to show hidden files. The collection's page in [Project Settings](/project-settings/#new-files) shows the template's path, with buttons to copy it or open it in your [IDE](/file-management/ide-integration/).
+
+A template only applies to its own collection, and only from the collection's folder. A `.template.md` in a subfolder is ignored.
+
+## What a new file gets
+
+<Kbd mac="Cmd+N" windows="Ctrl+N" /> in the collection copies the template as written, including its comments, its body and any fields your schema doesn't list. Then:
+
+- The template's title is the placeholder title, which is selected so you can type over it.
+- The published date is today, whatever the template says.
+- Required fields the template leaves out are filled in as they are for any [new file](/frontmatter/overview/#field-order-and-defaults).
+
+The file is named by the collection's [file name pattern](/project-settings/#file-names), as usual.
+
+## Markdown and MDX
+
+A template can be `.template.md` or `.template.mdx`. Either way, the new file gets the collection's [new file type](/project-settings/#new-files), so a `.template.md` with a few headings works for an MDX collection. If you use MDX imports or components in a template for a Markdown collection, they're copied into the Markdown file as they are, and you'll need to change the collection's type or the template. If the folder has both, the one matching the new file type is used.
+
+<Aside type="caution">
+In a collection where each entry has its own folder, such as `my-post/index.md`, new files are created one folder down from the template, so relative paths in it, like `./cover.jpg`, point somewhere else in the new file.
+</Aside>
+
+## Creating files from outside Astro Editor
+
+The [`new` action](/reference/url-scheme/#new) of the URL scheme creates a file the same way, from the template, so you can capture notes from Raycast, Shortcuts or a bookmarklet.

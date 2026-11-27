@@ -23,3 +23,35 @@ open "astro-editor://open?path=/Users/you/my-astro-project/src/content/posts/my-
 2. Check the provided path against projects in the Astro Editor registry.
 3. Check the provided path points to a valid content collection item in that project.
 4. Open the relevant project and collection in Astro Editor, and open the file for editing.
+
+## `new`
+
+Creates a file in a collection, as <Kbd mac="Cmd+N" windows="Ctrl+N" /> does, and opens it. Use it to capture things into a collection from outside Astro Editor, such as from Raycast, Shortcuts or a bookmarklet.
+
+| Argument | Required | Description |
+| -------- | -------- | ----------- |
+| `project` | Yes | Absolute path to the project's folder. Astro Editor must already know the project: open it once first. |
+| `collection` | Yes | The collection's name, as in your content config. |
+| `folder` | No | A folder inside the collection to create the file in, relative to the collection's folder, like `2024` or `reference/api`. Without it, the file goes in the collection's folder. |
+| `title` | No | The file's title. It fills in the title field, and the file is named from it. |
+| `body` | No | Markdown for the file's body. With a [template](/file-management/templates/), it goes after the template's body. |
+
+URL-encode every value, and other arguments are ignored. Running the command below will do the following:
+
+```bash
+open "astro-editor://new?project=/Users/you/my-astro-project&collection=notes&title=Great%20article&body=https%3A%2F%2Fexample.com"
+```
+
+1. Launch Astro Editor if it isn't already running.
+2. Open the project, if it isn't open already.
+3. Create a file in the `notes` collection, from its [template](/file-management/templates/) if it has one, named by the collection's [file name pattern](/project-settings/#file-names). An existing file is never replaced.
+4. Set its title to "Great article", and put the link in its body.
+5. Open the file, ready for you to write. Without a `title`, the placeholder title is selected instead, as it is for <Kbd mac="Cmd+N" windows="Ctrl+N" />.
+
+If the project, collection or folder can't be found, Astro Editor says so and creates nothing.
+
+This bookmarklet saves the page you're reading into a `notes` collection, with the page's title as its title and its address as its body:
+
+```js
+javascript:location.href='astro-editor://new?project='+encodeURIComponent('/Users/you/my-astro-project')+'&collection=notes&title='+encodeURIComponent(document.title)+'&body='+encodeURIComponent(location.href)
+```
