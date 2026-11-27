@@ -1,5 +1,5 @@
 import { FieldType, type SchemaField } from '../schema'
-import { setNestedValue } from '../object-utils'
+import { getNestedValue, setNestedValue } from '../object-utils'
 import type { FieldMappings } from './sorting'
 
 /**
@@ -27,6 +27,17 @@ export function newFileFrontmatter(
   const publishedDates = [mappings.publishedDate].flat()
   let frontmatter: Record<string, unknown> = { ...template }
 
+  // A template's title and published date are replaced even when the schema
+  // doesn't list them, as in a collection without one
+  if (getNestedValue(template, mappings.title) !== undefined) {
+    frontmatter = setNestedValue(frontmatter, mappings.title, title)
+  }
+  for (const name of publishedDates) {
+    if (getNestedValue(template, name) !== undefined) {
+      frontmatter = setNestedValue(frontmatter, name, today)
+    }
+  }
+
   for (const field of fields) {
     const value = newFieldValue(field)
     if (value !== undefined) {
@@ -40,7 +51,11 @@ export function newFileFrontmatter(
     if (field.type === FieldType.Date && publishedDates.includes(field.name)) {
       return today
     }
-    if (!field.required || field.name.includes('.') || field.name in template) {
+    if (
+      !field.required ||
+      field.name.includes('.') ||
+      Object.hasOwn(template, field.name)
+    ) {
       return undefined
     }
     switch (field.type) {

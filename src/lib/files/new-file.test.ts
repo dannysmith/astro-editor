@@ -110,6 +110,19 @@ describe('newFileFrontmatter', () => {
     })
   })
 
+  it('replaces a template’s title and published date without a schema', () => {
+    const template = { title: 'Book Title', pubDate: '2024-01-01', rating: 3 }
+    expect(
+      newFileFrontmatter([], mappings, 'New Note', TODAY, template)
+    ).toEqual({ title: 'New Note', pubDate: TODAY, rating: 3 })
+  })
+
+  it('fills a required field whose name an object inherits', () => {
+    expect(build([field('toString', FieldType.Boolean, true)])).toEqual({
+      toString: false,
+    })
+  })
+
   it('nests a title or published date that lives in an object', () => {
     expect(
       build(

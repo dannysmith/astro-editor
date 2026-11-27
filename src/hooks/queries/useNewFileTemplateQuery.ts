@@ -15,6 +15,7 @@ export const useNewFileTemplateQuery = (
     queryKey: queryKeys.newFileTemplate(
       projectPath,
       collection.name,
+      collection.path,
       collection.settings.newFileType.value
     ),
     queryFn: async () => {

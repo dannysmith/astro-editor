@@ -50,6 +50,9 @@ export function useDeepLink(handlers: DeepLinkHandlers) {
   useEffect(() => {
     let cancelled = false
     let unlisten: (() => void) | undefined
+    // Links are handled one at a time, in order, so one that arrives while a
+    // file is being created waits rather than being dropped
+    let queue = Promise.resolve()
 
     const handleUrl = async (url: string) => {
       const link = parseDeepLink(url)
@@ -76,7 +79,12 @@ export function useDeepLink(handlers: DeepLinkHandlers) {
       }
     }
 
-    if (import.meta.env.DEV) window.__openUrl = handleUrl
+    const enqueue = (url: string) => {
+      queue = queue.then(() => handleUrl(url).catch(logOpenError))
+      return queue
+    }
+
+    if (import.meta.env.DEV) window.__openUrl = enqueue
 
     const setup = async () => {
       // Cold start: retrieve the launch URL(s), if any.
@@ -99,9 +107,7 @@ export function useDeepLink(handlers: DeepLinkHandlers) {
 
       // Warm: handle subsequent deep links while the app is running.
       unlisten = await onOpenUrl(urls => {
-        for (const url of urls) {
-          void handleUrl(url).catch(logOpenError)
-        }
+        for (const url of urls) void enqueue(url)
       }).catch((e: unknown) => {
         void logError(`Deep link onOpenUrl registration failed: ${String(e)}`)
         return undefined
