@@ -15,7 +15,7 @@ There are three kinds of setting:
 - **What you set here:** corrections to what was read, and choices like how new files are named. They're stored for each project on this computer, in Astro Editor's own data rather than in your project, so they aren't in your repository. Another computer, or someone else working on the site, doesn't get them.
 - **[Preferences](/preferences/):** about you rather than the project, like the theme. They apply to every project.
 
-Settings from Astro Editor 1.0 aren't carried over. The first time a later version opens a project, its old settings file is set aside, so anything you changed in 1.0 needs setting again here. Most projects don't need any settings, since their folders and fields are read from the project itself.
+Most projects don't need any settings, since their folders and fields are read from the project itself.
 
 The sidebar lists the project, then its collections. Any with a problem have a warning or error icon, which the file list shows too. Under **Other Collections** are the ones Astro Editor doesn't edit: data collections (JSON and YAML), and collections whose loader probably doesn't read files, such as one that fetches its entries from an API.
 
@@ -30,6 +30,7 @@ Where a value came from somewhere else, the first choice in its menu says so:
 | **Detected: `title`** | A field of the right name and type in the collection's schema. |
 | **Found in files: `title`** | Without a generated schema, the usual field name that the collection's files use. |
 | **None** | Nothing was found. The line under the setting says what it's for, so you can see what you won't get. This is normal for **Draft** and **Description**, which plenty of sites don't have. |
+| **From .astro-editor.json** | The project's [`.astro-editor.json`](/reference/project-settings-file/). A setting without a menu says so beside its name. |
 | **Project setting** | The value set on the project page. |
 | **Global preference** | Your [Preferences](/preferences/). |
 | **Default** | Astro Editor's default, such as sorting newest first. |
@@ -46,6 +47,8 @@ The project page says which content config was read and how many collections it 
 
 - **No content config, or none Astro Editor could read.** It says which, and why. Each folder in the content folder is then listed as a collection, without a schema, which keeps Astro Editor useful for plain Markdown folders. If your content is somewhere else, change the [content folder](#content). If the config couldn't be read, the warning includes the error.
 - **No collections to edit.** Every collection in the config is a data collection (JSON or YAML), which Astro Editor doesn't edit.
+
+In projects where several people use Astro Editor, some settings can be [kept in the project](/reference/project-settings-file/), in an `.astro-editor.json` file. If the project has one, a note at the top says so. If the file can't be used, a warning says why instead. Settings in it for collections the config doesn't have get a warning too.
 
 ### MDX components
 

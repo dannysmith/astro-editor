@@ -137,6 +137,7 @@ export default defineConfig({
             { slug: 'reference/keyboard-shortcuts' },
             { slug: 'reference/commands' },
             { slug: 'reference/settings' },
+            { slug: 'reference/project-settings-file' },
             { slug: 'reference/url-scheme' },
             { slug: 'reference/advanced-preferences' },
             { slug: 'reference/yaml' },

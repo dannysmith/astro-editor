@@ -49,6 +49,8 @@ export interface Shot {
   scene?: Partial<Scene>
   gitPanel?: boolean
   addComponentImports?: boolean
+  /** The demo project's `.astro-editor.json`. Other shots have none */
+  projectFile?: object
   steps?: ShotStep[]
   /** Undoes anything the steps changed in the demo repo */
   after?: ShotStep[]
@@ -179,6 +181,18 @@ const projectSettingsShot = (name: string, steps: ShotStep[]): Shot => ({
   frame: false,
   steps: [{ run: 'project-settings' }, ...steps],
 })
+
+// A small `.astro-editor.json` for the demo project: only things AE can't read
+const PROJECT_FILE = {
+  project: { useAbsoluteAssetPaths: true },
+  collections: {
+    articles: {
+      fileNamePattern: '{YYYY-MM-DD}-{slug}',
+      defaultSort: { mode: 'title', direction: 'asc' },
+    },
+    books: { draftField: 'draftBookReview' },
+  },
+}
 
 // Outlines and names the window's four areas, for the introduction page
 const LABEL_PANES = `
@@ -334,6 +348,17 @@ export const SHOTS: Shot[] = [
     { click: 'articles' },
     { scrollTo: 'Description' },
   ]),
+  {
+    ...projectSettingsShot('project-settings-file-note', []),
+    projectFile: PROJECT_FILE,
+  },
+  {
+    ...projectSettingsShot('project-settings-file-values', [
+      { click: 'articles' },
+      { js: SCROLL_DIALOG_TO_TOP },
+    ]),
+    projectFile: PROJECT_FILE,
+  },
   {
     ...projectSettingsShot('project-settings-git', [
       { scrollTo: 'Git' },

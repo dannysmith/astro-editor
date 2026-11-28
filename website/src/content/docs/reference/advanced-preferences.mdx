@@ -27,7 +27,9 @@ Settings sit in a `preferences/` subfolder:
 | `preferences/project-registry.json` | The list of projects you've opened, with which was last open and the file open in each |
 | `preferences/projects/<project-id>.json` | One file per project, holding what you've set in [Project Settings](/project-settings/) (see the [Settings Reference](/reference/settings/)) |
 
-Beside it, `window-state.json` remembers the window's size and position. Two more folders hold data rather than settings: `recovery/` and `crash-reports/`. If you add [colour themes](#colour-themes), they go in a `themes/` folder. Issues you've ignored in the spelling, grammar and style checks are kept in the app's own storage rather than in these files.
+A project's file here can also be [copied into the project itself](/reference/project-settings-file/), so everyone who edits it gets the same settings.
+
+Beside `preferences/`, `window-state.json` remembers the window's size and position. Two more folders hold data rather than settings: `recovery/` and `crash-reports/`. If you add [colour themes](#colour-themes), they go in a `themes/` folder. Issues you've ignored in the spelling, grammar and style checks are kept in the app's own storage rather than in these files.
 
 ## Recovery
 
