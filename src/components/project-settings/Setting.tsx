@@ -2,6 +2,7 @@ import React, { useId } from 'react'
 import { FolderOpen, Plus, RotateCcw, X, type LucideIcon } from 'lucide-react'
 import type { SettingSource } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
+import { PROJECT_FILE } from '../../lib/project-settings/status'
 import {
   Select,
   SelectContent,
@@ -73,11 +74,17 @@ interface SettingProps {
   /** One line under the label: what it's for, or what you'll notice */
   help?: React.ReactNode
   /**
-   * Where its value came from. Only one the user set is shown, as a pill
-   * with a reset; the rest are said by the control's first choice or not at
-   * all. See the user guide's Project Settings page.
+   * Where its value came from. One the user set is shown as a pill with a
+   * reset, and one from the project's `.astro-editor.json` as a label; the
+   * rest are said by the control's first choice or not at all. See the user
+   * guide's Project Settings page.
    */
   source: SettingSource
+  /**
+   * The control already says when the value is from `.astro-editor.json`, as
+   * a dropdown's first choice does, so the label doesn't
+   */
+  controlNamesFile?: boolean
   /** Unsets it */
   onReset?: () => void
   /** What a reset goes back to, for the reset's tooltip */
@@ -93,6 +100,7 @@ export function Setting({
   label,
   help,
   source,
+  controlNamesFile = false,
   onReset,
   resetTo,
   wide = false,
@@ -112,6 +120,11 @@ export function Setting({
             </label>
             {source === 'set' && onReset && (
               <SetByYou onReset={onReset} resetTo={resetTo} />
+            )}
+            {source === 'projectFile' && !controlNamesFile && (
+              <span className="inline-flex h-5 items-center rounded-full bg-muted px-2 text-xs text-muted-foreground">
+                From {PROJECT_FILE}
+              </span>
             )}
           </div>
           {help && <p className="text-xs text-muted-foreground">{help}</p>}

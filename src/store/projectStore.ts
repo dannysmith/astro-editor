@@ -371,8 +371,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
       )
 
-      // The content config or a generated schema changed, which can change
-      // the collections and where they are
+      // The content config, a generated schema or the project's
+      // .astro-editor.json changed, which can change the collections, where
+      // they are and their settings
       const unlistenSchemaChanged = await listen('schema-changed', () => {
         void get().refreshProjectScan()
       })

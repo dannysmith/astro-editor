@@ -15,6 +15,9 @@
 
 import type { Collection, ProjectScan } from '@/lib/bindings'
 
+/** The project's own settings file, at its root (`project_file.rs`) */
+export const PROJECT_FILE = '.astro-editor.json'
+
 export type StatusLevel = 'ok' | 'warning' | 'error'
 
 export interface Problem {
@@ -52,13 +55,14 @@ export function relativePath(path: string, projectPath: string): string {
  * A collection whose loader AE can't read and whose folder isn't where AE
  * looked by its name. Its entries usually don't come from files at all (an API,
  * say), so it isn't a problem, just not something AE edits. A folder the user
- * chose that's missing is still an error.
+ * or the project's `.astro-editor.json` chose that's missing is still an error.
  */
 export function isUnreadLoader(collection: Collection): boolean {
   return (
     collection.kind === 'unknown' &&
     collection.folderStatus === 'missing' &&
-    collection.folderSource !== 'set'
+    collection.folderSource !== 'set' &&
+    collection.folderSource !== 'projectFile'
   )
 }
 
@@ -155,6 +159,34 @@ export function projectProblems(scan: ProjectScan): Problem[] {
   }
 
   return problems
+}
+
+/**
+ * What's wrong with the project's `.astro-editor.json`, for the project page
+ * only. Without it AE still reads the site fully, so these don't count
+ * towards the project's status or the review toast.
+ */
+export function projectFileProblems(scan: ProjectScan): Problem[] {
+  const file = scan.projectFile
+  if (!file) return []
+  if (file.error) {
+    return [
+      {
+        level: 'warning',
+        message: `This project has a \`${PROJECT_FILE}\` file, but it isn't used because of this problem:`,
+        detail: file.error,
+      },
+    ]
+  }
+  if (file.unknownCollections.length === 0) return []
+  const names = file.unknownCollections.map(name => `\`${name}\``)
+  const many = names.length > 1
+  return [
+    {
+      level: 'warning',
+      message: `\`${PROJECT_FILE}\` has settings for ${names.join(', ')}, which ${many ? "aren't collections" : "isn't a collection"} in the content config.`,
+    },
+  ]
 }
 
 export function statusLevel(problems: Problem[]): StatusLevel {

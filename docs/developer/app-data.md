@@ -28,12 +28,13 @@ The webview's localStorage holds a few per-machine conveniences: panel sizes (`p
 
 ## The model
 
-Everything AE knows about a project is one of two kinds of thing:
+Everything AE knows about a project is one of three kinds of thing:
 
 - **What Astro says:** read from the project on every scan and never stored.
 - **What the user chose:** stored, and only when they set something.
+- **What the project's `.astro-editor.json` says:** settings committed with the site, shared by everyone who edits it (see [The project's file](#the-projects-file)).
 
-Rust combines them: `collections::scan_project` reads the content config (`content_config/`), applies the stored settings and the conventions, and returns a `ProjectScan`. The frontend holds it in the collections query and reads it through `lib/project-scan.ts` and the hooks in `hooks/settings/`. It never resolves a setting itself.
+Rust combines them: `collections::scan_project` reads the content config (`content_config/`), applies the stored settings, the project's file and the conventions, and returns a `ProjectScan`. The frontend holds it in the collections query and reads it through `lib/project-scan.ts` and the hooks in `hooks/settings/`. It never resolves a setting itself.
 
 ### What Astro says
 
@@ -96,13 +97,21 @@ A project's settings are sparse: a missing key is unset, nothing is ever seeded,
 - **The content folder** is only used where the loader doesn't say: for unknown loaders and the folder fallback.
 - **Default sort** is what the sidebar's Default sort mode does (`sortFiles`). The sort the writer picks in the sidebar stays per session.
 
-Every resolved value carries its source (`SettingSource`): set, project, global, config, schema, data store, convention or missing.
+Every resolved value carries its source (`SettingSource`): set, project, project file, global, config, schema, data store, convention or missing.
+
+### The project's file
+
+`.astro-editor.json` at the project root is a stored project settings file without `version` and `path`, committed so everyone editing the site shares it. `project_file.rs` reads it; AE never writes it.
+
+- **Per key, it goes under the writer's settings** and over what was read or the convention (`layered` in `collections.rs`). A collection's value, from either, beats the project's.
+- **Unknown keys are ignored.** A file that isn't JSON or has a wrong type is ignored entirely, with serde's error in `ProjectScan.projectFile`. Its problems show on the Project page only, not as statuses, since AE works fully without it.
+- **Its JSON Schema** (`website/public/astro-editor-config.schema.json`) is generated from the settings types by a test, which rewrites it and fails when it's out of date. The types' doc comments become its descriptions, which editors show, so write them for users.
 
 ### The project settings dialog
 
 `components/project-settings/` shows how AE has read the open project, and edits its settings. It only ever shows the open project, so it reads the scan and `projectStore.projectSettings` like the rest of the app. How it's laid out is in `ui-patterns.md`.
 
-- **Sources are shown once, where they're useful,** not as a label on every row, which would say "Default" everywhere on an untouched project. A value the user set gets a "Set by you" pill with its reset. A dropdown's first choice names an inherited or found value ("Detected: `title`", "Project setting: …", "Global preference: …"), and choosing it resets. A default shows just its value. A missing field mapping shows "None" over the line saying what the field is for.
+- **Sources are shown once, where they're useful,** not as a label on every row, which would say "Default" everywhere on an untouched project. A value the user set gets a "Set by you" pill with its reset. A dropdown's first choice names an inherited or found value ("Detected: `title`", "From .astro-editor.json: …", "Project setting: …", "Global preference: …"), and choosing it resets. A value from the project's file without a dropdown to say so gets a "From .astro-editor.json" label (`controlNamesFile` on `Setting`). A default shows just its value. A missing field mapping shows "None" over the line saying what the field is for.
 - **Field mappings without a generated schema** offer the frontmatter keys the collection's files have, by the type of their values (`frontmatterKeysOfType`), since there are no schema fields to offer. Rust only detects fields in a complete schema; the config's helpers alone don't say which field is the title.
 - **Settings for collections no longer in the config** are listed at the bottom of the Project page with a Clear button, except with the folder fallback, when the config's collections aren't known and clearing would lose settings for a config that's only broken for now.
 - **The review toast:** `open_project` reports `newSettings` when the project had no version 3 settings file (it's new, or its old one was moved aside). Then, if anything has a status (`lib/project-settings/status.ts`), a toast offers to open the dialog. Otherwise nothing appears.
@@ -120,7 +129,7 @@ Every resolved value carries its source (`SettingSource`): set, project, global,
 - **Each project remembers its open entry** (`lastEntry`, relative to the project so it survives Locate…), and opening the project reopens it once the scan is in (`lib/projects/last-entry.ts`). It's written a second after the open file changes, and straight away before quitting or switching projects. Closing the file forgets it, but the close that comes with switching projects doesn't. The reopen goes through `resolve_file_entry` and `openFile`, so a file that's gone or left its collection opens nothing, and it gives way to a later project open or any file opened meanwhile, like a deep link's.
 - **Settings go in the store before they're saved,** so a second change made while the first saves builds on it. Global settings writes are chained, so the file ends with the latest (a colour picker sends one per drag step).
 - **A settings change can move a collection's files.** So after one, the open file is saved and closed if its collection's folder, base or pattern changed, and the sidebar, file listings and watcher are refreshed as for a content config change (`showRescan`).
-- **The watcher** watches each collection folder, `src/` and `src/content/` (for the content config, including one created later) and `.astro/collections/`. A change to the config or a schema rescans the project. A collection folder that doesn't exist can't be watched; once it's created, the next periodic rescan (every 5 minutes) finds it and restarts the watcher.
+- **The watcher** watches each collection folder, `src/` and `src/content/` (for the content config, including one created later), `.astro/collections/` and the project root, not its subfolders (for `.astro-editor.json`). A change to the config, a schema or the project's file rescans the project. A collection folder that doesn't exist can't be watched; once it's created, the next periodic rescan (every 5 minutes) finds it and restarts the watcher.
 
 ## Recovery files
 

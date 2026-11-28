@@ -111,6 +111,7 @@ const SCAN: ProjectScan = {
     useAbsoluteAssetPaths: { value: false, source: 'convention' },
   },
   collections: [COLLECTION],
+  projectFile: null,
 }
 
 /** A collection's page in the project settings dialog */

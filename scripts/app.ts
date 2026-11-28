@@ -418,6 +418,23 @@ async function cropBox({
   })
 }
 
+const DEMO_PROJECT_FILE = path.join(DEMO_PROJECT, '.astro-editor.json')
+
+/**
+ * Gives the demo project this `.astro-editor.json`, or removes it, then has the
+ * open project read it again
+ */
+async function setDemoProjectFile(settings: object | undefined) {
+  if (settings) {
+    await Bun.write(DEMO_PROJECT_FILE, JSON.stringify(settings, null, 2))
+  } else if (await exists(DEMO_PROJECT_FILE)) {
+    await rm(DEMO_PROJECT_FILE)
+  } else {
+    return
+  }
+  await callApi('refreshProject')
+}
+
 /** Gets the app into a shot's state, from whatever was showing. */
 async function setUpShot(shot: Shot) {
   if (!(await exists(DEMO_PROJECT))) {
@@ -426,6 +443,7 @@ async function setUpShot(shot: Shot) {
     )
   }
   await callApi('openProject', DEMO_PROJECT)
+  await setDemoProjectFile(shot.projectFile)
   await callApi('setExperiments', {
     gitPanel: shot.gitPanel ?? false,
     addComponentImports: shot.addComponentImports ?? false,
@@ -476,6 +494,8 @@ async function captureAppState(): Promise<AppSnapshot> {
 
 async function restoreAppState(before: AppSnapshot) {
   await callApi('shotMode', false)
+  // The page reloads below, so nothing needs to read the project again
+  await rm(DEMO_PROJECT_FILE, { force: true })
   await call('POST', '/window', { theme: 'system' })
   await callApi('setTheme', before.theme)
   await call('POST', '/window', {

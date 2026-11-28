@@ -370,18 +370,30 @@ export type CollectionKind =
 export type CollectionSettings = {
 	/**  The folder to browse, replacing the loader's `base` */
 	folder?: string | null,
+	/**
+	 *  What the file list does with Markdown files the loader's pattern leaves
+	 *  out: `hide` them, or show them `dim`med
+	 */
 	skippedFiles?: SkippedFiles | null,
+	/**  The frontmatter field shown as an entry's title */
 	titleField?: string | null,
+	/**  The frontmatter field shown as an entry's description */
 	descriptionField?: string | null,
+	/**  The frontmatter date field that's an entry's published date */
 	publishedDateField?: string | null,
+	/**  The true/false frontmatter field that marks an entry as a draft */
 	draftField?: string | null,
+	/**  How the file list is sorted */
 	defaultSort?: DefaultSort | null,
+	/**  The type of new files, when the loader's pattern allows both */
 	defaultFileType?: FileType | null,
 	/**  How files are named, like `{YYYY-MM-DD}-{slug}` */
 	fileNamePattern?: string | null,
 	/**  A template for links to this collection's entries, like `/blog/{slug}` */
 	urlPattern?: string | null,
+	/**  The project's `assetsDirectory`, for this collection */
 	assetsDirectory?: string | null,
+	/**  The project's `useAbsoluteAssetPaths`, for this collection */
 	useAbsoluteAssetPaths?: boolean | null,
 };
 
@@ -423,8 +435,9 @@ export type CopyeditSettings = {
 };
 
 export type DefaultSort = {
-	/**  A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
+	/**  A file list sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
 	mode: string,
+	/**  `asc` or `desc` */
 	direction: SortDirection,
 };
 
@@ -784,6 +797,26 @@ export type OpenedProject = {
 	newSettings: boolean,
 };
 
+/**  What came of reading a project's `.astro-editor.json` */
+export type ProjectFileStatus = {
+	/**
+	 *  The settings it gives, which apply where the writer's don't. Empty
+	 *  when there's an error
+	 */
+	settings: ProjectSettingsData,
+	/**
+	 *  Why none of it is used: it couldn't be read, isn't JSON, or has a value
+	 *  of the wrong type
+	 */
+	error: string | null,
+	/**
+	 *  Collections it has settings for that the content config doesn't have.
+	 *  Empty when the collections aren't all known: without a readable config,
+	 *  or with collections spread into it from elsewhere
+	 */
+	unknownCollections: string[],
+};
+
 export type ProjectMetadata = {
 	/**  Names the project's settings file. Never changes, even if the project moves. */
 	id: string,
@@ -819,6 +852,8 @@ export type ProjectScan = {
 	favicon: string | null,
 	projectSettings: ResolvedProjectSettings,
 	collections: Collection[],
+	/**  The project's `.astro-editor.json`, if it has one */
+	projectFile: ProjectFileStatus | null,
 };
 
 /**  Settings for the whole project. Paths are relative to the project root. */
@@ -846,12 +881,15 @@ export type ProjectSettings = {
 	reorderFrontmatter?: boolean | null,
 	/**
 	 *  Experimental: the Git tab in the right sidebar, and its report in
-	 *  Project Settings. Off, AE runs no git commands for the project.
+	 *  Project Settings. Off, Astro Editor runs no git commands for the project.
 	 */
 	gitPanel?: boolean | null,
 };
 
-/**  A project's stored settings, as the frontend reads and edits them */
+/**
+ *  A project's settings: what the writer stored, as the frontend reads and
+ *  edits them, or what the project's `.astro-editor.json` says
+ */
 export type ProjectSettingsData = {
 	project: ProjectSettings,
 	/**  Keyed by the collection's name in the content config */
@@ -953,6 +991,8 @@ export type SettingSource =
 "set" | 
 /**  Set on the project, for a collection setting */
 "project" | 
+/**  The project's own `.astro-editor.json`, at either level */
+"projectFile" | 
 /**  The global preference */
 "global" | 
 /**  Read from the content config */

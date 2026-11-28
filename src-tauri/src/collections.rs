@@ -8,13 +8,14 @@ use crate::content_config::pattern::EntryPattern;
 use crate::content_config::{self, normalize, ConfigCollection, GlobBase, Loader};
 use crate::data_store::{self, DataStore, StoredLocation};
 use crate::models::collection::{
-    Collection, CollectionKind, FolderStatus, ProjectScan, Resolved, ResolvedCollectionSettings,
-    ResolvedProjectSettings, SchemaStatus, SettingSource,
+    Collection, CollectionKind, FolderStatus, ProjectFileStatus, ProjectScan, Resolved,
+    ResolvedCollectionSettings, ResolvedProjectSettings, SchemaStatus, SettingSource,
 };
 use crate::models::preferences::{
     CollectionSettings, FileType, GlobalSettings, ProjectSettings, ProjectSettingsData,
     SkippedFiles,
 };
+use crate::project_file::{self, FILE_NAME};
 use crate::schema_merger::{self, SchemaDefinition};
 use crate::utils::normalize_path_for_serialization;
 use log::{debug, warn};
@@ -29,13 +30,25 @@ const FILE_NAME_PATTERN: &str = "{YYYY-MM-DD}";
 /// Field names tried, in order, for a file's published date
 const PUBLISHED_DATE_FIELDS: [&str; 3] = ["pubDate", "date", "publishedDate"];
 
-/// Reads the project's content config and resolves every collection in it
+/// Reads the project's content config and resolves every collection in it.
+/// `settings` are the writer's own; the project's `.astro-editor.json` fills
+/// in what they leave unset, key by key, before anything is detected
 pub fn scan_project(
     project: &Path,
     settings: &ProjectSettingsData,
     global: &GlobalSettings,
 ) -> ProjectScan {
-    let project_settings = resolve_project_settings(&settings.project);
+    let file = project_file::read(project);
+    let (shared, file_error) = match &file {
+        Some(Ok(shared)) => (shared.clone(), None),
+        Some(Err(e)) => {
+            warn!("Astro Editor [PROJECT_SCAN] Ignoring {FILE_NAME}: {e}");
+            (ProjectSettingsData::default(), Some(e.clone()))
+        }
+        None => (ProjectSettingsData::default(), None),
+    };
+
+    let project_settings = resolve_project_settings(&settings.project, &shared.project);
     let content_dir = project.join(&project_settings.content_directory.value);
 
     let config_path = content_config::find_config(project);
@@ -45,11 +58,15 @@ pub fn scan_project(
             .and_then(|source| content_config::parse_config(&source, path, project))
     });
 
+    // Collections spread in from another file are only known once Astro has
+    // loaded them
+    let has_spread = matches!(&config, Some(Ok(config)) if config.has_spread);
+
     // Only read when something needs it: with rendered HTML, a store can run
     // to megabytes
     let store = match &config {
         Some(Ok(config))
-            if config.has_spread
+            if has_spread
                 || config
                     .collections
                     .iter()
@@ -67,7 +84,7 @@ pub fn scan_project(
             // data store has them if Astro has loaded them. Only then, since a
             // store Astro hasn't rewritten since the config changed can still
             // have collections that are gone.
-            if config.has_spread {
+            if has_spread {
                 let spread: Vec<String> = store
                     .keys()
                     .filter(|name| !collections.iter().any(|c| &c.name == *name))
@@ -142,10 +159,27 @@ pub fn scan_project(
     };
     let mut collections: Vec<Collection> = found
         .into_iter()
-        .map(|found| resolve_collection(found, project, settings, global))
+        .map(|found| resolve_collection(found, project, settings, &shared, global))
         .collect();
     // Data last, after resolving, which can find a glob only matches data files
     collections.sort_by_key(|c| c.kind == CollectionKind::Data);
+
+    let project_file = file.map(|_| ProjectFileStatus {
+        // Without a readable config, or with collections spread in from
+        // elsewhere, which collections the site has isn't known
+        unknown_collections: if fallback || has_spread {
+            Vec::new()
+        } else {
+            shared
+                .collections
+                .keys()
+                .filter(|name| !collections.iter().any(|c| &c.name == *name))
+                .cloned()
+                .collect()
+        },
+        settings: shared,
+        error: file_error,
+    });
 
     ProjectScan {
         config_path: config_path.map(|path| relative_to(&path, project)),
@@ -154,6 +188,7 @@ pub fn scan_project(
         favicon: find_favicon(project),
         project_settings,
         collections,
+        project_file,
     }
 }
 
@@ -245,13 +280,19 @@ fn resolve_collection(
     found: Found,
     project: &Path,
     settings: &ProjectSettingsData,
+    shared: &ProjectSettingsData,
     global: &GlobalSettings,
 ) -> Collection {
-    let set = settings
-        .collections
-        .get(&found.name)
-        .cloned()
-        .unwrap_or_default();
+    let collection_settings = |settings: &ProjectSettingsData| {
+        settings
+            .collections
+            .get(&found.name)
+            .cloned()
+            .unwrap_or_default()
+    };
+    let set = collection_settings(settings);
+    let file = collection_settings(shared);
+    let folder = layered(&set.folder, &file.folder);
 
     let (pattern, patterns, pattern_error) = match &found.patterns {
         Some(patterns) => match EntryPattern::new(patterns) {
@@ -275,23 +316,23 @@ fn resolve_collection(
     // A folder the user chose beats the data store's guess that it's data
     if kind == CollectionKind::Data
         && found.base_source == SettingSource::DataStore
-        && set.folder.is_some()
+        && folder.is_some()
     {
         kind = CollectionKind::Unknown;
     }
 
     // A folder override replaces `base`, and the pattern's prefix with it, so the
     // pattern applies inside the folder
-    let patterns = match (&set.folder, patterns) {
+    let patterns = match (&folder, patterns) {
         (Some(_), Some(patterns)) if !pattern.prefix().is_empty() => Some(
             crate::content_config::pattern::without_prefix(&patterns, pattern.prefix()),
         ),
         (_, patterns) => patterns,
     };
-    let (base, path, folder_source) = match &set.folder {
+    let (base, path, folder_source) = match folder {
         Some(folder) => {
-            let base = normalize(&project.join(folder));
-            (base.clone(), base, SettingSource::Set)
+            let base = normalize(&project.join(&folder.value));
+            (base.clone(), base, folder.source)
         }
         None => {
             let path = if pattern.prefix().is_empty() {
@@ -329,8 +370,8 @@ fn resolve_collection(
     // JSON, the schema is just the config's image() and reference() fields, so
     // the conventional names apply, as with no schema
     let resolved = resolve_collection_settings(
-        &set,
-        &settings.project,
+        [&set, &file],
+        [&settings.project, &shared.project],
         global,
         schema
             .as_ref()
@@ -386,53 +427,94 @@ fn folder_status(path: &Path, project: &Path) -> FolderStatus {
     }
 }
 
-fn resolve_project_settings(set: &ProjectSettings) -> ResolvedProjectSettings {
+/// `set` is the writer's, `file` the project file's
+fn resolve_project_settings(
+    set: &ProjectSettings,
+    file: &ProjectSettings,
+) -> ResolvedProjectSettings {
     ResolvedProjectSettings {
-        content_directory: set_or(set.content_directory.clone(), CONTENT_DIR.to_string()),
+        content_directory: set_or(
+            &set.content_directory,
+            &file.content_directory,
+            CONTENT_DIR.to_string(),
+        ),
         mdx_components_directories: set_or(
-            set.mdx_components_directories.clone(),
+            &set.mdx_components_directories,
+            &file.mdx_components_directories,
             vec![MDX_COMPONENTS_DIR.to_string()],
         ),
-        add_component_imports: set_or(set.add_component_imports, false),
-        reorder_frontmatter: set_or(set.reorder_frontmatter, false),
-        git_panel: set_or(set.git_panel, false),
-        assets_directory: set_or(set.assets_directory.clone(), ASSETS_DIR.to_string()),
-        use_absolute_asset_paths: set_or(set.use_absolute_asset_paths, false),
+        add_component_imports: set_or(
+            &set.add_component_imports,
+            &file.add_component_imports,
+            false,
+        ),
+        reorder_frontmatter: set_or(&set.reorder_frontmatter, &file.reorder_frontmatter, false),
+        git_panel: set_or(&set.git_panel, &file.git_panel, false),
+        assets_directory: set_or(
+            &set.assets_directory,
+            &file.assets_directory,
+            ASSETS_DIR.to_string(),
+        ),
+        use_absolute_asset_paths: set_or(
+            &set.use_absolute_asset_paths,
+            &file.use_absolute_asset_paths,
+            false,
+        ),
     }
 }
 
-fn set_or<T>(set: Option<T>, convention: T) -> Resolved<T> {
-    match set {
-        Some(value) => Resolved::new(value, SettingSource::Set),
-        None => Resolved::new(convention, SettingSource::Convention),
+/// The writer's value if they set one, else the project file's
+fn layered<T: Clone>(set: &Option<T>, file: &Option<T>) -> Option<Resolved<T>> {
+    match (set, file) {
+        (Some(value), _) => Some(Resolved::new(value.clone(), SettingSource::Set)),
+        (None, Some(value)) => Some(Resolved::new(value.clone(), SettingSource::ProjectFile)),
+        (None, None) => None,
     }
 }
 
-/// A collection setting that falls back to the project's, then a convention
-fn collection_or_project<T>(
-    collection: Option<T>,
-    project: Option<T>,
+fn set_or<T: Clone>(set: &Option<T>, file: &Option<T>, convention: T) -> Resolved<T> {
+    layered(set, file).unwrap_or_else(|| Resolved::new(convention, SettingSource::Convention))
+}
+
+/// A setting with no value by convention
+fn set_or_none<T: Clone>(set: &Option<T>, file: &Option<T>) -> Resolved<Option<T>> {
+    match layered(set, file) {
+        Some(resolved) => Resolved::new(Some(resolved.value), resolved.source),
+        None => Resolved::new(None, SettingSource::Convention),
+    }
+}
+
+/// A collection setting that falls back to the project's, then a convention.
+/// At each level, the writer's value beats the project file's
+fn collection_or_project<T: Clone>(
+    [collection, collection_file]: [&Option<T>; 2],
+    [project, project_file]: [&Option<T>; 2],
     convention: T,
 ) -> Resolved<T> {
-    match (collection, project) {
-        (Some(value), _) => Resolved::new(value, SettingSource::Set),
-        (None, Some(value)) => Resolved::new(value, SettingSource::Project),
-        (None, None) => Resolved::new(convention, SettingSource::Convention),
-    }
+    layered(collection, collection_file)
+        .or_else(|| {
+            layered(project, project_file).map(|resolved| match resolved.source {
+                SettingSource::Set => Resolved::new(resolved.value, SettingSource::Project),
+                _ => resolved,
+            })
+        })
+        .unwrap_or_else(|| Resolved::new(convention, SettingSource::Convention))
 }
 
+/// `[set, file]` are the writer's settings and the project file's, for the
+/// collection and for the project
 fn resolve_collection_settings(
-    set: &CollectionSettings,
-    project: &ProjectSettings,
+    [set, file]: [&CollectionSettings; 2],
+    [project, project_file]: [&ProjectSettings; 2],
     global: &GlobalSettings,
     schema: Option<&SchemaDefinition>,
     pattern: &EntryPattern,
     has_pattern: bool,
 ) -> ResolvedCollectionSettings {
     // A field the schema defines with this name and type, if there's a schema
-    let detect = |set: &Option<String>, names: &[&str], field_type: &str| {
-        if let Some(field) = set {
-            return Resolved::new(vec![field.clone()], SettingSource::Set);
+    let detect = |set: &Option<String>, file: &Option<String>, names: &[&str], field_type: &str| {
+        if let Some(field) = layered(set, file) {
+            return Resolved::new(vec![field.value], field.source);
         }
         let Some(schema) = schema else {
             let names = names.iter().map(|n| n.to_string()).collect();
@@ -459,31 +541,62 @@ fn resolve_collection_settings(
     } else {
         Vec::new()
     };
-    let new_file_type = match (allowed.as_slice(), set.default_file_type) {
-        (["md"], _) => Resolved::new(FileType::Md, SettingSource::Config),
-        (["mdx"], _) => Resolved::new(FileType::Mdx, SettingSource::Config),
-        (_, Some(file_type)) => Resolved::new(file_type, SettingSource::Set),
-        (_, None) => Resolved::new(global.general.default_file_type, SettingSource::Global),
+    let new_file_type = match allowed.as_slice() {
+        ["md"] => Resolved::new(FileType::Md, SettingSource::Config),
+        ["mdx"] => Resolved::new(FileType::Mdx, SettingSource::Config),
+        _ => layered(&set.default_file_type, &file.default_file_type).unwrap_or_else(|| {
+            Resolved::new(global.general.default_file_type, SettingSource::Global)
+        }),
     };
 
     ResolvedCollectionSettings {
-        skipped_files: set_or(set.skipped_files, SkippedFiles::Hide),
-        title_field: single(detect(&set.title_field, &["title"], "string")),
-        description_field: single(detect(&set.description_field, &["description"], "string")),
-        published_date_field: detect(&set.published_date_field, &PUBLISHED_DATE_FIELDS, "date"),
-        draft_field: single(detect(&set.draft_field, &["draft"], "boolean")),
-        default_sort: set_or(set.default_sort.clone().map(Some), None),
+        skipped_files: set_or(&set.skipped_files, &file.skipped_files, SkippedFiles::Hide),
+        title_field: single(detect(
+            &set.title_field,
+            &file.title_field,
+            &["title"],
+            "string",
+        )),
+        description_field: single(detect(
+            &set.description_field,
+            &file.description_field,
+            &["description"],
+            "string",
+        )),
+        published_date_field: detect(
+            &set.published_date_field,
+            &file.published_date_field,
+            &PUBLISHED_DATE_FIELDS,
+            "date",
+        ),
+        draft_field: single(detect(
+            &set.draft_field,
+            &file.draft_field,
+            &["draft"],
+            "boolean",
+        )),
+        default_sort: set_or_none(&set.default_sort, &file.default_sort),
         new_file_type,
-        file_name_pattern: set_or(set.file_name_pattern.clone(), FILE_NAME_PATTERN.to_string()),
-        url_pattern: set_or(set.url_pattern.clone().map(Some), None),
+        file_name_pattern: set_or(
+            &set.file_name_pattern,
+            &file.file_name_pattern,
+            FILE_NAME_PATTERN.to_string(),
+        ),
+        url_pattern: set_or_none(&set.url_pattern, &file.url_pattern),
         assets_directory: collection_or_project(
-            set.assets_directory.clone(),
-            project.assets_directory.clone(),
+            [&set.assets_directory, &file.assets_directory],
+            [&project.assets_directory, &project_file.assets_directory],
             ASSETS_DIR.to_string(),
         ),
         use_absolute_asset_paths: collection_or_project(
-            set.use_absolute_asset_paths,
-            project.use_absolute_asset_paths,
+            [
+                &set.use_absolute_asset_paths,
+                &file.use_absolute_asset_paths,
+            ],
+            [
+                &project.use_absolute_asset_paths,
+                &project_file.use_absolute_asset_paths,
+            ],
             false,
         ),
     }
@@ -1018,5 +1131,134 @@ mod tests {
         let project = &scan.project_settings;
         assert_eq!(project.assets_directory.source, SettingSource::Convention);
         assert!(!project.use_absolute_asset_paths.value);
+    }
+
+    const BLOG_CONFIG: &str = r#"export const collections = {
+        blog: defineCollection({ loader: glob({ pattern: '**/*.{md,mdx}', base: 'src/blog' }) }),
+    };"#;
+
+    #[test]
+    fn the_project_file_fills_in_what_the_writer_leaves_unset() {
+        let site = Site::new(BLOG_CONFIG)
+            .dir("src/blog")
+            .dir("content/posts")
+            .file(".astro/collections/blog.schema.json", BLOG_SCHEMA)
+            .file(
+                FILE_NAME,
+                r#"{
+                    "$schema": "https://astroeditor.danny.is/astro-editor-config.schema.json",
+                    "project": { "assetsDirectory": "src/images", "reorderFrontmatter": true },
+                    "collections": {
+                        "blog": {
+                            "folder": "content/posts",
+                            "fileNamePattern": "{slug}",
+                            "draftField": "hidden",
+                            "urlPattern": "/blog/{slug}",
+                            "useAbsoluteAssetPaths": true
+                        }
+                    }
+                }"#,
+            );
+
+        let scan = site.scan();
+        let blog = &scan.collections[0];
+        assert!(blog.path.ends_with("content/posts"));
+        assert_eq!(blog.folder_source, SettingSource::ProjectFile);
+        let s = &blog.settings;
+        assert_eq!(s.file_name_pattern.value, "{slug}");
+        assert_eq!(s.file_name_pattern.source, SettingSource::ProjectFile);
+        // Beats what's detected in the schema
+        assert_eq!(s.draft_field.value.as_deref(), Some("hidden"));
+        assert_eq!(s.draft_field.source, SettingSource::ProjectFile);
+        assert_eq!(s.url_pattern.value.as_deref(), Some("/blog/{slug}"));
+        assert_eq!(s.assets_directory.value, "src/images");
+        assert_eq!(s.assets_directory.source, SettingSource::ProjectFile);
+        assert!(scan.project_settings.reorder_frontmatter.value);
+        assert_eq!(
+            scan.project_settings.reorder_frontmatter.source,
+            SettingSource::ProjectFile
+        );
+        let file = scan.project_file.as_ref().unwrap();
+        assert_eq!(file.error, None);
+        assert!(file.unknown_collections.is_empty());
+
+        // The writer's settings win, key by key, and a collection value from the
+        // file beats a project value the writer set
+        let mut settings = with_collection(
+            "blog",
+            CollectionSettings {
+                file_name_pattern: Some("{YYYY}-{slug}".to_string()),
+                ..Default::default()
+            },
+        );
+        settings.project.assets_directory = Some("src/pictures".to_string());
+        settings.project.use_absolute_asset_paths = Some(false);
+        settings.project.reorder_frontmatter = Some(false);
+        let scan = site.scan_with(&settings);
+        let s = &scan.collections[0].settings;
+        assert_eq!(s.file_name_pattern.value, "{YYYY}-{slug}");
+        assert_eq!(s.file_name_pattern.source, SettingSource::Set);
+        assert_eq!(s.draft_field.source, SettingSource::ProjectFile);
+        assert!(s.use_absolute_asset_paths.value);
+        assert_eq!(
+            s.use_absolute_asset_paths.source,
+            SettingSource::ProjectFile
+        );
+        assert_eq!(s.assets_directory.value, "src/pictures");
+        assert_eq!(s.assets_directory.source, SettingSource::Project);
+        assert!(!scan.project_settings.reorder_frontmatter.value);
+        assert_eq!(scan.project_settings.assets_directory.value, "src/pictures");
+    }
+
+    #[test]
+    fn a_project_file_with_a_wrong_value_is_ignored_with_its_error() {
+        let site = Site::new(BLOG_CONFIG).dir("src/blog").file(
+            FILE_NAME,
+            r#"{ "collections": { "blog": { "fileNamePattern": "{slug}", "draftField": 3 } } }"#,
+        );
+        let scan = site.scan();
+        assert_eq!(
+            scan.collections[0].settings.file_name_pattern.source,
+            SettingSource::Convention
+        );
+        let error = scan.project_file.unwrap().error.unwrap();
+        assert!(error.contains("line 1"), "{error}");
+    }
+
+    #[test]
+    fn the_project_file_names_collections_the_config_does_not_have() {
+        let site = Site::new(BLOG_CONFIG).dir("src/blog").file(
+            FILE_NAME,
+            r#"{ "collections": { "blog": {}, "notes": {} } }"#,
+        );
+        let file = site.scan().project_file.unwrap();
+        assert_eq!(file.unknown_collections, vec!["notes".to_string()]);
+
+        // With collections spread in from another file, or without a readable
+        // config, which collections there are isn't known
+        let spread = Site::new(
+            r#"export const collections = {
+                blog: defineCollection({ loader: glob({ pattern: '**/*.md', base: 'src/blog' }) }),
+                ...more,
+            };"#,
+        )
+        .dir("src/blog")
+        .file(FILE_NAME, r#"{ "collections": { "notes": {} } }"#);
+        assert!(spread
+            .scan()
+            .project_file
+            .unwrap()
+            .unknown_collections
+            .is_empty());
+
+        let site = Site::new("")
+            .dir("src/content/blog")
+            .file(FILE_NAME, r#"{ "collections": { "notes": {} } }"#);
+        assert!(site
+            .scan()
+            .project_file
+            .unwrap()
+            .unknown_collections
+            .is_empty());
     }
 }

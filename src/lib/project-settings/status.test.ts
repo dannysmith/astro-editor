@@ -69,9 +69,11 @@ describe('collectionProblems', () => {
     expect(isUnreadLoader(elsewhere)).toBe(true)
     expect(collectionProblems(elsewhere, '/site')).toEqual([])
 
-    const chosen = { ...elsewhere, folderSource: 'set' as const }
-    expect(isUnreadLoader(chosen)).toBe(false)
-    expect(levels(collectionProblems(chosen, '/site'))).toEqual(['error'])
+    for (const folderSource of ['set', 'projectFile'] as const) {
+      const chosen = { ...elsewhere, folderSource }
+      expect(isUnreadLoader(chosen)).toBe(false)
+      expect(levels(collectionProblems(chosen, '/site'))).toEqual(['error'])
+    }
   })
 
   it('reports schema and pattern problems with the error AE got, errors first', () => {

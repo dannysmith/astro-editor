@@ -7,14 +7,17 @@ import { useProjectDependenciesQuery } from '../../hooks/queries/useProjectDepen
 import { DOCS_URLS } from '../../lib/docs-urls'
 import { projectName } from '../../lib/projects/display'
 import { clearSavedSettings } from '../../lib/project-settings/actions'
+import { resetTarget } from '../../lib/project-settings/describe'
 import {
   isUnreadLoader,
+  PROJECT_FILE,
+  projectFileProblems,
   projectProblems,
 } from '../../lib/project-settings/status'
 import { DocsLink } from '../preferences/DocsLink'
 import { GitSettings } from './GitSettings'
 import { ProjectIcon } from '../project-list'
-import { ProblemCallout, WithCode } from './Problems'
+import { NoteCallout, ProblemCallout, WithCode } from './Problems'
 import {
   FolderInput,
   FolderList,
@@ -56,6 +59,9 @@ export function ProjectPage({
   const { projectSettings, updateProject } = usePreferences()
   const stored = projectSettings?.project ?? {}
   const resolved = scan.projectSettings
+  // What the project's .astro-editor.json gives, under what the writer set
+  const projectFile = scan.projectFile
+  const shared = projectFile?.settings.project ?? {}
   const { data: dependencies = [] } = useProjectDependenciesQuery(projectPath)
   const usesAutoImport = dependencies.includes('astro-auto-import')
   const config = describeConfig(scan)
@@ -86,7 +92,16 @@ export function ProjectPage({
         {config && <WithCode text={config} />}
       </PageHeader>
 
-      {projectProblems(scan).map(problem => (
+      {/* A file with an error says so in its problem instead */}
+      {projectFile && !projectFile.error && (
+        <NoteCallout
+          message={`This project contains an \`${PROJECT_FILE}\` config file.`}
+          fix="Its settings take precedence over the default project settings, but don't affect anything you set here."
+          link={<DocsLink href={DOCS_URLS.projectFile}>Learn more</DocsLink>}
+        />
+      )}
+
+      {[...projectFileProblems(scan), ...projectProblems(scan)].map(problem => (
         <ProblemCallout key={problem.message} problem={problem} />
       ))}
 
@@ -96,7 +111,10 @@ export function ProjectPage({
           help="Components in these folders can be inserted with ⌘/."
           source={resolved.mdxComponentsDirectories.source}
           onReset={reset('mdxComponentsDirectories')}
-          resetTo="src/components/mdx"
+          resetTo={resetTarget(
+            shared.mdxComponentsDirectories,
+            'src/components/mdx'
+          )}
           wide
         >
           {() => (
@@ -136,7 +154,7 @@ export function ProjectPage({
           }
           source={resolved.addComponentImports.source}
           onReset={reset('addComponentImports')}
-          resetTo="off"
+          resetTo={resetTarget(shared.addComponentImports, 'off')}
         >
           {({ id }) => (
             <Switch
@@ -156,7 +174,7 @@ export function ProjectPage({
           help="Each collection's images go in a folder named after it."
           source={resolved.assetsDirectory.source}
           onReset={reset('assetsDirectory')}
-          resetTo="src/assets"
+          resetTo={resetTarget(shared.assetsDirectory, 'src/assets')}
         >
           {({ id }) => (
             <FolderInput
@@ -175,7 +193,10 @@ export function ProjectPage({
           label="Image paths"
           source={resolved.useAbsoluteAssetPaths.source}
           onReset={reset('useAbsoluteAssetPaths')}
-          resetTo="relative to the file"
+          resetTo={resetTarget(
+            shared.useAbsoluteAssetPaths,
+            'relative to the file'
+          )}
         >
           {({ labelId }) => (
             <SettingSelect
@@ -203,7 +224,7 @@ export function ProjectPage({
           help="Used for collections whose folder the content config doesn't give."
           source={resolved.contentDirectory.source}
           onReset={reset('contentDirectory')}
-          resetTo="src/content"
+          resetTo={resetTarget(shared.contentDirectory, 'src/content')}
         >
           {({ id }) => (
             <FolderInput
@@ -223,7 +244,7 @@ export function ProjectPage({
           help="When you edit a file's frontmatter, put its fields in the schema's order, then any others alphabetically. Off, fields stay where they are."
           source={resolved.reorderFrontmatter.source}
           onReset={reset('reorderFrontmatter')}
-          resetTo="off"
+          resetTo={resetTarget(shared.reorderFrontmatter, 'off')}
         >
           {({ id }) => (
             <Switch

@@ -14,6 +14,7 @@ mod models;
 mod parser;
 mod preferences;
 mod process;
+mod project_file;
 mod schema_merger;
 mod shell_env;
 mod telemetry;

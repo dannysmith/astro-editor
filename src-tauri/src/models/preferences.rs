@@ -13,6 +13,7 @@ use specta::Type;
 pub const PROJECT_SETTINGS_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
     Md,
@@ -201,7 +202,8 @@ pub struct ProjectSettingsFile {
     pub settings: ProjectSettingsData,
 }
 
-/// A project's stored settings, as the frontend reads and edits them
+/// A project's settings: what the writer stored, as the frontend reads and
+/// edits them, or what the project's `.astro-editor.json` says
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSettingsData {
@@ -212,6 +214,7 @@ pub struct ProjectSettingsData {
 
 /// Settings for the whole project. Paths are relative to the project root.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema), schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProjectSettings {
     /// Where collections are looked for when their loader doesn't say, and the
@@ -236,30 +239,39 @@ pub struct ProjectSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reorder_frontmatter: Option<bool>,
     /// Experimental: the Git tab in the right sidebar, and its report in
-    /// Project Settings. Off, AE runs no git commands for the project.
+    /// Project Settings. Off, Astro Editor runs no git commands for the project.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git_panel: Option<bool>,
 }
 
 /// Settings for one collection. Paths are relative to the project root.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema), schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase", default)]
 pub struct CollectionSettings {
     /// The folder to browse, replacing the loader's `base`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
+    /// What the file list does with Markdown files the loader's pattern leaves
+    /// out: `hide` them, or show them `dim`med
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skipped_files: Option<SkippedFiles>,
+    /// The frontmatter field shown as an entry's title
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_field: Option<String>,
+    /// The frontmatter field shown as an entry's description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description_field: Option<String>,
+    /// The frontmatter date field that's an entry's published date
     #[serde(skip_serializing_if = "Option::is_none")]
     pub published_date_field: Option<String>,
+    /// The true/false frontmatter field that marks an entry as a draft
     #[serde(skip_serializing_if = "Option::is_none")]
     pub draft_field: Option<String>,
+    /// How the file list is sorted
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_sort: Option<DefaultSort>,
+    /// The type of new files, when the loader's pattern allows both
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_file_type: Option<FileType>,
     /// How files are named, like `{YYYY-MM-DD}-{slug}`
@@ -268,14 +280,17 @@ pub struct CollectionSettings {
     /// A template for links to this collection's entries, like `/blog/{slug}`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url_pattern: Option<String>,
+    /// The project's `assetsDirectory`, for this collection
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assets_directory: Option<String>,
+    /// The project's `useAbsoluteAssetPaths`, for this collection
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_absolute_asset_paths: Option<bool>,
 }
 
 /// What the file list does with Markdown files the collection's pattern leaves out
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum SkippedFiles {
     Hide,
@@ -283,14 +298,17 @@ pub enum SkippedFiles {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema), schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultSort {
-    /// A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`
+    /// A file list sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`
     pub mode: String,
+    /// `asc` or `desc`
     pub direction: SortDirection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum SortDirection {
     Asc,
