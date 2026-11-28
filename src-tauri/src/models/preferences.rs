@@ -239,7 +239,7 @@ pub struct ProjectSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reorder_frontmatter: Option<bool>,
     /// Experimental: the Git tab in the right sidebar, and its report in
-    /// Project Settings. Off, AE runs no git commands for the project.
+    /// Project Settings. Off, Astro Editor runs no git commands for the project.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git_panel: Option<bool>,
 }
@@ -301,7 +301,7 @@ pub enum SkippedFiles {
 #[cfg_attr(test, derive(schemars::JsonSchema), schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultSort {
-    /// A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`
+    /// A file list sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`
     pub mode: String,
     /// `asc` or `desc`
     pub direction: SortDirection,

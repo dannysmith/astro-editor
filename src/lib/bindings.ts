@@ -435,7 +435,7 @@ export type CopyeditSettings = {
 };
 
 export type DefaultSort = {
-	/**  A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
+	/**  A file list sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
 	mode: string,
 	/**  `asc` or `desc` */
 	direction: SortDirection,
@@ -799,8 +799,6 @@ export type OpenedProject = {
 
 /**  What came of reading a project's `.astro-editor.json` */
 export type ProjectFileStatus = {
-	/**  Its absolute path */
-	path: string,
 	/**
 	 *  The settings it gives, which apply where the writer's don't. Empty
 	 *  when there's an error
@@ -882,7 +880,7 @@ export type ProjectSettings = {
 	reorderFrontmatter?: boolean | null,
 	/**
 	 *  Experimental: the Git tab in the right sidebar, and its report in
-	 *  Project Settings. Off, AE runs no git commands for the project.
+	 *  Project Settings. Off, Astro Editor runs no git commands for the project.
 	 */
 	gitPanel?: boolean | null,
 };

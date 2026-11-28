@@ -161,7 +161,6 @@ pub fn scan_project(
     collections.sort_by_key(|c| c.kind == CollectionKind::Data);
 
     let project_file = file.map(|_| ProjectFileStatus {
-        path: normalize_path_for_serialization(&project.join(FILE_NAME)),
         // Without a readable config, which collections the site has isn't known
         unknown_collections: if fallback {
             Vec::new()
@@ -1175,7 +1174,6 @@ mod tests {
             SettingSource::ProjectFile
         );
         let file = scan.project_file.as_ref().unwrap();
-        assert!(file.path.ends_with(FILE_NAME));
         assert_eq!(file.error, None);
         assert!(file.unknown_collections.is_empty());
 

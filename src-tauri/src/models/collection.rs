@@ -30,8 +30,6 @@ pub struct ProjectScan {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectFileStatus {
-    /// Its absolute path
-    pub path: String,
     /// The settings it gives, which apply where the writer's don't. Empty
     /// when there's an error
     pub settings: crate::models::preferences::ProjectSettingsData,

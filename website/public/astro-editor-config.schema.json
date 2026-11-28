@@ -79,7 +79,7 @@
           ]
         },
         "gitPanel": {
-          "description": "Experimental: the Git tab in the right sidebar, and its report in Project Settings. Off, AE runs no git commands for the project.",
+          "description": "Experimental: the Git tab in the right sidebar, and its report in Project Settings. Off, Astro Editor runs no git commands for the project.",
           "type": [
             "boolean",
             "null"
@@ -203,7 +203,7 @@
       "type": "object",
       "properties": {
         "mode": {
-          "description": "A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`",
+          "description": "A file list sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`",
           "type": "string"
         },
         "direction": {
