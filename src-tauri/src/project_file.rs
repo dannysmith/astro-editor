@@ -17,11 +17,15 @@ use crate::models::preferences::{CollectionSettings, ProjectSettings, ProjectSet
 
 pub const FILE_NAME: &str = ".astro-editor.json";
 
-/// The file as written, where either section can be left out
+/// Astro Editor settings shared by everyone who edits this project. Each
+/// writer's own settings in Astro Editor still take precedence.
 #[derive(Deserialize, Default)]
+#[cfg_attr(test, derive(schemars::JsonSchema), schemars(deny_unknown_fields))]
 #[serde(default)]
 struct ProjectFile {
+    /// Settings for the whole project
     project: ProjectSettings,
+    /// Settings for each collection, by its name in the content config
     collections: IndexMap<String, CollectionSettings>,
 }
 
@@ -45,6 +49,54 @@ pub fn read(project: &Path) -> Option<Result<ProjectSettingsData, String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The file's JSON Schema, which editors use to complete and check it. It's
+    /// generated from the types AE reads the file into, so it can't disagree
+    /// with them; Draft 7 is the version editors support best.
+    fn json_schema() -> String {
+        // Descriptions come from doc comments, wrapped to fit the code
+        let unwrap_descriptions =
+            schemars::transform::RecursiveTransform(|schema: &mut schemars::Schema| {
+                if let Some(serde_json::Value::String(text)) = schema.get_mut("description") {
+                    *text = text.replace('\n', " ");
+                }
+            });
+        let mut schema = schemars::generate::SchemaSettings::draft07()
+            .with_transform(unwrap_descriptions)
+            .into_generator()
+            .into_root_schema_for::<ProjectFile>();
+        schema.insert(
+            "$id".into(),
+            "https://astroeditor.danny.is/astro-editor-config.schema.json".into(),
+        );
+        schema.insert("title".into(), FILE_NAME.into());
+        // The line that points an editor at this schema, which AE ignores
+        schema
+            .get_mut("properties")
+            .and_then(|properties| properties.as_object_mut())
+            .expect("the schema has properties")
+            .insert(
+                "$schema".into(),
+                serde_json::json!({ "type": "string", "description": "The JSON Schema for this file" }),
+            );
+        format!("{}\n", serde_json::to_string_pretty(&schema).unwrap())
+    }
+
+    /// The website publishes the schema. When its copy is out of date, this
+    /// writes the new one and fails so it gets committed; the next run passes.
+    #[test]
+    fn the_published_schema_is_current() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../website/public/astro-editor-config.schema.json");
+        let schema = json_schema();
+        if std::fs::read_to_string(&path).ok().as_deref() != Some(schema.as_str()) {
+            std::fs::write(&path, schema).unwrap();
+            panic!(
+                "The JSON Schema for {FILE_NAME} was out of date, and {} has been updated. Commit it.",
+                path.display()
+            );
+        }
+    }
 
     fn read_json(json: &str) -> Option<Result<ProjectSettingsData, String>> {
         let dir = tempfile::tempdir().unwrap();

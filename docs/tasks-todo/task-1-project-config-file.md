@@ -33,9 +33,9 @@ Project settings live only in AE's app data, so on a site several people edit wi
 
 ## Phase 3: The JSON Schema
 
-- [ ] Derive `JsonSchema` for the settings types (`indexmap2` feature for `IndexMap`), with `additionalProperties: false`.
-- [ ] An ignored test writes `website/public/astro-editor-config.schema.json`, and a normal test fails when the committed file doesn't match the structs.
-- [ ] Check it autocompletes and flags a typo in VS Code.
+- [x] Derive `JsonSchema` for the settings types (test-only, `schemars` as a dev-dependency), Draft 7, with `additionalProperties: false` and `$schema` allowed at the root.
+- [x] One normal test keeps `website/public/astro-editor-config.schema.json` current: when it's out of date, the test writes it and fails, so it gets committed. The website's Prettier ignores it.
+- [x] Checked with ajv (good files pass; typos, wrong types and bad values fail) and in VS Code (autocomplete, hover text, typos flagged).
 
 ## Phase 4: Docs, review and PR
 

@@ -1,0 +1,239 @@
+{
+  "$id": "https://astroeditor.danny.is/astro-editor-config.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": ".astro-editor.json",
+  "description": "Astro Editor settings shared by everyone who edits this project. Each writer's own settings in Astro Editor still take precedence.",
+  "type": "object",
+  "properties": {
+    "project": {
+      "description": "Settings for the whole project",
+      "default": {},
+      "allOf": [
+        {
+          "$ref": "#/definitions/ProjectSettings"
+        }
+      ]
+    },
+    "collections": {
+      "description": "Settings for each collection, by its name in the content config",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/CollectionSettings"
+      },
+      "default": {}
+    },
+    "$schema": {
+      "description": "The JSON Schema for this file",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "ProjectSettings": {
+      "description": "Settings for the whole project. Paths are relative to the project root.",
+      "type": "object",
+      "properties": {
+        "contentDirectory": {
+          "description": "Where collections are looked for when their loader doesn't say, and the folder whose subfolders become collections when there's no readable config",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assetsDirectory": {
+          "description": "Images go in `<assets>/<collection>/`. Collections can override it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "useAbsoluteAssetPaths": {
+          "description": "Write image paths from the project root rather than relative to the file. Collections can override it.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mdxComponentsDirectories": {
+          "description": "The folders the component builder offers components from",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "addComponentImports": {
+          "description": "Experimental: the component builder adds the import a component needs",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reorderFrontmatter": {
+          "description": "Editing a file's frontmatter puts its keys in schema order, then the rest alphabetically",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "gitPanel": {
+          "description": "Experimental: the Git tab in the right sidebar, and its report in Project Settings. Off, AE runs no git commands for the project.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CollectionSettings": {
+      "description": "Settings for one collection. Paths are relative to the project root.",
+      "type": "object",
+      "properties": {
+        "folder": {
+          "description": "The folder to browse, replacing the loader's `base`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "skippedFiles": {
+          "description": "What the file list does with Markdown files the loader's pattern leaves out: `hide` them, or show them `dim`med",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SkippedFiles"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "titleField": {
+          "description": "The frontmatter field shown as an entry's title",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "descriptionField": {
+          "description": "The frontmatter field shown as an entry's description",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publishedDateField": {
+          "description": "The frontmatter date field that's an entry's published date",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "draftField": {
+          "description": "The true/false frontmatter field that marks an entry as a draft",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defaultSort": {
+          "description": "How the file list is sorted",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DefaultSort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "defaultFileType": {
+          "description": "The type of new files, when the loader's pattern allows both",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FileType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fileNamePattern": {
+          "description": "How files are named, like `{YYYY-MM-DD}-{slug}`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "urlPattern": {
+          "description": "A template for links to this collection's entries, like `/blog/{slug}`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assetsDirectory": {
+          "description": "The project's `assetsDirectory`, for this collection",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "useAbsoluteAssetPaths": {
+          "description": "The project's `useAbsoluteAssetPaths`, for this collection",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SkippedFiles": {
+      "description": "What the file list does with Markdown files the collection's pattern leaves out",
+      "type": "string",
+      "enum": [
+        "hide",
+        "dim"
+      ]
+    },
+    "DefaultSort": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified`",
+          "type": "string"
+        },
+        "direction": {
+          "description": "`asc` or `desc`",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "direction"
+      ]
+    },
+    "SortDirection": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ]
+    },
+    "FileType": {
+      "type": "string",
+      "enum": [
+        "md",
+        "mdx"
+      ]
+    }
+  }
+}

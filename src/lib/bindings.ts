@@ -370,18 +370,30 @@ export type CollectionKind =
 export type CollectionSettings = {
 	/**  The folder to browse, replacing the loader's `base` */
 	folder?: string | null,
+	/**
+	 *  What the file list does with Markdown files the loader's pattern leaves
+	 *  out: `hide` them, or show them `dim`med
+	 */
 	skippedFiles?: SkippedFiles | null,
+	/**  The frontmatter field shown as an entry's title */
 	titleField?: string | null,
+	/**  The frontmatter field shown as an entry's description */
 	descriptionField?: string | null,
+	/**  The frontmatter date field that's an entry's published date */
 	publishedDateField?: string | null,
+	/**  The true/false frontmatter field that marks an entry as a draft */
 	draftField?: string | null,
+	/**  How the file list is sorted */
 	defaultSort?: DefaultSort | null,
+	/**  The type of new files, when the loader's pattern allows both */
 	defaultFileType?: FileType | null,
 	/**  How files are named, like `{YYYY-MM-DD}-{slug}` */
 	fileNamePattern?: string | null,
 	/**  A template for links to this collection's entries, like `/blog/{slug}` */
 	urlPattern?: string | null,
+	/**  The project's `assetsDirectory`, for this collection */
 	assetsDirectory?: string | null,
+	/**  The project's `useAbsoluteAssetPaths`, for this collection */
 	useAbsoluteAssetPaths?: boolean | null,
 };
 
@@ -425,6 +437,7 @@ export type CopyeditSettings = {
 export type DefaultSort = {
 	/**  A sidebar sort mode: `title`, `filename`, `date-<field>`, `order`, `modified` */
 	mode: string,
+	/**  `asc` or `desc` */
 	direction: SortDirection,
 };
 

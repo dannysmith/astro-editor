@@ -110,6 +110,8 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
+# Only for the published JSON Schema of `.astro-editor.json` (`project_file.rs`)
+schemars = { version = "1.2", features = ["indexmap2"] }
 tempfile = "3.27"
 toml = "1.1.8"
 
