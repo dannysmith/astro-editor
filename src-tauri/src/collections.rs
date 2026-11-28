@@ -58,11 +58,15 @@ pub fn scan_project(
             .and_then(|source| content_config::parse_config(&source, path, project))
     });
 
+    // Collections spread in from another file are only known once Astro has
+    // loaded them
+    let has_spread = matches!(&config, Some(Ok(config)) if config.has_spread);
+
     // Only read when something needs it: with rendered HTML, a store can run
     // to megabytes
     let store = match &config {
         Some(Ok(config))
-            if config.has_spread
+            if has_spread
                 || config
                     .collections
                     .iter()
@@ -80,7 +84,7 @@ pub fn scan_project(
             // data store has them if Astro has loaded them. Only then, since a
             // store Astro hasn't rewritten since the config changed can still
             // have collections that are gone.
-            if config.has_spread {
+            if has_spread {
                 let spread: Vec<String> = store
                     .keys()
                     .filter(|name| !collections.iter().any(|c| &c.name == *name))
@@ -161,8 +165,9 @@ pub fn scan_project(
     collections.sort_by_key(|c| c.kind == CollectionKind::Data);
 
     let project_file = file.map(|_| ProjectFileStatus {
-        // Without a readable config, which collections the site has isn't known
-        unknown_collections: if fallback {
+        // Without a readable config, or with collections spread in from
+        // elsewhere, which collections the site has isn't known
+        unknown_collections: if fallback || has_spread {
             Vec::new()
         } else {
             shared
@@ -1229,7 +1234,23 @@ mod tests {
         let file = site.scan().project_file.unwrap();
         assert_eq!(file.unknown_collections, vec!["notes".to_string()]);
 
-        // Without a readable config, which collections there are isn't known
+        // With collections spread in from another file, or without a readable
+        // config, which collections there are isn't known
+        let spread = Site::new(
+            r#"export const collections = {
+                blog: defineCollection({ loader: glob({ pattern: '**/*.md', base: 'src/blog' }) }),
+                ...more,
+            };"#,
+        )
+        .dir("src/blog")
+        .file(FILE_NAME, r#"{ "collections": { "notes": {} } }"#);
+        assert!(spread
+            .scan()
+            .project_file
+            .unwrap()
+            .unknown_collections
+            .is_empty());
+
         let site = Site::new("")
             .dir("src/content/blog")
             .file(FILE_NAME, r#"{ "collections": { "notes": {} } }"#);

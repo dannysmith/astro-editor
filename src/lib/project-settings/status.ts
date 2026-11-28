@@ -55,13 +55,14 @@ export function relativePath(path: string, projectPath: string): string {
  * A collection whose loader AE can't read and whose folder isn't where AE
  * looked by its name. Its entries usually don't come from files at all (an API,
  * say), so it isn't a problem, just not something AE edits. A folder the user
- * chose that's missing is still an error.
+ * or the project's `.astro-editor.json` chose that's missing is still an error.
  */
 export function isUnreadLoader(collection: Collection): boolean {
   return (
     collection.kind === 'unknown' &&
     collection.folderStatus === 'missing' &&
-    collection.folderSource !== 'set'
+    collection.folderSource !== 'set' &&
+    collection.folderSource !== 'projectFile'
   )
 }
 

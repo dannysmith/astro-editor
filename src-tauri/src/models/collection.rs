@@ -37,7 +37,8 @@ pub struct ProjectFileStatus {
     /// of the wrong type
     pub error: Option<String>,
     /// Collections it has settings for that the content config doesn't have.
-    /// Empty without a readable config, when the collections aren't known
+    /// Empty when the collections aren't all known: without a readable config,
+    /// or with collections spread into it from elsewhere
     pub unknown_collections: Vec<String>,
 }
 

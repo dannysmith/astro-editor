@@ -811,7 +811,8 @@ export type ProjectFileStatus = {
 	error: string | null,
 	/**
 	 *  Collections it has settings for that the content config doesn't have.
-	 *  Empty without a readable config, when the collections aren't known
+	 *  Empty when the collections aren't all known: without a readable config,
+	 *  or with collections spread into it from elsewhere
 	 */
 	unknownCollections: string[],
 };
